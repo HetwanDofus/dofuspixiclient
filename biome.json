@@ -1,0 +1,111 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.2.5/schema.json",
+	"vcs": {
+		"enabled": false,
+		"clientKind": "git",
+		"useIgnoreFile": false
+	},
+	"files": {
+		"ignoreUnknown": false
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "space",
+		"indentWidth": 2,
+		"lineWidth": 80
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"correctness": {
+				"useExhaustiveDependencies": "warn",
+				"useHookAtTopLevel": "error"
+			},
+			"suspicious": {
+				"noExplicitAny": "warn"
+			}
+		}
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double",
+			"jsxQuoteStyle": "double",
+			"trailingCommas": "es5",
+			"semicolons": "always"
+		},
+		"globals": [
+			"React"
+		]
+	},
+	"assist": {
+		"enabled": true,
+		"actions": {
+			"source": {
+				"organizeImports": {
+					"level": "on",
+					"options": {
+						"identifierOrder": "natural",
+						"groups": [
+							{
+								"type": true,
+								"source": [
+									":NODE:",
+									":BUN:"
+								]
+							},
+							[
+								":NODE:",
+								":BUN:"
+							],
+							":BLANK_LINE:",
+							{
+								"type": true,
+								"source": [
+									":PACKAGE:",
+									"!@dofus-pkg/**"
+								]
+							},
+							[
+								":PACKAGE:",
+								"!@dofus-pkg/**"
+							],
+							":BLANK_LINE:",
+							{
+								"type": true,
+								"source": "@dofus-pkg/**"
+							},
+							"@dofus-pkg/**",
+							":BLANK_LINE:",
+							{
+								"type": true,
+								"source": ":ALIAS:"
+							},
+							":ALIAS:",
+							":BLANK_LINE:",
+							{
+								"type": true,
+								"source": [
+									":PATH:",
+									"!**/*.module.scss",
+									"!**/__generated__/**"
+								]
+							},
+							[
+								":PATH:",
+								"!**/*.module.scss",
+								"!**/__generated__/**"
+							],
+							"**/*.module.scss",
+							":BLANK_LINE:",
+							"**/__generated__/*",
+							{
+								"type": true
+							}
+						]
+					}
+				}
+			}
+		}
+	}
+}
