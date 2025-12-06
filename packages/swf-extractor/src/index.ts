@@ -36,6 +36,8 @@ export { createShapeDefinition } from './extractor/shape/shape-definition.ts';
 export type { ShapePath, PathSegment } from './extractor/shape/path.ts';
 export { buildPathString, getPathBounds } from './extractor/shape/path.ts';
 export type { ImageDefinition } from './extractor/image/image-definition.ts';
+export type { Drawable } from './extractor/drawable.ts';
+export type { SpriteDefinition } from './extractor/sprite/sprite-definition.ts';
 
 // Timeline exports
 export { Timeline } from './extractor/timeline/timeline.ts';
@@ -43,8 +45,13 @@ export type { Frame, FrameObject } from './extractor/timeline/frame.ts';
 
 // Drawer exports
 export { SvgDrawer, type SvgDrawerOptions } from './extractor/drawer/svg/svg-drawer.ts';
+export { SvgCanvas, type SvgCanvasOptions, type BitmapResolver, type ScaledBitmaps } from './extractor/drawer/svg/svg-canvas.ts';
+export type { ImageCharacter } from './extractor/drawer/drawer-interface.ts';
 export { ImageFormat, getExtension, getMimeType, isRasterFormat, parseFormat } from './extractor/drawer/converter/image-format.ts';
-export { convertSvg, convertToAnimation, type ConversionOptions } from './extractor/drawer/converter/svg-converter.ts';
+export { convertSvg, convertToAnimation, setSubprocessRendering, setWorkerPoolSize, acquireWorkerPool, releaseWorkerPool, shutdownWorkerPool, type ConversionOptions } from './extractor/drawer/converter/svg-converter.ts';
+
+// Action/Opcode exports
+export { Opcode, containsOpcode } from './parser/structure/action/opcode.ts';
 
 // AVM exports
 export { AvmProcessor } from './avm/processor.ts';

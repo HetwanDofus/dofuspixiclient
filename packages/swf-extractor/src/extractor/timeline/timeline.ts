@@ -67,13 +67,20 @@ export class Timeline {
 
   /**
    * Apply color transformation to all frames.
+   *
+   * This adds the color transform to the colorTransforms array of each object,
+   * rather than applying it directly. The transforms are applied lazily when
+   * getTransformedObject() is called during drawing.
+   *
+   * This matches PHP's Frame::transformColors() behavior.
    */
   transformColors(colorTransform: ColorTransform): Timeline {
     const transformedFrames = this.frames.map((frame) => ({
       ...frame,
       objects: frame.objects.map((obj): FrameObject => ({
         ...obj,
-        object: obj.object.transformColors(colorTransform),
+        // Add to colorTransforms array instead of applying directly
+        colorTransforms: [...(obj.colorTransforms ?? []), colorTransform],
       })),
     }));
     return new Timeline(this.bounds, transformedFrames);

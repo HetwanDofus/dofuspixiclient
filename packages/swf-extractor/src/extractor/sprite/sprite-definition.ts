@@ -18,6 +18,36 @@ export interface SpriteDefinition extends Drawable {
 }
 
 /**
+ * Create a transformed sprite definition with a pre-computed timeline.
+ * This is used when applying color transforms to sprites.
+ */
+function createTransformedSprite(
+  id: number,
+  tag: DefineSprite,
+  timeline: Timeline,
+): SpriteDefinition {
+  return {
+    id,
+    tag,
+    timeline: () => timeline,
+    bounds(): Rectangle {
+      return timeline.bounds;
+    },
+    framesCount(recursive?: boolean): number {
+      return timeline.framesCount(recursive);
+    },
+    draw(drawer: Drawer, frame?: number): void {
+      timeline.draw(drawer, frame ?? 0);
+    },
+    transformColors(colorTransform: ColorTransform): SpriteDefinition {
+      const transformed = timeline.transformColors(colorTransform);
+      // Recursively create a new transformed sprite
+      return createTransformedSprite(id, tag, transformed);
+    },
+  };
+}
+
+/**
  * Create a sprite definition from a DefineSprite tag.
  * The timeline is processed lazily on first access.
  */
@@ -70,16 +100,9 @@ export function createSpriteDefinition(
     transformColors(colorTransform: ColorTransform): SpriteDefinition {
       const transformed = getTimeline().transformColors(colorTransform);
       // Return a new sprite definition with the transformed timeline
-      const self = this;
-      return {
-        id: self.id,
-        tag: self.tag,
-        timeline: () => transformed,
-        bounds: () => transformed.bounds,
-        framesCount: (recursive?: boolean) => transformed.framesCount(recursive),
-        draw: (drawer: Drawer, frame?: number) => transformed.draw(drawer, frame ?? 0),
-        transformColors: (ct: ColorTransform) => self.transformColors(ct),
-      };
+      // Use a helper function to create the transformed sprite so that
+      // chained transformColors calls work correctly
+      return createTransformedSprite(id, tag, transformed);
     },
   };
 }

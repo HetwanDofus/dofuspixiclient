@@ -70,14 +70,29 @@ function round4(value: number): number {
  * Note: translateX and translateY are in twips, so divide by 20 for pixels.
  * SVG matrix order is: matrix(a, b, c, d, e, f) where:
  * a = scaleX, b = rotateSkew0, c = rotateSkew1, d = scaleY, e = translateX, f = translateY
+ *
+ * @param matrix The matrix to convert
+ * @param undoTwipScale If true, divide scale and skew values by 20 (for bitmap patterns)
  */
-export function toSvgTransform(matrix: Matrix, scale: number = 1): string {
-  const a = round4(matrix.scaleX * scale);
-  const b = round4(matrix.rotateSkew0 * scale);
-  const c = round4(matrix.rotateSkew1 * scale);
-  const d = round4(matrix.scaleY * scale);
-  const e = round4((matrix.translateX / 20) * scale);
-  const f = round4((matrix.translateY / 20) * scale);
+export function toSvgTransform(matrix: Matrix, undoTwipScale: boolean = false): string {
+  let scaleX = matrix.scaleX;
+  let scaleY = matrix.scaleY;
+  let rotateSkew0 = matrix.rotateSkew0;
+  let rotateSkew1 = matrix.rotateSkew1;
+
+  if (undoTwipScale) {
+    scaleX /= 20;
+    scaleY /= 20;
+    rotateSkew0 /= 20;
+    rotateSkew1 /= 20;
+  }
+
+  const a = round4(scaleX);
+  const b = round4(rotateSkew0);
+  const c = round4(rotateSkew1);
+  const d = round4(scaleY);
+  const e = round4(matrix.translateX / 20);
+  const f = round4(matrix.translateY / 20);
 
   return `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`;
 }

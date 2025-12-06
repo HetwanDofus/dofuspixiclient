@@ -79,11 +79,11 @@ function decodeColorMapped8(
       const colorOffset = idx * bytesPerColor;
 
       if (hasAlpha) {
-        // ARGB format in color table
-        rgba[dstOffset++] = colorTable[colorOffset + 1]!; // R
-        rgba[dstOffset++] = colorTable[colorOffset + 2]!; // G
-        rgba[dstOffset++] = colorTable[colorOffset + 3]!; // B
-        rgba[dstOffset++] = colorTable[colorOffset]!; // A
+        // RGBA format in color table (per SWF spec)
+        rgba[dstOffset++] = colorTable[colorOffset]!; // R
+        rgba[dstOffset++] = colorTable[colorOffset + 1]!; // G
+        rgba[dstOffset++] = colorTable[colorOffset + 2]!; // B
+        rgba[dstOffset++] = colorTable[colorOffset + 3]!; // A
       } else {
         rgba[dstOffset++] = colorTable[colorOffset]!; // R
         rgba[dstOffset++] = colorTable[colorOffset + 1]!; // G
@@ -145,6 +145,7 @@ function decodeRgb24(data: Uint8Array, width: number, height: number): Uint8Arra
 
 /**
  * Decode ARGB32 image.
+ * SWF stores ARGB32 with premultiplied alpha, so we need to un-premultiply.
  */
 function decodeArgb32(data: Uint8Array, width: number, height: number): Uint8Array {
   const rgba = new Uint8Array(width * height * 4);
@@ -154,10 +155,24 @@ function decodeArgb32(data: Uint8Array, width: number, height: number): Uint8Arr
 
   for (let i = 0; i < width * height; i++) {
     const a = data[srcOffset++]!;
-    rgba[dstOffset++] = data[srcOffset++]!; // R
-    rgba[dstOffset++] = data[srcOffset++]!; // G
-    rgba[dstOffset++] = data[srcOffset++]!; // B
-    rgba[dstOffset++] = a; // A
+
+    if (a === 0) {
+      // Fully transparent - color is undefined, use transparent black
+      rgba[dstOffset++] = 0; // R
+      rgba[dstOffset++] = 0; // G
+      rgba[dstOffset++] = 0; // B
+      rgba[dstOffset++] = 0; // A
+      srcOffset += 3; // Skip RGB
+    } else {
+      // Un-premultiply: colors are stored as (color * alpha / 255)
+      // We need to reverse this: color = stored * 255 / alpha
+      // PHP uses (int) cast which truncates, so we use Math.floor
+      const factor = 255 / a;
+      rgba[dstOffset++] = Math.min(255, Math.floor(data[srcOffset++]! * factor)); // R
+      rgba[dstOffset++] = Math.min(255, Math.floor(data[srcOffset++]! * factor)); // G
+      rgba[dstOffset++] = Math.min(255, Math.floor(data[srcOffset++]! * factor)); // B
+      rgba[dstOffset++] = a; // A
+    }
   }
 
   return rgba;

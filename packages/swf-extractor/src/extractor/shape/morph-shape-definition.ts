@@ -582,38 +582,6 @@ function createTransformedMorphShape(
 }
 
 /**
- * Transform paths by applying a color transform.
- * Simplified version - handles solid colors.
- */
-function transformPaths(paths: readonly ShapePath[], colorTransform: ColorTransform): ShapePath[] {
-  return paths.map((path) => {
-    let newFillStyle = path.fillStyle;
-    let newLineStyle = path.lineStyle;
-
-    if (path.fillStyle && path.fillStyle.type === FillStyleType.Solid) {
-      const solid = path.fillStyle as SolidFill;
-      newFillStyle = {
-        type: FillStyleType.Solid,
-        color: applyColorTransform(solid.color, colorTransform),
-      };
-    }
-
-    if (path.lineStyle && 'color' in path.lineStyle && path.lineStyle.color) {
-      newLineStyle = {
-        ...path.lineStyle,
-        color: applyColorTransform(path.lineStyle.color, colorTransform),
-      };
-    }
-
-    return {
-      ...path,
-      fillStyle: newFillStyle,
-      lineStyle: newLineStyle,
-    };
-  });
-}
-
-/**
  * Apply a color transform to a color.
  */
 function applyColorTransform(color: Rgba, ct: ColorTransform): Rgba {
@@ -622,4 +590,81 @@ function applyColorTransform(color: Rgba, ct: ColorTransform): Rgba {
   const b = Math.max(0, Math.min(255, Math.round(color.b * ct.blueMultTerm / 256 + ct.blueAddTerm)));
   const a = Math.max(0, Math.min(255, Math.round((color.a ?? 255) * ct.alphaMultTerm / 256 + ct.alphaAddTerm)));
   return { r, g, b, a };
+}
+
+/**
+ * Transform a gradient record with color transformation.
+ */
+function transformGradientRecord(record: GradientRecord, ct: ColorTransform): GradientRecord {
+  return {
+    ratio: record.ratio,
+    color: applyColorTransform(record.color, ct),
+  };
+}
+
+/**
+ * Transform a gradient with color transformation.
+ */
+function transformGradient(gradient: Gradient | FocalGradient, ct: ColorTransform): Gradient | FocalGradient {
+  const transformedRecords = gradient.records.map((r) => transformGradientRecord(r, ct));
+  const base: Gradient = {
+    spreadMode: gradient.spreadMode,
+    interpolationMode: gradient.interpolationMode,
+    records: transformedRecords,
+  };
+  if ('focalPoint' in gradient) {
+    return { ...base, focalPoint: gradient.focalPoint };
+  }
+  return base;
+}
+
+/**
+ * Transform a fill style with color transformation.
+ */
+function transformFillStyle(fill: FillStyle, ct: ColorTransform): FillStyle {
+  if (fill.type === FillStyleType.Solid) {
+    const solid = fill as SolidFill;
+    return {
+      type: FillStyleType.Solid,
+      color: applyColorTransform(solid.color, ct),
+    };
+  }
+
+  // Handle gradient fills
+  if (
+    fill.type === FillStyleType.LinearGradient ||
+    fill.type === FillStyleType.RadialGradient ||
+    fill.type === FillStyleType.FocalRadialGradient
+  ) {
+    const gradientFill = fill as GradientFill;
+    return {
+      type: gradientFill.type,
+      matrix: gradientFill.matrix,
+      gradient: transformGradient(gradientFill.gradient, ct),
+    };
+  }
+
+  // Bitmap fills don't have colors to transform
+  return fill;
+}
+
+/**
+ * Transform a line style with color transformation.
+ */
+function transformLineStyle(line: LineStyle, ct: ColorTransform): LineStyle {
+  if ('color' in line && line.color) {
+    return { ...line, color: applyColorTransform(line.color, ct) };
+  }
+  return line;
+}
+
+/**
+ * Transform paths by applying a color transform.
+ */
+function transformPaths(paths: readonly ShapePath[], colorTransform: ColorTransform): ShapePath[] {
+  return paths.map((path) => ({
+    segments: path.segments,
+    fillStyle: path.fillStyle ? transformFillStyle(path.fillStyle, colorTransform) : undefined,
+    lineStyle: path.lineStyle ? transformLineStyle(path.lineStyle, colorTransform) : undefined,
+  }));
 }

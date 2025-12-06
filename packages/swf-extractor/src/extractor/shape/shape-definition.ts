@@ -1,6 +1,6 @@
 import type { Rectangle } from '@/parser/structure/record/rectangle.ts';
 import type { DefineShape } from '@/parser/structure/tag/define-shape.ts';
-import type { FillStyle, SolidFill } from '@/parser/structure/record/fill-style.ts';
+import type { FillStyle, SolidFill, GradientFill } from '@/parser/structure/record/fill-style.ts';
 import { FillStyleType } from '@/parser/structure/record/fill-style.ts';
 import type { LineStyle, LineStyle2 } from '@/parser/structure/record/line-style.ts';
 import type { ColorTransform, Rgba } from '@/parser/structure/record/color.ts';
@@ -8,6 +8,7 @@ import { ShapeRecordType, type StyleChangeRecord } from '@/parser/structure/reco
 import { type ShapePath, type PathSegment } from './path.ts';
 import type { Drawable } from '@/extractor/drawable.ts';
 import type { Drawer, Shape } from '@/extractor/drawer/drawer-interface.ts';
+import type { Gradient, FocalGradient, GradientRecord } from '@/parser/structure/record/gradient.ts';
 
 /**
  * Processed shape definition ready for rendering.
@@ -40,6 +41,32 @@ function applyColorTransform(color: Rgba, ct: ColorTransform): Rgba {
 }
 
 /**
+ * Transform a gradient record with color transformation.
+ */
+function transformGradientRecord(record: GradientRecord, ct: ColorTransform): GradientRecord {
+  return {
+    ratio: record.ratio,
+    color: applyColorTransform(record.color, ct),
+  };
+}
+
+/**
+ * Transform a gradient with color transformation.
+ */
+function transformGradient(gradient: Gradient | FocalGradient, ct: ColorTransform): Gradient | FocalGradient {
+  const transformedRecords = gradient.records.map((r) => transformGradientRecord(r, ct));
+  const base: Gradient = {
+    spreadMode: gradient.spreadMode,
+    interpolationMode: gradient.interpolationMode,
+    records: transformedRecords,
+  };
+  if ('focalPoint' in gradient) {
+    return { ...base, focalPoint: gradient.focalPoint };
+  }
+  return base;
+}
+
+/**
  * Transform a fill style with color transformation.
  */
 function transformFillStyle(fill: FillStyle, ct: ColorTransform): FillStyle {
@@ -50,8 +77,22 @@ function transformFillStyle(fill: FillStyle, ct: ColorTransform): FillStyle {
       color: applyColorTransform(solid.color, ct),
     };
   }
-  // For gradients and bitmaps, we'd need to transform each color
-  // For now, return as-is (can be extended later)
+
+  // Handle gradient fills
+  if (
+    fill.type === FillStyleType.LinearGradient ||
+    fill.type === FillStyleType.RadialGradient ||
+    fill.type === FillStyleType.FocalRadialGradient
+  ) {
+    const gradientFill = fill as GradientFill;
+    return {
+      type: gradientFill.type,
+      matrix: gradientFill.matrix,
+      gradient: transformGradient(gradientFill.gradient, ct),
+    };
+  }
+
+  // Bitmap fills don't have colors to transform
   return fill;
 }
 

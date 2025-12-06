@@ -73,8 +73,11 @@ export function readGradientRecordShape3(reader: SwfReader): GradientRecord {
  */
 export function readGradientShape1(reader: SwfReader): Gradient {
   const flags = reader.readUI8();
-  const spreadMode = ((flags >> 4) & 0x3) as SpreadModeValue;
-  const interpolationMode = ((flags >> 2) & 0x3) as InterpolationModeValue;
+  // PHP: $spreadMode = ($flags >> 6) & 3; // 2bits
+  // PHP: $interpolationMode = ($flags >> 4) & 3; // 2bits
+  // PHP: $numRecords = $flags & 15; // 4bits
+  const spreadMode = ((flags >> 6) & 0x3) as SpreadModeValue;
+  const interpolationMode = ((flags >> 4) & 0x3) as InterpolationModeValue;
   const numGradients = flags & 0xf;
 
   const records: GradientRecord[] = [];
@@ -90,8 +93,11 @@ export function readGradientShape1(reader: SwfReader): Gradient {
  */
 export function readGradientShape3(reader: SwfReader): Gradient {
   const flags = reader.readUI8();
-  const spreadMode = ((flags >> 4) & 0x3) as SpreadModeValue;
-  const interpolationMode = ((flags >> 2) & 0x3) as InterpolationModeValue;
+  // PHP: $spreadMode = ($flags >> 6) & 3; // 2bits
+  // PHP: $interpolationMode = ($flags >> 4) & 3; // 2bits
+  // PHP: $numRecords = $flags & 15; // 4bits
+  const spreadMode = ((flags >> 6) & 0x3) as SpreadModeValue;
+  const interpolationMode = ((flags >> 4) & 0x3) as InterpolationModeValue;
   const numGradients = flags & 0xf;
 
   const records: GradientRecord[] = [];

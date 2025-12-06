@@ -1,6 +1,23 @@
 import type { SwfReader } from '@/parser/swf-reader.ts';
 
 /**
+ * JPEGTables tag - shared JPEG encoding tables.
+ * This tag is used by DefineBits tags to share JPEG encoding tables.
+ */
+export interface JpegTables {
+  readonly data: Uint8Array;
+}
+
+/**
+ * DefineBits tag - JPEG image that references JPEGTables.
+ * Unlike DefineBitsJPEG2/3/4, this tag requires a JPEGTables tag to be present.
+ */
+export interface DefineBits {
+  readonly id: number;
+  readonly imageData: Uint8Array;
+}
+
+/**
  * JPEG image data (DefineBitsJPEG2).
  */
 export interface DefineBitsJpeg2 {
@@ -48,6 +65,23 @@ export interface DefineBitsLossless {
   readonly height: number;
   readonly colorTableSize?: number;
   readonly zlibData: Uint8Array;
+}
+
+/**
+ * Read JPEGTables tag.
+ */
+export function readJpegTables(reader: SwfReader): JpegTables {
+  const data = reader.readBytesTo(reader.end);
+  return { data };
+}
+
+/**
+ * Read DefineBits tag.
+ */
+export function readDefineBits(reader: SwfReader): DefineBits {
+  const id = reader.readUI16();
+  const imageData = reader.readBytesTo(reader.end);
+  return { id, imageData };
 }
 
 /**

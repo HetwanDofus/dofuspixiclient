@@ -3,6 +3,9 @@
   "workspaces": {
     "": {
       "name": "assets-generator",
+      "dependencies": {
+        "maxrects-packer": "^2.7.3",
+      },
       "devDependencies": {
         "@assetpack/core": "^1.7.0",
         "@types/bun": "latest",

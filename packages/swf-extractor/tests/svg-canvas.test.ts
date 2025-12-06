@@ -27,7 +27,8 @@ describe('SvgCanvas', () => {
 
           expect(svg).toContain('<svg');
           expect(svg).toContain('</svg>');
-          expect(svg).toContain('viewBox');
+          // Check for width/height attributes instead of viewBox
+          expect(svg).toMatch(/width="[^"]+px"/);
         }
       }
     });

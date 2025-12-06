@@ -22,7 +22,7 @@ export interface FrameObject {
   readonly bounds: Rectangle;
   /** Transform matrix */
   readonly matrix: Matrix;
-  /** Color transform */
+  /** Color transform from PlaceObject tag */
   readonly colorTransform?: ColorTransform;
   /** Instance name */
   readonly name?: string;
@@ -36,6 +36,12 @@ export interface FrameObject {
   readonly blendMode: BlendMode;
   /** Frame when this object was first placed */
   readonly startFrame: number;
+  /**
+   * Color transformations accumulated from parent sprites.
+   * Applied after colorTransform, in order.
+   * This is filled by Timeline.transformColors() for lazy application.
+   */
+  readonly colorTransforms?: readonly ColorTransform[];
 }
 
 /**
@@ -74,6 +80,7 @@ export function mergeFrameObject(
     filters: update.filters ?? existing.filters,
     blendMode: update.blendMode ?? existing.blendMode,
     startFrame: update.startFrame ?? existing.startFrame,
+    colorTransforms: update.colorTransforms ?? existing.colorTransforms,
   };
 }
 
@@ -99,6 +106,12 @@ function isMorphShapeDefinition(obj: Drawable): obj is MorphShapeDefinition {
 /**
  * Get a transformed drawable with color transform applied.
  * Also handles morph shapes by applying the ratio.
+ *
+ * Color transforms are applied in order:
+ * 1. First the colorTransform from PlaceObject tag
+ * 2. Then each transform in colorTransforms array (from parent sprites)
+ *
+ * This matches PHP's FrameObject::object() method behavior.
  */
 export function getTransformedObject(object: FrameObject): Drawable {
   let drawable: Drawable = object.object;
@@ -110,9 +123,20 @@ export function getTransformedObject(object: FrameObject): Drawable {
     drawable = createMorphShapeAtRatio(drawable, ratioFloat);
   }
 
+  // Apply the colorTransform from PlaceObject tag first
   if (object.colorTransform) {
-    return drawable.transformColors(object.colorTransform);
+    drawable = drawable.transformColors(object.colorTransform);
   }
+
+  // Apply each color transformation from parent sprites
+  // Note: it's not possible to create a single composite color transformation
+  // because of clamping values to [0-255] after each transformation
+  if (object.colorTransforms) {
+    for (const transform of object.colorTransforms) {
+      drawable = drawable.transformColors(transform);
+    }
+  }
+
   return drawable;
 }
 
@@ -120,8 +144,6 @@ export function getTransformedObject(object: FrameObject): Drawable {
  * Draw a frame to a drawer.
  */
 export function drawFrame(frame: Frame, drawer: Drawer, globalFrame: number = 0): void {
-  const fs = require('fs');
-  fs.appendFileSync('/tmp/debug.log', `drawFrame(): objects=${frame.objects.length}\n`);
   drawer.area(frame.bounds);
 
   // Map of active clip ids. Key is the clip id, value is the clip depth.
