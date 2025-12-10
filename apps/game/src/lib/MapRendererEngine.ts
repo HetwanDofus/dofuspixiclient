@@ -131,6 +131,7 @@ export class MapRendererEngine {
 
   private isDragging = false;
   private lastPointerPos = { x: 0, y: 0 };
+  private resizeObserver: ResizeObserver | null = null;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -141,9 +142,12 @@ export class MapRendererEngine {
   async init() {
     this.app = new Application();
 
-    // Get container dimensions
-    const width = this.container.clientWidth || GAME_WIDTH;
-    const height = this.container.clientHeight || GAME_HEIGHT;
+    // Calculate canvas size to fit container while maintaining aspect ratio
+    const { width, height, zoom } = this.calculateCanvasSize();
+
+    // Set initial zoom
+    this.currentZoom = zoom;
+    this.minZoom = 1.5;
 
     await this.app.init({
       width,
@@ -216,8 +220,16 @@ export class MapRendererEngine {
       }
     });
 
-    // Handle window resize
-    window.addEventListener('resize', () => this.handleResize());
+    // Handle container resize using ResizeObserver
+    this.resizeObserver = new ResizeObserver(() => {
+      this.handleResize();
+    });
+    this.resizeObserver.observe(this.container);
+
+    // Also handle window resize as fallback
+    window.addEventListener('resize', () => {
+      this.handleResize();
+    });
 
     // Debug overlay toggle with 'D' key
     window.addEventListener('keydown', (e) => {
@@ -240,26 +252,74 @@ export class MapRendererEngine {
     console.log(`Debug overlay: ${this.debugVisible ? 'ON' : 'OFF'}`);
   }
 
+  private calculateCanvasSize(): { width: number; height: number; zoom: number } {
+    const containerWidth = this.container.clientWidth || 1113;
+    const containerHeight = this.container.clientHeight || 648;
+
+    const { DISPLAY_WIDTH, DISPLAY_HEIGHT } = MAP_CONSTANTS;
+
+    // Calculate zoom to fit container while maintaining aspect ratio
+    const scaleX = containerWidth / DISPLAY_WIDTH;
+    const scaleY = containerHeight / DISPLAY_HEIGHT;
+
+    // Use the smaller scale to ensure map fits entirely
+    // Clamp between 0.5 and 3 for reasonable quality range
+    const zoom = Math.max(0.5, Math.min(3, Math.min(scaleX, scaleY)));
+
+    return {
+      width: Math.floor(DISPLAY_WIDTH * zoom),
+      height: Math.floor(DISPLAY_HEIGHT * zoom),
+      zoom: zoom
+    };
+  }
+
   private handleResize() {
     if (!this.app || !this.app.canvas) return;
 
-    const width = this.container.clientWidth;
-    const height = this.container.clientHeight;
+    const { width, height, zoom } = this.calculateCanvasSize();
 
     if (width > 0 && height > 0) {
+      // Resize the renderer
       this.app.renderer.resize(width, height);
+
+      // Also set canvas element size explicitly
+      if (this.app.canvas) {
+        this.app.canvas.style.width = `${width}px`;
+        this.app.canvas.style.height = `${height}px`;
+      }
+
+      // Update zoom if changed and map is loaded
+      if (this.currentMapData) {
+        this.currentZoom = zoom;
+        this.mapContainer.scale.set(zoom);
+
+        // Only rebuild map if texture scale changes (e.g., switching from 1.5x to 2x assets)
+        const newTargetScale = this.getTargetScaleForZoom();
+        if (this.currentTileScale !== newTargetScale) {
+          this.textureCache.clear();
+          this.currentTileScale = newTargetScale;
+          this.renderMap(this.currentMapData);
+        }
+
+        this.clampCameraToBounds();
+      }
     }
   }
 
-  // Get current viewport size in renderer coordinates (fallback to GAME_* constants)
+  // Get current viewport size - use canvas/renderer size, not container
   private getViewportSize(): { width: number; height: number } {
-    if (this.app) {
-      const renderer: any = this.app.renderer as any;
-      const width = renderer?.width ?? GAME_WIDTH;
-      const height = renderer?.height ?? GAME_HEIGHT;
-      return { width, height };
+    if (this.app && this.app.renderer) {
+      return {
+        width: this.app.renderer.width,
+        height: this.app.renderer.height
+      };
     }
-    return { width: GAME_WIDTH, height: GAME_HEIGHT };
+    // Fallback to map size at 1.5x zoom
+    const { DISPLAY_WIDTH, DISPLAY_HEIGHT } = MAP_CONSTANTS;
+    return {
+      width: Math.floor(DISPLAY_WIDTH * 1.5),
+      height: Math.floor(DISPLAY_HEIGHT * 1.5)
+    };
   }
 
   handleWheel(e: WheelEvent) {
@@ -360,7 +420,7 @@ export class MapRendererEngine {
     if (shouldRebuildMap) {
       this.textureCache.clear();
       if (this.currentMapData) {
-        await this.renderMap(this.currentMapData, false);
+        await this.renderMap(this.currentMapData);
       }
     }
 
@@ -375,33 +435,41 @@ export class MapRendererEngine {
   }
 
   private clampCameraToBounds() {
-    if (!this.mapContainer || !this.mapBounds) return;
+    if (!this.mapContainer) return;
 
     const zoom = this.currentZoom;
-    const { minX, maxX, minY, maxY } = this.mapBounds;
-    const worldWidth = (maxX - minX) * zoom;
-    const worldHeight = (maxY - minY) * zoom;
+    const { DISPLAY_WIDTH, DISPLAY_HEIGHT } = MAP_CONSTANTS;
+
+    // Map dimensions at current zoom
+    const mapWidth = DISPLAY_WIDTH * zoom;
+    const mapHeight = DISPLAY_HEIGHT * zoom;
 
     const { width: viewportWidth, height: viewportHeight } = this.getViewportSize();
 
+    // Horizontal clamping
     let minContainerX: number;
     let maxContainerX: number;
-    if (worldWidth <= viewportWidth) {
-      const centeredX = (viewportWidth - worldWidth) / 2 - minX * zoom;
+    if (mapWidth <= viewportWidth) {
+      // Center horizontally if map fits
+      const centeredX = (viewportWidth - mapWidth) / 2;
       minContainerX = maxContainerX = centeredX;
     } else {
-      maxContainerX = -minX * zoom;
-      minContainerX = viewportWidth - worldWidth - minX * zoom;
+      // Allow panning if map is larger than viewport
+      maxContainerX = 0;
+      minContainerX = viewportWidth - mapWidth;
     }
 
+    // Vertical clamping
     let minContainerY: number;
     let maxContainerY: number;
-    if (worldHeight <= viewportHeight) {
-      const centeredY = (viewportHeight - worldHeight) / 2 - minY * zoom;
+    if (mapHeight <= viewportHeight) {
+      // Center vertically if map fits
+      const centeredY = (viewportHeight - mapHeight) / 2;
       minContainerY = maxContainerY = centeredY;
     } else {
-      maxContainerY = -minY * zoom;
-      minContainerY = viewportHeight - worldHeight - minY * zoom;
+      // Allow panning if map is larger than viewport
+      maxContainerY = 0;
+      minContainerY = viewportHeight - mapHeight;
     }
 
     this.mapContainer.x = Math.min(Math.max(this.mapContainer.x, minContainerX), maxContainerX);
@@ -476,14 +544,12 @@ export class MapRendererEngine {
     this.mapContainer.removeChildren();
     this.spriteCount = 0;
 
-    // Reset transform before rendering a new map; renderMap() will set
-    // appropriate zoom and then clamp to the new bounds.
+    // Reset transform before rendering a new map
     this.mapContainer.x = 0;
     this.mapContainer.y = 0;
-    this.currentZoom = 1.5;
-    this.minZoom = 1.5;
-    this.currentZoomIndex = 0;
-    this.mapContainer.scale.set(1.5);
+
+    // Maintain current zoom from container size
+    // (already set in init() based on container dimensions)
 
     if (this.cachedMapTexture) {
       this.cachedMapTexture.destroy(true);
@@ -491,7 +557,7 @@ export class MapRendererEngine {
       this.cachedMapSprite = null;
     }
 
-    await this.renderMap(mapData, true);
+    await this.renderMap(mapData);
 
     console.log('Map rendered successfully, bounds:', this.mapBounds);
   }
@@ -557,7 +623,7 @@ export class MapRendererEngine {
     return { scale, offsetX, offsetY };
   }
 
-  private async renderMap(mapData: MapData, autoFitToView: boolean = false) {
+  private async renderMap(mapData: MapData) {
     if (!this.mapContainer || !this.manifest) return;
 
     const { width: mapWidth, height: mapHeight, cells, backgroundNum } = mapData;
@@ -569,18 +635,13 @@ export class MapRendererEngine {
     let debugLayer1Count = 0;
     let debugLayer2Count = 0;
 
-    if (autoFitToView) {
-      // Use fixed zoom levels: 1.5, 2, 2.5, 3 (default to 1.5)
-      this.currentZoom = 1.5;
-      this.minZoom = 1.5;
-      this.currentZoomIndex = 0;
-      this.mapContainer.scale.set(1.5);
-    }
+    // Apply current zoom to map container
+    this.mapContainer.scale.set(this.currentZoom);
 
-	    // Record the texture scale implied by the current zoom so that we can
-	    // decide later whether a zoom change actually requires rebuilding the
-	    // map with different atlas resolutions.
-	    this.currentTileScale = this.getTargetScaleForZoom();
+    // Record the texture scale implied by the current zoom so that we can
+    // decide later whether a zoom change actually requires rebuilding the
+    // map with different atlas resolutions.
+    this.currentTileScale = this.getTargetScaleForZoom();
 
     const backgroundLayer = new Container();
 
@@ -736,18 +797,19 @@ export class MapRendererEngine {
       layer2: debugLayer2Count,
     });
 
-    const staticMapContainer = new Container();
-    staticMapContainer.addChild(backgroundLayer);
-    staticMapContainer.addChild(groundLayer);
-    staticMapContainer.addChild(objectLayer1);
-    staticMapContainer.addChild(objectLayer2);
+    // Add all layers to map container
+    this.mapContainer.addChild(backgroundLayer);
+    this.mapContainer.addChild(groundLayer);
+    this.mapContainer.addChild(objectLayer1);
+    this.mapContainer.addChild(objectLayer2);
+    // Animated layer goes on top
+    this.mapContainer.addChild(animatedLayer);
+    this.animatedLayer = animatedLayer;
 
-    // Use local bounds here so that we stay in the same coordinate space as
-    // the positions we compute when laying out tiles. This is more robust
-    // than relying on world bounds for an off-stage container and gives us
-    // stable extents for camera clamping regardless of how the container is
-    // rendered into a texture.
-    const bounds = staticMapContainer.getLocalBounds();
+    // Calculate bounds directly from the map container to get stable extents
+    // for camera clamping. Use getLocalBounds() to stay in the same coordinate
+    // space as the tile positions we computed during layout.
+    const bounds = this.mapContainer.getLocalBounds();
 
     if (bounds.width > 0 && bounds.height > 0) {
       this.mapBounds = {
@@ -759,15 +821,6 @@ export class MapRendererEngine {
     } else {
       this.mapBounds = null;
     }
-
-    // Add all layers to map container
-    this.mapContainer.addChild(backgroundLayer);
-    this.mapContainer.addChild(groundLayer);
-    this.mapContainer.addChild(objectLayer1);
-    this.mapContainer.addChild(objectLayer2);
-    // Animated layer goes on top
-    this.mapContainer.addChild(animatedLayer);
-    this.animatedLayer = animatedLayer;
 
     // Create debug overlay
     this.createDebugOverlay(cells, mapWidth, mapScale);
@@ -1263,93 +1316,66 @@ export class MapRendererEngine {
 
     if (!tile) return;
 
-	  // Match original Dofus semantics from MapHandler.as:
-	  // - Ground/Object1/Object2 all share the same base cell (x, y).
-	  // - Rotation and anisotropic scale are applied on the MovieClip itself,
-	  //   without changing its (x, y) – only the internal pixels move.
-	  // - Flips are done by negating _xscale around the same origin.
-	  //
-	  // Here we mirror that behavior with Pixi sprites:
-	  // - `position` is the cell base (x, y) computed like MapHandler.
-	  // - Tile offsets (offsetX/offsetY) are added directly, regardless of rotation/flip.
-	  // - Rotation/scale only affect the sprite transform, not the anchor position.
-	  const r = rotation % 4;
-	  const baseWidth = tile.width;
-	  const baseHeight = tile.height;
+    const r = rotation % 4;
+    const baseWidth = tile.width;
+    const baseHeight = tile.height;
 
-	  const tex: any = sprite.texture as any;
-	  const frame: AtlasFrame | undefined = tex._frameInfo as AtlasFrame | undefined;
-	  const textureScale: number = tex._scale || 1;
+    // Get texture info to determine asset scale
+    const tex: any = sprite.texture as any;
+    const textureScale: number = tex._scale || 1;
 
-	  // Get the full original pixel dimensions from the frame
-	  // origW/origH are the dimensions BEFORE trimming (the untrimmed sprite size at this scale)
-	  let fullPxWidth: number;
-	  let fullPxHeight: number;
-	  if (frame) {
-	    fullPxWidth = frame.origW ?? frame.w;
-	    fullPxHeight = frame.origH ?? frame.h;
-	  } else {
-	    // Fallback: assume tile dimensions scale linearly with texture scale
-	    fullPxWidth = Math.round(baseWidth * textureScale);
-	    fullPxHeight = Math.round(baseHeight * textureScale);
-	  }
+    // Compute rotation/flip-adjusted offsets using PHP-like algorithm
+    const { offsetX, offsetY } = this.computePhpLikeOffsets(tile, r, flip);
 
-	  // Trim offsets: how many pixels were cropped from the TOP-LEFT during rasterization
-	  // These are in PIXEL coordinates at the current atlas scale
-	  // Convert to logical units to add back to positioning
-	  const trimXPx = frame?.trimX ?? 0;
-	  const trimYPx = frame?.trimY ?? 0;
-	  const assetScaleX = (baseWidth > 0 && fullPxWidth > 0) ? fullPxWidth / baseWidth : textureScale;
-	  const assetScaleY = (baseHeight > 0 && fullPxHeight > 0) ? fullPxHeight / baseHeight : textureScale;
-	  const trimXLogical = trimXPx / assetScaleX;
-	  const trimYLogical = trimYPx / assetScaleY;
+    // Compute scale factors for rotation (anisotropic for 90°/270°)
+    let scaleX = 1;
+    let scaleY = 1;
+    if (r === 1 || r === 3) {
+      scaleX = ROT_SCALE_X;
+      scaleY = ROT_SCALE_Y;
+    }
+    if (flip) {
+      // Flip like Flash: negate x scale around the same origin
+      scaleX *= -1;
+    }
 
-	  // Use raw tile offsets directly (no rotation/flip adjustment),
-	  // so that the sprite origin matches the original SWF registration point.
-	  const offsetX = tile.offsetX;
-	  const offsetY = tile.offsetY;
+    // Apply global map scale for oversized maps
+    const globalScale = mapScale.scale;
+    const finalScaleX = scaleX * globalScale;
+    const finalScaleY = scaleY * globalScale;
 
-	  // Compute scale factors for rotation (anisotropic for 90°/270°)
-	  let scaleX = 1;
-	  let scaleY = 1;
-	  if (r === 1 || r === 3) {
-	    scaleX = ROT_SCALE_X;
-	    scaleY = ROT_SCALE_Y;
-	  }
-	  if (flip) {
-	    // Flip like Flash: negate x scale around the same origin
-	    scaleX *= -1;
-	  }
+    // Compute the top-left of the transformed sprite (after scale + rotation)
+    // relative to its local (0,0) origin
+    const { minX, minY } = this.computeTransformedMin(
+      baseWidth,
+      baseHeight,
+      r,
+      finalScaleX,
+      finalScaleY
+    );
 
-	  // Apply global map scale for oversized maps
-	  const globalScale = mapScale.scale;
-	  const finalScaleX = scaleX * globalScale;
-	  const finalScaleY = scaleY * globalScale;
+    // Sprite scale: convert from logical scaled units to pixel units
+    // This accounts for the fact that the sprite's texture is already at textureScale
+    const spriteScaleX = finalScaleX / textureScale;
+    const spriteScaleY = finalScaleY / textureScale;
 
-		  // Calculate anchor position in logical units: cell position + tile offset
-		  // minus trim adjustment. Trim values represent pixels cropped from the
-		  // top/left of the original untrimmed sprite, so to keep the same visual
-		  // registration point we need to move the sprite *towards* the cropped
-		  // area (i.e. subtract trim), not away from it.
-		  const anchorBaseX = position.x + offsetX - trimXLogical;
-		  const anchorBaseY = position.y + offsetY - trimYLogical;
+    // Apply to sprite
+    sprite.angle = r * 90;
+    sprite.scale.set(spriteScaleX, spriteScaleY);
 
-	  // Apply global map scale and add map offset for centering non-standard maps
-	  const anchorScaledX = Math.floor(anchorBaseX * globalScale + mapScale.offsetX);
-	  const anchorScaledY = Math.floor(anchorBaseY * globalScale + mapScale.offsetY);
+    // Top-left before global scaling
+    const topLeftBaseX = position.x + offsetX;
+    const topLeftBaseY = position.y + offsetY;
 
-	  // Sprite scale: convert from logical scaled units to pixel units
-	  // sprite_pixel_scale = final_scale / asset_scale
-	  // This accounts for the fact that the sprite's texture is already at asset_scale
-	  const spriteScaleX = finalScaleX / assetScaleX;
-	  const spriteScaleY = finalScaleY / assetScaleY;
+    // Apply global map scale + offset (MapScale::applyToImage equivalent)
+    const topLeftScaledX = topLeftBaseX * globalScale + mapScale.offsetX;
+    const topLeftScaledY = topLeftBaseY * globalScale + mapScale.offsetY;
 
-	  // Apply to sprite: anchor (0,0) represents the SWF registration point
-	  sprite.angle = r * 90;
-	  sprite.scale.set(spriteScaleX, spriteScaleY);
-	  sprite.x = anchorScaledX;
-	  sprite.y = anchorScaledY;
-	  sprite.zIndex = cellId; // Isometric depth sorting
+    // Compensate for rotated/scaled sprite bounds
+    // minX/minY are calculated at finalScale, so we use them directly
+    sprite.x = Math.round(topLeftScaledX - minX);
+    sprite.y = Math.round(topLeftScaledY - minY);
+    sprite.zIndex = cellId; // Isometric depth sorting
   }
 
   private generateRandomName(): string {

@@ -253,6 +253,12 @@ async function processFile(filePath: string, options: ExtractOptions): Promise<v
   const baseName = path.basename(filePath, '.swf');
   const frameRate = swfFile.frameRate;
 
+  // Preload bitmaps once for this file so that SVG exports can use
+  // proper bitmap fills instead of the gray fallback.
+  // If loading fails for some images, they will simply render as gray.
+  const imageMap = await extractor.preloadImages();
+  const bitmapResolver = SwfExtractor.createBitmapResolver(imageMap);
+
   // Extract variables
   if (options.variables) {
     const vars = swfFile.variables;
@@ -269,30 +275,30 @@ async function processFile(filePath: string, options: ExtractOptions): Promise<v
       if (options.exportedNames && !options.exportedNames.includes(asset.name)) {
         continue;
       }
-      await extractCharacter(filePath, baseName, extractor, asset.id, asset.name, options, frameRate);
+      await extractCharacter(filePath, baseName, extractor, asset.id, asset.name, options, frameRate, bitmapResolver);
     }
   }
 
   // Extract by character ID
   if (options.characters) {
     for (const id of options.characters) {
-      await extractCharacter(filePath, baseName, extractor, id, `char_${id}`, options, frameRate);
+      await extractCharacter(filePath, baseName, extractor, id, `char_${id}`, options, frameRate, bitmapResolver);
     }
   }
 
   // Extract all shapes
   if (options.allSprites) {
     for (const id of extractor.shapes()) {
-      await extractCharacter(filePath, baseName, extractor, id, `shape_${id}`, options, frameRate);
+      await extractCharacter(filePath, baseName, extractor, id, `shape_${id}`, options, frameRate, bitmapResolver);
     }
     for (const id of extractor.sprites()) {
-      await extractCharacter(filePath, baseName, extractor, id, `sprite_${id}`, options, frameRate);
+      await extractCharacter(filePath, baseName, extractor, id, `sprite_${id}`, options, frameRate, bitmapResolver);
     }
   }
 
   // Extract timeline
   if (options.timeline) {
-    await extractTimeline(filePath, extractor, baseName, options, frameRate);
+    await extractTimeline(filePath, extractor, baseName, options, frameRate, bitmapResolver);
   }
 
   extractor.clearCaches();
@@ -309,15 +315,16 @@ async function extractCharacter(
   name: string,
   options: ExtractOptions,
   frameRate: number,
+  bitmapResolver: ReturnType<typeof SwfExtractor.createBitmapResolver>,
 ): Promise<void> {
   const charType = extractor.getCharacterType(id);
   if (!charType) return;
 
   await match(charType)
-    .with('shape', () => extractShape(filePath, baseName, extractor, id, name, options))
+    .with('shape', () => extractShape(filePath, baseName, extractor, id, name, options, bitmapResolver))
     .with('image', () => extractImage(filePath, baseName, extractor, id, name, options))
-    .with('sprite', () => extractSprite(filePath, baseName, extractor, id, name, options, frameRate))
-    .with('morph', () => extractMorph(filePath, baseName, extractor, id, name, options))
+    .with('sprite', () => extractSprite(filePath, baseName, extractor, id, name, options, frameRate, bitmapResolver))
+    .with('morph', () => extractMorph(filePath, baseName, extractor, id, name, options, bitmapResolver))
     .exhaustive();
 }
 
@@ -331,12 +338,13 @@ async function extractShape(
   id: number,
   name: string,
   options: ExtractOptions,
+  bitmapResolver: ReturnType<typeof SwfExtractor.createBitmapResolver>,
 ): Promise<void> {
   const shape = extractor.getShape(id);
   if (!shape) return;
 
   for (const scale of options.scales) {
-    const drawer = new SvgDrawer({ scale });
+    const drawer = new SvgDrawer({ scale, bitmapResolver });
     const svg = drawer.drawShape(shape);
 
     for (const fmt of options.frameFormats) {
@@ -419,12 +427,13 @@ async function extractSprite(
   name: string,
   options: ExtractOptions,
   frameRate: number,
+  bitmapResolver: ReturnType<typeof SwfExtractor.createBitmapResolver>,
 ): Promise<void> {
   const sprite = extractor.getSprite(id);
   if (!sprite) return;
 
   const timeline = sprite.timeline();
-  await extractSpriteTimeline(filePath, baseName, timeline, name, options, frameRate);
+  await extractSpriteTimeline(filePath, baseName, timeline, name, options, frameRate, bitmapResolver);
 }
 
 /**
@@ -437,6 +446,7 @@ async function extractMorph(
   id: number,
   name: string,
   options: ExtractOptions,
+  bitmapResolver: ReturnType<typeof SwfExtractor.createBitmapResolver>,
 ): Promise<void> {
   const morph = extractor.getMorphShape(id);
   if (!morph) return;
@@ -450,7 +460,7 @@ async function extractMorph(
     const paths = morph.pathsAtRatio(ratio);
 
     for (const scale of options.scales) {
-      const drawer = new SvgDrawer({ scale });
+      const drawer = new SvgDrawer({ scale, bitmapResolver });
       const svg = drawer.drawPaths(paths, morph.bounds());
 
       for (const fmt of options.frameFormats) {
@@ -497,6 +507,7 @@ async function extractSpriteTimeline(
   name: string,
   options: ExtractOptions,
   frameRate: number,
+  bitmapResolver: ReturnType<typeof SwfExtractor.createBitmapResolver>,
 ): Promise<void> {
   // Get actual frame count (recursive when fullAnimation is enabled)
   const totalFrameCount = options.fullAnimation
@@ -507,7 +518,7 @@ async function extractSpriteTimeline(
 
   for (const idx of frameIndices) {
     // For recursive animation, use timeline.draw which handles nested frames
-    const canvas = new SvgCanvas();
+    const canvas = new SvgCanvas({ bitmapResolver });
     timeline.draw(canvas, idx);
     const svg = canvas.render();
 
@@ -603,12 +614,13 @@ async function extractSpriteTimeline(
  * Extract timeline frames.
  */
 async function extractTimeline(
-  filePath: string,
-  extractor: SwfExtractor,
-  baseName: string,
-  options: ExtractOptions,
-  frameRate: number,
-): Promise<void> {
-  const timeline = extractor.getTimeline();
-  await extractSpriteTimeline(filePath, baseName, timeline, 'timeline', options, frameRate);
-}
+	  filePath: string,
+	  extractor: SwfExtractor,
+	  baseName: string,
+	  options: ExtractOptions,
+	  frameRate: number,
+	  bitmapResolver: ReturnType<typeof SwfExtractor.createBitmapResolver>,
+	): Promise<void> {
+	  const timeline = extractor.getTimeline();
+	  await extractSpriteTimeline(filePath, baseName, timeline, 'timeline', options, frameRate, bitmapResolver);
+	}

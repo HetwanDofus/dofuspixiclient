@@ -340,10 +340,7 @@ export class SwfReader {
     const value = this.readUB(numBits);
     const signBit = 1 << (numBits - 1);
 
-    if (value & signBit) {
-      return value - (1 << numBits);
-    }
-    return value;
+    return (value & signBit) ? value - (1 << numBits) : value;
   }
 
   /**

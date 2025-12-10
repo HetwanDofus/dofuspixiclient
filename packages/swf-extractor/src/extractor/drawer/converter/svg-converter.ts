@@ -211,9 +211,8 @@ async function renderSvgToPngWorkerPool(
       const svgPath = path.join(tmpDir, 'input.svg');
       const pngPath = path.join(tmpDir, 'output.png');
 
-      // Scale and sanitize SVG
-      const scaledSvg = scaleSvg(svgContent, width, height);
-      const sanitizedSvg = sanitizeSvg(scaledSvg);
+      // Don't scale SVG dimensions - let rsvg-convert handle scaling via -w/-h
+      const sanitizedSvg = sanitizeSvg(svgContent);
       fs.writeFileSync(svgPath, sanitizedSvg);
 
       // Set up timeout to prevent hanging
@@ -297,59 +296,55 @@ export interface ConversionOptions {
   quality?: number;
 }
 
+
+
 /**
- * Scale SVG dimensions by modifying width/height and adding viewBox.
- * This allows librsvg to render at the target resolution natively.
+ * Sanitize SVG content to avoid rsvg-convert crashes.
+ * Removes elements with zero dimensions and ensures SVG has width/height attributes.
  */
-function scaleSvg(svgContent: string, targetWidth: number, targetHeight: number): string {
-  // Extract the <svg> tag to check for existing viewBox and get dimensions
-  const svgTagMatch = svgContent.match(/<svg[^>]*>/);
-  if (!svgTagMatch) {
-    return svgContent;
+function sanitizeSvg(svgContent: string): string {
+  // Remove <use> elements with zero width or height (causes rsvg panic)
+  // These are empty placeholders that have no visual content
+  let result = svgContent.replace(/<use[^>]*\s(?:width="0"|height="0")[^>]*\/>/g, '');
+
+  // Ensure SVG has width and height attributes (required by rsvg-convert)
+  const svgTagMatch = result.match(/<svg[^>]*>/);
+  if (svgTagMatch) {
+    const svgTag = svgTagMatch[0];
+    const hasWidth = /width\s*=/.test(svgTag);
+    const hasHeight = /height\s*=/.test(svgTag);
+
+    if (!hasWidth || !hasHeight) {
+      // Extract viewBox to get dimensions
+      const viewBoxMatch = svgTag.match(/viewBox\s*=\s*"([^"]+)"/);
+      if (viewBoxMatch && viewBoxMatch[1]) {
+        const parts = viewBoxMatch[1].split(/\s+/);
+        if (parts.length >= 4) {
+          const width = parseFloat(parts[2]!);
+          const height = parseFloat(parts[3]!);
+
+          if (!hasWidth && !hasHeight) {
+            // Add both width and height from viewBox
+            result = result.replace(/<svg\s/, `<svg width="${width}px" height="${height}px" `);
+          } else if (!hasWidth) {
+            // Add only width
+            result = result.replace(/<svg\s/, `<svg width="${width}px" `);
+          } else if (!hasHeight) {
+            // Add only height
+            result = result.replace(/<svg\s/, `<svg height="${height}px" `);
+          }
+        }
+      }
+    }
   }
-
-  const svgTag = svgTagMatch[0];
-  const widthMatch = svgTag.match(/width="([^"]+)"/);
-  const heightMatch = svgTag.match(/height="([^"]+)"/);
-
-  if (!widthMatch || !heightMatch) {
-    return svgContent;
-  }
-
-  const origWidth = parseFloat(widthMatch[1]!);
-  const origHeight = parseFloat(heightMatch[1]!);
-
-  // Check if viewBox already exists on the root <svg> element (not nested elements)
-  const hasViewBox = /viewBox\s*=/.test(svgTag);
-
-  let result = svgContent;
-
-  // Add viewBox if not present on root <svg>
-  if (!hasViewBox) {
-    result = result.replace(/<svg\s/, `<svg viewBox="0 0 ${origWidth} ${origHeight}" `);
-  }
-
-  // Update dimensions on root <svg> element
-  result = result.replace(/(<svg[^>]*?)width="[^"]+"/, `$1width="${targetWidth}"`);
-  result = result.replace(/(<svg[^>]*?)height="[^"]+"/, `$1height="${targetHeight}"`);
 
   return result;
 }
 
-/**
- * Sanitize SVG content to avoid resvg crashes.
- * Removes elements with zero dimensions that can cause geometry panics.
- */
-function sanitizeSvg(svgContent: string): string {
-  // Remove <use> elements with zero width or height (causes resvg panic)
-  // These are empty placeholders that have no visual content
-  return svgContent.replace(/<use[^>]*\s(?:width="0"|height="0")[^>]*\/>/g, '');
-}
-
 
 
 /**
- * Render SVG to PNG using resvg (high-quality Rust SVG renderer).
+ * Render SVG to PNG using rsvg-convert (matches PHP implementation).
  * Now async to support worker pool.
  */
 async function renderSvgToPng(svgContent: string, width: number, height: number): Promise<Buffer> {
@@ -358,23 +353,23 @@ async function renderSvgToPng(svgContent: string, width: number, height: number)
     return renderSvgToPngWorkerPool(svgContent, width, height);
   }
 
-  // Scale SVG to target dimensions before rendering so resvg renders at full resolution
-  const scaledSvg = scaleSvg(svgContent, width, height);
-
-  // Sanitize SVG to avoid resvg crashes with zero-dimension elements
-  const sanitizedSvg = sanitizeSvg(scaledSvg);
-
+  // Use rsvg-convert to render SVG to PNG (same as PHP implementation)
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'svg-render-'));
   try {
-    const resvg = new Resvg(sanitizedSvg, {
-      fitTo: { mode: 'width', value: width },
-    });
+    const svgPath = path.join(tmpDir, 'input.svg');
+    const pngPath = path.join(tmpDir, 'output.png');
 
-    const pngData = resvg.render();
-    return Buffer.from(pngData.asPng());
-  } catch (error) {
-    // Write failing SVG to debug
-    fs.writeFileSync('/tmp/failing-svg.svg', sanitizedSvg);
-    throw error;
+    // Don't scale SVG dimensions - let rsvg-convert handle scaling via -w/-h
+    const sanitizedSvg = sanitizeSvg(svgContent);
+    fs.writeFileSync(svgPath, sanitizedSvg);
+
+    // Use rsvg-convert to render SVG to PNG
+    const cmd = `rsvg-convert -w ${width} -h ${height} -f png -b transparent -o "${pngPath}" "${svgPath}"`;
+    execSync(cmd, { stdio: 'pipe' });
+
+    return fs.readFileSync(pngPath);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 }
 
@@ -406,7 +401,7 @@ export async function convertSvg(
   const targetWidth = options.width ?? Math.round(origWidth);
   const targetHeight = options.height ?? Math.round(origHeight);
 
-  // Use resvg to render SVG to PNG (high-quality Rust renderer)
+  // Use rsvg-convert to render SVG to PNG (matches PHP implementation)
   const pngBuffer = await renderSvgToPng(svgContent, targetWidth, targetHeight);
 
   // For PNG, return directly

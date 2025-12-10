@@ -1,5 +1,5 @@
 import type { SwfReader } from '@/parser/swf-reader.ts';
-import { type Rgba, readRgb, readRgba } from './color.ts';
+import { type Rgba, type ColorTransform, readRgb, readRgba } from './color.ts';
 import { type Matrix, readMatrix } from './matrix.ts';
 import {
   type Gradient,
@@ -63,6 +63,12 @@ export interface BitmapFill extends BaseFillStyle {
     | typeof FillStyleType.NonSmoothedClippedBitmap;
   readonly bitmapId: number;
   readonly matrix: Matrix;
+  /**
+   * Optional color transformations to apply to the underlying bitmap when
+   * rendering. This is filled by the extractor when color transforms are
+   * applied to shapes using this fill style.
+   */
+  readonly colorTransforms?: readonly ColorTransform[];
 }
 
 export type FillStyle = SolidFill | GradientFill | BitmapFill;

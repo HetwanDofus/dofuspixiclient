@@ -96,7 +96,7 @@ export interface DefineMorphShape {
   readonly usesNonScalingStrokes?: boolean;
   readonly usesScalingStrokes?: boolean;
   readonly morphFillStyles: readonly MorphFillStyle[];
-  readonly morphLineStyles: readonly MorphLineStyle[];
+  readonly morphLineStyles: readonly (MorphLineStyle | MorphLineStyle2)[];
   readonly startEdges: readonly ShapeRecord[];
   readonly endEdges: readonly ShapeRecord[];
   readonly version: 1 | 2;
@@ -104,6 +104,7 @@ export interface DefineMorphShape {
 
 /**
  * Read DefineMorphShape tag.
+ * DEBUG: 2025-12-07 timestamp
  */
 export function readDefineMorphShape(reader: SwfReader): DefineMorphShape {
   const id = reader.readUI16();
@@ -156,14 +157,18 @@ export function readDefineMorphShape2(reader: SwfReader): DefineMorphShape {
   const startEdgeBounds = readRectangle(reader);
   const endEdgeBounds = readRectangle(reader);
 
-  reader.readUB(6); // Reserved
-  const usesNonScalingStrokes = reader.readBool();
-  const usesScalingStrokes = reader.readBool();
+  // Read flags byte (6 reserved bits + 2 flag bits)
+  const flags = reader.readUI8();
+  const usesNonScalingStrokes = (flags & 0b00000010) !== 0;
+  const usesScalingStrokes = (flags & 0b00000001) !== 0;
 
-  const endEdgesOffset = reader.readUI32();
+  reader.readUI32(); // endEdgesOffset - not used
 
   const morphFillStyles = readMorphFillStyles(reader);
-  const morphLineStyles = readMorphLineStyles(reader);
+  const morphLineStyles = readMorphLineStyles2(reader);
+
+  // Byte align before reading shape records
+  reader.alignByte();
 
   const startContext: ShapeContext = {
     numFillBits: reader.readUB(4),
@@ -295,10 +300,69 @@ function readMorphLineStyles(reader: SwfReader): MorphLineStyle[] {
   return styles;
 }
 
+function readMorphLineStyles2(reader: SwfReader): MorphLineStyle2[] {
+  let count = reader.readUI8();
+  if (count === 0xff) count = reader.readUI16();
+
+  const styles: MorphLineStyle2[] = [];
+  for (let i = 0; i < count; i++) {
+    const startWidth = reader.readUI16();
+    const endWidth = reader.readUI16();
+
+    // Read first flags byte
+    const flags1 = reader.readUI8();
+    const startCapStyle = (flags1 >> 6) & 3;
+    const joinStyle = (flags1 >> 4) & 3;
+    const hasFillFlag = (flags1 & 0b00001000) !== 0;
+    const noHScaleFlag = (flags1 & 0b00000100) !== 0;
+    const noVScaleFlag = (flags1 & 0b00000010) !== 0;
+    const pixelHintingFlag = (flags1 & 0b00000001) !== 0;
+
+    // Read second flags byte
+    const flags2 = reader.readUI8();
+    const noClose = (flags2 & 0b00000100) !== 0;
+    const endCapStyle = (flags2 & 0b00000011);
+
+    // Read miter limit factor if join style is miter (2)
+    const miterLimitFactor = joinStyle === 2 ? reader.readFixed8() : undefined;
+
+    // Read colors or fill style
+    let startColor: Rgba | undefined;
+    let endColor: Rgba | undefined;
+    let fillStyle: MorphFillStyle | undefined;
+
+    if (hasFillFlag) {
+      fillStyle = readMorphFillStyle(reader);
+    } else {
+      startColor = readRgba(reader);
+      endColor = readRgba(reader);
+    }
+
+    styles.push({
+      startWidth,
+      endWidth,
+      startCapStyle,
+      joinStyle,
+      hasFillFlag,
+      noHScaleFlag,
+      noVScaleFlag,
+      pixelHintingFlag,
+      noClose,
+      endCapStyle,
+      miterLimitFactor,
+      startColor,
+      endColor,
+      fillStyle,
+    });
+  }
+  return styles;
+}
+
 function readEdges(reader: SwfReader, context: ShapeContext): ShapeRecord[] {
   const records: ShapeRecord[] = [];
   while (reader.hasRemaining()) {
-    const record = readShapeRecord(reader, context, 3);
+    // Morph shapes always use version 1 for shape records
+    const record = readShapeRecord(reader, context, 1);
     records.push(record);
     if (record.type === ShapeRecordType.EndShape) break;
   }

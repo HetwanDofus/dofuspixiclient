@@ -166,31 +166,36 @@ export function readShapeRecord(
 
   // Edge record
   const isStraight = reader.readBool();
-  const numBits = reader.readUB(4) + 2;
+  const numBitsRaw = reader.readUB(4);
+  const numBits = numBitsRaw + 2;
 
   if (isStraight) {
     const isGeneralLine = reader.readBool();
 
     if (isGeneralLine) {
+      const deltaX = reader.readSB(numBits);
+      const deltaY = reader.readSB(numBits);
       return {
         type: ShapeRecordType.StraightEdge,
-        deltaX: reader.readSB(numBits),
-        deltaY: reader.readSB(numBits),
+        deltaX,
+        deltaY,
       };
     }
 
     const isVertical = reader.readBool();
     if (isVertical) {
+      const deltaY = reader.readSB(numBits);
       return {
         type: ShapeRecordType.StraightEdge,
         deltaX: 0,
-        deltaY: reader.readSB(numBits),
+        deltaY,
       };
     }
 
+    const deltaX = reader.readSB(numBits);
     return {
       type: ShapeRecordType.StraightEdge,
-      deltaX: reader.readSB(numBits),
+      deltaX,
       deltaY: 0,
     };
   }

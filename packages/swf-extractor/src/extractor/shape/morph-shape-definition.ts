@@ -352,8 +352,10 @@ function processMorphPaths(tag: DefineMorphShape, ratio: number): ShapePath[] {
   for (const path of closedPaths) {
     const fixed = fixPath(path);
     if (fixed.lineStyle && fixed.lineStyle.width > 0) {
+      // Line paths (with stroke)
       linePaths.push(fixed);
     } else {
+      // Fill paths (no stroke, or stroke with width 0)
       fillPaths.push(fixed);
     }
   }

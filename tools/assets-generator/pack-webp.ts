@@ -53,18 +53,20 @@ const [groundsResult, objectsResult] = await Promise.all([
     outputDir: path.join(assetsPath, 'assets/output/grounds-webp'),
     tileType: 'ground',
     tileMetadata: groundsManifest?.tiles,
-    maxAtlasSize: 4096,
+    maxAtlasSize: 4096 * 3,
     quality: 95,
-    regionSize: 64, // 64x64 pixel regions for deduplication
+    regionSize: 96, // 64x64 pixel regions for deduplication
+    parallelism: 4, // Reduce parallelism to avoid memory issues
   }),
   packTilesToWebp({
     inputDir: path.join(assetsPath, 'assets/rasters/objects'),
     outputDir: path.join(assetsPath, 'assets/output/objects-webp'),
     tileType: 'objects',
     tileMetadata: objectsManifest?.tiles,
-    maxAtlasSize: 4096,
+    maxAtlasSize: 4096 * 3,
     quality: 95,
-    regionSize: 64,
+    regionSize: 96,
+    parallelism: 4, // Reduce parallelism to avoid memory issues
   }),
 ]);
 

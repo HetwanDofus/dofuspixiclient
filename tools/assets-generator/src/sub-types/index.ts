@@ -257,8 +257,8 @@ function determineTileBehavior(
  */
 function isVector(drawable: Drawable, bitmapResolver: BitmapResolver): boolean {
   try {
-    // Note: area() is called inside draw() by the timeline, so don't call it manually
-    const canvas = new SvgCanvas({ bitmapResolver });
+    const canvas = new SvgCanvas({ bitmapResolver, subpixelStrokeWidth: false });
+    canvas.area(drawable.bounds());
     drawable.draw(canvas, 0);
     const svg = canvas.render();
 
@@ -568,7 +568,8 @@ export class TileExtractor {
       // Render SVG once at 1x scale (will be reused for all scale factors)
       let svg: string;
       try {
-        const canvas = new SvgCanvas({ bitmapResolver });
+        const canvas = new SvgCanvas({ bitmapResolver, subpixelStrokeWidth: false });
+        canvas.area(drawable.bounds());
         drawable.draw(canvas, frameIdx);
         svg = canvas.render();
       } catch (e) {

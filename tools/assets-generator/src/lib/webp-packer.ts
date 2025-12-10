@@ -321,6 +321,18 @@ function framesAreIdentical(frame1: AnalyzedFrame, frame2: AnalyzedFrame): boole
 }
 
 /**
+ * Timeout wrapper for promises
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMsg: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(errorMsg)), timeoutMs)
+    ),
+  ]);
+}
+
+/**
  * Pack a single tile's frames into WebP atlas with region deduplication.
  */
 async function packTileToWebpAtlas(
@@ -515,7 +527,7 @@ export async function packTilesToWebp(config: WebpPackConfig): Promise<WebpPackR
     quality = 90,
     regionSize = 64,
     effort = 4,  // 0-6, lower = faster encoding
-    parallelism = os.cpus().length,
+    parallelism = Math.min(8, os.cpus().length),  // Limit to 8 to avoid memory issues
   } = config;
 
   const packLogger = pino({ name: 'webp-packer' });
@@ -587,22 +599,32 @@ export async function packTilesToWebp(config: WebpPackConfig): Promise<WebpPackR
     // Process tiles in parallel batches
     for (let i = 0; i < pendingTileDirs.length; i += parallelism) {
       const batch = pendingTileDirs.slice(i, i + parallelism);
+      const batchTileIds = batch.map(d => parseInt(d.replace('tile_', ''), 10));
+
+      if (i % (parallelism * 10) === 0) {
+        packLogger.info(`  Starting batch ${Math.floor(i / parallelism) + 1}: tiles [${batchTileIds.join(', ')}]`);
+      }
 
       const batchResults = await Promise.allSettled(
         batch.map(async (tileDir) => {
           const tileId = parseInt(tileDir.replace('tile_', ''), 10);
           const tilePath = path.join(scaleDir, tileDir);
 
-          const tileAtlas = await packTileToWebpAtlas(
-            tileId,
-            tilePath,
-            scaleOutputDir,
-            maxAtlasSize,
-            padding,
-            quality,
-            regionSize,
-            effort,
-            packLogger,
+          // Add timeout (5 minutes per tile)
+          const tileAtlas = await withTimeout(
+            packTileToWebpAtlas(
+              tileId,
+              tilePath,
+              scaleOutputDir,
+              maxAtlasSize,
+              padding,
+              quality,
+              regionSize,
+              effort,
+              packLogger,
+            ),
+            5 * 60 * 1000,
+            `Tile ${tileId} timed out after 5 minutes`
           );
 
           return { tileId, tileAtlas };
@@ -610,13 +632,17 @@ export async function packTilesToWebp(config: WebpPackConfig): Promise<WebpPackR
       );
 
       // Process results, handling failures gracefully
-      for (const settledResult of batchResults) {
+      for (let j = 0; j < batchResults.length; j++) {
+        const settledResult = batchResults[j]!;
+        const tileDir = batch[j]!;
+        const tileId = parseInt(tileDir.replace('tile_', ''), 10);
+
         if (settledResult.status === 'rejected') {
           errorCount++;
-          packLogger.error(`  Tile failed: ${settledResult.reason}`);
+          packLogger.error(`  Tile ${tileId} failed: ${settledResult.reason}`);
           continue;
         }
-        const { tileId, tileAtlas } = settledResult.value;
+        const { tileAtlas } = settledResult.value;
         processedCount++;
 
         if (tileAtlas) {
@@ -680,9 +706,15 @@ export async function packTilesToWebp(config: WebpPackConfig): Promise<WebpPackR
         }
       }
 
-      // Progress logging every 100 tiles
-      if (processedCount % 100 === 0 || processedCount === pendingTileDirs.length) {
-        packLogger.info(`  Progress: ${processedCount}/${pendingTileDirs.length} tiles (${errorCount} errors)`);
+      // Progress logging every 10 tiles or at completion
+      if (processedCount % 10 === 0 || processedCount === pendingTileDirs.length) {
+        const lastTileId = batch[batch.length - 1] ? parseInt(batch[batch.length - 1]!.replace('tile_', ''), 10) : 0;
+        packLogger.info(`  Progress: ${processedCount}/${pendingTileDirs.length} tiles (${errorCount} errors) - last: tile_${lastTileId}`);
+      }
+
+      // Force garbage collection every 100 tiles to help with memory
+      if (processedCount % 100 === 0 && global.gc) {
+        global.gc();
       }
     }
 

@@ -8,7 +8,7 @@ import { BlendMode, blendModeToCss } from '@/extractor/timeline/blend-mode.ts';
 import { buildPathString } from '@/extractor/shape/path.ts';
 import { FillStyleType, type FillStyle, type SolidFill, type GradientFill, type BitmapFill } from '@/parser/structure/record/fill-style.ts';
 import { type LineStyle, type LineStyle2 } from '@/parser/structure/record/line-style.ts';
-import { toHex, hasTransparency, getOpacity, type Rgba } from '@/parser/structure/record/color.ts';
+import { toHex, hasTransparency, getOpacity, type Rgba, type ColorTransform } from '@/parser/structure/record/color.ts';
 import { toSvgTransform } from '@/parser/structure/record/matrix.ts';
 import { buildSvgFilter } from './filter/svg-filter-builder.ts';
 
@@ -57,6 +57,12 @@ export interface SvgCanvasOptions {
    * This allows rendering at higher resolutions without pixelation.
    */
   scaledBitmaps?: ScaledBitmaps;
+  /**
+   * Optional bounds to set the SVG dimensions.
+   * If provided, the SVG width/height will be set immediately.
+   * This matches the PHP SvgCanvas constructor behavior.
+   */
+  bounds?: Rectangle;
 }
 
 /**
@@ -210,8 +216,6 @@ class SvgBuilder {
   }
 
   private applyStrokeStyle(el: SvgElement, line: LineStyle | LineStyle2): void {
-    const width = line.width / 20;
-
     // Check for line fill (LineStyle2 with fillType)
     if ('fillType' in line && line.fillType) {
       // Apply the fill style to the stroke attribute
@@ -225,16 +229,16 @@ class SvgBuilder {
       el.addAttribute('stroke', 'none');
     }
 
+        let width = line.width / 20;
+
     if (width > 0) {
-      if (this.subpixelStrokeWidth) {
-        el.addAttribute('stroke-width', String(width));
-      } else {
-        if (width < 1) {
-          el.addAttribute('vector-effect', 'non-scaling-stroke');
-        }
-        el.addAttribute('stroke-width', String(Math.max(1, width)));
+      if (!this.subpixelStrokeWidth && width < 1) {
+        width = 1;
+      
+        el.addAttribute('vector-effect', 'non-scaling-stroke');
       }
 
+      el.addAttribute('stroke-width', String(width));
       el.addAttribute('stroke-linecap', 'round');
       el.addAttribute('stroke-linejoin', 'round');
     }
@@ -269,60 +273,75 @@ class SvgBuilder {
     }
   }
 
-  private createBitmapPattern(fill: BitmapFill): string {
-    if (!this.bitmapResolver) return '#808080';
-    const bitmap = this.bitmapResolver(fill.bitmapId);
-    if (!bitmap) return '#808080';
+	  private createBitmapPattern(fill: BitmapFill): string {
+	    if (!this.bitmapResolver) return '#808080';
 
-    const smoothed = fill.type === FillStyleType.RepeatingBitmap || fill.type === FillStyleType.ClippedBitmap;
-    const repeat = fill.type === FillStyleType.RepeatingBitmap || fill.type === FillStyleType.NonSmoothedRepeatingBitmap;
-    // Use undoTwipScale=true for bitmap patterns like PHP does
-    const transform = toSvgTransform(fill.matrix, true);
-    // Include whether we have scaled bitmaps in the hash to avoid conflicts
-    const hasScaled = this.scaledBitmaps?.has(fill.bitmapId) ?? false;
-    // Match PHP's hash format: prefix + bitmapId + '-' + crc32(transform)
-    const prefix = (repeat ? 'R' : 'C') + 'B' + (smoothed ? '' : 'N');
-    const patternHash = `pattern-${prefix}${fill.bitmapId}-${simpleHash(transform)}${hasScaled ? '-scaled' : ''}`;
+	    const colorTransforms = (fill as BitmapFill & { colorTransforms?: readonly ColorTransform[] }).colorTransforms;
+	    const baseBitmap = this.bitmapResolver(fill.bitmapId);
+	    if (!baseBitmap) return '#808080';
 
-    if (this.patternIds.has(patternHash)) {
-      return `url(#${this.patternIds.get(patternHash)})`;
-    }
+	    // If the bitmap also implements Drawable (ImageCharacterDefinition does),
+	    // apply any recorded color transforms to it, in order. This mirrors PHP's
+	    // Bitmap::transformColors and TransformedImage behavior.
+	    let bitmap: ImageCharacter = baseBitmap;
+	    if (colorTransforms && colorTransforms.length > 0) {
+	      let drawable = bitmap as ImageCharacter & Drawable;
+	      for (const ct of colorTransforms) {
+	        drawable = drawable.transformColors(ct) as ImageCharacter & Drawable;
+	      }
+	      bitmap = drawable;
+	    }
 
-    this.patternIds.set(patternHash, patternHash);
+	    const smoothed = fill.type === FillStyleType.RepeatingBitmap || fill.type === FillStyleType.ClippedBitmap;
+	    const repeat = fill.type === FillStyleType.RepeatingBitmap || fill.type === FillStyleType.NonSmoothedRepeatingBitmap;
+	    // Use undoTwipScale=true for bitmap patterns like PHP does
+	    const transform = toSvgTransform(fill.matrix, true);
+	    const hasColorTransforms = !!(colorTransforms && colorTransforms.length > 0);
+	    // Only use pre-scaled bitmaps when no color transform is applied, since
+	    // scaledBitmaps are generated from the original image data.
+	    const useScaled = !hasColorTransforms && (this.scaledBitmaps?.has(fill.bitmapId) ?? false);
+	    const prefix = (repeat ? 'R' : 'C') + 'B' + (smoothed ? '' : 'N');
+	    const baseTransformHash = simpleHash(transform).toString(16);
+	    const imageData = useScaled ? this.scaledBitmaps!.get(fill.bitmapId)! : bitmap.toBase64Data();
+	    const imageContentHash = hasColorTransforms ? '-' + simpleHash(imageData).toString(16) : '';
+	    const patternHash = `pattern-${prefix}${fill.bitmapId}-${baseTransformHash}${useScaled ? '-scaled' : ''}${imageContentHash}`;
 
-    const bounds = bitmap.bounds();
-    const width = (bounds.xMax - bounds.xMin) / 20;
-    const height = (bounds.yMax - bounds.yMin) / 20;
+	    if (this.patternIds.has(patternHash)) {
+	      return `url(#${this.patternIds.get(patternHash)})`;
+	    }
 
-    const pattern = this.svg.addChild('pattern');
-    pattern.addAttribute('id', patternHash);
-    pattern.addAttribute('overflow', 'visible');
-    pattern.addAttribute('patternUnits', 'userSpaceOnUse');
-    pattern.addAttribute('width', String(width));
-    pattern.addAttribute('height', String(height));
-    pattern.addAttribute('viewBox', `0 0 ${width} ${height}`);
-    pattern.addAttribute('patternTransform', transform);
-    if (!smoothed) pattern.addAttribute('image-rendering', 'optimizeSpeed');
+	    this.patternIds.set(patternHash, patternHash);
 
-    // Use pre-scaled bitmap if available, otherwise use original
-    const imageData = this.scaledBitmaps?.get(fill.bitmapId) ?? bitmap.toBase64Data();
+	    const bounds = bitmap.bounds();
+	    const width = (bounds.xMax - bounds.xMin) / 20;
+	    const height = (bounds.yMax - bounds.yMin) / 20;
 
-    // Deduplicate images: if the same image data is used in multiple patterns, reuse it
-    const imageHash = `image-${simpleHash(imageData)}`;
-    if (this.imageIds.has(imageHash)) {
-      // Image already exists, use a <use> reference
-      const use = pattern.addChild('use');
-      use.addAttribute('href', `#${this.imageIds.get(imageHash)}`, XLINK_NS);
-    } else {
-      // First time seeing this image, create it with an ID
-      this.imageIds.set(imageHash, imageHash);
-      const img = pattern.addChild('image');
-      img.addAttribute('href', imageData, XLINK_NS);
-      img.addAttribute('id', imageHash);
-    }
+	    const pattern = this.svg.addChild('pattern');
+	    pattern.addAttribute('id', patternHash);
+	    pattern.addAttribute('overflow', 'visible');
+	    pattern.addAttribute('patternUnits', 'userSpaceOnUse');
+	    pattern.addAttribute('width', String(width));
+	    pattern.addAttribute('height', String(height));
+	    pattern.addAttribute('viewBox', `0 0 ${width} ${height}`);
+	    pattern.addAttribute('patternTransform', transform);
+	    if (!smoothed) pattern.addAttribute('image-rendering', 'optimizeSpeed');
 
-    return `url(#${patternHash})`;
-  }
+	    // Deduplicate images: if the same image data is used in multiple patterns, reuse it
+	    const imageHash = `image-${simpleHash(imageData)}`;
+	    if (this.imageIds.has(imageHash)) {
+	      // Image already exists, use a <use> reference
+	      const use = pattern.addChild('use');
+	      use.addAttribute('href', `#${this.imageIds.get(imageHash)}`, XLINK_NS);
+	    } else {
+	      // First time seeing this image, create it with an ID
+	      this.imageIds.set(imageHash, imageHash);
+	      const img = pattern.addChild('image');
+	      img.addAttribute('href', imageData, XLINK_NS);
+	      img.addAttribute('id', imageHash);
+	    }
+
+	    return `url(#${patternHash})`;
+	  }
 
   private createGradient(fill: GradientFill): string {
     const gradient = fill.gradient;
@@ -511,7 +530,7 @@ abstract class AbstractSvgCanvas implements Drawer {
    * Get or create the current target element, applying active clips.
    * This is the lazy clip handling from PHP's target() method.
    */
-  private target(bounds: Rectangle): SvgElement {
+  protected target(bounds: Rectangle): SvgElement {
     if (this.currentTarget !== null) {
       return this.currentTarget;
     }
@@ -556,13 +575,22 @@ export class SvgCanvas extends AbstractSvgCanvas {
     root.addAttribute('xmlns', 'http://www.w3.org/2000/svg');
     root.addAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
 
-    const subpixelStrokeWidth = options.subpixelStrokeWidth ?? false;
+    const subpixelStrokeWidth = options.subpixelStrokeWidth ?? true;
     const bitmapResolver = options.bitmapResolver ?? null;
     const scaledBitmaps = options.scaledBitmaps ?? null;
     const builder = new SvgBuilder(root, subpixelStrokeWidth, bitmapResolver, () => this.nextObjectId(), scaledBitmaps);
 
     super(builder);
     this.root = root;
+
+    // If bounds are provided, set SVG dimensions immediately (matches PHP behavior)
+    if (options.bounds) {
+      const width = (options.bounds.xMax - options.bounds.xMin) / 20;
+      const height = (options.bounds.yMax - options.bounds.yMin) / 20;
+      this.root.addAttribute('width', `${width}px`);
+      this.root.addAttribute('height', `${height}px`);
+      this.boundsSet = true;
+    }
   }
 
   override area(bounds: Rectangle): void {

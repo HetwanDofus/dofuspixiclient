@@ -198,10 +198,10 @@ export class SwfExtractor {
       case TagType.DefineBits:
         // DefineBits requires JPEGTables to be present
         if (!this.jpegTables) return null;
-        promise = Promise.resolve(extractDefineBits(readDefineBits(reader), this.jpegTables));
+        promise = extractDefineBits(readDefineBits(reader), this.jpegTables);
         break;
       case TagType.DefineBitsJPEG2:
-        promise = Promise.resolve(extractJpeg2(readDefineBitsJpeg2(reader)));
+	        promise = extractJpeg2(readDefineBitsJpeg2(reader));
         break;
       case TagType.DefineBitsJPEG3:
         promise = extractJpeg3(readDefineBitsJpeg3(reader));

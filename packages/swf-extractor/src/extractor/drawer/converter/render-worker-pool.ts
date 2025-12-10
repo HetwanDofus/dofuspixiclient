@@ -11,7 +11,7 @@
 
 import * as fs from 'fs';
 import * as readline from 'readline';
-import { Resvg } from '@resvg/resvg-js';
+import { execSync } from 'child_process';
 
 interface RenderRequest {
   id: string;
@@ -35,19 +35,11 @@ function processRequest(request: RenderRequest): void {
   const { id, svgPath, pngPath, width, height } = request;
 
   try {
-    const svgContent = fs.readFileSync(svgPath, 'utf-8');
+    // Use rsvg-convert to render SVG to PNG (matches PHP implementation)
+    // Note: Don't scale the SVG dimensions - let rsvg-convert handle scaling via -w/-h
+    const cmd = `rsvg-convert -w ${width} -h ${height} -f png -b transparent -o "${pngPath}" "${svgPath}"`;
+    execSync(cmd, { stdio: 'pipe' });
 
-    // Sanitize SVG - remove <use> elements with zero dimensions
-    const sanitizedSvg = svgContent.replace(/<use[^>]*\s(?:width="0"|height="0")[^>]*\/>/g, '');
-
-    const resvg = new Resvg(sanitizedSvg, {
-      fitTo: { mode: 'width', value: width },
-    });
-
-    const pngData = resvg.render();
-    const pngBuffer = Buffer.from(pngData.asPng());
-
-    fs.writeFileSync(pngPath, pngBuffer);
     sendResponse({ id, success: true });
   } catch (error) {
     sendResponse({

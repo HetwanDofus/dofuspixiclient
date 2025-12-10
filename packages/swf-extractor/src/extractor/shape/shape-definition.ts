@@ -1,6 +1,6 @@
 import type { Rectangle } from '@/parser/structure/record/rectangle.ts';
 import type { DefineShape } from '@/parser/structure/tag/define-shape.ts';
-import type { FillStyle, SolidFill, GradientFill } from '@/parser/structure/record/fill-style.ts';
+import type { FillStyle, SolidFill, GradientFill, BitmapFill } from '@/parser/structure/record/fill-style.ts';
 import { FillStyleType } from '@/parser/structure/record/fill-style.ts';
 import type { LineStyle, LineStyle2 } from '@/parser/structure/record/line-style.ts';
 import type { ColorTransform, Rgba } from '@/parser/structure/record/color.ts';
@@ -92,7 +92,23 @@ function transformFillStyle(fill: FillStyle, ct: ColorTransform): FillStyle {
     };
   }
 
-  // Bitmap fills don't have colors to transform
+  // Bitmap fills: record color transforms to be applied to the underlying
+  // bitmap when rendering patterns. This mirrors PHP's Bitmap::transformColors
+  // which wraps the ImageCharacter in a TransformedImage.
+  if (
+    fill.type === FillStyleType.RepeatingBitmap ||
+    fill.type === FillStyleType.ClippedBitmap ||
+    fill.type === FillStyleType.NonSmoothedRepeatingBitmap ||
+    fill.type === FillStyleType.NonSmoothedClippedBitmap
+  ) {
+    const bitmapFill = fill as BitmapFill;
+    const existing = bitmapFill.colorTransforms ?? [];
+    return {
+      ...bitmapFill,
+      colorTransforms: [...existing, ct],
+    };
+  }
+
   return fill;
 }
 
@@ -281,10 +297,15 @@ function extractPaths(shape: DefineShape): ShapePath[] {
       // Fix segments to form continuous paths
       const fixedSegments = fixSegments(path.segments);
 
-      if (path.lineStyle) {
-        linePaths.push({ segments: fixedSegments, lineStyle: path.lineStyle });
-      } else if (path.fillStyle) {
-        fillPaths.push({ segments: fixedSegments, fillStyle: path.fillStyle });
+      // Separate paths based on whether they have a line style with width > 0
+      // This matches PHP's PathsBuilder::export() behavior
+      // Paths with ONLY a line style (no fill) should be treated as line paths
+      if (path.lineStyle && path.lineStyle.width > 0) {
+        // Line paths (with stroke)
+        linePaths.push({ segments: fixedSegments, fillStyle: path.fillStyle, lineStyle: path.lineStyle });
+      } else {
+        // Fill paths (no stroke, or stroke with width 0)
+        fillPaths.push({ segments: fixedSegments, fillStyle: path.fillStyle, lineStyle: path.lineStyle });
       }
     }
 

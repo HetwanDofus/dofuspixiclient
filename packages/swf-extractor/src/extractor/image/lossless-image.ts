@@ -2,6 +2,7 @@ import { inflateSync } from 'node:zlib';
 import type { DefineBitsLossless } from '@/parser/structure/tag/define-bits.ts';
 import { LosslessFormat } from '@/parser/structure/tag/define-bits.ts';
 import type { ImageDefinition } from './image-definition.ts';
+import { encodePng } from './png-encoder.ts';
 
 /**
  * Extract lossless image (DefineBitsLossless/DefineBitsLossless2).
@@ -12,8 +13,6 @@ export async function extractLossless(
   tag: DefineBitsLossless,
   hasAlpha: boolean,
 ): Promise<ImageDefinition> {
-  const sharp = (await import('sharp')).default;
-
   // Decompress zlib data
   const decompressed = inflateSync(tag.zlibData);
 
@@ -40,11 +39,8 @@ export async function extractLossless(
       throw new Error(`Unknown lossless format: ${format}`);
   }
 
-  const pngBuffer = await sharp(Buffer.from(rgba), {
-    raw: { width, height, channels: 4 },
-  })
-    .png()
-    .toBuffer();
+  const rgbaBuffer = Buffer.from(rgba);
+  const pngBuffer = encodePng(width, height, rgbaBuffer);
 
   return {
     id: tag.id,
@@ -52,6 +48,7 @@ export async function extractLossless(
     height,
     data: pngBuffer,
     format: 'png',
+    rgba: rgbaBuffer,
   };
 }
 
