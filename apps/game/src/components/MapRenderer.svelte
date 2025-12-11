@@ -43,7 +43,7 @@
       }
 
       // Spawn stress test sprites with ECS
-      await engine.spawnStressTestSprites(100);
+      await engine.spawnStressTestSprites(5000);
       isLoading = false;
 
       // Start stats update loop

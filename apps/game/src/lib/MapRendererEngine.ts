@@ -1,4 +1,4 @@
-import { Application, Container, Sprite, AnimatedSprite, Assets, Texture, RenderTexture, TextureSource, Ticker, Graphics, Text, TextStyle } from 'pixi.js';
+import { Application, Container, Sprite, AnimatedSprite, Assets, Texture, RenderTexture, Rectangle, TextureSource, Ticker, Graphics, Text, TextStyle } from 'pixi.js';
 import 'pixi.js/ktx2';
 import { GameWorld } from './GameWorld';
 import { SpriteRenderSystem } from './SpriteRenderSystem';
@@ -93,6 +93,7 @@ export class MapRendererEngine {
   private container: HTMLElement;
   private app: Application | null = null;
   private mapContainer: Container | null = null;
+  private stressContainer: Container | null = null;
   private manifest: TilesManifest | null = null;
   private textureCache: Map<string, any> = new Map();
   private cachedMapTexture: RenderTexture | null = null;
@@ -101,6 +102,10 @@ export class MapRendererEngine {
   // Region-based atlas loader
   private regionLoader: RegionAtlasLoader | null = null;
   private regionManifest: WebpManifest | null = null;
+
+  // Character sprite tracking
+  private currentCharacterScale: number | null = null;
+  private characterTextureCache = new Map<number, Map<string, Texture[]>>();
 
   // Game logic
   private gameWorld: GameWorld;
@@ -111,7 +116,7 @@ export class MapRendererEngine {
   private lastFpsUpdate = Date.now();
   private currentZoom = 1.5;
   private minZoom = 1.5;
-  private zoomLevels = [1.5, 2, 2.5, 3];
+  private zoomLevels = [1.5, 2, 3]; // Match available asset scales exactly
   private currentZoomIndex = 0;
   private currentTileScale: number | null = null;
   private lastFrameTimeMs = 0;
@@ -410,11 +415,18 @@ export class MapRendererEngine {
     // sprites on every tiny zoom step and gives a big performance win while
     // still switching to higher-res atlases when needed.
     let shouldRebuildMap = false;
+    let shouldRebuildCharacters = false;
+    const newTargetScale = this.getTargetScaleForZoom();
+
     if (this.manifest) {
-      const newTargetScale = this.getTargetScaleForZoom();
       if (this.currentTileScale === null || newTargetScale !== this.currentTileScale) {
         shouldRebuildMap = true;
       }
+    }
+
+    // Check if character sprites need to be reloaded at new scale
+    if (this.currentCharacterScale === null || newTargetScale !== this.currentCharacterScale) {
+      shouldRebuildCharacters = true;
     }
 
     if (shouldRebuildMap) {
@@ -422,6 +434,13 @@ export class MapRendererEngine {
       if (this.currentMapData) {
         await this.renderMap(this.currentMapData);
       }
+    }
+
+    // Rebuild character sprites at new scale if needed
+    if (shouldRebuildCharacters && this.stressContainer) {
+      console.log(`Rebuilding character sprites from ${this.currentCharacterScale}x to ${newTargetScale}x`);
+      const spriteCount = this.stressContainer.children.length;
+      await this.reloadCharacterSprites(newTargetScale, spriteCount);
     }
 
     if (hasAnchor) {
@@ -477,18 +496,8 @@ export class MapRendererEngine {
   }
 
   private getTargetScaleForZoom(): number {
-    if (!this.manifest || !Array.isArray(this.manifest.scales) || this.manifest.scales.length === 0) {
-      return 1.5;
-    }
-
-    // Map zoom levels to atlas scales: 1.5→1.5x, 2→2x, 2.5→3x, 3→3x
-    const scales = [...this.manifest.scales].sort((a, b) => a - b);
-
-    // Find the best scale that matches or exceeds current zoom
-    for (const s of scales) {
-      if (s >= this.currentZoom) return s;
-    }
-    return scales[scales.length - 1] ?? 1.5;
+    // Return current zoom as it now matches available asset scales exactly (1.5x, 2x, 3x)
+    return this.currentZoom;
   }
 
   private getBestAvailableScale(tile: TileData, targetScale: number): number {
@@ -541,6 +550,13 @@ export class MapRendererEngine {
     console.log(`Map ${mapId} loaded:`, mapData.width, 'x', mapData.height);
 
     this.currentMapData = mapData;
+
+    // Preserve stress container during map rebuild
+    const preservedStressContainer = this.stressContainer;
+    if (preservedStressContainer && this.mapContainer.children.includes(preservedStressContainer)) {
+      this.mapContainer.removeChild(preservedStressContainer);
+    }
+
     this.mapContainer.removeChildren();
     this.spriteCount = 0;
 
@@ -558,6 +574,11 @@ export class MapRendererEngine {
     }
 
     await this.renderMap(mapData);
+
+    // Re-add stress container AFTER map is rendered so it appears on top
+    if (preservedStressContainer) {
+      this.mapContainer.addChild(preservedStressContainer);
+    }
 
     console.log('Map rendered successfully, bounds:', this.mapBounds);
   }
@@ -625,6 +646,12 @@ export class MapRendererEngine {
 
   private async renderMap(mapData: MapData) {
     if (!this.mapContainer || !this.manifest) return;
+
+    // Preserve stress container during map rebuild (for zoom rebuilds)
+    const preservedStressContainer = this.stressContainer;
+    if (preservedStressContainer && this.mapContainer.children.includes(preservedStressContainer)) {
+      this.mapContainer.removeChild(preservedStressContainer);
+    }
 
     const { width: mapWidth, height: mapHeight, cells, backgroundNum } = mapData;
     const mapScale = this.computeMapScale(mapWidth, mapHeight);
@@ -824,6 +851,11 @@ export class MapRendererEngine {
 
     // Create debug overlay
     this.createDebugOverlay(cells, mapWidth, mapScale);
+
+    // Re-add stress container AFTER map is rendered so it appears on top
+    if (preservedStressContainer) {
+      this.mapContainer.addChild(preservedStressContainer);
+    }
 
     this.clampCameraToBounds();
   }
@@ -1400,59 +1432,105 @@ export class MapRendererEngine {
 
     console.log(`Spawning ${count} stress test sprites...`);
 
-    const stressContainer = new Container();
-    this.mapContainer.addChild(stressContainer);
+    // Create or reuse stress container
+    if (!this.stressContainer) {
+      this.stressContainer = new Container();
+      this.mapContainer.addChild(this.stressContainer);
+    }
+    const stressContainer = this.stressContainer;
+
+    console.log('Map bounds:', this.mapBounds);
+    console.log('Map container position:', { x: this.mapContainer.x, y: this.mapContainer.y });
+    console.log('Map container scale:', { x: this.mapContainer.scale.x, y: this.mapContainer.scale.y });
 
     const spriteIds = [10, 11, 20, 21, 30, 31, 40, 41, 50, 51, 60, 61, 70, 71, 80, 81, 90, 91];
     const animationTypes = ['walk', 'static', 'emote1'];
     const directions = ['R', 'L', 'F', 'B'];
 
-    const textureCache = new Map<number, Map<string, Texture>>();
+    const textureCache = new Map<number, Map<string, Texture[]>>();
 
     console.log('Pre-loading character textures...');
+
+    // Choose scale based on current zoom (same as map tiles)
+    const targetScale = this.getTargetScaleForZoom();
+    const scaleDir = targetScale === 1.5 ? '1.5x' : targetScale === 2 ? '2x' : '3x';
+    const assetScale = targetScale;
+    const displayScale = 1 / assetScale; // Scale down to compensate for upscaled assets
+
+    this.currentCharacterScale = targetScale;
+    console.log(`Loading character sprites at scale: ${scaleDir} (zoom: ${this.currentZoom})`);
+
     for (const spriteId of spriteIds) {
       try {
-        const manifestResponse = await fetch(`/assets/charactersv2/${spriteId}/manifest.json`);
+        // Load the scale-specific manifest with region data
+        const manifestResponse = await fetch(`/assets/sprites/characters/char_${spriteId}/${scaleDir}/manifest.json`);
         if (!manifestResponse.ok) continue;
 
         const manifest = await manifestResponse.json();
-        const spriteAnimations = new Map<string, Texture>();
-        const scale = manifest.scales?.[0] || 10;
+        const spriteAnimations = new Map<string, Texture[]>();
 
+        // Map old animation keys to new format
+        // Old: 'walk_R', 'static_L', 'emote1_F'
+        // New: 'walkR', 'staticL', 'emote1F'
         for (const animType of animationTypes) {
           for (const dir of directions) {
             const animKey = `${animType}_${dir}`;
-            const anim = manifest.animations?.[animKey];
-            if (!anim || !anim.frames || anim.frames.length === 0) continue;
+            const animName = `${animType}${dir}`; // New format without underscore
+
+            // Find animation in manifest
+            const anim = manifest.animations?.find((a: any) => a.name === animName);
+            if (!anim) continue;
 
             try {
-              const firstFrame = anim.frames[0];
-              const atlasIndex = firstFrame.atlas;
-              const atlas = manifest.atlases?.find((a: any) => a.index === atlasIndex);
-              if (!atlas) continue;
+              // Check if already cached at this scale
+              const cacheKey = `${spriteId}_${animKey}_${scaleDir}`;
+              if (this.characterTextureCache.has(spriteId)) {
+                const cachedAnims = this.characterTextureCache.get(spriteId)!;
+                if (cachedAnims.has(animKey)) {
+                  spriteAnimations.set(animKey, cachedAnims.get(animKey)!);
+                  continue;
+                }
+              }
 
-              const atlasFile = atlas.files[scale.toString()];
-              if (!atlasFile) continue;
+              // Load the sprite sheet atlas
+              const atlasPath = `/assets/sprites/characters/char_${spriteId}/${scaleDir}/${anim.spriteSheet}`;
+              const atlasTexture = await Assets.load(atlasPath);
 
-              const position = firstFrame.positions?.[scale.toString()];
-              if (!position) continue;
+              // Load all frames from sprite sheet (fast now - no reconstruction needed!)
+              const animFrames: Texture[] = [];
 
-              const atlasFileName = atlasFile.replace('.png', '.ktx2');
-              const atlasPath = `/assets/charactersv2/${spriteId}/${atlasFileName}`;
+              for (let frameIdx = 0; frameIdx < anim.frames.length; frameIdx++) {
+                const frameData = anim.frames[frameIdx];
+                if (!frameData) {
+                  console.warn(`Skipping frame ${frameIdx} for ${animName} - no frame data`);
+                  continue;
+                }
 
-              const atlasTexture = await Assets.load({
-                src: atlasPath,
-                data: { width: atlas.width, height: atlas.height },
-              });
+                // Simple texture extraction from sprite sheet atlas
+                const frameTexture = new Texture({
+                  source: atlasTexture.source,
+                  frame: new Rectangle(frameData.x, frameData.y, frameData.w, frameData.h),
+                });
 
-              const texture = new Texture({
-                source: atlasTexture.source,
-                frame: { x: position.x, y: position.y, width: position.w, height: position.h },
-              });
+                animFrames.push(frameTexture);
+              }
 
-              spriteAnimations.set(animKey, texture);
+              // Debug first sprite
+              if (spriteId === spriteIds[0] && animKey === 'walk_R') {
+                console.log('Loaded animation:', {
+                  spriteId,
+                  animName,
+                  frameCount: animFrames.length,
+                  firstFrameSize: animFrames[0] ? { w: animFrames[0].width, h: animFrames[0].height } : null
+                });
+              }
+
+              if (animFrames.length > 0) {
+                spriteAnimations.set(animKey, animFrames);
+              }
             } catch (err) {
               // Skip failed animations
+              console.warn(`Failed to load animation ${animName} for sprite ${spriteId}:`, err);
             }
           }
         }
@@ -1461,9 +1539,12 @@ export class MapRendererEngine {
           textureCache.set(spriteId, spriteAnimations);
         }
       } catch (err) {
-        console.error(`Failed to load sprite ${spriteId}`);
+        console.error(`Failed to load sprite ${spriteId}:`, err);
       }
     }
+
+    // Store texture cache in class property for zoom rebuilds
+    this.characterTextureCache = textureCache;
 
     console.log(`Loaded ${textureCache.size} character textures`);
 
@@ -1509,10 +1590,19 @@ export class MapRendererEngine {
       const availableAnimations = Array.from(animationsMap.entries());
 
       try {
-        const [animKey, texture] = availableAnimations[Math.floor(Math.random() * availableAnimations.length)];
+        const [animKey, textures] = availableAnimations[Math.floor(Math.random() * availableAnimations.length)];
 
-        const sprite = new Sprite(texture);
+        // Create animated sprite with all frames
+        const sprite = textures.length > 1
+          ? new AnimatedSprite(textures)
+          : new Sprite(textures[0]);
+
         sprite.anchor.set(0.5, 1);
+
+        if (sprite instanceof AnimatedSprite) {
+          sprite.animationSpeed = 1.0; // 60fps
+          sprite.play();
+        }
 
         let x = Math.random() * 800;
         let y = Math.random() * 600;
@@ -1525,19 +1615,57 @@ export class MapRendererEngine {
         // Create game entity
         const eid = this.gameWorld.createEntity(i);
         this.gameWorld.addComponent(eid, 'Position', { x, y });
-        this.gameWorld.addComponent(eid, 'Scale', { x: 0.1, y: 0.1 });
+        this.gameWorld.addComponent(eid, 'Scale', { x: displayScale, y: displayScale });
         this.gameWorld.addComponent(eid, 'Rotation', { angle: 0 });
         this.gameWorld.addComponent(eid, 'ZIndex', { value: i });
 
         // Register sprite with render system
         this.renderSystem.registerSprite(eid, sprite);
         stressContainer.addChild(sprite);
+
+        // Immediately set initial position instead of waiting for render system update
+        sprite.x = x;
+        sprite.y = y;
+        sprite.scale.set(displayScale, displayScale);
+
+        // Debug log first sprite
+        if (i === 0) {
+          console.log('First sprite debug:', {
+            frameCount: textures.length,
+            firstFrameSize: textures[0] ? { w: textures[0].width, h: textures[0].height } : null,
+            spriteX: sprite.x,
+            spriteY: sprite.y,
+            spriteWidth: sprite.width,
+            spriteHeight: sprite.height,
+            spriteVisible: sprite.visible,
+            spriteAlpha: sprite.alpha,
+            isPlaying: sprite.playing,
+            position: { x, y },
+            containerChildren: stressContainer.children.length
+          });
+        }
       } catch (err) {
         console.error('Error creating sprite:', err);
       }
     }
 
     console.log(`Spawned ${count} stress test sprites`);
+  }
+
+  private async reloadCharacterSprites(targetScale: number, count: number) {
+    if (!this.stressContainer) return;
+
+    // Clear old character texture cache to free memory
+    this.characterTextureCache.clear();
+
+    // Clear existing sprites
+    this.stressContainer.removeChildren();
+
+    // Reload character sprites by calling spawnStressTestSprites
+    // It will detect the existing container and add to it
+    await this.spawnStressTestSprites(count);
+
+    console.log(`Reloaded ${count} character sprites at ${targetScale}x scale`);
   }
 
   getStats() {
