@@ -28,13 +28,6 @@
 
   <div class="content">
     <MapRenderer />
-
-    <div class="bottom-panel">
-      <div class="panel-content">
-        <h2>Debug Panel</h2>
-        <p>Additional debug information and controls will be displayed here</p>
-      </div>
-    </div>
   </div>
 </main>
 
@@ -82,30 +75,5 @@
     flex-direction: column;
     gap: 0;
     overflow: hidden;
-  }
-
-  .bottom-panel {
-    flex: 0 0 25%;
-    background: #2a2a2a;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .panel-content {
-    padding: 1.5rem;
-    color: #ccc;
-  }
-
-  .panel-content h2 {
-    margin: 0 0 1rem 0;
-    font-size: 1.2rem;
-    color: #fff;
-  }
-
-  .panel-content p {
-    margin: 0;
-    font-size: 0.9rem;
   }
 </style>
