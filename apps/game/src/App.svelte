@@ -1,34 +1,41 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import MapRenderer from './components/MapRenderer.svelte';
+  import WorldMap from './components/WorldMap.svelte';
 
   let windowHeight = 0;
   let windowWidth = 0;
+  let showWorldMap = false;
 
   function handleResize() {
     windowWidth = window.innerWidth;
     windowHeight = window.innerHeight;
   }
 
+  function handleKeyDown(e: KeyboardEvent) {
+    if (e.key === 'm' || e.key === 'M') {
+      showWorldMap = !showWorldMap;
+    }
+  }
+
   onMount(() => {
     handleResize();
     window.addEventListener('resize', handleResize);
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   });
 </script>
 
 <main>
-  <header>
-    <h1>Dofus WebGPU Performance Test</h1>
-    <p>Rendering with PixiJS v8</p>
-  </header>
-
   <div class="content">
     <MapRenderer />
   </div>
+
+  <WorldMap visible={showWorldMap} />
 </main>
 
 <style>
@@ -44,29 +51,6 @@
     display: flex;
     flex-direction: column;
     background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
-  }
-
-  header {
-    flex-shrink: 0;
-    text-align: center;
-    padding: 1rem 0;
-    background: rgba(0, 0, 0, 0.3);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  h1 {
-    font-size: 2rem;
-    margin: 0 0 0.25rem 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  header p {
-    margin: 0;
-    color: #999;
-    font-size: 0.9rem;
   }
 
   .content {

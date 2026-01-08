@@ -1,32 +1,11 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { MapRendererEngine } from '../lib/MapRendererEngine';
-  import DebugToolbox from './DebugToolbox.svelte';
 
   let canvasContainer: HTMLDivElement;
   let engine: MapRendererEngine | null = null;
   let isLoading = true;
   let error: string | null = null;
-  let stats = {
-    fps: 0,
-    sprites: 0,
-    drawCalls: 0,
-    renderTime: 0,
-    memory: 0,
-  };
-
-  async function handleLoadMap(mapId: number) {
-    if (!engine) return;
-    try {
-      isLoading = true;
-      error = null;
-      await engine.loadMap(mapId);
-      isLoading = false;
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load map';
-      isLoading = false;
-    }
-  }
 
   onMount(async () => {
     try {
@@ -43,19 +22,8 @@
       }
 
       // Spawn stress test sprites with ECS
-      await engine.spawnStressTestSprites(5000);
+      //await engine.spawnStressTestSprites(5000);
       isLoading = false;
-
-      // Start stats update loop
-      const statsInterval = setInterval(() => {
-        if (engine) {
-          stats = engine.getStats();
-        }
-      }, 100);
-
-      return () => {
-        clearInterval(statsInterval);
-      };
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to initialize renderer';
       console.error('Initialization error:', err);
@@ -82,8 +50,6 @@
     }
   }
 </script>
-
-<DebugToolbox {stats} {error} onLoadMap={handleLoadMap} />
 
 <div
   class="map-renderer"
@@ -119,9 +85,14 @@
     justify-content: center;
   }
 
-  .map-renderer :global(canvas) {
-    display: block;
-  }
+	  .map-renderer :global(canvas) {
+	    display: block;
+	    /* Ensure the browser scales the canvas with nearest-neighbour when
+	       page zoom or CSS scaling is applied. This greatly improves
+	       sharpness for pixel-art when zooming in. */
+	    image-rendering: pixelated;
+	    image-rendering: crisp-edges;
+	  }
 
   .loading-overlay,
   .error-overlay {
