@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Spritesheet Viewer - Sprite 10</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    h1 { margin-bottom: 10px; }
+    .loading { font-size: 18px; color: #888; }
+    .controls {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    select, input {
+      padding: 8px;
+      font-size: 14px;
+      background: #333;
+      color: #fff;
+      border: 1px solid #555;
+      border-radius: 4px;
+    }
+    .preview-container {
+      display: flex;
+      gap: 40px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .preview {
+      background: #2a2a2a;
+      border: 1px solid #444;
+      padding: 20px;
+      border-radius: 8px;
+      min-width: 200px;
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .preview svg {
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+    }
+    .frame-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      max-width: 600px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .frame-item {
+      background: #333;
+      border: 1px solid #444;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .frame-item:hover {
+      border-color: #888;
+    }
+    .frame-item.active {
+      border-color: #0af;
+      background: #0af3;
+    }
+    .frame-item.duplicate {
+      color: #888;
+    }
+    .info {
+      margin-top: 20px;
+      padding: 15px;
+      background: #252525;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    #spritesheetContainer {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Spritesheet Viewer</h1>
+  <div id="loadingMsg" class="loading">Loading spritesheet...</div>
+
+  <div id="app" style="display: none;">
+    <div class="controls">
+      <label>
+        Animation:
+        <select id="animSelect"></select>
+      </label>
+      <label>
+        Scale:
+        <input type="range" id="scaleSlider" min="1" max="8" step="0.5" value="3">
+        <span id="scaleValue">3x</span>
+      </label>
+      <label>
+        <input type="checkbox" id="autoPlay" checked> Auto-play
+      </label>
+      <label>
+        FPS:
+        <input type="number" id="fpsInput" value="24" min="1" max="60" style="width: 60px">
+      </label>
+    </div>
+
+    <div class="preview-container">
+      <div class="preview" id="previewBox">
+        <svg id="previewSvg" width="200" height="200" viewBox="0 0 100 100">
+          <use id="previewUse" href="#anim0L_0"/>
+        </svg>
+      </div>
+      <div>
+        <h3 id="frameTitle">Frames</h3>
+        <div id="frameList" class="frame-list"></div>
+      </div>
+    </div>
+
+    <div class="info" id="info"></div>
+  </div>
+
+  <div id="spritesheetContainer"></div>
+
+  <script>
+    let manifest;
+    let currentAnim = '';
+    let currentFrame = 0;
+    let animInterval = null;
+
+    async function init() {
+      try {
+        // Load manifest
+        const manifestRes = await fetch('manifest.json');
+        manifest = await manifestRes.json();
+
+        // Load spritesheet
+        const svgRes = await fetch('spritesheet.svg');
+        const svgText = await svgRes.text();
+
+        // Parse and inject the spritesheet (hidden)
+        const parser = new DOMParser();
+        const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+        const svgEl = svgDoc.documentElement;
+        svgEl.style.display = 'none';
+        svgEl.id = 'spritesheet';
+        document.body.appendChild(svgEl);
+
+        document.getElementById('loadingMsg').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+
+        // Populate animation select
+        const animSelect = document.getElementById('animSelect');
+        const animNames = Object.keys(manifest.animations).sort();
+
+        for (const name of animNames) {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = `${name} (${manifest.animations[name].frameCount} frames)`;
+          animSelect.appendChild(opt);
+        }
+
+        // Set initial animation
+        animSelect.value = 'anim0L';
+        selectAnimation('anim0L');
+
+        // Event listeners
+        animSelect.addEventListener('change', (e) => selectAnimation(e.target.value));
+        document.getElementById('scaleSlider').addEventListener('input', updateScale);
+        document.getElementById('autoPlay').addEventListener('change', toggleAutoPlay);
+        document.getElementById('fpsInput').addEventListener('change', updateFps);
+
+        updateInfo();
+        updateScale();
+
+      } catch (err) {
+        document.getElementById('loadingMsg').textContent = 'Error loading: ' + err.message;
+        console.error(err);
+      }
+    }
+
+    function selectAnimation(name) {
+      stopAnimation();
+      currentAnim = name;
+      currentFrame = 0;
+
+      const anim = manifest.animations[name];
+      const frameList = document.getElementById('frameList');
+      frameList.innerHTML = '';
+
+      document.getElementById('frameTitle').textContent = `Frames (${anim.frameCount})`;
+
+      for (let i = 0; i < anim.frames.length; i++) {
+        const frameId = anim.frames[i];
+        const isDuplicate = anim.duplicates && anim.duplicates[frameId];
+        const div = document.createElement('div');
+        div.className = 'frame-item' + (i === 0 ? ' active' : '') + (isDuplicate ? ' duplicate' : '');
+        div.textContent = i;
+        div.title = isDuplicate ? `Duplicate of ${anim.duplicates[frameId]}` : frameId;
+        div.onclick = () => showFrame(i);
+        frameList.appendChild(div);
+      }
+
+      showFrame(0);
+
+      if (document.getElementById('autoPlay').checked) {
+        startAnimation();
+      }
+    }
+
+    function showFrame(index) {
+      const anim = manifest.animations[currentAnim];
+      currentFrame = index;
+
+      let frameId = anim.frames[index];
+
+      // Handle duplicates
+      if (anim.duplicates && anim.duplicates[frameId]) {
+        frameId = anim.duplicates[frameId];
+      }
+
+      // Get the symbol to extract viewBox
+      const symbol = document.querySelector(`#spritesheet #${frameId}`);
+      if (symbol) {
+        const viewBox = symbol.getAttribute('viewBox') || '0 0 100 100';
+        document.getElementById('previewSvg').setAttribute('viewBox', viewBox);
+      }
+
+      document.getElementById('previewUse').setAttribute('href', `#${frameId}`);
+
+      // Update active state
+      const items = document.querySelectorAll('.frame-item');
+      items.forEach((item, i) => {
+        item.classList.toggle('active', i === index);
+      });
+    }
+
+    function updateScale() {
+      const scale = parseFloat(document.getElementById('scaleSlider').value);
+      document.getElementById('scaleValue').textContent = scale + 'x';
+
+      const svg = document.getElementById('previewSvg');
+      const viewBox = svg.getAttribute('viewBox').split(' ').map(Number);
+      const width = viewBox[2] * scale;
+      const height = viewBox[3] * scale;
+
+      svg.setAttribute('width', width);
+      svg.setAttribute('height', height);
+    }
+
+    function startAnimation() {
+      stopAnimation();
+
+      const fps = parseInt(document.getElementById('fpsInput').value) || 24;
+      const anim = manifest.animations[currentAnim];
+
+      animInterval = setInterval(() => {
+        currentFrame = (currentFrame + 1) % anim.frames.length;
+        showFrame(currentFrame);
+      }, 1000 / fps);
+    }
+
+    function stopAnimation() {
+      if (animInterval) {
+        clearInterval(animInterval);
+        animInterval = null;
+      }
+    }
+
+    function toggleAutoPlay() {
+      if (document.getElementById('autoPlay').checked) {
+        startAnimation();
+      } else {
+        stopAnimation();
+      }
+    }
+
+    function updateFps() {
+      if (document.getElementById('autoPlay').checked) {
+        startAnimation();
+      }
+    }
+
+    function updateInfo() {
+      const info = document.getElementById('info');
+      info.innerHTML = `
+        <strong>Sprite ID:</strong> ${manifest.spriteId} |
+        <strong>Animations:</strong> ${Object.keys(manifest.animations).length} |
+        <strong>Total frames:</strong> ${manifest.stats.totalFrames} |
+        <strong>Unique frames:</strong> ${manifest.stats.uniqueFrames} |
+        <strong>Compression:</strong> ${manifest.stats.compressionPercent.toFixed(1)}%
+      `;
+    }
+
+    init();
+  </script>
+</body>
+</html>
