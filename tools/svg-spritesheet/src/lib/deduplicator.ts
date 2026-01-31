@@ -1,30 +1,29 @@
-/**
- * Deduplicator - Hash-based element deduplication
- *
- * Uses a multi-pass approach to correctly handle definitions with internal references:
- * 1. First pass: Hash base definitions (no internal refs) - these can be shared globally
- * 2. Second pass: Hash derived definitions with resolved canonical refs - animation-scoped
- */
-import { createHash } from 'crypto';
-import { match, P } from 'ts-pattern';
+import { createHash } from "node:crypto";
+
+import { match, P } from "ts-pattern";
+
 import type {
-  ParsedFrame,
-  DeduplicationResult,
   CanonicalDefinition,
+  DeduplicationResult,
   DeduplicationStats,
-  ProcessedSprite,
-  UseElement,
   Definition,
   OptimizationOptions,
-} from '../types.ts';
-import { formatViewBox } from './parser.ts';
-import { replaceReferences, extractBase64Data, restoreBase64Data } from './utils.ts';
+  ParsedFrame,
+  ProcessedSprite,
+  UseElement,
+} from "../types.ts";
+import { formatViewBox } from "./parser.ts";
+import {
+  extractBase64Data,
+  replaceReferences,
+  restoreBase64Data,
+} from "./utils.ts";
 
 /**
  * Generate MD5 hash of content
  */
 function md5(content: string): string {
-  return createHash('md5').update(content).digest('hex');
+  return createHash("md5").update(content).digest("hex");
 }
 
 /**
@@ -60,13 +59,6 @@ function extractAllRefs(content: string): string[] {
 }
 
 /**
- * Check if a definition has internal references to other definitions
- */
-function hasInternalRefs(def: Definition): boolean {
-  return def.nestedRefs.length > 0 || extractAllRefs(def.normalizedContent).length > 0;
-}
-
-/**
  * Build dependency graph for definitions within a frame
  * Returns map of defId -> set of defIds it depends on
  */
@@ -74,7 +66,7 @@ function buildFrameDependencyGraph(
   definitions: Definition[]
 ): Map<string, Set<string>> {
   const graph = new Map<string, Set<string>>();
-  const definedIds = new Set(definitions.map(d => d.originalId));
+  const definedIds = new Set(definitions.map((d) => d.originalId));
 
   for (const def of definitions) {
     const allRefs = extractAllRefs(def.normalizedContent);
@@ -98,7 +90,7 @@ function buildFrameDependencyGraph(
  */
 function topologicallySortDefs(definitions: Definition[]): Definition[] {
   const graph = buildFrameDependencyGraph(definitions);
-  const defMap = new Map(definitions.map(d => [d.originalId, d]));
+  const defMap = new Map(definitions.map((d) => [d.originalId, d]));
 
   const sorted: string[] = [];
   const visited = new Set<string>();
@@ -129,7 +121,9 @@ function topologicallySortDefs(definitions: Definition[]): Definition[] {
     visit(def.originalId);
   }
 
-  return sorted.map(id => defMap.get(id)).filter((d): d is Definition => d !== undefined);
+  return sorted
+    .map((id) => defMap.get(id))
+    .filter((d): d is Definition => d !== undefined);
 }
 
 /**
@@ -157,7 +151,10 @@ function computeContentHash(
 
   // Has refs - resolve them to canonical IDs before hashing
   // This ensures definitions with same structure but different ref targets get different hashes
-  const resolvedContent = resolveRefsForHashing(def.normalizedContent, resolvedMapping);
+  const resolvedContent = resolveRefsForHashing(
+    def.normalizedContent,
+    resolvedMapping
+  );
   return shortHash(`${animationName}:${resolvedContent}`);
 }
 
@@ -171,13 +168,10 @@ function resolveRefsForHashing(
   let result = content;
 
   // Replace xlink:href="#..."
-  result = result.replace(
-    /xlink:href="#([^"]+)"/g,
-    (original, id) => {
-      const canonical = mapping.get(id);
-      return canonical ? `xlink:href="#${canonical}"` : original;
-    }
-  );
+  result = result.replace(/xlink:href="#([^"]+)"/g, (original, id) => {
+    const canonical = mapping.get(id);
+    return canonical ? `xlink:href="#${canonical}"` : original;
+  });
 
   // Replace href="#..."
   result = result.replace(
@@ -189,13 +183,10 @@ function resolveRefsForHashing(
   );
 
   // Replace url(#...)
-  result = result.replace(
-    /url\(#([^)]+)\)/g,
-    (original, id) => {
-      const canonical = mapping.get(id);
-      return canonical ? `url(#${canonical})` : original;
-    }
-  );
+  result = result.replace(/url\(#([^)]+)\)/g, (original, id) => {
+    const canonical = mapping.get(id);
+    return canonical ? `url(#${canonical})` : original;
+  });
 
   return result;
 }
@@ -308,7 +299,7 @@ function resolveUseElementHref(
   use: UseElement,
   frameMapping: Map<string, string>
 ): UseElement {
-  const originalId = use.originalHref.replace(/^#/, '');
+  const originalId = use.originalHref.replace(/^#/, "");
   const canonicalId = frameMapping.get(originalId);
 
   return match(canonicalId)
@@ -333,7 +324,8 @@ export function processFrames(
   const structureHashes = new Map<string, string>();
 
   for (const frame of frames) {
-    const frameMapping = dedup.idMapping.get(frame.filename) ?? new Map<string, string>();
+    const frameMapping =
+      dedup.idMapping.get(frame.filename) ?? new Map<string, string>();
 
     // Map use elements to canonical hrefs
     const mappedUseElements = frame.useElements.map((use) =>
@@ -352,7 +344,7 @@ export function processFrames(
     });
     const structureHash = shortHash(structureContent);
 
-    const spriteId = frame.filename.replace(/\.svg$/i, '');
+    const spriteId = frame.filename.replace(/\.svg$/i, "");
 
     const sprite: ProcessedSprite = {
       id: spriteId,
@@ -386,27 +378,32 @@ export function processFrames(
  */
 function isResolvedRef(ref: string, mapping: Map<string, string>): boolean {
   // Match both long IDs (def_xxx) and short IDs (d0, d1, etc.)
-  return ref.startsWith('def_') || /^d\d+$/.test(ref) || mapping.has(ref);
+  return ref.startsWith("def_") || /^d\d+$/.test(ref) || mapping.has(ref);
 }
 
 /**
  * Remove dead use elements (those with unresolved references)
  */
-function removeDeadUseElements(content: string, mapping: Map<string, string>): string {
+function removeDeadUseElements(
+  content: string,
+  mapping: Map<string, string>
+): string {
   // Match <use ... xlink:href="#id" .../> or <use ... xlink:href="#id" ...></use>
   return content.replace(
     /<use\s+[^>]*xlink:href="#([^"]+)"[^>]*\/?>(?:<\/use>)?/g,
-    (match, refId) => isResolvedRef(refId, mapping) ? match : ''
+    (match, refId) => (isResolvedRef(refId, mapping) ? match : "")
   );
 }
 
 /**
  * Remove dead url() references in attributes (replace with 'none')
  */
-function removeDeadUrlRefs(content: string, mapping: Map<string, string>): string {
-  return content.replace(
-    /url\(#([^)]+)\)/g,
-    (match, refId) => isResolvedRef(refId, mapping) ? match : 'none'
+function removeDeadUrlRefs(
+  content: string,
+  mapping: Map<string, string>
+): string {
+  return content.replace(/url\(#([^)]+)\)/g, (match, refId) =>
+    isResolvedRef(refId, mapping) ? match : "none"
   );
 }
 
@@ -421,11 +418,12 @@ export function rebuildDefinitionContent(
   ownCanonicalId: string
 ): string {
   // Step 1: Protect base64 data from modification
-  const { content: safeContent, base64Map } = extractBase64Data(originalContent);
+  const { content: safeContent, base64Map } =
+    extractBase64Data(originalContent);
 
   // Step 2: Strip ALL id attributes from nested elements
   // This prevents IDs from leaking into the global namespace
-  let content = safeContent.replace(/\s+id="[^"]*"/g, '');
+  let content = safeContent.replace(/\s+id="[^"]*"/g, "");
 
   // Step 3: Remove dead use elements (those with unresolved references)
   content = removeDeadUseElements(content, mapping);
@@ -437,10 +435,7 @@ export function rebuildDefinitionContent(
   content = replaceReferences(content, mapping);
 
   // Step 6: Add the canonical ID to the opening tag
-  content = content.replace(
-    /^<(\w+)(\s|>)/,
-    `<$1 id="${ownCanonicalId}"$2`
-  );
+  content = content.replace(/^<(\w+)(\s|>)/, `<$1 id="${ownCanonicalId}"$2`);
 
   // Step 7: Restore base64 data
   content = restoreBase64Data(content, base64Map);
@@ -460,7 +455,8 @@ export function buildCanonicalDefinitions(
   const processedHashes = new Set<string>();
 
   for (const frame of frames) {
-    const frameMapping = dedup.idMapping.get(frame.filename) ?? new Map<string, string>();
+    const frameMapping =
+      dedup.idMapping.get(frame.filename) ?? new Map<string, string>();
 
     // Sort definitions topologically so dependencies come first
     const sortedDefs = topologicallySortDefs(frame.definitions);
@@ -508,7 +504,7 @@ export function sortDefinitionsTopologically(
   }
 
   for (const [hash, def] of canonicalDefs) {
-    const content = rebuiltDefs.get(def.id) ?? '';
+    const content = rebuiltDefs.get(def.id) ?? "";
     const deps = new Set<string>();
 
     // Find all href references to other definitions (both long and short IDs)

@@ -1,20 +1,13 @@
-/**
- * SVG Parser - Parses SVG files using cheerio
- */
-import * as cheerio from 'cheerio';
-import type { CheerioAPI } from 'cheerio';
-import type {
-  ParsedFrame,
-  ViewBox,
-  UseElement,
-  Definition,
-} from '../types.ts';
+import type { CheerioAPI } from "cheerio";
+import * as cheerio from "cheerio";
+
+import type { Definition, ParsedFrame, UseElement, ViewBox } from "../types.ts";
 import {
   extractBase64Data,
-  restoreBase64Data,
   normalizeNumericValues,
+  restoreBase64Data,
   sortTagAttributes,
-} from './utils.ts';
+} from "./utils.ts";
 
 type CheerioElement = ReturnType<CheerioAPI>;
 
@@ -23,20 +16,20 @@ type CheerioElement = ReturnType<CheerioAPI>;
  */
 export function parseSvgFile(content: string, filename: string): ParsedFrame {
   const $ = cheerio.load(content, { xml: true });
-  const svg = $('svg');
+  const svg = $("svg");
 
   if (svg.length === 0) {
     throw new Error(`No <svg> element found in ${filename}`);
   }
 
-  const viewBox = parseViewBox(svg.attr('viewBox') ?? '0 0 100 100');
-  const mainGroup = svg.children('g').first();
-  const mainTransform = mainGroup.attr('transform') ?? '';
+  const viewBox = parseViewBox(svg.attr("viewBox") ?? "0 0 100 100");
+  const mainGroup = svg.children("g").first();
+  const mainTransform = mainGroup.attr("transform") ?? "";
 
   const parent = mainGroup.length > 0 ? mainGroup : svg;
   const useElements = extractUseElements($, parent);
 
-  const defs = svg.find('defs').first();
+  const defs = svg.find("defs").first();
   const definitions = defs.length > 0 ? extractDefinitions($, defs) : [];
 
   const { animationName, frameIndex } = parseFilename(filename);
@@ -69,8 +62,11 @@ function parseViewBox(viewBoxStr: string): ViewBox {
  * Parse filename to extract animation name and frame index
  * Pattern: {animationName}_{frameIndex}.svg
  */
-function parseFilename(filename: string): { animationName: string; frameIndex: number } {
-  const basename = filename.replace(/\.svg$/i, '');
+function parseFilename(filename: string): {
+  animationName: string;
+  frameIndex: number;
+} {
+  const basename = filename.replace(/\.svg$/i, "");
   const filenameMatch = basename.match(/^(.+?)_(\d+)$/);
 
   if (filenameMatch?.[1] && filenameMatch[2]) {
@@ -90,20 +86,30 @@ function parseFilename(filename: string): { animationName: string; frameIndex: n
  * Attributes to exclude from use element extraction
  * Note: 'id' is excluded to prevent ID leaking into the global namespace
  */
-const USE_EXCLUDED_ATTRS = new Set(['xlink:href', 'href', 'transform', 'width', 'height', 'id']);
+const USE_EXCLUDED_ATTRS = new Set([
+  "xlink:href",
+  "href",
+  "transform",
+  "width",
+  "height",
+  "id",
+]);
 
 /**
  * Extract all <use> elements from a parent element
  */
-function extractUseElements($: CheerioAPI, parent: CheerioElement): UseElement[] {
+function extractUseElements(
+  $: CheerioAPI,
+  parent: CheerioElement
+): UseElement[] {
   const result: UseElement[] = [];
 
-  parent.find('use').each((_, el) => {
+  parent.find("use").each((_, el) => {
     const use = $(el);
-    const href = use.attr('xlink:href') ?? use.attr('href') ?? '';
-    const transform = use.attr('transform');
-    const width = use.attr('width');
-    const height = use.attr('height');
+    const href = use.attr("xlink:href") ?? use.attr("href") ?? "";
+    const transform = use.attr("transform");
+    const width = use.attr("width");
+    const height = use.attr("height");
 
     const element: UseElement = {
       originalHref: href,
@@ -115,7 +121,7 @@ function extractUseElements($: CheerioAPI, parent: CheerioElement): UseElement[]
     if (height) element.height = parseFloat(height);
 
     // Extract non-standard attributes
-    if ('attribs' in el) {
+    if ("attribs" in el) {
       const attrs = el.attribs as Record<string, string>;
       for (const [name, value] of Object.entries(attrs)) {
         if (!USE_EXCLUDED_ATTRS.has(name)) {
@@ -149,32 +155,35 @@ function extractDefinitions($: CheerioAPI, defs: CheerioElement): Definition[] {
 /**
  * Extract a single definition element
  */
-function extractDefinition($: CheerioAPI, element: CheerioElement): Definition | null {
-  const id = element.attr('id');
+function extractDefinition(
+  $: CheerioAPI,
+  element: CheerioElement
+): Definition | null {
+  const id = element.attr("id");
   if (!id) return null;
 
-  const tagName = element.prop('tagName')?.toLowerCase() ?? '';
+  const tagName = element.prop("tagName")?.toLowerCase() ?? "";
   const outerHTML = $.html(element);
   const normalizedContent = normalizeDefinitionContent(outerHTML);
 
   // Check for base64 image content
   // Can be in: <pattern>, <image>, or nested within other elements
-  const isPattern = tagName === 'pattern';
-  const isImage = tagName === 'image';
+  const isPattern = tagName === "pattern";
+  const isImage = tagName === "image";
   let base64Data: string | undefined;
 
   if (isImage) {
     // Direct <image> element with base64
-    const href = element.attr('xlink:href') ?? element.attr('href') ?? '';
-    if (href.startsWith('data:image')) {
+    const href = element.attr("xlink:href") ?? element.attr("href") ?? "";
+    if (href.startsWith("data:image")) {
       base64Data = href;
     }
   } else {
     // Check for nested <image> elements with base64
-    const image = element.find('image').first();
+    const image = element.find("image").first();
     if (image.length > 0) {
-      const href = image.attr('xlink:href') ?? image.attr('href') ?? '';
-      if (href.startsWith('data:image')) {
+      const href = image.attr("xlink:href") ?? image.attr("href") ?? "";
+      if (href.startsWith("data:image")) {
         base64Data = href;
       }
     }
@@ -187,7 +196,7 @@ function extractDefinition($: CheerioAPI, element: CheerioElement): Definition |
 
   return {
     originalId: id,
-    contentHash: '', // Will be computed during deduplication
+    contentHash: "", // Will be computed during deduplication
     normalizedContent,
     tagName,
     size: normalizedContent.length,
@@ -205,9 +214,9 @@ function extractNestedRefs($: CheerioAPI, element: CheerioElement): string[] {
   const refs: string[] = [];
 
   // Extract from <use> elements
-  element.find('use').each((_, el) => {
+  element.find("use").each((_, el) => {
     const use = $(el);
-    const href = use.attr('xlink:href') ?? use.attr('href') ?? '';
+    const href = use.attr("xlink:href") ?? use.attr("href") ?? "";
     const refMatch = href.match(/^#(.+)$/);
     if (refMatch) {
       refs.push(refMatch[1]);
@@ -232,15 +241,18 @@ function extractNestedRefs($: CheerioAPI, element: CheerioElement): string[] {
  * - Rounds numeric values
  * - Sorts attributes alphabetically
  */
-function normalizeDefinitionContent(content: string, precision: number = 2): string {
+function normalizeDefinitionContent(
+  content: string,
+  precision: number = 2
+): string {
   // Step 1: Extract base64 data to protect it from normalization
   const { content: safeContent, base64Map } = extractBase64Data(content);
 
   // Step 2: Remove ALL id attributes for content comparison (including nested ones)
-  let normalized = safeContent.replace(/\s+id="[^"]*"/g, '');
+  let normalized = safeContent.replace(/\s+id="[^"]*"/g, "");
 
   // Step 3: Normalize whitespace
-  normalized = normalized.replace(/\s+/g, ' ').trim();
+  normalized = normalized.replace(/\s+/g, " ").trim();
 
   // Step 4: Round numeric values
   normalized = normalizeNumericValues(normalized, precision);
@@ -273,7 +285,7 @@ export async function parseSvgFiles(
 
   for (let i = 0; i < filePaths.length; i++) {
     const filePath = filePaths[i];
-    const filename = filePath.split('/').pop() ?? filePath;
+    const filename = filePath.split("/").pop() ?? filePath;
 
     try {
       const content = await Bun.file(filePath).text();

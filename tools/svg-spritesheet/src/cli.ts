@@ -1,288 +1,406 @@
-#!/usr/bin/env bun
-/**
- * SVG Spritesheet Generator CLI
- *
- * A command-line tool for generating optimized SVG spritesheets
- * with element-level deduplication.
- */
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { Command } from 'commander';
-import pino from 'pino';
+import { spawn } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
-import { parseSvgFiles } from './lib/parser.ts';
-import { deduplicateDefinitions, processFrames } from './lib/deduplicator.ts';
-import { writeOutput, calculateInputSize, formatBytes } from './lib/generator.ts';
-import { generateManifest, writeManifest, formatStats, formatAnimationList } from './lib/manifest.ts';
+import { Command } from "commander";
+import pino from "pino";
+
+import type {
+  AnimationGroup,
+  AtlasManifest,
+  CombinedManifest,
+  CompileOptions,
+  CompileResult,
+  OptimizationOptions,
+} from "./types.ts";
+import { deduplicateDefinitions, processFrames } from "./lib/deduplicator.ts";
+import {
+  calculateInputSize,
+  formatBytes,
+  writeAtlasOutput,
+} from "./lib/generator.ts";
+import { parseSvgFiles } from "./lib/parser.ts";
 
 const logger = pino({
-  name: 'svg-spritesheet',
+  name: "svg-spritesheet",
   transport: {
-    target: 'pino-pretty',
+    target: "pino-pretty",
     options: {
       colorize: true,
-      ignore: 'pid,hostname',
-      translateTime: 'HH:MM:ss',
+      ignore: "pid,hostname",
+      translateTime: "HH:MM:ss",
     },
   },
 });
 
-interface PackOptions {
-  precision: string;
-  inlineThreshold: string;
-  dryRun: boolean;
-  shortIds: boolean;
-  minify: boolean;
-  stripDefaults: boolean;
+function groupByAnimation(svgFiles: string[]): AnimationGroup[] {
+  const groups = new Map<string, string[]>();
+
+  for (const file of svgFiles) {
+    const basename = path.basename(file, ".svg");
+    const match = basename.match(/^(.+)_\d+$/);
+    const animName = match ? match[1] : basename;
+
+    const existing = groups.get(animName) ?? [];
+    existing.push(file);
+    groups.set(animName, existing);
+  }
+
+  const result: AnimationGroup[] = [];
+  for (const [name, files] of groups) {
+    files.sort((a, b) => {
+      const aMatch = path.basename(a, ".svg").match(/_(\d+)$/);
+      const bMatch = path.basename(b, ".svg").match(/_(\d+)$/);
+      const aNum = aMatch ? parseInt(aMatch[1], 10) : 0;
+      const bNum = bMatch ? parseInt(bMatch[1], 10) : 0;
+      return aNum - bNum;
+    });
+    result.push({ name, files });
+  }
+
+  result.sort((a, b) => a.name.localeCompare(b.name));
+  return result;
 }
 
-interface AnalyzeOptions {
-  detailed: boolean;
+async function runSvgo(filePath: string, configPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(
+      "svgo",
+      ["--config", configPath, filePath, "-o", filePath],
+      {
+        stdio: "pipe",
+      }
+    );
+
+    let stderr = "";
+
+    proc.stderr?.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`SVGO failed: ${stderr}`));
+      }
+    });
+
+    proc.on("error", reject);
+  });
+}
+
+async function compileAnimation(
+  group: AnimationGroup,
+  outputDir: string,
+  svgoConfigPath: string,
+  opts: OptimizationOptions
+): Promise<{
+  manifest: AtlasManifest;
+  outputSize: number;
+  inputSize: number;
+} | null> {
+  const animOutputDir = path.join(outputDir, group.name);
+
+  if (group.files.length === 0) {
+    return null;
+  }
+
+  const inputSize = await calculateInputSize(group.files);
+  const frames = await parseSvgFiles(group.files);
+
+  if (frames.length === 0) {
+    return null;
+  }
+
+  const dedup = deduplicateDefinitions(frames, opts);
+  const sprites = processFrames(frames, dedup);
+
+  fs.mkdirSync(animOutputDir, { recursive: true });
+  await writeAtlasOutput(animOutputDir, frames, dedup, sprites, opts);
+
+  const atlasPath = path.join(animOutputDir, "atlas.svg");
+
+  try {
+    await runSvgo(atlasPath, svgoConfigPath);
+  } catch {
+    // SVGO failure is non-fatal
+  }
+
+  const finalSize = fs.statSync(atlasPath).size;
+  const manifestPath = path.join(animOutputDir, "atlas.json");
+  const manifestContent = fs.readFileSync(manifestPath, "utf-8");
+  const manifest = JSON.parse(manifestContent) as AtlasManifest;
+
+  return { manifest, outputSize: finalSize, inputSize };
+}
+
+async function generateCombinedManifest(
+  spriteId: string,
+  outputDir: string,
+  manifests: Map<string, { manifest: AtlasManifest; inputSize: number }>,
+  totalInputSize: number,
+  totalOutputSize: number
+): Promise<CombinedManifest> {
+  let totalFrames = 0;
+  let uniqueFrames = 0;
+
+  const animations: CombinedManifest["animations"] = {};
+
+  for (const [animName, { manifest }] of manifests) {
+    const frameCount = manifest.frameOrder.length;
+    const uniqueCount = manifest.frames.length;
+    totalFrames += frameCount;
+    uniqueFrames += uniqueCount;
+
+    animations[animName] = {
+      frameCount,
+      uniqueFrames: uniqueCount,
+      atlasWidth: manifest.width,
+      atlasHeight: manifest.height,
+      file: `${animName}/atlas.svg`,
+      manifestFile: `${animName}/atlas.json`,
+    };
+  }
+
+  const combined: CombinedManifest = {
+    version: 1,
+    spriteId,
+    generatedAt: new Date().toISOString(),
+    totalAnimations: manifests.size,
+    totalFrames,
+    uniqueFrames,
+    totalInputSize,
+    totalOutputSize,
+    compressionPercent:
+      Math.round((1 - totalOutputSize / totalInputSize) * 1000) / 10,
+    animations,
+  };
+
+  const manifestPath = path.join(outputDir, "manifest.json");
+  await Bun.write(manifestPath, JSON.stringify(combined, null, 2));
+
+  return combined;
+}
+
+async function compileSprite(
+  spriteDir: string,
+  outputDir: string,
+  spriteId: string,
+  svgoConfigPath: string,
+  parallel: number
+): Promise<CompileResult> {
+  try {
+    const svgFiles = fs
+      .readdirSync(spriteDir)
+      .filter((f) => f.endsWith(".svg"))
+      .map((f) => path.join(spriteDir, f));
+
+    if (svgFiles.length === 0) {
+      return { spriteId, success: false, error: "No SVG files" };
+    }
+
+    const totalInputSize = await calculateInputSize(svgFiles);
+    const groups = groupByAnimation(svgFiles);
+
+    fs.mkdirSync(outputDir, { recursive: true });
+
+    const opts: OptimizationOptions = {
+      shortIds: true,
+      minify: true,
+      stripDefaults: true,
+      precision: 2,
+    };
+
+    const manifests = new Map<
+      string,
+      { manifest: AtlasManifest; inputSize: number }
+    >();
+    let totalOutputSize = 0;
+
+    for (let i = 0; i < groups.length; i += parallel) {
+      const batch = groups.slice(i, i + parallel);
+      const results = await Promise.all(
+        batch.map((group) =>
+          compileAnimation(group, outputDir, svgoConfigPath, opts)
+        )
+      );
+
+      for (let j = 0; j < batch.length; j++) {
+        const result = results[j];
+        if (result) {
+          manifests.set(batch[j].name, {
+            manifest: result.manifest,
+            inputSize: result.inputSize,
+          });
+          totalOutputSize += result.outputSize;
+        }
+      }
+    }
+
+    await generateCombinedManifest(
+      spriteId,
+      outputDir,
+      manifests,
+      totalInputSize,
+      totalOutputSize
+    );
+
+    return {
+      spriteId,
+      success: true,
+      inputSize: totalInputSize,
+      outputSize: totalOutputSize,
+      animationCount: manifests.size,
+    };
+  } catch (error) {
+    return {
+      spriteId,
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+function findSpriteDirectories(inputBase: string): string[] {
+  if (!fs.existsSync(inputBase)) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(inputBase, { withFileTypes: true })
+    .filter((dirent) => dirent.isDirectory())
+    .map((dirent) => dirent.name)
+    .sort((a, b) => {
+      const aNum = parseInt(a, 10);
+      const bNum = parseInt(b, 10);
+      if (!Number.isNaN(aNum) && !Number.isNaN(bNum)) {
+        return aNum - bNum;
+      }
+      return a.localeCompare(b);
+    });
+}
+
+async function compileAll(options: CompileOptions): Promise<void> {
+  const { inputBase, outputBase, svgoConfig, parallel } = options;
+
+  logger.info("=== SVG Sprite Compiler ===");
+  logger.info(`Input: ${inputBase}`);
+  logger.info(`Output: ${outputBase}`);
+
+  if (!fs.existsSync(inputBase)) {
+    throw new Error(`Input directory does not exist: ${inputBase}`);
+  }
+
+  const spriteIds = findSpriteDirectories(inputBase);
+
+  if (spriteIds.length === 0) {
+    throw new Error(`No sprite directories found in: ${inputBase}`);
+  }
+
+  logger.info(`Found ${spriteIds.length} sprites`);
+
+  fs.mkdirSync(outputBase, { recursive: true });
+
+  const svgoConfigPath =
+    svgoConfig ?? path.join(import.meta.dir, "..", "svgo.config.mjs");
+
+  let success = 0;
+  let failed = 0;
+  let totalInputSize = 0;
+  let totalOutputSize = 0;
+
+  for (let i = 0; i < spriteIds.length; i++) {
+    const spriteId = spriteIds[i];
+    const spriteDir = path.join(inputBase, spriteId);
+    const outputDir = path.join(outputBase, spriteId);
+
+    const svgCount = fs
+      .readdirSync(spriteDir)
+      .filter((f) => f.endsWith(".svg")).length;
+    if (svgCount === 0) {
+      logger.info(
+        `[${i + 1}/${spriteIds.length}] Skipping ${spriteId} (no SVG files)`
+      );
+      continue;
+    }
+
+    const result = await compileSprite(
+      spriteDir,
+      outputDir,
+      spriteId,
+      svgoConfigPath,
+      parallel
+    );
+
+    if (result.success) {
+      success++;
+      totalInputSize += result.inputSize ?? 0;
+      totalOutputSize += result.outputSize ?? 0;
+
+      const compression = result.inputSize
+        ? Math.round((1 - (result.outputSize ?? 0) / result.inputSize) * 100)
+        : 0;
+
+      logger.info(
+        `[${i + 1}/${spriteIds.length}] ${spriteId}: ${result.animationCount} anims, ` +
+          `${formatBytes(result.inputSize ?? 0)} -> ${formatBytes(result.outputSize ?? 0)} (${compression}%)`
+      );
+    } else {
+      failed++;
+      logger.error(
+        `[${i + 1}/${spriteIds.length}] ${spriteId}: FAILED - ${result.error}`
+      );
+    }
+  }
+
+  logger.info("=== Compilation Complete ===");
+  logger.info(`Total: ${spriteIds.length}`);
+  logger.info(`Success: ${success}`);
+  logger.info(`Failed: ${failed}`);
+  logger.info(`Input size: ${formatBytes(totalInputSize)}`);
+  logger.info(`Output size: ${formatBytes(totalOutputSize)}`);
+
+  if (totalInputSize > 0) {
+    logger.info(
+      `Compression: ${Math.round((1 - totalOutputSize / totalInputSize) * 100)}%`
+    );
+  }
 }
 
 const program = new Command();
 
 program
-  .name('svg-spritesheet')
-  .description('Generate optimized SVG spritesheets with element-level deduplication')
-  .version('1.0.0');
+  .name("svg-spritesheet")
+  .description("Compile SVG sprites into optimized atlas spritesheets")
+  .version("1.0.0")
+  .argument("<input>", "Input directory containing sprite subdirectories")
+  .argument("<output>", "Output directory for compiled sprites")
+  .option(
+    "-p, --parallel <n>",
+    "Number of animations to process in parallel",
+    "8"
+  )
+  .option("-c, --config <path>", "Path to SVGO config file")
+  .action(
+    async (
+      input: string,
+      output: string,
+      opts: { parallel: string; config?: string }
+    ) => {
+      try {
+        await compileAll({
+          inputBase: path.resolve(input),
+          outputBase: path.resolve(output),
+          parallel: parseInt(opts.parallel, 10),
+          svgoConfig: opts.config ? path.resolve(opts.config) : undefined,
+        });
+      } catch (error) {
+        logger.error(`Compilation failed: ${error}`);
 
-program
-  .command('pack')
-  .description('Pack SVG frames into an optimized spritesheet')
-  .argument('<input>', 'Input directory containing SVG frames')
-  .argument('<output>', 'Output directory for spritesheet files')
-  .option('-p, --precision <digits>', 'Numeric precision for transforms', '2')
-  .option('-t, --inline-threshold <bytes>', 'Inline definitions smaller than N bytes', '100')
-  .option('-n, --dry-run', 'Analyze only, do not write output files', false)
-  .option('-s, --short-ids', 'Use short sequential IDs (d0, d1) instead of hash-based', false)
-  .option('-m, --minify', 'Minify output (remove whitespace/newlines)', false)
-  .option('--strip-defaults', 'Remove redundant/default attributes', false)
-  .option('-O, --optimize', 'Enable all optimizations (short-ids, minify, strip-defaults)', false)
-  .action(async (input: string, output: string, options: PackOptions & { optimize?: boolean }) => {
-    try {
-      const inputDir = path.resolve(input);
-      const outputDir = path.resolve(output);
-      const precision = parseInt(options.precision, 10);
-
-      // Build optimization options
-      const enableAll = options.optimize ?? false;
-      const optimizationOpts = {
-        shortIds: enableAll || options.shortIds,
-        minify: enableAll || options.minify,
-        stripDefaults: enableAll || options.stripDefaults,
-        precision,
-      };
-
-      logger.info(`Packing SVG sprites from: ${inputDir}`);
-      logger.info(`Output directory: ${outputDir}`);
-      logger.info(`Precision: ${precision} decimal places`);
-
-      if (optimizationOpts.shortIds || optimizationOpts.minify || optimizationOpts.stripDefaults) {
-        logger.info(`Optimizations: ${[
-          optimizationOpts.shortIds && 'short-ids',
-          optimizationOpts.minify && 'minify',
-          optimizationOpts.stripDefaults && 'strip-defaults',
-        ].filter(Boolean).join(', ')}`);
-      }
-
-      // Validate input directory
-      if (!fs.existsSync(inputDir)) {
-        logger.error(`Input directory does not exist: ${inputDir}`);
         process.exit(1);
       }
-
-      // Find all SVG files
-      const svgFiles = fs.readdirSync(inputDir)
-        .filter((f) => f.endsWith('.svg'))
-        .map((f) => path.join(inputDir, f))
-        .sort();
-
-      if (svgFiles.length === 0) {
-        logger.error(`No SVG files found in: ${inputDir}`);
-        process.exit(1);
-      }
-
-      logger.info(`Found ${svgFiles.length} SVG files`);
-
-      // Calculate input size
-      const inputSize = await calculateInputSize(svgFiles);
-      logger.info(`Input size: ${formatBytes(inputSize)}`);
-
-      // Parse all SVG files
-      logger.info('Parsing SVG files...');
-      let lastProgress = 0;
-      const frames = await parseSvgFiles(svgFiles, (current, total) => {
-        const progress = Math.floor((current / total) * 100);
-        if (progress >= lastProgress + 10) {
-          logger.info(`  Parsed ${current}/${total} files (${progress}%)`);
-          lastProgress = progress;
-        }
-      });
-
-      logger.info(`Parsed ${frames.length} frames successfully`);
-
-      // Count total definitions before dedup
-      const totalDefs = frames.reduce((sum, f) => sum + f.definitions.length, 0);
-      logger.info(`Total definitions across all frames: ${totalDefs}`);
-
-      // Deduplicate definitions
-      logger.info('Deduplicating definitions...');
-      const dedup = deduplicateDefinitions(frames, optimizationOpts);
-
-      logger.info(`Unique definitions: ${dedup.stats.uniqueDefinitions}`);
-      logger.info(`Definition compression: ${dedup.stats.compressionRatio.toFixed(1)}%`);
-      logger.info(`Patterns found: ${dedup.stats.patternCount}`);
-
-      // Process frames with deduplicated references
-      logger.info('Processing frames...');
-      const sprites = processFrames(frames, dedup);
-
-      const duplicateFrames = sprites.filter((s) => s.duplicateOf).length;
-      logger.info(`Frame-level duplicates found: ${duplicateFrames}`);
-
-      // Extract sprite ID from input directory name
-      const spriteId = path.basename(inputDir);
-
-      if (options.dryRun) {
-        logger.info('Dry run mode - not writing output files');
-
-        // Generate manifest for stats
-        const manifest = generateManifest(spriteId, sprites, dedup.stats, inputSize, 0);
-        logger.info('\n' + formatStats(manifest));
-        logger.info('\n' + formatAnimationList(manifest));
-
-        return;
-      }
-
-      // Write output files
-      logger.info('Writing output files...');
-      const { defsSize, spritesSize, combinedSize } = await writeOutput(outputDir, frames, dedup, sprites, optimizationOpts);
-
-      // Use combined size as the main metric (it's the usable file)
-      const outputSize = combinedSize;
-      logger.info(`Output size: ${formatBytes(outputSize)} (spritesheet.svg)`);
-      logger.info(`  defs.svg: ${formatBytes(defsSize)}, sprites.svg: ${formatBytes(spritesSize)}`);
-
-      // Generate and write manifest
-      const manifest = generateManifest(spriteId, sprites, dedup.stats, inputSize, outputSize);
-      await writeManifest(outputDir, manifest);
-
-      // Print final stats
-      logger.info('\n' + formatStats(manifest));
-      logger.info('\n' + formatAnimationList(manifest));
-
-      const compressionPercent = ((1 - outputSize / inputSize) * 100).toFixed(1);
-      logger.info(`\nCompression achieved: ${compressionPercent}%`);
-      logger.info(`Output written to: ${outputDir}`);
-
-    } catch (error) {
-      logger.error(`Failed to pack sprites: ${error}`);
-      process.exit(1);
     }
-  });
-
-program
-  .command('analyze')
-  .description('Analyze SVG files without generating output')
-  .argument('<input>', 'Input directory containing SVG frames')
-  .option('-d, --detailed', 'Show detailed analysis', false)
-  .action(async (input: string, options: AnalyzeOptions) => {
-    try {
-      const inputDir = path.resolve(input);
-
-      logger.info(`Analyzing SVG sprites in: ${inputDir}`);
-
-      // Validate input directory
-      if (!fs.existsSync(inputDir)) {
-        logger.error(`Input directory does not exist: ${inputDir}`);
-        process.exit(1);
-      }
-
-      // Find all SVG files
-      const svgFiles = fs.readdirSync(inputDir)
-        .filter((f) => f.endsWith('.svg'))
-        .map((f) => path.join(inputDir, f))
-        .sort();
-
-      if (svgFiles.length === 0) {
-        logger.error(`No SVG files found in: ${inputDir}`);
-        process.exit(1);
-      }
-
-      logger.info(`Found ${svgFiles.length} SVG files`);
-
-      // Calculate input size
-      const inputSize = await calculateInputSize(svgFiles);
-      logger.info(`Total input size: ${formatBytes(inputSize)}`);
-      logger.info(`Average file size: ${formatBytes(Math.floor(inputSize / svgFiles.length))}`);
-
-      // Parse files
-      logger.info('Parsing SVG files...');
-      const frames = await parseSvgFiles(svgFiles);
-      logger.info(`Parsed ${frames.length} frames`);
-
-      // Analyze definitions
-      const totalDefs = frames.reduce((sum, f) => sum + f.definitions.length, 0);
-      const avgDefsPerFrame = (totalDefs / frames.length).toFixed(1);
-      logger.info(`Total definitions: ${totalDefs}`);
-      logger.info(`Average definitions per frame: ${avgDefsPerFrame}`);
-
-      // Analyze use elements
-      const totalUses = frames.reduce((sum, f) => sum + f.useElements.length, 0);
-      const avgUsesPerFrame = (totalUses / frames.length).toFixed(1);
-      logger.info(`Total use elements: ${totalUses}`);
-      logger.info(`Average use elements per frame: ${avgUsesPerFrame}`);
-
-      // Deduplicate to show potential savings
-      logger.info('\nDeduplication Analysis:');
-      const dedup = deduplicateDefinitions(frames);
-
-      logger.info(`  Unique definitions: ${dedup.stats.uniqueDefinitions}`);
-      logger.info(`  Definition reduction: ${((1 - dedup.stats.uniqueDefinitions / totalDefs) * 100).toFixed(1)}%`);
-      logger.info(`  Byte reduction: ${dedup.stats.compressionRatio.toFixed(1)}%`);
-
-      // Process for frame-level stats
-      const sprites = processFrames(frames, dedup);
-      const duplicateFrames = sprites.filter((s) => s.duplicateOf).length;
-      logger.info(`  Frame-level duplicates: ${duplicateFrames}`);
-
-      // Animation breakdown
-      const animations = new Map<string, number>();
-      for (const frame of frames) {
-        const count = animations.get(frame.animationName) || 0;
-        animations.set(frame.animationName, count + 1);
-      }
-
-      logger.info(`\nAnimations found: ${animations.size}`);
-      if (options.detailed) {
-        for (const [name, count] of Array.from(animations.entries()).sort()) {
-          logger.info(`  ${name}: ${count} frames`);
-        }
-      }
-
-      // Estimated output size
-      const estimatedOutputRatio = 1 - dedup.stats.compressionRatio / 100;
-      const estimatedOutputSize = Math.floor(inputSize * estimatedOutputRatio * 0.3); // Further reduction from frame dedup
-      logger.info(`\nEstimated output size: ${formatBytes(estimatedOutputSize)}`);
-      logger.info(`Estimated compression: ${((1 - estimatedOutputSize / inputSize) * 100).toFixed(1)}%`);
-
-      if (options.detailed) {
-        logger.info('\nTop definitions by reference count:');
-        for (const def of dedup.stats.topDefinitions.slice(0, 10)) {
-          logger.info(`  ${def.id}: ${def.refCount} refs, ${formatBytes(def.size)}`);
-        }
-
-        // Pattern analysis
-        if (dedup.stats.patternCount > 0) {
-          logger.info(`\nPatterns with embedded images: ${dedup.stats.patternCount}`);
-        }
-      }
-
-    } catch (error) {
-      logger.error(`Failed to analyze sprites: ${error}`);
-      process.exit(1);
-    }
-  });
+  );
 
 program.parse();
