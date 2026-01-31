@@ -31,6 +31,9 @@ interface PackOptions {
   precision: string;
   inlineThreshold: string;
   dryRun: boolean;
+  shortIds: boolean;
+  minify: boolean;
+  stripDefaults: boolean;
 }
 
 interface AnalyzeOptions {
@@ -52,15 +55,36 @@ program
   .option('-p, --precision <digits>', 'Numeric precision for transforms', '2')
   .option('-t, --inline-threshold <bytes>', 'Inline definitions smaller than N bytes', '100')
   .option('-n, --dry-run', 'Analyze only, do not write output files', false)
-  .action(async (input: string, output: string, options: PackOptions) => {
+  .option('-s, --short-ids', 'Use short sequential IDs (d0, d1) instead of hash-based', false)
+  .option('-m, --minify', 'Minify output (remove whitespace/newlines)', false)
+  .option('--strip-defaults', 'Remove redundant/default attributes', false)
+  .option('-O, --optimize', 'Enable all optimizations (short-ids, minify, strip-defaults)', false)
+  .action(async (input: string, output: string, options: PackOptions & { optimize?: boolean }) => {
     try {
       const inputDir = path.resolve(input);
       const outputDir = path.resolve(output);
       const precision = parseInt(options.precision, 10);
 
+      // Build optimization options
+      const enableAll = options.optimize ?? false;
+      const optimizationOpts = {
+        shortIds: enableAll || options.shortIds,
+        minify: enableAll || options.minify,
+        stripDefaults: enableAll || options.stripDefaults,
+        precision,
+      };
+
       logger.info(`Packing SVG sprites from: ${inputDir}`);
       logger.info(`Output directory: ${outputDir}`);
       logger.info(`Precision: ${precision} decimal places`);
+
+      if (optimizationOpts.shortIds || optimizationOpts.minify || optimizationOpts.stripDefaults) {
+        logger.info(`Optimizations: ${[
+          optimizationOpts.shortIds && 'short-ids',
+          optimizationOpts.minify && 'minify',
+          optimizationOpts.stripDefaults && 'strip-defaults',
+        ].filter(Boolean).join(', ')}`);
+      }
 
       // Validate input directory
       if (!fs.existsSync(inputDir)) {
@@ -104,7 +128,7 @@ program
 
       // Deduplicate definitions
       logger.info('Deduplicating definitions...');
-      const dedup = deduplicateDefinitions(frames, precision);
+      const dedup = deduplicateDefinitions(frames, optimizationOpts);
 
       logger.info(`Unique definitions: ${dedup.stats.uniqueDefinitions}`);
       logger.info(`Definition compression: ${dedup.stats.compressionRatio.toFixed(1)}%`);
@@ -133,7 +157,7 @@ program
 
       // Write output files
       logger.info('Writing output files...');
-      const { defsSize, spritesSize, combinedSize } = await writeOutput(outputDir, frames, dedup, sprites);
+      const { defsSize, spritesSize, combinedSize } = await writeOutput(outputDir, frames, dedup, sprites, optimizationOpts);
 
       // Use combined size as the main metric (it's the usable file)
       const outputSize = combinedSize;

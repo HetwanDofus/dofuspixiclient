@@ -113,6 +113,7 @@
     <div class="preview-container">
       <div class="preview" id="previewBox">
         <svg id="previewSvg" width="200" height="200" viewBox="0 0 100 100">
+          <defs id="previewDefs"></defs>
           <use id="previewUse" href="#anim0L_0"/>
         </svg>
       </div>
@@ -133,6 +134,23 @@
     let currentFrame = 0;
     let animInterval = null;
 
+    // Copy patterns and gradients from spritesheet to preview SVG
+    // This is needed because URL references like url(#id) don't resolve across SVG elements
+    function copyPaintServers(spritesheetEl) {
+      const previewDefs = document.getElementById('previewDefs');
+      const spritesheetDefs = spritesheetEl.querySelector('defs');
+
+      if (!spritesheetDefs || !previewDefs) return;
+
+      // Find all paint servers (patterns, linearGradient, radialGradient)
+      const paintServers = spritesheetDefs.querySelectorAll('pattern, linearGradient, radialGradient');
+
+      for (const server of paintServers) {
+        const clone = server.cloneNode(true);
+        previewDefs.appendChild(clone);
+      }
+    }
+
     async function init() {
       try {
         // Load manifest
@@ -150,6 +168,9 @@
         svgEl.style.display = 'none';
         svgEl.id = 'spritesheet';
         document.body.appendChild(svgEl);
+
+        // Copy patterns and gradients to preview SVG (needed for URL references to work)
+        copyPaintServers(svgEl);
 
         document.getElementById('loadingMsg').style.display = 'none';
         document.getElementById('app').style.display = 'block';

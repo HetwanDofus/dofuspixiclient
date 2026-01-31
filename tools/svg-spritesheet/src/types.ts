@@ -187,6 +187,18 @@ export interface ManifestStats {
   deduplication: DeduplicationStats;
 }
 
+/** Output optimization options */
+export interface OptimizationOptions {
+  /** Use short sequential IDs (d0, d1) instead of hash-based IDs */
+  shortIds: boolean;
+  /** Minify output (remove whitespace/newlines) */
+  minify: boolean;
+  /** Numeric precision for coordinates (default: 2) */
+  precision: number;
+  /** Remove redundant/default attributes */
+  stripDefaults: boolean;
+}
+
 /** CLI pack options */
 export interface PackOptions {
   /** Input directory path */
@@ -199,6 +211,8 @@ export interface PackOptions {
   inlineThreshold: number;
   /** Dry run - analyze only, don't write output */
   dryRun: boolean;
+  /** Optimization options */
+  optimize: OptimizationOptions;
 }
 
 /** CLI analyze options */
@@ -207,4 +221,41 @@ export interface AnalyzeOptions {
   input: string;
   /** Show detailed stats */
   detailed: boolean;
+}
+
+/** Atlas frame data for runtime loading */
+export interface AtlasFrame {
+  /** Frame ID */
+  id: string;
+  /** X position in atlas */
+  x: number;
+  /** Y position in atlas */
+  y: number;
+  /** Width */
+  width: number;
+  /** Height */
+  height: number;
+  /** Original viewBox minX (for positioning) */
+  offsetX: number;
+  /** Original viewBox minY (for positioning) */
+  offsetY: number;
+}
+
+/** Atlas manifest for runtime loading */
+export interface AtlasManifest {
+  /** Version */
+  version: number;
+  /** Animation name */
+  animation: string;
+  /** Atlas dimensions */
+  width: number;
+  height: number;
+  /** Frame data */
+  frames: AtlasFrame[];
+  /** Frame order (includes duplicates referencing originals) */
+  frameOrder: string[];
+  /** Duplicate mappings */
+  duplicates: Record<string, string>;
+  /** FPS */
+  fps: number;
 }

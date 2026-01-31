@@ -15,6 +15,7 @@ import type {
   ProcessedSprite,
   UseElement,
   Definition,
+  OptimizationOptions,
 } from '../types.ts';
 import { formatViewBox } from './parser.ts';
 import { replaceReferences, extractBase64Data, restoreBase64Data } from './utils.ts';
@@ -199,6 +200,14 @@ function resolveRefsForHashing(
   return result;
 }
 
+/** Default optimization options */
+const DEFAULT_OPTIMIZATION: OptimizationOptions = {
+  shortIds: false,
+  minify: false,
+  precision: 2,
+  stripDefaults: false,
+};
+
 /**
  * Deduplicate definitions across all frames using multi-pass approach
  *
@@ -207,13 +216,15 @@ function resolveRefsForHashing(
  */
 export function deduplicateDefinitions(
   frames: ParsedFrame[],
-  _precision: number = 2
+  options: Partial<OptimizationOptions> = {}
 ): DeduplicationResult {
+  const opts = { ...DEFAULT_OPTIMIZATION, ...options };
   const canonicalDefs = new Map<string, CanonicalDefinition>();
   const idMapping = new Map<string, Map<string, string>>();
 
   let totalDefinitions = 0;
   let totalBytes = 0;
+  let idCounter = 0;
 
   // Process each frame
   for (const frame of frames) {
@@ -240,8 +251,8 @@ export function deduplicateDefinitions(
           frameMapping.set(def.originalId, existing.id);
         })
         .otherwise(() => {
-          // New unique definition
-          const canonicalId = `def_${hash}`;
+          // New unique definition - use short ID if enabled
+          const canonicalId = opts.shortIds ? `d${idCounter++}` : `def_${hash}`;
           const canonical: CanonicalDefinition = {
             id: canonicalId,
             hash,
@@ -374,7 +385,8 @@ export function processFrames(
  * Check if a reference is resolved (either mapped to canonical or already canonical)
  */
 function isResolvedRef(ref: string, mapping: Map<string, string>): boolean {
-  return ref.startsWith('def_') || mapping.has(ref);
+  // Match both long IDs (def_xxx) and short IDs (d0, d1, etc.)
+  return ref.startsWith('def_') || /^d\d+$/.test(ref) || mapping.has(ref);
 }
 
 /**
@@ -499,8 +511,8 @@ export function sortDefinitionsTopologically(
     const content = rebuiltDefs.get(def.id) ?? '';
     const deps = new Set<string>();
 
-    // Find all href references to other definitions
-    const hrefMatches = content.matchAll(/href="#(def_[a-f0-9]+)"/g);
+    // Find all href references to other definitions (both long and short IDs)
+    const hrefMatches = content.matchAll(/href="#(def_[a-f0-9]+|d\d+)"/g);
     for (const hrefMatch of hrefMatches) {
       const refId = hrefMatch[1];
       const refHash = idToHash.get(refId);
@@ -509,8 +521,8 @@ export function sortDefinitionsTopologically(
       }
     }
 
-    // Also check url() references
-    const urlMatches = content.matchAll(/url\(#(def_[a-f0-9]+)\)/g);
+    // Also check url() references (both long and short IDs)
+    const urlMatches = content.matchAll(/url\(#(def_[a-f0-9]+|d\d+)\)/g);
     for (const urlMatch of urlMatches) {
       const refId = urlMatch[1];
       const refHash = idToHash.get(refId);

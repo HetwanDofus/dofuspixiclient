@@ -11954,8 +11954,8 @@
     "uniqueFrames": 5784,
     "duplicateFrames": 2565,
     "inputSize": 197601274,
-    "outputSize": 25872145,
-    "compressionPercent": 86.90689362660689,
+    "outputSize": 22139772,
+    "compressionPercent": 88.79573418134946,
     "deduplication": {
       "totalDefinitions": 624203,
       "uniqueDefinitions": 30903,
@@ -11965,52 +11965,52 @@
       "patternCount": 3,
       "topDefinitions": [
         {
-          "id": "def_fb4a8c7f385d",
+          "id": "d51",
           "refCount": 8052,
           "size": 854
         },
         {
-          "id": "def_5c1ae8bd8628",
+          "id": "d25155",
           "refCount": 522,
           "size": 285
         },
         {
-          "id": "def_338580fffe8b",
+          "id": "d25156",
           "refCount": 522,
           "size": 207
         },
         {
-          "id": "def_77a86000c454",
+          "id": "d25157",
           "refCount": 522,
           "size": 50
         },
         {
-          "id": "def_b2406b11e7b1",
+          "id": "d25158",
           "refCount": 522,
           "size": 189
         },
         {
-          "id": "def_6d7eaebd125b",
+          "id": "d25159",
           "refCount": 522,
           "size": 276
         },
         {
-          "id": "def_a4ae6c528a5e",
+          "id": "d25160",
           "refCount": 522,
           "size": 194
         },
         {
-          "id": "def_ae0bd3bb452f",
+          "id": "d25161",
           "refCount": 522,
           "size": 47
         },
         {
-          "id": "def_642844555ada",
+          "id": "d25162",
           "refCount": 522,
           "size": 245
         },
         {
-          "id": "def_6bdbef1dd273",
+          "id": "d25163",
           "refCount": 522,
           "size": 48
         }
