@@ -1,17 +1,23 @@
-import { Application, Container, TextureSource, extensions } from 'pixi.js';
-import { LayoutSystem } from '@pixi/layout';
+import { LayoutSystem } from "@pixi/layout";
 import {
-  DISPLAY_WIDTH,
+  Application,
+  type Container,
+  extensions,
+  TextureSource,
+} from "pixi.js";
+
+import type { CanvasSize, RenderStats } from "@/types";
+import {
   DISPLAY_HEIGHT,
+  DISPLAY_WIDTH,
   FULL_HEIGHT,
-  GAME_WIDTH,
   GAME_HEIGHT,
+  GAME_WIDTH,
   ZOOM_LEVELS,
-} from '@/constants/battlefield';
-import type { CanvasSize, RenderStats } from '@/types';
+} from "@/constants/battlefield";
 
 extensions.add(LayoutSystem);
-TextureSource.defaultOptions.scaleMode = 'linear';
+TextureSource.defaultOptions.scaleMode = "nearest";
 TextureSource.defaultOptions.autoGenerateMipmaps = false;
 
 export interface EngineConfig {
@@ -28,7 +34,10 @@ export interface EngineConfig {
 export class Engine {
   private app: Application | null = null;
   private container: HTMLElement;
-  private config: Omit<Required<EngineConfig>, 'onResize' | 'onResizeStart' | 'onResizeEnd'> & {
+  private config: Omit<
+    Required<EngineConfig>,
+    "onResize" | "onResizeStart" | "onResizeEnd"
+  > & {
     onResize?: (width: number, height: number) => void;
     onResizeStart?: () => void;
     onResizeEnd?: (width: number, height: number) => void;
@@ -52,7 +61,7 @@ export class Engine {
       container: config.container,
       backgroundColor: config.backgroundColor ?? 0x000000,
       preferWebGPU: config.preferWebGPU ?? true,
-      antialias: config.antialias ?? true,
+      antialias: true,
       resizeDebounceMs: config.resizeDebounceMs ?? 300,
       onResize: config.onResize,
       onResizeStart: config.onResizeStart,
@@ -83,9 +92,10 @@ export class Engine {
       backgroundColor: this.config.backgroundColor,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
-      antialias: this.config.antialias,
-      roundPixels: window.devicePixelRatio <= 1,
-      preference: this.config.preferWebGPU ? 'webgpu' : 'webgl',
+      antialias: true,
+      roundPixels: true,
+      preferWebGLVersion: 1,
+      preference: this.config.preferWebGPU ? "webgpu" : "webgl",
       layout: {
         autoUpdate: true,
         enableDebug: false,
@@ -131,7 +141,7 @@ export class Engine {
     const appAny = this.app as Record<string, unknown>;
     const originalRender = (appAny.render as Function)?.bind(appAny);
 
-    if (typeof originalRender === 'function') {
+    if (typeof originalRender === "function") {
       appAny.render = (...args: unknown[]) => {
         this.lastDrawCalls = 0;
         const start = performance.now();
@@ -144,13 +154,16 @@ export class Engine {
     const batchPipe = (rendererAny?.renderPipes as Record<string, unknown>)
       ?.batch as Record<string, unknown>;
 
-    if (batchPipe && typeof batchPipe.execute === 'function') {
+    if (batchPipe && typeof batchPipe.execute === "function") {
       const originalExecute = (batchPipe.execute as Function).bind(batchPipe);
 
-      batchPipe.execute = (batch: Record<string, unknown>, ...rest: unknown[]) => {
+      batchPipe.execute = (
+        batch: Record<string, unknown>,
+        ...rest: unknown[]
+      ) => {
         if (
           batch &&
-          batch.renderPipeId === 'batch' &&
+          batch.renderPipeId === "batch" &&
           (batch.size as number) > 0
         ) {
           this.lastDrawCalls++;
@@ -164,7 +177,7 @@ export class Engine {
   private setupResizeHandling(): void {
     this.resizeObserver = new ResizeObserver(() => this.handleResize());
     this.resizeObserver.observe(this.container);
-    window.addEventListener('resize', () => this.handleResize());
+    window.addEventListener("resize", () => this.handleResize());
   }
 
   handleResize(): void {
@@ -260,7 +273,7 @@ export class Engine {
 
   getApp(): Application {
     if (!this.app) {
-      throw new Error('Engine not initialized');
+      throw new Error("Engine not initialized");
     }
 
     return this.app;

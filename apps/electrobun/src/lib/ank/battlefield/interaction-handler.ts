@@ -209,6 +209,11 @@ export class InteractionHandler {
     this.clampCameraToBounds();
   }
 
+  setMapContainer(container: Container): void {
+    this.mapContainer = container;
+    this.mapContainer.scale.set(this.currentZoom);
+  }
+
   private clampCameraToBounds(): void {
     const viewportWidth = this.canvas.clientWidth;
     const viewportHeight = this.canvas.clientHeight;

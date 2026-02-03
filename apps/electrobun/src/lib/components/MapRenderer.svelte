@@ -25,13 +25,13 @@
         onResizeStart: handleResizeStart,
         onResizeEnd: handleResizeEnd,
         resizeDebounceMs: 300,
-        preferWebGPU: false, // WebGL is more stable for resize operations in CEF
+        preferWebGPU: true, // WebGL is more stable for resize operations in CEF
       });
       await battlefield.init();
 
       try {
         await battlefield.loadManifest();
-        await battlefield.loadMap(745);
+        await battlefield.loadMap(7411);
       } catch (mapErr) {
         console.warn("Failed to load map, continuing without it:", mapErr);
       }
@@ -129,6 +129,8 @@
   .map-renderer :global(canvas) {
     display: block;
     transition: filter 0.15s ease-out;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
   }
 
   .map-renderer.resizing :global(canvas) {

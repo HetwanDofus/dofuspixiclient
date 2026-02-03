@@ -94,6 +94,11 @@ export class Battlefield {
   private onResizeStartCallback?: () => void;
   private onResizeEndCallback?: () => void;
 
+  // Render state management
+  private isRendering = false;
+  private pendingZoom: number | null = null;
+  private zoomDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
   constructor(config: BattlefieldConfig) {
     this.container = config.container;
     this.onResizeStartCallback = config.onResizeStart;
@@ -101,6 +106,7 @@ export class Battlefield {
 
     this.engine = new Engine({
       container: config.container,
+      antialias: true,
       backgroundColor: config.backgroundColor ?? 0x000000,
       preferWebGPU: config.preferWebGPU ?? true,
       resizeDebounceMs: config.resizeDebounceMs ?? 300,
@@ -135,34 +141,48 @@ export class Battlefield {
     }
   }
 
-  private async handleResizeEnd(_width: number, _height: number): Promise<void> {
-    // Check if we need to reload assets with a different scale
-    const newTargetScale = this.getTargetScaleForZoom();
-    const currentScale = this.mapHandler?.getTargetScale() ?? 2;
-
+  private async handleResizeEnd(
+    _width: number,
+    _height: number
+  ): Promise<void> {
     if (
-      currentScale !== newTargetScale &&
-      this.currentMapData &&
-      this.mapHandler &&
-      this.mapContainer &&
-      this.atlasLoader
+      !this.currentMapData ||
+      !this.mapHandler ||
+      !this.mapContainer ||
+      !this.atlasLoader
     ) {
-      // IMPORTANT: Remove sprites from container FIRST before destroying textures
-      // This prevents "null is not an object" errors when PixiJS tries to render
-      // sprites with destroyed textures
+      if (this.onResizeEndCallback) {
+        this.onResizeEndCallback();
+      }
+      return;
+    }
+
+    const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
+
+    console.log("[Battlefield] handleResizeEnd", { zoom });
+
+    try {
+      // Update zoom FIRST - this changes the cache key for new texture loads
+      this.atlasLoader.setZoom(zoom);
+      const newTargetScale = this.getTargetScaleForZoom();
+      this.mapHandler.setTargetScale(newTargetScale);
+
+      console.log("[Battlefield] Re-rendering map at zoom:", zoom);
+
+      // Clear container - sprites will be recreated with new textures
       this.mapContainer.removeChildren();
       this.clearPickableObjects();
       this.debugOverlay?.clear();
 
-      // Now safe to clear caches (textures no longer being rendered)
-      this.mapHandler.clearCache();
-      this.atlasLoader.clearFrameCache();
+      // Don't clear texture caches - they're keyed by zoom level
 
-      // Set new scale and re-render
-      this.mapHandler.setTargetScale(newTargetScale);
-
-      const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
-      await this.mapHandler.renderMap(this.currentMapData, this.mapContainer, zoom);
+      await this.mapHandler.renderMap(
+        this.currentMapData,
+        this.mapContainer,
+        zoom
+      );
+    } catch (error) {
+      console.error("[Battlefield] Resize render error:", error);
     }
 
     if (this.onResizeEndCallback) {
@@ -266,7 +286,7 @@ export class Battlefield {
   }
 
   async loadMap(mapId: number): Promise<void> {
-    if (!this.mapContainer || !this.mapHandler) {
+    if (!this.mapContainer || !this.mapHandler || !this.atlasLoader) {
       return;
     }
 
@@ -283,6 +303,8 @@ export class Battlefield {
     this.mapHandler.setTargetScale(targetScale);
 
     const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
+    // Set zoom on atlas loader for crisp SVG rasterization at current zoom level
+    this.atlasLoader.setZoom(zoom);
     await this.mapHandler.renderMap(mapData, this.mapContainer, zoom);
   }
 
@@ -354,28 +376,77 @@ export class Battlefield {
   }
 
   private handleZoomChange(zoom: number, _index: number): void {
-    const newTargetScale = this.getTargetScaleForZoom();
-    const currentScale = this.mapHandler?.getTargetScale() ?? 2;
+    // Debounce rapid zoom changes to prevent race conditions
+    this.pendingZoom = zoom;
 
+    if (this.zoomDebounceTimer) {
+      clearTimeout(this.zoomDebounceTimer);
+    }
+
+    this.zoomDebounceTimer = setTimeout(() => {
+      this.zoomDebounceTimer = null;
+      if (this.pendingZoom !== null) {
+        this.executeZoomRender(this.pendingZoom);
+        this.pendingZoom = null;
+      }
+    }, 100); // 100ms debounce
+  }
+
+  private async executeZoomRender(zoom: number): Promise<void> {
     if (
-      currentScale !== newTargetScale &&
-      this.currentMapData &&
-      this.mapHandler &&
-      this.mapContainer &&
-      this.atlasLoader
+      !this.currentMapData ||
+      !this.mapHandler ||
+      !this.mapContainer ||
+      !this.atlasLoader
     ) {
-      // IMPORTANT: Remove sprites from container FIRST before destroying textures
+      return;
+    }
+
+    // Skip if already rendering - just update pending zoom
+    if (this.isRendering) {
+      this.pendingZoom = zoom;
+      return;
+    }
+
+    // Check if zoom actually changed (with small tolerance for floating point)
+    const currentZoom = this.atlasLoader.getZoom();
+    const zoomChanged = Math.abs(currentZoom - zoom) > 0.001;
+
+    if (!zoomChanged) {
+      return;
+    }
+
+    this.isRendering = true;
+
+    try {
+      // Update zoom FIRST - this changes the cache key for new texture loads
+      this.atlasLoader.setZoom(zoom);
+      const newTargetScale = this.getTargetScaleForZoom();
+      this.mapHandler.setTargetScale(newTargetScale);
+
+      console.log("[Battlefield] Re-rendering map at zoom (from zoom change):", zoom);
+
+      // Clear container - sprites will be recreated with new textures
       this.mapContainer.removeChildren();
       this.clearPickableObjects();
       this.debugOverlay?.clear();
 
-      // Now safe to clear caches
-      this.mapHandler.clearCache();
-      this.atlasLoader.clearFrameCache();
+      // Don't clear texture caches - they're keyed by zoom level
+      // Different zoom = different cache key = fresh texture load
 
-      // Set new scale and re-render
-      this.mapHandler.setTargetScale(newTargetScale);
-      this.mapHandler.renderMap(this.currentMapData, this.mapContainer, zoom);
+      await this.mapHandler.renderMap(this.currentMapData, this.mapContainer, zoom);
+    } catch (error) {
+      console.error("[Battlefield] Render error:", error);
+    } finally {
+      this.isRendering = false;
+
+      // If another zoom was requested while rendering, handle it
+      if (this.pendingZoom !== null && this.pendingZoom !== zoom) {
+        const nextZoom = this.pendingZoom;
+        this.pendingZoom = null;
+        // Use setTimeout to break the call stack and prevent deep recursion
+        setTimeout(() => this.executeZoomRender(nextZoom), 0);
+      }
     }
   }
 
@@ -444,6 +515,13 @@ export class Battlefield {
   }
 
   destroy(): void {
+    // Clear zoom debounce timer
+    if (this.zoomDebounceTimer) {
+      clearTimeout(this.zoomDebounceTimer);
+      this.zoomDebounceTimer = null;
+    }
+    this.pendingZoom = null;
+
     if (this.currentContextMenu) {
       this.currentContextMenu.destroy();
       this.currentContextMenu = null;

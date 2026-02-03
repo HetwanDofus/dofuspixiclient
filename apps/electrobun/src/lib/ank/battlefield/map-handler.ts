@@ -1,6 +1,7 @@
 import { AnimatedSprite, Container, Sprite } from "pixi.js";
 
 import type { AtlasLoader } from "@/render/atlas-loader";
+import type { TileManifest } from "@/types";
 
 import type { CellData } from "./datacenter/cell";
 import type { MapData, MapScale } from "./datacenter/map";
@@ -21,11 +22,21 @@ export interface MapHandlerConfig {
   ) => void;
 }
 
+/**
+ * Cache entry for pre-sorted cells
+ */
+interface SortedCellsCache {
+  mapId: number;
+  mapWidth: number;
+  sortedCells: CellData[];
+}
+
 export class MapHandler {
   private atlasLoader: AtlasLoader;
   private textureCache = new Map<string, Sprite>();
   private animatedSprites: AnimatedSprite[] = [];
   private currentTileScale = 2;
+  private sortedCellsCache: SortedCellsCache | null = null;
   private onSpriteCreated?: (
     sprite: Sprite,
     tileId: number,
@@ -36,6 +47,39 @@ export class MapHandler {
   constructor(config: MapHandlerConfig) {
     this.atlasLoader = config.atlasLoader;
     this.onSpriteCreated = config.onSpriteCreated;
+  }
+
+  /**
+   * Get pre-sorted cells for a map, using cache when possible
+   * Sorting is done once per map and cached for subsequent renders
+   */
+  private getSortedCells(mapData: MapData): CellData[] {
+    const { id: mapId, width: mapWidth, cells } = mapData;
+
+    // Return cached sorted cells if same map
+    if (
+      this.sortedCellsCache &&
+      this.sortedCellsCache.mapId === mapId &&
+      this.sortedCellsCache.mapWidth === mapWidth
+    ) {
+      return this.sortedCellsCache.sortedCells;
+    }
+
+    // Sort cells by isometric depth (y + x determines draw order)
+    const sortedCells = [...cells].sort((a, b) => {
+      const posA = getCellPosition(a.id, mapWidth, a.groundLevel);
+      const posB = getCellPosition(b.id, mapWidth, b.groundLevel);
+      return posA.y + posA.x - (posB.y + posB.x);
+    });
+
+    // Cache the sorted result
+    this.sortedCellsCache = {
+      mapId,
+      mapWidth,
+      sortedCells,
+    };
+
+    return sortedCells;
   }
 
   setTargetScale(scale: number): void {
@@ -57,7 +101,6 @@ export class MapHandler {
     const {
       width: mapWidth,
       height: mapHeight,
-      cells,
       backgroundNum,
     } = mapData;
     const mapScale = computeMapScale(mapWidth, mapHeight);
@@ -84,11 +127,8 @@ export class MapHandler {
       );
     }
 
-    const sortedCells = [...cells].sort((a, b) => {
-      const posA = getCellPosition(a.id, mapWidth, a.groundLevel);
-      const posB = getCellPosition(b.id, mapWidth, b.groundLevel);
-      return posA.y + posA.x - (posB.y + posB.x);
-    });
+    // Use pre-sorted cells (cached per map to avoid re-sorting on each render)
+    const sortedCells = this.getSortedCells(mapData);
 
     for (const cell of sortedCells) {
       await this.renderCell(
@@ -473,6 +513,7 @@ export class MapHandler {
     }
     this.textureCache.clear();
     this.clearAnimatedSprites();
+    this.sortedCellsCache = null;
   }
 
   getAnimatedSprites(): AnimatedSprite[] {

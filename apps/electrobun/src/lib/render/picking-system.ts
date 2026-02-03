@@ -19,6 +19,17 @@ export class PickingSystem {
   private cachedPickPosition = { x: -1, y: -1 };
   private cachedPickResult: PickResult | null = null;
 
+  /**
+   * Dirty flag - when true, picking texture needs to be rebuilt
+   * This prevents expensive GPU operations when scene hasn't changed
+   */
+  private isDirty = true;
+
+  /**
+   * Track the world container transform to detect camera/view changes
+   */
+  private lastWorldTransform = { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 };
+
   constructor(renderer: Renderer, minPickInterval = 16) {
     this.renderer = renderer;
     this.minPickInterval = minPickInterval;
@@ -46,7 +57,7 @@ export class PickingSystem {
 
   registerObject(object: PickableObject): void {
     this.pickableObjects.set(object.id, object);
-    this.cachedPixels = null;
+    this.isDirty = true;
   }
 
   unregisterObject(id: number): void {
@@ -59,7 +70,7 @@ export class PickingSystem {
       this.idToPickingSprites.delete(id);
     }
 
-    this.cachedPixels = null;
+    this.isDirty = true;
   }
 
   clear(): void {
@@ -70,6 +81,7 @@ export class PickingSystem {
     }
 
     this.idToPickingSprites.clear();
+    this.isDirty = true;
     this.cachedPixels = null;
   }
 
@@ -187,7 +199,15 @@ export class PickingSystem {
       return null;
     }
 
-    this.rebuildPickingTexture(worldContainer);
+    // Check if world container transform has changed
+    const transformChanged = this.hasWorldTransformChanged(worldContainer);
+
+    // Only rebuild if dirty or transform changed
+    if (this.isDirty || transformChanged || !this.cachedPixels) {
+      this.rebuildPickingTexture(worldContainer);
+      this.isDirty = false;
+      this.updateWorldTransform(worldContainer);
+    }
 
     if (!this.cachedPixels) {
       this.cachedPickResult = null;
@@ -281,7 +301,39 @@ export class PickingSystem {
     return 0;
   }
 
+  /**
+   * Check if the world container transform has changed since last rebuild
+   */
+  private hasWorldTransformChanged(worldContainer: Container): boolean {
+    const transform = this.lastWorldTransform;
+    const pos = worldContainer.position;
+    const scale = worldContainer.scale;
+
+    return (
+      transform.x !== pos.x ||
+      transform.y !== pos.y ||
+      transform.scaleX !== scale.x ||
+      transform.scaleY !== scale.y ||
+      transform.rotation !== worldContainer.rotation
+    );
+  }
+
+  /**
+   * Update the cached world transform values
+   */
+  private updateWorldTransform(worldContainer: Container): void {
+    const pos = worldContainer.position;
+    const scale = worldContainer.scale;
+
+    this.lastWorldTransform.x = pos.x;
+    this.lastWorldTransform.y = pos.y;
+    this.lastWorldTransform.scaleX = scale.x;
+    this.lastWorldTransform.scaleY = scale.y;
+    this.lastWorldTransform.rotation = worldContainer.rotation;
+  }
+
   markDirty(): void {
+    this.isDirty = true;
     this.cachedPixels = null;
   }
 
