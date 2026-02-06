@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "animation": "tile",
+  "width": 1091,
+  "height": 285,
+  "offsetX": -107.65,
+  "offsetY": -251.75,
+  "frames": [
+    {
+      "id": "tile_0",
+      "x": 1,
+      "y": 1,
+      "width": 217,
+      "height": 283,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_2",
+      "x": 219,
+      "y": 1,
+      "width": 217,
+      "height": 283,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_3",
+      "x": 437,
+      "y": 1,
+      "width": 217,
+      "height": 283,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_4",
+      "x": 655,
+      "y": 1,
+      "width": 217,
+      "height": 283,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_5",
+      "x": 873,
+      "y": 1,
+      "width": 217,
+      "height": 283,
+      "offsetX": 0,
+      "offsetY": 0
+    }
+  ],
+  "frameOrder": [
+    "tile_0",
+    "tile_1",
+    "tile_2",
+    "tile_3",
+    "tile_4",
+    "tile_5"
+  ],
+  "duplicates": {
+    "tile_1": "tile_0"
+  },
+  "fps": 60
+}

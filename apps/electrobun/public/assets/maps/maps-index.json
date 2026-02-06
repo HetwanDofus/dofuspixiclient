@@ -1,0 +1,68 @@
+{
+    "maps": [
+        {
+            "id": 37,
+            "name": "Test Map 37 (old map format)",
+            "file": "37.json",
+            "width": 15,
+            "height": 17
+        },
+        {
+            "id": 703,
+            "name": "Test Map 703 (medium ID)",
+            "file": "703.json",
+            "width": 8,
+            "height": 7
+        },
+        {
+            "id": 4208,
+            "name": "Test Map 4208 (bigger dimensions)",
+            "file": "4208.json",
+            "width": 19,
+            "height": 22
+        },
+        {
+            "id": 10302,
+            "name": "Test Map 10302 (with background)",
+            "file": "10302.json",
+            "width": 15,
+            "height": 17
+        },
+        {
+            "id": 10340,
+            "name": "Test Map 10340 (modern map)",
+            "file": "10340.json",
+            "width": 15,
+            "height": 17
+        },
+        {
+            "id": 745,
+            "name": "Slop + anim",
+            "file": "745.json",
+            "width": 15,
+            "height": 17
+        },
+        {
+            "id": 7411,
+            "name": "Atrub",
+            "file": "7411.json",
+            "width": 15,
+            "height": 17
+        },
+        {
+            "id": 300,
+            "name": "Test Map 300",
+            "file": "300.json",
+            "width": 15,
+            "height": 17
+        },
+        {
+            "id": 10349,
+            "name": "Test Map 10349",
+            "file": "300.json",
+            "width": 15,
+            "height": 17
+        }
+    ],
+    "extractedAt": "2025-11-19T21:14:39+00:00"
+}

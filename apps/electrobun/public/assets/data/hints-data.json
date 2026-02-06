@@ -1,0 +1,3266 @@
+{
+    "version": "1.0",
+    "generated": "2025-12-29T12:41:32+00:00",
+    "source": "extracted from hints_fr_1254.swf via Arakne SWF library",
+    "version_swf": 1254,
+    "language": "fr",
+    "categories": [
+        {
+            "id": 1,
+            "name": "Lieux de classes",
+            "color": "Orange"
+        },
+        {
+            "id": 2,
+            "name": "Hôtels de vente",
+            "color": "Blue"
+        },
+        {
+            "id": 3,
+            "name": "Ateliers",
+            "color": "Green"
+        },
+        {
+            "id": 4,
+            "name": "Divers",
+            "color": "Beige"
+        },
+        {
+            "id": 5,
+            "name": "Territoires de conquête",
+            "color": "Red"
+        },
+        {
+            "id": 6,
+            "name": "Donjons",
+            "color": "Violet"
+        }
+    ],
+    "hints_by_map": {
+        "50": [
+            {
+                "name": "Temple Xélor",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 50
+            }
+        ],
+        "177": [
+            {
+                "name": "Temple Feca",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 10
+            }
+        ],
+        "487": [
+            {
+                "name": "Temple Eniripsa",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 70
+            }
+        ],
+        "490": [
+            {
+                "name": "Temple Osamodas",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 20
+            }
+        ],
+        "518": [
+            {
+                "name": "Temple Iop",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 80
+            }
+        ],
+        "540": [
+            {
+                "name": "Temple Crâ",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 90
+            }
+        ],
+        "684": [
+            {
+                "name": "Temple Sadida",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 100
+            }
+        ],
+        "686": [
+            {
+                "name": "Temple Enutrof",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 30
+            }
+        ],
+        "690": [
+            {
+                "name": "Temple Sram",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 40
+            }
+        ],
+        "744": [
+            {
+                "name": "Temple Ecaflip",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 60
+            }
+        ],
+        "2061": [
+            {
+                "name": "Temple Sacrieur",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 110
+            }
+        ],
+        "7332": [
+            {
+                "name": "Statue Xélor",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 50
+            }
+        ],
+        "7336": [
+            {
+                "name": "Statue Sacrieur",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 110
+            }
+        ],
+        "7361": [
+            {
+                "name": "Statue Eniripsa",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 70
+            }
+        ],
+        "7378": [
+            {
+                "name": "Statue Crâ",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 90
+            }
+        ],
+        "7392": [
+            {
+                "name": "Statue Sram",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 40
+            }
+        ],
+        "7395": [
+            {
+                "name": "Statue Sadida",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 100
+            }
+        ],
+        "7398": [
+            {
+                "name": "Statue Féca",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 10
+            }
+        ],
+        "7427": [
+            {
+                "name": "Statue Iop",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 80
+            }
+        ],
+        "7442": [
+            {
+                "name": "Statue Enutrof",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 30
+            }
+        ],
+        "7446": [
+            {
+                "name": "Statue Ecaflip",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 60
+            }
+        ],
+        "7545": [
+            {
+                "name": "Statue Osamodas",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 20
+            }
+        ],
+        "8035": [
+            {
+                "name": "Statue Pandawa",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 120
+            }
+        ],
+        "8207": [
+            {
+                "name": "Temple Pandawa",
+                "categoryID": 1,
+                "category": "Lieux de classes",
+                "color": "Orange",
+                "gfxID": 120
+            }
+        ],
+        "2221": [
+            {
+                "name": "Hôtel de vente des boulangers",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 204
+            }
+        ],
+        "3412": [
+            {
+                "name": "Hôtel de vente des fées d'artifice",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 223
+            }
+        ],
+        "4098": [
+            {
+                "name": "Hôtel de vente des forgerons",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 208
+            }
+        ],
+        "4172": [
+            {
+                "name": "Hôtel de vente des tailleurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 215
+            },
+            {
+                "name": "Taverne Alakarte",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "4174": [
+            {
+                "name": "Hôtel de vente des sculpteurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 214
+            },
+            {
+                "name": "Taverne de la Chopenbois",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "4178": [
+            {
+                "name": "Hôtel de vente des bûcherons",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 205
+            }
+        ],
+        "4179": [
+            {
+                "name": "Hôtel de vente des mineurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 209
+            }
+        ],
+        "4183": [
+            {
+                "name": "Hôtel de vente des cordonniers",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 207
+            }
+        ],
+        "4216": [
+            {
+                "name": "Hôtel de vente des bijoutiers",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 202
+            }
+        ],
+        "4232": [
+            {
+                "name": "Hôtel de vente des bricoleurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 222
+            },
+            {
+                "name": "Atelier des bricoleurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 317
+            }
+        ],
+        "4247": [
+            {
+                "name": "Hôtel de vente des poissonniers et des pêcheurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 212
+            }
+        ],
+        "4262": [
+            {
+                "name": "Hôtel de vente des ressources",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 213
+            }
+        ],
+        "4271": [
+            {
+                "name": "Hôtel de vente des alchimistes",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 201
+            }
+        ],
+        "4287": [
+            {
+                "name": "Hôtel de vente des bouchers et des chasseurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 203
+            }
+        ],
+        "4299": [
+            {
+                "name": "Hôtel de vente des paysans",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 210
+            }
+        ],
+        "4562": [
+            {
+                "name": "Hôtel de vente des cordonniers",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 207
+            }
+        ],
+        "4588": [
+            {
+                "name": "Hôtel de vente des tailleurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 215
+            }
+        ],
+        "4595": [
+            {
+                "name": "Hôtel de vente des bouchers et des chasseurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 203
+            }
+        ],
+        "4607": [
+            {
+                "name": "Hôtel de vente des alchimistes",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 201
+            }
+        ],
+        "4615": [
+            {
+                "name": "Hôtel de vente des poissonniers et des pêcheurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 212
+            }
+        ],
+        "4618": [
+            {
+                "name": "Hôtel de vente des sculpteurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 214
+            }
+        ],
+        "4622": [
+            {
+                "name": "Hôtel de vente des bijoutiers",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 202
+            }
+        ],
+        "4627": [
+            {
+                "name": "Hôtel de vente des bricoleurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 222
+            },
+            {
+                "name": "Atelier des bricoleurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 317
+            }
+        ],
+        "4629": [
+            {
+                "name": "Hôtel de vente des paysans",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 210
+            }
+        ],
+        "4630": [
+            {
+                "name": "Hôtel de vente des boulangers",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 204
+            }
+        ],
+        "4646": [
+            {
+                "name": "Hôtel de vente des ressources",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 213
+            }
+        ],
+        "5112": [
+            {
+                "name": "Hôtel de vente des bûcherons",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 205
+            }
+        ],
+        "5311": [
+            {
+                "name": "Hôtel de vente des mineurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 209
+            }
+        ],
+        "5317": [
+            {
+                "name": "Hôtel de vente des forgerons",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 208
+            }
+        ],
+        "6159": [
+            {
+                "name": "Hôtel de vente des parchemins liés",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 219
+            },
+            {
+                "name": "Milice",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 407
+            }
+        ],
+        "6167": [
+            {
+                "name": "Hôtel de vente des parchemins liés",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 219
+            }
+        ],
+        "7289": [
+            {
+                "name": "Hôtel de vente des bûcherons",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 205
+            }
+        ],
+        "7348": [
+            {
+                "name": "Hôtel de vente des pêcheurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 211
+            }
+        ],
+        "7350": [
+            {
+                "name": "Hôtel de vente des chasseurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 206
+            }
+        ],
+        "7397": [
+            {
+                "name": "Hôtel de vente des paysans",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 210
+            }
+        ],
+        "7413": [
+            {
+                "name": "Hôtel de vente des ressources",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 213
+            }
+        ],
+        "7428": [
+            {
+                "name": "Hôtel de vente des bricoleurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 222
+            }
+        ],
+        "7443": [
+            {
+                "name": "Hôtel de vente des mineurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 209
+            }
+        ],
+        "7501": [
+            {
+                "name": "Hôtel de vente des poissonniers",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 212
+            }
+        ],
+        "7510": [
+            {
+                "name": "Hôtel de vente des boulangers",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 204
+            }
+        ],
+        "7511": [
+            {
+                "name": "Hôtel de vente des forgerons",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 208
+            }
+        ],
+        "7512": [
+            {
+                "name": "Hôtel de vente des sculpteurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 214
+            }
+        ],
+        "7513": [
+            {
+                "name": "Hôtel de vente des tailleurs",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 215
+            }
+        ],
+        "7514": [
+            {
+                "name": "Hôtel de vente des bijoutiers",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 202
+            }
+        ],
+        "7515": [
+            {
+                "name": "Hôtel de vente des bouchers",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 203
+            }
+        ],
+        "7516": [
+            {
+                "name": "Hôtel de vente des alchimistes",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 201
+            }
+        ],
+        "7602": [
+            {
+                "name": "Hôtel de vente des cordonniers",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 207
+            }
+        ],
+        "8039": [
+            {
+                "name": "Hôtel de vente des boucliers",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 216
+            }
+        ],
+        "8478": [
+            {
+                "name": "Hôtel de vente des âmes",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 217
+            },
+            {
+                "name": "Arène",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 411
+            }
+        ],
+        "8493": [
+            {
+                "name": "Hôtel de vente des âmes",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 217
+            },
+            {
+                "name": "Arène",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 411
+            }
+        ],
+        "8753": [
+            {
+                "name": "Hôtel de vente des animaux",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 218
+            }
+        ],
+        "8754": [
+            {
+                "name": "Hôtel de vente des documents",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 221
+            },
+            {
+                "name": "Bibliothèque",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 417
+            }
+        ],
+        "8756": [
+            {
+                "name": "Hôtel de vente des runes",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 220
+            },
+            {
+                "name": "Atelier des forgemages",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 308
+            }
+        ],
+        "8757": [
+            {
+                "name": "Hôtel de vente des runes",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 220
+            },
+            {
+                "name": "Atelier des forgemages",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 308
+            }
+        ],
+        "8759": [
+            {
+                "name": "Hôtel de vente des animaux",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 218
+            }
+        ],
+        "8760": [
+            {
+                "name": "Hôtel de vente des documents",
+                "categoryID": 2,
+                "category": "Hôtels de vente",
+                "color": "Blue",
+                "gfxID": 221
+            },
+            {
+                "name": "Bibliothèque",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 417
+            }
+        ],
+        "34": [
+            {
+                "name": "Atelier des bijoutiers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 302
+            }
+        ],
+        "44": [
+            {
+                "name": "Atelier des tailleurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 315
+            }
+        ],
+        "49": [
+            {
+                "name": "Atelier des boulangers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 304
+            }
+        ],
+        "55": [
+            {
+                "name": "Atelier des cordonniers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 307
+            }
+        ],
+        "524": [
+            {
+                "name": "Atelier des paysans",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 311
+            }
+        ],
+        "531": [
+            {
+                "name": "Atelier des bûcherons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 305
+            }
+        ],
+        "577": [
+            {
+                "name": "Atelier des sculpteurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 314
+            }
+        ],
+        "579": [
+            {
+                "name": "Atelier des boulangers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 304
+            }
+        ],
+        "618": [
+            {
+                "name": "Atelier des chasseurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 306
+            }
+        ],
+        "643": [
+            {
+                "name": "Atelier des alchimistes",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 301
+            }
+        ],
+        "714": [
+            {
+                "name": "Atelier des mineurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 310
+            }
+        ],
+        "766": [
+            {
+                "name": "Atelier des pêcheurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 312
+            }
+        ],
+        "933": [
+            {
+                "name": "Atelier des mineurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 310
+            }
+        ],
+        "942": [
+            {
+                "name": "Atelier des forgerons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 309
+            }
+        ],
+        "1066": [
+            {
+                "name": "Atelier des forgerons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 309
+            }
+        ],
+        "1070": [
+            {
+                "name": "Atelier des bûcherons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 305
+            }
+        ],
+        "1109": [
+            {
+                "name": "Atelier des sculpteurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 314
+            }
+        ],
+        "1299": [
+            {
+                "name": "Atelier des sculpteurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 314
+            }
+        ],
+        "1314": [
+            {
+                "name": "Atelier des bûcherons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 305
+            }
+        ],
+        "1339": [
+            {
+                "name": "Atelier des paysans",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 311
+            }
+        ],
+        "1355": [
+            {
+                "name": "Atelier des paysans",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 311
+            }
+        ],
+        "1356": [
+            {
+                "name": "Atelier des boulangers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 304
+            }
+        ],
+        "1369": [
+            {
+                "name": "Atelier des boulangers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 304
+            }
+        ],
+        "1388": [
+            {
+                "name": "Ateliers des mineurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 310
+            }
+        ],
+        "1392": [
+            {
+                "name": "Atelier des sculpteurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 314
+            }
+        ],
+        "1397": [
+            {
+                "name": "Atelier des forgerons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 309
+            },
+            {
+                "name": "Ateliers des mineurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 310
+            }
+        ],
+        "1398": [
+            {
+                "name": "Atelier des bijoutiers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 302
+            }
+        ],
+        "1684": [
+            {
+                "name": "Atelier des bijoutiers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 302
+            }
+        ],
+        "1888": [
+            {
+                "name": "Atelier des poissonniers et des pêcheurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 312
+            }
+        ],
+        "2187": [
+            {
+                "name": "Atelier des forgemages",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 308
+            }
+        ],
+        "2214": [
+            {
+                "name": "Atelier des boulangers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 304
+            },
+            {
+                "name": "Taverne du Pinchaut",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "2672": [
+            {
+                "name": "Atelier des paysans",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 311
+            }
+        ],
+        "3455": [
+            {
+                "name": "Atelier des Cartes",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 319
+            }
+        ],
+        "4074": [
+            {
+                "name": "Atelier des forgerons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 309
+            }
+        ],
+        "4106": [
+            {
+                "name": "Atelier des tailleurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 315
+            }
+        ],
+        "4180": [
+            {
+                "name": "Atelier des mineurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 310
+            }
+        ],
+        "4181": [
+            {
+                "name": "Atelier des sculpteurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 314
+            }
+        ],
+        "4217": [
+            {
+                "name": "Atelier des bijoutiers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 302
+            }
+        ],
+        "4240": [
+            {
+                "name": "Atelier des bouchers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 303
+            }
+        ],
+        "4250": [
+            {
+                "name": "Atelier des poissonniers et des pêcheurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 312
+            }
+        ],
+        "4272": [
+            {
+                "name": "Atelier des alchimistes",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 301
+            }
+        ],
+        "4300": [
+            {
+                "name": "Atelier des cordonniers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 307
+            }
+        ],
+        "4313": [
+            {
+                "name": "Atelier des bûcherons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 305
+            }
+        ],
+        "4549": [
+            {
+                "name": "Atelier des tailleurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 315
+            }
+        ],
+        "4579": [
+            {
+                "name": "Atelier des cordonniers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 307
+            },
+            {
+                "name": "Taverne de Djaul",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "4604": [
+            {
+                "name": "Atelier des bouchers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 303
+            },
+            {
+                "name": "Taverne Atolmond",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "4612": [
+            {
+                "name": "Atelier des sculpteurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 314
+            },
+            {
+                "name": "Taverne de la Misère",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "4620": [
+            {
+                "name": "Atelier des bijoutiers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 302
+            }
+        ],
+        "4639": [
+            {
+                "name": "Atelier des boulangers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 304
+            }
+        ],
+        "4930": [
+            {
+                "name": "Atelier des alchimistes",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 301
+            }
+        ],
+        "5277": [
+            {
+                "name": "Atelier des forgerons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 309
+            }
+        ],
+        "5304": [
+            {
+                "name": "Atelier des mineurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 310
+            }
+        ],
+        "5334": [
+            {
+                "name": "Atelier des poissonniers et des pêcheurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 312
+            }
+        ],
+        "6117": [
+            {
+                "name": "Atelier des forgerons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 309
+            }
+        ],
+        "6146": [
+            {
+                "name": "Atelier des poissonniers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 312
+            }
+        ],
+        "6860": [
+            {
+                "name": "Atelier des fées d'artifice",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 318
+            }
+        ],
+        "7345": [
+            {
+                "name": "Atelier des cordonniers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 307
+            }
+        ],
+        "7351": [
+            {
+                "name": "Atelier des bouchers et chasseurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 303
+            }
+        ],
+        "7357": [
+            {
+                "name": "Atelier des bûcherons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 305
+            }
+        ],
+        "7360": [
+            {
+                "name": "Atelier des tailleurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 315
+            }
+        ],
+        "7364": [
+            {
+                "name": "Atelier des poissonniers et des pêcheurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 312
+            }
+        ],
+        "7377": [
+            {
+                "name": "Atelier des sculpteurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 314
+            }
+        ],
+        "7382": [
+            {
+                "name": "Atelier des boulangers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 304
+            }
+        ],
+        "7426": [
+            {
+                "name": "Atelier des alchimistes",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 301
+            }
+        ],
+        "7430": [
+            {
+                "name": "Atelier des bijoutiers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 302
+            }
+        ],
+        "7441": [
+            {
+                "name": "Atelier des forgerons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 309
+            }
+        ],
+        "7453": [
+            {
+                "name": "Atelier des paysans",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 311
+            },
+            {
+                "name": "Donjon des Champs",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "7458": [
+            {
+                "name": "Atelier des mineurs",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 310
+            }
+        ],
+        "8038": [
+            {
+                "name": "Atelier des bûcherons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 305
+            }
+        ],
+        "8089": [
+            {
+                "name": "Atelier des boucliers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 316
+            }
+        ],
+        "8117": [
+            {
+                "name": "Atelier des boucliers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 316
+            }
+        ],
+        "8160": [
+            {
+                "name": "Atelier des boucliers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 316
+            }
+        ],
+        "8337": [
+            {
+                "name": "Atelier des bûcherons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 305
+            }
+        ],
+        "8356": [
+            {
+                "name": "Atelier des bûcherons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 305
+            }
+        ],
+        "8359": [
+            {
+                "name": "Atelier des bûcherons",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 305
+            }
+        ],
+        "10243": [
+            {
+                "name": "Atelier des bouchers",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 303
+            }
+        ],
+        "11093": [
+            {
+                "name": "Atelier des alchimistes",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 301
+            }
+        ],
+        "11243": [
+            {
+                "name": "Atelier des alchimistes",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 301
+            }
+        ],
+        "11245": [
+            {
+                "name": "Atelier des paysans",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 311
+            }
+        ],
+        "11246": [
+            {
+                "name": "Atelier des paysans",
+                "categoryID": 3,
+                "category": "Ateliers",
+                "color": "Green",
+                "gfxID": 311
+            }
+        ],
+        "32": [
+            {
+                "name": "Kanojedo",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 406
+            }
+        ],
+        "33": [
+            {
+                "name": "Place Marchande",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 415
+            }
+        ],
+        "37": [
+            {
+                "name": "Attitude \"Bisou\"",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 423
+            }
+        ],
+        "38": [
+            {
+                "name": "Epicerie",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 425
+            },
+            {
+                "name": "Place Marchande",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 415
+            }
+        ],
+        "40": [
+            {
+                "name": "Banque",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 401
+            }
+        ],
+        "41": [
+            {
+                "name": "Taverne",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "51": [
+            {
+                "name": "Bibliothèque",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 417
+            }
+        ],
+        "164": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "167": [
+            {
+                "name": "Bateau vers l'île des Wabbits",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 413
+            }
+        ],
+        "188": [
+            {
+                "name": "Transporteur brigandin",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 412
+            }
+        ],
+        "464": [
+            {
+                "name": "Attitude \"Pierre, feuille, ciseaux\"",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 423
+            }
+        ],
+        "494": [
+            {
+                "name": "Eglise",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 403
+            }
+        ],
+        "528": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "709": [
+            {
+                "name": "Usine KEK",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 409
+            }
+        ],
+        "736": [
+            {
+                "name": "Attitude \"Applaudir\"",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 423
+            }
+        ],
+        "819": [
+            {
+                "name": "Transporteur Brigandin",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 412
+            }
+        ],
+        "833": [
+            {
+                "name": "Bateau vers le Port de Madrestam",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 413
+            }
+        ],
+        "844": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "935": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "936": [
+            {
+                "name": "Passage vers Brâkmar",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 424
+            }
+        ],
+        "951": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "1014": [
+            {
+                "name": "Canon pour l'île de Moon",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 402
+            }
+        ],
+        "1116": [
+            {
+                "name": "Transporteur Brigandin",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 412
+            }
+        ],
+        "1140": [
+            {
+                "name": "Chanil",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 404
+            }
+        ],
+        "1158": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "1213": [
+            {
+                "name": "Attitude \"Colère\"",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 423
+            }
+        ],
+        "1242": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "1246": [
+            {
+                "name": "Transporteur brigandin",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 412
+            }
+        ],
+        "1269": [
+            {
+                "name": "Kanojedo",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 406
+            }
+        ],
+        "1663": [
+            {
+                "name": "Attitude \"Montrer son arme\"",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 423
+            }
+        ],
+        "1665": [
+            {
+                "name": "Attitude \"Faire signe\"",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 423
+            }
+        ],
+        "1669": [
+            {
+                "name": "Transporteur brigandin",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 412
+            }
+        ],
+        "1841": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "1878": [
+            {
+                "name": "Taverne du Ripate",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "1884": [
+            {
+                "name": "Attitude \"Peur\"",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 423
+            }
+        ],
+        "1886": [
+            {
+                "name": "Banque",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 401
+            }
+        ],
+        "2021": [
+            {
+                "name": "Kanojedo",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 406
+            }
+        ],
+        "2056": [
+            {
+                "name": "Temple des guildes",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 405
+            }
+        ],
+        "2184": [
+            {
+                "name": "Arène",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 411
+            }
+        ],
+        "2191": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "3022": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "3250": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "3336": [
+            {
+                "name": "Roulette Bouftou",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 427
+            }
+        ],
+        "3451": [
+            {
+                "name": "Gladiatrool",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 411
+            }
+        ],
+        "3453": [
+            {
+                "name": "Place Marchande",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 415
+            }
+        ],
+        "4090": [
+            {
+                "name": "Taverne du Feubuk",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "4207": [
+            {
+                "name": "Epicerie",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 425
+            }
+        ],
+        "4218": [
+            {
+                "name": "Taverne de la Bagrutte",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "4223": [
+            {
+                "name": "Tour des ordres",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 416
+            }
+        ],
+        "4229": [
+            {
+                "name": "Taverne du Ferayeur",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "4238": [
+            {
+                "name": "Taverne de la Tabasse",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "4259": [
+            {
+                "name": "Place Marchande",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 415
+            }
+        ],
+        "4263": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "4308": [
+            {
+                "name": "Banque",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 401
+            }
+        ],
+        "4413": [
+            {
+                "name": "Transporteur brigandin",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 412
+            }
+        ],
+        "4551": [
+            {
+                "name": "Tour de Brâkmar",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 416
+            }
+        ],
+        "4582": [
+            {
+                "name": "Epicerie",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 425
+            }
+        ],
+        "4601": [
+            {
+                "name": "Place Marchande",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 415
+            }
+        ],
+        "4623": [
+            {
+                "name": "Taverne du Chabrulé",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "4637": [
+            {
+                "name": "Taverne du Bwork",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "4739": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "4908": [
+            {
+                "name": "Tour de Gisgoul",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 416
+            }
+        ],
+        "5015": [
+            {
+                "name": "Transporteur brigandin",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 412
+            }
+        ],
+        "5116": [
+            {
+                "name": "Milice",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 407
+            }
+        ],
+        "5295": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "5332": [
+            {
+                "name": "Banque",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 401
+            }
+        ],
+        "6137": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "6175": [
+            {
+                "name": "Résidence des Mercenaires",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 430
+            }
+        ],
+        "6850": [
+            {
+                "name": "Transporteur Brigandin",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 412
+            }
+        ],
+        "6855": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "6954": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "7362": [
+            {
+                "name": "Hôtel des metiers",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 418
+            }
+        ],
+        "7396": [
+            {
+                "name": "Place Marchande",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 415
+            }
+        ],
+        "7409": [
+            {
+                "name": "Repaire des Mercenaires",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 430
+            }
+        ],
+        "7411": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "7414": [
+            {
+                "name": "Banque",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 401
+            }
+        ],
+        "7429": [
+            {
+                "name": "Taverne",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "7529": [
+            {
+                "name": "Epicerie",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 425
+            }
+        ],
+        "7893": [
+            {
+                "name": "Réceptacle des Dofus",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 429
+            }
+        ],
+        "8012": [
+            {
+                "name": "Banque",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 401
+            }
+        ],
+        "8014": [
+            {
+                "name": "Bibliothèque",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 417
+            }
+        ],
+        "8026": [
+            {
+                "name": "Taverne du Pandawa Ivre",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "8027": [
+            {
+                "name": "Dojo",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 414
+            }
+        ],
+        "8036": [
+            {
+                "name": "Place Marchande",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 415
+            }
+        ],
+        "8037": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "8088": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "8090": [
+            {
+                "name": "Dojo",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 414
+            }
+        ],
+        "8109": [
+            {
+                "name": "Dojo",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 414
+            }
+        ],
+        "8125": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "8163": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "8167": [
+            {
+                "name": "Attitude \"Pointer du doigt\"",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 423
+            },
+            {
+                "name": "Repaire des Pandikazes",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "8170": [
+            {
+                "name": "Dojo",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 414
+            }
+        ],
+        "8182": [
+            {
+                "name": "Bateau vers le Port de Madrestam",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 413
+            }
+        ],
+        "8223": [
+            {
+                "name": "Transporteur brigandin",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 412
+            }
+        ],
+        "8437": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "8471": [
+            {
+                "name": "Dojo",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 414
+            }
+        ],
+        "8506": [
+            {
+                "name": "Bateau vers le sanctuaire de Pandala",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 413
+            }
+        ],
+        "8538": [
+            {
+                "name": "Attitude \"Croiser les bras\"",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 423
+            }
+        ],
+        "8743": [
+            {
+                "name": "Enclos public",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 419
+            }
+        ],
+        "8744": [
+            {
+                "name": "Enclos public",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 419
+            }
+        ],
+        "8745": [
+            {
+                "name": "Enclos public",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 419
+            }
+        ],
+        "8746": [
+            {
+                "name": "Enclos public",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 419
+            }
+        ],
+        "8747": [
+            {
+                "name": "Enclos public",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 419
+            }
+        ],
+        "8748": [
+            {
+                "name": "Enclos public",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 419
+            }
+        ],
+        "8749": [
+            {
+                "name": "Enclos public",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 419
+            }
+        ],
+        "8750": [
+            {
+                "name": "Enclos public",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 419
+            }
+        ],
+        "8751": [
+            {
+                "name": "Enclos public",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 419
+            }
+        ],
+        "8752": [
+            {
+                "name": "Enclos public",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 419
+            }
+        ],
+        "8755": [
+            {
+                "name": "Hôtel des metiers",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 418
+            }
+        ],
+        "8758": [
+            {
+                "name": "Hôtel des metiers",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 418
+            }
+        ],
+        "8785": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "8800": [
+            {
+                "name": "Banque",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 401
+            }
+        ],
+        "8848": [
+            {
+                "name": "Enclos public",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 419
+            }
+        ],
+        "8851": [
+            {
+                "name": "Enclos public",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 419
+            }
+        ],
+        "9402": [
+            {
+                "name": "Bateau vers l'île d'Otomaï",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 413
+            }
+        ],
+        "9454": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "9458": [
+            {
+                "name": "Milice",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 407
+            }
+        ],
+        "9468": [
+            {
+                "name": "Bateau vers l'île de Nowel",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 413
+            }
+        ],
+        "9520": [
+            {
+                "name": "Bateau vers l'île du minotoror",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 413
+            }
+        ],
+        "9541": [
+            {
+                "name": "Bateau vers la Baie de Cania",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 413
+            }
+        ],
+        "9550": [
+            {
+                "name": "Transporteur Brigandin",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 412
+            }
+        ],
+        "9979": [
+            {
+                "name": "Bateau vers le Port de Madrestam",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 413
+            }
+        ],
+        "10114": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "10297": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "10301": [
+            {
+                "name": "Place Marchande",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 415
+            }
+        ],
+        "10302": [
+            {
+                "name": "Taverne",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 408
+            }
+        ],
+        "10304": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "10307": [
+            {
+                "name": "Milice",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 407
+            }
+        ],
+        "10317": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "10318": [
+            {
+                "name": "Transport vers Astrub",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 412
+            }
+        ],
+        "10349": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "10365": [
+            {
+                "name": "Transporteur Brigandin",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 412
+            }
+        ],
+        "10476": [
+            {
+                "name": "Scaéroplane",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 428
+            }
+        ],
+        "10531": [
+            {
+                "name": "Scaéroplane",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 428
+            }
+        ],
+        "10626": [
+            {
+                "name": "Scaéroplane",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 428
+            }
+        ],
+        "10643": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "10746": [
+            {
+                "name": "Banque",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 401
+            }
+        ],
+        "10836": [
+            {
+                "name": "Bateau vers Sufokia",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 413
+            }
+        ],
+        "11157": [
+            {
+                "name": "Transporteur Brigandin",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 412
+            }
+        ],
+        "11170": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "11193": [
+            {
+                "name": "Scaéroplane",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 428
+            }
+        ],
+        "11210": [
+            {
+                "name": "Zaap",
+                "categoryID": 4,
+                "category": "Divers",
+                "color": "Beige",
+                "gfxID": 410
+            }
+        ],
+        "749": [
+            {
+                "name": "Donjon des Craqueleurs",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "822": [
+            {
+                "name": "Château Wabbit",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "1130": [
+            {
+                "name": "Donjon des Forgerons",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "1186": [
+            {
+                "name": "Donjon des Squelettes",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "1298": [
+            {
+                "name": "Donjon des Scarafeuilles",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "1384": [
+            {
+                "name": "Donjon des Tofus et du Tofu Royal",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "1399": [
+            {
+                "name": "Antre du Dragon Cochon",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "1763": [
+            {
+                "name": "Donjon Wabbit",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "1764": [
+            {
+                "name": "Donjon de Moon",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "1856": [
+            {
+                "name": "Donjon des Bouftous",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "2985": [
+            {
+                "name": "Donjon du Maitre Corbac",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "4383": [
+            {
+                "name": "Belvédère d'Ilyzaelle",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "4416": [
+            {
+                "name": "Donjon des Blops",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "4786": [
+            {
+                "name": "Donjon du Bworker",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "4919": [
+            {
+                "name": "Sanctuaire de Qu'Tan",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "5044": [
+            {
+                "name": "Donjon Fungus",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "6536": [
+            {
+                "name": "Donjon des Rats de Bonta",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "6684": [
+            {
+                "name": "Donjon des Larves",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "6738": [
+            {
+                "name": "Donjon des Rats de Brâkmar",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "8236": [
+            {
+                "name": "Donjon des Kitsounes",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "8244": [
+            {
+                "name": "Donjon des Bulbes",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "8467": [
+            {
+                "name": "Donjon des Firefoux",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "8905": [
+            {
+                "name": "Donjon du Koulosse",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "9052": [
+            {
+                "name": "Sanctuaire des familiers",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "9127": [
+            {
+                "name": "Donjon des Abraknydes et du Chêne Mou",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "9470": [
+            {
+                "name": "Donjon des Bworks",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "9503": [
+            {
+                "name": "Repaire de Skeunk",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "9538": [
+            {
+                "name": "Labyrinthe du Minotoror et du Minotot",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "9638": [
+            {
+                "name": "Donjon des Rats du Château d'Amakna",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "9787": [
+            {
+                "name": "Donjon des Canidés",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "9788": [
+            {
+                "name": "Sanctuaire des Dragoeufs",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "9946": [
+            {
+                "name": "Donjon de Nowel",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "10155": [
+            {
+                "name": "Donjon ensablé",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "10359": [
+            {
+                "name": "Donjon d'Incarnam",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "10700": [
+            {
+                "name": "Antre du Kralamoure Géant",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "10722": [
+            {
+                "name": "Grotte Hesque",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "10807": [
+            {
+                "name": "Laboratoire du Tynril",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "11066": [
+            {
+                "name": "Arche d'Otomaï",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "11136": [
+            {
+                "name": "Canopée du Kimbo",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "11260": [
+            {
+                "name": "Goulet du Rasboul",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ],
+        "12280": [
+            {
+                "name": "Sanctuaire de Pandala",
+                "categoryID": 6,
+                "category": "Donjons",
+                "color": "Violet",
+                "gfxID": 422
+            }
+        ]
+    },
+    "statistics": {
+        "total_hints": 362,
+        "total_maps": 343,
+        "total_categories": 6
+    }
+}

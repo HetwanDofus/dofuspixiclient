@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "animation": "tile",
+  "width": 1761,
+  "height": 89,
+  "offsetX": -113.75,
+  "offsetY": -43.65,
+  "frames": [
+    {
+      "id": "tile_0",
+      "x": 1,
+      "y": 1,
+      "width": 175,
+      "height": 87,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_1",
+      "x": 177,
+      "y": 1,
+      "width": 175,
+      "height": 87,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_8",
+      "x": 353,
+      "y": 1,
+      "width": 175,
+      "height": 87,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_9",
+      "x": 529,
+      "y": 1,
+      "width": 175,
+      "height": 87,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_10",
+      "x": 705,
+      "y": 1,
+      "width": 175,
+      "height": 87,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_11",
+      "x": 881,
+      "y": 1,
+      "width": 175,
+      "height": 87,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_12",
+      "x": 1057,
+      "y": 1,
+      "width": 175,
+      "height": 87,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_13",
+      "x": 1233,
+      "y": 1,
+      "width": 175,
+      "height": 87,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_14",
+      "x": 1409,
+      "y": 1,
+      "width": 175,
+      "height": 87,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_15",
+      "x": 1585,
+      "y": 1,
+      "width": 175,
+      "height": 87,
+      "offsetX": 0,
+      "offsetY": 0
+    }
+  ],
+  "frameOrder": [
+    "tile_0",
+    "tile_1",
+    "tile_2",
+    "tile_3",
+    "tile_4",
+    "tile_5",
+    "tile_6",
+    "tile_7",
+    "tile_8",
+    "tile_9",
+    "tile_10",
+    "tile_11",
+    "tile_12",
+    "tile_13",
+    "tile_14",
+    "tile_15"
+  ],
+  "duplicates": {
+    "tile_2": "tile_0",
+    "tile_3": "tile_0",
+    "tile_4": "tile_0",
+    "tile_5": "tile_0",
+    "tile_6": "tile_0",
+    "tile_7": "tile_0"
+  },
+  "fps": 60
+}

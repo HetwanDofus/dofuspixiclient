@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "animation": "tile",
+  "width": 133,
+  "height": 36,
+  "offsetX": -30.3,
+  "offsetY": -16,
+  "frames": [
+    {
+      "id": "tile_0",
+      "x": 1,
+      "y": 1,
+      "width": 65,
+      "height": 34,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_2",
+      "x": 67,
+      "y": 1,
+      "width": 65,
+      "height": 34,
+      "offsetX": 0,
+      "offsetY": 0
+    }
+  ],
+  "frameOrder": [
+    "tile_0",
+    "tile_1",
+    "tile_2"
+  ],
+  "duplicates": {
+    "tile_1": "tile_0"
+  },
+  "fps": 60
+}

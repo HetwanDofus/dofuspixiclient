@@ -1,0 +1,4200 @@
+{
+    "version": "1.0",
+    "generated": "2025-12-29T12:41:32+00:00",
+    "source": "extracted from hints_fr_1254.swf via Arakne SWF library",
+    "worldmap_coordinates": "x,y are world positions on the Dofus worldmap",
+    "layering_strategy": "painter's algorithm - sort by y coordinate (low to high)",
+    "total_overlay_locations": 335,
+    "total_hint_instances": 362,
+    "hint_overlays": [
+        {
+            "x": -63,
+            "y": -100,
+            "hints": [
+                {
+                    "name": "Donjon de Nowel",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 9946
+                }
+            ]
+        },
+        {
+            "x": -58,
+            "y": -99,
+            "hints": [
+                {
+                    "name": "Bateau vers le Port de Madrestam",
+                    "categoryID": 4,
+                    "gfxID": 413,
+                    "mapID": 9979
+                }
+            ]
+        },
+        {
+            "x": -20,
+            "y": -62,
+            "hints": [
+                {
+                    "name": "Donjon du Maitre Corbac",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 2985
+                }
+            ]
+        },
+        {
+            "x": -32,
+            "y": -60,
+            "hints": [
+                {
+                    "name": "Taverne de la Bagrutte",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 4218
+                }
+            ]
+        },
+        {
+            "x": -33,
+            "y": -60,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des bijoutiers",
+                    "categoryID": 2,
+                    "gfxID": 202,
+                    "mapID": 4216
+                }
+            ]
+        },
+        {
+            "x": -27,
+            "y": -60,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des âmes",
+                    "categoryID": 2,
+                    "gfxID": 217,
+                    "mapID": 8478
+                },
+                {
+                    "name": "Arène",
+                    "categoryID": 4,
+                    "gfxID": 411,
+                    "mapID": 8478
+                }
+            ]
+        },
+        {
+            "x": -30,
+            "y": -60,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des bûcherons",
+                    "categoryID": 2,
+                    "gfxID": 205,
+                    "mapID": 4178
+                }
+            ]
+        },
+        {
+            "x": -29,
+            "y": -60,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des sculpteurs",
+                    "categoryID": 2,
+                    "gfxID": 214,
+                    "mapID": 4174
+                },
+                {
+                    "name": "Taverne de la Chopenbois",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 4174
+                }
+            ]
+        },
+        {
+            "x": -33,
+            "y": -59,
+            "hints": [
+                {
+                    "name": "Atelier des bijoutiers",
+                    "categoryID": 3,
+                    "gfxID": 302,
+                    "mapID": 4217
+                }
+            ]
+        },
+        {
+            "x": -35,
+            "y": -59,
+            "hints": [
+                {
+                    "name": "Epicerie",
+                    "categoryID": 4,
+                    "gfxID": 425,
+                    "mapID": 4207
+                },
+                {
+                    "name": "Donjon des Rats de Bonta",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 6536
+                }
+            ]
+        },
+        {
+            "x": -27,
+            "y": -59,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des bricoleurs",
+                    "categoryID": 2,
+                    "gfxID": 222,
+                    "mapID": 4232
+                },
+                {
+                    "name": "Atelier des bricoleurs",
+                    "categoryID": 3,
+                    "gfxID": 317,
+                    "mapID": 4232
+                }
+            ]
+        },
+        {
+            "x": -30,
+            "y": -59,
+            "hints": [
+                {
+                    "name": "Atelier des sculpteurs",
+                    "categoryID": 3,
+                    "gfxID": 314,
+                    "mapID": 4181
+                }
+            ]
+        },
+        {
+            "x": 28,
+            "y": -59,
+            "hints": [
+                {
+                    "name": "Sanctuaire de Pandala",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 12280
+                }
+            ]
+        },
+        {
+            "x": -37,
+            "y": -58,
+            "hints": [
+                {
+                    "name": "Enclos public",
+                    "categoryID": 4,
+                    "gfxID": 419,
+                    "mapID": 8848
+                }
+            ]
+        },
+        {
+            "x": -32,
+            "y": -58,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 4263
+                }
+            ]
+        },
+        {
+            "x": -26,
+            "y": -58,
+            "hints": [
+                {
+                    "name": "Taverne du Ferayeur",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 4229
+                }
+            ]
+        },
+        {
+            "x": -29,
+            "y": -58,
+            "hints": [
+                {
+                    "name": "Banque",
+                    "categoryID": 4,
+                    "gfxID": 401,
+                    "mapID": 4308
+                }
+            ]
+        },
+        {
+            "x": -28,
+            "y": -58,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des mineurs",
+                    "categoryID": 2,
+                    "gfxID": 209,
+                    "mapID": 4179
+                }
+            ]
+        },
+        {
+            "x": -38,
+            "y": -57,
+            "hints": [
+                {
+                    "name": "Enclos public",
+                    "categoryID": 4,
+                    "gfxID": 419,
+                    "mapID": 8743
+                }
+            ]
+        },
+        {
+            "x": -36,
+            "y": -57,
+            "hints": [
+                {
+                    "name": "Enclos public",
+                    "categoryID": 4,
+                    "gfxID": 419,
+                    "mapID": 8747
+                }
+            ]
+        },
+        {
+            "x": -37,
+            "y": -57,
+            "hints": [
+                {
+                    "name": "Enclos public",
+                    "categoryID": 4,
+                    "gfxID": 419,
+                    "mapID": 8744
+                }
+            ]
+        },
+        {
+            "x": -33,
+            "y": -57,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des parchemins liés",
+                    "categoryID": 2,
+                    "gfxID": 219,
+                    "mapID": 6159
+                },
+                {
+                    "name": "Milice",
+                    "categoryID": 4,
+                    "gfxID": 407,
+                    "mapID": 6159
+                }
+            ]
+        },
+        {
+            "x": -32,
+            "y": -57,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des ressources",
+                    "categoryID": 2,
+                    "gfxID": 213,
+                    "mapID": 4262
+                }
+            ]
+        },
+        {
+            "x": -30,
+            "y": -57,
+            "hints": [
+                {
+                    "name": "Atelier des cordonniers",
+                    "categoryID": 3,
+                    "gfxID": 307,
+                    "mapID": 4300
+                }
+            ]
+        },
+        {
+            "x": -29,
+            "y": -57,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des cordonniers",
+                    "categoryID": 2,
+                    "gfxID": 207,
+                    "mapID": 4183
+                }
+            ]
+        },
+        {
+            "x": -28,
+            "y": -57,
+            "hints": [
+                {
+                    "name": "Atelier des mineurs",
+                    "categoryID": 3,
+                    "gfxID": 310,
+                    "mapID": 4180
+                }
+            ]
+        },
+        {
+            "x": -23,
+            "y": -56,
+            "hints": [
+                {
+                    "name": "Atelier des bûcherons",
+                    "categoryID": 3,
+                    "gfxID": 305,
+                    "mapID": 4313
+                }
+            ]
+        },
+        {
+            "x": -30,
+            "y": -56,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des tailleurs",
+                    "categoryID": 2,
+                    "gfxID": 215,
+                    "mapID": 4172
+                },
+                {
+                    "name": "Taverne Alakarte",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 4172
+                }
+            ]
+        },
+        {
+            "x": -27,
+            "y": -56,
+            "hints": [
+                {
+                    "name": "Taverne du Feubuk",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 4090
+                }
+            ]
+        },
+        {
+            "x": -37,
+            "y": -56,
+            "hints": [
+                {
+                    "name": "Enclos public",
+                    "categoryID": 4,
+                    "gfxID": 419,
+                    "mapID": 8746
+                }
+            ]
+        },
+        {
+            "x": -36,
+            "y": -56,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des documents",
+                    "categoryID": 2,
+                    "gfxID": 221,
+                    "mapID": 8760
+                },
+                {
+                    "name": "Bibliothèque",
+                    "categoryID": 4,
+                    "gfxID": 417,
+                    "mapID": 8760
+                }
+            ]
+        },
+        {
+            "x": -38,
+            "y": -56,
+            "hints": [
+                {
+                    "name": "Enclos public",
+                    "categoryID": 4,
+                    "gfxID": 419,
+                    "mapID": 8745
+                }
+            ]
+        },
+        {
+            "x": -28,
+            "y": -55,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des forgerons",
+                    "categoryID": 2,
+                    "gfxID": 208,
+                    "mapID": 4098
+                }
+            ]
+        },
+        {
+            "x": -31,
+            "y": -55,
+            "hints": [
+                {
+                    "name": "Atelier des tailleurs",
+                    "categoryID": 3,
+                    "gfxID": 315,
+                    "mapID": 4106
+                }
+            ]
+        },
+        {
+            "x": -26,
+            "y": -55,
+            "hints": [
+                {
+                    "name": "Atelier des forgerons",
+                    "categoryID": 3,
+                    "gfxID": 309,
+                    "mapID": 4074
+                }
+            ]
+        },
+        {
+            "x": -32,
+            "y": -55,
+            "hints": [
+                {
+                    "name": "Atelier des alchimistes",
+                    "categoryID": 3,
+                    "gfxID": 301,
+                    "mapID": 4272
+                }
+            ]
+        },
+        {
+            "x": -33,
+            "y": -55,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des alchimistes",
+                    "categoryID": 2,
+                    "gfxID": 201,
+                    "mapID": 4271
+                }
+            ]
+        },
+        {
+            "x": -35,
+            "y": -55,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des poissonniers et des pêcheurs",
+                    "categoryID": 2,
+                    "gfxID": 212,
+                    "mapID": 4247
+                }
+            ]
+        },
+        {
+            "x": -37,
+            "y": -55,
+            "hints": [
+                {
+                    "name": "Hôtel des metiers",
+                    "categoryID": 4,
+                    "gfxID": 418,
+                    "mapID": 8758
+                }
+            ]
+        },
+        {
+            "x": -36,
+            "y": -55,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des animaux",
+                    "categoryID": 2,
+                    "gfxID": 218,
+                    "mapID": 8759
+                }
+            ]
+        },
+        {
+            "x": -38,
+            "y": -55,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des runes",
+                    "categoryID": 2,
+                    "gfxID": 220,
+                    "mapID": 8757
+                },
+                {
+                    "name": "Atelier des forgemages",
+                    "categoryID": 3,
+                    "gfxID": 308,
+                    "mapID": 8757
+                }
+            ]
+        },
+        {
+            "x": -29,
+            "y": -54,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des paysans",
+                    "categoryID": 2,
+                    "gfxID": 210,
+                    "mapID": 4299
+                }
+            ]
+        },
+        {
+            "x": -35,
+            "y": -54,
+            "hints": [
+                {
+                    "name": "Atelier des poissonniers et des pêcheurs",
+                    "categoryID": 3,
+                    "gfxID": 312,
+                    "mapID": 4250
+                }
+            ]
+        },
+        {
+            "x": -30,
+            "y": -53,
+            "hints": [
+                {
+                    "name": "Tour des ordres",
+                    "categoryID": 4,
+                    "gfxID": 416,
+                    "mapID": 4223
+                }
+            ]
+        },
+        {
+            "x": -36,
+            "y": -53,
+            "hints": [
+                {
+                    "name": "Atelier des bouchers",
+                    "categoryID": 3,
+                    "gfxID": 303,
+                    "mapID": 10243
+                }
+            ]
+        },
+        {
+            "x": -30,
+            "y": -52,
+            "hints": [
+                {
+                    "name": "Place Marchande",
+                    "categoryID": 4,
+                    "gfxID": 415,
+                    "mapID": 4259
+                }
+            ]
+        },
+        {
+            "x": 31,
+            "y": -52,
+            "hints": [
+                {
+                    "name": "Bateau vers le sanctuaire de Pandala",
+                    "categoryID": 4,
+                    "gfxID": 413,
+                    "mapID": 8506
+                }
+            ]
+        },
+        {
+            "x": 28,
+            "y": -52,
+            "hints": [
+                {
+                    "name": "Donjon des Firefoux",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 8467
+                }
+            ]
+        },
+        {
+            "x": -26,
+            "y": -52,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des boulangers",
+                    "categoryID": 2,
+                    "gfxID": 204,
+                    "mapID": 2221
+                }
+            ]
+        },
+        {
+            "x": -32,
+            "y": -51,
+            "hints": [
+                {
+                    "name": "Taverne de la Tabasse",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 4238
+                }
+            ]
+        },
+        {
+            "x": -32,
+            "y": -50,
+            "hints": [
+                {
+                    "name": "Atelier des bouchers",
+                    "categoryID": 3,
+                    "gfxID": 303,
+                    "mapID": 4240
+                }
+            ]
+        },
+        {
+            "x": -30,
+            "y": -50,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des bouchers et des chasseurs",
+                    "categoryID": 2,
+                    "gfxID": 203,
+                    "mapID": 4287
+                }
+            ]
+        },
+        {
+            "x": 29,
+            "y": -50,
+            "hints": [
+                {
+                    "name": "Dojo",
+                    "categoryID": 4,
+                    "gfxID": 414,
+                    "mapID": 8471
+                }
+            ]
+        },
+        {
+            "x": -27,
+            "y": -50,
+            "hints": [
+                {
+                    "name": "Atelier des boulangers",
+                    "categoryID": 3,
+                    "gfxID": 304,
+                    "mapID": 2214
+                },
+                {
+                    "name": "Taverne du Pinchaut",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 2214
+                }
+            ]
+        },
+        {
+            "x": 29,
+            "y": -49,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 8437
+                }
+            ]
+        },
+        {
+            "x": -30,
+            "y": -48,
+            "hints": [
+                {
+                    "name": "Transporteur brigandin",
+                    "categoryID": 4,
+                    "gfxID": 412,
+                    "mapID": 4413
+                }
+            ]
+        },
+        {
+            "x": -14,
+            "y": -47,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 3250
+                }
+            ]
+        },
+        {
+            "x": 26,
+            "y": -47,
+            "hints": [
+                {
+                    "name": "Réceptacle des Dofus",
+                    "categoryID": 4,
+                    "gfxID": 429,
+                    "mapID": 7893
+                }
+            ]
+        },
+        {
+            "x": -30,
+            "y": -42,
+            "hints": [
+                {
+                    "name": "Atelier des paysans",
+                    "categoryID": 3,
+                    "gfxID": 311,
+                    "mapID": 2672
+                }
+            ]
+        },
+        {
+            "x": -9,
+            "y": -41,
+            "hints": [
+                {
+                    "name": "Gladiatrool",
+                    "categoryID": 4,
+                    "gfxID": 411,
+                    "mapID": 3451
+                }
+            ]
+        },
+        {
+            "x": -10,
+            "y": -41,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des fées d'artifice",
+                    "categoryID": 2,
+                    "gfxID": 223,
+                    "mapID": 3412
+                }
+            ]
+        },
+        {
+            "x": -12,
+            "y": -39,
+            "hints": [
+                {
+                    "name": "Roulette Bouftou",
+                    "categoryID": 4,
+                    "gfxID": 427,
+                    "mapID": 3336
+                }
+            ]
+        },
+        {
+            "x": -9,
+            "y": -39,
+            "hints": [
+                {
+                    "name": "Place Marchande",
+                    "categoryID": 4,
+                    "gfxID": 415,
+                    "mapID": 3453
+                }
+            ]
+        },
+        {
+            "x": 30,
+            "y": -39,
+            "hints": [
+                {
+                    "name": "Atelier des bûcherons",
+                    "categoryID": 3,
+                    "gfxID": 305,
+                    "mapID": 8356
+                }
+            ]
+        },
+        {
+            "x": 26,
+            "y": -39,
+            "hints": [
+                {
+                    "name": "Statue Pandawa",
+                    "categoryID": 1,
+                    "gfxID": 120,
+                    "mapID": 8035
+                }
+            ]
+        },
+        {
+            "x": 18,
+            "y": -39,
+            "hints": [
+                {
+                    "name": "Transporteur brigandin",
+                    "categoryID": 4,
+                    "gfxID": 412,
+                    "mapID": 8223
+                }
+            ]
+        },
+        {
+            "x": 30,
+            "y": -38,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 8088
+                }
+            ]
+        },
+        {
+            "x": 24,
+            "y": -38,
+            "hints": [
+                {
+                    "name": "Bateau vers le Port de Madrestam",
+                    "categoryID": 4,
+                    "gfxID": 413,
+                    "mapID": 8182
+                }
+            ]
+        },
+        {
+            "x": 26,
+            "y": -38,
+            "hints": [
+                {
+                    "name": "Place Marchande",
+                    "categoryID": 4,
+                    "gfxID": 415,
+                    "mapID": 8036
+                }
+            ]
+        },
+        {
+            "x": 32,
+            "y": -38,
+            "hints": [
+                {
+                    "name": "Donjon des Kitsounes",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 8236
+                }
+            ]
+        },
+        {
+            "x": -9,
+            "y": -37,
+            "hints": [
+                {
+                    "name": "Atelier des Cartes",
+                    "categoryID": 3,
+                    "gfxID": 319,
+                    "mapID": 3455
+                }
+            ]
+        },
+        {
+            "x": 30,
+            "y": -37,
+            "hints": [
+                {
+                    "name": "Atelier des boucliers",
+                    "categoryID": 3,
+                    "gfxID": 316,
+                    "mapID": 8089
+                }
+            ]
+        },
+        {
+            "x": 26,
+            "y": -37,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 8037
+                }
+            ]
+        },
+        {
+            "x": 30,
+            "y": -36,
+            "hints": [
+                {
+                    "name": "Dojo",
+                    "categoryID": 4,
+                    "gfxID": 414,
+                    "mapID": 8090
+                }
+            ]
+        },
+        {
+            "x": 26,
+            "y": -36,
+            "hints": [
+                {
+                    "name": "Atelier des bûcherons",
+                    "categoryID": 3,
+                    "gfxID": 305,
+                    "mapID": 8038
+                }
+            ]
+        },
+        {
+            "x": 24,
+            "y": -36,
+            "hints": [
+                {
+                    "name": "Banque",
+                    "categoryID": 4,
+                    "gfxID": 401,
+                    "mapID": 8012
+                }
+            ]
+        },
+        {
+            "x": 18,
+            "y": -36,
+            "hints": [
+                {
+                    "name": "Attitude \"Pointer du doigt\"",
+                    "categoryID": 4,
+                    "gfxID": 423,
+                    "mapID": 8167
+                },
+                {
+                    "name": "Repaire des Pandikazes",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 8167
+                }
+            ]
+        },
+        {
+            "x": 26,
+            "y": -35,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des boucliers",
+                    "categoryID": 2,
+                    "gfxID": 216,
+                    "mapID": 8039
+                }
+            ]
+        },
+        {
+            "x": 25,
+            "y": -35,
+            "hints": [
+                {
+                    "name": "Taverne du Pandawa Ivre",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 8026
+                }
+            ]
+        },
+        {
+            "x": 2,
+            "y": -34,
+            "hints": [
+                {
+                    "name": "Donjon des Bouftous",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 1856
+                }
+            ]
+        },
+        {
+            "x": 25,
+            "y": -34,
+            "hints": [
+                {
+                    "name": "Dojo",
+                    "categoryID": 4,
+                    "gfxID": 414,
+                    "mapID": 8027
+                }
+            ]
+        },
+        {
+            "x": 24,
+            "y": -34,
+            "hints": [
+                {
+                    "name": "Bibliothèque",
+                    "categoryID": 4,
+                    "gfxID": 417,
+                    "mapID": 8014
+                }
+            ]
+        },
+        {
+            "x": 17,
+            "y": -34,
+            "hints": [
+                {
+                    "name": "Atelier des boucliers",
+                    "categoryID": 3,
+                    "gfxID": 316,
+                    "mapID": 8160
+                }
+            ]
+        },
+        {
+            "x": 18,
+            "y": -33,
+            "hints": [
+                {
+                    "name": "Dojo",
+                    "categoryID": 4,
+                    "gfxID": 414,
+                    "mapID": 8170
+                }
+            ]
+        },
+        {
+            "x": 1,
+            "y": -32,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 6954
+                }
+            ]
+        },
+        {
+            "x": 17,
+            "y": -32,
+            "hints": [
+                {
+                    "name": "Atelier des bûcherons",
+                    "categoryID": 3,
+                    "gfxID": 305,
+                    "mapID": 8337
+                }
+            ]
+        },
+        {
+            "x": 17,
+            "y": -31,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 8163
+                }
+            ]
+        },
+        {
+            "x": -21,
+            "y": -29,
+            "hints": [
+                {
+                    "name": "Belvédère d'Ilyzaelle",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 4383
+                }
+            ]
+        },
+        {
+            "x": 13,
+            "y": -28,
+            "hints": [
+                {
+                    "name": "Donjon ensablé",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 10155
+                }
+            ]
+        },
+        {
+            "x": -18,
+            "y": -26,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 6855
+                }
+            ]
+        },
+        {
+            "x": -17,
+            "y": -26,
+            "hints": [
+                {
+                    "name": "Transporteur Brigandin",
+                    "categoryID": 4,
+                    "gfxID": 412,
+                    "mapID": 6850
+                }
+            ]
+        },
+        {
+            "x": 24,
+            "y": -25,
+            "hints": [
+                {
+                    "name": "Atelier des bûcherons",
+                    "categoryID": 3,
+                    "gfxID": 305,
+                    "mapID": 8359
+                }
+            ]
+        },
+        {
+            "x": 7,
+            "y": -25,
+            "hints": [
+                {
+                    "name": "Atelier des paysans",
+                    "categoryID": 3,
+                    "gfxID": 311,
+                    "mapID": 7453
+                },
+                {
+                    "name": "Donjon des Champs",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 7453
+                }
+            ]
+        },
+        {
+            "x": 1,
+            "y": -25,
+            "hints": [
+                {
+                    "name": "Atelier des bûcherons",
+                    "categoryID": 3,
+                    "gfxID": 305,
+                    "mapID": 7357
+                }
+            ]
+        },
+        {
+            "x": 10,
+            "y": -24,
+            "hints": [
+                {
+                    "name": "Attitude \"Croiser les bras\"",
+                    "categoryID": 4,
+                    "gfxID": 423,
+                    "mapID": 8538
+                }
+            ]
+        },
+        {
+            "x": 21,
+            "y": -24,
+            "hints": [
+                {
+                    "name": "Dojo",
+                    "categoryID": 4,
+                    "gfxID": 414,
+                    "mapID": 8109
+                }
+            ]
+        },
+        {
+            "x": -16,
+            "y": -23,
+            "hints": [
+                {
+                    "name": "Atelier des fées d'artifice",
+                    "categoryID": 3,
+                    "gfxID": 318,
+                    "mapID": 6860
+                }
+            ]
+        },
+        {
+            "x": 22,
+            "y": -23,
+            "hints": [
+                {
+                    "name": "Atelier des boucliers",
+                    "categoryID": 3,
+                    "gfxID": 316,
+                    "mapID": 8117
+                }
+            ]
+        },
+        {
+            "x": 3,
+            "y": -22,
+            "hints": [
+                {
+                    "name": "Statue Sram",
+                    "categoryID": 1,
+                    "gfxID": 40,
+                    "mapID": 7392
+                }
+            ]
+        },
+        {
+            "x": 0,
+            "y": -22,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des tailleurs",
+                    "categoryID": 2,
+                    "gfxID": 215,
+                    "mapID": 7513
+                }
+            ]
+        },
+        {
+            "x": 19,
+            "y": -22,
+            "hints": [
+                {
+                    "name": "Donjon des Bulbes",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 8244
+                }
+            ]
+        },
+        {
+            "x": 23,
+            "y": -22,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 8125
+                }
+            ]
+        },
+        {
+            "x": 1,
+            "y": -22,
+            "hints": [
+                {
+                    "name": "Atelier des tailleurs",
+                    "categoryID": 3,
+                    "gfxID": 315,
+                    "mapID": 7360
+                }
+            ]
+        },
+        {
+            "x": 3,
+            "y": -21,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des bûcherons",
+                    "categoryID": 2,
+                    "gfxID": 205,
+                    "mapID": 7289
+                }
+            ]
+        },
+        {
+            "x": 2,
+            "y": -21,
+            "hints": [
+                {
+                    "name": "Atelier des sculpteurs",
+                    "categoryID": 3,
+                    "gfxID": 314,
+                    "mapID": 7377
+                }
+            ]
+        },
+        {
+            "x": 0,
+            "y": -21,
+            "hints": [
+                {
+                    "name": "Atelier des cordonniers",
+                    "categoryID": 3,
+                    "gfxID": 307,
+                    "mapID": 7345
+                }
+            ]
+        },
+        {
+            "x": 6,
+            "y": -21,
+            "hints": [
+                {
+                    "name": "Atelier des forgerons",
+                    "categoryID": 3,
+                    "gfxID": 309,
+                    "mapID": 7441
+                }
+            ]
+        },
+        {
+            "x": 4,
+            "y": -21,
+            "hints": [
+                {
+                    "name": "Repaire des Mercenaires",
+                    "categoryID": 4,
+                    "gfxID": 430,
+                    "mapID": 7409
+                }
+            ]
+        },
+        {
+            "x": 1,
+            "y": -21,
+            "hints": [
+                {
+                    "name": "Statue Eniripsa",
+                    "categoryID": 1,
+                    "gfxID": 70,
+                    "mapID": 7361
+                }
+            ]
+        },
+        {
+            "x": 3,
+            "y": -20,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des sculpteurs",
+                    "categoryID": 2,
+                    "gfxID": 214,
+                    "mapID": 7512
+                }
+            ]
+        },
+        {
+            "x": 0,
+            "y": -20,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des cordonniers",
+                    "categoryID": 2,
+                    "gfxID": 207,
+                    "mapID": 7602
+                }
+            ]
+        },
+        {
+            "x": 2,
+            "y": -20,
+            "hints": [
+                {
+                    "name": "Statue Crâ",
+                    "categoryID": 1,
+                    "gfxID": 90,
+                    "mapID": 7378
+                }
+            ]
+        },
+        {
+            "x": 7,
+            "y": -20,
+            "hints": [
+                {
+                    "name": "Atelier des mineurs",
+                    "categoryID": 3,
+                    "gfxID": 310,
+                    "mapID": 7458
+                }
+            ]
+        },
+        {
+            "x": 6,
+            "y": -20,
+            "hints": [
+                {
+                    "name": "Statue Enutrof",
+                    "categoryID": 1,
+                    "gfxID": 30,
+                    "mapID": 7442
+                }
+            ]
+        },
+        {
+            "x": 5,
+            "y": -20,
+            "hints": [
+                {
+                    "name": "Atelier des alchimistes",
+                    "categoryID": 3,
+                    "gfxID": 301,
+                    "mapID": 7426
+                }
+            ]
+        },
+        {
+            "x": -20,
+            "y": -20,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 3022
+                }
+            ]
+        },
+        {
+            "x": 1,
+            "y": -20,
+            "hints": [
+                {
+                    "name": "Hôtel des metiers",
+                    "categoryID": 4,
+                    "gfxID": 418,
+                    "mapID": 7362
+                }
+            ]
+        },
+        {
+            "x": 3,
+            "y": -19,
+            "hints": [
+                {
+                    "name": "Statue Sadida",
+                    "categoryID": 1,
+                    "gfxID": 100,
+                    "mapID": 7395
+                }
+            ]
+        },
+        {
+            "x": 0,
+            "y": -19,
+            "hints": [
+                {
+                    "name": "Statue Xélor",
+                    "categoryID": 1,
+                    "gfxID": 50,
+                    "mapID": 7332
+                }
+            ]
+        },
+        {
+            "x": 6,
+            "y": -19,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des mineurs",
+                    "categoryID": 2,
+                    "gfxID": 209,
+                    "mapID": 7443
+                }
+            ]
+        },
+        {
+            "x": 5,
+            "y": -19,
+            "hints": [
+                {
+                    "name": "Statue Iop",
+                    "categoryID": 1,
+                    "gfxID": 80,
+                    "mapID": 7427
+                }
+            ]
+        },
+        {
+            "x": 4,
+            "y": -19,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 7411
+                }
+            ]
+        },
+        {
+            "x": 3,
+            "y": -18,
+            "hints": [
+                {
+                    "name": "Place Marchande",
+                    "categoryID": 4,
+                    "gfxID": 415,
+                    "mapID": 7396
+                }
+            ]
+        },
+        {
+            "x": 0,
+            "y": -18,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des pêcheurs",
+                    "categoryID": 2,
+                    "gfxID": 211,
+                    "mapID": 7348
+                }
+            ]
+        },
+        {
+            "x": 6,
+            "y": -18,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des forgerons",
+                    "categoryID": 2,
+                    "gfxID": 208,
+                    "mapID": 7511
+                }
+            ]
+        },
+        {
+            "x": 5,
+            "y": -18,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des bricoleurs",
+                    "categoryID": 2,
+                    "gfxID": 222,
+                    "mapID": 7428
+                }
+            ]
+        },
+        {
+            "x": 4,
+            "y": -18,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des alchimistes",
+                    "categoryID": 2,
+                    "gfxID": 201,
+                    "mapID": 7516
+                }
+            ]
+        },
+        {
+            "x": -41,
+            "y": -18,
+            "hints": [
+                {
+                    "name": "Transporteur Brigandin",
+                    "categoryID": 4,
+                    "gfxID": 412,
+                    "mapID": 9550
+                }
+            ]
+        },
+        {
+            "x": -1,
+            "y": -17,
+            "hints": [
+                {
+                    "name": "Statue Osamodas",
+                    "categoryID": 1,
+                    "gfxID": 20,
+                    "mapID": 7545
+                }
+            ]
+        },
+        {
+            "x": -42,
+            "y": -17,
+            "hints": [
+                {
+                    "name": "Labyrinthe du Minotoror et du Minotot",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 9538
+                }
+            ]
+        },
+        {
+            "x": -25,
+            "y": -17,
+            "hints": [
+                {
+                    "name": "Donjon des Blops",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 4416
+                }
+            ]
+        },
+        {
+            "x": 3,
+            "y": -17,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des paysans",
+                    "categoryID": 2,
+                    "gfxID": 210,
+                    "mapID": 7397
+                }
+            ]
+        },
+        {
+            "x": 2,
+            "y": -17,
+            "hints": [
+                {
+                    "name": "Atelier des poissonniers et des pêcheurs",
+                    "categoryID": 3,
+                    "gfxID": 312,
+                    "mapID": 7364
+                }
+            ]
+        },
+        {
+            "x": 0,
+            "y": -17,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des poissonniers",
+                    "categoryID": 2,
+                    "gfxID": 212,
+                    "mapID": 7501
+                }
+            ]
+        },
+        {
+            "x": 6,
+            "y": -17,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des bijoutiers",
+                    "categoryID": 2,
+                    "gfxID": 202,
+                    "mapID": 7514
+                }
+            ]
+        },
+        {
+            "x": 5,
+            "y": -17,
+            "hints": [
+                {
+                    "name": "Taverne",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 7429
+                }
+            ]
+        },
+        {
+            "x": 4,
+            "y": -17,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des ressources",
+                    "categoryID": 2,
+                    "gfxID": 213,
+                    "mapID": 7413
+                }
+            ]
+        },
+        {
+            "x": 1,
+            "y": -16,
+            "hints": [
+                {
+                    "name": "Epicerie",
+                    "categoryID": 4,
+                    "gfxID": 425,
+                    "mapID": 7529
+                }
+            ]
+        },
+        {
+            "x": -43,
+            "y": -16,
+            "hints": [
+                {
+                    "name": "Bateau vers la Baie de Cania",
+                    "categoryID": 4,
+                    "gfxID": 413,
+                    "mapID": 9541
+                }
+            ]
+        },
+        {
+            "x": 4,
+            "y": -16,
+            "hints": [
+                {
+                    "name": "Banque",
+                    "categoryID": 4,
+                    "gfxID": 401,
+                    "mapID": 7414
+                }
+            ]
+        },
+        {
+            "x": 5,
+            "y": -16,
+            "hints": [
+                {
+                    "name": "Atelier des bijoutiers",
+                    "categoryID": 3,
+                    "gfxID": 302,
+                    "mapID": 7430
+                }
+            ]
+        },
+        {
+            "x": 6,
+            "y": -16,
+            "hints": [
+                {
+                    "name": "Statue Ecaflip",
+                    "categoryID": 1,
+                    "gfxID": 60,
+                    "mapID": 7446
+                }
+            ]
+        },
+        {
+            "x": 2,
+            "y": -16,
+            "hints": [
+                {
+                    "name": "Atelier des boulangers",
+                    "categoryID": 3,
+                    "gfxID": 304,
+                    "mapID": 7382
+                }
+            ]
+        },
+        {
+            "x": 0,
+            "y": -16,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des chasseurs",
+                    "categoryID": 2,
+                    "gfxID": 206,
+                    "mapID": 7350
+                }
+            ]
+        },
+        {
+            "x": 3,
+            "y": -16,
+            "hints": [
+                {
+                    "name": "Statue Féca",
+                    "categoryID": 1,
+                    "gfxID": 10,
+                    "mapID": 7398
+                }
+            ]
+        },
+        {
+            "x": 0,
+            "y": -15,
+            "hints": [
+                {
+                    "name": "Atelier des bouchers et chasseurs",
+                    "categoryID": 3,
+                    "gfxID": 303,
+                    "mapID": 7351
+                }
+            ]
+        },
+        {
+            "x": 3,
+            "y": -15,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des boulangers",
+                    "categoryID": 2,
+                    "gfxID": 204,
+                    "mapID": 7510
+                }
+            ]
+        },
+        {
+            "x": -1,
+            "y": -14,
+            "hints": [
+                {
+                    "name": "Statue Sacrieur",
+                    "categoryID": 1,
+                    "gfxID": 110,
+                    "mapID": 7336
+                }
+            ]
+        },
+        {
+            "x": 2,
+            "y": -14,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des bouchers",
+                    "categoryID": 2,
+                    "gfxID": 203,
+                    "mapID": 7515
+                }
+            ]
+        },
+        {
+            "x": -9,
+            "y": -14,
+            "hints": [
+                {
+                    "name": "Donjon des Abraknydes et du Chêne Mou",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 9127
+                }
+            ]
+        },
+        {
+            "x": 24,
+            "y": -13,
+            "hints": [
+                {
+                    "name": "Château Wabbit",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 822
+                }
+            ]
+        },
+        {
+            "x": -5,
+            "y": -12,
+            "hints": [
+                {
+                    "name": "Atelier des forgemages",
+                    "categoryID": 3,
+                    "gfxID": 308,
+                    "mapID": 2187
+                }
+            ]
+        },
+        {
+            "x": 28,
+            "y": -12,
+            "hints": [
+                {
+                    "name": "Donjon Wabbit",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 1763
+                }
+            ]
+        },
+        {
+            "x": -6,
+            "y": -11,
+            "hints": [
+                {
+                    "name": "Arène",
+                    "categoryID": 4,
+                    "gfxID": 411,
+                    "mapID": 2184
+                }
+            ]
+        },
+        {
+            "x": 6,
+            "y": -9,
+            "hints": [
+                {
+                    "name": "Donjon des Rats du Château d'Amakna",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 9638
+                }
+            ]
+        },
+        {
+            "x": -36,
+            "y": -9,
+            "hints": [
+                {
+                    "name": "Bateau vers l'île du minotoror",
+                    "categoryID": 4,
+                    "gfxID": 413,
+                    "mapID": 9520
+                }
+            ]
+        },
+        {
+            "x": 1,
+            "y": -9,
+            "hints": [
+                {
+                    "name": "Temple des guildes",
+                    "categoryID": 4,
+                    "gfxID": 405,
+                    "mapID": 2056
+                }
+            ]
+        },
+        {
+            "x": -34,
+            "y": -8,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 6137
+                }
+            ]
+        },
+        {
+            "x": -60,
+            "y": -8,
+            "hints": [
+                {
+                    "name": "Antre du Kralamoure Géant",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 10700
+                }
+            ]
+        },
+        {
+            "x": -2,
+            "y": -8,
+            "hints": [
+                {
+                    "name": "Temple Sacrieur",
+                    "categoryID": 1,
+                    "gfxID": 110,
+                    "mapID": 2061
+                }
+            ]
+        },
+        {
+            "x": -5,
+            "y": -8,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 2191
+                }
+            ]
+        },
+        {
+            "x": -3,
+            "y": -7,
+            "hints": [
+                {
+                    "name": "Donjon des Craqueleurs",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 749
+                }
+            ]
+        },
+        {
+            "x": -2,
+            "y": -6,
+            "hints": [
+                {
+                    "name": "Attitude \"Applaudir\"",
+                    "categoryID": 4,
+                    "gfxID": 423,
+                    "mapID": 736
+                }
+            ]
+        },
+        {
+            "x": 4,
+            "y": -6,
+            "hints": [
+                {
+                    "name": "Milice",
+                    "categoryID": 4,
+                    "gfxID": 407,
+                    "mapID": 9458
+                }
+            ]
+        },
+        {
+            "x": 8,
+            "y": -5,
+            "hints": [
+                {
+                    "name": "Bateau vers l'île de Nowel",
+                    "categoryID": 4,
+                    "gfxID": 413,
+                    "mapID": 9468
+                }
+            ]
+        },
+        {
+            "x": 3,
+            "y": -5,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 9454
+                }
+            ]
+        },
+        {
+            "x": -2,
+            "y": -5,
+            "hints": [
+                {
+                    "name": "Donjon des Larves",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 6684
+                }
+            ]
+        },
+        {
+            "x": 1,
+            "y": -5,
+            "hints": [
+                {
+                    "name": "Temple Ecaflip",
+                    "categoryID": 1,
+                    "gfxID": 60,
+                    "mapID": 744
+                }
+            ]
+        },
+        {
+            "x": -1,
+            "y": -4,
+            "hints": [
+                {
+                    "name": "Temple Enutrof",
+                    "categoryID": 1,
+                    "gfxID": 30,
+                    "mapID": 686
+                }
+            ]
+        },
+        {
+            "x": -55,
+            "y": -4,
+            "hints": [
+                {
+                    "name": "Arche d'Otomaï",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 11066
+                }
+            ]
+        },
+        {
+            "x": 25,
+            "y": -4,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 844
+                }
+            ]
+        },
+        {
+            "x": 7,
+            "y": -4,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 164
+                }
+            ]
+        },
+        {
+            "x": -23,
+            "y": -3,
+            "hints": [
+                {
+                    "name": "Résidence des Mercenaires",
+                    "categoryID": 4,
+                    "gfxID": 430,
+                    "mapID": 6175
+                }
+            ]
+        },
+        {
+            "x": 23,
+            "y": -3,
+            "hints": [
+                {
+                    "name": "Transporteur Brigandin",
+                    "categoryID": 4,
+                    "gfxID": 412,
+                    "mapID": 819
+                }
+            ]
+        },
+        {
+            "x": -2,
+            "y": -3,
+            "hints": [
+                {
+                    "name": "Atelier des mineurs",
+                    "categoryID": 3,
+                    "gfxID": 310,
+                    "mapID": 714
+                }
+            ]
+        },
+        {
+            "x": 2,
+            "y": -2,
+            "hints": [
+                {
+                    "name": "Banque",
+                    "categoryID": 4,
+                    "gfxID": 401,
+                    "mapID": 40
+                }
+            ]
+        },
+        {
+            "x": 9,
+            "y": -2,
+            "hints": [
+                {
+                    "name": "Bateau vers l'île des Wabbits",
+                    "categoryID": 4,
+                    "gfxID": 413,
+                    "mapID": 167
+                }
+            ]
+        },
+        {
+            "x": 24,
+            "y": -2,
+            "hints": [
+                {
+                    "name": "Bateau vers le Port de Madrestam",
+                    "categoryID": 4,
+                    "gfxID": 413,
+                    "mapID": 833
+                }
+            ]
+        },
+        {
+            "x": -1,
+            "y": -2,
+            "hints": [
+                {
+                    "name": "Usine KEK",
+                    "categoryID": 4,
+                    "gfxID": 409,
+                    "mapID": 709
+                }
+            ]
+        },
+        {
+            "x": 6,
+            "y": -1,
+            "hints": [
+                {
+                    "name": "Transporteur brigandin",
+                    "categoryID": 4,
+                    "gfxID": 412,
+                    "mapID": 188
+                }
+            ]
+        },
+        {
+            "x": -7,
+            "y": -1,
+            "hints": [
+                {
+                    "name": "Sanctuaire des familiers",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 9052
+                }
+            ]
+        },
+        {
+            "x": 2,
+            "y": -1,
+            "hints": [
+                {
+                    "name": "Taverne",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 41
+                },
+                {
+                    "name": "Attitude \"Pierre, feuille, ciseaux\"",
+                    "categoryID": 4,
+                    "gfxID": 423,
+                    "mapID": 464
+                }
+            ]
+        },
+        {
+            "x": 12,
+            "y": -1,
+            "hints": [
+                {
+                    "name": "Atelier des poissonniers",
+                    "categoryID": 3,
+                    "gfxID": 312,
+                    "mapID": 6146
+                }
+            ]
+        },
+        {
+            "x": -2,
+            "y": 0,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 951
+                }
+            ]
+        },
+        {
+            "x": 0,
+            "y": 0,
+            "hints": [
+                {
+                    "name": "Kanojedo",
+                    "categoryID": 4,
+                    "gfxID": 406,
+                    "mapID": 32
+                },
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 10114
+                }
+            ]
+        },
+        {
+            "x": 3,
+            "y": 0,
+            "hints": [
+                {
+                    "name": "Atelier des boulangers",
+                    "categoryID": 3,
+                    "gfxID": 304,
+                    "mapID": 49
+                }
+            ]
+        },
+        {
+            "x": -4,
+            "y": 0,
+            "hints": [
+                {
+                    "name": "Temple Sram",
+                    "categoryID": 1,
+                    "gfxID": 40,
+                    "mapID": 690
+                }
+            ]
+        },
+        {
+            "x": 5,
+            "y": 0,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 10304
+                }
+            ]
+        },
+        {
+            "x": 6,
+            "y": 0,
+            "hints": [
+                {
+                    "name": "Atelier des forgerons",
+                    "categoryID": 3,
+                    "gfxID": 309,
+                    "mapID": 1066
+                }
+            ]
+        },
+        {
+            "x": 9,
+            "y": 0,
+            "hints": [
+                {
+                    "name": "Atelier des pêcheurs",
+                    "categoryID": 3,
+                    "gfxID": 312,
+                    "mapID": 766
+                }
+            ]
+        },
+        {
+            "x": 1,
+            "y": 0,
+            "hints": [
+                {
+                    "name": "Attitude \"Bisou\"",
+                    "categoryID": 4,
+                    "gfxID": 423,
+                    "mapID": 37
+                }
+            ]
+        },
+        {
+            "x": 4,
+            "y": 1,
+            "hints": [
+                {
+                    "name": "Bibliothèque",
+                    "categoryID": 4,
+                    "gfxID": 417,
+                    "mapID": 51
+                },
+                {
+                    "name": "Attitude \"Faire signe\"",
+                    "categoryID": 4,
+                    "gfxID": 423,
+                    "mapID": 1665
+                }
+            ]
+        },
+        {
+            "x": 5,
+            "y": 1,
+            "hints": [
+                {
+                    "name": "Atelier des cordonniers",
+                    "categoryID": 3,
+                    "gfxID": 307,
+                    "mapID": 55
+                },
+                {
+                    "name": "Milice",
+                    "categoryID": 4,
+                    "gfxID": 407,
+                    "mapID": 10307
+                }
+            ]
+        },
+        {
+            "x": 7,
+            "y": 1,
+            "hints": [
+                {
+                    "name": "Temple Eniripsa",
+                    "categoryID": 1,
+                    "gfxID": 70,
+                    "mapID": 487
+                }
+            ]
+        },
+        {
+            "x": 0,
+            "y": 1,
+            "hints": [
+                {
+                    "name": "Place Marchande",
+                    "categoryID": 4,
+                    "gfxID": 415,
+                    "mapID": 33
+                }
+            ]
+        },
+        {
+            "x": 3,
+            "y": 1,
+            "hints": [
+                {
+                    "name": "Temple Xélor",
+                    "categoryID": 1,
+                    "gfxID": 50,
+                    "mapID": 50
+                }
+            ]
+        },
+        {
+            "x": -16,
+            "y": 1,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 8785
+                }
+            ]
+        },
+        {
+            "x": -24,
+            "y": 1,
+            "hints": [
+                {
+                    "name": "Donjon des Canidés",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 9787
+                }
+            ]
+        },
+        {
+            "x": 1,
+            "y": 1,
+            "hints": [
+                {
+                    "name": "Epicerie",
+                    "categoryID": 4,
+                    "gfxID": 425,
+                    "mapID": 38
+                },
+                {
+                    "name": "Place Marchande",
+                    "categoryID": 4,
+                    "gfxID": 415,
+                    "mapID": 38
+                }
+            ]
+        },
+        {
+            "x": 2,
+            "y": 2,
+            "hints": [
+                {
+                    "name": "Atelier des tailleurs",
+                    "categoryID": 3,
+                    "gfxID": 315,
+                    "mapID": 44
+                }
+            ]
+        },
+        {
+            "x": 0,
+            "y": 2,
+            "hints": [
+                {
+                    "name": "Atelier des bijoutiers",
+                    "categoryID": 3,
+                    "gfxID": 302,
+                    "mapID": 34
+                }
+            ]
+        },
+        {
+            "x": 8,
+            "y": 2,
+            "hints": [
+                {
+                    "name": "Temple Osamodas",
+                    "categoryID": 1,
+                    "gfxID": 20,
+                    "mapID": 490
+                }
+            ]
+        },
+        {
+            "x": -1,
+            "y": 2,
+            "hints": [
+                {
+                    "name": "Atelier des forgerons",
+                    "categoryID": 3,
+                    "gfxID": 309,
+                    "mapID": 942
+                }
+            ]
+        },
+        {
+            "x": 6,
+            "y": 3,
+            "hints": [
+                {
+                    "name": "Eglise",
+                    "categoryID": 4,
+                    "gfxID": 403,
+                    "mapID": 494
+                }
+            ]
+        },
+        {
+            "x": 3,
+            "y": 3,
+            "hints": [
+                {
+                    "name": "Taverne",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 10302
+                }
+            ]
+        },
+        {
+            "x": 2,
+            "y": 3,
+            "hints": [
+                {
+                    "name": "Place Marchande",
+                    "categoryID": 4,
+                    "gfxID": 415,
+                    "mapID": 10301
+                }
+            ]
+        },
+        {
+            "x": 0,
+            "y": 3,
+            "hints": [
+                {
+                    "name": "Temple Crâ",
+                    "categoryID": 1,
+                    "gfxID": 90,
+                    "mapID": 540
+                }
+            ]
+        },
+        {
+            "x": 1,
+            "y": 3,
+            "hints": [
+                {
+                    "name": "Temple Iop",
+                    "categoryID": 1,
+                    "gfxID": 80,
+                    "mapID": 518
+                },
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 10297
+                }
+            ]
+        },
+        {
+            "x": 35,
+            "y": 4,
+            "hints": [
+                {
+                    "name": "Transporteur Brigandin",
+                    "categoryID": 4,
+                    "gfxID": 412,
+                    "mapID": 1116
+                }
+            ]
+        },
+        {
+            "x": -57,
+            "y": 4,
+            "hints": [
+                {
+                    "name": "Scaéroplane",
+                    "categoryID": 4,
+                    "gfxID": 428,
+                    "mapID": 10626
+                }
+            ]
+        },
+        {
+            "x": -16,
+            "y": 4,
+            "hints": [
+                {
+                    "name": "Banque",
+                    "categoryID": 4,
+                    "gfxID": 401,
+                    "mapID": 8800
+                }
+            ]
+        },
+        {
+            "x": 4,
+            "y": 4,
+            "hints": [
+                {
+                    "name": "Kanojedo",
+                    "categoryID": 4,
+                    "gfxID": 406,
+                    "mapID": 2021
+                }
+            ]
+        },
+        {
+            "x": 6,
+            "y": 4,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 10317
+                }
+            ]
+        },
+        {
+            "x": 7,
+            "y": 4,
+            "hints": [
+                {
+                    "name": "Transport vers Astrub",
+                    "categoryID": 4,
+                    "gfxID": 412,
+                    "mapID": 10318
+                }
+            ]
+        },
+        {
+            "x": 12,
+            "y": 5,
+            "hints": [
+                {
+                    "name": "Temple Feca",
+                    "categoryID": 1,
+                    "gfxID": 10,
+                    "mapID": 177
+                }
+            ]
+        },
+        {
+            "x": 6,
+            "y": 5,
+            "hints": [
+                {
+                    "name": "Donjon d'Incarnam",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 10359
+                }
+            ]
+        },
+        {
+            "x": -6,
+            "y": 5,
+            "hints": [
+                {
+                    "name": "Attitude \"Montrer son arme\"",
+                    "categoryID": 4,
+                    "gfxID": 423,
+                    "mapID": 1663
+                }
+            ]
+        },
+        {
+            "x": -1,
+            "y": 5,
+            "hints": [
+                {
+                    "name": "Atelier des mineurs",
+                    "categoryID": 3,
+                    "gfxID": 310,
+                    "mapID": 933
+                }
+            ]
+        },
+        {
+            "x": 2,
+            "y": 6,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 10349
+                }
+            ]
+        },
+        {
+            "x": 5,
+            "y": 6,
+            "hints": [
+                {
+                    "name": "Atelier des paysans",
+                    "categoryID": 3,
+                    "gfxID": 311,
+                    "mapID": 524
+                },
+                {
+                    "name": "Donjon des Tofus et du Tofu Royal",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 1384
+                }
+            ]
+        },
+        {
+            "x": 5,
+            "y": 7,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 528
+                }
+            ]
+        },
+        {
+            "x": -1,
+            "y": 8,
+            "hints": [
+                {
+                    "name": "Transporteur brigandin",
+                    "categoryID": 4,
+                    "gfxID": 412,
+                    "mapID": 1669
+                }
+            ]
+        },
+        {
+            "x": -17,
+            "y": 8,
+            "hints": [
+                {
+                    "name": "Donjon du Koulosse",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 8905
+                }
+            ]
+        },
+        {
+            "x": 31,
+            "y": 8,
+            "hints": [
+                {
+                    "name": "Donjon de Moon",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 1764
+                }
+            ]
+        },
+        {
+            "x": 4,
+            "y": 8,
+            "hints": [
+                {
+                    "name": "Atelier des bûcherons",
+                    "categoryID": 3,
+                    "gfxID": 305,
+                    "mapID": 531
+                }
+            ]
+        },
+        {
+            "x": -51,
+            "y": 9,
+            "hints": [
+                {
+                    "name": "Goulet du Rasboul",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 11260
+                }
+            ]
+        },
+        {
+            "x": -1,
+            "y": 9,
+            "hints": [
+                {
+                    "name": "Temple Sadida",
+                    "categoryID": 1,
+                    "gfxID": 100,
+                    "mapID": 684
+                }
+            ]
+        },
+        {
+            "x": -5,
+            "y": 10,
+            "hints": [
+                {
+                    "name": "Donjon des Bworks",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 9470
+                }
+            ]
+        },
+        {
+            "x": -20,
+            "y": 10,
+            "hints": [
+                {
+                    "name": "Repaire de Skeunk",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 9503
+                }
+            ]
+        },
+        {
+            "x": 11,
+            "y": 10,
+            "hints": [
+                {
+                    "name": "Canon pour l'île de Moon",
+                    "categoryID": 4,
+                    "gfxID": 402,
+                    "mapID": 1014
+                }
+            ]
+        },
+        {
+            "x": -57,
+            "y": 11,
+            "hints": [
+                {
+                    "name": "Atelier des paysans",
+                    "categoryID": 3,
+                    "gfxID": 311,
+                    "mapID": 11246
+                }
+            ]
+        },
+        {
+            "x": 35,
+            "y": 12,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 1841
+                }
+            ]
+        },
+        {
+            "x": 3,
+            "y": 12,
+            "hints": [
+                {
+                    "name": "Atelier des sculpteurs",
+                    "categoryID": 3,
+                    "gfxID": 314,
+                    "mapID": 577
+                }
+            ]
+        },
+        {
+            "x": -24,
+            "y": 12,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 4739
+                }
+            ]
+        },
+        {
+            "x": -21,
+            "y": 12,
+            "hints": [
+                {
+                    "name": "Donjon du Bworker",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 4786
+                }
+            ]
+        },
+        {
+            "x": -1,
+            "y": 13,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 935
+                }
+            ]
+        },
+        {
+            "x": 1,
+            "y": 13,
+            "hints": [
+                {
+                    "name": "Atelier des chasseurs",
+                    "categoryID": 3,
+                    "gfxID": 306,
+                    "mapID": 618
+                }
+            ]
+        },
+        {
+            "x": 4,
+            "y": 13,
+            "hints": [
+                {
+                    "name": "Atelier des boulangers",
+                    "categoryID": 3,
+                    "gfxID": 304,
+                    "mapID": 579
+                }
+            ]
+        },
+        {
+            "x": -2,
+            "y": 13,
+            "hints": [
+                {
+                    "name": "Passage vers Brâkmar",
+                    "categoryID": 4,
+                    "gfxID": 424,
+                    "mapID": 936
+                }
+            ]
+        },
+        {
+            "x": -49,
+            "y": 14,
+            "hints": [
+                {
+                    "name": "Scaéroplane",
+                    "categoryID": 4,
+                    "gfxID": 428,
+                    "mapID": 10531
+                }
+            ]
+        },
+        {
+            "x": 10,
+            "y": 15,
+            "hints": [
+                {
+                    "name": "Donjon des Squelettes",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 1186
+                }
+            ]
+        },
+        {
+            "x": -53,
+            "y": 15,
+            "hints": [
+                {
+                    "name": "Transporteur Brigandin",
+                    "categoryID": 4,
+                    "gfxID": 412,
+                    "mapID": 11157
+                }
+            ]
+        },
+        {
+            "x": -54,
+            "y": 15,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 11170
+                }
+            ]
+        },
+        {
+            "x": -55,
+            "y": 15,
+            "hints": [
+                {
+                    "name": "Atelier des alchimistes",
+                    "categoryID": 3,
+                    "gfxID": 301,
+                    "mapID": 11243
+                }
+            ]
+        },
+        {
+            "x": -59,
+            "y": 15,
+            "hints": [
+                {
+                    "name": "Grotte Hesque",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 10722
+                }
+            ]
+        },
+        {
+            "x": 1,
+            "y": 16,
+            "hints": [
+                {
+                    "name": "Atelier des alchimistes",
+                    "categoryID": 3,
+                    "gfxID": 301,
+                    "mapID": 643
+                }
+            ]
+        },
+        {
+            "x": -54,
+            "y": 16,
+            "hints": [
+                {
+                    "name": "Canopée du Kimbo",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 11136
+                }
+            ]
+        },
+        {
+            "x": 6,
+            "y": 16,
+            "hints": [
+                {
+                    "name": "Atelier des bûcherons",
+                    "categoryID": 3,
+                    "gfxID": 305,
+                    "mapID": 1070
+                }
+            ]
+        },
+        {
+            "x": -14,
+            "y": 16,
+            "hints": [
+                {
+                    "name": "Sanctuaire de Qu'Tan",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 4919
+                }
+            ]
+        },
+        {
+            "x": -16,
+            "y": 18,
+            "hints": [
+                {
+                    "name": "Tour de Gisgoul",
+                    "categoryID": 4,
+                    "gfxID": 416,
+                    "mapID": 4908
+                }
+            ]
+        },
+        {
+            "x": -53,
+            "y": 18,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 11210
+                }
+            ]
+        },
+        {
+            "x": -54,
+            "y": 18,
+            "hints": [
+                {
+                    "name": "Scaéroplane",
+                    "categoryID": 4,
+                    "gfxID": 428,
+                    "mapID": 11193
+                }
+            ]
+        },
+        {
+            "x": -46,
+            "y": 18,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 10643
+                }
+            ]
+        },
+        {
+            "x": -57,
+            "y": 19,
+            "hints": [
+                {
+                    "name": "Atelier des alchimistes",
+                    "categoryID": 3,
+                    "gfxID": 301,
+                    "mapID": 11093
+                }
+            ]
+        },
+        {
+            "x": -50,
+            "y": 20,
+            "hints": [
+                {
+                    "name": "Atelier des paysans",
+                    "categoryID": 3,
+                    "gfxID": 311,
+                    "mapID": 11245
+                }
+            ]
+        },
+        {
+            "x": -53,
+            "y": 20,
+            "hints": [
+                {
+                    "name": "Laboratoire du Tynril",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 10807
+                }
+            ]
+        },
+        {
+            "x": 5,
+            "y": 20,
+            "hints": [
+                {
+                    "name": "Temple Pandawa",
+                    "categoryID": 1,
+                    "gfxID": 120,
+                    "mapID": 8207
+                }
+            ]
+        },
+        {
+            "x": 14,
+            "y": 20,
+            "hints": [
+                {
+                    "name": "Atelier des sculpteurs",
+                    "categoryID": 3,
+                    "gfxID": 314,
+                    "mapID": 1109
+                }
+            ]
+        },
+        {
+            "x": -47,
+            "y": 21,
+            "hints": [
+                {
+                    "name": "Banque",
+                    "categoryID": 4,
+                    "gfxID": 401,
+                    "mapID": 10746
+                }
+            ]
+        },
+        {
+            "x": -44,
+            "y": 21,
+            "hints": [
+                {
+                    "name": "Bateau vers Sufokia",
+                    "categoryID": 4,
+                    "gfxID": 413,
+                    "mapID": 10836
+                }
+            ]
+        },
+        {
+            "x": 13,
+            "y": 21,
+            "hints": [
+                {
+                    "name": "Donjon des Forgerons",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 1130
+                }
+            ]
+        },
+        {
+            "x": 9,
+            "y": 21,
+            "hints": [
+                {
+                    "name": "Chanil",
+                    "categoryID": 4,
+                    "gfxID": 404,
+                    "mapID": 1140
+                }
+            ]
+        },
+        {
+            "x": 10,
+            "y": 22,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 1158
+                }
+            ]
+        },
+        {
+            "x": -56,
+            "y": 22,
+            "hints": [
+                {
+                    "name": "Scaéroplane",
+                    "categoryID": 4,
+                    "gfxID": 428,
+                    "mapID": 10476
+                }
+            ]
+        },
+        {
+            "x": 3,
+            "y": 23,
+            "hints": [
+                {
+                    "name": "Atelier des boulangers",
+                    "categoryID": 3,
+                    "gfxID": 304,
+                    "mapID": 1369
+                }
+            ]
+        },
+        {
+            "x": -1,
+            "y": 23,
+            "hints": [
+                {
+                    "name": "Atelier des boulangers",
+                    "categoryID": 3,
+                    "gfxID": 304,
+                    "mapID": 1356
+                }
+            ]
+        },
+        {
+            "x": 1,
+            "y": 23,
+            "hints": [
+                {
+                    "name": "Atelier des paysans",
+                    "categoryID": 3,
+                    "gfxID": 311,
+                    "mapID": 1355
+                }
+            ]
+        },
+        {
+            "x": -3,
+            "y": 24,
+            "hints": [
+                {
+                    "name": "Sanctuaire des Dragoeufs",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 9788
+                }
+            ]
+        },
+        {
+            "x": -6,
+            "y": 24,
+            "hints": [
+                {
+                    "name": "Attitude \"Colère\"",
+                    "categoryID": 4,
+                    "gfxID": 423,
+                    "mapID": 1213
+                }
+            ]
+        },
+        {
+            "x": -4,
+            "y": 24,
+            "hints": [
+                {
+                    "name": "Kanojedo",
+                    "categoryID": 4,
+                    "gfxID": 406,
+                    "mapID": 1269
+                }
+            ]
+        },
+        {
+            "x": 12,
+            "y": 24,
+            "hints": [
+                {
+                    "name": "Taverne du Ripate",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 1878
+                }
+            ]
+        },
+        {
+            "x": 19,
+            "y": 24,
+            "hints": [
+                {
+                    "name": "Attitude \"Peur\"",
+                    "categoryID": 4,
+                    "gfxID": 423,
+                    "mapID": 1884
+                }
+            ]
+        },
+        {
+            "x": -1,
+            "y": 24,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 1242
+                }
+            ]
+        },
+        {
+            "x": 14,
+            "y": 25,
+            "hints": [
+                {
+                    "name": "Banque",
+                    "categoryID": 4,
+                    "gfxID": 401,
+                    "mapID": 1886
+                }
+            ]
+        },
+        {
+            "x": 2,
+            "y": 25,
+            "hints": [
+                {
+                    "name": "Atelier des paysans",
+                    "categoryID": 3,
+                    "gfxID": 311,
+                    "mapID": 1339
+                }
+            ]
+        },
+        {
+            "x": 1,
+            "y": 26,
+            "hints": [
+                {
+                    "name": "Donjon des Scarafeuilles",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 1298
+                }
+            ]
+        },
+        {
+            "x": 14,
+            "y": 26,
+            "hints": [
+                {
+                    "name": "Atelier des poissonniers et des pêcheurs",
+                    "categoryID": 3,
+                    "gfxID": 312,
+                    "mapID": 1888
+                }
+            ]
+        },
+        {
+            "x": -3,
+            "y": 27,
+            "hints": [
+                {
+                    "name": "Transporteur brigandin",
+                    "categoryID": 4,
+                    "gfxID": 412,
+                    "mapID": 1246
+                }
+            ]
+        },
+        {
+            "x": -18,
+            "y": 28,
+            "hints": [
+                {
+                    "name": "Donjon Fungus",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 5044
+                }
+            ]
+        },
+        {
+            "x": 12,
+            "y": 29,
+            "hints": [
+                {
+                    "name": "Bateau vers l'île d'Otomaï",
+                    "categoryID": 4,
+                    "gfxID": 413,
+                    "mapID": 9402
+                }
+            ]
+        },
+        {
+            "x": -27,
+            "y": 29,
+            "hints": [
+                {
+                    "name": "Transporteur brigandin",
+                    "categoryID": 4,
+                    "gfxID": 412,
+                    "mapID": 5015
+                }
+            ]
+        },
+        {
+            "x": 2,
+            "y": 29,
+            "hints": [
+                {
+                    "name": "Atelier des bijoutiers",
+                    "categoryID": 3,
+                    "gfxID": 302,
+                    "mapID": 1398
+                }
+            ]
+        },
+        {
+            "x": 3,
+            "y": 29,
+            "hints": [
+                {
+                    "name": "Atelier des forgerons",
+                    "categoryID": 3,
+                    "gfxID": 309,
+                    "mapID": 1397
+                },
+                {
+                    "name": "Ateliers des mineurs",
+                    "categoryID": 3,
+                    "gfxID": 310,
+                    "mapID": 1397
+                }
+            ]
+        },
+        {
+            "x": 5,
+            "y": 29,
+            "hints": [
+                {
+                    "name": "Atelier des sculpteurs",
+                    "categoryID": 3,
+                    "gfxID": 314,
+                    "mapID": 1392
+                }
+            ]
+        },
+        {
+            "x": 2,
+            "y": 30,
+            "hints": [
+                {
+                    "name": "Atelier des sculpteurs",
+                    "categoryID": 3,
+                    "gfxID": 314,
+                    "mapID": 1299
+                }
+            ]
+        },
+        {
+            "x": 4,
+            "y": 30,
+            "hints": [
+                {
+                    "name": "Atelier des bûcherons",
+                    "categoryID": 3,
+                    "gfxID": 305,
+                    "mapID": 1314
+                }
+            ]
+        },
+        {
+            "x": 11,
+            "y": 30,
+            "hints": [
+                {
+                    "name": "Transporteur Brigandin",
+                    "categoryID": 4,
+                    "gfxID": 412,
+                    "mapID": 10365
+                }
+            ]
+        },
+        {
+            "x": -22,
+            "y": 31,
+            "hints": [
+                {
+                    "name": "Taverne du Bwork",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 4637
+                }
+            ]
+        },
+        {
+            "x": -25,
+            "y": 31,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des paysans",
+                    "categoryID": 2,
+                    "gfxID": 210,
+                    "mapID": 4629
+                }
+            ]
+        },
+        {
+            "x": -24,
+            "y": 31,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des boulangers",
+                    "categoryID": 2,
+                    "gfxID": 204,
+                    "mapID": 4630
+                }
+            ]
+        },
+        {
+            "x": -26,
+            "y": 31,
+            "hints": [
+                {
+                    "name": "Donjon des Rats de Brâkmar",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 6738
+                }
+            ]
+        },
+        {
+            "x": 0,
+            "y": 32,
+            "hints": [
+                {
+                    "name": "Atelier des bijoutiers",
+                    "categoryID": 3,
+                    "gfxID": 302,
+                    "mapID": 1684
+                }
+            ]
+        },
+        {
+            "x": -22,
+            "y": 32,
+            "hints": [
+                {
+                    "name": "Atelier des boulangers",
+                    "categoryID": 3,
+                    "gfxID": 304,
+                    "mapID": 4639
+                }
+            ]
+        },
+        {
+            "x": -26,
+            "y": 32,
+            "hints": [
+                {
+                    "name": "Place Marchande",
+                    "categoryID": 4,
+                    "gfxID": 415,
+                    "mapID": 4601
+                }
+            ]
+        },
+        {
+            "x": -27,
+            "y": 32,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des bouchers et des chasseurs",
+                    "categoryID": 2,
+                    "gfxID": 203,
+                    "mapID": 4595
+                }
+            ]
+        },
+        {
+            "x": -29,
+            "y": 32,
+            "hints": [
+                {
+                    "name": "Atelier des bouchers",
+                    "categoryID": 3,
+                    "gfxID": 303,
+                    "mapID": 4604
+                },
+                {
+                    "name": "Taverne Atolmond",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 4604
+                }
+            ]
+        },
+        {
+            "x": -1,
+            "y": 33,
+            "hints": [
+                {
+                    "name": "Antre du Dragon Cochon",
+                    "categoryID": 6,
+                    "gfxID": 422,
+                    "mapID": 1399
+                }
+            ]
+        },
+        {
+            "x": 0,
+            "y": 33,
+            "hints": [
+                {
+                    "name": "Ateliers des mineurs",
+                    "categoryID": 3,
+                    "gfxID": 310,
+                    "mapID": 1388
+                }
+            ]
+        },
+        {
+            "x": -25,
+            "y": 33,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des ressources",
+                    "categoryID": 2,
+                    "gfxID": 213,
+                    "mapID": 4646
+                }
+            ]
+        },
+        {
+            "x": -20,
+            "y": 33,
+            "hints": [
+                {
+                    "name": "Atelier des mineurs",
+                    "categoryID": 3,
+                    "gfxID": 310,
+                    "mapID": 5304
+                }
+            ]
+        },
+        {
+            "x": -26,
+            "y": 34,
+            "hints": [
+                {
+                    "name": "Epicerie",
+                    "categoryID": 4,
+                    "gfxID": 425,
+                    "mapID": 4582
+                }
+            ]
+        },
+        {
+            "x": -21,
+            "y": 34,
+            "hints": [
+                {
+                    "name": "Atelier des forgerons",
+                    "categoryID": 3,
+                    "gfxID": 309,
+                    "mapID": 5277
+                }
+            ]
+        },
+        {
+            "x": -20,
+            "y": 34,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des mineurs",
+                    "categoryID": 2,
+                    "gfxID": 209,
+                    "mapID": 5311
+                }
+            ]
+        },
+        {
+            "x": -30,
+            "y": 35,
+            "hints": [
+                {
+                    "name": "Enclos public",
+                    "categoryID": 4,
+                    "gfxID": 419,
+                    "mapID": 8851
+                }
+            ]
+        },
+        {
+            "x": -28,
+            "y": 35,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des bricoleurs",
+                    "categoryID": 2,
+                    "gfxID": 222,
+                    "mapID": 4627
+                },
+                {
+                    "name": "Atelier des bricoleurs",
+                    "categoryID": 3,
+                    "gfxID": 317,
+                    "mapID": 4627
+                }
+            ]
+        },
+        {
+            "x": -26,
+            "y": 35,
+            "hints": [
+                {
+                    "name": "Tour de Brâkmar",
+                    "categoryID": 4,
+                    "gfxID": 416,
+                    "mapID": 4551
+                }
+            ]
+        },
+        {
+            "x": -24,
+            "y": 35,
+            "hints": [
+                {
+                    "name": "Atelier des tailleurs",
+                    "categoryID": 3,
+                    "gfxID": 315,
+                    "mapID": 4549
+                }
+            ]
+        },
+        {
+            "x": -23,
+            "y": 35,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des tailleurs",
+                    "categoryID": 2,
+                    "gfxID": 215,
+                    "mapID": 4588
+                }
+            ]
+        },
+        {
+            "x": -21,
+            "y": 35,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des forgerons",
+                    "categoryID": 2,
+                    "gfxID": 208,
+                    "mapID": 5317
+                }
+            ]
+        },
+        {
+            "x": -30,
+            "y": 36,
+            "hints": [
+                {
+                    "name": "Enclos public",
+                    "categoryID": 4,
+                    "gfxID": 419,
+                    "mapID": 8749
+                }
+            ]
+        },
+        {
+            "x": -31,
+            "y": 36,
+            "hints": [
+                {
+                    "name": "Enclos public",
+                    "categoryID": 4,
+                    "gfxID": 419,
+                    "mapID": 8750
+                }
+            ]
+        },
+        {
+            "x": -29,
+            "y": 36,
+            "hints": [
+                {
+                    "name": "Enclos public",
+                    "categoryID": 4,
+                    "gfxID": 419,
+                    "mapID": 8748
+                }
+            ]
+        },
+        {
+            "x": -26,
+            "y": 36,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des alchimistes",
+                    "categoryID": 2,
+                    "gfxID": 201,
+                    "mapID": 4607
+                }
+            ]
+        },
+        {
+            "x": -24,
+            "y": 36,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des cordonniers",
+                    "categoryID": 2,
+                    "gfxID": 207,
+                    "mapID": 4562
+                }
+            ]
+        },
+        {
+            "x": -23,
+            "y": 36,
+            "hints": [
+                {
+                    "name": "Atelier des cordonniers",
+                    "categoryID": 3,
+                    "gfxID": 307,
+                    "mapID": 4579
+                },
+                {
+                    "name": "Taverne de Djaul",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 4579
+                }
+            ]
+        },
+        {
+            "x": -20,
+            "y": 36,
+            "hints": [
+                {
+                    "name": "Atelier des forgerons",
+                    "categoryID": 3,
+                    "gfxID": 309,
+                    "mapID": 6117
+                }
+            ]
+        },
+        {
+            "x": -29,
+            "y": 37,
+            "hints": [
+                {
+                    "name": "Enclos public",
+                    "categoryID": 4,
+                    "gfxID": 419,
+                    "mapID": 8751
+                }
+            ]
+        },
+        {
+            "x": -31,
+            "y": 37,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des animaux",
+                    "categoryID": 2,
+                    "gfxID": 218,
+                    "mapID": 8753
+                }
+            ]
+        },
+        {
+            "x": -30,
+            "y": 37,
+            "hints": [
+                {
+                    "name": "Enclos public",
+                    "categoryID": 4,
+                    "gfxID": 419,
+                    "mapID": 8752
+                }
+            ]
+        },
+        {
+            "x": -27,
+            "y": 37,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des poissonniers et des pêcheurs",
+                    "categoryID": 2,
+                    "gfxID": 212,
+                    "mapID": 4615
+                }
+            ]
+        },
+        {
+            "x": -26,
+            "y": 37,
+            "hints": [
+                {
+                    "name": "Atelier des alchimistes",
+                    "categoryID": 3,
+                    "gfxID": 301,
+                    "mapID": 4930
+                }
+            ]
+        },
+        {
+            "x": -22,
+            "y": 37,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des bûcherons",
+                    "categoryID": 2,
+                    "gfxID": 205,
+                    "mapID": 5112
+                }
+            ]
+        },
+        {
+            "x": -29,
+            "y": 38,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des runes",
+                    "categoryID": 2,
+                    "gfxID": 220,
+                    "mapID": 8756
+                },
+                {
+                    "name": "Atelier des forgemages",
+                    "categoryID": 3,
+                    "gfxID": 308,
+                    "mapID": 8756
+                }
+            ]
+        },
+        {
+            "x": -31,
+            "y": 38,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des documents",
+                    "categoryID": 2,
+                    "gfxID": 221,
+                    "mapID": 8754
+                },
+                {
+                    "name": "Bibliothèque",
+                    "categoryID": 4,
+                    "gfxID": 417,
+                    "mapID": 8754
+                }
+            ]
+        },
+        {
+            "x": -30,
+            "y": 38,
+            "hints": [
+                {
+                    "name": "Hôtel des metiers",
+                    "categoryID": 4,
+                    "gfxID": 418,
+                    "mapID": 8755
+                }
+            ]
+        },
+        {
+            "x": -26,
+            "y": 38,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des bijoutiers",
+                    "categoryID": 2,
+                    "gfxID": 202,
+                    "mapID": 4622
+                }
+            ]
+        },
+        {
+            "x": -23,
+            "y": 38,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des parchemins liés",
+                    "categoryID": 2,
+                    "gfxID": 219,
+                    "mapID": 6167
+                },
+                {
+                    "name": "Milice",
+                    "categoryID": 4,
+                    "gfxID": 407,
+                    "mapID": 5116
+                }
+            ]
+        },
+        {
+            "x": -27,
+            "y": 39,
+            "hints": [
+                {
+                    "name": "Atelier des bijoutiers",
+                    "categoryID": 3,
+                    "gfxID": 302,
+                    "mapID": 4620
+                }
+            ]
+        },
+        {
+            "x": -21,
+            "y": 39,
+            "hints": [
+                {
+                    "name": "Atelier des sculpteurs",
+                    "categoryID": 3,
+                    "gfxID": 314,
+                    "mapID": 4612
+                },
+                {
+                    "name": "Taverne de la Misère",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 4612
+                }
+            ]
+        },
+        {
+            "x": -19,
+            "y": 39,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des âmes",
+                    "categoryID": 2,
+                    "gfxID": 217,
+                    "mapID": 8493
+                },
+                {
+                    "name": "Arène",
+                    "categoryID": 4,
+                    "gfxID": 411,
+                    "mapID": 8493
+                }
+            ]
+        },
+        {
+            "x": -28,
+            "y": 40,
+            "hints": [
+                {
+                    "name": "Taverne du Chabrulé",
+                    "categoryID": 4,
+                    "gfxID": 408,
+                    "mapID": 4623
+                }
+            ]
+        },
+        {
+            "x": -24,
+            "y": 40,
+            "hints": [
+                {
+                    "name": "Atelier des poissonniers et des pêcheurs",
+                    "categoryID": 3,
+                    "gfxID": 312,
+                    "mapID": 5334
+                }
+            ]
+        },
+        {
+            "x": -25,
+            "y": 40,
+            "hints": [
+                {
+                    "name": "Zaap",
+                    "categoryID": 4,
+                    "gfxID": 410,
+                    "mapID": 5295
+                }
+            ]
+        },
+        {
+            "x": -22,
+            "y": 40,
+            "hints": [
+                {
+                    "name": "Hôtel de vente des sculpteurs",
+                    "categoryID": 2,
+                    "gfxID": 214,
+                    "mapID": 4618
+                }
+            ]
+        },
+        {
+            "x": -23,
+            "y": 40,
+            "hints": [
+                {
+                    "name": "Banque",
+                    "categoryID": 4,
+                    "gfxID": 401,
+                    "mapID": 5332
+                }
+            ]
+        }
+    ],
+    "statistics": {
+        "min_x": -63,
+        "max_x": 35,
+        "min_y": -100,
+        "max_y": 40,
+        "average_hints_per_location": 1.1
+    }
+}

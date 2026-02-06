@@ -1,0 +1,42 @@
+{
+	"name": "dofus-electrobun-app",
+	"version": "1.0.0",
+	"description": "Dofus Web Client - Electrobun App",
+	"type": "module",
+	"scripts": {
+		"dev": "bun run build && electrobun dev",
+		"dev:hmr": "concurrently \"bun run hmr\" \"bun run dev\"",
+		"hmr": "vite --port 5173",
+		"build": "vite build && electrobun build",
+		"build:prod": "vite build && electrobun build --channel prod",
+		"start": "bun run dev"
+	},
+	"dependencies": {
+		"electrobun": "latest",
+		"@lastolivegames/becsy": "^0.15.5",
+		"@msgpack/msgpack": "^3.1.3",
+		"@pixi/compressed-textures": "^7.4.3",
+		"@pixi/layout": "latest",
+		"@pixi/ui": "latest",
+		"bitecs": "^0.3.40",
+		"fflate": "^0.8.2",
+		"fzstd": "^0.1.1",
+		"pixi-filters": "^6.1.5",
+		"pixi.js": "latest",
+		"ws": "^8.19.0"
+	},
+	"devDependencies": {
+		"@sveltejs/vite-plugin-svelte": "^5.0.0",
+		"@types/bun": "latest",
+		"@types/compression": "^1.8.1",
+		"@types/node": "^24.10.9",
+		"autoprefixer": "^10.4.20",
+		"compression": "^1.8.1",
+		"concurrently": "^9.1.0",
+		"postcss": "^8.4.49",
+		"svelte": "^5.0.0",
+		"tailwindcss": "^3.4.16",
+		"typescript": "^5.7.2",
+		"vite": "^6.0.3"
+	}
+}

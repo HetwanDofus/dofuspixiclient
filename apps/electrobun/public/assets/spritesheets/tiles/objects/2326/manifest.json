@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "spriteId": "2326",
+  "generatedAt": "2026-02-02T14:45:22.502Z",
+  "totalAnimations": 1,
+  "totalFrames": 1,
+  "uniqueFrames": 1,
+  "totalInputSize": 14500,
+  "totalOutputSize": 14294,
+  "compressionPercent": 1.4,
+  "animations": {
+    "tile": {
+      "frameCount": 1,
+      "uniqueFrames": 1,
+      "atlasWidth": 71,
+      "atlasHeight": 91,
+      "file": "atlas.svg",
+      "manifestFile": "atlas.json"
+    }
+  }
+}

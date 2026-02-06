@@ -1,0 +1,249 @@
+{
+  "version": 1,
+  "animation": "tile",
+  "width": 2245,
+  "height": 230,
+  "offsetX": -22.15,
+  "offsetY": -205.5,
+  "frames": [
+    {
+      "id": "tile_0",
+      "x": 1,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_1",
+      "x": 103,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_2",
+      "x": 205,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_3",
+      "x": 307,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_4",
+      "x": 409,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_5",
+      "x": 511,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_6",
+      "x": 613,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_7",
+      "x": 715,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_8",
+      "x": 817,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_9",
+      "x": 919,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_10",
+      "x": 1021,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_11",
+      "x": 1123,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_12",
+      "x": 1225,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_13",
+      "x": 1327,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_14",
+      "x": 1429,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_15",
+      "x": 1531,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_16",
+      "x": 1633,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_17",
+      "x": 1735,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_18",
+      "x": 1837,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_19",
+      "x": 1939,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_20",
+      "x": 2041,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_21",
+      "x": 2143,
+      "y": 1,
+      "width": 101,
+      "height": 228,
+      "offsetX": 0,
+      "offsetY": 0
+    }
+  ],
+  "frameOrder": [
+    "tile_0",
+    "tile_1",
+    "tile_2",
+    "tile_3",
+    "tile_4",
+    "tile_5",
+    "tile_6",
+    "tile_7",
+    "tile_8",
+    "tile_9",
+    "tile_10",
+    "tile_11",
+    "tile_12",
+    "tile_13",
+    "tile_14",
+    "tile_15",
+    "tile_16",
+    "tile_17",
+    "tile_18",
+    "tile_19",
+    "tile_20",
+    "tile_21",
+    "tile_22",
+    "tile_23",
+    "tile_24",
+    "tile_25",
+    "tile_26",
+    "tile_27",
+    "tile_28"
+  ],
+  "duplicates": {
+    "tile_22": "tile_21",
+    "tile_23": "tile_21",
+    "tile_24": "tile_21",
+    "tile_25": "tile_21",
+    "tile_26": "tile_21",
+    "tile_27": "tile_21",
+    "tile_28": "tile_21"
+  },
+  "fps": 60
+}

@@ -52,14 +52,13 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
     const blob = new Blob([svgContent], { type: "image/svg+xml" });
     const blobUrl = URL.createObjectURL(blob);
 
-    // Create image from Blob URL
+    // Use Image element to parse SVG (resolves internal refs like <use>, <clipPath>)
     const image = DOMAdapter.get().createImage();
     image.src = blobUrl;
 
     try {
       await image.decode();
     } finally {
-      // Clean up Blob URL after image is loaded
       URL.revokeObjectURL(blobUrl);
     }
 
@@ -67,34 +66,20 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
     const width = asset?.data?.width ?? image.width;
     const height = asset?.data?.height ?? image.height;
 
-    // Ensure canvas dimensions are integers to prevent edge trimming
-    const canvasWidth = Math.ceil(width * resolution);
-    const canvasHeight = Math.ceil(height * resolution);
+    // Ensure output dimensions are integers to prevent edge trimming
+    const outputWidth = Math.ceil(width * resolution);
+    const outputHeight = Math.ceil(height * resolution);
 
-    // Create canvas and render SVG at scaled size
-    const canvas = DOMAdapter.get().createCanvas(canvasWidth, canvasHeight);
-    const ctx = canvas.getContext("2d");
+    // Use createImageBitmap for rasterization at target size (avoids canvas intermediate)
+    const bitmap = await createImageBitmap(image, {
+      resizeWidth: outputWidth,
+      resizeHeight: outputHeight,
+      resizeQuality: "medium",
+    });
 
-    if (!ctx) {
-      throw new Error("Failed to get canvas context");
-    }
-
-    // Improve rendering quality
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-
-    // Draw image with exact scaled dimensions
-    ctx.drawImage(
-      image as CanvasImageSource,
-      0,
-      0,
-      width * resolution,
-      height * resolution
-    );
-
-    // Create texture source with proper settings
+    // Create texture source directly from ImageBitmap
     const source = new ImageSource({
-      resource: canvas,
+      resource: bitmap,
       alphaMode: "premultiply-alpha-on-upload",
       resolution,
       ...asset?.data,

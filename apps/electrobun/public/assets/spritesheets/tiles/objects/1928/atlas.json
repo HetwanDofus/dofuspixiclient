@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "animation": "tile",
+  "width": 3165,
+  "height": 260,
+  "offsetX": -85.2,
+  "offsetY": -190.9,
+  "frames": [
+    {
+      "id": "tile_0",
+      "x": 1,
+      "y": 1,
+      "width": 225,
+      "height": 258,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_2",
+      "x": 227,
+      "y": 1,
+      "width": 225,
+      "height": 258,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_3",
+      "x": 453,
+      "y": 1,
+      "width": 225,
+      "height": 258,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_4",
+      "x": 679,
+      "y": 1,
+      "width": 225,
+      "height": 258,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_5",
+      "x": 905,
+      "y": 1,
+      "width": 225,
+      "height": 258,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_6",
+      "x": 1131,
+      "y": 1,
+      "width": 225,
+      "height": 258,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_7",
+      "x": 1357,
+      "y": 1,
+      "width": 225,
+      "height": 258,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_8",
+      "x": 1583,
+      "y": 1,
+      "width": 225,
+      "height": 258,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_9",
+      "x": 1809,
+      "y": 1,
+      "width": 225,
+      "height": 258,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_10",
+      "x": 2035,
+      "y": 1,
+      "width": 225,
+      "height": 258,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_11",
+      "x": 2261,
+      "y": 1,
+      "width": 225,
+      "height": 258,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_12",
+      "x": 2487,
+      "y": 1,
+      "width": 225,
+      "height": 258,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_13",
+      "x": 2713,
+      "y": 1,
+      "width": 225,
+      "height": 258,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_14",
+      "x": 2939,
+      "y": 1,
+      "width": 225,
+      "height": 258,
+      "offsetX": 0,
+      "offsetY": 0
+    }
+  ],
+  "frameOrder": [
+    "tile_0",
+    "tile_1",
+    "tile_2",
+    "tile_3",
+    "tile_4",
+    "tile_5",
+    "tile_6",
+    "tile_7",
+    "tile_8",
+    "tile_9",
+    "tile_10",
+    "tile_11",
+    "tile_12",
+    "tile_13",
+    "tile_14"
+  ],
+  "duplicates": {
+    "tile_1": "tile_0"
+  },
+  "fps": 60
+}

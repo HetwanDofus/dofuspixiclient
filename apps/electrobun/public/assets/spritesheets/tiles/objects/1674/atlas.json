@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "animation": "tile",
+  "width": 274,
+  "height": 36,
+  "offsetX": -55.45,
+  "offsetY": -19.45,
+  "frames": [
+    {
+      "id": "tile_0",
+      "x": 1,
+      "y": 1,
+      "width": 90,
+      "height": 34,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_2",
+      "x": 92,
+      "y": 1,
+      "width": 90,
+      "height": 34,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_3",
+      "x": 183,
+      "y": 1,
+      "width": 90,
+      "height": 34,
+      "offsetX": 0,
+      "offsetY": 0
+    }
+  ],
+  "frameOrder": [
+    "tile_0",
+    "tile_1",
+    "tile_2",
+    "tile_3"
+  ],
+  "duplicates": {
+    "tile_1": "tile_0"
+  },
+  "fps": 60
+}

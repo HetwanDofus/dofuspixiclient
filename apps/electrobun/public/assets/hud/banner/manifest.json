@@ -1,0 +1,156 @@
+{
+  "version": "1.0",
+  "generated": "2026-01-23",
+  "format": "webp",
+  "scale": 6,
+  "icons": {
+    "pvp": {
+      "file": "icons/pvp.webp",
+      "width": 192,
+      "height": 198,
+      "offsetX": -96,
+      "offsetY": -102
+    },
+    "stats": {
+      "file": "icons/stats.webp",
+      "width": 194.7,
+      "height": 193.2,
+      "offsetX": -96,
+      "offsetY": -97.2
+    },
+    "spells": {
+      "file": "icons/spells.webp",
+      "width": 192,
+      "height": 192,
+      "offsetX": -96,
+      "offsetY": -96
+    },
+    "mount": {
+      "file": "icons/mount.webp",
+      "width": 192,
+      "height": 192,
+      "offsetX": -96,
+      "offsetY": -96
+    },
+    "map": {
+      "file": "icons/map.webp",
+      "width": 192,
+      "height": 192,
+      "offsetX": -96,
+      "offsetY": -96
+    },
+    "inventory": {
+      "file": "icons/inventory.webp",
+      "width": 192,
+      "height": 192,
+      "offsetX": -96,
+      "offsetY": -96
+    },
+    "guild": {
+      "file": "icons/guild.webp",
+      "width": 192,
+      "height": 192,
+      "offsetX": -96,
+      "offsetY": -96
+    },
+    "friends": {
+      "file": "icons/friends.webp",
+      "width": 192,
+      "height": 192,
+      "offsetX": -96,
+      "offsetY": -96
+    },
+    "quest": {
+      "file": "icons/quest.webp",
+      "width": 192,
+      "height": 196.8,
+      "offsetX": -96,
+      "offsetY": -100.8
+    },
+    "button-up": {
+      "file": "icons/button-up.webp",
+      "width": 156,
+      "height": 156,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    "button-down": {
+      "file": "icons/button-down.webp",
+      "width": 156,
+      "height": 156,
+      "offsetX": 0,
+      "offsetY": 0
+    }
+  },
+  "container": {
+    "highlight": {
+      "file": "container-highlight.webp",
+      "width": 150,
+      "height": 150,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    "border": {
+      "file": "container-border.webp",
+      "width": 150,
+      "height": 150,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    "background": {
+      "file": "container-background.webp",
+      "width": 150,
+      "height": 150,
+      "offsetX": 0,
+      "offsetY": 0
+    }
+  },
+  "compass": {
+    "noarrow": {
+      "file": "compass-noarrow.webp",
+      "width": 600,
+      "height": 600,
+      "offsetX": -300,
+      "offsetY": -300
+    },
+    "arrow": {
+      "file": "compass-arrow.webp",
+      "width": 600,
+      "height": 600,
+      "offsetX": -300,
+      "offsetY": -300
+    }
+  },
+  "clock": {
+    "back": {
+      "file": "clock-back.webp",
+      "width": 600,
+      "height": 600,
+      "offsetX": -300,
+      "offsetY": -300
+    },
+    "arrow-minutes": {
+      "file": "clock-arrow-minutes.webp",
+      "width": 600,
+      "height": 600,
+      "offsetX": -300,
+      "offsetY": -300
+    },
+    "arrow-hours": {
+      "file": "clock-arrow-hours.webp",
+      "width": 600,
+      "height": 600,
+      "offsetX": -300,
+      "offsetY": -300
+    }
+  },
+  "chat": {
+    "command-all": {
+      "file": "chat-command-all.webp",
+      "width": 78,
+      "height": 78,
+      "offsetX": -9,
+      "offsetY": -8.1
+    }
+  }
+}

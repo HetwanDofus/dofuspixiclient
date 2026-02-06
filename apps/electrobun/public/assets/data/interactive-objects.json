@@ -1,0 +1,6851 @@
+{
+    "version": 1254,
+    "objectTypes": {
+        "1": {
+            "name": "Gathering\/Resource",
+            "description": "Harvestable resources like trees, ores, crops"
+        },
+        "2": {
+            "name": "Crafting Station",
+            "description": "Workbenches and crafting tools"
+        },
+        "3": {
+            "name": "Zaap",
+            "description": "Main teleportation waypoints"
+        },
+        "4": {
+            "name": "Fountain",
+            "description": "Regeneration points"
+        },
+        "5": {
+            "name": "House Door",
+            "description": "Player house entrances"
+        },
+        "6": {
+            "name": "Storage",
+            "description": "Safes and storage containers"
+        },
+        "7": {
+            "name": "Healing Pot",
+            "description": "HP\/MP restoration"
+        },
+        "10": {
+            "name": "Zaapi",
+            "description": "City teleportation points"
+        },
+        "12": {
+            "name": "Craftsmen List",
+            "description": "Browse available craftsmen"
+        },
+        "13": {
+            "name": "Paddock",
+            "description": "Mount management areas"
+        },
+        "14": {
+            "name": "Switch",
+            "description": "Interactive toggles\/buttons"
+        },
+        "15": {
+            "name": "Class Statue",
+            "description": "Class change statues"
+        }
+    },
+    "jobs": {
+        "1": "None",
+        "2": "Lumberjack",
+        "11": "Sword Smith",
+        "13": "Bow Carver",
+        "14": "Hammer Smith",
+        "15": "Shoemaker",
+        "16": "Jeweller",
+        "17": "Dagger Smith",
+        "18": "Staff Carver",
+        "19": "Wand Carver",
+        "20": "Shovel Smith",
+        "24": "Miner",
+        "25": "Baker",
+        "26": "Alchemist",
+        "27": "Tailor",
+        "28": "Farmer",
+        "31": "Axe Smith",
+        "32": "Scythe Smith",
+        "33": "Pick Smith",
+        "36": "Fisherman",
+        "41": "Hunter",
+        "43": "Dagger Smithmagus",
+        "44": "Sword Smithmagus",
+        "45": "Hammer Smithmagus",
+        "46": "Shovel Smithmagus",
+        "47": "Axe Smithmagus",
+        "48": "Bow Carvemagus",
+        "49": "Wand Carvemagus",
+        "50": "Staff Carvemagus",
+        "56": "Butcher",
+        "58": "Fish Monger",
+        "60": "Shield Smith",
+        "62": "Shoemagus",
+        "63": "Jewelmagus",
+        "64": "Costumagus",
+        "65": "Handyman"
+    },
+    "interactiveObjects": {
+        "1": {
+            "id": 1,
+            "name": "Ash",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                6
+            ],
+            "skills": [
+                {
+                    "id": 6,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7500
+            ]
+        },
+        "2": {
+            "id": 2,
+            "name": "Saw",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                101
+            ],
+            "skills": [
+                {
+                    "id": 101,
+                    "description": "Saw",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7003
+            ]
+        },
+        "8": {
+            "id": 8,
+            "name": "Oak",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                10
+            ],
+            "skills": [
+                {
+                    "id": 10,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7503
+            ]
+        },
+        "11": {
+            "id": 11,
+            "name": "Fabrication Table",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                13,
+                14
+            ],
+            "skills": [
+                {
+                    "id": 14,
+                    "description": "Craft a Belt",
+                    "jobName": "Shoemaker"
+                },
+                {
+                    "id": 13,
+                    "description": "Craft Boots",
+                    "jobName": "Shoemaker"
+                }
+            ],
+            "gfxIds": [
+                7011
+            ]
+        },
+        "12": {
+            "id": 12,
+            "name": "Workshop",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                11,
+                12
+            ],
+            "skills": [
+                {
+                    "id": 12,
+                    "description": "Create an Amulet",
+                    "jobName": "Jeweller"
+                },
+                {
+                    "id": 11,
+                    "description": "Create a Ring",
+                    "jobName": "Jeweller"
+                }
+            ],
+            "gfxIds": [
+                7008,
+                7009,
+                7010
+            ]
+        },
+        "13": {
+            "id": 13,
+            "name": "Bench",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                148,
+                147,
+                149,
+                16,
+                17,
+                15
+            ],
+            "skills": [
+                {
+                    "id": 15,
+                    "description": "Carve a Bow",
+                    "jobName": "Bow Carver"
+                },
+                {
+                    "id": 17,
+                    "description": "Carve a Staff",
+                    "jobName": "Staff Carver"
+                },
+                {
+                    "id": 16,
+                    "description": "Carve a Wand",
+                    "jobName": "Wand Carver"
+                },
+                {
+                    "id": 149,
+                    "description": "Repair a Bow",
+                    "jobName": "Bow Carver"
+                },
+                {
+                    "id": 147,
+                    "description": "Repair a Staff",
+                    "jobName": "Staff Carver"
+                },
+                {
+                    "id": 148,
+                    "description": "Repair a Wand",
+                    "jobName": "Wand Carver"
+                }
+            ],
+            "gfxIds": [
+                7013
+            ]
+        },
+        "15": {
+            "id": 15,
+            "name": "Cauldron",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [],
+            "skills": []
+        },
+        "16": {
+            "id": 16,
+            "name": "Zaap",
+            "type": 3,
+            "typeName": "Zaap",
+            "skillIds": [
+                114
+            ],
+            "skills": [
+                {
+                    "id": 114,
+                    "description": "Use",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7000,
+                7026,
+                7029,
+                4287
+            ]
+        },
+        "17": {
+            "id": 17,
+            "name": "Iron",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                24
+            ],
+            "skills": [
+                {
+                    "id": 24,
+                    "description": "Collect",
+                    "jobName": "Miner"
+                }
+            ],
+            "gfxIds": [
+                7520
+            ]
+        },
+        "22": {
+            "id": 22,
+            "name": "Oven",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                109,
+                27
+            ],
+            "skills": [
+                {
+                    "id": 27,
+                    "description": "Bake bread",
+                    "jobName": "Baker"
+                },
+                {
+                    "id": 109,
+                    "description": "Make candies",
+                    "jobName": "Baker"
+                }
+            ],
+            "gfxIds": [
+                7001
+            ]
+        },
+        "24": {
+            "id": 24,
+            "name": "Silver",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                29
+            ],
+            "skills": [
+                {
+                    "id": 29,
+                    "description": "Collect",
+                    "jobName": "Miner"
+                }
+            ],
+            "gfxIds": [
+                7526
+            ]
+        },
+        "25": {
+            "id": 25,
+            "name": "Gold",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                30
+            ],
+            "skills": [
+                {
+                    "id": 30,
+                    "description": "Collect",
+                    "jobName": "Miner"
+                }
+            ],
+            "gfxIds": [
+                7527
+            ]
+        },
+        "26": {
+            "id": 26,
+            "name": "Bauxite",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                31
+            ],
+            "skills": [
+                {
+                    "id": 31,
+                    "description": "Collect",
+                    "jobName": "Miner"
+                }
+            ],
+            "gfxIds": [
+                7528
+            ]
+        },
+        "27": {
+            "id": 27,
+            "name": "Mould",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                32
+            ],
+            "skills": [
+                {
+                    "id": 32,
+                    "description": "Melt",
+                    "jobName": "Miner"
+                }
+            ],
+            "gfxIds": [
+                7002
+            ]
+        },
+        "28": {
+            "id": 28,
+            "name": "Yew",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                33
+            ],
+            "skills": [
+                {
+                    "id": 33,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7505
+            ]
+        },
+        "29": {
+            "id": 29,
+            "name": "Ebony",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                34
+            ],
+            "skills": [
+                {
+                    "id": 34,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7507
+            ]
+        },
+        "30": {
+            "id": 30,
+            "name": "Elm",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                35
+            ],
+            "skills": [
+                {
+                    "id": 35,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7509
+            ]
+        },
+        "31": {
+            "id": 31,
+            "name": "Maple",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                37
+            ],
+            "skills": [
+                {
+                    "id": 37,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7504
+            ]
+        },
+        "32": {
+            "id": 32,
+            "name": "Charm",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                38
+            ],
+            "skills": [
+                {
+                    "id": 38,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7508
+            ]
+        },
+        "33": {
+            "id": 33,
+            "name": "Chestnut",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                39
+            ],
+            "skills": [
+                {
+                    "id": 39,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7501
+            ]
+        },
+        "34": {
+            "id": 34,
+            "name": "Walnut",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                40
+            ],
+            "skills": [
+                {
+                    "id": 40,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7502
+            ]
+        },
+        "35": {
+            "id": 35,
+            "name": "Cherry",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                41
+            ],
+            "skills": [
+                {
+                    "id": 41,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7506
+            ]
+        },
+        "37": {
+            "id": 37,
+            "name": "Cobalt",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                28
+            ],
+            "skills": [
+                {
+                    "id": 28,
+                    "description": "Collect",
+                    "jobName": "Miner"
+                }
+            ],
+            "gfxIds": [
+                7525
+            ]
+        },
+        "38": {
+            "id": 38,
+            "name": "Wheat",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                45
+            ],
+            "skills": [
+                {
+                    "id": 45,
+                    "description": "Reap",
+                    "jobName": "Farmer"
+                }
+            ],
+            "gfxIds": [
+                7511
+            ]
+        },
+        "39": {
+            "id": 39,
+            "name": "Hop",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                46
+            ],
+            "skills": [
+                {
+                    "id": 46,
+                    "description": "Reap",
+                    "jobName": "Farmer"
+                }
+            ],
+            "gfxIds": [
+                7512
+            ]
+        },
+        "40": {
+            "id": 40,
+            "name": "Mill",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [],
+            "skills": []
+        },
+        "41": {
+            "id": 41,
+            "name": "Grind",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                48
+            ],
+            "skills": [
+                {
+                    "id": 48,
+                    "description": "Polish a stone",
+                    "jobName": "Miner"
+                }
+            ],
+            "gfxIds": [
+                7005
+            ]
+        },
+        "42": {
+            "id": 42,
+            "name": "Flax",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                50,
+                68
+            ],
+            "skills": [
+                {
+                    "id": 68,
+                    "description": "Gather",
+                    "jobName": "Alchemist"
+                },
+                {
+                    "id": 50,
+                    "description": "Reap",
+                    "jobName": "Farmer"
+                }
+            ],
+            "gfxIds": [
+                7513
+            ]
+        },
+        "43": {
+            "id": 43,
+            "name": "Barley",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                53
+            ],
+            "skills": [
+                {
+                    "id": 53,
+                    "description": "Reap",
+                    "jobName": "Farmer"
+                }
+            ],
+            "gfxIds": [
+                7515
+            ]
+        },
+        "44": {
+            "id": 44,
+            "name": "Rye",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                52
+            ],
+            "skills": [
+                {
+                    "id": 52,
+                    "description": "Reap",
+                    "jobName": "Farmer"
+                }
+            ],
+            "gfxIds": [
+                7516
+            ]
+        },
+        "45": {
+            "id": 45,
+            "name": "Oats",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                57
+            ],
+            "skills": [
+                {
+                    "id": 57,
+                    "description": "Reap",
+                    "jobName": "Farmer"
+                }
+            ],
+            "gfxIds": [
+                7517
+            ]
+        },
+        "46": {
+            "id": 46,
+            "name": "Hemp",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                54,
+                69
+            ],
+            "skills": [
+                {
+                    "id": 69,
+                    "description": "Gather",
+                    "jobName": "Alchemist"
+                },
+                {
+                    "id": 54,
+                    "description": "Reap",
+                    "jobName": "Farmer"
+                }
+            ],
+            "gfxIds": [
+                7514
+            ]
+        },
+        "47": {
+            "id": 47,
+            "name": "Malt",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                58
+            ],
+            "skills": [
+                {
+                    "id": 58,
+                    "description": "Reap",
+                    "jobName": "Farmer"
+                }
+            ],
+            "gfxIds": [
+                7518
+            ]
+        },
+        "48": {
+            "id": 48,
+            "name": "Potato heap",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                42
+            ],
+            "skills": [
+                {
+                    "id": 42,
+                    "description": "Pick up",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7510
+            ]
+        },
+        "49": {
+            "id": 49,
+            "name": "Potato table",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                22
+            ],
+            "skills": [
+                {
+                    "id": 22,
+                    "description": "Peel",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7006
+            ]
+        },
+        "50": {
+            "id": 50,
+            "name": "Crusher",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                122,
+                47
+            ],
+            "skills": [
+                {
+                    "id": 47,
+                    "description": "Grind",
+                    "jobName": "Farmer"
+                },
+                {
+                    "id": 122,
+                    "description": "Shell",
+                    "jobName": "Farmer"
+                }
+            ],
+            "gfxIds": [
+                7007
+            ]
+        },
+        "52": {
+            "id": 52,
+            "name": "Tin",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                55
+            ],
+            "skills": [
+                {
+                    "id": 55,
+                    "description": "Collect",
+                    "jobName": "Miner"
+                }
+            ],
+            "gfxIds": [
+                7521
+            ]
+        },
+        "53": {
+            "id": 53,
+            "name": "Copper",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                25
+            ],
+            "skills": [
+                {
+                    "id": 25,
+                    "description": "Collect",
+                    "jobName": "Miner"
+                }
+            ],
+            "gfxIds": [
+                7522
+            ]
+        },
+        "54": {
+            "id": 54,
+            "name": "Manganese",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                56
+            ],
+            "skills": [
+                {
+                    "id": 56,
+                    "description": "Collect",
+                    "jobName": "Miner"
+                }
+            ],
+            "gfxIds": [
+                7524
+            ]
+        },
+        "55": {
+            "id": 55,
+            "name": "Bronze",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                26
+            ],
+            "skills": [
+                {
+                    "id": 26,
+                    "description": "Collect",
+                    "jobName": "Miner"
+                }
+            ],
+            "gfxIds": [
+                7523
+            ]
+        },
+        "56": {
+            "id": 56,
+            "name": "Fountain of Youth",
+            "type": 4,
+            "typeName": "Fountain",
+            "skillIds": [
+                62
+            ],
+            "skills": [
+                {
+                    "id": 62,
+                    "description": "Regenarate",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7004
+            ]
+        },
+        "57": {
+            "id": 57,
+            "name": "Anvil",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                145,
+                146,
+                143,
+                144,
+                142,
+                20,
+                21,
+                66,
+                67,
+                65,
+                19,
+                18
+            ],
+            "skills": [
+                {
+                    "id": 18,
+                    "description": "Forge a Dagger",
+                    "jobName": "Dagger Smith"
+                },
+                {
+                    "id": 19,
+                    "description": "Forge a Hammer",
+                    "jobName": "Hammer Smith"
+                },
+                {
+                    "id": 65,
+                    "description": "Forge an Axe",
+                    "jobName": "Axe Smith"
+                },
+                {
+                    "id": 67,
+                    "description": "Forge a Pick",
+                    "jobName": "Pick Smith"
+                },
+                {
+                    "id": 66,
+                    "description": "Forge a Scythe",
+                    "jobName": "Scythe Smith"
+                },
+                {
+                    "id": 21,
+                    "description": "Forge a Shovel",
+                    "jobName": "Shovel Smith"
+                },
+                {
+                    "id": 20,
+                    "description": "Forge a Sword",
+                    "jobName": "Sword Smith"
+                },
+                {
+                    "id": 142,
+                    "description": "Repair a Dagger",
+                    "jobName": "Dagger Smith"
+                },
+                {
+                    "id": 144,
+                    "description": "Repair a Hammer",
+                    "jobName": "Hammer Smith"
+                },
+                {
+                    "id": 143,
+                    "description": "Repair an Axe",
+                    "jobName": "Axe Smith"
+                },
+                {
+                    "id": 146,
+                    "description": "Repair a Shovel",
+                    "jobName": "Shovel Smith"
+                },
+                {
+                    "id": 145,
+                    "description": "Repair a Sword",
+                    "jobName": "Sword Smith"
+                }
+            ],
+            "gfxIds": [
+                7012
+            ]
+        },
+        "58": {
+            "id": 58,
+            "name": "Sewing machine",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                63
+            ],
+            "skills": [
+                {
+                    "id": 63,
+                    "description": "Sew a Hat",
+                    "jobName": "Tailor"
+                }
+            ],
+            "gfxIds": [
+                7014,
+                7016
+            ]
+        },
+        "60": {
+            "id": 60,
+            "name": "Pot",
+            "type": 7,
+            "typeName": "Healing Pot",
+            "skillIds": [
+                111
+            ],
+            "skills": [
+                {
+                    "id": 111,
+                    "description": "Regenarate",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7017
+            ]
+        },
+        "61": {
+            "id": 61,
+            "name": "Edelweiss",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                74
+            ],
+            "skills": [
+                {
+                    "id": 74,
+                    "description": "Gather",
+                    "jobName": "Alchemist"
+                }
+            ],
+            "gfxIds": [
+                7536
+            ]
+        },
+        "62": {
+            "id": 62,
+            "name": "Alembic",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                96
+            ],
+            "skills": [
+                {
+                    "id": 96,
+                    "description": "Brew",
+                    "jobName": "Unknown"
+                }
+            ]
+        },
+        "63": {
+            "id": 63,
+            "name": "Wheat",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [],
+            "skills": []
+        },
+        "64": {
+            "id": 64,
+            "name": "Spelt",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [],
+            "skills": []
+        },
+        "65": {
+            "id": 65,
+            "name": "Sorghum",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [],
+            "skills": []
+        },
+        "66": {
+            "id": 66,
+            "name": "Wild Mint",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                72
+            ],
+            "skills": [
+                {
+                    "id": 72,
+                    "description": "Gather",
+                    "jobName": "Alchemist"
+                }
+            ],
+            "gfxIds": [
+                7534
+            ]
+        },
+        "67": {
+            "id": 67,
+            "name": "5-Leaf Clover",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                71
+            ],
+            "skills": [
+                {
+                    "id": 71,
+                    "description": "Gather",
+                    "jobName": "Alchemist"
+                }
+            ],
+            "gfxIds": [
+                7533
+            ]
+        },
+        "68": {
+            "id": 68,
+            "name": "Freyesque Orchid",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                73
+            ],
+            "skills": [
+                {
+                    "id": 73,
+                    "description": "Gather",
+                    "jobName": "Alchemist"
+                }
+            ],
+            "gfxIds": [
+                7535
+            ]
+        },
+        "69": {
+            "id": 69,
+            "name": "Mortar and pestle",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [],
+            "skills": []
+        },
+        "70": {
+            "id": 70,
+            "name": "Door",
+            "type": 5,
+            "typeName": "House Door",
+            "skillIds": [
+                100,
+                98,
+                81,
+                84,
+                108,
+                97
+            ],
+            "skills": [
+                {
+                    "id": 97,
+                    "description": "Buy",
+                    "jobName": "None"
+                },
+                {
+                    "id": 108,
+                    "description": "Change sale price",
+                    "jobName": "None"
+                },
+                {
+                    "id": 84,
+                    "description": "Enter",
+                    "jobName": "None"
+                },
+                {
+                    "id": 81,
+                    "description": "Lock",
+                    "jobName": "None"
+                },
+                {
+                    "id": 98,
+                    "description": "Sell",
+                    "jobName": "None"
+                },
+                {
+                    "id": 100,
+                    "description": "Unlock",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                6700,
+                6701,
+                6702,
+                6703,
+                6704,
+                6705,
+                6706,
+                6707,
+                6708,
+                6709,
+                6710,
+                6711,
+                6713,
+                6714,
+                6715,
+                6716,
+                6717,
+                6718,
+                6719,
+                6720,
+                6721,
+                6722,
+                6723,
+                6724,
+                6725,
+                6726,
+                6729,
+                6730,
+                6731,
+                6732,
+                6733,
+                6734,
+                6735,
+                6736,
+                6737,
+                6738,
+                6739,
+                6740,
+                6741,
+                6742,
+                6743,
+                6744,
+                6745,
+                6746,
+                6747,
+                6748,
+                6753,
+                6749,
+                6750,
+                6751,
+                6752,
+                6754,
+                6756,
+                6755,
+                6757,
+                6758,
+                6764,
+                6765,
+                6768,
+                6759,
+                6760,
+                6761,
+                6762,
+                6769,
+                6770,
+                4516,
+                6773,
+                6774,
+                6775,
+                6776,
+                6665,
+                505
+            ]
+        },
+        "71": {
+            "id": 71,
+            "name": "Small Sea Fish",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                128
+            ],
+            "skills": [
+                {
+                    "id": 128,
+                    "description": "Fish",
+                    "jobName": "Fisherman"
+                }
+            ],
+            "gfxIds": [
+                7530
+            ]
+        },
+        "72": {
+            "id": 72,
+            "name": "Aggressive Salmoon",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [],
+            "skills": []
+        },
+        "73": {
+            "id": 73,
+            "name": "Octopwus",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [],
+            "skills": []
+        },
+        "74": {
+            "id": 74,
+            "name": "River Fish",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                125
+            ],
+            "skills": [
+                {
+                    "id": 125,
+                    "description": "Fish",
+                    "jobName": "Fisherman"
+                }
+            ],
+            "gfxIds": [
+                7532
+            ]
+        },
+        "75": {
+            "id": 75,
+            "name": "Small River Fish",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                124
+            ],
+            "skills": [
+                {
+                    "id": 124,
+                    "description": "Fish",
+                    "jobName": "Fisherman"
+                }
+            ],
+            "gfxIds": [
+                7529
+            ]
+        },
+        "76": {
+            "id": 76,
+            "name": "Big River Fish",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                126
+            ],
+            "skills": [
+                {
+                    "id": 126,
+                    "description": "Fish",
+                    "jobName": "Fisherman"
+                }
+            ],
+            "gfxIds": [
+                7537
+            ]
+        },
+        "77": {
+            "id": 77,
+            "name": "Sea Fish",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                129
+            ],
+            "skills": [
+                {
+                    "id": 129,
+                    "description": "Fish",
+                    "jobName": "Fisherman"
+                }
+            ],
+            "gfxIds": [
+                7531
+            ]
+        },
+        "78": {
+            "id": 78,
+            "name": "Big Sea Fish",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                130
+            ],
+            "skills": [
+                {
+                    "id": 130,
+                    "description": "Fish",
+                    "jobName": "Fisherman"
+                }
+            ],
+            "gfxIds": [
+                7538
+            ]
+        },
+        "79": {
+            "id": 79,
+            "name": "Giant River Fish",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                127
+            ],
+            "skills": [
+                {
+                    "id": 127,
+                    "description": "Fish",
+                    "jobName": "Fisherman"
+                }
+            ],
+            "gfxIds": [
+                7539
+            ]
+        },
+        "80": {
+            "id": 80,
+            "name": "Sludgy Trout",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [],
+            "skills": []
+        },
+        "81": {
+            "id": 81,
+            "name": "Giant Sea Fish",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                131
+            ],
+            "skills": [
+                {
+                    "id": 131,
+                    "description": "Fish",
+                    "jobName": "Fisherman"
+                }
+            ],
+            "gfxIds": [
+                7540
+            ]
+        },
+        "82": {
+            "id": 82,
+            "name": "Cotton",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [],
+            "skills": []
+        },
+        "83": {
+            "id": 83,
+            "name": "Spinner",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                95
+            ],
+            "skills": [
+                {
+                    "id": 95,
+                    "description": "Spin",
+                    "jobName": "Tailor"
+                }
+            ]
+        },
+        "84": {
+            "id": 84,
+            "name": "Well",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                102
+            ],
+            "skills": [
+                {
+                    "id": 102,
+                    "description": "Draw",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7519
+            ]
+        },
+        "85": {
+            "id": 85,
+            "name": "Safe",
+            "type": 6,
+            "typeName": "Storage",
+            "skillIds": [
+                104,
+                106,
+                105
+            ],
+            "skills": [
+                {
+                    "id": 105,
+                    "description": "Lock",
+                    "jobName": "None"
+                },
+                {
+                    "id": 106,
+                    "description": "Modify code",
+                    "jobName": "None"
+                },
+                {
+                    "id": 104,
+                    "description": "Open",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7350,
+                7351,
+                7353
+            ]
+        },
+        "86": {
+            "id": 86,
+            "name": "Sewing machine",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                64,
+                123
+            ],
+            "skills": [
+                {
+                    "id": 123,
+                    "description": "Sew a Bag",
+                    "jobName": "Tailor"
+                },
+                {
+                    "id": 64,
+                    "description": "Sew a Cape",
+                    "jobName": "Tailor"
+                }
+            ],
+            "gfxIds": [
+                7015
+            ]
+        },
+        "88": {
+            "id": 88,
+            "name": "Wood Bench",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                110
+            ],
+            "skills": [
+                {
+                    "id": 110,
+                    "description": "Use the workbench",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7018
+            ]
+        },
+        "90": {
+            "id": 90,
+            "name": "Alembic",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                23
+            ],
+            "skills": [
+                {
+                    "id": 23,
+                    "description": "Prepare a potion",
+                    "jobName": "Alchemist"
+                }
+            ],
+            "gfxIds": [
+                7019
+            ]
+        },
+        "92": {
+            "id": 92,
+            "name": "Magic Anvil",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                119,
+                113,
+                120,
+                117,
+                115,
+                116,
+                1,
+                118
+            ],
+            "skills": [
+                {
+                    "id": 118,
+                    "description": "Improve a Bow",
+                    "jobName": "Bow Carvemagus"
+                },
+                {
+                    "id": 1,
+                    "description": "Improve a Dagger",
+                    "jobName": "Dagger Smithmagus"
+                },
+                {
+                    "id": 116,
+                    "description": "Improve a Hammer",
+                    "jobName": "Hammer Smithmagus"
+                },
+                {
+                    "id": 115,
+                    "description": "Improve an Axe",
+                    "jobName": "Axe Smithmagus"
+                },
+                {
+                    "id": 117,
+                    "description": "Improve a Shovel",
+                    "jobName": "Shovel Smithmagus"
+                },
+                {
+                    "id": 120,
+                    "description": "Improve a Staff",
+                    "jobName": "Staff Carvemagus"
+                },
+                {
+                    "id": 113,
+                    "description": "Improve a Sword",
+                    "jobName": "Sword Smithmagus"
+                },
+                {
+                    "id": 119,
+                    "description": "Improve a Wand",
+                    "jobName": "Wand Carvemagus"
+                }
+            ],
+            "gfxIds": [
+                7020
+            ]
+        },
+        "93": {
+            "id": 93,
+            "name": "Munster Crusher",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                181,
+                121
+            ],
+            "skills": [
+                {
+                    "id": 121,
+                    "description": "Crush resources",
+                    "jobName": "None"
+                },
+                {
+                    "id": 181,
+                    "description": "Turn an item into runes",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7021
+            ]
+        },
+        "94": {
+            "id": 94,
+            "name": "Workbench",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                135
+            ],
+            "skills": [
+                {
+                    "id": 135,
+                    "description": "Prepare fish",
+                    "jobName": "Fish Monger"
+                }
+            ],
+            "gfxIds": [
+                7022
+            ]
+        },
+        "95": {
+            "id": 95,
+            "name": "Workbench",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                132
+            ],
+            "skills": [
+                {
+                    "id": 132,
+                    "description": "Prepare",
+                    "jobName": "Hunter"
+                }
+            ],
+            "gfxIds": [
+                7025
+            ]
+        },
+        "96": {
+            "id": 96,
+            "name": "Workbench",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                133
+            ],
+            "skills": [
+                {
+                    "id": 133,
+                    "description": "Empty",
+                    "jobName": "Fisherman"
+                }
+            ],
+            "gfxIds": [
+                7024
+            ]
+        },
+        "97": {
+            "id": 97,
+            "name": "Workbench",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                134
+            ],
+            "skills": [
+                {
+                    "id": 134,
+                    "description": "Prepare meat",
+                    "jobName": "Butcher"
+                }
+            ],
+            "gfxIds": [
+                7023
+            ]
+        },
+        "98": {
+            "id": 98,
+            "name": "Bombu",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                139
+            ],
+            "skills": [
+                {
+                    "id": 139,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7541
+            ]
+        },
+        "99": {
+            "id": 99,
+            "name": "Strange shadow",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                140
+            ],
+            "skills": [
+                {
+                    "id": 140,
+                    "description": "Fish",
+                    "jobName": "Fisherman"
+                }
+            ],
+            "gfxIds": [
+                7543
+            ]
+        },
+        "100": {
+            "id": 100,
+            "name": "Snapper",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                136
+            ],
+            "skills": [
+                {
+                    "id": 136,
+                    "description": "Fish",
+                    "jobName": "Fisherman"
+                }
+            ],
+            "gfxIds": [
+                7544
+            ]
+        },
+        "101": {
+            "id": 101,
+            "name": "Oliviolet",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                141
+            ],
+            "skills": [
+                {
+                    "id": 141,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7542
+            ]
+        },
+        "102": {
+            "id": 102,
+            "name": "Strength machine",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                150
+            ],
+            "skills": [
+                {
+                    "id": 150,
+                    "description": "Play",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7546,
+                7547
+            ]
+        },
+        "103": {
+            "id": 103,
+            "name": "Pyrotechnics Workbench",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                151
+            ],
+            "skills": [
+                {
+                    "id": 151,
+                    "description": "Summon a Fairy",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7028
+            ]
+        },
+        "104": {
+            "id": 104,
+            "name": "Quaquack",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                152
+            ],
+            "skills": [
+                {
+                    "id": 152,
+                    "description": "Fish for Quaquack",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7549
+            ]
+        },
+        "105": {
+            "id": 105,
+            "name": "Trash",
+            "type": 6,
+            "typeName": "Storage",
+            "skillIds": [
+                153
+            ],
+            "skills": [
+                {
+                    "id": 153,
+                    "description": "Search",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7352
+            ]
+        },
+        "106": {
+            "id": 106,
+            "name": "Zaapi",
+            "type": 10,
+            "typeName": "Zaapi",
+            "skillIds": [
+                157
+            ],
+            "skills": [
+                {
+                    "id": 157,
+                    "description": "Be transported",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7030,
+                7031
+            ]
+        },
+        "107": {
+            "id": 107,
+            "name": "Shield Anvil",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                156
+            ],
+            "skills": [
+                {
+                    "id": 156,
+                    "description": "Forge a Shield",
+                    "jobName": "Shield Smith"
+                }
+            ],
+            "gfxIds": [
+                7027
+            ]
+        },
+        "108": {
+            "id": 108,
+            "name": "Bamboo",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                154
+            ],
+            "skills": [
+                {
+                    "id": 154,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7553
+            ]
+        },
+        "109": {
+            "id": 109,
+            "name": "Dark Bamboo",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                155
+            ],
+            "skills": [
+                {
+                    "id": 155,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7554
+            ]
+        },
+        "110": {
+            "id": 110,
+            "name": "Holy Bamboo",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                158
+            ],
+            "skills": [
+                {
+                    "id": 158,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7552
+            ]
+        },
+        "111": {
+            "id": 111,
+            "name": "Rice",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                159
+            ],
+            "skills": [
+                {
+                    "id": 159,
+                    "description": "Reap",
+                    "jobName": "Farmer"
+                }
+            ],
+            "gfxIds": [
+                7550
+            ]
+        },
+        "112": {
+            "id": 112,
+            "name": "Pandkin",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                160
+            ],
+            "skills": [
+                {
+                    "id": 160,
+                    "description": "Gather",
+                    "jobName": "Alchemist"
+                }
+            ],
+            "gfxIds": [
+                7551
+            ]
+        },
+        "113": {
+            "id": 113,
+            "name": "Dolomite",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                161
+            ],
+            "skills": [
+                {
+                    "id": 161,
+                    "description": "Collect",
+                    "jobName": "Miner"
+                }
+            ],
+            "gfxIds": [
+                7555
+            ]
+        },
+        "114": {
+            "id": 114,
+            "name": "Silicate",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                162
+            ],
+            "skills": [
+                {
+                    "id": 162,
+                    "description": "Collect",
+                    "jobName": "Miner"
+                }
+            ],
+            "gfxIds": [
+                7556
+            ]
+        },
+        "116": {
+            "id": 116,
+            "name": "Magic Sewing Machine",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                166,
+                165,
+                167
+            ],
+            "skills": [
+                {
+                    "id": 167,
+                    "description": "Improve a Bag",
+                    "jobName": "Costumagus"
+                },
+                {
+                    "id": 165,
+                    "description": "Improve a Cape",
+                    "jobName": "Costumagus"
+                },
+                {
+                    "id": 166,
+                    "description": "Improve a Hat",
+                    "jobName": "Costumagus"
+                }
+            ],
+            "gfxIds": [
+                7036
+            ]
+        },
+        "117": {
+            "id": 117,
+            "name": "Magic Workshop",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                168,
+                169
+            ],
+            "skills": [
+                {
+                    "id": 169,
+                    "description": "Improve an Amulet",
+                    "jobName": "Jewelmagus"
+                },
+                {
+                    "id": 168,
+                    "description": "Improve a Ring",
+                    "jobName": "Jewelmagus"
+                }
+            ],
+            "gfxIds": [
+                7038
+            ]
+        },
+        "118": {
+            "id": 118,
+            "name": "Magic Table",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                163,
+                164
+            ],
+            "skills": [
+                {
+                    "id": 164,
+                    "description": "Improve a Belt",
+                    "jobName": "Shoemagus"
+                },
+                {
+                    "id": 163,
+                    "description": "Improve Boots",
+                    "jobName": "Shoemagus"
+                }
+            ],
+            "gfxIds": [
+                7037
+            ]
+        },
+        "119": {
+            "id": 119,
+            "name": "List of Craftsmen",
+            "type": 12,
+            "typeName": "Craftsmen List",
+            "skillIds": [
+                170
+            ],
+            "skills": [
+                {
+                    "id": 170,
+                    "description": "Consult",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7035
+            ]
+        },
+        "120": {
+            "id": 120,
+            "name": "Paddock",
+            "type": 13,
+            "typeName": "Paddock",
+            "skillIds": [
+                177,
+                178,
+                176,
+                175
+            ],
+            "skills": [
+                {
+                    "id": 175,
+                    "description": "Access",
+                    "jobName": "None"
+                },
+                {
+                    "id": 176,
+                    "description": "Buy",
+                    "jobName": "None"
+                },
+                {
+                    "id": 178,
+                    "description": "Change sale price",
+                    "jobName": "None"
+                },
+                {
+                    "id": 177,
+                    "description": "Sell",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                6766,
+                6767,
+                6763,
+                6772
+            ]
+        },
+        "121": {
+            "id": 121,
+            "name": "Kaliptus",
+            "type": 1,
+            "typeName": "Gathering\/Resource",
+            "skillIds": [
+                174
+            ],
+            "skills": [
+                {
+                    "id": 174,
+                    "description": "Cut",
+                    "jobName": "Lumberjack"
+                }
+            ],
+            "gfxIds": [
+                7557
+            ]
+        },
+        "122": {
+            "id": 122,
+            "name": "Workbench",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                171,
+                182
+            ],
+            "skills": [
+                {
+                    "id": 182,
+                    "description": "Craft a key",
+                    "jobName": "Handyman"
+                },
+                {
+                    "id": 171,
+                    "description": "Do It Yourself",
+                    "jobName": "Handyman"
+                }
+            ],
+            "gfxIds": [
+                7039
+            ]
+        },
+        "127": {
+            "id": 127,
+            "name": "Switch",
+            "type": 14,
+            "typeName": "Switch",
+            "skillIds": [
+                179
+            ],
+            "skills": [
+                {
+                    "id": 179,
+                    "description": "Use",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                7041,
+                7042,
+                7043,
+                7044,
+                7045
+            ]
+        },
+        "128": {
+            "id": 128,
+            "name": "Class Statue",
+            "type": 15,
+            "typeName": "Class Statue",
+            "skillIds": [
+                183
+            ],
+            "skills": [
+                {
+                    "id": 183,
+                    "description": "Go to Incarnam",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                1853,
+                1854,
+                1855,
+                1856,
+                1857,
+                1858,
+                1859,
+                1860,
+                1861,
+                1862,
+                1845,
+                2319
+            ]
+        },
+        "130": {
+            "id": 130,
+            "name": "Card Recycler",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                188
+            ],
+            "skills": [
+                {
+                    "id": 188,
+                    "description": "Recycler des cartes",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                6631
+            ]
+        },
+        "131": {
+            "id": 131,
+            "name": "Card Crafter",
+            "type": 2,
+            "typeName": "Crafting Station",
+            "skillIds": [
+                189
+            ],
+            "skills": [
+                {
+                    "id": 189,
+                    "description": "Fusionner des cartes",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                6632
+            ]
+        },
+        "132": {
+            "id": 132,
+            "name": "Spectral candle",
+            "type": 14,
+            "typeName": "Switch",
+            "skillIds": [
+                190
+            ],
+            "skills": [
+                {
+                    "id": 190,
+                    "description": "Extinguish",
+                    "jobName": "None"
+                }
+            ],
+            "gfxIds": [
+                1016
+            ]
+        }
+    },
+    "skills": {
+        "175": {
+            "id": 175,
+            "description": "Access",
+            "interactiveObjectId": 120,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": "L?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "27": {
+            "id": 27,
+            "description": "Bake bread",
+            "interactiveObjectId": 22,
+            "jobId": 25,
+            "jobName": "Baker",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                468,
+                520,
+                521,
+                522,
+                524,
+                526,
+                527,
+                528,
+                536,
+                539,
+                692,
+                1737,
+                1738,
+                2020,
+                2024,
+                2025,
+                2028,
+                2031,
+                2038,
+                2635,
+                2636,
+                10079
+            ],
+            "forgemagusType": null
+        },
+        "157": {
+            "id": 157,
+            "description": "Be transported",
+            "interactiveObjectId": 106,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "96": {
+            "id": 96,
+            "description": "Brew",
+            "interactiveObjectId": 62,
+            "jobId": 0,
+            "jobName": "Unknown",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "97": {
+            "id": 97,
+            "description": "Buy",
+            "interactiveObjectId": 70,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": "!O&S?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "176": {
+            "id": 176,
+            "description": "Buy",
+            "interactiveObjectId": 120,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": "!N&!O&S?V:X",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "15": {
+            "id": 15,
+            "description": "Carve a Bow",
+            "interactiveObjectId": 13,
+            "jobId": 13,
+            "jobName": "Bow Carver",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                88,
+                89,
+                90,
+                91,
+                264,
+                265,
+                266,
+                267,
+                270,
+                272,
+                273,
+                329,
+                331,
+                332,
+                337,
+                420,
+                462,
+                592,
+                640,
+                828,
+                829,
+                1092,
+                1093,
+                1094,
+                1095,
+                1096,
+                1097,
+                1098,
+                1112,
+                1113,
+                1114,
+                1115,
+                1116,
+                1117,
+                1118,
+                1119,
+                1120,
+                1121,
+                1122,
+                1123,
+                1124,
+                1125,
+                1126,
+                1127,
+                1128,
+                1350,
+                1351,
+                1352,
+                1353,
+                1354,
+                1355,
+                1620,
+                6445,
+                6446,
+                6451,
+                6452,
+                6453,
+                6484,
+                6485,
+                6491,
+                7160,
+                7161,
+                7162,
+                7163,
+                7164,
+                7187,
+                7194,
+                8005,
+                8103,
+                8104,
+                8295,
+                8609,
+                8610,
+                8864,
+                8924,
+                8925,
+                9134,
+                11539
+            ],
+            "forgemagusType": null
+        },
+        "17": {
+            "id": 17,
+            "description": "Carve a Staff",
+            "interactiveObjectId": 13,
+            "jobId": 18,
+            "jobName": "Staff Carver",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                138,
+                139,
+                140,
+                182,
+                183,
+                184,
+                185,
+                188,
+                194,
+                200,
+                201,
+                204,
+                317,
+                318,
+                319,
+                320,
+                335,
+                336,
+                436,
+                619,
+                657,
+                658,
+                742,
+                791,
+                1109,
+                1110,
+                1111,
+                1147,
+                1148,
+                1149,
+                1150,
+                1151,
+                1152,
+                1153,
+                1154,
+                1157,
+                1161,
+                1162,
+                1163,
+                1164,
+                1363,
+                1364,
+                1365,
+                1366,
+                1367,
+                1368,
+                2066,
+                2417,
+                2640,
+                3652,
+                6442,
+                6454,
+                6492,
+                6521,
+                6522,
+                6523,
+                6524,
+                6525,
+                6725,
+                6762,
+                6769,
+                6792,
+                7176,
+                7178,
+                7181,
+                7182,
+                7183,
+                7184,
+                7185,
+                7189,
+                7204,
+                7205,
+                7206,
+                7207,
+                7254,
+                8090,
+                8091,
+                8275,
+                8297,
+                8300,
+                8607,
+                8608,
+                8836,
+                8837,
+                8838,
+                8849,
+                8850,
+                9136
+            ],
+            "forgemagusType": null
+        },
+        "16": {
+            "id": 16,
+            "description": "Carve a Wand",
+            "interactiveObjectId": 13,
+            "jobId": 19,
+            "jobName": "Wand Carver",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                132,
+                133,
+                134,
+                162,
+                163,
+                164,
+                165,
+                168,
+                174,
+                180,
+                181,
+                333,
+                334,
+                469,
+                830,
+                831,
+                832,
+                833,
+                834,
+                835,
+                1101,
+                1102,
+                1103,
+                1104,
+                1105,
+                1107,
+                1108,
+                1131,
+                1132,
+                1133,
+                1134,
+                1135,
+                1136,
+                1137,
+                1138,
+                1139,
+                1140,
+                1143,
+                1144,
+                1145,
+                1146,
+                1356,
+                1357,
+                1359,
+                1360,
+                1361,
+                1362,
+                1503,
+                1739,
+                5999,
+                6438,
+                6439,
+                6440,
+                6494,
+                6495,
+                6496,
+                6497,
+                6518,
+                6519,
+                6520,
+                7103,
+                7110,
+                7165,
+                7167,
+                7168,
+                7169,
+                7170,
+                7171,
+                7172,
+                7173,
+                7368,
+                8088,
+                8089,
+                8110,
+                8118,
+                8296,
+                8611,
+                8612,
+                8834,
+                8835,
+                9135
+            ],
+            "forgemagusType": null
+        },
+        "108": {
+            "id": 108,
+            "description": "Change sale price",
+            "interactiveObjectId": 70,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": "O&S?V:X",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "178": {
+            "id": 178,
+            "description": "Change sale price",
+            "interactiveObjectId": 120,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": "!N&O&S?V:X",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "24": {
+            "id": 24,
+            "description": "Collect",
+            "interactiveObjectId": 17,
+            "jobId": 24,
+            "jobName": "Miner",
+            "criterion": "J?V:-",
+            "itemId": 312,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "25": {
+            "id": 25,
+            "description": "Collect",
+            "interactiveObjectId": 53,
+            "jobId": 24,
+            "jobName": "Miner",
+            "criterion": "J?V:-",
+            "itemId": 441,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "26": {
+            "id": 26,
+            "description": "Collect",
+            "interactiveObjectId": 55,
+            "jobId": 24,
+            "jobName": "Miner",
+            "criterion": "J?V:-",
+            "itemId": 442,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "28": {
+            "id": 28,
+            "description": "Collect",
+            "interactiveObjectId": 37,
+            "jobId": 24,
+            "jobName": "Miner",
+            "criterion": "J?V:-",
+            "itemId": 443,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "29": {
+            "id": 29,
+            "description": "Collect",
+            "interactiveObjectId": 24,
+            "jobId": 24,
+            "jobName": "Miner",
+            "criterion": "J?V:-",
+            "itemId": 350,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "30": {
+            "id": 30,
+            "description": "Collect",
+            "interactiveObjectId": 25,
+            "jobId": 24,
+            "jobName": "Miner",
+            "criterion": "J?V:-",
+            "itemId": 313,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "31": {
+            "id": 31,
+            "description": "Collect",
+            "interactiveObjectId": 26,
+            "jobId": 24,
+            "jobName": "Miner",
+            "criterion": "J?V:-",
+            "itemId": 446,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "55": {
+            "id": 55,
+            "description": "Collect",
+            "interactiveObjectId": 52,
+            "jobId": 24,
+            "jobName": "Miner",
+            "criterion": "J?V:-",
+            "itemId": 444,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "56": {
+            "id": 56,
+            "description": "Collect",
+            "interactiveObjectId": 54,
+            "jobId": 24,
+            "jobName": "Miner",
+            "criterion": "J?V:-",
+            "itemId": 445,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "161": {
+            "id": 161,
+            "description": "Collect",
+            "interactiveObjectId": 113,
+            "jobId": 24,
+            "jobName": "Miner",
+            "criterion": "J?V:-",
+            "itemId": 7033,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "162": {
+            "id": 162,
+            "description": "Collect",
+            "interactiveObjectId": 114,
+            "jobId": 24,
+            "jobName": "Miner",
+            "criterion": "J?V:-",
+            "itemId": 7032,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "170": {
+            "id": 170,
+            "description": "Consult",
+            "interactiveObjectId": 119,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "14": {
+            "id": 14,
+            "description": "Craft a Belt",
+            "interactiveObjectId": 11,
+            "jobId": 15,
+            "jobName": "Shoemaker",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                156,
+                203,
+                252,
+                253,
+                254,
+                255,
+                256,
+                257,
+                258,
+                259,
+                260,
+                261,
+                262,
+                263,
+                356,
+                734,
+                789,
+                860,
+                1487,
+                1667,
+                1668,
+                1669,
+                1700,
+                1701,
+                1720,
+                2233,
+                2367,
+                2368,
+                2369,
+                2370,
+                2371,
+                2403,
+                2427,
+                2428,
+                2429,
+                2444,
+                2471,
+                2477,
+                2537,
+                2655,
+                2677,
+                2678,
+                2681,
+                2683,
+                2685,
+                2687,
+                2688,
+                2689,
+                2710,
+                2803,
+                2804,
+                2807,
+                2808,
+                2809,
+                2810,
+                2811,
+                3206,
+                6450,
+                6498,
+                6724,
+                6745,
+                6758,
+                6759,
+                6776,
+                6796,
+                6831,
+                6908,
+                6912,
+                6925,
+                6929,
+                6935,
+                6948,
+                6949,
+                6950,
+                6951,
+                6955,
+                7039,
+                7139,
+                7140,
+                7238,
+                7239,
+                7240,
+                7241,
+                7559,
+                7885,
+                7902,
+                8008,
+                8113,
+                8119,
+                8124,
+                8132,
+                8152,
+                8237,
+                8238,
+                8239,
+                8240,
+                8241,
+                8242,
+                8266,
+                8282,
+                8283,
+                8288,
+                8303,
+                8447,
+                8455,
+                8461,
+                8468,
+                8473,
+                8651,
+                8652,
+                8653,
+                8654,
+                8655,
+                8656,
+                8657,
+                8658,
+                8659,
+                8660,
+                8661,
+                8662,
+                8856,
+                8862,
+                8870,
+                8871,
+                8873,
+                9143,
+                9144,
+                9145,
+                9146,
+                9167,
+                9168,
+                9169,
+                9170,
+                9171,
+                9172,
+                9173,
+                9174,
+                9175,
+                9183,
+                9366,
+                11545
+            ],
+            "forgemagusType": null
+        },
+        "182": {
+            "id": 182,
+            "description": "Craft a key",
+            "interactiveObjectId": 122,
+            "jobId": 65,
+            "jobName": "Handyman",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                1568,
+                1569,
+                1570,
+                6884,
+                7309,
+                7310,
+                7311,
+                7312,
+                7511,
+                7557,
+                7908,
+                7918,
+                7924,
+                7926,
+                7927,
+                8135,
+                8139,
+                8142,
+                8143,
+                8156,
+                8307,
+                8320,
+                8342,
+                8343,
+                8436,
+                8437,
+                8438,
+                8439,
+                8917,
+                9247,
+                9248,
+                9254,
+                11474,
+                11475
+            ],
+            "forgemagusType": null
+        },
+        "13": {
+            "id": 13,
+            "description": "Craft Boots",
+            "interactiveObjectId": 11,
+            "jobId": 15,
+            "jobName": "Shoemaker",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                127,
+                128,
+                129,
+                130,
+                297,
+                298,
+                299,
+                348,
+                733,
+                769,
+                770,
+                784,
+                837,
+                861,
+                862,
+                863,
+                864,
+                888,
+                889,
+                890,
+                891,
+                892,
+                902,
+                903,
+                904,
+                905,
+                906,
+                907,
+                908,
+                909,
+                910,
+                912,
+                924,
+                1621,
+                1622,
+                1623,
+                1624,
+                1665,
+                1666,
+                2063,
+                2372,
+                2373,
+                2374,
+                2375,
+                2384,
+                2400,
+                2421,
+                2422,
+                2423,
+                2435,
+                2442,
+                2470,
+                2476,
+                2530,
+                2545,
+                3207,
+                6470,
+                6471,
+                6493,
+                6721,
+                6744,
+                6753,
+                6754,
+                6755,
+                6774,
+                6794,
+                6825,
+                6909,
+                6933,
+                6953,
+                7104,
+                7107,
+                7214,
+                7215,
+                7216,
+                7217,
+                7218,
+                7219,
+                7242,
+                7243,
+                7244,
+                7245,
+                7513,
+                7514,
+                7554,
+                7883,
+                8006,
+                8111,
+                8122,
+                8128,
+                8146,
+                8225,
+                8226,
+                8227,
+                8228,
+                8229,
+                8230,
+                8264,
+                8276,
+                8277,
+                8278,
+                8291,
+                8301,
+                8446,
+                8456,
+                8462,
+                8467,
+                8471,
+                8663,
+                8664,
+                8665,
+                8666,
+                8667,
+                8668,
+                8669,
+                8670,
+                8713,
+                8726,
+                8727,
+                8728,
+                8858,
+                8861,
+                8869,
+                9139,
+                9140,
+                9158,
+                9159,
+                9160,
+                9161,
+                9162,
+                9163,
+                9164,
+                9165,
+                9166,
+                9182,
+                11547,
+                13169
+            ],
+            "forgemagusType": null
+        },
+        "12": {
+            "id": 12,
+            "description": "Create an Amulet",
+            "interactiveObjectId": 12,
+            "jobId": 16,
+            "jobName": "Jeweller",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                39,
+                68,
+                69,
+                70,
+                74,
+                75,
+                76,
+                77,
+                81,
+                82,
+                83,
+                84,
+                157,
+                158,
+                159,
+                160,
+                161,
+                279,
+                280,
+                323,
+                324,
+                325,
+                326,
+                458,
+                610,
+                616,
+                617,
+                766,
+                783,
+                786,
+                867,
+                916,
+                917,
+                1330,
+                1331,
+                1474,
+                1476,
+                1477,
+                1478,
+                1480,
+                1481,
+                1482,
+                1483,
+                1484,
+                1485,
+                1486,
+                1489,
+                1490,
+                1491,
+                1619,
+                1661,
+                1662,
+                2388,
+                2389,
+                2390,
+                2391,
+                2392,
+                2393,
+                2394,
+                2395,
+                2396,
+                2397,
+                2398,
+                2399,
+                2424,
+                2425,
+                2426,
+                2443,
+                2472,
+                2478,
+                2498,
+                4381,
+                4684,
+                5122,
+                6443,
+                6444,
+                6459,
+                6460,
+                6461,
+                6462,
+                6466,
+                6499,
+                6723,
+                6731,
+                6742,
+                6746,
+                6747,
+                6766,
+                6789,
+                6817,
+                6918,
+                6923,
+                6934,
+                6999,
+                7000,
+                7001,
+                7002,
+                7003,
+                7012,
+                7106,
+                7136,
+                7221,
+                7250,
+                7251,
+                7252,
+                7253,
+                7342,
+                7880,
+                8003,
+                8108,
+                8120,
+                8123,
+                8129,
+                8150,
+                8213,
+                8214,
+                8215,
+                8216,
+                8217,
+                8218,
+                8262,
+                8268,
+                8272,
+                8273,
+                8290,
+                8298,
+                8445,
+                8453,
+                8459,
+                8465,
+                8469,
+                8863,
+                8874,
+                8880,
+                9130,
+                9149,
+                9150,
+                9151,
+                9152,
+                9153,
+                9154,
+                9155,
+                9156,
+                9157,
+                9179,
+                9463,
+                9464,
+                10836,
+                11546,
+                13168
+            ],
+            "forgemagusType": null
+        },
+        "11": {
+            "id": 11,
+            "description": "Create a Ring",
+            "interactiveObjectId": 12,
+            "jobId": 16,
+            "jobName": "Jeweller",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                100,
+                101,
+                102,
+                103,
+                109,
+                110,
+                111,
+                112,
+                118,
+                119,
+                120,
+                121,
+                278,
+                346,
+                355,
+                359,
+                732,
+                767,
+                768,
+                785,
+                787,
+                836,
+                841,
+                849,
+                850,
+                851,
+                852,
+                1087,
+                1493,
+                1494,
+                1495,
+                1496,
+                1497,
+                1498,
+                1499,
+                1559,
+                1602,
+                1656,
+                1657,
+                2418,
+                2419,
+                2420,
+                2441,
+                2469,
+                2475,
+                3203,
+                6463,
+                6464,
+                6465,
+                6467,
+                6468,
+                6469,
+                6506,
+                6722,
+                6732,
+                6743,
+                6748,
+                6749,
+                6767,
+                6791,
+                6819,
+                6910,
+                6911,
+                6915,
+                6919,
+                6920,
+                6928,
+                6944,
+                6945,
+                6946,
+                6947,
+                6956,
+                6961,
+                6996,
+                6997,
+                6998,
+                7116,
+                7117,
+                7118,
+                7119,
+                7120,
+                7121,
+                7122,
+                7123,
+                7128,
+                7131,
+                7132,
+                7246,
+                7247,
+                7248,
+                7249,
+                7341,
+                7555,
+                7881,
+                8004,
+                8109,
+                8121,
+                8126,
+                8136,
+                8149,
+                8219,
+                8220,
+                8221,
+                8222,
+                8223,
+                8224,
+                8263,
+                8269,
+                8270,
+                8271,
+                8289,
+                8299,
+                8448,
+                8454,
+                8460,
+                8466,
+                8470,
+                8714,
+                8715,
+                8716,
+                8717,
+                8718,
+                8719,
+                8720,
+                8721,
+                8722,
+                8723,
+                8724,
+                8725,
+                8859,
+                8860,
+                8865,
+                8872,
+                8877,
+                8879,
+                8881,
+                8991,
+                9122,
+                9123,
+                9124,
+                9125,
+                9126,
+                9127,
+                9128,
+                9129,
+                9131,
+                9132,
+                9133,
+                9148,
+                9177,
+                9178,
+                11543,
+                11544
+            ],
+            "forgemagusType": null
+        },
+        "121": {
+            "id": 121,
+            "description": "Crush resources",
+            "interactiveObjectId": 93,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [
+                1526,
+                1527,
+                1528,
+                1529,
+                1531,
+                1532,
+                1533,
+                1534,
+                1535,
+                1536,
+                1537,
+                1538,
+                1882,
+                2364,
+                2378
+            ],
+            "forgemagusType": null
+        },
+        "6": {
+            "id": 6,
+            "description": "Cut",
+            "interactiveObjectId": 1,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 303,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "10": {
+            "id": 10,
+            "description": "Cut",
+            "interactiveObjectId": 8,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 460,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "33": {
+            "id": 33,
+            "description": "Cut",
+            "interactiveObjectId": 28,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 461,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "34": {
+            "id": 34,
+            "description": "Cut",
+            "interactiveObjectId": 29,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 449,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "35": {
+            "id": 35,
+            "description": "Cut",
+            "interactiveObjectId": 30,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 470,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "37": {
+            "id": 37,
+            "description": "Cut",
+            "interactiveObjectId": 31,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 471,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "38": {
+            "id": 38,
+            "description": "Cut",
+            "interactiveObjectId": 32,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 472,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "39": {
+            "id": 39,
+            "description": "Cut",
+            "interactiveObjectId": 33,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 473,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "40": {
+            "id": 40,
+            "description": "Cut",
+            "interactiveObjectId": 34,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 476,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "41": {
+            "id": 41,
+            "description": "Cut",
+            "interactiveObjectId": 35,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 474,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "139": {
+            "id": 139,
+            "description": "Cut",
+            "interactiveObjectId": 98,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 2358,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "141": {
+            "id": 141,
+            "description": "Cut",
+            "interactiveObjectId": 101,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 2357,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "154": {
+            "id": 154,
+            "description": "Cut",
+            "interactiveObjectId": 108,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 7013,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "155": {
+            "id": 155,
+            "description": "Cut",
+            "interactiveObjectId": 109,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 7016,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "158": {
+            "id": 158,
+            "description": "Cut",
+            "interactiveObjectId": 110,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 7014,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "174": {
+            "id": 174,
+            "description": "Cut",
+            "interactiveObjectId": 121,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": 7925,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "171": {
+            "id": 171,
+            "description": "Do It Yourself",
+            "interactiveObjectId": 122,
+            "jobId": 65,
+            "jobName": "Handyman",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                7590,
+                7591,
+                7592,
+                7593,
+                7594,
+                7595,
+                7596,
+                7597,
+                7598,
+                7599,
+                7600,
+                7601,
+                7602,
+                7603,
+                7604,
+                7607,
+                7608,
+                7609,
+                7610,
+                7611,
+                7612,
+                7613,
+                7614,
+                7615,
+                7616,
+                7617,
+                7618,
+                7619,
+                7620,
+                7621,
+                7622,
+                7623,
+                7624,
+                7626,
+                7627,
+                7629,
+                7635,
+                7636,
+                7637,
+                7673,
+                7674,
+                7675,
+                7676,
+                7677,
+                7678,
+                7679,
+                7682,
+                7683,
+                7684,
+                7685,
+                7686,
+                7687,
+                7688,
+                7689,
+                7690,
+                7691,
+                7692,
+                7693,
+                7694,
+                7695,
+                7696,
+                7697,
+                7698,
+                7699,
+                7700,
+                7733,
+                7734,
+                7735,
+                7736,
+                7737,
+                7738,
+                7739,
+                7740,
+                7741,
+                7742,
+                7743,
+                7744,
+                7745,
+                7746,
+                7755,
+                7756,
+                7757,
+                7758,
+                7759,
+                7760,
+                7761,
+                7762,
+                7763,
+                7764,
+                7765,
+                7766,
+                7767,
+                7768,
+                7769,
+                7770,
+                7771,
+                7772,
+                7773,
+                7774,
+                7775,
+                7776,
+                7777,
+                7778,
+                7779,
+                7780,
+                7781,
+                7782,
+                7783,
+                7784,
+                7785,
+                7786,
+                7787,
+                7788,
+                7789,
+                7790,
+                7791,
+                7792,
+                7793,
+                7794,
+                7795,
+                7796,
+                7797,
+                8990
+            ],
+            "forgemagusType": null
+        },
+        "102": {
+            "id": 102,
+            "description": "Draw",
+            "interactiveObjectId": 84,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": 311,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "133": {
+            "id": 133,
+            "description": "Empty",
+            "interactiveObjectId": 96,
+            "jobId": 36,
+            "jobName": "Fisherman",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                1751,
+                1755,
+                1758,
+                1760,
+                1761,
+                1763,
+                1780,
+                1781,
+                1783,
+                1785,
+                1787,
+                1789,
+                1791,
+                1793,
+                1795,
+                1797,
+                1798,
+                1800,
+                1802,
+                1804,
+                1806,
+                1808,
+                1845,
+                1848,
+                1851,
+                1852,
+                1854,
+                1976
+            ],
+            "forgemagusType": null
+        },
+        "84": {
+            "id": 84,
+            "description": "Enter",
+            "interactiveObjectId": 70,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "190": {
+            "id": 190,
+            "description": "Extinguish",
+            "interactiveObjectId": 132,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "124": {
+            "id": 124,
+            "description": "Fish",
+            "interactiveObjectId": 75,
+            "jobId": 36,
+            "jobName": "Fisherman",
+            "criterion": "J?V:-",
+            "itemId": 1782,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "125": {
+            "id": 125,
+            "description": "Fish",
+            "interactiveObjectId": 74,
+            "jobId": 36,
+            "jobName": "Fisherman",
+            "criterion": "J?V:-",
+            "itemId": 1844,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "126": {
+            "id": 126,
+            "description": "Fish",
+            "interactiveObjectId": 76,
+            "jobId": 36,
+            "jobName": "Fisherman",
+            "criterion": "J?V:-",
+            "itemId": 603,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "127": {
+            "id": 127,
+            "description": "Fish",
+            "interactiveObjectId": 79,
+            "jobId": 36,
+            "jobName": "Fisherman",
+            "criterion": "J?V:-",
+            "itemId": 1847,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "128": {
+            "id": 128,
+            "description": "Fish",
+            "interactiveObjectId": 71,
+            "jobId": 36,
+            "jobName": "Fisherman",
+            "criterion": "J?V:-",
+            "itemId": 598,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "129": {
+            "id": 129,
+            "description": "Fish",
+            "interactiveObjectId": 77,
+            "jobId": 36,
+            "jobName": "Fisherman",
+            "criterion": "J?V:-",
+            "itemId": 1757,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "130": {
+            "id": 130,
+            "description": "Fish",
+            "interactiveObjectId": 78,
+            "jobId": 36,
+            "jobName": "Fisherman",
+            "criterion": "J?V:-",
+            "itemId": 1750,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "131": {
+            "id": 131,
+            "description": "Fish",
+            "interactiveObjectId": 81,
+            "jobId": 36,
+            "jobName": "Fisherman",
+            "criterion": "J?V:-",
+            "itemId": 1805,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "136": {
+            "id": 136,
+            "description": "Fish",
+            "interactiveObjectId": 100,
+            "jobId": 36,
+            "jobName": "Fisherman",
+            "criterion": "J?V:-",
+            "itemId": 2187,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "140": {
+            "id": 140,
+            "description": "Fish",
+            "interactiveObjectId": 99,
+            "jobId": 36,
+            "jobName": "Fisherman",
+            "criterion": "J?V:-",
+            "itemId": 600,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "152": {
+            "id": 152,
+            "description": "Fish for Quaquack",
+            "interactiveObjectId": 104,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": 6659,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "18": {
+            "id": 18,
+            "description": "Forge a Dagger",
+            "interactiveObjectId": 57,
+            "jobId": 17,
+            "jobName": "Dagger Smith",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                94,
+                95,
+                96,
+                97,
+                205,
+                206,
+                207,
+                208,
+                211,
+                212,
+                213,
+                214,
+                218,
+                219,
+                220,
+                340,
+                341,
+                491,
+                498,
+                499,
+                500,
+                579,
+                893,
+                894,
+                895,
+                896,
+                897,
+                898,
+                899,
+                900,
+                919,
+                1026,
+                1027,
+                1028,
+                1029,
+                1030,
+                1031,
+                1032,
+                1033,
+                1034,
+                1035,
+                1036,
+                1037,
+                1038,
+                1039,
+                1040,
+                1041,
+                1369,
+                1370,
+                1371,
+                1372,
+                1373,
+                1374,
+                1504,
+                1563,
+                1564,
+                1565,
+                3647,
+                3648,
+                3649,
+                3650,
+                3651,
+                6516,
+                6517,
+                6924,
+                6981,
+                6982,
+                6983,
+                6984,
+                7188,
+                7190,
+                7191,
+                7256,
+                7493,
+                7495,
+                8092,
+                8414,
+                8444,
+                8598,
+                8599,
+                8926,
+                8927,
+                8928,
+                8929,
+                9137,
+                9176,
+                9974
+            ],
+            "forgemagusType": null
+        },
+        "19": {
+            "id": 19,
+            "description": "Forge a Hammer",
+            "interactiveObjectId": 57,
+            "jobId": 14,
+            "jobName": "Hammer Smith",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                144,
+                145,
+                146,
+                147,
+                221,
+                222,
+                223,
+                224,
+                227,
+                228,
+                229,
+                230,
+                233,
+                234,
+                235,
+                236,
+                237,
+                271,
+                342,
+                455,
+                493,
+                494,
+                495,
+                496,
+                922,
+                1060,
+                1061,
+                1062,
+                1063,
+                1064,
+                1065,
+                1066,
+                1067,
+                1068,
+                1069,
+                1070,
+                1071,
+                1072,
+                1073,
+                1074,
+                1075,
+                1076,
+                1077,
+                1078,
+                1079,
+                1080,
+                1081,
+                1082,
+                1083,
+                1084,
+                1085,
+                1379,
+                1383,
+                1393,
+                1399,
+                1403,
+                1404,
+                1479,
+                1520,
+                1539,
+                1560,
+                1561,
+                1562,
+                2416,
+                3357,
+                6503,
+                6504,
+                6505,
+                6507,
+                6508,
+                6509,
+                6510,
+                6511,
+                6512,
+                6513,
+                7098,
+                7153,
+                7154,
+                7155,
+                7156,
+                7157,
+                7158,
+                7159,
+                7197,
+                7650,
+                7882,
+                8096,
+                8097,
+                8148,
+                8294,
+                8615,
+                8616,
+                8825,
+                8826,
+                8833,
+                8878,
+                9117,
+                9961,
+                9972,
+                13282
+            ],
+            "forgemagusType": null
+        },
+        "65": {
+            "id": 65,
+            "description": "Forge an Axe",
+            "interactiveObjectId": 57,
+            "jobId": 31,
+            "jobName": "Axe Smith",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                454,
+                456,
+                478,
+                502,
+                515,
+                673,
+                674,
+                675,
+                676,
+                771,
+                782,
+                923,
+                927,
+                1375,
+                1376,
+                1377,
+                1378,
+                2587,
+                2589,
+                2590,
+                2592,
+                2593,
+                2595,
+                2597,
+                2600,
+                2601,
+                2603,
+                2604,
+                2606,
+                2608,
+                2612,
+                2614,
+                2615,
+                2616,
+                6914,
+                7208,
+                7209,
+                7210,
+                7211,
+                7212,
+                7255,
+                8099,
+                8100,
+                8101,
+                8130,
+                8274,
+                8293,
+                8617,
+                8618,
+                8827,
+                8868,
+                8933,
+                8934,
+                9138,
+                13166
+            ],
+            "forgemagusType": null
+        },
+        "67": {
+            "id": 67,
+            "description": "Forge a Pick",
+            "interactiveObjectId": 57,
+            "jobId": 33,
+            "jobName": "Pick Smith",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                1438,
+                1439
+            ],
+            "forgemagusType": null
+        },
+        "66": {
+            "id": 66,
+            "description": "Forge a Scythe",
+            "interactiveObjectId": 57,
+            "jobId": 32,
+            "jobName": "Scythe Smith",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "156": {
+            "id": 156,
+            "description": "Forge a Shield",
+            "interactiveObjectId": 107,
+            "jobId": 60,
+            "jobName": "Shield Smith",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                8855,
+                9001,
+                9002,
+                9003,
+                9004,
+                9005,
+                9006,
+                9007,
+                9008,
+                9009,
+                9010,
+                9011,
+                9012,
+                9013,
+                9014,
+                9015,
+                9016,
+                9017,
+                9018,
+                9019,
+                9020,
+                9021,
+                9022,
+                9023,
+                9024,
+                9025,
+                9026,
+                9027,
+                9028,
+                9029,
+                9030,
+                13171
+            ],
+            "forgemagusType": null
+        },
+        "21": {
+            "id": 21,
+            "description": "Forge a Shovel",
+            "interactiveObjectId": 57,
+            "jobId": 20,
+            "jobName": "Shovel Smith",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                150,
+                151,
+                152,
+                153,
+                238,
+                239,
+                240,
+                241,
+                244,
+                245,
+                246,
+                247,
+                250,
+                251,
+                293,
+                294,
+                295,
+                296,
+                345,
+                347,
+                482,
+                483,
+                484,
+                1042,
+                1043,
+                1044,
+                1045,
+                1046,
+                1047,
+                1048,
+                1049,
+                1050,
+                1051,
+                1052,
+                1053,
+                1054,
+                1055,
+                1056,
+                1057,
+                1058,
+                1059,
+                1426,
+                1427,
+                1429,
+                1430,
+                1431,
+                1432,
+                1433,
+                1435,
+                1436,
+                3356,
+                6526,
+                6527,
+                6528,
+                6535,
+                6536,
+                6537,
+                6538,
+                6539,
+                6540,
+                7213,
+                8417,
+                8419,
+                8420,
+                8613,
+                8614,
+                8935,
+                8936,
+                8937,
+                9468
+            ],
+            "forgemagusType": null
+        },
+        "20": {
+            "id": 20,
+            "description": "Forge a Sword",
+            "interactiveObjectId": 57,
+            "jobId": 11,
+            "jobName": "Sword Smith",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                40,
+                42,
+                43,
+                44,
+                46,
+                47,
+                48,
+                49,
+                51,
+                53,
+                54,
+                55,
+                58,
+                59,
+                60,
+                61,
+                62,
+                65,
+                66,
+                67,
+                202,
+                327,
+                328,
+                338,
+                339,
+                352,
+                353,
+                354,
+                357,
+                358,
+                620,
+                819,
+                820,
+                821,
+                822,
+                823,
+                824,
+                825,
+                826,
+                827,
+                928,
+                1636,
+                1637,
+                1638,
+                1639,
+                1640,
+                1641,
+                1650,
+                1651,
+                2415,
+                2440,
+                2544,
+                2637,
+                2638,
+                2639,
+                4241,
+                4242,
+                4382,
+                6750,
+                6751,
+                6752,
+                6821,
+                6957,
+                7102,
+                7192,
+                7193,
+                7195,
+                7198,
+                7199,
+                7200,
+                7201,
+                7202,
+                7203,
+                7257,
+                8094,
+                8095,
+                8292,
+                8450,
+                8596,
+                8604,
+                8605,
+                8695,
+                8930,
+                8931,
+                8932,
+                8993,
+                9469
+            ],
+            "forgemagusType": null
+        },
+        "68": {
+            "id": 68,
+            "description": "Gather",
+            "interactiveObjectId": 42,
+            "jobId": 26,
+            "jobName": "Alchemist",
+            "criterion": "J?V:-",
+            "itemId": 421,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "69": {
+            "id": 69,
+            "description": "Gather",
+            "interactiveObjectId": 46,
+            "jobId": 26,
+            "jobName": "Alchemist",
+            "criterion": "J?V:-",
+            "itemId": 428,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "71": {
+            "id": 71,
+            "description": "Gather",
+            "interactiveObjectId": 67,
+            "jobId": 26,
+            "jobName": "Alchemist",
+            "criterion": "J?V:-",
+            "itemId": 395,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "72": {
+            "id": 72,
+            "description": "Gather",
+            "interactiveObjectId": 66,
+            "jobId": 26,
+            "jobName": "Alchemist",
+            "criterion": "J?V:-",
+            "itemId": 380,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "73": {
+            "id": 73,
+            "description": "Gather",
+            "interactiveObjectId": 68,
+            "jobId": 26,
+            "jobName": "Alchemist",
+            "criterion": "J?V:-",
+            "itemId": 593,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "74": {
+            "id": 74,
+            "description": "Gather",
+            "interactiveObjectId": 61,
+            "jobId": 26,
+            "jobName": "Alchemist",
+            "criterion": "J?V:-",
+            "itemId": 594,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "160": {
+            "id": 160,
+            "description": "Gather",
+            "interactiveObjectId": 112,
+            "jobId": 26,
+            "jobName": "Alchemist",
+            "criterion": "J?V:-",
+            "itemId": 7059,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "183": {
+            "id": 183,
+            "description": "Go to Incarnam",
+            "interactiveObjectId": 128,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "47": {
+            "id": 47,
+            "description": "Grind",
+            "interactiveObjectId": 50,
+            "jobId": 28,
+            "jobName": "Farmer",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                285,
+                389,
+                390,
+                396,
+                397,
+                399,
+                529,
+                530,
+                531,
+                534,
+                535,
+                582,
+                583,
+                586,
+                587,
+                690,
+                2019,
+                2022,
+                2027,
+                2030,
+                2033,
+                2037,
+                6672,
+                7068
+            ],
+            "forgemagusType": null
+        },
+        "167": {
+            "id": 167,
+            "description": "Improve a Bag",
+            "interactiveObjectId": 116,
+            "jobId": 64,
+            "jobName": "Costumagus",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": 81
+        },
+        "164": {
+            "id": 164,
+            "description": "Improve a Belt",
+            "interactiveObjectId": 118,
+            "jobId": 62,
+            "jobName": "Shoemagus",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": 10
+        },
+        "118": {
+            "id": 118,
+            "description": "Improve a Bow",
+            "interactiveObjectId": 92,
+            "jobId": 48,
+            "jobName": "Bow Carvemagus",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": 2
+        },
+        "165": {
+            "id": 165,
+            "description": "Improve a Cape",
+            "interactiveObjectId": 116,
+            "jobId": 64,
+            "jobName": "Costumagus",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": 17
+        },
+        "1": {
+            "id": 1,
+            "description": "Improve a Dagger",
+            "interactiveObjectId": 92,
+            "jobId": 43,
+            "jobName": "Dagger Smithmagus",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": 5
+        },
+        "116": {
+            "id": 116,
+            "description": "Improve a Hammer",
+            "interactiveObjectId": 92,
+            "jobId": 45,
+            "jobName": "Hammer Smithmagus",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": 7
+        },
+        "166": {
+            "id": 166,
+            "description": "Improve a Hat",
+            "interactiveObjectId": 116,
+            "jobId": 64,
+            "jobName": "Costumagus",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": 16
+        },
+        "169": {
+            "id": 169,
+            "description": "Improve an Amulet",
+            "interactiveObjectId": 117,
+            "jobId": 63,
+            "jobName": "Jewelmagus",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": 1
+        },
+        "115": {
+            "id": 115,
+            "description": "Improve an Axe",
+            "interactiveObjectId": 92,
+            "jobId": 47,
+            "jobName": "Axe Smithmagus",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": 19
+        },
+        "168": {
+            "id": 168,
+            "description": "Improve a Ring",
+            "interactiveObjectId": 117,
+            "jobId": 63,
+            "jobName": "Jewelmagus",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": 9
+        },
+        "117": {
+            "id": 117,
+            "description": "Improve a Shovel",
+            "interactiveObjectId": 92,
+            "jobId": 46,
+            "jobName": "Shovel Smithmagus",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": 8
+        },
+        "120": {
+            "id": 120,
+            "description": "Improve a Staff",
+            "interactiveObjectId": 92,
+            "jobId": 50,
+            "jobName": "Staff Carvemagus",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": 4
+        },
+        "113": {
+            "id": 113,
+            "description": "Improve a Sword",
+            "interactiveObjectId": 92,
+            "jobId": 44,
+            "jobName": "Sword Smithmagus",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": 6
+        },
+        "119": {
+            "id": 119,
+            "description": "Improve a Wand",
+            "interactiveObjectId": 92,
+            "jobId": 49,
+            "jobName": "Wand Carvemagus",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": 3
+        },
+        "163": {
+            "id": 163,
+            "description": "Improve Boots",
+            "interactiveObjectId": 118,
+            "jobId": 62,
+            "jobName": "Shoemagus",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": 11
+        },
+        "187": {
+            "id": 187,
+            "description": "Leave",
+            "interactiveObjectId": 129,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "81": {
+            "id": 81,
+            "description": "Lock",
+            "interactiveObjectId": 70,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": "O&!L?V:X",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "105": {
+            "id": 105,
+            "description": "Lock",
+            "interactiveObjectId": 85,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": "O&!L?V:X",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "109": {
+            "id": 109,
+            "description": "Make candies",
+            "interactiveObjectId": 22,
+            "jobId": 25,
+            "jobName": "Baker",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                993,
+                994,
+                995,
+                2034
+            ],
+            "forgemagusType": null
+        },
+        "32": {
+            "id": 32,
+            "description": "Melt",
+            "interactiveObjectId": 27,
+            "jobId": 24,
+            "jobName": "Miner",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                745,
+                746,
+                747,
+                748,
+                749,
+                750,
+                2529,
+                2538,
+                2541,
+                6457,
+                6458,
+                7035,
+                7036
+            ],
+            "forgemagusType": null
+        },
+        "106": {
+            "id": 106,
+            "description": "Modify code",
+            "interactiveObjectId": 85,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": "O&L?V:X",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "104": {
+            "id": 104,
+            "description": "Open",
+            "interactiveObjectId": 85,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "22": {
+            "id": 22,
+            "description": "Peel",
+            "interactiveObjectId": 49,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [
+                538
+            ],
+            "forgemagusType": null
+        },
+        "42": {
+            "id": 42,
+            "description": "Pick up",
+            "interactiveObjectId": 48,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": 537,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "150": {
+            "id": 150,
+            "description": "Play",
+            "interactiveObjectId": 102,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": 0,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "48": {
+            "id": 48,
+            "description": "Polish a stone",
+            "interactiveObjectId": 41,
+            "jobId": 24,
+            "jobName": "Miner",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                315,
+                316,
+                465,
+                466,
+                467,
+                7026,
+                7027,
+                7028,
+                7461,
+                7462,
+                7463,
+                7464,
+                7465,
+                7466,
+                7467,
+                7468,
+                7469,
+                7470,
+                7471,
+                7472,
+                7473,
+                7474,
+                7475,
+                7476,
+                7477,
+                7478,
+                7479,
+                7480,
+                7481,
+                7482,
+                7483,
+                7484,
+                7485,
+                7486,
+                7487,
+                7488,
+                7489,
+                7490,
+                7491,
+                7492,
+                7508,
+                8377,
+                9941,
+                13172,
+                13173,
+                13174,
+                13175,
+                13176
+            ],
+            "forgemagusType": null
+        },
+        "132": {
+            "id": 132,
+            "description": "Prepare",
+            "interactiveObjectId": 95,
+            "jobId": 41,
+            "jobName": "Hunter",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                1987,
+                1988,
+                1989,
+                1990,
+                1991,
+                1992,
+                1993,
+                1994,
+                1995,
+                1997,
+                1998,
+                1999,
+                2000,
+                2001,
+                2002,
+                2003,
+                2004,
+                2005,
+                2006,
+                2007,
+                2008,
+                2009,
+                2010,
+                2014,
+                2015,
+                2016,
+                2017,
+                8501,
+                8502,
+                8503,
+                9771,
+                9773,
+                9774,
+                9775,
+                9776,
+                9777,
+                11571,
+                11572,
+                13183,
+                13184,
+                13185,
+                13186
+            ],
+            "forgemagusType": null
+        },
+        "23": {
+            "id": 23,
+            "description": "Prepare a potion",
+            "interactiveObjectId": 90,
+            "jobId": 26,
+            "jobName": "Alchemist",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                282,
+                283,
+                286,
+                548,
+                580,
+                793,
+                1182,
+                1183,
+                1333,
+                1335,
+                1337,
+                1338,
+                1340,
+                1341,
+                1342,
+                1343,
+                1345,
+                1346,
+                1347,
+                1348,
+                1405,
+                1406,
+                1461,
+                1462,
+                1542,
+                1587,
+                1588,
+                1589,
+                1590,
+                1591,
+                1592,
+                1593,
+                1594,
+                1595,
+                1596,
+                1597,
+                1598,
+                1599,
+                1600,
+                1601,
+                1642,
+                1643,
+                1644,
+                1645,
+                1646,
+                1647,
+                1648,
+                1649,
+                1686,
+                1687,
+                1688,
+                1689,
+                1692,
+                1712,
+                1713,
+                1741,
+                1742,
+                2183,
+                2184,
+                2185,
+                2186,
+                6964,
+                6965,
+                7314,
+                7315,
+                7316,
+                7317,
+                7318,
+                7319,
+                7320,
+                7321,
+                7322,
+                7323,
+                7324,
+                7325,
+                7326,
+                7327,
+                7328,
+                7329,
+                7421,
+                7498,
+                7505,
+                7506,
+                7507,
+                7652,
+                8106,
+                8883,
+                8913,
+                9035,
+                9038,
+                9040,
+                9041,
+                9869,
+                9870,
+                9882,
+                9883,
+                9884,
+                9885,
+                9886,
+                9887,
+                9888,
+                9897,
+                9898,
+                9899,
+                9900,
+                10208,
+                10209,
+                10210,
+                10211,
+                10212,
+                10213,
+                10214,
+                10215,
+                10216,
+                10217,
+                10218,
+                10219,
+                10750,
+                10751,
+                10752,
+                10753,
+                10754,
+                10755,
+                10756,
+                10757,
+                10758,
+                10759,
+                10760,
+                10761,
+                10762,
+                10763,
+                10764,
+                10765,
+                10766,
+                10767,
+                10768,
+                10769,
+                10770,
+                10771,
+                10772,
+                10773,
+                10774,
+                10775,
+                10776,
+                10777,
+                10778,
+                10779,
+                10780,
+                10781,
+                10782,
+                10783,
+                10809,
+                10811,
+                10883,
+                10884,
+                10885,
+                10886,
+                11010,
+                11036,
+                11467,
+                11700,
+                11701,
+                11723,
+                11738,
+                11741,
+                11742,
+                11765,
+                11769,
+                11778,
+                11784,
+                11802,
+                11807,
+                12751,
+                12763,
+                12822,
+                12825,
+                13072,
+                13073,
+                13074,
+                13075
+            ],
+            "forgemagusType": null
+        },
+        "135": {
+            "id": 135,
+            "description": "Prepare fish",
+            "interactiveObjectId": 94,
+            "jobId": 58,
+            "jobName": "Fish Monger",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                1752,
+                1753,
+                1756,
+                1764,
+                1765,
+                1766,
+                1767,
+                1768,
+                1769,
+                1809,
+                1810,
+                1811,
+                1812,
+                1813,
+                1814,
+                1815,
+                1816,
+                1817,
+                1818,
+                1819,
+                1820,
+                1821,
+                1822,
+                1823,
+                1824,
+                1825,
+                1826,
+                1827,
+                1828,
+                1829,
+                1830,
+                1831,
+                1832,
+                1833,
+                1834,
+                1835,
+                1836,
+                1837,
+                1838,
+                1839,
+                1840,
+                1859
+            ],
+            "forgemagusType": null
+        },
+        "134": {
+            "id": 134,
+            "description": "Prepare meat",
+            "interactiveObjectId": 97,
+            "jobId": 56,
+            "jobName": "Butcher",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                1947,
+                1948,
+                1949,
+                1950,
+                1951,
+                1952,
+                1953,
+                1954,
+                1955,
+                1956,
+                1957,
+                1958,
+                1959,
+                1960,
+                1961,
+                1962,
+                1963,
+                1964,
+                1965,
+                1966,
+                1967,
+                1968,
+                1969,
+                1970,
+                1971,
+                1972,
+                2013,
+                7509,
+                7536,
+                7537,
+                7538,
+                7539,
+                7540,
+                7541,
+                7542,
+                7543,
+                7544,
+                7545,
+                7546,
+                7547,
+                7548,
+                7549,
+                7550,
+                7551,
+                7721,
+                7722,
+                7723,
+                7724,
+                7726,
+                7727,
+                7728,
+                7729,
+                7730,
+                7731,
+                7893,
+                7894,
+                8016,
+                8017,
+                8020,
+                8171,
+                8172,
+                8173,
+                8174,
+                8504,
+                8505,
+                8506,
+                8524,
+                8565,
+                8679,
+                8706,
+                8885,
+                9595,
+                9616,
+                9661,
+                9665,
+                9666,
+                9671,
+                9778,
+                9780,
+                9781,
+                9782,
+                9783,
+                9784,
+                9786,
+                10108,
+                10109,
+                10597,
+                10658,
+                10867,
+                10868,
+                10869,
+                10870,
+                10986,
+                11016,
+                11466,
+                11558,
+                11573,
+                11574,
+                11704,
+                11722,
+                11737,
+                11739,
+                11744,
+                11763,
+                11768,
+                11777,
+                11783,
+                11800,
+                11805,
+                12749,
+                12765,
+                12821,
+                12824,
+                13069,
+                13070,
+                13071,
+                13080,
+                13187,
+                13188,
+                13189,
+                13190
+            ],
+            "forgemagusType": null
+        },
+        "45": {
+            "id": 45,
+            "description": "Reap",
+            "interactiveObjectId": 38,
+            "jobId": 28,
+            "jobName": "Farmer",
+            "criterion": "J?V:-",
+            "itemId": 289,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "46": {
+            "id": 46,
+            "description": "Reap",
+            "interactiveObjectId": 39,
+            "jobId": 28,
+            "jobName": "Farmer",
+            "criterion": "J?V:-",
+            "itemId": 401,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "50": {
+            "id": 50,
+            "description": "Reap",
+            "interactiveObjectId": 42,
+            "jobId": 28,
+            "jobName": "Farmer",
+            "criterion": "J?V:-",
+            "itemId": 423,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "52": {
+            "id": 52,
+            "description": "Reap",
+            "interactiveObjectId": 44,
+            "jobId": 28,
+            "jobName": "Farmer",
+            "criterion": "J?V:-",
+            "itemId": 532,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "53": {
+            "id": 53,
+            "description": "Reap",
+            "interactiveObjectId": 43,
+            "jobId": 28,
+            "jobName": "Farmer",
+            "criterion": "J?V:-",
+            "itemId": 400,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "54": {
+            "id": 54,
+            "description": "Reap",
+            "interactiveObjectId": 46,
+            "jobId": 28,
+            "jobName": "Farmer",
+            "criterion": "J?V:-",
+            "itemId": 425,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "57": {
+            "id": 57,
+            "description": "Reap",
+            "interactiveObjectId": 45,
+            "jobId": 28,
+            "jobName": "Farmer",
+            "criterion": "J?V:-",
+            "itemId": 533,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "58": {
+            "id": 58,
+            "description": "Reap",
+            "interactiveObjectId": 47,
+            "jobId": 28,
+            "jobName": "Farmer",
+            "criterion": "J?V:-",
+            "itemId": 405,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "159": {
+            "id": 159,
+            "description": "Reap",
+            "interactiveObjectId": 111,
+            "jobId": 28,
+            "jobName": "Farmer",
+            "criterion": "J?V:-",
+            "itemId": 7018,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "62": {
+            "id": 62,
+            "description": "Regenarate",
+            "interactiveObjectId": 56,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": "N?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "111": {
+            "id": 111,
+            "description": "Regenarate",
+            "interactiveObjectId": 60,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "149": {
+            "id": 149,
+            "description": "Repair a Bow",
+            "interactiveObjectId": 13,
+            "jobId": 13,
+            "jobName": "Bow Carver",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "142": {
+            "id": 142,
+            "description": "Repair a Dagger",
+            "interactiveObjectId": 57,
+            "jobId": 17,
+            "jobName": "Dagger Smith",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "144": {
+            "id": 144,
+            "description": "Repair a Hammer",
+            "interactiveObjectId": 57,
+            "jobId": 14,
+            "jobName": "Hammer Smith",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "143": {
+            "id": 143,
+            "description": "Repair an Axe",
+            "interactiveObjectId": 57,
+            "jobId": 31,
+            "jobName": "Axe Smith",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "146": {
+            "id": 146,
+            "description": "Repair a Shovel",
+            "interactiveObjectId": 57,
+            "jobId": 20,
+            "jobName": "Shovel Smith",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "147": {
+            "id": 147,
+            "description": "Repair a Staff",
+            "interactiveObjectId": 13,
+            "jobId": 18,
+            "jobName": "Staff Carver",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "145": {
+            "id": 145,
+            "description": "Repair a Sword",
+            "interactiveObjectId": 57,
+            "jobId": 11,
+            "jobName": "Sword Smith",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "148": {
+            "id": 148,
+            "description": "Repair a Wand",
+            "interactiveObjectId": 13,
+            "jobId": 19,
+            "jobName": "Wand Carver",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "101": {
+            "id": 101,
+            "description": "Saw",
+            "interactiveObjectId": 2,
+            "jobId": 2,
+            "jobName": "Lumberjack",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                459,
+                2539,
+                2540,
+                2543,
+                6868,
+                7653,
+                7654,
+                7655,
+                7656,
+                7657,
+                7658,
+                7659,
+                7660,
+                7661,
+                7662,
+                7663,
+                7664,
+                7665,
+                7666,
+                7667,
+                7668,
+                7669,
+                7670,
+                7671,
+                7672,
+                8078
+            ],
+            "forgemagusType": null
+        },
+        "153": {
+            "id": 153,
+            "description": "Search",
+            "interactiveObjectId": 105,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "98": {
+            "id": 98,
+            "description": "Sell",
+            "interactiveObjectId": 70,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": "O&!S?V:X",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "177": {
+            "id": 177,
+            "description": "Sell",
+            "interactiveObjectId": 120,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": "!N&O&!S?V:X",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "123": {
+            "id": 123,
+            "description": "Sew a Bag",
+            "interactiveObjectId": 86,
+            "jobId": 27,
+            "jobName": "Tailor",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                1697,
+                1698,
+                1699,
+                1702,
+                1703,
+                1704,
+                1705,
+                1707,
+                6501,
+                6830,
+                6916,
+                7108,
+                8131
+            ],
+            "forgemagusType": null
+        },
+        "64": {
+            "id": 64,
+            "description": "Sew a Cape",
+            "interactiveObjectId": 86,
+            "jobId": 27,
+            "jobName": "Tailor",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                744,
+                754,
+                758,
+                759,
+                772,
+                773,
+                774,
+                775,
+                776,
+                777,
+                779,
+                781,
+                790,
+                932,
+                933,
+                934,
+                935,
+                936,
+                937,
+                945,
+                946,
+                947,
+                948,
+                952,
+                953,
+                954,
+                955,
+                956,
+                957,
+                1500,
+                1693,
+                1695,
+                1910,
+                2061,
+                2380,
+                2381,
+                2382,
+                2383,
+                2385,
+                2386,
+                2387,
+                2412,
+                2413,
+                2414,
+                2445,
+                2446,
+                2473,
+                2489,
+                2532,
+                2534,
+                2547,
+                2629,
+                6449,
+                6720,
+                6756,
+                6757,
+                6763,
+                6775,
+                6795,
+                6922,
+                6927,
+                6931,
+                6940,
+                6941,
+                6942,
+                6943,
+                6954,
+                6993,
+                6994,
+                6995,
+                7137,
+                7138,
+                7174,
+                7230,
+                7231,
+                7232,
+                7233,
+                7340,
+                7515,
+                7552,
+                7884,
+                8007,
+                8112,
+                8117,
+                8134,
+                8181,
+                8231,
+                8232,
+                8233,
+                8234,
+                8235,
+                8236,
+                8265,
+                8279,
+                8280,
+                8281,
+                8286,
+                8302,
+                8366,
+                8443,
+                8452,
+                8458,
+                8464,
+                8472,
+                8639,
+                8640,
+                8641,
+                8642,
+                8643,
+                8644,
+                8645,
+                8646,
+                8647,
+                8648,
+                8649,
+                8650,
+                8818,
+                8819,
+                8866,
+                8867,
+                8876,
+                8919,
+                9141,
+                9142,
+                9180,
+                10846,
+                11542
+            ],
+            "forgemagusType": null
+        },
+        "63": {
+            "id": 63,
+            "description": "Sew a Hat",
+            "interactiveObjectId": 58,
+            "jobId": 27,
+            "jobName": "Tailor",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                629,
+                696,
+                698,
+                699,
+                701,
+                702,
+                703,
+                704,
+                705,
+                706,
+                707,
+                708,
+                709,
+                710,
+                711,
+                712,
+                940,
+                941,
+                942,
+                943,
+                944,
+                949,
+                1904,
+                1908,
+                2070,
+                2094,
+                2095,
+                2096,
+                2097,
+                2104,
+                2409,
+                2410,
+                2411,
+                2438,
+                2447,
+                2474,
+                2485,
+                2531,
+                2535,
+                2546,
+                2641,
+                6472,
+                6473,
+                6474,
+                6477,
+                6481,
+                6482,
+                6483,
+                6500,
+                6719,
+                6760,
+                6761,
+                6764,
+                6778,
+                6797,
+                6834,
+                6913,
+                6917,
+                6921,
+                6926,
+                6930,
+                6936,
+                6937,
+                6938,
+                6939,
+                6952,
+                6988,
+                6989,
+                6990,
+                6991,
+                6992,
+                7056,
+                7058,
+                7109,
+                7141,
+                7142,
+                7143,
+                7144,
+                7145,
+                7146,
+                7150,
+                7151,
+                7152,
+                7177,
+                7226,
+                7227,
+                7228,
+                7229,
+                7339,
+                7516,
+                7553,
+                7680,
+                7886,
+                7921,
+                8009,
+                8114,
+                8116,
+                8125,
+                8133,
+                8147,
+                8163,
+                8243,
+                8244,
+                8245,
+                8246,
+                8247,
+                8248,
+                8260,
+                8267,
+                8284,
+                8285,
+                8287,
+                8304,
+                8330,
+                8331,
+                8441,
+                8442,
+                8451,
+                8457,
+                8463,
+                8474,
+                8530,
+                8569,
+                8619,
+                8628,
+                8629,
+                8630,
+                8631,
+                8632,
+                8633,
+                8634,
+                8635,
+                8636,
+                8637,
+                8638,
+                8699,
+                8704,
+                8820,
+                8821,
+                8822,
+                8823,
+                8824,
+                8829,
+                8839,
+                8840,
+                8841,
+                8842,
+                8843,
+                8844,
+                8845,
+                8846,
+                8847,
+                8848,
+                8918,
+                8989,
+                9147,
+                9181,
+                9394,
+                9395,
+                9461,
+                11548,
+                13106,
+                13107,
+                13108,
+                13109,
+                13110,
+                13111,
+                13112,
+                13167,
+                13170
+            ],
+            "forgemagusType": null
+        },
+        "122": {
+            "id": 122,
+            "description": "Shell",
+            "interactiveObjectId": 50,
+            "jobId": 28,
+            "jobName": "Farmer",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [
+                422,
+                427
+            ],
+            "forgemagusType": null
+        },
+        "95": {
+            "id": 95,
+            "description": "Spin",
+            "interactiveObjectId": 83,
+            "jobId": 27,
+            "jobName": "Tailor",
+            "criterion": "J?V:-",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "151": {
+            "id": 151,
+            "description": "Summon a Fairy",
+            "interactiveObjectId": 103,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "181": {
+            "id": 181,
+            "description": "Turn an item into runes",
+            "interactiveObjectId": 93,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "100": {
+            "id": 100,
+            "description": "Unlock",
+            "interactiveObjectId": 70,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": "O&L?V:X",
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "114": {
+            "id": 114,
+            "description": "Use",
+            "interactiveObjectId": 16,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "179": {
+            "id": 179,
+            "description": "Use",
+            "interactiveObjectId": 127,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "184": {
+            "id": 184,
+            "description": "Use",
+            "interactiveObjectId": 129,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "110": {
+            "id": 110,
+            "description": "Use the workbench",
+            "interactiveObjectId": 88,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [
+                1001,
+                1003
+            ],
+            "forgemagusType": null
+        },
+        "185": {
+            "id": 185,
+            "description": "[@ref CoffreMaison]",
+            "interactiveObjectId": 129,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "186": {
+            "id": 186,
+            "description": "[@ref Maison]",
+            "interactiveObjectId": 129,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "188": {
+            "id": 188,
+            "description": "Recycler des cartes",
+            "interactiveObjectId": 130,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        },
+        "189": {
+            "id": 189,
+            "description": "Fusionner des cartes",
+            "interactiveObjectId": 131,
+            "jobId": 1,
+            "jobName": "None",
+            "criterion": null,
+            "itemId": null,
+            "craftList": [],
+            "forgemagusType": null
+        }
+    },
+    "gfxMapping": {
+        "1": [
+            7500
+        ],
+        "2": [
+            7003
+        ],
+        "8": [
+            7503
+        ],
+        "11": [
+            7011
+        ],
+        "12": [
+            7008,
+            7009,
+            7010
+        ],
+        "13": [
+            7013
+        ],
+        "16": [
+            7000,
+            7026,
+            7029,
+            4287
+        ],
+        "17": [
+            7520
+        ],
+        "22": [
+            7001
+        ],
+        "24": [
+            7526
+        ],
+        "25": [
+            7527
+        ],
+        "26": [
+            7528
+        ],
+        "27": [
+            7002
+        ],
+        "28": [
+            7505
+        ],
+        "29": [
+            7507
+        ],
+        "30": [
+            7509
+        ],
+        "31": [
+            7504
+        ],
+        "32": [
+            7508
+        ],
+        "33": [
+            7501
+        ],
+        "34": [
+            7502
+        ],
+        "35": [
+            7506
+        ],
+        "37": [
+            7525
+        ],
+        "38": [
+            7511
+        ],
+        "39": [
+            7512
+        ],
+        "41": [
+            7005
+        ],
+        "42": [
+            7513
+        ],
+        "43": [
+            7515
+        ],
+        "44": [
+            7516
+        ],
+        "45": [
+            7517
+        ],
+        "46": [
+            7514
+        ],
+        "47": [
+            7518
+        ],
+        "48": [
+            7510
+        ],
+        "49": [
+            7006
+        ],
+        "50": [
+            7007
+        ],
+        "52": [
+            7521
+        ],
+        "53": [
+            7522
+        ],
+        "54": [
+            7524
+        ],
+        "55": [
+            7523
+        ],
+        "56": [
+            7004
+        ],
+        "57": [
+            7012
+        ],
+        "58": [
+            7014,
+            7016
+        ],
+        "60": [
+            7017
+        ],
+        "61": [
+            7536
+        ],
+        "66": [
+            7534
+        ],
+        "67": [
+            7533
+        ],
+        "68": [
+            7535
+        ],
+        "70": [
+            6700,
+            6701,
+            6702,
+            6703,
+            6704,
+            6705,
+            6706,
+            6707,
+            6708,
+            6709,
+            6710,
+            6711,
+            6713,
+            6714,
+            6715,
+            6716,
+            6717,
+            6718,
+            6719,
+            6720,
+            6721,
+            6722,
+            6723,
+            6724,
+            6725,
+            6726,
+            6729,
+            6730,
+            6731,
+            6732,
+            6733,
+            6734,
+            6735,
+            6736,
+            6737,
+            6738,
+            6739,
+            6740,
+            6741,
+            6742,
+            6743,
+            6744,
+            6745,
+            6746,
+            6747,
+            6748,
+            6753,
+            6749,
+            6750,
+            6751,
+            6752,
+            6754,
+            6756,
+            6755,
+            6757,
+            6758,
+            6764,
+            6765,
+            6768,
+            6759,
+            6760,
+            6761,
+            6762,
+            6769,
+            6770,
+            4516,
+            6773,
+            6774,
+            6775,
+            6776,
+            6665,
+            505
+        ],
+        "71": [
+            7530
+        ],
+        "74": [
+            7532
+        ],
+        "75": [
+            7529
+        ],
+        "76": [
+            7537
+        ],
+        "77": [
+            7531
+        ],
+        "78": [
+            7538
+        ],
+        "79": [
+            7539
+        ],
+        "81": [
+            7540
+        ],
+        "84": [
+            7519
+        ],
+        "85": [
+            7350,
+            7351,
+            7353
+        ],
+        "105": [
+            7352
+        ],
+        "86": [
+            7015
+        ],
+        "88": [
+            7018
+        ],
+        "90": [
+            7019
+        ],
+        "92": [
+            7020
+        ],
+        "93": [
+            7021
+        ],
+        "94": [
+            7022
+        ],
+        "95": [
+            7025
+        ],
+        "96": [
+            7024
+        ],
+        "97": [
+            7023
+        ],
+        "98": [
+            7541
+        ],
+        "99": [
+            7543
+        ],
+        "100": [
+            7544
+        ],
+        "101": [
+            7542
+        ],
+        "102": [
+            7546,
+            7547
+        ],
+        "103": [
+            7028
+        ],
+        "104": [
+            7549
+        ],
+        "106": [
+            7030,
+            7031
+        ],
+        "107": [
+            7027
+        ],
+        "108": [
+            7553
+        ],
+        "109": [
+            7554
+        ],
+        "110": [
+            7552
+        ],
+        "111": [
+            7550
+        ],
+        "112": [
+            7551
+        ],
+        "113": [
+            7555
+        ],
+        "114": [
+            7556
+        ],
+        "116": [
+            7036
+        ],
+        "117": [
+            7038
+        ],
+        "118": [
+            7037
+        ],
+        "119": [
+            7035
+        ],
+        "120": [
+            6766,
+            6767,
+            6763,
+            6772
+        ],
+        "121": [
+            7557
+        ],
+        "122": [
+            7039
+        ],
+        "127": [
+            7041,
+            7042,
+            7043,
+            7044,
+            7045
+        ],
+        "128": [
+            1853,
+            1854,
+            1855,
+            1856,
+            1857,
+            1858,
+            1859,
+            1860,
+            1861,
+            1862,
+            1845,
+            2319
+        ],
+        "130": [
+            6631
+        ],
+        "131": [
+            6632
+        ],
+        "132": [
+            1016
+        ]
+    },
+    "criterionSyntax": {
+        "description": "Criteria strings determine when a skill action is available\/visible",
+        "format": "[condition][operator][condition]?V:[visibility]",
+        "conditions": {
+            "J": "Player has required job",
+            "O": "Player is owner of property",
+            "notO": "Player is NOT owner (!O)",
+            "L": "Property is locked",
+            "notL": "Property is NOT locked (!L)",
+            "S": "Property is for sale",
+            "notS": "Property is NOT for sale (!S)",
+            "N": "Is public paddock",
+            "notN": "Is private paddock (!N)"
+        },
+        "operators": {
+            "&": "AND",
+            "|": "OR"
+        },
+        "visibility": {
+            "-": "Always show",
+            "X": "Only show when conditions met"
+        }
+    },
+    "mapIntegration": {
+        "cellField": "layer2",
+        "description": "Cell layer2 field contains GFX ID (sprite number)",
+        "workflow": [
+            "1. Read cell.layer2 to get GFX ID",
+            "2. Look up gfxMapping[gfxId] to get Interactive Object ID",
+            "3. Look up interactiveObjects[objId] to get object definition",
+            "4. Object type determines client behavior",
+            "5. Skills array shows available actions"
+        ]
+    },
+    "statistics": {
+        "totalInteractiveObjects": 107,
+        "totalSkills": 147,
+        "totalGfxMappings": 194,
+        "objectsByType": {
+            "1": {
+                "name": "Gathering\/Resource",
+                "count": 62
+            },
+            "2": {
+                "name": "Crafting Station",
+                "count": 33
+            },
+            "3": {
+                "name": "Zaap",
+                "count": 1
+            },
+            "4": {
+                "name": "Fountain",
+                "count": 1
+            },
+            "7": {
+                "name": "Healing Pot",
+                "count": 1
+            },
+            "5": {
+                "name": "House Door",
+                "count": 1
+            },
+            "6": {
+                "name": "Storage",
+                "count": 2
+            },
+            "10": {
+                "name": "Zaapi",
+                "count": 1
+            },
+            "12": {
+                "name": "Craftsmen List",
+                "count": 1
+            },
+            "13": {
+                "name": "Paddock",
+                "count": 1
+            },
+            "14": {
+                "name": "Switch",
+                "count": 2
+            },
+            "15": {
+                "name": "Class Statue",
+                "count": 1
+            }
+        },
+        "skillsByJob": {
+            "None": 37,
+            "Baker": 2,
+            "Unknown": 1,
+            "Bow Carver": 2,
+            "Staff Carver": 2,
+            "Wand Carver": 2,
+            "Miner": 13,
+            "Shoemaker": 2,
+            "Handyman": 2,
+            "Jeweller": 2,
+            "Lumberjack": 17,
+            "Fisherman": 11,
+            "Dagger Smith": 2,
+            "Hammer Smith": 2,
+            "Axe Smith": 2,
+            "Pick Smith": 1,
+            "Scythe Smith": 1,
+            "Shield Smith": 1,
+            "Shovel Smith": 2,
+            "Sword Smith": 2,
+            "Alchemist": 8,
+            "Farmer": 11,
+            "Costumagus": 3,
+            "Shoemagus": 2,
+            "Bow Carvemagus": 1,
+            "Dagger Smithmagus": 1,
+            "Hammer Smithmagus": 1,
+            "Jewelmagus": 2,
+            "Axe Smithmagus": 1,
+            "Shovel Smithmagus": 1,
+            "Staff Carvemagus": 1,
+            "Sword Smithmagus": 1,
+            "Wand Carvemagus": 1,
+            "Hunter": 1,
+            "Fish Monger": 1,
+            "Butcher": 1,
+            "Tailor": 4
+        },
+        "totalRecipes": 2298
+    }
+}

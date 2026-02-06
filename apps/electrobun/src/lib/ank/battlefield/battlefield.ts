@@ -162,24 +162,32 @@ export class Battlefield {
     console.log("[Battlefield] handleResizeEnd", { zoom });
 
     try {
-      // Update zoom FIRST - this changes the cache key for new texture loads
+      // Opt #7: Try texture-swap first
+      if (this.mapHandler.hasSpriteRefs()) {
+        this.mapContainer.scale.set(zoom);
+        const success = await this.mapHandler.updateTexturesForZoom(zoom);
+        if (success) {
+          if (this.onResizeEndCallback) {
+            this.onResizeEndCallback();
+          }
+          return;
+        }
+      }
+
+      // Full rebuild fallback
       this.atlasLoader.setZoom(zoom);
-      const newTargetScale = this.getTargetScaleForZoom();
-      this.mapHandler.setTargetScale(newTargetScale);
 
       console.log("[Battlefield] Re-rendering map at zoom:", zoom);
 
-      // Clear container - sprites will be recreated with new textures
-      this.mapContainer.removeChildren();
       this.clearPickableObjects();
       this.debugOverlay?.clear();
-
-      // Don't clear texture caches - they're keyed by zoom level
+      this.mapHandler.clearCache();
 
       await this.mapHandler.renderMap(
         this.currentMapData,
         this.mapContainer,
-        zoom
+        zoom,
+        this.getViewport()
       );
     } catch (error) {
       console.error("[Battlefield] Resize render error:", error);
@@ -299,13 +307,10 @@ export class Battlefield {
     this.clearPickableObjects();
     this.debugOverlay?.clear();
 
-    const targetScale = this.getTargetScaleForZoom();
-    this.mapHandler.setTargetScale(targetScale);
-
     const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
     // Set zoom on atlas loader for crisp SVG rasterization at current zoom level
     this.atlasLoader.setZoom(zoom);
-    await this.mapHandler.renderMap(mapData, this.mapContainer, zoom);
+    await this.mapHandler.renderMap(mapData, this.mapContainer, zoom, this.getViewport());
   }
 
   private async loadInteractiveObjects(): Promise<void> {
@@ -357,22 +362,27 @@ export class Battlefield {
     this.nextPickableId = 1;
   }
 
-  private getTargetScaleForZoom(): number {
-    const effectiveZoom =
-      this.interactionHandler?.getZoom() ?? this.engine.getZoom();
-
-    // Available asset scales: 1.5, 2, 2.5, 3, 3.5, 4
-    const assetScales = [1.5, 2, 2.5, 3, 3.5, 4];
-
-    // Find the smallest asset scale >= effective zoom
-    for (const scale of assetScales) {
-      if (scale >= effectiveZoom) {
-        return scale;
-      }
+  /**
+   * Get the current viewport bounds in map coordinates for culling
+   */
+  private getViewport(): { x: number; y: number; width: number; height: number } | null {
+    if (!this.mapContainer || !this.app) {
+      return null;
     }
 
-    // If zoom exceeds all scales, use the highest
-    return assetScales[assetScales.length - 1];
+    const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
+    const containerX = this.mapContainer.x;
+    const containerY = this.mapContainer.y;
+    const screenWidth = this.app.screen.width;
+    const screenHeight = this.app.screen.height;
+
+    // Convert screen bounds to map coordinates
+    return {
+      x: -containerX / zoom,
+      y: -containerY / zoom,
+      width: screenWidth / zoom,
+      height: screenHeight / zoom,
+    };
   }
 
   private handleZoomChange(zoom: number, _index: number): void {
@@ -419,22 +429,27 @@ export class Battlefield {
     this.isRendering = true;
 
     try {
-      // Update zoom FIRST - this changes the cache key for new texture loads
+      // Opt #7: Try texture-swap first (much faster than full rebuild)
+      if (this.mapHandler.hasSpriteRefs()) {
+        console.log("[Battlefield] Texture-swap zoom:", zoom);
+        this.mapContainer.scale.set(zoom);
+        const success = await this.mapHandler.updateTexturesForZoom(zoom);
+        if (success) {
+          return;
+        }
+        // Fall through to full rebuild if texture swap failed
+      }
+
+      // Full rebuild fallback
       this.atlasLoader.setZoom(zoom);
-      const newTargetScale = this.getTargetScaleForZoom();
-      this.mapHandler.setTargetScale(newTargetScale);
 
-      console.log("[Battlefield] Re-rendering map at zoom (from zoom change):", zoom);
+      console.log("[Battlefield] Full re-render at zoom:", zoom);
 
-      // Clear container - sprites will be recreated with new textures
-      this.mapContainer.removeChildren();
       this.clearPickableObjects();
       this.debugOverlay?.clear();
+      this.mapHandler.clearCache();
 
-      // Don't clear texture caches - they're keyed by zoom level
-      // Different zoom = different cache key = fresh texture load
-
-      await this.mapHandler.renderMap(this.currentMapData, this.mapContainer, zoom);
+      await this.mapHandler.renderMap(this.currentMapData, this.mapContainer, zoom, this.getViewport());
     } catch (error) {
       console.error("[Battlefield] Render error:", error);
     } finally {

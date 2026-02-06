@@ -25,13 +25,10 @@ export const MAX_DEPTH_IN_MAP = 100000;
 export const ROT_SCALE_X = 51.85 / 100;
 export const ROT_SCALE_Y = 192.86 / 100;
 
-export const ZOOM_LEVELS = [1, 1.5, 2, 3] as const;
+export const ZOOM_LEVELS = [1, 2, 3, 4, 5] as const;
 export const DEFAULT_ZOOM_INDEX = 0;
 export const MIN_ZOOM = ZOOM_LEVELS[0];
 export const MAX_ZOOM = ZOOM_LEVELS[ZOOM_LEVELS.length - 1];
-
-// Available asset scales from the packer
-export const ASSET_SCALES = [1.5, 2, 2.5, 3, 3.5, 4] as const;
 
 export const DIRECTIONS = {
   EAST: 0,

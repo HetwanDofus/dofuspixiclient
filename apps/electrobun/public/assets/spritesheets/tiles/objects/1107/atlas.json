@@ -1,0 +1,264 @@
+{
+  "version": 1,
+  "animation": "tile",
+  "width": 1426,
+  "height": 31,
+  "offsetX": -28,
+  "offsetY": -14,
+  "frames": [
+    {
+      "id": "tile_0",
+      "x": 1,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_1",
+      "x": 58,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_2",
+      "x": 115,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_3",
+      "x": 172,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_4",
+      "x": 229,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_5",
+      "x": 286,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_6",
+      "x": 343,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_7",
+      "x": 400,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_8",
+      "x": 457,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_9",
+      "x": 514,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_10",
+      "x": 571,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_11",
+      "x": 628,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_12",
+      "x": 685,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_13",
+      "x": 742,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_14",
+      "x": 799,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_15",
+      "x": 856,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_16",
+      "x": 913,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_17",
+      "x": 970,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_18",
+      "x": 1027,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_19",
+      "x": 1084,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_20",
+      "x": 1141,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_21",
+      "x": 1198,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_22",
+      "x": 1255,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_23",
+      "x": 1312,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    },
+    {
+      "id": "tile_24",
+      "x": 1369,
+      "y": 1,
+      "width": 56,
+      "height": 29,
+      "offsetX": 0,
+      "offsetY": 0
+    }
+  ],
+  "frameOrder": [
+    "tile_0",
+    "tile_1",
+    "tile_2",
+    "tile_3",
+    "tile_4",
+    "tile_5",
+    "tile_6",
+    "tile_7",
+    "tile_8",
+    "tile_9",
+    "tile_10",
+    "tile_11",
+    "tile_12",
+    "tile_13",
+    "tile_14",
+    "tile_15",
+    "tile_16",
+    "tile_17",
+    "tile_18",
+    "tile_19",
+    "tile_20",
+    "tile_21",
+    "tile_22",
+    "tile_23",
+    "tile_24"
+  ],
+  "duplicates": {},
+  "fps": 60
+}
