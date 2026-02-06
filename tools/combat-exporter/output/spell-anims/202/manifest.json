@@ -1,0 +1,245 @@
+{
+    "id": 202,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "etoiles",
+            "frameCount": 51,
+            "width": 392.70000000000005,
+            "height": 392.40000000000003,
+            "offsetX": -193.79999999999998,
+            "offsetY": -250.20000000000002,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "etoiles_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "etoiles_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "etoiles_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "etoiles_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "etoiles_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "etoiles_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "etoiles_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "etoiles_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "etoiles_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "etoiles_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "etoiles_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "etoiles_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "etoiles_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "etoiles_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "etoiles_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "etoiles_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "etoiles_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "etoiles_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "etoiles_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "etoiles_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "etoiles_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "etoiles_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "etoiles_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "etoiles_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "etoiles_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "etoiles_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "etoiles_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "etoiles_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "etoiles_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "etoiles_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "etoiles_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "etoiles_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "etoiles_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "etoiles_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "etoiles_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "etoiles_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "etoiles_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "etoiles_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "etoiles_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "etoiles_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "etoiles_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "etoiles_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "etoiles_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "etoiles_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "etoiles_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "etoiles_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "etoiles_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "etoiles_47.webp"
+                },
+                {
+                    "index": 48,
+                    "file": "etoiles_48.webp"
+                },
+                {
+                    "index": 49,
+                    "file": "etoiles_49.webp"
+                },
+                {
+                    "index": 50,
+                    "file": "etoiles_50.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_6_or/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_6_or/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_14_etoiles/frame_51/DoAction.as",
+        "scripts/scripts/DefineSprite_14_etoiles/frame_33/DoAction.as",
+        "scripts/scripts/DefineSprite_14_etoiles/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_14_etoiles/frame_13/PlaceObject2_11_2/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_11/frame_1/PlaceObject2_9_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_18_terre/frame_1/PlaceObject2_17_2/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_13/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_31/frame_97/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "sounds": [
+        {
+            "frame": 0,
+            "soundId": "crockette_202"
+        }
+    ]
+}

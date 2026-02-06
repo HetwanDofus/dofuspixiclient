@@ -1,0 +1,17 @@
+#!/usr/bin/env php
+<?php
+
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+
+use App\Command\ExportWorldMapTilesCommand;
+use App\Command\ExtractLangDataCommand;
+use App\Command\ExtractHintGraphicsCommand;
+use Symfony\Component\Console\Application;
+
+$app = new Application('Dofus World Map Exporter', '1.0.0');
+
+$app->addCommand(new ExportWorldMapTilesCommand());
+$app->addCommand(new ExtractLangDataCommand());
+$app->addCommand(new ExtractHintGraphicsCommand());
+
+$app->run();

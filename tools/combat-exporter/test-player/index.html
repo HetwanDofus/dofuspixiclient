@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spell Animation Player</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #1a1a2e;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      flex-direction: column;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    .info {
+      margin-bottom: 15px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    .info label {
+      color: #888;
+    }
+    #mode {
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: #222;
+    }
+    #app {
+      border: 2px solid #444;
+      border-radius: 8px;
+    }
+    .controls {
+      margin-top: 20px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    .scale-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .scale-control label {
+      color: #888;
+    }
+    .scale-control button {
+      padding: 8px 14px;
+      min-width: 40px;
+    }
+    #scale-value {
+      min-width: 50px;
+      text-align: center;
+    }
+    button, select {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background: #4a4a6a;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+    button:hover, select:hover {
+      background: #5a5a7a;
+    }
+    select {
+      padding: 8px 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Spell Animation Player</h1>
+  <div class="info">
+    <div>
+      <label>Spell:</label>
+      <select id="spell-selector">
+        <option value="909">909 - Dynamic (Fulminant)</option>
+        <option value="1001">1001 - Pre-rendered</option>
+        <option value="110">110 - Pre-rendered</option>
+        <option value="1005">1005 - Dynamic (Crockette)</option>
+      </select>
+    </div>
+    <div>
+      <label>Mode:</label>
+      <span id="mode">Loading...</span>
+    </div>
+  </div>
+  <div id="app"></div>
+  <div class="controls">
+    <button id="replay">Replay Animation</button>
+    <div class="scale-control">
+      <label>Scale:</label>
+      <button id="scale-down">-</button>
+      <span id="scale-value">1.5x</span>
+      <button id="scale-up">+</button>
+    </div>
+    <div class="scale-control">
+      <label>Speed:</label>
+      <button id="speed-down">-</button>
+      <span id="speed-value">1.0x</span>
+      <button id="speed-up">+</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

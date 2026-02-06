@@ -1,0 +1,124 @@
+{
+    "id": 1202,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "flam",
+            "frameCount": 22,
+            "width": 878.0999999999999,
+            "height": 1265.1,
+            "offsetX": -83.1,
+            "offsetY": -1068.3000000000002,
+            "isComposite": false,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "flam_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "flam_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "flam_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "flam_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "flam_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "flam_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "flam_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "flam_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "flam_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "flam_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "flam_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "flam_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "flam_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "flam_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "flam_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "flam_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "flam_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "flam_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "flam_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "flam_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "flam_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "flam_21.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_10_flam/frame_21/DoAction.as",
+        "scripts/scripts/DefineSprite_47/frame_1/PlaceObject2_46_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_47/frame_1/PlaceObject2_46_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_46/frame_1/PlaceObject2_45_2/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_39_shoot/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_39_shoot/frame_1/DoAction_2.as",
+        "scripts/scripts/DefineSprite_39_shoot/frame_70/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "sounds": [
+        {
+            "frame": 0,
+            "soundId": "panda_molotov"
+        }
+    ]
+}

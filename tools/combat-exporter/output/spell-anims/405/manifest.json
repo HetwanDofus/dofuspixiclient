@@ -1,0 +1,675 @@
+{
+    "id": 405,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "anim1",
+            "frameCount": 153,
+            "width": 707.4000000000001,
+            "height": 681,
+            "offsetX": -249.29999999999998,
+            "offsetY": -337.5,
+            "stopFrame": 150,
+            "fadingFrame": 149,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "anim1_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "anim1_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "anim1_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "anim1_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "anim1_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "anim1_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "anim1_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "anim1_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "anim1_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "anim1_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "anim1_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "anim1_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "anim1_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "anim1_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "anim1_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "anim1_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "anim1_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "anim1_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "anim1_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "anim1_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "anim1_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "anim1_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "anim1_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "anim1_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "anim1_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "anim1_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "anim1_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "anim1_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "anim1_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "anim1_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "anim1_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "anim1_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "anim1_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "anim1_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "anim1_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "anim1_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "anim1_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "anim1_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "anim1_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "anim1_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "anim1_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "anim1_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "anim1_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "anim1_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "anim1_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "anim1_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "anim1_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "anim1_47.webp"
+                },
+                {
+                    "index": 48,
+                    "file": "anim1_48.webp"
+                },
+                {
+                    "index": 49,
+                    "file": "anim1_49.webp"
+                },
+                {
+                    "index": 50,
+                    "file": "anim1_50.webp"
+                },
+                {
+                    "index": 51,
+                    "file": "anim1_51.webp"
+                },
+                {
+                    "index": 52,
+                    "file": "anim1_52.webp"
+                },
+                {
+                    "index": 53,
+                    "file": "anim1_53.webp"
+                },
+                {
+                    "index": 54,
+                    "file": "anim1_54.webp"
+                },
+                {
+                    "index": 55,
+                    "file": "anim1_55.webp"
+                },
+                {
+                    "index": 56,
+                    "file": "anim1_56.webp"
+                },
+                {
+                    "index": 57,
+                    "file": "anim1_57.webp"
+                },
+                {
+                    "index": 58,
+                    "file": "anim1_58.webp"
+                },
+                {
+                    "index": 59,
+                    "file": "anim1_59.webp"
+                },
+                {
+                    "index": 60,
+                    "file": "anim1_60.webp"
+                },
+                {
+                    "index": 61,
+                    "file": "anim1_61.webp"
+                },
+                {
+                    "index": 62,
+                    "file": "anim1_62.webp"
+                },
+                {
+                    "index": 63,
+                    "file": "anim1_63.webp"
+                },
+                {
+                    "index": 64,
+                    "file": "anim1_64.webp"
+                },
+                {
+                    "index": 65,
+                    "file": "anim1_65.webp"
+                },
+                {
+                    "index": 66,
+                    "file": "anim1_66.webp"
+                },
+                {
+                    "index": 67,
+                    "file": "anim1_67.webp"
+                },
+                {
+                    "index": 68,
+                    "file": "anim1_68.webp"
+                },
+                {
+                    "index": 69,
+                    "file": "anim1_69.webp"
+                },
+                {
+                    "index": 70,
+                    "file": "anim1_70.webp"
+                },
+                {
+                    "index": 71,
+                    "file": "anim1_71.webp"
+                },
+                {
+                    "index": 72,
+                    "file": "anim1_72.webp"
+                },
+                {
+                    "index": 73,
+                    "file": "anim1_73.webp"
+                },
+                {
+                    "index": 74,
+                    "file": "anim1_74.webp"
+                },
+                {
+                    "index": 75,
+                    "file": "anim1_75.webp"
+                },
+                {
+                    "index": 76,
+                    "file": "anim1_76.webp"
+                },
+                {
+                    "index": 77,
+                    "file": "anim1_77.webp"
+                },
+                {
+                    "index": 78,
+                    "file": "anim1_78.webp"
+                },
+                {
+                    "index": 79,
+                    "file": "anim1_79.webp"
+                },
+                {
+                    "index": 80,
+                    "file": "anim1_80.webp"
+                },
+                {
+                    "index": 81,
+                    "file": "anim1_81.webp"
+                },
+                {
+                    "index": 82,
+                    "file": "anim1_82.webp"
+                },
+                {
+                    "index": 83,
+                    "file": "anim1_83.webp"
+                },
+                {
+                    "index": 84,
+                    "file": "anim1_84.webp"
+                },
+                {
+                    "index": 85,
+                    "file": "anim1_85.webp"
+                },
+                {
+                    "index": 86,
+                    "file": "anim1_86.webp"
+                },
+                {
+                    "index": 87,
+                    "file": "anim1_87.webp"
+                },
+                {
+                    "index": 88,
+                    "file": "anim1_88.webp"
+                },
+                {
+                    "index": 89,
+                    "file": "anim1_89.webp"
+                },
+                {
+                    "index": 90,
+                    "file": "anim1_90.webp"
+                },
+                {
+                    "index": 91,
+                    "file": "anim1_91.webp"
+                },
+                {
+                    "index": 92,
+                    "file": "anim1_92.webp"
+                },
+                {
+                    "index": 93,
+                    "file": "anim1_93.webp"
+                },
+                {
+                    "index": 94,
+                    "file": "anim1_94.webp"
+                },
+                {
+                    "index": 95,
+                    "file": "anim1_95.webp"
+                },
+                {
+                    "index": 96,
+                    "file": "anim1_96.webp"
+                },
+                {
+                    "index": 97,
+                    "file": "anim1_97.webp"
+                },
+                {
+                    "index": 98,
+                    "file": "anim1_98.webp"
+                },
+                {
+                    "index": 99,
+                    "file": "anim1_99.webp"
+                },
+                {
+                    "index": 100,
+                    "file": "anim1_100.webp"
+                },
+                {
+                    "index": 101,
+                    "file": "anim1_101.webp"
+                },
+                {
+                    "index": 102,
+                    "file": "anim1_102.webp"
+                },
+                {
+                    "index": 103,
+                    "file": "anim1_103.webp"
+                },
+                {
+                    "index": 104,
+                    "file": "anim1_104.webp"
+                },
+                {
+                    "index": 105,
+                    "file": "anim1_105.webp"
+                },
+                {
+                    "index": 106,
+                    "file": "anim1_106.webp"
+                },
+                {
+                    "index": 107,
+                    "file": "anim1_107.webp"
+                },
+                {
+                    "index": 108,
+                    "file": "anim1_108.webp"
+                },
+                {
+                    "index": 109,
+                    "file": "anim1_109.webp"
+                },
+                {
+                    "index": 110,
+                    "file": "anim1_110.webp"
+                },
+                {
+                    "index": 111,
+                    "file": "anim1_111.webp"
+                },
+                {
+                    "index": 112,
+                    "file": "anim1_112.webp"
+                },
+                {
+                    "index": 113,
+                    "file": "anim1_113.webp"
+                },
+                {
+                    "index": 114,
+                    "file": "anim1_114.webp"
+                },
+                {
+                    "index": 115,
+                    "file": "anim1_115.webp"
+                },
+                {
+                    "index": 116,
+                    "file": "anim1_116.webp"
+                },
+                {
+                    "index": 117,
+                    "file": "anim1_117.webp"
+                },
+                {
+                    "index": 118,
+                    "file": "anim1_118.webp"
+                },
+                {
+                    "index": 119,
+                    "file": "anim1_119.webp"
+                },
+                {
+                    "index": 120,
+                    "file": "anim1_120.webp"
+                },
+                {
+                    "index": 121,
+                    "file": "anim1_121.webp"
+                },
+                {
+                    "index": 122,
+                    "file": "anim1_122.webp"
+                },
+                {
+                    "index": 123,
+                    "file": "anim1_123.webp"
+                },
+                {
+                    "index": 124,
+                    "file": "anim1_124.webp"
+                },
+                {
+                    "index": 125,
+                    "file": "anim1_125.webp"
+                },
+                {
+                    "index": 126,
+                    "file": "anim1_126.webp"
+                },
+                {
+                    "index": 127,
+                    "file": "anim1_127.webp"
+                },
+                {
+                    "index": 128,
+                    "file": "anim1_128.webp"
+                },
+                {
+                    "index": 129,
+                    "file": "anim1_129.webp"
+                },
+                {
+                    "index": 130,
+                    "file": "anim1_130.webp"
+                },
+                {
+                    "index": 131,
+                    "file": "anim1_131.webp"
+                },
+                {
+                    "index": 132,
+                    "file": "anim1_132.webp"
+                },
+                {
+                    "index": 133,
+                    "file": "anim1_133.webp"
+                },
+                {
+                    "index": 134,
+                    "file": "anim1_134.webp"
+                },
+                {
+                    "index": 135,
+                    "file": "anim1_135.webp"
+                },
+                {
+                    "index": 136,
+                    "file": "anim1_136.webp"
+                },
+                {
+                    "index": 137,
+                    "file": "anim1_137.webp"
+                },
+                {
+                    "index": 138,
+                    "file": "anim1_138.webp"
+                },
+                {
+                    "index": 139,
+                    "file": "anim1_139.webp"
+                },
+                {
+                    "index": 140,
+                    "file": "anim1_140.webp"
+                },
+                {
+                    "index": 141,
+                    "file": "anim1_141.webp"
+                },
+                {
+                    "index": 142,
+                    "file": "anim1_142.webp"
+                },
+                {
+                    "index": 143,
+                    "file": "anim1_143.webp"
+                },
+                {
+                    "index": 144,
+                    "file": "anim1_144.webp"
+                },
+                {
+                    "index": 145,
+                    "file": "anim1_145.webp"
+                },
+                {
+                    "index": 146,
+                    "file": "anim1_146.webp"
+                },
+                {
+                    "index": 147,
+                    "file": "anim1_147.webp"
+                },
+                {
+                    "index": 148,
+                    "file": "anim1_148.webp"
+                },
+                {
+                    "index": 149,
+                    "file": "anim1_149.webp"
+                },
+                {
+                    "index": 150,
+                    "file": "anim1_150.webp"
+                },
+                {
+                    "index": 151,
+                    "file": "anim1_151.webp"
+                },
+                {
+                    "index": 152,
+                    "file": "anim1_152.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_7/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_19/frame_151/DoAction.as",
+        "scripts/scripts/DefineSprite_19/frame_7/PlaceObject2_18_16/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_19/frame_7/PlaceObject2_18_11/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_19/frame_1/PlaceObject2_18_6/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_19/frame_43/PlaceObject2_18_51/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_19/frame_43/PlaceObject2_18_56/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_19/frame_31/PlaceObject2_18_31/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_19/frame_37/PlaceObject2_18_41/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_19/frame_37/PlaceObject2_18_46/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_19/frame_112/DoAction.as",
+        "scripts/scripts/DefineSprite_19/frame_13/PlaceObject2_18_21/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_19/frame_13/PlaceObject2_18_26/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_18/frame_1/PlaceObject2_16_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_18/frame_1/PlaceObject2_16_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_18/frame_22/DoAction.as",
+        "scripts/scripts/DefineSprite_11_shoot/frame_1/PlaceObject2_10_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_4/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_12_goutte/frame_1/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "sounds": [
+        {
+            "frame": 0,
+            "soundId": "lakam_405"
+        }
+    ],
+    "librarySymbols": [
+        {
+            "name": "goutte",
+            "characterId": 12,
+            "internalName": "sprite_12",
+            "frameCount": 1,
+            "width": 0,
+            "height": 0,
+            "offsetX": 0,
+            "offsetY": 0,
+            "frames": []
+        }
+    ]
+}

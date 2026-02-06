@@ -1,0 +1,2130 @@
+{
+    "id": 2901,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "minifeux4",
+            "frameCount": 78,
+            "width": 32.099999999999994,
+            "height": 39.599999999999994,
+            "offsetX": -7.5,
+            "offsetY": -17.1,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "minifeux4_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "minifeux4_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "minifeux4_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "minifeux4_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "minifeux4_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "minifeux4_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "minifeux4_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "minifeux4_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "minifeux4_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "minifeux4_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "minifeux4_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "minifeux4_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "minifeux4_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "minifeux4_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "minifeux4_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "minifeux4_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "minifeux4_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "minifeux4_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "minifeux4_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "minifeux4_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "minifeux4_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "minifeux4_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "minifeux4_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "minifeux4_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "minifeux4_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "minifeux4_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "minifeux4_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "minifeux4_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "minifeux4_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "minifeux4_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "minifeux4_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "minifeux4_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "minifeux4_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "minifeux4_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "minifeux4_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "minifeux4_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "minifeux4_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "minifeux4_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "minifeux4_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "minifeux4_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "minifeux4_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "minifeux4_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "minifeux4_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "minifeux4_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "minifeux4_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "minifeux4_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "minifeux4_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "minifeux4_47.webp"
+                },
+                {
+                    "index": 48,
+                    "file": "minifeux4_48.webp"
+                },
+                {
+                    "index": 49,
+                    "file": "minifeux4_49.webp"
+                },
+                {
+                    "index": 50,
+                    "file": "minifeux4_50.webp"
+                },
+                {
+                    "index": 51,
+                    "file": "minifeux4_51.webp"
+                },
+                {
+                    "index": 52,
+                    "file": "minifeux4_52.webp"
+                },
+                {
+                    "index": 53,
+                    "file": "minifeux4_53.webp"
+                },
+                {
+                    "index": 54,
+                    "file": "minifeux4_54.webp"
+                },
+                {
+                    "index": 55,
+                    "file": "minifeux4_55.webp"
+                },
+                {
+                    "index": 56,
+                    "file": "minifeux4_56.webp"
+                },
+                {
+                    "index": 57,
+                    "file": "minifeux4_57.webp"
+                },
+                {
+                    "index": 58,
+                    "file": "minifeux4_58.webp"
+                },
+                {
+                    "index": 59,
+                    "file": "minifeux4_59.webp"
+                },
+                {
+                    "index": 60,
+                    "file": "minifeux4_60.webp"
+                },
+                {
+                    "index": 61,
+                    "file": "minifeux4_61.webp"
+                },
+                {
+                    "index": 62,
+                    "file": "minifeux4_62.webp"
+                },
+                {
+                    "index": 63,
+                    "file": "minifeux4_63.webp"
+                },
+                {
+                    "index": 64,
+                    "file": "minifeux4_64.webp"
+                },
+                {
+                    "index": 65,
+                    "file": "minifeux4_65.webp"
+                },
+                {
+                    "index": 66,
+                    "file": "minifeux4_66.webp"
+                },
+                {
+                    "index": 67,
+                    "file": "minifeux4_67.webp"
+                },
+                {
+                    "index": 68,
+                    "file": "minifeux4_68.webp"
+                },
+                {
+                    "index": 69,
+                    "file": "minifeux4_69.webp"
+                },
+                {
+                    "index": 70,
+                    "file": "minifeux4_70.webp"
+                },
+                {
+                    "index": 71,
+                    "file": "minifeux4_71.webp"
+                },
+                {
+                    "index": 72,
+                    "file": "minifeux4_72.webp"
+                },
+                {
+                    "index": 73,
+                    "file": "minifeux4_73.webp"
+                },
+                {
+                    "index": 74,
+                    "file": "minifeux4_74.webp"
+                },
+                {
+                    "index": 75,
+                    "file": "minifeux4_75.webp"
+                },
+                {
+                    "index": 76,
+                    "file": "minifeux4_76.webp"
+                },
+                {
+                    "index": 77,
+                    "file": "minifeux4_77.webp"
+                }
+            ]
+        },
+        {
+            "name": "minifeux3",
+            "frameCount": 78,
+            "width": 14.700000000000001,
+            "height": 12.299999999999999,
+            "offsetX": 1.2000000000000002,
+            "offsetY": -7.199999999999999,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "minifeux3_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "minifeux3_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "minifeux3_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "minifeux3_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "minifeux3_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "minifeux3_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "minifeux3_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "minifeux3_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "minifeux3_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "minifeux3_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "minifeux3_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "minifeux3_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "minifeux3_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "minifeux3_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "minifeux3_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "minifeux3_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "minifeux3_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "minifeux3_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "minifeux3_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "minifeux3_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "minifeux3_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "minifeux3_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "minifeux3_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "minifeux3_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "minifeux3_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "minifeux3_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "minifeux3_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "minifeux3_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "minifeux3_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "minifeux3_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "minifeux3_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "minifeux3_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "minifeux3_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "minifeux3_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "minifeux3_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "minifeux3_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "minifeux3_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "minifeux3_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "minifeux3_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "minifeux3_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "minifeux3_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "minifeux3_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "minifeux3_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "minifeux3_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "minifeux3_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "minifeux3_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "minifeux3_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "minifeux3_47.webp"
+                },
+                {
+                    "index": 48,
+                    "file": "minifeux3_48.webp"
+                },
+                {
+                    "index": 49,
+                    "file": "minifeux3_49.webp"
+                },
+                {
+                    "index": 50,
+                    "file": "minifeux3_50.webp"
+                },
+                {
+                    "index": 51,
+                    "file": "minifeux3_51.webp"
+                },
+                {
+                    "index": 52,
+                    "file": "minifeux3_52.webp"
+                },
+                {
+                    "index": 53,
+                    "file": "minifeux3_53.webp"
+                },
+                {
+                    "index": 54,
+                    "file": "minifeux3_54.webp"
+                },
+                {
+                    "index": 55,
+                    "file": "minifeux3_55.webp"
+                },
+                {
+                    "index": 56,
+                    "file": "minifeux3_56.webp"
+                },
+                {
+                    "index": 57,
+                    "file": "minifeux3_57.webp"
+                },
+                {
+                    "index": 58,
+                    "file": "minifeux3_58.webp"
+                },
+                {
+                    "index": 59,
+                    "file": "minifeux3_59.webp"
+                },
+                {
+                    "index": 60,
+                    "file": "minifeux3_60.webp"
+                },
+                {
+                    "index": 61,
+                    "file": "minifeux3_61.webp"
+                },
+                {
+                    "index": 62,
+                    "file": "minifeux3_62.webp"
+                },
+                {
+                    "index": 63,
+                    "file": "minifeux3_63.webp"
+                },
+                {
+                    "index": 64,
+                    "file": "minifeux3_64.webp"
+                },
+                {
+                    "index": 65,
+                    "file": "minifeux3_65.webp"
+                },
+                {
+                    "index": 66,
+                    "file": "minifeux3_66.webp"
+                },
+                {
+                    "index": 67,
+                    "file": "minifeux3_67.webp"
+                },
+                {
+                    "index": 68,
+                    "file": "minifeux3_68.webp"
+                },
+                {
+                    "index": 69,
+                    "file": "minifeux3_69.webp"
+                },
+                {
+                    "index": 70,
+                    "file": "minifeux3_70.webp"
+                },
+                {
+                    "index": 71,
+                    "file": "minifeux3_71.webp"
+                },
+                {
+                    "index": 72,
+                    "file": "minifeux3_72.webp"
+                },
+                {
+                    "index": 73,
+                    "file": "minifeux3_73.webp"
+                },
+                {
+                    "index": 74,
+                    "file": "minifeux3_74.webp"
+                },
+                {
+                    "index": 75,
+                    "file": "minifeux3_75.webp"
+                },
+                {
+                    "index": 76,
+                    "file": "minifeux3_76.webp"
+                },
+                {
+                    "index": 77,
+                    "file": "minifeux3_77.webp"
+                }
+            ]
+        },
+        {
+            "name": "minifeux2",
+            "frameCount": 36,
+            "width": 14.700000000000001,
+            "height": 12.299999999999999,
+            "offsetX": 1.2000000000000002,
+            "offsetY": -7.199999999999999,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "minifeux2_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "minifeux2_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "minifeux2_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "minifeux2_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "minifeux2_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "minifeux2_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "minifeux2_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "minifeux2_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "minifeux2_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "minifeux2_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "minifeux2_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "minifeux2_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "minifeux2_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "minifeux2_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "minifeux2_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "minifeux2_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "minifeux2_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "minifeux2_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "minifeux2_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "minifeux2_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "minifeux2_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "minifeux2_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "minifeux2_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "minifeux2_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "minifeux2_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "minifeux2_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "minifeux2_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "minifeux2_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "minifeux2_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "minifeux2_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "minifeux2_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "minifeux2_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "minifeux2_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "minifeux2_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "minifeux2_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "minifeux2_35.webp"
+                }
+            ]
+        },
+        {
+            "name": "minifeux",
+            "frameCount": 36,
+            "width": 14.700000000000001,
+            "height": 12.299999999999999,
+            "offsetX": 1.2000000000000002,
+            "offsetY": -7.199999999999999,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "minifeux_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "minifeux_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "minifeux_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "minifeux_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "minifeux_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "minifeux_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "minifeux_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "minifeux_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "minifeux_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "minifeux_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "minifeux_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "minifeux_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "minifeux_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "minifeux_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "minifeux_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "minifeux_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "minifeux_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "minifeux_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "minifeux_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "minifeux_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "minifeux_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "minifeux_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "minifeux_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "minifeux_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "minifeux_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "minifeux_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "minifeux_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "minifeux_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "minifeux_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "minifeux_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "minifeux_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "minifeux_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "minifeux_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "minifeux_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "minifeux_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "minifeux_35.webp"
+                }
+            ]
+        },
+        {
+            "name": "feux",
+            "frameCount": 16,
+            "width": 289.5,
+            "height": 319.79999999999995,
+            "offsetX": -111.89999999999999,
+            "offsetY": -160.5,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "feux_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "feux_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "feux_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "feux_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "feux_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "feux_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "feux_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "feux_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "feux_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "feux_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "feux_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "feux_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "feux_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "feux_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "feux_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "feux_15.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_28/frame_2/DoAction.as",
+        "scripts/scripts/DefineSprite_17/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_26/frame_1/PlaceObject2_25_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_26/frame_1/PlaceObject2_25_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_21/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_18/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_3_minifeux4/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_3_minifeux4/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_3_minifeux4/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_3_minifeux4/frame_76/DoAction.as",
+        "scripts/scripts/DefineSprite_7_minifeux2/frame_34/DoAction.as",
+        "scripts/scripts/DefineSprite_7_minifeux2/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_7_minifeux2/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_7_minifeux2/frame_1/DoAction.as",
+        "scripts/scripts/frame_319/DoAction.as",
+        "scripts/scripts/DefineSprite_8_minifeux/frame_34/DoAction.as",
+        "scripts/scripts/DefineSprite_8_minifeux/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_8_minifeux/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_8_minifeux/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_12/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_23_feux/frame_11/PlaceObject2_19_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_23_feux/frame_11/PlaceObject2_19_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_23_feux/frame_8/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_23_feux/frame_8/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_23_feux/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_23_feux/frame_2/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_23_feux/frame_2/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_23_feux/frame_14/PlaceObject2_22_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_23_feux/frame_14/PlaceObject2_22_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_23_feux/frame_5/PlaceObject2_14_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_23_feux/frame_5/PlaceObject2_14_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_31/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_31/frame_1/DoAction_2.as",
+        "scripts/scripts/DefineSprite_31/frame_97/DoAction.as",
+        "scripts/scripts/DefineSprite_31/frame_70/DoAction.as",
+        "scripts/scripts/DefineSprite_31/frame_76/PlaceObject2_28_3/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_6_minifeux3/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_6_minifeux3/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_6_minifeux3/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_6_minifeux3/frame_76/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "sounds": [
+        {
+            "frame": 0,
+            "soundId": "fireworks01"
+        },
+        {
+            "frame": 69,
+            "soundId": "explo_fireworks"
+        }
+    ],
+    "librarySymbols": [
+        {
+            "name": "minifeux",
+            "characterId": 8,
+            "internalName": "sprite_8",
+            "frameCount": 36,
+            "width": 14.700000000000001,
+            "height": 12.299999999999999,
+            "offsetX": 1.2000000000000002,
+            "offsetY": -7.199999999999999,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_minifeux_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "lib_minifeux_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "lib_minifeux_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "lib_minifeux_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "lib_minifeux_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "lib_minifeux_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "lib_minifeux_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "lib_minifeux_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "lib_minifeux_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "lib_minifeux_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "lib_minifeux_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "lib_minifeux_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "lib_minifeux_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "lib_minifeux_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "lib_minifeux_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "lib_minifeux_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "lib_minifeux_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "lib_minifeux_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "lib_minifeux_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "lib_minifeux_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "lib_minifeux_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "lib_minifeux_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "lib_minifeux_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "lib_minifeux_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "lib_minifeux_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "lib_minifeux_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "lib_minifeux_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "lib_minifeux_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "lib_minifeux_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "lib_minifeux_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "lib_minifeux_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "lib_minifeux_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "lib_minifeux_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "lib_minifeux_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "lib_minifeux_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "lib_minifeux_35.webp"
+                }
+            ]
+        },
+        {
+            "name": "minifeux3",
+            "characterId": 6,
+            "internalName": "sprite_6",
+            "frameCount": 78,
+            "width": 14.700000000000001,
+            "height": 12.299999999999999,
+            "offsetX": 1.2000000000000002,
+            "offsetY": -7.199999999999999,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_minifeux3_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "lib_minifeux3_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "lib_minifeux3_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "lib_minifeux3_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "lib_minifeux3_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "lib_minifeux3_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "lib_minifeux3_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "lib_minifeux3_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "lib_minifeux3_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "lib_minifeux3_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "lib_minifeux3_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "lib_minifeux3_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "lib_minifeux3_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "lib_minifeux3_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "lib_minifeux3_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "lib_minifeux3_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "lib_minifeux3_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "lib_minifeux3_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "lib_minifeux3_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "lib_minifeux3_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "lib_minifeux3_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "lib_minifeux3_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "lib_minifeux3_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "lib_minifeux3_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "lib_minifeux3_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "lib_minifeux3_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "lib_minifeux3_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "lib_minifeux3_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "lib_minifeux3_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "lib_minifeux3_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "lib_minifeux3_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "lib_minifeux3_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "lib_minifeux3_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "lib_minifeux3_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "lib_minifeux3_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "lib_minifeux3_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "lib_minifeux3_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "lib_minifeux3_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "lib_minifeux3_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "lib_minifeux3_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "lib_minifeux3_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "lib_minifeux3_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "lib_minifeux3_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "lib_minifeux3_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "lib_minifeux3_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "lib_minifeux3_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "lib_minifeux3_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "lib_minifeux3_47.webp"
+                },
+                {
+                    "index": 48,
+                    "file": "lib_minifeux3_48.webp"
+                },
+                {
+                    "index": 49,
+                    "file": "lib_minifeux3_49.webp"
+                },
+                {
+                    "index": 50,
+                    "file": "lib_minifeux3_50.webp"
+                },
+                {
+                    "index": 51,
+                    "file": "lib_minifeux3_51.webp"
+                },
+                {
+                    "index": 52,
+                    "file": "lib_minifeux3_52.webp"
+                },
+                {
+                    "index": 53,
+                    "file": "lib_minifeux3_53.webp"
+                },
+                {
+                    "index": 54,
+                    "file": "lib_minifeux3_54.webp"
+                },
+                {
+                    "index": 55,
+                    "file": "lib_minifeux3_55.webp"
+                },
+                {
+                    "index": 56,
+                    "file": "lib_minifeux3_56.webp"
+                },
+                {
+                    "index": 57,
+                    "file": "lib_minifeux3_57.webp"
+                },
+                {
+                    "index": 58,
+                    "file": "lib_minifeux3_58.webp"
+                },
+                {
+                    "index": 59,
+                    "file": "lib_minifeux3_59.webp"
+                },
+                {
+                    "index": 60,
+                    "file": "lib_minifeux3_60.webp"
+                },
+                {
+                    "index": 61,
+                    "file": "lib_minifeux3_61.webp"
+                },
+                {
+                    "index": 62,
+                    "file": "lib_minifeux3_62.webp"
+                },
+                {
+                    "index": 63,
+                    "file": "lib_minifeux3_63.webp"
+                },
+                {
+                    "index": 64,
+                    "file": "lib_minifeux3_64.webp"
+                },
+                {
+                    "index": 65,
+                    "file": "lib_minifeux3_65.webp"
+                },
+                {
+                    "index": 66,
+                    "file": "lib_minifeux3_66.webp"
+                },
+                {
+                    "index": 67,
+                    "file": "lib_minifeux3_67.webp"
+                },
+                {
+                    "index": 68,
+                    "file": "lib_minifeux3_68.webp"
+                },
+                {
+                    "index": 69,
+                    "file": "lib_minifeux3_69.webp"
+                },
+                {
+                    "index": 70,
+                    "file": "lib_minifeux3_70.webp"
+                },
+                {
+                    "index": 71,
+                    "file": "lib_minifeux3_71.webp"
+                },
+                {
+                    "index": 72,
+                    "file": "lib_minifeux3_72.webp"
+                },
+                {
+                    "index": 73,
+                    "file": "lib_minifeux3_73.webp"
+                },
+                {
+                    "index": 74,
+                    "file": "lib_minifeux3_74.webp"
+                },
+                {
+                    "index": 75,
+                    "file": "lib_minifeux3_75.webp"
+                },
+                {
+                    "index": 76,
+                    "file": "lib_minifeux3_76.webp"
+                },
+                {
+                    "index": 77,
+                    "file": "lib_minifeux3_77.webp"
+                }
+            ]
+        },
+        {
+            "name": "minifeux2",
+            "characterId": 7,
+            "internalName": "sprite_7",
+            "frameCount": 36,
+            "width": 14.700000000000001,
+            "height": 12.299999999999999,
+            "offsetX": 1.2000000000000002,
+            "offsetY": -7.199999999999999,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_minifeux2_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "lib_minifeux2_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "lib_minifeux2_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "lib_minifeux2_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "lib_minifeux2_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "lib_minifeux2_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "lib_minifeux2_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "lib_minifeux2_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "lib_minifeux2_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "lib_minifeux2_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "lib_minifeux2_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "lib_minifeux2_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "lib_minifeux2_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "lib_minifeux2_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "lib_minifeux2_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "lib_minifeux2_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "lib_minifeux2_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "lib_minifeux2_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "lib_minifeux2_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "lib_minifeux2_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "lib_minifeux2_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "lib_minifeux2_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "lib_minifeux2_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "lib_minifeux2_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "lib_minifeux2_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "lib_minifeux2_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "lib_minifeux2_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "lib_minifeux2_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "lib_minifeux2_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "lib_minifeux2_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "lib_minifeux2_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "lib_minifeux2_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "lib_minifeux2_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "lib_minifeux2_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "lib_minifeux2_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "lib_minifeux2_35.webp"
+                }
+            ]
+        },
+        {
+            "name": "minifeux4",
+            "characterId": 3,
+            "internalName": "sprite_3",
+            "frameCount": 78,
+            "width": 32.099999999999994,
+            "height": 39.599999999999994,
+            "offsetX": -7.5,
+            "offsetY": -17.1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_minifeux4_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "lib_minifeux4_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "lib_minifeux4_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "lib_minifeux4_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "lib_minifeux4_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "lib_minifeux4_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "lib_minifeux4_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "lib_minifeux4_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "lib_minifeux4_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "lib_minifeux4_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "lib_minifeux4_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "lib_minifeux4_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "lib_minifeux4_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "lib_minifeux4_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "lib_minifeux4_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "lib_minifeux4_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "lib_minifeux4_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "lib_minifeux4_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "lib_minifeux4_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "lib_minifeux4_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "lib_minifeux4_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "lib_minifeux4_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "lib_minifeux4_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "lib_minifeux4_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "lib_minifeux4_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "lib_minifeux4_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "lib_minifeux4_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "lib_minifeux4_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "lib_minifeux4_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "lib_minifeux4_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "lib_minifeux4_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "lib_minifeux4_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "lib_minifeux4_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "lib_minifeux4_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "lib_minifeux4_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "lib_minifeux4_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "lib_minifeux4_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "lib_minifeux4_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "lib_minifeux4_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "lib_minifeux4_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "lib_minifeux4_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "lib_minifeux4_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "lib_minifeux4_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "lib_minifeux4_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "lib_minifeux4_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "lib_minifeux4_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "lib_minifeux4_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "lib_minifeux4_47.webp"
+                },
+                {
+                    "index": 48,
+                    "file": "lib_minifeux4_48.webp"
+                },
+                {
+                    "index": 49,
+                    "file": "lib_minifeux4_49.webp"
+                },
+                {
+                    "index": 50,
+                    "file": "lib_minifeux4_50.webp"
+                },
+                {
+                    "index": 51,
+                    "file": "lib_minifeux4_51.webp"
+                },
+                {
+                    "index": 52,
+                    "file": "lib_minifeux4_52.webp"
+                },
+                {
+                    "index": 53,
+                    "file": "lib_minifeux4_53.webp"
+                },
+                {
+                    "index": 54,
+                    "file": "lib_minifeux4_54.webp"
+                },
+                {
+                    "index": 55,
+                    "file": "lib_minifeux4_55.webp"
+                },
+                {
+                    "index": 56,
+                    "file": "lib_minifeux4_56.webp"
+                },
+                {
+                    "index": 57,
+                    "file": "lib_minifeux4_57.webp"
+                },
+                {
+                    "index": 58,
+                    "file": "lib_minifeux4_58.webp"
+                },
+                {
+                    "index": 59,
+                    "file": "lib_minifeux4_59.webp"
+                },
+                {
+                    "index": 60,
+                    "file": "lib_minifeux4_60.webp"
+                },
+                {
+                    "index": 61,
+                    "file": "lib_minifeux4_61.webp"
+                },
+                {
+                    "index": 62,
+                    "file": "lib_minifeux4_62.webp"
+                },
+                {
+                    "index": 63,
+                    "file": "lib_minifeux4_63.webp"
+                },
+                {
+                    "index": 64,
+                    "file": "lib_minifeux4_64.webp"
+                },
+                {
+                    "index": 65,
+                    "file": "lib_minifeux4_65.webp"
+                },
+                {
+                    "index": 66,
+                    "file": "lib_minifeux4_66.webp"
+                },
+                {
+                    "index": 67,
+                    "file": "lib_minifeux4_67.webp"
+                },
+                {
+                    "index": 68,
+                    "file": "lib_minifeux4_68.webp"
+                },
+                {
+                    "index": 69,
+                    "file": "lib_minifeux4_69.webp"
+                },
+                {
+                    "index": 70,
+                    "file": "lib_minifeux4_70.webp"
+                },
+                {
+                    "index": 71,
+                    "file": "lib_minifeux4_71.webp"
+                },
+                {
+                    "index": 72,
+                    "file": "lib_minifeux4_72.webp"
+                },
+                {
+                    "index": 73,
+                    "file": "lib_minifeux4_73.webp"
+                },
+                {
+                    "index": 74,
+                    "file": "lib_minifeux4_74.webp"
+                },
+                {
+                    "index": 75,
+                    "file": "lib_minifeux4_75.webp"
+                },
+                {
+                    "index": 76,
+                    "file": "lib_minifeux4_76.webp"
+                },
+                {
+                    "index": 77,
+                    "file": "lib_minifeux4_77.webp"
+                }
+            ]
+        },
+        {
+            "name": "feux",
+            "characterId": 23,
+            "internalName": "sprite_23",
+            "frameCount": 16,
+            "width": 289.5,
+            "height": 319.79999999999995,
+            "offsetX": -111.89999999999999,
+            "offsetY": -160.5,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_feux_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "lib_feux_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "lib_feux_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "lib_feux_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "lib_feux_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "lib_feux_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "lib_feux_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "lib_feux_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "lib_feux_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "lib_feux_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "lib_feux_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "lib_feux_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "lib_feux_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "lib_feux_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "lib_feux_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "lib_feux_15.webp"
+                }
+            ]
+        }
+    ]
+}

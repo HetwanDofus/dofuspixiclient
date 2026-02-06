@@ -9,6 +9,7 @@ export interface ParsedFrame {
   frameIndex: number;
   viewBox: ViewBox;
   mainTransform: string;
+  positioningOffset: PositioningOffset;
   useElements: UseElement[];
   definitions: Definition[];
   rawContent?: string;
@@ -20,6 +21,12 @@ export interface ViewBox {
   y: number;
   width: number;
   height: number;
+}
+
+/** Positioning offset extracted from main transform */
+export interface PositioningOffset {
+  x: number;
+  y: number;
 }
 
 /** A <use> element reference */
@@ -61,6 +68,10 @@ export interface CanonicalDefinition {
   refCount: number;
   size: number;
   isPattern: boolean;
+  /** Hash of exported image file (if base64 was exported) */
+  exportedImageHash?: string;
+  /** Original base64 data URI (for replacement during content rebuild) */
+  base64DataUri?: string;
 }
 
 /** Deduplication statistics */
@@ -94,6 +105,12 @@ export interface OptimizationOptions {
   stripDefaults: boolean;
 }
 
+/** Image export options for rasterized content deduplication */
+export interface ImageExportOptions {
+  enabled: boolean;
+  outputDir: string;
+}
+
 /** Atlas frame data for runtime loading */
 export interface AtlasFrame {
   id: string;
@@ -105,12 +122,35 @@ export interface AtlasFrame {
   offsetY: number;
 }
 
+/** Content bounds for bin-packing */
+export interface ContentBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  width: number;
+  height: number;
+}
+
+/** Packed frame position from bin-packing */
+export interface PackedFrame {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  sourceFrame: ParsedFrame;
+}
+
 /** Atlas manifest for runtime loading */
 export interface AtlasManifest {
   version: number;
   animation: string;
   width: number;
   height: number;
+  /** Positioning offset for placing the sprite in the game world */
+  offsetX: number;
+  offsetY: number;
   frames: AtlasFrame[];
   frameOrder: string[];
   duplicates: Record<string, string>;

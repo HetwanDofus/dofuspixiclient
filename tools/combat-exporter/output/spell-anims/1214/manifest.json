@@ -1,0 +1,1061 @@
+{
+    "id": 1214,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "16_67",
+            "frameCount": 15,
+            "width": 80.69999999999999,
+            "height": 95.69999999999999,
+            "offsetX": -39.599999999999994,
+            "offsetY": -75.9,
+            "isComposite": false,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "16_67_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "16_67_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "16_67_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "16_67_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "16_67_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "16_67_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "16_67_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "16_67_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "16_67_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "16_67_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "16_67_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "16_67_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "16_67_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "16_67_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "16_67_14.webp"
+                }
+            ]
+        },
+        {
+            "name": "16_45",
+            "frameCount": 15,
+            "width": 210,
+            "height": 193.79999999999998,
+            "offsetX": -108,
+            "offsetY": -96.30000000000001,
+            "isComposite": false,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "16_45_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "16_45_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "16_45_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "16_45_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "16_45_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "16_45_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "16_45_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "16_45_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "16_45_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "16_45_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "16_45_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "16_45_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "16_45_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "16_45_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "16_45_14.webp"
+                }
+            ]
+        },
+        {
+            "name": "staticR",
+            "frameCount": 201,
+            "width": 337.79999999999995,
+            "height": 828,
+            "offsetX": -169.2,
+            "offsetY": -742.8,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "staticR_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "staticR_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "staticR_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "staticR_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "staticR_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "staticR_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "staticR_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "staticR_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "staticR_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "staticR_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "staticR_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "staticR_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "staticR_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "staticR_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "staticR_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "staticR_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "staticR_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "staticR_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "staticR_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "staticR_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "staticR_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "staticR_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "staticR_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "staticR_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "staticR_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "staticR_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "staticR_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "staticR_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "staticR_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "staticR_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "staticR_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "staticR_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "staticR_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "staticR_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "staticR_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "staticR_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "staticR_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "staticR_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "staticR_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "staticR_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "staticR_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "staticR_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "staticR_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "staticR_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "staticR_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "staticR_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "staticR_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "staticR_47.webp"
+                },
+                {
+                    "index": 48,
+                    "file": "staticR_48.webp"
+                },
+                {
+                    "index": 49,
+                    "file": "staticR_49.webp"
+                },
+                {
+                    "index": 50,
+                    "file": "staticR_50.webp"
+                },
+                {
+                    "index": 51,
+                    "file": "staticR_51.webp"
+                },
+                {
+                    "index": 52,
+                    "file": "staticR_52.webp"
+                },
+                {
+                    "index": 53,
+                    "file": "staticR_53.webp"
+                },
+                {
+                    "index": 54,
+                    "file": "staticR_54.webp"
+                },
+                {
+                    "index": 55,
+                    "file": "staticR_55.webp"
+                },
+                {
+                    "index": 56,
+                    "file": "staticR_56.webp"
+                },
+                {
+                    "index": 57,
+                    "file": "staticR_57.webp"
+                },
+                {
+                    "index": 58,
+                    "file": "staticR_58.webp"
+                },
+                {
+                    "index": 59,
+                    "file": "staticR_59.webp"
+                },
+                {
+                    "index": 60,
+                    "file": "staticR_60.webp"
+                },
+                {
+                    "index": 61,
+                    "file": "staticR_61.webp"
+                },
+                {
+                    "index": 62,
+                    "file": "staticR_62.webp"
+                },
+                {
+                    "index": 63,
+                    "file": "staticR_63.webp"
+                },
+                {
+                    "index": 64,
+                    "file": "staticR_64.webp"
+                },
+                {
+                    "index": 65,
+                    "file": "staticR_65.webp"
+                },
+                {
+                    "index": 66,
+                    "file": "staticR_66.webp"
+                },
+                {
+                    "index": 67,
+                    "file": "staticR_67.webp"
+                },
+                {
+                    "index": 68,
+                    "file": "staticR_68.webp"
+                },
+                {
+                    "index": 69,
+                    "file": "staticR_69.webp"
+                },
+                {
+                    "index": 70,
+                    "file": "staticR_70.webp"
+                },
+                {
+                    "index": 71,
+                    "file": "staticR_71.webp"
+                },
+                {
+                    "index": 72,
+                    "file": "staticR_72.webp"
+                },
+                {
+                    "index": 73,
+                    "file": "staticR_73.webp"
+                },
+                {
+                    "index": 74,
+                    "file": "staticR_74.webp"
+                },
+                {
+                    "index": 75,
+                    "file": "staticR_75.webp"
+                },
+                {
+                    "index": 76,
+                    "file": "staticR_76.webp"
+                },
+                {
+                    "index": 77,
+                    "file": "staticR_77.webp"
+                },
+                {
+                    "index": 78,
+                    "file": "staticR_78.webp"
+                },
+                {
+                    "index": 79,
+                    "file": "staticR_79.webp"
+                },
+                {
+                    "index": 80,
+                    "file": "staticR_80.webp"
+                },
+                {
+                    "index": 81,
+                    "file": "staticR_81.webp"
+                },
+                {
+                    "index": 82,
+                    "file": "staticR_82.webp"
+                },
+                {
+                    "index": 83,
+                    "file": "staticR_83.webp"
+                },
+                {
+                    "index": 84,
+                    "file": "staticR_84.webp"
+                },
+                {
+                    "index": 85,
+                    "file": "staticR_85.webp"
+                },
+                {
+                    "index": 86,
+                    "file": "staticR_86.webp"
+                },
+                {
+                    "index": 87,
+                    "file": "staticR_87.webp"
+                },
+                {
+                    "index": 88,
+                    "file": "staticR_88.webp"
+                },
+                {
+                    "index": 89,
+                    "file": "staticR_89.webp"
+                },
+                {
+                    "index": 90,
+                    "file": "staticR_90.webp"
+                },
+                {
+                    "index": 91,
+                    "file": "staticR_91.webp"
+                },
+                {
+                    "index": 92,
+                    "file": "staticR_92.webp"
+                },
+                {
+                    "index": 93,
+                    "file": "staticR_93.webp"
+                },
+                {
+                    "index": 94,
+                    "file": "staticR_94.webp"
+                },
+                {
+                    "index": 95,
+                    "file": "staticR_95.webp"
+                },
+                {
+                    "index": 96,
+                    "file": "staticR_96.webp"
+                },
+                {
+                    "index": 97,
+                    "file": "staticR_97.webp"
+                },
+                {
+                    "index": 98,
+                    "file": "staticR_98.webp"
+                },
+                {
+                    "index": 99,
+                    "file": "staticR_99.webp"
+                },
+                {
+                    "index": 100,
+                    "file": "staticR_100.webp"
+                },
+                {
+                    "index": 101,
+                    "file": "staticR_101.webp"
+                },
+                {
+                    "index": 102,
+                    "file": "staticR_102.webp"
+                },
+                {
+                    "index": 103,
+                    "file": "staticR_103.webp"
+                },
+                {
+                    "index": 104,
+                    "file": "staticR_104.webp"
+                },
+                {
+                    "index": 105,
+                    "file": "staticR_105.webp"
+                },
+                {
+                    "index": 106,
+                    "file": "staticR_106.webp"
+                },
+                {
+                    "index": 107,
+                    "file": "staticR_107.webp"
+                },
+                {
+                    "index": 108,
+                    "file": "staticR_108.webp"
+                },
+                {
+                    "index": 109,
+                    "file": "staticR_109.webp"
+                },
+                {
+                    "index": 110,
+                    "file": "staticR_110.webp"
+                },
+                {
+                    "index": 111,
+                    "file": "staticR_111.webp"
+                },
+                {
+                    "index": 112,
+                    "file": "staticR_112.webp"
+                },
+                {
+                    "index": 113,
+                    "file": "staticR_113.webp"
+                },
+                {
+                    "index": 114,
+                    "file": "staticR_114.webp"
+                },
+                {
+                    "index": 115,
+                    "file": "staticR_115.webp"
+                },
+                {
+                    "index": 116,
+                    "file": "staticR_116.webp"
+                },
+                {
+                    "index": 117,
+                    "file": "staticR_117.webp"
+                },
+                {
+                    "index": 118,
+                    "file": "staticR_118.webp"
+                },
+                {
+                    "index": 119,
+                    "file": "staticR_119.webp"
+                },
+                {
+                    "index": 120,
+                    "file": "staticR_120.webp"
+                },
+                {
+                    "index": 121,
+                    "file": "staticR_121.webp"
+                },
+                {
+                    "index": 122,
+                    "file": "staticR_122.webp"
+                },
+                {
+                    "index": 123,
+                    "file": "staticR_123.webp"
+                },
+                {
+                    "index": 124,
+                    "file": "staticR_124.webp"
+                },
+                {
+                    "index": 125,
+                    "file": "staticR_125.webp"
+                },
+                {
+                    "index": 126,
+                    "file": "staticR_126.webp"
+                },
+                {
+                    "index": 127,
+                    "file": "staticR_127.webp"
+                },
+                {
+                    "index": 128,
+                    "file": "staticR_128.webp"
+                },
+                {
+                    "index": 129,
+                    "file": "staticR_129.webp"
+                },
+                {
+                    "index": 130,
+                    "file": "staticR_130.webp"
+                },
+                {
+                    "index": 131,
+                    "file": "staticR_131.webp"
+                },
+                {
+                    "index": 132,
+                    "file": "staticR_132.webp"
+                },
+                {
+                    "index": 133,
+                    "file": "staticR_133.webp"
+                },
+                {
+                    "index": 134,
+                    "file": "staticR_134.webp"
+                },
+                {
+                    "index": 135,
+                    "file": "staticR_135.webp"
+                },
+                {
+                    "index": 136,
+                    "file": "staticR_136.webp"
+                },
+                {
+                    "index": 137,
+                    "file": "staticR_137.webp"
+                },
+                {
+                    "index": 138,
+                    "file": "staticR_138.webp"
+                },
+                {
+                    "index": 139,
+                    "file": "staticR_139.webp"
+                },
+                {
+                    "index": 140,
+                    "file": "staticR_140.webp"
+                },
+                {
+                    "index": 141,
+                    "file": "staticR_141.webp"
+                },
+                {
+                    "index": 142,
+                    "file": "staticR_142.webp"
+                },
+                {
+                    "index": 143,
+                    "file": "staticR_143.webp"
+                },
+                {
+                    "index": 144,
+                    "file": "staticR_144.webp"
+                },
+                {
+                    "index": 145,
+                    "file": "staticR_145.webp"
+                },
+                {
+                    "index": 146,
+                    "file": "staticR_146.webp"
+                },
+                {
+                    "index": 147,
+                    "file": "staticR_147.webp"
+                },
+                {
+                    "index": 148,
+                    "file": "staticR_148.webp"
+                },
+                {
+                    "index": 149,
+                    "file": "staticR_149.webp"
+                },
+                {
+                    "index": 150,
+                    "file": "staticR_150.webp"
+                },
+                {
+                    "index": 151,
+                    "file": "staticR_151.webp"
+                },
+                {
+                    "index": 152,
+                    "file": "staticR_152.webp"
+                },
+                {
+                    "index": 153,
+                    "file": "staticR_153.webp"
+                },
+                {
+                    "index": 154,
+                    "file": "staticR_154.webp"
+                },
+                {
+                    "index": 155,
+                    "file": "staticR_155.webp"
+                },
+                {
+                    "index": 156,
+                    "file": "staticR_156.webp"
+                },
+                {
+                    "index": 157,
+                    "file": "staticR_157.webp"
+                },
+                {
+                    "index": 158,
+                    "file": "staticR_158.webp"
+                },
+                {
+                    "index": 159,
+                    "file": "staticR_159.webp"
+                },
+                {
+                    "index": 160,
+                    "file": "staticR_160.webp"
+                },
+                {
+                    "index": 161,
+                    "file": "staticR_161.webp"
+                },
+                {
+                    "index": 162,
+                    "file": "staticR_162.webp"
+                },
+                {
+                    "index": 163,
+                    "file": "staticR_163.webp"
+                },
+                {
+                    "index": 164,
+                    "file": "staticR_164.webp"
+                },
+                {
+                    "index": 165,
+                    "file": "staticR_165.webp"
+                },
+                {
+                    "index": 166,
+                    "file": "staticR_166.webp"
+                },
+                {
+                    "index": 167,
+                    "file": "staticR_167.webp"
+                },
+                {
+                    "index": 168,
+                    "file": "staticR_168.webp"
+                },
+                {
+                    "index": 169,
+                    "file": "staticR_169.webp"
+                },
+                {
+                    "index": 170,
+                    "file": "staticR_170.webp"
+                },
+                {
+                    "index": 171,
+                    "file": "staticR_171.webp"
+                },
+                {
+                    "index": 172,
+                    "file": "staticR_172.webp"
+                },
+                {
+                    "index": 173,
+                    "file": "staticR_173.webp"
+                },
+                {
+                    "index": 174,
+                    "file": "staticR_174.webp"
+                },
+                {
+                    "index": 175,
+                    "file": "staticR_175.webp"
+                },
+                {
+                    "index": 176,
+                    "file": "staticR_176.webp"
+                },
+                {
+                    "index": 177,
+                    "file": "staticR_177.webp"
+                },
+                {
+                    "index": 178,
+                    "file": "staticR_178.webp"
+                },
+                {
+                    "index": 179,
+                    "file": "staticR_179.webp"
+                },
+                {
+                    "index": 180,
+                    "file": "staticR_180.webp"
+                },
+                {
+                    "index": 181,
+                    "file": "staticR_181.webp"
+                },
+                {
+                    "index": 182,
+                    "file": "staticR_182.webp"
+                },
+                {
+                    "index": 183,
+                    "file": "staticR_183.webp"
+                },
+                {
+                    "index": 184,
+                    "file": "staticR_184.webp"
+                },
+                {
+                    "index": 185,
+                    "file": "staticR_185.webp"
+                },
+                {
+                    "index": 186,
+                    "file": "staticR_186.webp"
+                },
+                {
+                    "index": 187,
+                    "file": "staticR_187.webp"
+                },
+                {
+                    "index": 188,
+                    "file": "staticR_188.webp"
+                },
+                {
+                    "index": 189,
+                    "file": "staticR_189.webp"
+                },
+                {
+                    "index": 190,
+                    "file": "staticR_190.webp"
+                },
+                {
+                    "index": 191,
+                    "file": "staticR_191.webp"
+                },
+                {
+                    "index": 192,
+                    "file": "staticR_192.webp"
+                },
+                {
+                    "index": 193,
+                    "file": "staticR_193.webp"
+                },
+                {
+                    "index": 194,
+                    "file": "staticR_194.webp"
+                },
+                {
+                    "index": 195,
+                    "file": "staticR_195.webp"
+                },
+                {
+                    "index": 196,
+                    "file": "staticR_196.webp"
+                },
+                {
+                    "index": 197,
+                    "file": "staticR_197.webp"
+                },
+                {
+                    "index": 198,
+                    "file": "staticR_198.webp"
+                },
+                {
+                    "index": 199,
+                    "file": "staticR_199.webp"
+                },
+                {
+                    "index": 200,
+                    "file": "staticR_200.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_160/frame_13/DoAction.as",
+        "scripts/scripts/DefineSprite_158/frame_13/DoAction.as",
+        "scripts/scripts/DefineSprite_166/frame_8/DoAction.as",
+        "scripts/scripts/DefineSprite_166/frame_19/DoAction.as",
+        "scripts/scripts/DefineSprite_166/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_168/frame_7/DoAction.as",
+        "scripts/scripts/DefineSprite_168/frame_19/DoAction.as",
+        "scripts/scripts/DefineSprite_168/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_157/frame_9/DoAction.as",
+        "scripts/scripts/DefineSprite_150/frame_19/DoAction.as",
+        "scripts/scripts/DefineSprite_150/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_44/frame_1/DoAction.as",
+        "scripts/scripts/frame_172/DoAction.as",
+        "scripts/scripts/DefineSprite_172/frame_7/DoAction.as",
+        "scripts/scripts/DefineSprite_172/frame_20/DoAction.as",
+        "scripts/scripts/DefineSprite_172/frame_8/DoAction.as",
+        "scripts/scripts/DefineSprite_172/frame_10/DoAction.as",
+        "scripts/scripts/DefineSprite_144/frame_5/DoAction.as",
+        "scripts/scripts/frame_19/PlaceObject2_192_staticR_277/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/frame_10/PlaceObject2_192_staticR_139/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_145/frame_12/DoAction.as",
+        "scripts/scripts/DefineSprite_145/frame_3/DoAction.as",
+        "scripts/scripts/DefineSprite_174/frame_7/DoAction.as",
+        "scripts/scripts/DefineSprite_174/frame_21/DoAction.as",
+        "scripts/scripts/DefineSprite_174/frame_8/DoAction.as",
+        "scripts/scripts/DefineSprite_174/frame_10/DoAction.as",
+        "scripts/scripts/DefineSprite_180/frame_11/DoAction.as",
+        "scripts/scripts/DefineSprite_180/frame_9/DoAction.as",
+        "scripts/scripts/DefineSprite_180/frame_21/DoAction.as",
+        "scripts/scripts/DefineSprite_180/frame_8/DoAction.as",
+        "scripts/scripts/DefineSprite_139/frame_5/DoAction.as",
+        "scripts/scripts/DefineSprite_152/frame_20/DoAction.as",
+        "scripts/scripts/DefineSprite_152/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_77/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_147/frame_12/DoAction.as",
+        "scripts/scripts/DefineSprite_147/frame_3/DoAction.as",
+        "scripts/scripts/DefineSprite_178/frame_7/DoAction.as",
+        "scripts/scripts/DefineSprite_178/frame_9/DoAction.as",
+        "scripts/scripts/DefineSprite_178/frame_20/DoAction.as",
+        "scripts/scripts/DefineSprite_178/frame_6/DoAction.as",
+        "scripts/scripts/frame_4/PlaceObject2_192_staticR_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_192_staticR/frame_58/PlaceObject2_184_137/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_192_staticR/frame_58/PlaceObject2_184_137/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_192_staticR/frame_58/DoAction.as",
+        "scripts/scripts/DefineSprite_192_staticR/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_192_staticR/frame_4/DoAction.as",
+        "scripts/scripts/frame_13/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "sounds": [
+        {
+            "frame": 0,
+            "soundId": "pandit_spell"
+        },
+        {
+            "frame": 0,
+            "soundId": "death_fall"
+        },
+        {
+            "frame": 0,
+            "soundId": "pandit_death"
+        },
+        {
+            "frame": 2,
+            "soundId": "hit_defaut"
+        },
+        {
+            "frame": 3,
+            "soundId": "impact_lourd"
+        },
+        {
+            "frame": 5,
+            "soundId": "pandit_attak"
+        },
+        {
+            "frame": 6,
+            "soundId": "pandit_attak"
+        },
+        {
+            "frame": 6,
+            "soundId": "ouginac_epee"
+        },
+        {
+            "frame": 7,
+            "soundId": "pandit_fire"
+        },
+        {
+            "frame": 7,
+            "soundId": "pandit_attak"
+        },
+        {
+            "frame": 8,
+            "soundId": "ouginac_epee"
+        }
+    ]
+}

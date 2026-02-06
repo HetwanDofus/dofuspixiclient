@@ -1,0 +1,2539 @@
+{
+    "version": "1.0",
+    "generated": "2026-01-09T05:25:07+00:00",
+    "source": "extracted from effects_fr_1258.swf via Arakne SWF library",
+    "effects": {
+        "4": {
+            "id": 4,
+            "description": "Téléporte à une distance de #1 cases maximum",
+            "operator": "",
+            "characteristic": 89
+        },
+        "5": {
+            "id": 5,
+            "description": "Fait reculer de #1 case(s)",
+            "operator": "",
+            "characteristic": 92
+        },
+        "6": {
+            "id": 6,
+            "description": "Fait avancer de #1 case(s)",
+            "operator": "",
+            "characteristic": 91
+        },
+        "7": {
+            "id": 7,
+            "description": "Divorcer le couple",
+            "operator": "",
+            "characteristic": 0
+        },
+        "8": {
+            "id": 8,
+            "description": "Echange les places de 2 joueurs",
+            "operator": "",
+            "characteristic": 90
+        },
+        "9": {
+            "id": 9,
+            "description": "Esquive #1% des coups en reculant de #2 case(s)",
+            "operator": "",
+            "characteristic": 92
+        },
+        "10": {
+            "id": 10,
+            "description": "Permet d'utiliser l'attitude #3",
+            "operator": "",
+            "characteristic": 0
+        },
+        "13": {
+            "id": 13,
+            "description": "Change le temps de jeu d'un joueur",
+            "operator": "",
+            "characteristic": 0
+        },
+        "50": {
+            "id": 50,
+            "description": "Porter un joueur",
+            "operator": "",
+            "characteristic": 0
+        },
+        "51": {
+            "id": 51,
+            "description": "Jeter un joueur",
+            "operator": "",
+            "characteristic": 0
+        },
+        "77": {
+            "id": 77,
+            "description": "Vole #1{~1~2 à }#2 PM",
+            "operator": "+",
+            "characteristic": 28,
+            "jet": true
+        },
+        "78": {
+            "id": 78,
+            "description": "Ajoute +#1{~1~2 à }#2 PM",
+            "operator": "+",
+            "characteristic": 0,
+            "jet": true
+        },
+        "79": {
+            "id": 79,
+            "description": "#3% dommages subis x#1, sinon soigné de x#2",
+            "operator": "",
+            "characteristic": 0
+        },
+        "81": {
+            "id": 81,
+            "description": "PDV rendus : #1{~1~2 à }#2",
+            "operator": "+",
+            "characteristic": 82,
+            "jet": true
+        },
+        "82": {
+            "id": 82,
+            "description": "Vole #1{~1~2 à }#2 PDV (fixe)",
+            "operator": "+",
+            "characteristic": 11,
+            "jet": true
+        },
+        "84": {
+            "id": 84,
+            "description": "Vole #1{~1~2 à }#2 PA",
+            "operator": "+",
+            "characteristic": 1,
+            "jet": true
+        },
+        "85": {
+            "id": 85,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie de l'attaquant (eau)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "86": {
+            "id": 86,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie de l'attaquant (terre)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "87": {
+            "id": 87,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie de l'attaquant (air)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "88": {
+            "id": 88,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie de l'attaquant (feu)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "89": {
+            "id": 89,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie de l'attaquant (neutre)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "90": {
+            "id": 90,
+            "description": "Donne #1{~1~2 à }#2 % de sa vie",
+            "operator": "/",
+            "characteristic": 11,
+            "jet": true
+        },
+        "91": {
+            "id": 91,
+            "description": "Vole #1{~1~2 à }#2 PDV (eau)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "92": {
+            "id": 92,
+            "description": "Vole #1{~1~2 à }#2 PDV (terre)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "93": {
+            "id": 93,
+            "description": "Vole #1{~1~2 à }#2 PDV (air)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "94": {
+            "id": 94,
+            "description": "Vole #1{~1~2 à }#2 PDV (feu)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "95": {
+            "id": 95,
+            "description": "Vole #1{~1~2 à }#2 PDV (neutre)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "96": {
+            "id": 96,
+            "description": "Dommages : #1{~1~2 à }#2 (eau)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "97": {
+            "id": 97,
+            "description": "Dommages : #1{~1~2 à }#2 (terre)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "98": {
+            "id": 98,
+            "description": "Dommages : #1{~1~2 à }#2 (air)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "99": {
+            "id": 99,
+            "description": "Dommages : #1{~1~2 à }#2 (feu)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "100": {
+            "id": 100,
+            "description": "Dommages : #1{~1~2 à }#2 (neutre)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "101": {
+            "id": 101,
+            "description": "PA perdus à la cible : #1{~1~2 à }#2",
+            "operator": "/",
+            "characteristic": 1,
+            "jet": true
+        },
+        "105": {
+            "id": 105,
+            "description": "Dommages réduits de #1{~1~2 à }#2",
+            "operator": "+",
+            "characteristic": 6,
+            "jet": true
+        },
+        "106": {
+            "id": 106,
+            "description": "Renvoie un sort de niveau #2 maximum",
+            "operator": "",
+            "characteristic": 30
+        },
+        "107": {
+            "id": 107,
+            "description": "Dommages retournés : #1{~1~2 à }#2",
+            "operator": "",
+            "characteristic": 31,
+            "jet": true
+        },
+        "108": {
+            "id": 108,
+            "description": "PDV rendus : #1{~1~2 à }#2",
+            "operator": "+",
+            "characteristic": 82,
+            "jet": true
+        },
+        "109": {
+            "id": 109,
+            "description": "Dommages pour le lanceur : #1{~1~2 à }#2",
+            "operator": "-",
+            "characteristic": 0,
+            "jet": true
+        },
+        "110": {
+            "id": 110,
+            "description": "+#1{~1~2 à }#2 en vie",
+            "operator": "+",
+            "characteristic": 82,
+            "jet": true
+        },
+        "111": {
+            "id": 111,
+            "description": "+#1{~1~2 à }#2 PA",
+            "operator": "+",
+            "characteristic": 1,
+            "jet": true
+        },
+        "112": {
+            "id": 112,
+            "description": "+#1{~1~2 à }#2 de dommages",
+            "operator": "+",
+            "characteristic": 80,
+            "jet": true
+        },
+        "113": {
+            "id": 113,
+            "description": "Double les dommages ou rend  #1{~1~2 à }#2 PDV",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "114": {
+            "id": 114,
+            "description": "Multiplie les dommages par #1",
+            "operator": "+",
+            "characteristic": 17
+        },
+        "115": {
+            "id": 115,
+            "description": "+#1{~1~2 à }#2 aux coups critiques",
+            "operator": "+",
+            "characteristic": 18,
+            "jet": true
+        },
+        "116": {
+            "id": 116,
+            "description": "-#1{~1~2 à -}#2 à la portée",
+            "operator": "-",
+            "characteristic": 19,
+            "jet": true
+        },
+        "117": {
+            "id": 117,
+            "description": "+#1{~1~2 à }#2 à la portée",
+            "operator": "+",
+            "characteristic": 19,
+            "jet": true
+        },
+        "118": {
+            "id": 118,
+            "description": "+#1{~1~2 à }#2 en force",
+            "operator": "+",
+            "characteristic": 10,
+            "jet": true
+        },
+        "119": {
+            "id": 119,
+            "description": "+#1{~1~2 à }#2 en agilité",
+            "operator": "+",
+            "characteristic": 14,
+            "jet": true
+        },
+        "120": {
+            "id": 120,
+            "description": "Ajoute +#1{~1~2 à }#2 PA",
+            "operator": "+",
+            "characteristic": 1,
+            "jet": true
+        },
+        "121": {
+            "id": 121,
+            "description": "+#1{~1~2 à }#2 de dommages",
+            "operator": "+",
+            "characteristic": 80,
+            "jet": true
+        },
+        "122": {
+            "id": 122,
+            "description": "+#1{~1~2 à }#2 aux échecs critiques",
+            "operator": "-",
+            "characteristic": 39,
+            "jet": true
+        },
+        "123": {
+            "id": 123,
+            "description": "+#1{~1~2 à }#2 à la chance",
+            "operator": "+",
+            "characteristic": 13,
+            "jet": true
+        },
+        "124": {
+            "id": 124,
+            "description": "+#1{~1~2 à }#2 en sagesse",
+            "operator": "+",
+            "characteristic": 12,
+            "jet": true
+        },
+        "125": {
+            "id": 125,
+            "description": "+#1{~1~2 à }#2 en vitalité",
+            "operator": "+",
+            "characteristic": 11,
+            "jet": true
+        },
+        "126": {
+            "id": 126,
+            "description": "+#1{~1~2 à }#2 en intelligence",
+            "operator": "+",
+            "characteristic": 15,
+            "jet": true
+        },
+        "127": {
+            "id": 127,
+            "description": "PM perdus : #1{~1~2 à }#2",
+            "operator": "-",
+            "characteristic": 23,
+            "jet": true
+        },
+        "128": {
+            "id": 128,
+            "description": "+#1{~1~2 à }#2 PM",
+            "operator": "+",
+            "characteristic": 23,
+            "jet": true
+        },
+        "130": {
+            "id": 130,
+            "description": "Vole  #1{~1~2 à }#2 d'or",
+            "operator": "+",
+            "characteristic": 2,
+            "jet": true
+        },
+        "131": {
+            "id": 131,
+            "description": "#1 PA utilisés font perdre #2 PDV",
+            "operator": "-",
+            "characteristic": 0
+        },
+        "132": {
+            "id": 132,
+            "description": "Enlève les envoûtements",
+            "operator": "",
+            "characteristic": -1
+        },
+        "133": {
+            "id": 133,
+            "description": "PA perdus pour le lanceur : #1{~1~2 à }#2",
+            "operator": "-",
+            "characteristic": 1,
+            "jet": true
+        },
+        "134": {
+            "id": 134,
+            "description": "PM perdus pour le lanceur : #1{~1~2 à }#2",
+            "operator": "-",
+            "characteristic": 23,
+            "jet": true
+        },
+        "135": {
+            "id": 135,
+            "description": "Portée du lanceur réduite de : #1{~1~2 à }#2",
+            "operator": "-",
+            "characteristic": 19,
+            "jet": true
+        },
+        "136": {
+            "id": 136,
+            "description": "Portée du lanceur augmentée de : #1{~1~2 à }#2",
+            "operator": "+",
+            "characteristic": 19,
+            "jet": true
+        },
+        "137": {
+            "id": 137,
+            "description": "Dommages physiques du lanceur augmentés de : #1{~1~2 à }#2",
+            "operator": "+",
+            "characteristic": 79,
+            "jet": true
+        },
+        "138": {
+            "id": 138,
+            "description": "Augmente les dommages de #1{~1~2 à }#2%",
+            "operator": "+",
+            "characteristic": 17,
+            "jet": true
+        },
+        "139": {
+            "id": 139,
+            "description": "Rend #1{~1~2 à }#2 points d'énergie",
+            "operator": "+",
+            "characteristic": 29,
+            "jet": true
+        },
+        "140": {
+            "id": 140,
+            "description": "Fait passer le tour suivant",
+            "operator": "",
+            "characteristic": -1
+        },
+        "141": {
+            "id": 141,
+            "description": "Tue la cible",
+            "operator": "",
+            "characteristic": 102
+        },
+        "142": {
+            "id": 142,
+            "description": "+#1{~1~2 à }#2 aux dommages physiques",
+            "operator": "+",
+            "characteristic": 79,
+            "jet": true
+        },
+        "143": {
+            "id": 143,
+            "description": "PDV rendus : #1{~1~2 à }#2",
+            "operator": "+",
+            "characteristic": 82,
+            "jet": true
+        },
+        "144": {
+            "id": 144,
+            "description": "Dommages : #1{~1~2 à }#2 (non boostés)",
+            "operator": "-",
+            "characteristic": 11,
+            "jet": true
+        },
+        "145": {
+            "id": 145,
+            "description": "-#1{~1~2 à }#2 aux dommages",
+            "operator": "-",
+            "characteristic": 80,
+            "jet": true
+        },
+        "146": {
+            "id": 146,
+            "description": "Change les paroles",
+            "operator": "",
+            "characteristic": 38
+        },
+        "147": {
+            "id": 147,
+            "description": "Ressuscite un allié",
+            "operator": "",
+            "characteristic": 0
+        },
+        "148": {
+            "id": 148,
+            "description": "Quelqu'un vous suit !",
+            "operator": "",
+            "characteristic": 0
+        },
+        "149": {
+            "id": 149,
+            "description": "Change l'apparence",
+            "operator": "",
+            "characteristic": 38
+        },
+        "150": {
+            "id": 150,
+            "description": "Rend le personnage invisible",
+            "operator": "+",
+            "characteristic": 24
+        },
+        "152": {
+            "id": 152,
+            "description": "-#1{~1~2 à -}#2 en chance",
+            "operator": "-",
+            "characteristic": 13,
+            "jet": true
+        },
+        "153": {
+            "id": 153,
+            "description": "-#1{~1~2 à -}#2 en vitalité",
+            "operator": "-",
+            "characteristic": 11,
+            "jet": true
+        },
+        "154": {
+            "id": 154,
+            "description": "-#1{~1~2 à -}#2 en agilité",
+            "operator": "-",
+            "characteristic": 14,
+            "jet": true
+        },
+        "155": {
+            "id": 155,
+            "description": "-#1{~1~2 à -}#2 en intelligence",
+            "operator": "-",
+            "characteristic": 15,
+            "jet": true
+        },
+        "156": {
+            "id": 156,
+            "description": "-#1{~1~2 à -}#2 en sagesse",
+            "operator": "-",
+            "characteristic": 12,
+            "jet": true
+        },
+        "157": {
+            "id": 157,
+            "description": "-#1{~1~2 à -}#2 en force",
+            "operator": "-",
+            "characteristic": 10,
+            "jet": true
+        },
+        "158": {
+            "id": 158,
+            "description": "Augmente le poids portable de #1{~1~2 à }#2 pods",
+            "operator": "+",
+            "characteristic": 96,
+            "jet": true
+        },
+        "159": {
+            "id": 159,
+            "description": "Réduit le poids portable de #1{~1~2 à }#2 pods",
+            "operator": "-",
+            "characteristic": 96,
+            "jet": true
+        },
+        "160": {
+            "id": 160,
+            "description": "+#1{~1~2 à }#2% de chance d'esquiver les pertes de PA",
+            "operator": "+",
+            "characteristic": 27,
+            "jet": true
+        },
+        "161": {
+            "id": 161,
+            "description": "+#1{~1~2 à }#2% de chance d'esquiver les pertes de PM",
+            "operator": "+",
+            "characteristic": 28,
+            "jet": true
+        },
+        "162": {
+            "id": 162,
+            "description": "-#1{~1~2 à }#2% de chance d'esquiver les pertes de PA",
+            "operator": "-",
+            "characteristic": 27,
+            "jet": true
+        },
+        "163": {
+            "id": 163,
+            "description": "-#1{~1~2 à }#2% de chance d'esquiver les pertes de PM",
+            "operator": "-",
+            "characteristic": 28,
+            "jet": true
+        },
+        "164": {
+            "id": 164,
+            "description": "Dommages réduits de #1%",
+            "operator": "+",
+            "characteristic": 6
+        },
+        "165": {
+            "id": 165,
+            "description": "Augmente les dommages (#1) de #2%",
+            "operator": "+",
+            "characteristic": 16
+        },
+        "166": {
+            "id": 166,
+            "description": "PA retournés : #1{~1~2 à }#2",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "168": {
+            "id": 168,
+            "description": "-#1{~1~2 à -}#2 PA",
+            "operator": "-",
+            "characteristic": 1,
+            "jet": true
+        },
+        "169": {
+            "id": 169,
+            "description": "-#1{~1~2 à -}#2 PM",
+            "operator": "-",
+            "characteristic": 23,
+            "jet": true
+        },
+        "171": {
+            "id": 171,
+            "description": "-#1{~1~2 à }#2 aux coups critiques",
+            "operator": "-",
+            "characteristic": 18,
+            "jet": true
+        },
+        "172": {
+            "id": 172,
+            "description": "Réduction magique diminué de #1{~1~2 à }#2",
+            "operator": "-",
+            "characteristic": 20,
+            "jet": true
+        },
+        "173": {
+            "id": 173,
+            "description": "Réduction physique diminué de #1{~1~2 à }#2",
+            "operator": "-",
+            "characteristic": 79,
+            "jet": true
+        },
+        "174": {
+            "id": 174,
+            "description": "+#1{~1~2 à }#2 en initiative",
+            "operator": "+",
+            "characteristic": 44,
+            "jet": true
+        },
+        "175": {
+            "id": 175,
+            "description": "-#1{~1~2 à }#2 en initiative",
+            "operator": "-",
+            "characteristic": 44,
+            "jet": true
+        },
+        "176": {
+            "id": 176,
+            "description": "+#1{~1~2 à }#2 en prospection",
+            "operator": "+",
+            "characteristic": 48,
+            "jet": true
+        },
+        "177": {
+            "id": 177,
+            "description": "-#1{~1~2 à }#2 en prospection",
+            "operator": "-",
+            "characteristic": 48,
+            "jet": true
+        },
+        "178": {
+            "id": 178,
+            "description": "+#1{~1~2 à }#2 de soins",
+            "operator": "+",
+            "characteristic": 49,
+            "jet": true
+        },
+        "179": {
+            "id": 179,
+            "description": "-#1{~1~2 à }#2 de soins",
+            "operator": "-",
+            "characteristic": 49,
+            "jet": true
+        },
+        "180": {
+            "id": 180,
+            "description": "Crée un double du lanceur de sort",
+            "operator": "",
+            "characteristic": 97
+        },
+        "181": {
+            "id": 181,
+            "description": "Invoque : #1",
+            "operator": "",
+            "characteristic": 97
+        },
+        "182": {
+            "id": 182,
+            "description": "+#1{~1~2 à }#2 créatures invocables",
+            "operator": "+",
+            "characteristic": 26,
+            "jet": true
+        },
+        "183": {
+            "id": 183,
+            "description": "Réduction magique de #1{~1~2 à }#2",
+            "operator": "/",
+            "characteristic": 6,
+            "jet": true
+        },
+        "184": {
+            "id": 184,
+            "description": "Réduction physique de #1{~1~2 à }#2",
+            "operator": "/",
+            "characteristic": 6,
+            "jet": true
+        },
+        "185": {
+            "id": 185,
+            "description": "Invoque une créature statique",
+            "operator": "",
+            "characteristic": 98
+        },
+        "186": {
+            "id": 186,
+            "description": "Diminue les dommages de #1{~1~2 à }#2%",
+            "operator": "-",
+            "characteristic": 17,
+            "jet": true
+        },
+        "188": {
+            "id": 188,
+            "description": "Changer l'alignement",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "194": {
+            "id": 194,
+            "description": "Gagner #1{~1~2 à }#2 kamas",
+            "operator": "+",
+            "characteristic": 2,
+            "jet": true
+        },
+        "197": {
+            "id": 197,
+            "description": "Transforme en #1",
+            "operator": "",
+            "characteristic": 0
+        },
+        "201": {
+            "id": 201,
+            "description": "Pose un objet au sol",
+            "operator": "",
+            "characteristic": -1
+        },
+        "202": {
+            "id": 202,
+            "description": "Dévoile tous les objets invisibles",
+            "operator": "",
+            "characteristic": -1
+        },
+        "206": {
+            "id": 206,
+            "description": "Ressuscite la cible",
+            "operator": "",
+            "characteristic": 0
+        },
+        "210": {
+            "id": 210,
+            "description": "#1{~1~2 à }#2 % de résistance à la terre",
+            "operator": "+",
+            "characteristic": 33,
+            "jet": true
+        },
+        "211": {
+            "id": 211,
+            "description": "#1{~1~2 à }#2 % de résistance à l'eau",
+            "operator": "+",
+            "characteristic": 35,
+            "jet": true
+        },
+        "212": {
+            "id": 212,
+            "description": "#1{~1~2 à }#2 % de résistance à l'air",
+            "operator": "+",
+            "characteristic": 36,
+            "jet": true
+        },
+        "213": {
+            "id": 213,
+            "description": "#1{~1~2 à }#2 % de résistance au feu",
+            "operator": "+",
+            "characteristic": 34,
+            "jet": true
+        },
+        "214": {
+            "id": 214,
+            "description": "#1{~1~2 à }#2 % de résistance neutre",
+            "operator": "+",
+            "characteristic": 37,
+            "jet": true
+        },
+        "215": {
+            "id": 215,
+            "description": "#1{~1~2 à }#2 % de faiblesse face à la terre",
+            "operator": "-",
+            "characteristic": 33,
+            "jet": true
+        },
+        "216": {
+            "id": 216,
+            "description": "#1{~1~2 à }#2 % de faiblesse face à l'eau",
+            "operator": "-",
+            "characteristic": 35,
+            "jet": true
+        },
+        "217": {
+            "id": 217,
+            "description": "#1{~1~2 à }#2 % de faiblesse face à l'air",
+            "operator": "-",
+            "characteristic": 36,
+            "jet": true
+        },
+        "218": {
+            "id": 218,
+            "description": "#1{~1~2 à }#2 % de faiblesse face au feu",
+            "operator": "-",
+            "characteristic": 34,
+            "jet": true
+        },
+        "219": {
+            "id": 219,
+            "description": "#1{~1~2 à }#2 % de faiblesse neutre",
+            "operator": "-",
+            "characteristic": 37,
+            "jet": true
+        },
+        "220": {
+            "id": 220,
+            "description": "Renvoie #1{~1~2 à }#2 dommages",
+            "operator": "+",
+            "characteristic": 50
+        },
+        "221": {
+            "id": 221,
+            "description": "Qu'y a-t-il là dedans ?",
+            "operator": "",
+            "characteristic": 0
+        },
+        "222": {
+            "id": 222,
+            "description": "Qu'y a-t-il là dedans ?",
+            "operator": "",
+            "characteristic": 0
+        },
+        "225": {
+            "id": 225,
+            "description": "+#1{~1~2 à }#2 de dommages aux pièges",
+            "operator": "+",
+            "characteristic": 70,
+            "jet": true
+        },
+        "226": {
+            "id": 226,
+            "description": "+#1{~1~2 à }#2% de dommages aux pièges",
+            "operator": "+",
+            "characteristic": 69,
+            "jet": true
+        },
+        "229": {
+            "id": 229,
+            "description": "Récupère une monture !",
+            "operator": "+",
+            "characteristic": 81
+        },
+        "230": {
+            "id": 230,
+            "description": "+#1 en énergie perdue",
+            "operator": "/",
+            "characteristic": 51
+        },
+        "239": {
+            "id": 239,
+            "description": "Transforme en #1",
+            "operator": "",
+            "characteristic": 0
+        },
+        "240": {
+            "id": 240,
+            "description": "+#1{~1~2 à }#2 de résistance à la terre",
+            "operator": "+",
+            "characteristic": 83,
+            "jet": true
+        },
+        "241": {
+            "id": 241,
+            "description": "+#1{~1~2 à }#2 de résistance à l'eau",
+            "operator": "+",
+            "characteristic": 85,
+            "jet": true
+        },
+        "242": {
+            "id": 242,
+            "description": "+#1{~1~2 à }#2 de résistance à l'air",
+            "operator": "+",
+            "characteristic": 86,
+            "jet": true
+        },
+        "243": {
+            "id": 243,
+            "description": "+#1{~1~2 à }#2 de résistance au feu",
+            "operator": "+",
+            "characteristic": 84,
+            "jet": true
+        },
+        "244": {
+            "id": 244,
+            "description": "+#1{~1~2 à }#2 de résistance neutre",
+            "operator": "+",
+            "characteristic": 87,
+            "jet": true
+        },
+        "245": {
+            "id": 245,
+            "description": "-#1{~1~2 à }#2 de résistance à la terre",
+            "operator": "-",
+            "characteristic": 83,
+            "jet": true
+        },
+        "246": {
+            "id": 246,
+            "description": "-#1{~1~2 à }#2 de résistance à l'eau",
+            "operator": "-",
+            "characteristic": 85,
+            "jet": true
+        },
+        "247": {
+            "id": 247,
+            "description": "-#1{~1~2 à }#2 de résistance à l'air",
+            "operator": "-",
+            "characteristic": 86,
+            "jet": true
+        },
+        "248": {
+            "id": 248,
+            "description": "-#1{~1~2 à }#2 de résistance au feu",
+            "operator": "-",
+            "characteristic": 84,
+            "jet": true
+        },
+        "249": {
+            "id": 249,
+            "description": "-#1{~1~2 à }#2 de résistance neutre",
+            "operator": "-",
+            "characteristic": 87,
+            "jet": true
+        },
+        "250": {
+            "id": 250,
+            "description": "#1{~1~2 à }#2 % de res. terre face aux combattants",
+            "operator": "+",
+            "characteristic": 33,
+            "jet": true
+        },
+        "251": {
+            "id": 251,
+            "description": "#1{~1~2 à }#2 % de res. eau face aux combattants",
+            "operator": "+",
+            "characteristic": 35,
+            "jet": true
+        },
+        "252": {
+            "id": 252,
+            "description": "#1{~1~2 à }#2 % de res. air face aux combattants",
+            "operator": "+",
+            "characteristic": 36,
+            "jet": true
+        },
+        "253": {
+            "id": 253,
+            "description": "#1{~1~2 à }#2 % de res. feu face aux combattants",
+            "operator": "+",
+            "characteristic": 34,
+            "jet": true
+        },
+        "254": {
+            "id": 254,
+            "description": "#1{~1~2 à }#2 % de res. neutre face aux combattants",
+            "operator": "+",
+            "characteristic": 37,
+            "jet": true
+        },
+        "255": {
+            "id": 255,
+            "description": "#1{~1~2 à }#2 % de faiblesse terre face aux combattants",
+            "operator": "-",
+            "characteristic": 33,
+            "jet": true
+        },
+        "256": {
+            "id": 256,
+            "description": "#1{~1~2 à }#2 % de faiblesse eau face aux combattants",
+            "operator": "-",
+            "characteristic": 35,
+            "jet": true
+        },
+        "257": {
+            "id": 257,
+            "description": "#1{~1~2 à }#2 % de faiblesse air face aux combattants",
+            "operator": "-",
+            "characteristic": 36,
+            "jet": true
+        },
+        "258": {
+            "id": 258,
+            "description": "#1{~1~2 à }#2 % de faiblesse feu face aux combattants",
+            "operator": "-",
+            "characteristic": 34,
+            "jet": true
+        },
+        "259": {
+            "id": 259,
+            "description": "#1{~1~2 à }#2 % de faiblesse neutre face aux combattants",
+            "operator": "-",
+            "characteristic": 37,
+            "jet": true
+        },
+        "260": {
+            "id": 260,
+            "description": "+#1{~1~2 à }#2 de res. terre face aux combattants",
+            "operator": "+",
+            "characteristic": 83,
+            "jet": true
+        },
+        "261": {
+            "id": 261,
+            "description": "+#1{~1~2 à }#2 de res. eau face aux combattants",
+            "operator": "+",
+            "characteristic": 85,
+            "jet": true
+        },
+        "262": {
+            "id": 262,
+            "description": "+#1{~1~2 à }#2 de res. air face aux combattants",
+            "operator": "+",
+            "characteristic": 86,
+            "jet": true
+        },
+        "263": {
+            "id": 263,
+            "description": "+#1{~1~2 à }#2 de res. feu aux combattants",
+            "operator": "+",
+            "characteristic": 84,
+            "jet": true
+        },
+        "264": {
+            "id": 264,
+            "description": "+#1{~1~2 à }#2 de res. neutre aux combattants",
+            "operator": "+",
+            "characteristic": 87,
+            "jet": true
+        },
+        "265": {
+            "id": 265,
+            "description": "Dommages réduits de #1{~1~2 à }#2",
+            "operator": "+",
+            "characteristic": 6,
+            "jet": true
+        },
+        "266": {
+            "id": 266,
+            "description": "#1{~1~2 à -}#2 vol de chance",
+            "operator": "/",
+            "characteristic": 13,
+            "jet": true
+        },
+        "267": {
+            "id": 267,
+            "description": "#1{~1~2 à -}#2 vol de vitalité",
+            "operator": "/",
+            "characteristic": 11,
+            "jet": true
+        },
+        "268": {
+            "id": 268,
+            "description": "#1{~1~2 à -}#2 vol d'agilité",
+            "operator": "/",
+            "characteristic": 14,
+            "jet": true
+        },
+        "269": {
+            "id": 269,
+            "description": "#1{~1~2 à -}#2 vol d'intelligence",
+            "operator": "/",
+            "characteristic": 15,
+            "jet": true
+        },
+        "270": {
+            "id": 270,
+            "description": "#1{~1~2 à -}#2 vol de sagesse",
+            "operator": "/",
+            "characteristic": 12,
+            "jet": true
+        },
+        "271": {
+            "id": 271,
+            "description": "#1{~1~2 à -}#2 vol de force",
+            "operator": "/",
+            "characteristic": 10,
+            "jet": true
+        },
+        "275": {
+            "id": 275,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie manquante de l'attaquant (eau)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "276": {
+            "id": 276,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie manquante de l'attaquant (terre)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "277": {
+            "id": 277,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie manquante de l'attaquant (air)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "278": {
+            "id": 278,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie manquante de l'attaquant (feu)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "279": {
+            "id": 279,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie manquante de l'attaquant (neutre)",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "281": {
+            "id": 281,
+            "description": "Augmente la portée du sort #1 de #3",
+            "operator": "+",
+            "characteristic": 19
+        },
+        "282": {
+            "id": 282,
+            "description": "Rend la portée du sort #1 modifiable",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "283": {
+            "id": 283,
+            "description": "+#3 de dommages sur le sort #1",
+            "operator": "+",
+            "characteristic": 80
+        },
+        "284": {
+            "id": 284,
+            "description": "+#3 de soins sur le sort #1",
+            "operator": "+",
+            "characteristic": 49
+        },
+        "285": {
+            "id": 285,
+            "description": "Réduit de #3 le coût en PA du sort #1",
+            "operator": "+",
+            "characteristic": 1
+        },
+        "286": {
+            "id": 286,
+            "description": "Réduit de #3 le délai de relance du sort #1",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "287": {
+            "id": 287,
+            "description": "+#3 aux CC sur le sort #1",
+            "operator": "+",
+            "characteristic": 18
+        },
+        "288": {
+            "id": 288,
+            "description": "Désactive le lancer en ligne du sort #1",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "289": {
+            "id": 289,
+            "description": "Désactive la ligne de vue du sort #1",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "290": {
+            "id": 290,
+            "description": "Augmente de #3 le nombre de lancer maximal par tour du sort #1",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "291": {
+            "id": 291,
+            "description": "Augmente de #3 le nombre de lancer maximal par cible du sort #1",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "292": {
+            "id": 292,
+            "description": "Fixe à #3 le délai de relance du sort #1",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "293": {
+            "id": 293,
+            "description": "Augmente les dégâts de base du sort #1 de #3",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "294": {
+            "id": 294,
+            "description": "Diminue la portée du sort #1 de #3",
+            "operator": "-",
+            "characteristic": 19
+        },
+        "300": {
+            "id": 300,
+            "description": "Lance le sort #3",
+            "operator": "",
+            "characteristic": 0
+        },
+        "320": {
+            "id": 320,
+            "description": "Vole #1{~1~2 à }#2 PO",
+            "operator": "",
+            "characteristic": 19,
+            "jet": true
+        },
+        "333": {
+            "id": 333,
+            "description": "Change une couleur",
+            "operator": "",
+            "characteristic": 38
+        },
+        "335": {
+            "id": 335,
+            "description": "Change l'apparence",
+            "operator": "",
+            "characteristic": 0
+        },
+        "400": {
+            "id": 400,
+            "description": "Pose un piège de rang #2",
+            "operator": "",
+            "characteristic": 70
+        },
+        "401": {
+            "id": 401,
+            "description": "Pose un glyphe de rang #2",
+            "operator": "",
+            "characteristic": -1
+        },
+        "402": {
+            "id": 402,
+            "description": "Pose un glyphe de rang #2",
+            "operator": "",
+            "characteristic": -1
+        },
+        "405": {
+            "id": 405,
+            "description": "Tue et remplace par une invocation",
+            "operator": "",
+            "characteristic": 97
+        },
+        "406": {
+            "id": 406,
+            "description": "[wip]Enlève les effets du sort %1",
+            "operator": "",
+            "characteristic": 0
+        },
+        "448": {
+            "id": 448,
+            "description": "Efficacité : #3",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "513": {
+            "id": 513,
+            "description": "Pose un prisme",
+            "operator": "",
+            "characteristic": 0
+        },
+        "600": {
+            "id": 600,
+            "description": "Téléporte au point de sauvegarde",
+            "operator": "",
+            "characteristic": 0
+        },
+        "601": {
+            "id": 601,
+            "description": "Téléporte : '#1' en (#2, #3)",
+            "operator": "",
+            "characteristic": 0
+        },
+        "602": {
+            "id": 602,
+            "description": "Enregistre sa position",
+            "operator": "",
+            "characteristic": 0
+        },
+        "603": {
+            "id": 603,
+            "description": "Apprend le métier #3",
+            "operator": "",
+            "characteristic": 0
+        },
+        "604": {
+            "id": 604,
+            "description": "Apprend le sort #3",
+            "operator": "",
+            "characteristic": 0
+        },
+        "605": {
+            "id": 605,
+            "description": "+#1{~1~2 à }#2 points d'XP",
+            "operator": "+",
+            "characteristic": 0,
+            "jet": true
+        },
+        "606": {
+            "id": 606,
+            "description": "+#1{~1~2 à }#2 en sagesse",
+            "operator": "+",
+            "characteristic": 12,
+            "jet": true
+        },
+        "607": {
+            "id": 607,
+            "description": "+#1{~1~2 à }#2 en force",
+            "operator": "+",
+            "characteristic": 10,
+            "jet": true
+        },
+        "608": {
+            "id": 608,
+            "description": "+#1{~1~2 à }#2 en chance",
+            "operator": "+",
+            "characteristic": 13,
+            "jet": true
+        },
+        "609": {
+            "id": 609,
+            "description": "+#1{~1~2 à }#2 en agilité",
+            "operator": "+",
+            "characteristic": 14,
+            "jet": true
+        },
+        "610": {
+            "id": 610,
+            "description": "+#1{~1~2 à }#2 en vitalité",
+            "operator": "+",
+            "characteristic": 11,
+            "jet": true
+        },
+        "611": {
+            "id": 611,
+            "description": "+#1{~1~2 à }#2 en intelligence",
+            "operator": "+",
+            "characteristic": 15,
+            "jet": true
+        },
+        "612": {
+            "id": 612,
+            "description": "+#1{~1~2 à }#2 points de caractéristique",
+            "operator": "+",
+            "characteristic": 0,
+            "jet": true
+        },
+        "613": {
+            "id": 613,
+            "description": "+#1{~1~2 à }#2 points de sort",
+            "operator": "+",
+            "characteristic": 0,
+            "jet": true
+        },
+        "614": {
+            "id": 614,
+            "description": "+#1 d'XP dans le métier #2",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "615": {
+            "id": 615,
+            "description": "Fait oublier le métier de #3",
+            "operator": "",
+            "characteristic": 0
+        },
+        "616": {
+            "id": 616,
+            "description": "Fait oublier un niveau du sort #3",
+            "operator": "",
+            "characteristic": 0
+        },
+        "620": {
+            "id": 620,
+            "description": "Consulter #3",
+            "operator": "",
+            "characteristic": 0
+        },
+        "621": {
+            "id": 621,
+            "description": "Invoque : #3 (grade #1)",
+            "operator": "",
+            "characteristic": 0
+        },
+        "622": {
+            "id": 622,
+            "description": "Téléporte chez soi",
+            "operator": "",
+            "characteristic": 0
+        },
+        "623": {
+            "id": 623,
+            "description": "Invoque : #3",
+            "operator": "/",
+            "characteristic": -1
+        },
+        "624": {
+            "id": 624,
+            "description": "Fait oublier un niveau du sort #3",
+            "operator": "",
+            "characteristic": 0
+        },
+        "627": {
+            "id": 627,
+            "description": "Reproduit la carte d'origine",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "628": {
+            "id": 628,
+            "description": "Invoque : #3",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "640": {
+            "id": 640,
+            "description": "Ajoute #3 points d'honneur",
+            "operator": "+",
+            "characteristic": 52
+        },
+        "641": {
+            "id": 641,
+            "description": "Ajoute #3 points de déshonneur",
+            "operator": "-",
+            "characteristic": 53
+        },
+        "642": {
+            "id": 642,
+            "description": "Retire #3 points d'honneur",
+            "operator": "-",
+            "characteristic": 52
+        },
+        "643": {
+            "id": 643,
+            "description": "Retire #3 points de déshonneur",
+            "operator": "+",
+            "characteristic": 53
+        },
+        "645": {
+            "id": 645,
+            "description": "Ressuscite les alliés présents sur la carte",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "646": {
+            "id": 646,
+            "description": "PDV rendus : #1{~1~2 à }#2",
+            "operator": "+",
+            "characteristic": 82,
+            "jet": true
+        },
+        "647": {
+            "id": 647,
+            "description": "Libère les âmes des ennemis",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "648": {
+            "id": 648,
+            "description": "Libère une âme ennemie",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "649": {
+            "id": 649,
+            "description": "Faire semblant d'être #3",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "666": {
+            "id": 666,
+            "description": "Pas d'effet supplémentaire",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "669": {
+            "id": 669,
+            "description": "Incarnation de niveau #3",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "670": {
+            "id": 670,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie de l'attaquant (neutre)",
+            "operator": "",
+            "characteristic": 93,
+            "jet": true
+        },
+        "671": {
+            "id": 671,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie de l'attaquant (neutre)",
+            "operator": "",
+            "characteristic": 93,
+            "jet": true
+        },
+        "672": {
+            "id": 672,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie de l'attaquant (neutre)",
+            "operator": "",
+            "characteristic": 93,
+            "jet": true
+        },
+        "699": {
+            "id": 699,
+            "description": "Lier son métier : #1",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "700": {
+            "id": 700,
+            "description": "Change l'élément de frappe",
+            "operator": "",
+            "characteristic": 0
+        },
+        "701": {
+            "id": 701,
+            "description": "Puissance : #1{~1~2 à }#2",
+            "operator": "",
+            "characteristic": 0
+        },
+        "702": {
+            "id": 702,
+            "description": "+#1{~1~2 à }#2 point de durabilité",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "705": {
+            "id": 705,
+            "description": "#1% capture d'âme de puissance #3",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "706": {
+            "id": 706,
+            "description": "#1% de proba de capturer une monture",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "710": {
+            "id": 710,
+            "description": "Coût supplémentaire",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "715": {
+            "id": 715,
+            "description": "#1 : #3",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "716": {
+            "id": 716,
+            "description": "#1 : #3",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "717": {
+            "id": 717,
+            "description": "#1 : #3",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "720": {
+            "id": 720,
+            "description": "Nombre de victimes : #2",
+            "operator": "",
+            "characteristic": 0
+        },
+        "722": {
+            "id": 722,
+            "description": "Donne le sort « #3 »",
+            "operator": "",
+            "characteristic": 0
+        },
+        "724": {
+            "id": 724,
+            "description": "Afficher le titre : « #3 »",
+            "operator": "",
+            "characteristic": 0
+        },
+        "725": {
+            "id": 725,
+            "description": "Renommer la guilde : #4",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "730": {
+            "id": 730,
+            "description": "Téléporte au prisme allié le plus proche",
+            "operator": "",
+            "characteristic": 0
+        },
+        "731": {
+            "id": 731,
+            "description": "Agresse les joueurs de l'alignement ennemi automatiquement",
+            "operator": "",
+            "characteristic": 0
+        },
+        "750": {
+            "id": 750,
+            "description": "Bonus aux chances de capture : #1{~1~2 à }#2%",
+            "operator": "/",
+            "characteristic": 72,
+            "jet": true
+        },
+        "751": {
+            "id": 751,
+            "description": "Bonus à l'xp de la dragodinde : #1{~1~2 à }#2%",
+            "operator": "/",
+            "characteristic": 73,
+            "jet": true
+        },
+        "760": {
+            "id": 760,
+            "description": "Disparaît en se déplaçant",
+            "operator": "",
+            "characteristic": 0
+        },
+        "765": {
+            "id": 765,
+            "description": "Echange les places de 2 joueurs",
+            "operator": "",
+            "characteristic": 90
+        },
+        "770": {
+            "id": 770,
+            "description": "Confusion horaire : #1{~1~2 à }#2 degrés",
+            "operator": "-",
+            "characteristic": 74,
+            "jet": true
+        },
+        "771": {
+            "id": 771,
+            "description": "Confusion horaire : #1{~1~2 à }#2 Pi/2",
+            "operator": "-",
+            "characteristic": 74,
+            "jet": true
+        },
+        "772": {
+            "id": 772,
+            "description": "Confusion horaire : #1{~1~2 à }#2 Pi/4",
+            "operator": "-",
+            "characteristic": 74,
+            "jet": true
+        },
+        "773": {
+            "id": 773,
+            "description": "Confusion contre horaire : #1{~1~2 à }#2 degrés",
+            "operator": "-",
+            "characteristic": 74,
+            "jet": true
+        },
+        "774": {
+            "id": 774,
+            "description": "Confusion contre horaire : #1{~1~2 à }#2 Pi/2",
+            "operator": "-",
+            "characteristic": 74,
+            "jet": true
+        },
+        "775": {
+            "id": 775,
+            "description": "Confusion contre horaire : #1{~1~2 à }#2 Pi/4",
+            "operator": "-",
+            "characteristic": 74,
+            "jet": true
+        },
+        "776": {
+            "id": 776,
+            "description": "+#1{~1~2 à }#2% de dégâts subis permanents",
+            "operator": "-",
+            "characteristic": 75,
+            "jet": true
+        },
+        "780": {
+            "id": 780,
+            "description": "Invoque le dernier allié mort avec #1{~1~2 à }#2 % de ses PDV",
+            "operator": "+",
+            "characteristic": 0,
+            "jet": true
+        },
+        "781": {
+            "id": 781,
+            "description": "Minimise les effets aléatoires",
+            "operator": "-",
+            "characteristic": 0
+        },
+        "782": {
+            "id": 782,
+            "description": "Maximise les effets aléatoires",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "783": {
+            "id": 783,
+            "description": "Pousse jusqu'à la case visée",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "784": {
+            "id": 784,
+            "description": "Retour à la position de départ",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "786": {
+            "id": 786,
+            "description": "Soigne sur attaque",
+            "operator": "/",
+            "characteristic": 11
+        },
+        "787": {
+            "id": 787,
+            "description": "#1",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "788": {
+            "id": 788,
+            "description": "Châtiment de #2 sur #3 tour(s)",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "791": {
+            "id": 791,
+            "description": "Prépare #1{~1~2 à }#2 parchemins pour mercenaire",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "795": {
+            "id": 795,
+            "description": "Arme de chasse",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "800": {
+            "id": 800,
+            "description": "Points de vie : #3",
+            "operator": "",
+            "characteristic": 99
+        },
+        "805": {
+            "id": 805,
+            "description": "Reçu le : #1",
+            "operator": "",
+            "characteristic": 0
+        },
+        "806": {
+            "id": 806,
+            "description": "Corpulence : #1",
+            "operator": "",
+            "characteristic": 0
+        },
+        "807": {
+            "id": 807,
+            "description": "Dernier repas : #1",
+            "operator": "",
+            "characteristic": 0
+        },
+        "808": {
+            "id": 808,
+            "description": "A mangé le : #1",
+            "operator": "",
+            "characteristic": 0
+        },
+        "810": {
+            "id": 810,
+            "description": "Taille : #3 poces",
+            "operator": "",
+            "characteristic": 0
+        },
+        "811": {
+            "id": 811,
+            "description": "Tour(s) restant(s) : #3",
+            "operator": "",
+            "characteristic": 0
+        },
+        "812": {
+            "id": 812,
+            "description": "Résistance : #2 / #3",
+            "operator": "",
+            "characteristic": 0
+        },
+        "814": {
+            "id": 814,
+            "description": "#1",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "825": {
+            "id": 825,
+            "description": "Téléporte",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "856": {
+            "id": 856,
+            "description": "Voir la collection de cartes",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "857": {
+            "id": 857,
+            "description": "[NO_TRAD]",
+            "operator": "",
+            "characteristic": 0
+        },
+        "905": {
+            "id": 905,
+            "description": "Lance un combat contre #2",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "930": {
+            "id": 930,
+            "description": "Augmente la sérénité, diminue l'agressivité",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "931": {
+            "id": 931,
+            "description": "Augmente l'agressivité, diminue la sérénité",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "932": {
+            "id": 932,
+            "description": "Augmente l'endurance",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "933": {
+            "id": 933,
+            "description": "Diminue l'endurance",
+            "operator": "-",
+            "characteristic": 0
+        },
+        "934": {
+            "id": 934,
+            "description": "Augmente l'amour",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "935": {
+            "id": 935,
+            "description": "Diminue l'amour",
+            "operator": "-",
+            "characteristic": 0
+        },
+        "936": {
+            "id": 936,
+            "description": "Accelère la maturité",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "937": {
+            "id": 937,
+            "description": "Ralentit la maturité",
+            "operator": "-",
+            "characteristic": 0
+        },
+        "939": {
+            "id": 939,
+            "description": "Augmente les capacités d'un familier #3",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "940": {
+            "id": 940,
+            "description": "Capacités accrues",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "945": {
+            "id": 945,
+            "description": "Donner un gène à une monture",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "946": {
+            "id": 946,
+            "description": "Retirer temporairement un objet d'élevage",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "947": {
+            "id": 947,
+            "description": "Récupérer un objet d'enclos",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "948": {
+            "id": 948,
+            "description": "Objet pour enclos",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "949": {
+            "id": 949,
+            "description": "Monter/Descendre d'une monture",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "950": {
+            "id": 950,
+            "description": "Etat #3",
+            "operator": "/",
+            "characteristic": 71
+        },
+        "951": {
+            "id": 951,
+            "description": "Enlève l'état '#3'",
+            "operator": "/",
+            "characteristic": 71
+        },
+        "960": {
+            "id": 960,
+            "description": "Alignement : #3",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "961": {
+            "id": 961,
+            "description": "Grade : #3",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "962": {
+            "id": 962,
+            "description": "Niveau : #3",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "963": {
+            "id": 963,
+            "description": "Créé depuis : #3 jour(s)",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "964": {
+            "id": 964,
+            "description": "Nom : #4",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "969": {
+            "id": 969,
+            "description": "Apparence : #3",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "983": {
+            "id": 983,
+            "description": "Lié au compte #1",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "985": {
+            "id": 985,
+            "description": "Modifié par : #4",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "986": {
+            "id": 986,
+            "description": "Prépare #1{~1~2 à }#2 parchemins",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "987": {
+            "id": 987,
+            "description": "Appartient à : #4",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "988": {
+            "id": 988,
+            "description": "Fabriqué par : #4",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "989": {
+            "id": 989,
+            "description": "Recherche : #4",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "990": {
+            "id": 990,
+            "description": "#4",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "994": {
+            "id": 994,
+            "description": "!! Certificat invalide !!",
+            "operator": "-",
+            "characteristic": 0
+        },
+        "995": {
+            "id": 995,
+            "description": "Consulter la fiche de la monture",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "996": {
+            "id": 996,
+            "description": "Appartient à : #4",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "997": {
+            "id": 997,
+            "description": "Nom : #4",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "998": {
+            "id": 998,
+            "description": "Validité : #1j #2h #3m",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "2001": {
+            "id": 2001,
+            "description": "Gagner #1{~1~2 à }#2 kamas",
+            "operator": "+",
+            "characteristic": 2,
+            "jet": true
+        },
+        "2008": {
+            "id": 2008,
+            "description": "Augmente les dommages finaux de #1{~1~2 à }#2%",
+            "operator": "+",
+            "characteristic": 76,
+            "jet": true
+        },
+        "2009": {
+            "id": 2009,
+            "description": "Diminue les dommages finaux de #1{~1~2 à }#2%",
+            "operator": "-",
+            "characteristic": 76,
+            "jet": true
+        },
+        "2010": {
+            "id": 2010,
+            "description": "+#1{~1~2 à }#2 charge(s)",
+            "operator": "+",
+            "characteristic": 77
+        },
+        "2011": {
+            "id": 2011,
+            "description": "-#1{~1~2 à -}#2 charge(s)",
+            "operator": "-",
+            "characteristic": 77
+        },
+        "2050": {
+            "id": 2050,
+            "description": "Gain d'XP : équivalent du niveau 1 à #1{~2 (+#2%)}",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "2100": {
+            "id": 2100,
+            "description": "PA perdus : #1{~1~2 à }#2",
+            "operator": "-",
+            "characteristic": 1,
+            "jet": true
+        },
+        "2101": {
+            "id": 2101,
+            "description": "Contient une carte Tragic The Gardening",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2102": {
+            "id": 2102,
+            "description": "Ajoute la carte au classeur",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2107": {
+            "id": 2107,
+            "description": "Contient une carte Tragic The Gardening",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2111": {
+            "id": 2111,
+            "description": "Diminue de #1{~1~2 à }#2 le renvoi de dommages",
+            "operator": "-",
+            "characteristic": 50
+        },
+        "2112": {
+            "id": 2112,
+            "description": "-#1{~1~2 à }#2 créatures invocables",
+            "operator": "-",
+            "characteristic": 26,
+            "jet": true
+        },
+        "2113": {
+            "id": 2113,
+            "description": "-#1{~1~2 à }#2 de dommages aux pièges",
+            "operator": "-",
+            "characteristic": 70,
+            "jet": true
+        },
+        "2114": {
+            "id": 2114,
+            "description": "-#1{~1~2 à }#2% de dommages aux pièges",
+            "operator": "-",
+            "characteristic": 69,
+            "jet": true
+        },
+        "2116": {
+            "id": 2116,
+            "description": "Bonus supplémentaires :",
+            "operator": "/",
+            "characteristic": 0,
+            "jet": true
+        },
+        "2117": {
+            "id": 2117,
+            "description": "Pas de bonus !",
+            "operator": "/",
+            "characteristic": 0,
+            "jet": true
+        },
+        "2118": {
+            "id": 2118,
+            "description": "-#1{~1~2 à }#2 en vie",
+            "operator": "-",
+            "characteristic": 82,
+            "jet": true
+        },
+        "2123": {
+            "id": 2123,
+            "description": "Réduit de #3 le coût en PA de l'arme",
+            "operator": "+",
+            "characteristic": 1
+        },
+        "2124": {
+            "id": 2124,
+            "description": "Augmente la portée de tous les sorts de #3",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "2126": {
+            "id": 2126,
+            "description": "Dommages : #1{~1~2 à }#2 (meilleur élément)",
+            "operator": "",
+            "characteristic": 95,
+            "jet": true
+        },
+        "2127": {
+            "id": 2127,
+            "description": "Fait avancer de #1 case(s)",
+            "operator": "",
+            "characteristic": 91
+        },
+        "2128": {
+            "id": 2128,
+            "description": "Etat #3",
+            "operator": "/",
+            "characteristic": 71
+        },
+        "2129": {
+            "id": 2129,
+            "description": "Enlève l'état '#3'",
+            "operator": "/",
+            "characteristic": 71
+        },
+        "2130": {
+            "id": 2130,
+            "description": "Enregistre sa position",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2131": {
+            "id": 2131,
+            "description": "Téléporte à la position précédente",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2132": {
+            "id": 2132,
+            "description": "Pioche 1 carte",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2133": {
+            "id": 2133,
+            "description": "Remélange les cartes",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2134": {
+            "id": 2134,
+            "description": "Vole #1{~1~2 à }#2 PDV (meilleur élément)",
+            "operator": "+",
+            "characteristic": 95,
+            "jet": true
+        },
+        "2135": {
+            "id": 2135,
+            "description": "#1{~1~2 à -}#2 vol dans toutes les caractéristiques",
+            "operator": "/",
+            "characteristic": 88,
+            "jet": true
+        },
+        "2136": {
+            "id": 2136,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie de l'attaquant (neutre)",
+            "operator": "",
+            "characteristic": 93,
+            "jet": true
+        },
+        "2137": {
+            "id": 2137,
+            "description": "Etat #3",
+            "operator": "/",
+            "characteristic": 71
+        },
+        "2138": {
+            "id": 2138,
+            "description": "+#3% de dommages sur le sort #1",
+            "operator": "+",
+            "characteristic": 17
+        },
+        "2139": {
+            "id": 2139,
+            "description": "Téléporte les cibles en symétrie",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2142": {
+            "id": 2142,
+            "description": "Change l'élément de frappe",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "2143": {
+            "id": 2143,
+            "description": "Téléporte : #1",
+            "operator": "",
+            "characteristic": 89
+        },
+        "2144": {
+            "id": 2144,
+            "description": "Ajoute un monstre au combat",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2146": {
+            "id": 2146,
+            "description": "Progression : #2{~3,}#3%",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2147": {
+            "id": 2147,
+            "description": "Dévoreur d'âmes : valeur actuelle",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2148": {
+            "id": 2148,
+            "description": "Dévoreur d'âmes : valeur max",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2149": {
+            "id": 2149,
+            "description": "Résistance d'apparat : #2 / #3",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2151": {
+            "id": 2151,
+            "description": "Lié au personnage #1",
+            "operator": "",
+            "characteristic": 101
+        },
+        "2152": {
+            "id": 2152,
+            "description": "Donne #1 à #2 '#3'",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2153": {
+            "id": 2153,
+            "description": "Téléporte les membres du groupe",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2154": {
+            "id": 2154,
+            "description": "Verrouillé au compte jusqu'au : #1",
+            "operator": "/",
+            "characteristic": 101
+        },
+        "2155": {
+            "id": 2155,
+            "description": "Verrouillé au compte (objet en favoris)",
+            "operator": "/",
+            "characteristic": 0
+        },
+        "2156": {
+            "id": 2156,
+            "description": "Tu es rayonnant !",
+            "operator": "",
+            "characteristic": 38
+        },
+        "2157": {
+            "id": 2157,
+            "description": "Augmente les dommages finaux reçus de #1{~1~2 à }#2%",
+            "operator": "+",
+            "characteristic": 78,
+            "jet": true
+        },
+        "2158": {
+            "id": 2158,
+            "description": "Diminue les dommages finaux reçus de #1{~1~2 à }#2%",
+            "operator": "-",
+            "characteristic": 78,
+            "jet": true
+        },
+        "2159": {
+            "id": 2159,
+            "description": "Domm. finaux infligés +#1{~1~3 à }#3%, reçus +#2{~2~4 à }#4%",
+            "operator": "",
+            "characteristic": 0,
+            "jet": true
+        },
+        "2161": {
+            "id": 2161,
+            "description": "Donne +#3 jeton à la fin des combats",
+            "operator": "+",
+            "characteristic": 100
+        },
+        "2162": {
+            "id": 2162,
+            "description": "Donne #3 jetons à la fin des combats par monstre tué",
+            "operator": "+",
+            "characteristic": 100
+        },
+        "2163": {
+            "id": 2163,
+            "description": "Donne #3 jetons à la fin des combats par tonique de sorts achetés (#1 sur #2)",
+            "operator": "+",
+            "characteristic": 100
+        },
+        "2164": {
+            "id": 2164,
+            "description": "Donne #3 jetons à la fin des combats par nombre de réapprovisionnements effectués (#1 sur #2)",
+            "operator": "+",
+            "characteristic": 100
+        },
+        "2165": {
+            "id": 2165,
+            "description": "+#3 permanent en #1 à la fin d'un combat",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "2166": {
+            "id": 2166,
+            "description": "Augmente de #3% le gain en #1 de base obtenu après une victoire",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "2169": {
+            "id": 2169,
+            "description": "#1{~1~2 à -}#2 vol de dommages",
+            "operator": "/",
+            "characteristic": 80,
+            "jet": true
+        },
+        "2170": {
+            "id": 2170,
+            "description": "#1{~1~2 à -}#2 vol de coups critiques",
+            "operator": "/",
+            "characteristic": 18,
+            "jet": true
+        },
+        "2171": {
+            "id": 2171,
+            "description": "PDV rendus : #1{~1~2 à }#2",
+            "operator": "+",
+            "characteristic": 82,
+            "jet": true
+        },
+        "2172": {
+            "id": 2172,
+            "description": "Augmente de #2 le niveau du sort #3",
+            "operator": "+",
+            "characteristic": 0
+        },
+        "2173": {
+            "id": 2173,
+            "description": "Change les effets du sort #3 en meilleur élément",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2174": {
+            "id": 2174,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie de l'attaquant (terre)",
+            "operator": "+",
+            "characteristic": 94,
+            "jet": true
+        },
+        "2175": {
+            "id": 2175,
+            "description": "Dommages : #1{~1~2 à }#2% de la vie de l'attaquant (meilleur élément)",
+            "operator": "+",
+            "characteristic": 95,
+            "jet": true
+        },
+        "2179": {
+            "id": 2179,
+            "description": "+#1% d'XP en combat en couple",
+            "operator": "",
+            "characteristic": 0
+        },
+        "2184": {
+            "id": 2184,
+            "description": "Objet évolutif : Apparence #3 sur #1",
+            "operator": " ",
+            "characteristic": 0
+        }
+    },
+    "type_mapping": {
+        "damage": {
+            "neutral": 100,
+            "earth": 97,
+            "fire": 98,
+            "water": 96,
+            "air": 99
+        },
+        "steal_hp": {
+            "neutral": 95,
+            "earth": 92,
+            "fire": 93,
+            "water": 91,
+            "air": 94
+        },
+        "heal": 108,
+        "ap": {
+            "remove": 168,
+            "give": 111
+        },
+        "mp": {
+            "remove": 169,
+            "give": 128
+        },
+        "movement": {
+            "push": 5,
+            "pull": 6,
+            "teleport": 4,
+            "switch": 8
+        },
+        "state": {
+            "invisibility": 150,
+            "carry": 50,
+            "throw": 51
+        },
+        "summon": {
+            "creature": 180,
+            "static": 181
+        },
+        "glyph_trap": {
+            "glyph": 401,
+            "trap": 400
+        }
+    },
+    "statistics": {
+        "total_effects": 384
+    }
+}

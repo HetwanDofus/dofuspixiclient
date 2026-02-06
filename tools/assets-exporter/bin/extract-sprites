@@ -1,0 +1,12 @@
+#!/usr/bin/env php
+<?php
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use App\Command\ExtractSpriteCommand;
+use Symfony\Component\Console\Application;
+
+$application = new Application('Sprite Extractor', '1.0.0');
+$application->addCommand(new ExtractSpriteCommand());
+$application->setDefaultCommand('sprites:extract', true);
+$application->run();

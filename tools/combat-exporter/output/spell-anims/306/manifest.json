@@ -1,0 +1,359 @@
+{
+    "id": 306,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 0.9999847412109375,
+    "animations": [
+        {
+            "name": "shoot",
+            "frameCount": 75,
+            "width": 395.40000000000003,
+            "height": 395.40000000000003,
+            "offsetX": -236.39999999999998,
+            "offsetY": -317.70000000000005,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "shoot_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "shoot_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "shoot_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "shoot_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "shoot_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "shoot_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "shoot_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "shoot_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "shoot_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "shoot_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "shoot_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "shoot_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "shoot_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "shoot_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "shoot_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "shoot_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "shoot_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "shoot_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "shoot_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "shoot_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "shoot_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "shoot_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "shoot_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "shoot_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "shoot_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "shoot_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "shoot_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "shoot_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "shoot_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "shoot_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "shoot_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "shoot_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "shoot_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "shoot_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "shoot_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "shoot_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "shoot_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "shoot_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "shoot_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "shoot_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "shoot_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "shoot_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "shoot_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "shoot_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "shoot_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "shoot_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "shoot_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "shoot_47.webp"
+                },
+                {
+                    "index": 48,
+                    "file": "shoot_48.webp"
+                },
+                {
+                    "index": 49,
+                    "file": "shoot_49.webp"
+                },
+                {
+                    "index": 50,
+                    "file": "shoot_50.webp"
+                },
+                {
+                    "index": 51,
+                    "file": "shoot_51.webp"
+                },
+                {
+                    "index": 52,
+                    "file": "shoot_52.webp"
+                },
+                {
+                    "index": 53,
+                    "file": "shoot_53.webp"
+                },
+                {
+                    "index": 54,
+                    "file": "shoot_54.webp"
+                },
+                {
+                    "index": 55,
+                    "file": "shoot_55.webp"
+                },
+                {
+                    "index": 56,
+                    "file": "shoot_56.webp"
+                },
+                {
+                    "index": 57,
+                    "file": "shoot_57.webp"
+                },
+                {
+                    "index": 58,
+                    "file": "shoot_58.webp"
+                },
+                {
+                    "index": 59,
+                    "file": "shoot_59.webp"
+                },
+                {
+                    "index": 60,
+                    "file": "shoot_60.webp"
+                },
+                {
+                    "index": 61,
+                    "file": "shoot_61.webp"
+                },
+                {
+                    "index": 62,
+                    "file": "shoot_62.webp"
+                },
+                {
+                    "index": 63,
+                    "file": "shoot_63.webp"
+                },
+                {
+                    "index": 64,
+                    "file": "shoot_64.webp"
+                },
+                {
+                    "index": 65,
+                    "file": "shoot_65.webp"
+                },
+                {
+                    "index": 66,
+                    "file": "shoot_66.webp"
+                },
+                {
+                    "index": 67,
+                    "file": "shoot_67.webp"
+                },
+                {
+                    "index": 68,
+                    "file": "shoot_68.webp"
+                },
+                {
+                    "index": 69,
+                    "file": "shoot_69.webp"
+                },
+                {
+                    "index": 70,
+                    "file": "shoot_70.webp"
+                },
+                {
+                    "index": 71,
+                    "file": "shoot_71.webp"
+                },
+                {
+                    "index": 72,
+                    "file": "shoot_72.webp"
+                },
+                {
+                    "index": 73,
+                    "file": "shoot_73.webp"
+                },
+                {
+                    "index": 74,
+                    "file": "shoot_74.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_21/frame_13/DoAction.as",
+        "scripts/scripts/DefineSprite_20/frame_19/DoAction.as",
+        "scripts/scripts/DefineSprite_16/frame_10/DoAction.as",
+        "scripts/scripts/DefineSprite_6_shoot/frame_73/DoAction.as",
+        "scripts/scripts/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_2/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_5/frame_1/PlaceObject2_3_3/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_5/frame_1/PlaceObject2_3_3/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_17_pierres/frame_1/PlaceObject2_16_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_17_pierres/frame_1/PlaceObject2_16_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_22/frame_31/DoAction.as",
+        "scripts/scripts/DefineSprite_23/frame_16/DoAction.as",
+        "scripts/scripts/DefineSprite_23/frame_115/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "sounds": [
+        {
+            "frame": 0,
+            "soundId": "lakam_405"
+        }
+    ],
+    "librarySymbols": [
+        {
+            "name": "pierres",
+            "characterId": 17,
+            "internalName": "sprite_17",
+            "frameCount": 1,
+            "width": 241.20000000000002,
+            "height": 89.69999999999999,
+            "offsetX": 274.5,
+            "offsetY": -28.200000000000003,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_pierres_0.webp"
+                }
+            ]
+        }
+    ]
+}

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import * as path from "node:path";
 
 import { match, P } from "ts-pattern";
 
@@ -7,11 +8,13 @@ import type {
   DeduplicationResult,
   DeduplicationStats,
   Definition,
+  ImageExportOptions,
   OptimizationOptions,
   ParsedFrame,
   ProcessedSprite,
   UseElement,
 } from "../types.ts";
+import { exportImage, type ImageRegistry } from "./image-exporter.ts";
 import { formatViewBox } from "./parser.ts";
 import {
   extractBase64Data,
@@ -204,10 +207,13 @@ const DEFAULT_OPTIMIZATION: OptimizationOptions = {
  *
  * Pass 1: Process base definitions (no internal refs) - can be shared globally for base64 patterns
  * Pass 2: Process derived definitions with resolved refs - animation-scoped
+ *
+ * @param imageRegistry - Optional registry for exporting rasterized images to files
  */
 export function deduplicateDefinitions(
   frames: ParsedFrame[],
-  options: Partial<OptimizationOptions> = {}
+  options: Partial<OptimizationOptions> = {},
+  imageRegistry?: ImageRegistry
 ): DeduplicationResult {
   const opts = { ...DEFAULT_OPTIMIZATION, ...options };
   const canonicalDefs = new Map<string, CanonicalDefinition>();
@@ -253,6 +259,16 @@ export function deduplicateDefinitions(
             size: def.size,
             isPattern: def.isPattern,
           };
+
+          // Export base64 image if registry is provided and definition has base64 data
+          if (imageRegistry && def.base64Data) {
+            const exported = exportImage(imageRegistry, def.base64Data);
+            if (exported) {
+              canonical.exportedImageHash = exported.hash;
+              canonical.base64DataUri = def.base64Data;
+            }
+          }
+
           canonicalDefs.set(hash, canonical);
           frameMapping.set(def.originalId, canonicalId);
           def.canonicalId = canonicalId;
@@ -407,6 +423,14 @@ function removeDeadUrlRefs(
   );
 }
 
+/** Options for rebuilding definition content */
+export interface RebuildOptions {
+  /** Image file reference to replace base64 data with */
+  imageFileRef?: string;
+  /** Original base64 data URI to replace */
+  base64DataUri?: string;
+}
+
 /**
  * Rebuild definition content with canonical IDs
  * Also strips all nested id attributes to prevent ID leaking
@@ -415,9 +439,10 @@ function removeDeadUrlRefs(
 export function rebuildDefinitionContent(
   originalContent: string,
   mapping: Map<string, string>,
-  ownCanonicalId: string
+  ownCanonicalId: string,
+  options: RebuildOptions = {}
 ): string {
-  // Step 1: Protect base64 data from modification
+  // Step 1: Protect base64 data from modification (unless we're replacing it)
   const { content: safeContent, base64Map } =
     extractBase64Data(originalContent);
 
@@ -437,8 +462,20 @@ export function rebuildDefinitionContent(
   // Step 6: Add the canonical ID to the opening tag
   content = content.replace(/^<(\w+)(\s|>)/, `<$1 id="${ownCanonicalId}"$2`);
 
-  // Step 7: Restore base64 data
-  content = restoreBase64Data(content, base64Map);
+  // Step 7: Restore base64 data OR replace with file reference
+  if (options.imageFileRef && options.base64DataUri) {
+    // Replace base64 placeholders with file reference
+    for (const [placeholder, originalBase64] of base64Map) {
+      if (originalBase64 === options.base64DataUri) {
+        content = content.replace(placeholder, options.imageFileRef);
+      } else {
+        content = content.replace(placeholder, originalBase64);
+      }
+    }
+  } else {
+    // Restore original base64 data
+    content = restoreBase64Data(content, base64Map);
+  }
 
   return content;
 }
@@ -446,10 +483,15 @@ export function rebuildDefinitionContent(
 /**
  * Build canonical definitions with updated internal references
  * Processes each definition using its frame-local mapping for correctness
+ *
+ * @param svgOutputDir - Directory where the SVG will be written (for computing relative paths to images, optional if webBasePath is set)
+ * @param imageRegistry - Optional registry containing exported images. If registry has webBasePath set, absolute URLs will be used instead of relative paths
  */
 export function buildCanonicalDefinitions(
   frames: ParsedFrame[],
-  dedup: DeduplicationResult
+  dedup: DeduplicationResult,
+  svgOutputDir?: string,
+  imageRegistry?: ImageRegistry
 ): Map<string, string> {
   const rebuiltDefs = new Map<string, string>();
   const processedHashes = new Set<string>();
@@ -471,11 +513,47 @@ export function buildCanonicalDefinitions(
       const canonicalDef = dedup.canonicalDefs.get(def.contentHash);
       if (!canonicalDef) continue;
 
+      // Compute image file reference if this definition has an exported image
+      let rebuildOptions: RebuildOptions = {};
+      if (
+        imageRegistry &&
+        canonicalDef.exportedImageHash &&
+        canonicalDef.base64DataUri
+      ) {
+        const image = imageRegistry.images.get(canonicalDef.exportedImageHash);
+        if (image) {
+          // Use web base path if set, otherwise compute relative path
+          let imageFileRef: string;
+          if (imageRegistry.webBasePath) {
+            // Use absolute web path
+            const basePath = imageRegistry.webBasePath.endsWith("/")
+              ? imageRegistry.webBasePath.slice(0, -1)
+              : imageRegistry.webBasePath;
+            imageFileRef = `${basePath}/${image.filename}`;
+          } else if (svgOutputDir) {
+            // Fallback to relative path from SVG directory to image
+            const relativePath = path
+              .relative(svgOutputDir, imageRegistry.outputDir)
+              .replace(/\\/g, "/");
+            imageFileRef = `${relativePath}/${image.filename}`;
+          } else {
+            // No path info available, just use filename
+            imageFileRef = image.filename;
+          }
+
+          rebuildOptions = {
+            imageFileRef,
+            base64DataUri: canonicalDef.base64DataUri,
+          };
+        }
+      }
+
       // Rebuild with canonical references using frame-local mapping
       const rebuiltContent = rebuildDefinitionContent(
         def.normalizedContent,
         frameMapping,
-        canonicalDef.id
+        canonicalDef.id,
+        rebuildOptions
       );
 
       rebuiltDefs.set(canonicalDef.id, rebuiltContent);

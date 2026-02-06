@@ -9,7 +9,6 @@ import type {
   AnimationGroup,
   AtlasManifest,
   CombinedManifest,
-  CompileOptions,
   CompileResult,
   OptimizationOptions,
 } from "./types.ts";
@@ -19,6 +18,11 @@ import {
   formatBytes,
   writeAtlasOutput,
 } from "./lib/generator.ts";
+import {
+  type ImageRegistry,
+  loadImageRegistry,
+  saveImageRegistry,
+} from "./lib/image-exporter.ts";
 import { parseSvgFiles } from "./lib/parser.ts";
 
 const logger = pino({
@@ -94,13 +98,18 @@ async function compileAnimation(
   group: AnimationGroup,
   outputDir: string,
   svgoConfigPath: string,
-  opts: OptimizationOptions
+  opts: OptimizationOptions,
+  singleAnimation: boolean = false,
+  imageRegistry?: ImageRegistry
 ): Promise<{
   manifest: AtlasManifest;
   outputSize: number;
   inputSize: number;
 } | null> {
-  const animOutputDir = path.join(outputDir, group.name);
+  // If single animation, output directly to sprite folder; otherwise create subfolder
+  const animOutputDir = singleAnimation
+    ? outputDir
+    : path.join(outputDir, group.name);
 
   if (group.files.length === 0) {
     return null;
@@ -113,11 +122,18 @@ async function compileAnimation(
     return null;
   }
 
-  const dedup = deduplicateDefinitions(frames, opts);
+  const dedup = deduplicateDefinitions(frames, opts, imageRegistry);
   const sprites = processFrames(frames, dedup);
 
   fs.mkdirSync(animOutputDir, { recursive: true });
-  await writeAtlasOutput(animOutputDir, frames, dedup, sprites, opts);
+  await writeAtlasOutput(
+    animOutputDir,
+    frames,
+    dedup,
+    sprites,
+    opts,
+    imageRegistry
+  );
 
   const atlasPath = path.join(animOutputDir, "atlas.svg");
 
@@ -140,7 +156,8 @@ async function generateCombinedManifest(
   outputDir: string,
   manifests: Map<string, { manifest: AtlasManifest; inputSize: number }>,
   totalInputSize: number,
-  totalOutputSize: number
+  totalOutputSize: number,
+  singleAnimation: boolean = false
 ): Promise<CombinedManifest> {
   let totalFrames = 0;
   let uniqueFrames = 0;
@@ -158,8 +175,8 @@ async function generateCombinedManifest(
       uniqueFrames: uniqueCount,
       atlasWidth: manifest.width,
       atlasHeight: manifest.height,
-      file: `${animName}/atlas.svg`,
-      manifestFile: `${animName}/atlas.json`,
+      file: singleAnimation ? "atlas.svg" : `${animName}/atlas.svg`,
+      manifestFile: singleAnimation ? "atlas.json" : `${animName}/atlas.json`,
     };
   }
 
@@ -188,7 +205,8 @@ async function compileSprite(
   outputDir: string,
   spriteId: string,
   svgoConfigPath: string,
-  parallel: number
+  parallel: number,
+  imageRegistry?: ImageRegistry
 ): Promise<CompileResult> {
   try {
     const svgFiles = fs
@@ -218,11 +236,20 @@ async function compileSprite(
     >();
     let totalOutputSize = 0;
 
+    const singleAnimation = groups.length === 1;
+
     for (let i = 0; i < groups.length; i += parallel) {
       const batch = groups.slice(i, i + parallel);
       const results = await Promise.all(
         batch.map((group) =>
-          compileAnimation(group, outputDir, svgoConfigPath, opts)
+          compileAnimation(
+            group,
+            outputDir,
+            svgoConfigPath,
+            opts,
+            singleAnimation,
+            imageRegistry
+          )
         )
       );
 
@@ -243,7 +270,8 @@ async function compileSprite(
       outputDir,
       manifests,
       totalInputSize,
-      totalOutputSize
+      totalOutputSize,
+      singleAnimation
     );
 
     return {
@@ -281,8 +309,17 @@ function findSpriteDirectories(inputBase: string): string[] {
     });
 }
 
+interface CompileOptions {
+  inputBase: string;
+  outputBase: string;
+  svgoConfig?: string;
+  parallel: number;
+  exportImages?: string;
+  webBasePath?: string;
+}
+
 async function compileAll(options: CompileOptions): Promise<void> {
-  const { inputBase, outputBase, svgoConfig, parallel } = options;
+  const { inputBase, outputBase, svgoConfig, parallel, exportImages, webBasePath } = options;
 
   logger.info("=== SVG Sprite Compiler ===");
   logger.info(`Input: ${inputBase}`);
@@ -301,6 +338,20 @@ async function compileAll(options: CompileOptions): Promise<void> {
   logger.info(`Found ${spriteIds.length} sprites`);
 
   fs.mkdirSync(outputBase, { recursive: true });
+
+  // Initialize image registry if export-images is enabled
+  let imageRegistry: ImageRegistry | undefined;
+  if (exportImages) {
+    const imageOutputDir = path.resolve(exportImages);
+    logger.info(`Exporting rasterized images to: ${imageOutputDir}`);
+    if (webBasePath) {
+      logger.info(`Using web base path: ${webBasePath}`);
+    }
+    imageRegistry = loadImageRegistry(imageOutputDir, webBasePath);
+    logger.info(
+      `Loaded ${imageRegistry.images.size} existing images from registry`
+    );
+  }
 
   const svgoConfigPath =
     svgoConfig ?? path.join(import.meta.dir, "..", "svgo.config.mjs");
@@ -330,7 +381,8 @@ async function compileAll(options: CompileOptions): Promise<void> {
       outputDir,
       spriteId,
       svgoConfigPath,
-      parallel
+      parallel,
+      imageRegistry
     );
 
     if (result.success) {
@@ -354,6 +406,12 @@ async function compileAll(options: CompileOptions): Promise<void> {
     }
   }
 
+  // Save image registry if enabled
+  if (imageRegistry) {
+    saveImageRegistry(imageRegistry);
+    logger.info(`Saved ${imageRegistry.images.size} unique images to registry`);
+  }
+
   logger.info("=== Compilation Complete ===");
   logger.info(`Total: ${spriteIds.length}`);
   logger.info(`Success: ${success}`);
@@ -364,6 +422,17 @@ async function compileAll(options: CompileOptions): Promise<void> {
   if (totalInputSize > 0) {
     logger.info(
       `Compression: ${Math.round((1 - totalOutputSize / totalInputSize) * 100)}%`
+    );
+  }
+
+  if (imageRegistry) {
+    // Calculate total image size
+    let totalImageSize = 0;
+    for (const img of imageRegistry.images.values()) {
+      totalImageSize += img.size;
+    }
+    logger.info(
+      `Exported images: ${imageRegistry.images.size} unique files (${formatBytes(totalImageSize)})`
     );
   }
 }
@@ -382,11 +451,19 @@ program
     "8"
   )
   .option("-c, --config <path>", "Path to SVGO config file")
+  .option(
+    "-e, --export-images <path>",
+    "Export rasterized images (base64) to a separate folder for cross-animation deduplication"
+  )
+  .option(
+    "-w, --web-base-path <path>",
+    "Web URL base path for image references (e.g., /assets/images). If set, absolute URLs are used instead of relative paths"
+  )
   .action(
     async (
       input: string,
       output: string,
-      opts: { parallel: string; config?: string }
+      opts: { parallel: string; config?: string; exportImages?: string; webBasePath?: string }
     ) => {
       try {
         await compileAll({
@@ -394,6 +471,8 @@ program
           outputBase: path.resolve(output),
           parallel: parseInt(opts.parallel, 10),
           svgoConfig: opts.config ? path.resolve(opts.config) : undefined,
+          exportImages: opts.exportImages,
+          webBasePath: opts.webBasePath,
         });
       } catch (error) {
         logger.error(`Compilation failed: ${error}`);

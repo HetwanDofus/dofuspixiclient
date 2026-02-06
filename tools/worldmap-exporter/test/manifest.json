@@ -1,0 +1,780 @@
+{
+    "version": "1.0",
+    "generated": "2025-12-29T13:36:25+00:00",
+    "source": "hints.swf",
+    "supersample": 3,
+    "total_assets": 96,
+    "extracted": 96,
+    "skipped": 0,
+    "failed": 0,
+    "graphics": {
+        "908": {
+            "character_id": 2,
+            "file": "908.webp",
+            "width": 29.1,
+            "height": 23,
+            "offsetX": -14.55,
+            "offsetY": -11.5
+        },
+        "907": {
+            "character_id": 4,
+            "file": "907.webp",
+            "width": 20.5,
+            "height": 23,
+            "offsetX": -10.25,
+            "offsetY": -11.5
+        },
+        "906": {
+            "character_id": 6,
+            "file": "906.webp",
+            "width": 23.3,
+            "height": 22.95,
+            "offsetX": -11.65,
+            "offsetY": -11.45
+        },
+        "905": {
+            "character_id": 8,
+            "file": "905.webp",
+            "width": 26.5,
+            "height": 26.15,
+            "offsetX": -13.25,
+            "offsetY": -13.05
+        },
+        "904": {
+            "character_id": 10,
+            "file": "904.webp",
+            "width": 26.5,
+            "height": 20.2,
+            "offsetX": -13.25,
+            "offsetY": -10.1
+        },
+        "903": {
+            "character_id": 12,
+            "file": "903.webp",
+            "width": 27.3,
+            "height": 21.3,
+            "offsetX": -13.65,
+            "offsetY": -10.65
+        },
+        "902": {
+            "character_id": 14,
+            "file": "902.webp",
+            "width": 27.3,
+            "height": 21.3,
+            "offsetX": -13.65,
+            "offsetY": -10.65
+        },
+        "901": {
+            "character_id": 16,
+            "file": "901.webp",
+            "width": 14.05,
+            "height": 23,
+            "offsetX": -7,
+            "offsetY": -11.5
+        },
+        "900": {
+            "character_id": 18,
+            "file": "900.webp",
+            "width": 13.5,
+            "height": 23,
+            "offsetX": -6.75,
+            "offsetY": -11.5
+        },
+        "0": {
+            "character_id": 23,
+            "file": "0.webp",
+            "width": 83.95,
+            "height": 24,
+            "offsetX": -71.95,
+            "offsetY": -12
+        },
+        "428": {
+            "character_id": 27,
+            "file": "428.webp",
+            "width": 34.55,
+            "height": 22.7,
+            "offsetX": -17.25,
+            "offsetY": -11.95
+        },
+        "429": {
+            "character_id": 30,
+            "file": "429.webp",
+            "width": 29.25,
+            "height": 24.4,
+            "offsetX": -14.65,
+            "offsetY": -12.2
+        },
+        "430": {
+            "character_id": 32,
+            "file": "430.webp",
+            "width": 24.05,
+            "height": 20.75,
+            "offsetX": -11.55,
+            "offsetY": -10
+        },
+        "410": {
+            "character_id": 34,
+            "file": "410.webp",
+            "width": 24.05,
+            "height": 19.6,
+            "offsetX": -11.55,
+            "offsetY": -8.85
+        },
+        "409": {
+            "character_id": 36,
+            "file": "409.webp",
+            "width": 24.25,
+            "height": 20.9,
+            "offsetX": -11.75,
+            "offsetY": -10.15
+        },
+        "416": {
+            "character_id": 38,
+            "file": "416.webp",
+            "width": 24.05,
+            "height": 29.75,
+            "offsetX": -11.55,
+            "offsetY": -19
+        },
+        "408": {
+            "character_id": 40,
+            "file": "408.webp",
+            "width": 24.05,
+            "height": 27.15,
+            "offsetX": -11.55,
+            "offsetY": -16.4
+        },
+        "427": {
+            "character_id": 47,
+            "file": "427.webp",
+            "width": 24.2,
+            "height": 25.1,
+            "offsetX": -11.55,
+            "offsetY": -12.9
+        },
+        "421": {
+            "character_id": 51,
+            "file": "421.webp",
+            "width": 24.05,
+            "height": 22.2,
+            "offsetX": -11.55,
+            "offsetY": -11.45
+        },
+        "420": {
+            "character_id": 53,
+            "file": "420.webp",
+            "width": 24.05,
+            "height": 22.25,
+            "offsetX": -11.55,
+            "offsetY": -11.5
+        },
+        "424": {
+            "character_id": 55,
+            "file": "424.webp",
+            "width": 24,
+            "height": 19.75,
+            "offsetX": -11.55,
+            "offsetY": -9
+        },
+        "407": {
+            "character_id": 58,
+            "file": "407.webp",
+            "width": 24.05,
+            "height": 22,
+            "offsetX": -11.55,
+            "offsetY": -10.65
+        },
+        "418": {
+            "character_id": 60,
+            "file": "418.webp",
+            "width": 24.05,
+            "height": 19.6,
+            "offsetX": -11.55,
+            "offsetY": -8.85
+        },
+        "415": {
+            "character_id": 62,
+            "file": "415.webp",
+            "width": 24.05,
+            "height": 23.1,
+            "offsetX": -11.55,
+            "offsetY": -12
+        },
+        "406": {
+            "character_id": 64,
+            "file": "406.webp",
+            "width": 24.05,
+            "height": 20.8,
+            "offsetX": -11.55,
+            "offsetY": -10.05
+        },
+        "405": {
+            "character_id": 66,
+            "file": "405.webp",
+            "width": 24.05,
+            "height": 19.95,
+            "offsetX": -11.55,
+            "offsetY": -9.2
+        },
+        "426": {
+            "character_id": 68,
+            "file": "426.webp",
+            "width": 24.5,
+            "height": 19.75,
+            "offsetX": -12,
+            "offsetY": -9
+        },
+        "404": {
+            "character_id": 70,
+            "file": "404.webp",
+            "width": 25.35,
+            "height": 21.55,
+            "offsetX": -11.55,
+            "offsetY": -10.8
+        },
+        "425": {
+            "character_id": 73,
+            "file": "425.webp",
+            "width": 24.05,
+            "height": 24.15,
+            "offsetX": -11.55,
+            "offsetY": -13.4
+        },
+        "419": {
+            "character_id": 76,
+            "file": "419.webp",
+            "width": 26.75,
+            "height": 22.45,
+            "offsetX": -13.4,
+            "offsetY": -11.7
+        },
+        "Mouth": {
+            "character_id": 78,
+            "file": "Mouth.webp",
+            "width": 15,
+            "height": 15,
+            "offsetX": -7.5,
+            "offsetY": -7.5
+        },
+        "423": {
+            "character_id": 79,
+            "file": "423.webp",
+            "width": 24.05,
+            "height": 20.55,
+            "offsetX": -11.55,
+            "offsetY": -9.8
+        },
+        "403": {
+            "character_id": 81,
+            "file": "403.webp",
+            "width": 24.05,
+            "height": 21.15,
+            "offsetX": -11.55,
+            "offsetY": -10.4
+        },
+        "422": {
+            "character_id": 83,
+            "file": "422.webp",
+            "width": 26.95,
+            "height": 21.7,
+            "offsetX": -13.2,
+            "offsetY": -10.95
+        },
+        "414": {
+            "character_id": 85,
+            "file": "414.webp",
+            "width": 24.05,
+            "height": 27.55,
+            "offsetX": -11.55,
+            "offsetY": -16.8
+        },
+        "402": {
+            "character_id": 87,
+            "file": "402.webp",
+            "width": 24.05,
+            "height": 24.45,
+            "offsetX": -11.55,
+            "offsetY": -13.7
+        },
+        "417": {
+            "character_id": 90,
+            "file": "417.webp",
+            "width": 24,
+            "height": 21.8,
+            "offsetX": -11.55,
+            "offsetY": -11.05
+        },
+        "413": {
+            "character_id": 92,
+            "file": "413.webp",
+            "width": 24.65,
+            "height": 19.7,
+            "offsetX": -12.15,
+            "offsetY": -8.95
+        },
+        "401": {
+            "character_id": 94,
+            "file": "401.webp",
+            "width": 24.1,
+            "height": 23.6,
+            "offsetX": -11.65,
+            "offsetY": -12.85
+        },
+        "412": {
+            "character_id": 96,
+            "file": "412.webp",
+            "width": 24.05,
+            "height": 22.15,
+            "offsetX": -11.55,
+            "offsetY": -11.4
+        },
+        "411": {
+            "character_id": 98,
+            "file": "411.webp",
+            "width": 24.05,
+            "height": 19.6,
+            "offsetX": -11.55,
+            "offsetY": -8.85
+        },
+        "315": {
+            "character_id": 104,
+            "file": "315.webp",
+            "width": 25,
+            "height": 22.2,
+            "offsetX": -12.4,
+            "offsetY": -10
+        },
+        "314": {
+            "character_id": 106,
+            "file": "314.webp",
+            "width": 21.35,
+            "height": 22.9,
+            "offsetX": -10,
+            "offsetY": -10.7
+        },
+        "313": {
+            "character_id": 108,
+            "file": "313.webp",
+            "width": 21.85,
+            "height": 22.2,
+            "offsetX": -10.5,
+            "offsetY": -10
+        },
+        "312": {
+            "character_id": 110,
+            "file": "312.webp",
+            "width": 25,
+            "height": 26,
+            "offsetX": -12.8,
+            "offsetY": -12.4
+        },
+        "311": {
+            "character_id": 112,
+            "file": "311.webp",
+            "width": 21.35,
+            "height": 24.15,
+            "offsetX": -10,
+            "offsetY": -11.95
+        },
+        "310": {
+            "character_id": 114,
+            "file": "310.webp",
+            "width": 21.35,
+            "height": 23,
+            "offsetX": -10,
+            "offsetY": -10.8
+        },
+        "309": {
+            "character_id": 116,
+            "file": "309.webp",
+            "width": 22,
+            "height": 22.2,
+            "offsetX": -10.65,
+            "offsetY": -10
+        },
+        "308": {
+            "character_id": 118,
+            "file": "308.webp",
+            "width": 21.35,
+            "height": 24.5,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "307": {
+            "character_id": 120,
+            "file": "307.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "306": {
+            "character_id": 122,
+            "file": "306.webp",
+            "width": 22.65,
+            "height": 22.2,
+            "offsetX": -11.3,
+            "offsetY": -10
+        },
+        "319": {
+            "character_id": 127,
+            "file": "319.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "305": {
+            "character_id": 129,
+            "file": "305.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "317": {
+            "character_id": 131,
+            "file": "317.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10.65,
+            "offsetY": -11.1
+        },
+        "304": {
+            "character_id": 133,
+            "file": "304.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "316": {
+            "character_id": 135,
+            "file": "316.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "303": {
+            "character_id": 137,
+            "file": "303.webp",
+            "width": 22.55,
+            "height": 22.2,
+            "offsetX": -11.2,
+            "offsetY": -10
+        },
+        "302": {
+            "character_id": 139,
+            "file": "302.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "318": {
+            "character_id": 144,
+            "file": "318.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "301": {
+            "character_id": 146,
+            "file": "301.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "215": {
+            "character_id": 150,
+            "file": "215.webp",
+            "width": 25,
+            "height": 22.2,
+            "offsetX": -12,
+            "offsetY": -10
+        },
+        "214": {
+            "character_id": 151,
+            "file": "214.webp",
+            "width": 21.35,
+            "height": 22.95,
+            "offsetX": -10,
+            "offsetY": -10.75
+        },
+        "220": {
+            "character_id": 153,
+            "file": "220.webp",
+            "width": 21,
+            "height": 21.95,
+            "offsetX": -10.6,
+            "offsetY": -11.1
+        },
+        "213": {
+            "character_id": 155,
+            "file": "213.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "212": {
+            "character_id": 156,
+            "file": "212.webp",
+            "width": 22.65,
+            "height": 22.2,
+            "offsetX": -11.3,
+            "offsetY": -10
+        },
+        "217": {
+            "character_id": 158,
+            "file": "217.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "211": {
+            "character_id": 159,
+            "file": "211.webp",
+            "width": 25,
+            "height": 26,
+            "offsetX": -12,
+            "offsetY": -12.8
+        },
+        "210": {
+            "character_id": 160,
+            "file": "210.webp",
+            "width": 21.35,
+            "height": 24.15,
+            "offsetX": -10,
+            "offsetY": -11.95
+        },
+        "219": {
+            "character_id": 162,
+            "file": "219.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10.65,
+            "offsetY": -11.1
+        },
+        "221": {
+            "character_id": 166,
+            "file": "221.webp",
+            "width": 22,
+            "height": 22.9,
+            "offsetX": -11,
+            "offsetY": -11.45
+        },
+        "209": {
+            "character_id": 168,
+            "file": "209.webp",
+            "width": 21.35,
+            "height": 24.2,
+            "offsetX": -10,
+            "offsetY": -12
+        },
+        "208": {
+            "character_id": 169,
+            "file": "208.webp",
+            "width": 22,
+            "height": 22.2,
+            "offsetX": -10.65,
+            "offsetY": -10
+        },
+        "218": {
+            "character_id": 172,
+            "file": "218.webp",
+            "width": 21.35,
+            "height": 24.15,
+            "offsetX": -10.65,
+            "offsetY": -12.35
+        },
+        "207": {
+            "character_id": 173,
+            "file": "207.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "206": {
+            "character_id": 174,
+            "file": "206.webp",
+            "width": 22.85,
+            "height": 22.2,
+            "offsetX": -11.5,
+            "offsetY": -10
+        },
+        "224": {
+            "character_id": 175,
+            "file": "224.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "205": {
+            "character_id": 176,
+            "file": "205.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "222": {
+            "character_id": 178,
+            "file": "222.webp",
+            "width": 21.2,
+            "height": 22.05,
+            "offsetX": -10.6,
+            "offsetY": -11
+        },
+        "204": {
+            "character_id": 179,
+            "file": "204.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "216": {
+            "character_id": 181,
+            "file": "216.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "203": {
+            "character_id": 182,
+            "file": "203.webp",
+            "width": 22.15,
+            "height": 22.2,
+            "offsetX": -10.8,
+            "offsetY": -10
+        },
+        "202": {
+            "character_id": 183,
+            "file": "202.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "223": {
+            "character_id": 184,
+            "file": "223.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "201": {
+            "character_id": 185,
+            "file": "201.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "50": {
+            "character_id": 190,
+            "file": "50.webp",
+            "width": 24.15,
+            "height": 27.85,
+            "offsetX": -11.85,
+            "offsetY": -14
+        },
+        "40": {
+            "character_id": 192,
+            "file": "40.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "100": {
+            "character_id": 207,
+            "file": "100.webp",
+            "width": 24.2,
+            "height": 24.4,
+            "offsetX": -12.4,
+            "offsetY": -12.2
+        },
+        "110": {
+            "character_id": 210,
+            "file": "110.webp",
+            "width": 21.35,
+            "height": 24.2,
+            "offsetX": -10,
+            "offsetY": -12
+        },
+        "120": {
+            "character_id": 221,
+            "file": "120.webp",
+            "width": 21.35,
+            "height": 22.2,
+            "offsetX": -10,
+            "offsetY": -10
+        },
+        "20": {
+            "character_id": 223,
+            "file": "20.webp",
+            "width": 21.35,
+            "height": 27.85,
+            "offsetX": -10,
+            "offsetY": -15.65
+        },
+        "80": {
+            "character_id": 225,
+            "file": "80.webp",
+            "width": 21.35,
+            "height": 24.35,
+            "offsetX": -10,
+            "offsetY": -12.15
+        },
+        "10": {
+            "character_id": 230,
+            "file": "10.webp",
+            "width": 21.95,
+            "height": 23.1,
+            "offsetX": -10.6,
+            "offsetY": -10.9
+        },
+        "30": {
+            "character_id": 232,
+            "file": "30.webp",
+            "width": 21.35,
+            "height": 22.45,
+            "offsetX": -10,
+            "offsetY": -10.25
+        },
+        "70": {
+            "character_id": 237,
+            "file": "70.webp",
+            "width": 21.35,
+            "height": 25.2,
+            "offsetX": -10,
+            "offsetY": -13
+        },
+        "60": {
+            "character_id": 239,
+            "file": "60.webp",
+            "width": 21.8,
+            "height": 23.15,
+            "offsetX": -10.45,
+            "offsetY": -10.85
+        },
+        "90": {
+            "character_id": 241,
+            "file": "90.webp",
+            "width": 26.5,
+            "height": 22.2,
+            "offsetX": -11.7,
+            "offsetY": -10
+        }
+    }
+}

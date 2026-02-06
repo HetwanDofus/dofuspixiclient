@@ -1,0 +1,10 @@
+x1 = _parent.cellFrom.x;
+y1 = _parent.cellFrom.y - 40;
+x2 = _parent.cellTo.x;
+y2 = _parent.cellTo.y - 40;
+_X = x1;
+_Y = y1;
+dx = x2 - x1;
+dy = y2 - y1;
+_rotation = Math.atan2(dy,dx) * 57.29746936176985;
+longueur = Math.sqrt(dx * dx + dy * dy);

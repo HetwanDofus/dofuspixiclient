@@ -1,0 +1,231 @@
+{
+    "id": 103,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "effet",
+            "frameCount": 18,
+            "width": 604.8,
+            "height": 605.0999999999999,
+            "offsetX": -296.1,
+            "offsetY": -302.70000000000005,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "effet_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "effet_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "effet_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "effet_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "effet_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "effet_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "effet_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "effet_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "effet_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "effet_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "effet_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "effet_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "effet_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "effet_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "effet_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "effet_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "effet_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "effet_17.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_10_move/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_10_move/frame_2/DoAction.as",
+        "scripts/scripts/DefineSprite_14_effet/frame_16/DoAction.as",
+        "scripts/scripts/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_8_baton/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_4/frame_1/PlaceObject2_3_2/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_5/frame_1/PlaceObject2_4_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_13/frame_1/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_9_shoot/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_9_shoot/frame_106/DoAction.as",
+        "scripts/scripts/DefineSprite_7_baton2/frame_1/PlaceObject2_6_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_7_baton2/frame_1/PlaceObject2_6_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_7_baton2/frame_1/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "sounds": [
+        {
+            "frame": 0,
+            "soundId": "ronce"
+        }
+    ],
+    "librarySymbols": [
+        {
+            "name": "baton",
+            "characterId": 8,
+            "internalName": "sprite_8",
+            "frameCount": 1,
+            "width": 294.6,
+            "height": 56.699999999999996,
+            "offsetX": -161.7,
+            "offsetY": -27,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_baton_0.webp"
+                }
+            ]
+        },
+        {
+            "name": "effet",
+            "characterId": 14,
+            "internalName": "sprite_14",
+            "frameCount": 18,
+            "width": 604.8,
+            "height": 605.0999999999999,
+            "offsetX": -296.1,
+            "offsetY": -302.70000000000005,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_effet_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "lib_effet_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "lib_effet_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "lib_effet_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "lib_effet_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "lib_effet_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "lib_effet_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "lib_effet_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "lib_effet_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "lib_effet_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "lib_effet_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "lib_effet_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "lib_effet_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "lib_effet_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "lib_effet_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "lib_effet_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "lib_effet_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "lib_effet_17.webp"
+                }
+            ]
+        },
+        {
+            "name": "baton2",
+            "characterId": 7,
+            "internalName": "sprite_7",
+            "frameCount": 1,
+            "width": 40.5,
+            "height": 210.89999999999998,
+            "offsetX": -19.200000000000003,
+            "offsetY": -114.60000000000001,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_baton2_0.webp"
+                }
+            ]
+        }
+    ]
+}

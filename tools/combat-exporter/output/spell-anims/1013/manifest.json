@@ -1,0 +1,162 @@
+{
+    "id": 1013,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 0.399993896484375,
+    "animations": [
+        {
+            "name": "sprite_6",
+            "frameCount": 2,
+            "width": 276.29999999999995,
+            "height": 275.4,
+            "offsetX": -152.10000000000002,
+            "offsetY": -44.400000000000006,
+            "stopFrame": 0,
+            "fadingFrame": 0,
+            "isComposite": false,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "sprite_6_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "sprite_6_1.webp"
+                }
+            ]
+        },
+        {
+            "name": "sprite_16",
+            "frameCount": 24,
+            "width": 119.39999999999999,
+            "height": 207.29999999999998,
+            "offsetX": -57.599999999999994,
+            "offsetY": -150.3,
+            "stopFrame": 21,
+            "fadingFrame": 20,
+            "isComposite": false,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "sprite_16_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "sprite_16_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "sprite_16_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "sprite_16_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "sprite_16_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "sprite_16_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "sprite_16_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "sprite_16_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "sprite_16_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "sprite_16_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "sprite_16_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "sprite_16_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "sprite_16_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "sprite_16_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "sprite_16_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "sprite_16_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "sprite_16_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "sprite_16_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "sprite_16_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "sprite_16_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "sprite_16_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "sprite_16_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "sprite_16_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "sprite_16_23.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_6/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_16/frame_22/DoAction.as",
+        "scripts/scripts/DefineSprite_14/frame_1/PlaceObject2_13_2/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_25/frame_121/DoAction.as",
+        "scripts/scripts/DefineSprite_25/frame_1/PlaceObject2_24_123/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_25/frame_1/PlaceObject2_24_125/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_25/frame_1/PlaceObject2_24_127/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_25/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_25/frame_1/PlaceObject2_24_121/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_25/frame_1/PlaceObject2_24_119/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_25/frame_4/DoAction.as",
+        "scripts/scripts/DefineSprite_25/frame_82/DoAction.as",
+        "scripts/scripts/DefineSprite_24/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_24/frame_22/DoAction.as",
+        "scripts/scripts/frame_2/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "sounds": [
+        {
+            "frame": 3,
+            "soundId": "licrounch_1013"
+        }
+    ]
+}

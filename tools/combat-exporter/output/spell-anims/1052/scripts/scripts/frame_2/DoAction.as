@@ -1,0 +1,2 @@
+SOMA.playSound("aspiration");
+stop();

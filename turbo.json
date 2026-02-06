@@ -12,9 +12,17 @@
       ],
       "outputs": [
         ".next/**",
-        "!.next/cache/**"
+        "!.next/cache/**",
+        "pkg/**",
+        "dist/**"
       ],
       "cache": false
+    },
+    "build:wasm": {
+      "outputs": [
+        "pkg/**"
+      ],
+      "cache": true
     },
     "lint": {
       "dependsOn": [

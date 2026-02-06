@@ -10,6 +10,7 @@ import type {
   ProcessedSprite,
   UseElement,
 } from "../types.ts";
+import type { ImageRegistry } from "./image-exporter.ts";
 import {
   buildCanonicalDefinitions,
   sortDefinitionsTopologically,
@@ -17,6 +18,9 @@ import {
 import {
   buildUseElementAttrs,
   formatBytes as formatBytesUtil,
+  type PackedRect,
+  type PackRect,
+  packRectangles,
 } from "./utils.ts";
 
 const SVG_HEADER = `<?xml version="1.0" encoding="UTF-8"?>`;
@@ -40,10 +44,12 @@ const STRIP_DEFAULTS: Record<string, string> = {
 
 function stripDefaultAttributes(content: string): string {
   let result = content;
+
   for (const [attr, defaultVal] of Object.entries(STRIP_DEFAULTS)) {
     const regex = new RegExp(`\\s+${attr}="${defaultVal}"`, "g");
     result = result.replace(regex, "");
   }
+
   return result;
 }
 
@@ -116,55 +122,74 @@ function hasValidReference(use: UseElement): boolean {
   );
 }
 
-function calculateAtlasLayout(
-  frames: Array<{ width: number; height: number }>,
-  maxTextureSize: number = 2048
-): { columns: number; rows: number; cellWidth: number; cellHeight: number } {
-  if (frames.length === 0) {
-    return { columns: 1, rows: 1, cellWidth: 100, cellHeight: 100 };
-  }
-
-  let cellWidth = 0;
-  let cellHeight = 0;
-  for (const frame of frames) {
-    cellWidth = Math.max(cellWidth, Math.ceil(frame.width));
-    cellHeight = Math.max(cellHeight, Math.ceil(frame.height));
-  }
-
-  const columns = Math.max(
-    1,
-    Math.min(frames.length, Math.floor(maxTextureSize / cellWidth))
-  );
-  const rows = Math.ceil(frames.length / columns);
-
-  return { columns, rows, cellWidth, cellHeight };
+/** Frame dimension data for packing */
+interface FrameDimension {
+  id: string;
+  index: number;
+  minX: number;
+  minY: number;
+  width: number;
+  height: number;
 }
+
+/** Lookup map from frame id to packed position */
+type PackedPositionMap = Map<string, PackedRect>;
 
 function generateAtlasSvg(
   frames: ParsedFrame[],
   dedup: DeduplicationResult,
   sprites: ProcessedSprite[],
-  options: Partial<OptimizationOptions> = {}
+  options: Partial<OptimizationOptions> = {},
+  svgOutputDir?: string,
+  imageRegistry?: ImageRegistry
 ): { svg: string; manifest: AtlasManifest } {
   const opts = { ...DEFAULT_OPTIMIZATION, ...options };
   const uniqueSprites = sprites.filter((s) => !s.duplicateOf);
 
-  const frameDimensions = uniqueSprites.map((sprite) => {
-    const parts = sprite.viewBox.split(/\s+/).map(Number);
-    return {
-      id: sprite.id,
-      minX: parts[0] || 0,
-      minY: parts[1] || 0,
-      width: parts[2] || 100,
-      height: parts[3] || 100,
-    };
-  });
+  // Build frame dimensions with index for later lookup
+  const frameDimensions: FrameDimension[] = uniqueSprites.map(
+    (sprite, index) => {
+      const parts = sprite.viewBox.split(/\s+/).map(Number);
+      return {
+        id: sprite.id,
+        index,
+        minX: parts[0] || 0,
+        minY: parts[1] || 0,
+        width: parts[2] || 100,
+        height: parts[3] || 100,
+      };
+    }
+  );
 
-  const layout = calculateAtlasLayout(frameDimensions);
-  const atlasWidth = layout.columns * layout.cellWidth;
-  const atlasHeight = layout.rows * layout.cellHeight;
+  // Create pack rectangles for bin-packing
+  const packRects: PackRect[] = frameDimensions.map((dim) => ({
+    id: dim.id,
+    width: Math.ceil(dim.width),
+    height: Math.ceil(dim.height),
+  }));
 
-  const rebuiltDefs = buildCanonicalDefinitions(frames, dedup);
+  // Pack rectangles using bin-packing algorithm
+  const packResult = packRectangles(packRects, 1, 4096);
+  const atlasWidth = packResult.width;
+  const atlasHeight = packResult.height;
+
+  // Create lookup map from frame id to packed position
+  const packedPositions: PackedPositionMap = new Map();
+  for (const packed of packResult.rects) {
+    packedPositions.set(packed.id, packed);
+  }
+
+  // Get positioning offset from first frame (all frames in an animation share the same offset)
+  const firstFrame = frames[0];
+  const positioningOffsetX = firstFrame ? -firstFrame.positioningOffset.x : 0;
+  const positioningOffsetY = firstFrame ? -firstFrame.positioningOffset.y : 0;
+
+  const rebuiltDefs = buildCanonicalDefinitions(
+    frames,
+    dedup,
+    svgOutputDir,
+    imageRegistry
+  );
   const sortedHashes = sortDefinitionsTopologically(
     dedup.canonicalDefs,
     rebuiltDefs
@@ -179,10 +204,14 @@ function generateAtlasSvg(
 
   for (const hash of sortedHashes) {
     const canonicalDef = dedup.canonicalDefs.get(hash);
-    if (!canonicalDef) continue;
+    if (!canonicalDef) {
+      continue;
+    }
 
     let content = rebuiltDefs.get(canonicalDef.id);
-    if (!content) continue;
+    if (!content) {
+      continue;
+    }
 
     content = processNonScalingStroke(content);
     if (opts.stripDefaults) {
@@ -191,13 +220,15 @@ function generateAtlasSvg(
     lines.push(indent(content, 4, opts.minify));
   }
 
+  // Generate clip paths for each packed frame
   for (let i = 0; i < uniqueSprites.length; i++) {
-    const col = i % layout.columns;
-    const row = Math.floor(i / layout.columns);
-    const x = col * layout.cellWidth;
-    const y = row * layout.cellHeight;
+    const sprite = uniqueSprites[i];
+    const packed = packedPositions.get(sprite.id);
+    if (!packed) {
+      continue;
+    }
     lines.push(
-      `    <clipPath id="clip_${i}"><rect x="${x}" y="${y}" width="${layout.cellWidth}" height="${layout.cellHeight}"/></clipPath>`
+      `    <clipPath id="clip_${i}"><rect x="${packed.x}" y="${packed.y}" width="${packed.width}" height="${packed.height}"/></clipPath>`
     );
   }
 
@@ -210,27 +241,27 @@ function generateAtlasSvg(
   for (let i = 0; i < uniqueSprites.length; i++) {
     const sprite = uniqueSprites[i];
     const dim = frameDimensions[i];
+    const packed = packedPositions.get(sprite.id);
 
-    const col = i % layout.columns;
-    const row = Math.floor(i / layout.columns);
-    const x = col * layout.cellWidth;
-    const y = row * layout.cellHeight;
+    if (!packed) {
+      continue;
+    }
 
-    const frameWidth = layout.cellWidth;
-    const frameHeight = layout.cellHeight;
-
+    // Store frame position and dimensions in atlas
+    // offsetX/offsetY are the viewBox origin (trim offset within the frame)
     atlasFrames.push({
       id: sprite.id,
-      x,
-      y,
-      width: frameWidth,
-      height: frameHeight,
+      x: packed.x,
+      y: packed.y,
+      width: packed.width,
+      height: packed.height,
       offsetX: dim.minX,
       offsetY: dim.minY,
     });
 
-    const translateX = x - dim.minX;
-    const translateY = y - dim.minY;
+    // Calculate translation to place content at packed position
+    const translateX = packed.x - dim.minX;
+    const translateY = packed.y - dim.minY;
 
     lines.push(`  <!-- Frame: ${sprite.id} -->`);
     lines.push(`  <g clip-path="url(#clip_${i})">`);
@@ -266,6 +297,8 @@ function generateAtlasSvg(
     animation: animationName,
     width: atlasWidth,
     height: atlasHeight,
+    offsetX: positioningOffsetX,
+    offsetY: positioningOffsetY,
     frames: atlasFrames,
     frameOrder: sprites.map((s) => s.id),
     duplicates,
@@ -285,11 +318,19 @@ export async function writeAtlasOutput(
   frames: ParsedFrame[],
   dedup: DeduplicationResult,
   sprites: ProcessedSprite[],
-  options: Partial<OptimizationOptions> = {}
+  options: Partial<OptimizationOptions> = {},
+  imageRegistry?: ImageRegistry
 ): Promise<{ atlasSize: number; manifestSize: number }> {
   fs.mkdirSync(outputDir, { recursive: true });
 
-  const { svg, manifest } = generateAtlasSvg(frames, dedup, sprites, options);
+  const { svg, manifest } = generateAtlasSvg(
+    frames,
+    dedup,
+    sprites,
+    options,
+    outputDir,
+    imageRegistry
+  );
 
   const atlasPath = path.join(outputDir, "atlas.svg");
   await Bun.write(atlasPath, svg);

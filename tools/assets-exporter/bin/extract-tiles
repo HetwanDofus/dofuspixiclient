@@ -1,0 +1,12 @@
+#!/usr/bin/env php
+<?php
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use App\Command\ExtractTileCommand;
+use Symfony\Component\Console\Application;
+
+$application = new Application('Tile Extractor', '1.0.0');
+$application->addCommand(new ExtractTileCommand());
+$application->setDefaultCommand('tiles:extract', true);
+$application->run();

@@ -1,7 +1,7 @@
 import type { CheerioAPI } from "cheerio";
 import * as cheerio from "cheerio";
 
-import type { Definition, ParsedFrame, UseElement, ViewBox } from "../types.ts";
+import type { Definition, ParsedFrame, PositioningOffset, UseElement, ViewBox } from "../types.ts";
 import {
   extractBase64Data,
   normalizeNumericValues,
@@ -22,9 +22,14 @@ export function parseSvgFile(content: string, filename: string): ParsedFrame {
     throw new Error(`No <svg> element found in ${filename}`);
   }
 
-  const viewBox = parseViewBox(svg.attr("viewBox") ?? "0 0 100 100");
+  // Use viewBox if present, otherwise derive from width/height attributes
+  const viewBoxAttr = svg.attr("viewBox");
+  const viewBox = viewBoxAttr
+    ? parseViewBox(viewBoxAttr)
+    : deriveViewBoxFromDimensions(svg.attr("width"), svg.attr("height"));
   const mainGroup = svg.children("g").first();
   const mainTransform = mainGroup.attr("transform") ?? "";
+  const positioningOffset = parseTransformOffset(mainTransform);
 
   const parent = mainGroup.length > 0 ? mainGroup : svg;
   const useElements = extractUseElements($, parent);
@@ -40,9 +45,38 @@ export function parseSvgFile(content: string, filename: string): ParsedFrame {
     frameIndex,
     viewBox,
     mainTransform,
+    positioningOffset,
     useElements,
     definitions,
   };
+}
+
+/**
+ * Parse transform attribute to extract positioning offset (translation)
+ * Handles: matrix(a, b, c, d, tx, ty) and translate(tx, ty)
+ */
+function parseTransformOffset(transform: string): PositioningOffset {
+  if (!transform) {
+    return { x: 0, y: 0 };
+  }
+
+  // Try matrix format: matrix(a, b, c, d, tx, ty)
+  const matrixMatch = transform.match(/matrix\s*\(\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/);
+  if (matrixMatch) {
+    const tx = parseFloat(matrixMatch[5]);
+    const ty = parseFloat(matrixMatch[6]);
+    return { x: tx, y: ty };
+  }
+
+  // Try translate format: translate(tx, ty) or translate(tx)
+  const translateMatch = transform.match(/translate\s*\(\s*([^,)]+)(?:,\s*([^)]+))?\)/);
+  if (translateMatch) {
+    const tx = parseFloat(translateMatch[1]);
+    const ty = translateMatch[2] ? parseFloat(translateMatch[2]) : 0;
+    return { x: tx, y: ty };
+  }
+
+  return { x: 0, y: 0 };
 }
 
 /**
@@ -55,6 +89,29 @@ function parseViewBox(viewBoxStr: string): ViewBox {
     y: parts[1] || 0,
     width: parts[2] || 100,
     height: parts[3] || 100,
+  };
+}
+
+/**
+ * Derive viewBox from width/height attributes when viewBox is not present
+ * Handles values like "77.1px", "100", "50%" etc.
+ */
+function deriveViewBoxFromDimensions(
+  widthAttr: string | undefined,
+  heightAttr: string | undefined
+): ViewBox {
+  const parseLength = (val: string | undefined): number => {
+    if (!val) return 100;
+    // Remove px, em, pt, etc. and parse as float
+    const num = parseFloat(val.replace(/[a-z%]+$/i, ""));
+    return Number.isNaN(num) ? 100 : num;
+  };
+
+  return {
+    x: 0,
+    y: 0,
+    width: parseLength(widthAttr),
+    height: parseLength(heightAttr),
   };
 }
 

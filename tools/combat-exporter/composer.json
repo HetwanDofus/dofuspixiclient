@@ -1,0 +1,15 @@
+{
+    "name": "dofus/combat-exporter",
+    "description": "Extract combat data (spells, effects, animations) from Dofus SWF files",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "require": {
+        "php": ">=8.2",
+        "symfony/console": "^8.0",
+        "arakne/swf": "^0.5.0"
+    }
+}

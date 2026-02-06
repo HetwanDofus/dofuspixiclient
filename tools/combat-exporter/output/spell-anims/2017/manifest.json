@@ -1,0 +1,910 @@
+{
+    "id": 2017,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "fumee2",
+            "frameCount": 57,
+            "width": 52.199999999999996,
+            "height": 52.199999999999996,
+            "offsetX": -25.5,
+            "offsetY": -27.599999999999998,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "fumee2_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "fumee2_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "fumee2_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "fumee2_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "fumee2_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "fumee2_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "fumee2_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "fumee2_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "fumee2_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "fumee2_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "fumee2_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "fumee2_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "fumee2_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "fumee2_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "fumee2_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "fumee2_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "fumee2_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "fumee2_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "fumee2_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "fumee2_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "fumee2_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "fumee2_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "fumee2_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "fumee2_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "fumee2_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "fumee2_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "fumee2_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "fumee2_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "fumee2_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "fumee2_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "fumee2_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "fumee2_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "fumee2_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "fumee2_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "fumee2_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "fumee2_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "fumee2_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "fumee2_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "fumee2_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "fumee2_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "fumee2_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "fumee2_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "fumee2_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "fumee2_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "fumee2_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "fumee2_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "fumee2_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "fumee2_47.webp"
+                },
+                {
+                    "index": 48,
+                    "file": "fumee2_48.webp"
+                },
+                {
+                    "index": 49,
+                    "file": "fumee2_49.webp"
+                },
+                {
+                    "index": 50,
+                    "file": "fumee2_50.webp"
+                },
+                {
+                    "index": 51,
+                    "file": "fumee2_51.webp"
+                },
+                {
+                    "index": 52,
+                    "file": "fumee2_52.webp"
+                },
+                {
+                    "index": 53,
+                    "file": "fumee2_53.webp"
+                },
+                {
+                    "index": 54,
+                    "file": "fumee2_54.webp"
+                },
+                {
+                    "index": 55,
+                    "file": "fumee2_55.webp"
+                },
+                {
+                    "index": 56,
+                    "file": "fumee2_56.webp"
+                }
+            ]
+        },
+        {
+            "name": "fumee",
+            "frameCount": 48,
+            "width": 18,
+            "height": 18.6,
+            "offsetX": -4.800000000000001,
+            "offsetY": -6.300000000000001,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "fumee_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "fumee_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "fumee_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "fumee_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "fumee_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "fumee_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "fumee_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "fumee_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "fumee_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "fumee_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "fumee_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "fumee_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "fumee_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "fumee_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "fumee_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "fumee_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "fumee_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "fumee_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "fumee_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "fumee_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "fumee_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "fumee_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "fumee_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "fumee_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "fumee_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "fumee_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "fumee_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "fumee_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "fumee_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "fumee_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "fumee_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "fumee_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "fumee_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "fumee_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "fumee_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "fumee_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "fumee_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "fumee_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "fumee_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "fumee_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "fumee_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "fumee_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "fumee_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "fumee_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "fumee_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "fumee_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "fumee_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "fumee_47.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_8_fumee2/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_8_fumee2/frame_55/DoAction.as",
+        "scripts/scripts/DefineSprite_7/frame_1/PlaceObject2_6_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_7/frame_1/PlaceObject2_6_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_1_shoot/frame_73/DoAction.as",
+        "scripts/scripts/DefineSprite_1_shoot/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_4_move/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_4_move/frame_1/PlaceObject2_3_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_13_fumee/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_13_fumee/frame_46/DoAction.as",
+        "scripts/scripts/DefineSprite_12/frame_1/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "librarySymbols": [
+        {
+            "name": "fumee2",
+            "characterId": 8,
+            "internalName": "sprite_8",
+            "frameCount": 57,
+            "width": 52.199999999999996,
+            "height": 52.199999999999996,
+            "offsetX": -25.5,
+            "offsetY": -27.599999999999998,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_fumee2_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "lib_fumee2_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "lib_fumee2_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "lib_fumee2_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "lib_fumee2_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "lib_fumee2_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "lib_fumee2_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "lib_fumee2_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "lib_fumee2_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "lib_fumee2_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "lib_fumee2_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "lib_fumee2_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "lib_fumee2_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "lib_fumee2_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "lib_fumee2_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "lib_fumee2_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "lib_fumee2_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "lib_fumee2_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "lib_fumee2_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "lib_fumee2_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "lib_fumee2_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "lib_fumee2_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "lib_fumee2_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "lib_fumee2_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "lib_fumee2_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "lib_fumee2_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "lib_fumee2_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "lib_fumee2_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "lib_fumee2_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "lib_fumee2_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "lib_fumee2_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "lib_fumee2_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "lib_fumee2_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "lib_fumee2_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "lib_fumee2_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "lib_fumee2_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "lib_fumee2_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "lib_fumee2_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "lib_fumee2_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "lib_fumee2_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "lib_fumee2_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "lib_fumee2_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "lib_fumee2_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "lib_fumee2_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "lib_fumee2_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "lib_fumee2_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "lib_fumee2_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "lib_fumee2_47.webp"
+                },
+                {
+                    "index": 48,
+                    "file": "lib_fumee2_48.webp"
+                },
+                {
+                    "index": 49,
+                    "file": "lib_fumee2_49.webp"
+                },
+                {
+                    "index": 50,
+                    "file": "lib_fumee2_50.webp"
+                },
+                {
+                    "index": 51,
+                    "file": "lib_fumee2_51.webp"
+                },
+                {
+                    "index": 52,
+                    "file": "lib_fumee2_52.webp"
+                },
+                {
+                    "index": 53,
+                    "file": "lib_fumee2_53.webp"
+                },
+                {
+                    "index": 54,
+                    "file": "lib_fumee2_54.webp"
+                },
+                {
+                    "index": 55,
+                    "file": "lib_fumee2_55.webp"
+                },
+                {
+                    "index": 56,
+                    "file": "lib_fumee2_56.webp"
+                }
+            ]
+        },
+        {
+            "name": "fumee",
+            "characterId": 13,
+            "internalName": "sprite_13",
+            "frameCount": 48,
+            "width": 18,
+            "height": 18.6,
+            "offsetX": -4.800000000000001,
+            "offsetY": -6.300000000000001,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_fumee_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "lib_fumee_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "lib_fumee_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "lib_fumee_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "lib_fumee_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "lib_fumee_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "lib_fumee_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "lib_fumee_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "lib_fumee_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "lib_fumee_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "lib_fumee_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "lib_fumee_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "lib_fumee_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "lib_fumee_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "lib_fumee_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "lib_fumee_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "lib_fumee_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "lib_fumee_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "lib_fumee_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "lib_fumee_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "lib_fumee_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "lib_fumee_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "lib_fumee_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "lib_fumee_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "lib_fumee_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "lib_fumee_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "lib_fumee_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "lib_fumee_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "lib_fumee_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "lib_fumee_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "lib_fumee_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "lib_fumee_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "lib_fumee_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "lib_fumee_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "lib_fumee_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "lib_fumee_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "lib_fumee_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "lib_fumee_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "lib_fumee_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "lib_fumee_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "lib_fumee_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "lib_fumee_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "lib_fumee_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "lib_fumee_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "lib_fumee_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "lib_fumee_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "lib_fumee_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "lib_fumee_47.webp"
+                }
+            ]
+        }
+    ]
+}

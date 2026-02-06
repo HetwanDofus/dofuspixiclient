@@ -1,0 +1,68 @@
+{
+    "id": 2052,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 0.411285400390625,
+    "animations": [
+        {
+            "name": "anim1",
+            "frameCount": 12,
+            "width": 42.3,
+            "height": 45.599999999999994,
+            "offsetX": -21,
+            "offsetY": -22.799999999999997,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "anim1_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "anim1_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "anim1_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "anim1_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "anim1_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "anim1_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "anim1_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "anim1_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "anim1_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "anim1_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "anim1_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "anim1_11.webp"
+                }
+            ]
+        }
+    ],
+    "requiresTypeScript": false
+}

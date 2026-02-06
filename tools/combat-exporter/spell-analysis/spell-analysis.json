@@ -1,0 +1,4901 @@
+{
+    "generated": "2026-01-09T09:35:53+00:00",
+    "summary": {
+        "total": 282,
+        "no_script": 2,
+        "simple_stop": 54,
+        "gotoAndPlay": 29,
+        "variables": 67,
+        "onEnterFrame": 1,
+        "timing": 0,
+        "math_random": 30,
+        "target_distance": 0,
+        "complex": 99
+    },
+    "categories": {
+        "simple_stop": [
+            1001,
+            1002,
+            1004,
+            1009,
+            1016,
+            108,
+            110,
+            1100,
+            1109,
+            1208,
+            1213,
+            1481,
+            2002,
+            2003,
+            2004,
+            2005,
+            2007,
+            2008,
+            2010,
+            2042,
+            2057,
+            2058,
+            206,
+            2061,
+            2062,
+            2063,
+            2069,
+            2102,
+            2113,
+            2117,
+            2915,
+            2918,
+            2919,
+            2920,
+            2921,
+            2922,
+            2923,
+            2924,
+            307,
+            308,
+            309,
+            402,
+            4800,
+            505,
+            506,
+            509,
+            605,
+            607,
+            608,
+            783,
+            807,
+            810,
+            813,
+            0
+        ],
+        "gotoAndPlay": [
+            1003,
+            1006,
+            1010,
+            1012,
+            1056,
+            1101,
+            1102,
+            1103,
+            1104,
+            1105,
+            1107,
+            111,
+            2112,
+            2917,
+            510,
+            511,
+            610,
+            613,
+            701,
+            702,
+            704,
+            705,
+            706,
+            707,
+            712,
+            713,
+            714,
+            803,
+            811
+        ],
+        "variables": [
+            1005,
+            1007,
+            1008,
+            1011,
+            1014,
+            104,
+            109,
+            1202,
+            1210,
+            1214,
+            2001,
+            2006,
+            2009,
+            2019,
+            2021,
+            2022,
+            2030,
+            2040,
+            2041,
+            2043,
+            2045,
+            2047,
+            2048,
+            2053,
+            2055,
+            2060,
+            2064,
+            2068,
+            2101,
+            2104,
+            2105,
+            2106,
+            2108,
+            2114,
+            2115,
+            2119,
+            214,
+            2910,
+            2925,
+            3003,
+            311,
+            315,
+            407,
+            409,
+            410,
+            411,
+            412,
+            503,
+            508,
+            514,
+            604,
+            606,
+            609,
+            612,
+            703,
+            708,
+            709,
+            710,
+            711,
+            802,
+            805,
+            812,
+            814,
+            901,
+            908,
+            910,
+            912
+        ],
+        "onEnterFrame": [
+            314
+        ],
+        "timing": [],
+        "math_random": [
+            101,
+            1013,
+            1051,
+            1052,
+            1054,
+            2000,
+            2020,
+            2023,
+            2050,
+            2056,
+            213,
+            2200,
+            2906,
+            2907,
+            2908,
+            2909,
+            2916,
+            310,
+            312,
+            313,
+            403,
+            504,
+            602,
+            614,
+            801,
+            804,
+            903,
+            904,
+            907,
+            913
+        ],
+        "target_distance": [],
+        "complex": [
+            1015,
+            102,
+            103,
+            105,
+            1050,
+            1053,
+            1055,
+            112,
+            1200,
+            1201,
+            1203,
+            1204,
+            1205,
+            1206,
+            1207,
+            1209,
+            1211,
+            1212,
+            201,
+            2011,
+            2012,
+            2013,
+            2014,
+            2015,
+            2016,
+            2017,
+            2018,
+            202,
+            2044,
+            2046,
+            2049,
+            205,
+            2051,
+            2054,
+            2059,
+            2065,
+            2066,
+            2067,
+            207,
+            2070,
+            2071,
+            208,
+            209,
+            210,
+            2103,
+            2107,
+            2109,
+            211,
+            2110,
+            2111,
+            2116,
+            212,
+            2900,
+            2901,
+            2902,
+            2903,
+            2904,
+            2905,
+            2905,
+            2912,
+            2914,
+            3000,
+            3001,
+            3002,
+            301,
+            302,
+            303,
+            304,
+            305,
+            306,
+            316,
+            317,
+            401,
+            404,
+            405,
+            406,
+            408,
+            4600,
+            501,
+            502,
+            507,
+            512,
+            513,
+            515,
+            601,
+            603,
+            611,
+            615,
+            616,
+            806,
+            808,
+            809,
+            815,
+            816,
+            902,
+            905,
+            906,
+            909,
+            911
+        ],
+        "no_script": [
+            2052,
+            2911
+        ]
+    },
+    "spells": {
+        "1001": {
+            "id": 1001,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "1002": {
+            "id": 1002,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "1003": {
+            "id": 1003,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "1004": {
+            "id": 1004,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "1005": {
+            "id": 1005,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "1006": {
+            "id": 1006,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "1007": {
+            "id": 1007,
+            "hasScript": true,
+            "scriptCount": 10,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "1008": {
+            "id": 1008,
+            "hasScript": true,
+            "scriptCount": 19,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale"
+            ],
+            "complexity": "variables",
+            "notes": [
+                "gotoAndPlay(40)"
+            ]
+        },
+        "1009": {
+            "id": 1009,
+            "hasScript": true,
+            "scriptCount": 10,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "101": {
+            "id": 101,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "1010": {
+            "id": 1010,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "1011": {
+            "id": 1011,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "1012": {
+            "id": 1012,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "1013": {
+            "id": 1013,
+            "hasScript": true,
+            "scriptCount": 15,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "1014": {
+            "id": 1014,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "1015": {
+            "id": 1015,
+            "hasScript": true,
+            "scriptCount": 12,
+            "actions": [
+                "stop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "1016": {
+            "id": 1016,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "102": {
+            "id": 102,
+            "hasScript": true,
+            "scriptCount": 21,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_root"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(60)"
+            ]
+        },
+        "103": {
+            "id": 103,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent",
+                "_root"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "104": {
+            "id": 104,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "105": {
+            "id": 105,
+            "hasScript": true,
+            "scriptCount": 14,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "1050": {
+            "id": 1050,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "stop",
+                "play",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "1051": {
+            "id": 1051,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndPlay",
+                "Math_random",
+                "removeMovieClip"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "1052": {
+            "id": 1052,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "1053": {
+            "id": 1053,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "play",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(4)"
+            ]
+        },
+        "1054": {
+            "id": 1054,
+            "hasScript": true,
+            "scriptCount": 14,
+            "actions": [
+                "gotoAndPlay",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "1055": {
+            "id": 1055,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "1056": {
+            "id": 1056,
+            "hasScript": true,
+            "scriptCount": 32,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "108": {
+            "id": 108,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "109": {
+            "id": 109,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "110": {
+            "id": 110,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "1100": {
+            "id": 1100,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "1101": {
+            "id": 1101,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "gotoAndPlay",
+                "removeMovieClip"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": [
+                "gotoAndPlay(6)"
+            ]
+        },
+        "1102": {
+            "id": 1102,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "removeMovieClip"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "1103": {
+            "id": 1103,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "gotoAndPlay",
+                "removeMovieClip"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": [
+                "gotoAndPlay(30)"
+            ]
+        },
+        "1104": {
+            "id": 1104,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "gotoAndPlay",
+                "removeMovieClip"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": [
+                "gotoAndPlay(44)"
+            ]
+        },
+        "1105": {
+            "id": 1105,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "gotoAndPlay",
+                "removeMovieClip"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": [
+                "gotoAndPlay(315)"
+            ]
+        },
+        "1107": {
+            "id": 1107,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "gotoAndPlay",
+                "removeMovieClip"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": [
+                "gotoAndPlay(6)"
+            ]
+        },
+        "1109": {
+            "id": 1109,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "111": {
+            "id": 111,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "112": {
+            "id": 112,
+            "hasScript": true,
+            "scriptCount": 14,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "1200": {
+            "id": 1200,
+            "hasScript": true,
+            "scriptCount": 12,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "1201": {
+            "id": 1201,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "1202": {
+            "id": 1202,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "play",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "1203": {
+            "id": 1203,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "1204": {
+            "id": 1204,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "1205": {
+            "id": 1205,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "1206": {
+            "id": 1206,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "1207": {
+            "id": 1207,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(3)"
+            ]
+        },
+        "1208": {
+            "id": 1208,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "1209": {
+            "id": 1209,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "1210": {
+            "id": 1210,
+            "hasScript": true,
+            "scriptCount": 10,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": [
+                "gotoAndPlay(148)"
+            ]
+        },
+        "1211": {
+            "id": 1211,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "1212": {
+            "id": 1212,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "onEnterFrame",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "1213": {
+            "id": 1213,
+            "hasScript": true,
+            "scriptCount": 2,
+            "actions": [
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "1214": {
+            "id": 1214,
+            "hasScript": true,
+            "scriptCount": 47,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "1481": {
+            "id": 1481,
+            "hasScript": true,
+            "scriptCount": 27,
+            "actions": [
+                "stop"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2000": {
+            "id": 2000,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "2001": {
+            "id": 2001,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2002": {
+            "id": 2002,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2003": {
+            "id": 2003,
+            "hasScript": true,
+            "scriptCount": 1,
+            "actions": [
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2004": {
+            "id": 2004,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2005": {
+            "id": 2005,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2006": {
+            "id": 2006,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": [
+                "gotoAndPlay(2)"
+            ]
+        },
+        "2007": {
+            "id": 2007,
+            "hasScript": true,
+            "scriptCount": 1,
+            "actions": [
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2008": {
+            "id": 2008,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2009": {
+            "id": 2009,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "201": {
+            "id": 201,
+            "hasScript": true,
+            "scriptCount": 12,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(18)"
+            ]
+        },
+        "2010": {
+            "id": 2010,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2011": {
+            "id": 2011,
+            "hasScript": true,
+            "scriptCount": 10,
+            "actions": [
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2012": {
+            "id": 2012,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2013": {
+            "id": 2013,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2014": {
+            "id": 2014,
+            "hasScript": true,
+            "scriptCount": 10,
+            "actions": [
+                "stop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2015": {
+            "id": 2015,
+            "hasScript": true,
+            "scriptCount": 10,
+            "actions": [
+                "gotoAndPlay",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2016": {
+            "id": 2016,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(1)"
+            ]
+        },
+        "2017": {
+            "id": 2017,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2018": {
+            "id": 2018,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "stop",
+                "play",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2019": {
+            "id": 2019,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "202": {
+            "id": 202,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2020": {
+            "id": 2020,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "alpha",
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "2021": {
+            "id": 2021,
+            "hasScript": true,
+            "scriptCount": 10,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2022": {
+            "id": 2022,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2023": {
+            "id": 2023,
+            "hasScript": true,
+            "scriptCount": 19,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "2030": {
+            "id": 2030,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2040": {
+            "id": 2040,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2041": {
+            "id": 2041,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2042": {
+            "id": 2042,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2043": {
+            "id": 2043,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2044": {
+            "id": 2044,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "stop",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2045": {
+            "id": 2045,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2046": {
+            "id": 2046,
+            "hasScript": true,
+            "scriptCount": 15,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2047": {
+            "id": 2047,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2048": {
+            "id": 2048,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2049": {
+            "id": 2049,
+            "hasScript": true,
+            "scriptCount": 14,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "205": {
+            "id": 205,
+            "hasScript": true,
+            "scriptCount": 17,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(4)"
+            ]
+        },
+        "2050": {
+            "id": 2050,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "2051": {
+            "id": 2051,
+            "hasScript": true,
+            "scriptCount": 15,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(2)"
+            ]
+        },
+        "2052": {
+            "id": 2052,
+            "hasScript": false,
+            "scriptCount": 0,
+            "actions": [],
+            "variables": [],
+            "complexity": "none",
+            "notes": []
+        },
+        "2053": {
+            "id": 2053,
+            "hasScript": true,
+            "scriptCount": 2,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2054": {
+            "id": 2054,
+            "hasScript": true,
+            "scriptCount": 15,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2055": {
+            "id": 2055,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2056": {
+            "id": 2056,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "2057": {
+            "id": 2057,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2058": {
+            "id": 2058,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2059": {
+            "id": 2059,
+            "hasScript": true,
+            "scriptCount": 12,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "206": {
+            "id": 206,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2060": {
+            "id": 2060,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2061": {
+            "id": 2061,
+            "hasScript": true,
+            "scriptCount": 1,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2062": {
+            "id": 2062,
+            "hasScript": true,
+            "scriptCount": 1,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2063": {
+            "id": 2063,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2064": {
+            "id": 2064,
+            "hasScript": true,
+            "scriptCount": 10,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2065": {
+            "id": 2065,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2066": {
+            "id": 2066,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2067": {
+            "id": 2067,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2068": {
+            "id": 2068,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2069": {
+            "id": 2069,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "207": {
+            "id": 207,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2070": {
+            "id": 2070,
+            "hasScript": true,
+            "scriptCount": 14,
+            "actions": [
+                "stop",
+                "play",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2071": {
+            "id": 2071,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "208": {
+            "id": 208,
+            "hasScript": true,
+            "scriptCount": 15,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "209": {
+            "id": 209,
+            "hasScript": true,
+            "scriptCount": 15,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "210": {
+            "id": 210,
+            "hasScript": true,
+            "scriptCount": 12,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(18)"
+            ]
+        },
+        "2101": {
+            "id": 2101,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2102": {
+            "id": 2102,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2103": {
+            "id": 2103,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "stop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2104": {
+            "id": 2104,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2105": {
+            "id": 2105,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2106": {
+            "id": 2106,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2107": {
+            "id": 2107,
+            "hasScript": true,
+            "scriptCount": 21,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_root"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(57)"
+            ]
+        },
+        "2108": {
+            "id": 2108,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": [
+                "gotoAndPlay(2)"
+            ]
+        },
+        "2109": {
+            "id": 2109,
+            "hasScript": true,
+            "scriptCount": 15,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(2)"
+            ]
+        },
+        "211": {
+            "id": 211,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2110": {
+            "id": 2110,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2111": {
+            "id": 2111,
+            "hasScript": true,
+            "scriptCount": 15,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(2)"
+            ]
+        },
+        "2112": {
+            "id": 2112,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "2113": {
+            "id": 2113,
+            "hasScript": true,
+            "scriptCount": 2,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2114": {
+            "id": 2114,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2115": {
+            "id": 2115,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2116": {
+            "id": 2116,
+            "hasScript": true,
+            "scriptCount": 21,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_root"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(38)"
+            ]
+        },
+        "2117": {
+            "id": 2117,
+            "hasScript": true,
+            "scriptCount": 1,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2119": {
+            "id": 2119,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "212": {
+            "id": 212,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "213": {
+            "id": 213,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "214": {
+            "id": 214,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": [
+                "gotoAndPlay(2)"
+            ]
+        },
+        "2200": {
+            "id": 2200,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "2900": {
+            "id": 2900,
+            "hasScript": true,
+            "scriptCount": 40,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndStop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2901": {
+            "id": 2901,
+            "hasScript": true,
+            "scriptCount": 40,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndStop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2902": {
+            "id": 2902,
+            "hasScript": true,
+            "scriptCount": 40,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndStop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2903": {
+            "id": 2903,
+            "hasScript": true,
+            "scriptCount": 40,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndStop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2904": {
+            "id": 2904,
+            "hasScript": true,
+            "scriptCount": 41,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndStop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2905": {
+            "id": 2905,
+            "hasScript": true,
+            "scriptCount": 42,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(\"exp\")"
+            ]
+        },
+        "2906": {
+            "id": 2906,
+            "hasScript": true,
+            "scriptCount": 12,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "2907": {
+            "id": 2907,
+            "hasScript": true,
+            "scriptCount": 12,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "2908": {
+            "id": 2908,
+            "hasScript": true,
+            "scriptCount": 12,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "2909": {
+            "id": 2909,
+            "hasScript": true,
+            "scriptCount": 12,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "2910": {
+            "id": 2910,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "2911": {
+            "id": 2911,
+            "hasScript": false,
+            "scriptCount": 0,
+            "actions": [],
+            "variables": [],
+            "complexity": "none",
+            "notes": []
+        },
+        "2912": {
+            "id": 2912,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "2914": {
+            "id": 2914,
+            "hasScript": true,
+            "scriptCount": 25,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(1)"
+            ]
+        },
+        "2915": {
+            "id": 2915,
+            "hasScript": true,
+            "scriptCount": 2,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2916": {
+            "id": 2916,
+            "hasScript": true,
+            "scriptCount": 12,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "2917": {
+            "id": 2917,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "2918": {
+            "id": 2918,
+            "hasScript": true,
+            "scriptCount": 22,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2919": {
+            "id": 2919,
+            "hasScript": true,
+            "scriptCount": 22,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2920": {
+            "id": 2920,
+            "hasScript": true,
+            "scriptCount": 22,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2921": {
+            "id": 2921,
+            "hasScript": true,
+            "scriptCount": 22,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2922": {
+            "id": 2922,
+            "hasScript": true,
+            "scriptCount": 22,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2923": {
+            "id": 2923,
+            "hasScript": true,
+            "scriptCount": 22,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2924": {
+            "id": 2924,
+            "hasScript": true,
+            "scriptCount": 26,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "2925": {
+            "id": 2925,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "3000": {
+            "id": 3000,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "3001": {
+            "id": 3001,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "3002": {
+            "id": 3002,
+            "hasScript": true,
+            "scriptCount": 18,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "3003": {
+            "id": 3003,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "301": {
+            "id": 301,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "302": {
+            "id": 302,
+            "hasScript": true,
+            "scriptCount": 10,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "303": {
+            "id": 303,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "stop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "304": {
+            "id": 304,
+            "hasScript": true,
+            "scriptCount": 14,
+            "actions": [
+                "stop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "305": {
+            "id": 305,
+            "hasScript": true,
+            "scriptCount": 15,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(1)"
+            ]
+        },
+        "306": {
+            "id": 306,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "307": {
+            "id": 307,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "308": {
+            "id": 308,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "309": {
+            "id": 309,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "310": {
+            "id": 310,
+            "hasScript": true,
+            "scriptCount": 15,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "311": {
+            "id": 311,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "312": {
+            "id": 312,
+            "hasScript": true,
+            "scriptCount": 14,
+            "actions": [
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "313": {
+            "id": 313,
+            "hasScript": true,
+            "scriptCount": 14,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "314": {
+            "id": 314,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "gotoAndPlay",
+                "onEnterFrame",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "ticker",
+            "notes": []
+        },
+        "315": {
+            "id": 315,
+            "hasScript": true,
+            "scriptCount": 14,
+            "actions": [
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": [
+                "gotoAndPlay(2)"
+            ]
+        },
+        "316": {
+            "id": 316,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "317": {
+            "id": 317,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": [
+                "gotoAndPlay(1)"
+            ]
+        },
+        "401": {
+            "id": 401,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "402": {
+            "id": 402,
+            "hasScript": true,
+            "scriptCount": 2,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "403": {
+            "id": 403,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "404": {
+            "id": 404,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "405": {
+            "id": 405,
+            "hasScript": true,
+            "scriptCount": 20,
+            "actions": [
+                "stop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "406": {
+            "id": 406,
+            "hasScript": true,
+            "scriptCount": 19,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "407": {
+            "id": 407,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "408": {
+            "id": 408,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "409": {
+            "id": 409,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "410": {
+            "id": 410,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "411": {
+            "id": 411,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "412": {
+            "id": 412,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "4600": {
+            "id": 4600,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "4800": {
+            "id": 4800,
+            "hasScript": true,
+            "scriptCount": 2,
+            "actions": [
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "501": {
+            "id": 501,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "502": {
+            "id": 502,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "503": {
+            "id": 503,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "504": {
+            "id": 504,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "505": {
+            "id": 505,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "506": {
+            "id": 506,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "stop"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "507": {
+            "id": 507,
+            "hasScript": true,
+            "scriptCount": 16,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "508": {
+            "id": 508,
+            "hasScript": true,
+            "scriptCount": 12,
+            "actions": [
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": [
+                "gotoAndPlay(1)"
+            ]
+        },
+        "509": {
+            "id": 509,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "510": {
+            "id": 510,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "511": {
+            "id": 511,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "512": {
+            "id": 512,
+            "hasScript": true,
+            "scriptCount": 14,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "513": {
+            "id": 513,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "514": {
+            "id": 514,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": [
+                "gotoAndPlay(11)"
+            ]
+        },
+        "515": {
+            "id": 515,
+            "hasScript": true,
+            "scriptCount": 10,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "601": {
+            "id": 601,
+            "hasScript": true,
+            "scriptCount": 25,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "602": {
+            "id": 602,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "603": {
+            "id": 603,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "604": {
+            "id": 604,
+            "hasScript": true,
+            "scriptCount": 15,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "605": {
+            "id": 605,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "606": {
+            "id": 606,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": [
+                "gotoAndPlay(2)"
+            ]
+        },
+        "607": {
+            "id": 607,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "608": {
+            "id": 608,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "609": {
+            "id": 609,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "610": {
+            "id": 610,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "611": {
+            "id": 611,
+            "hasScript": true,
+            "scriptCount": 25,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "612": {
+            "id": 612,
+            "hasScript": true,
+            "scriptCount": 11,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "613": {
+            "id": 613,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "gotoAndPlay",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": [
+                "gotoAndPlay(4)"
+            ]
+        },
+        "614": {
+            "id": 614,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "615": {
+            "id": 615,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "616": {
+            "id": 616,
+            "hasScript": true,
+            "scriptCount": 24,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "onEnterFrame",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "701": {
+            "id": 701,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "702": {
+            "id": 702,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": [
+                "gotoAndPlay(2)"
+            ]
+        },
+        "703": {
+            "id": 703,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "gotoAndPlay",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale"
+            ],
+            "complexity": "variables",
+            "notes": [
+                "gotoAndPlay(2)"
+            ]
+        },
+        "704": {
+            "id": 704,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "705": {
+            "id": 705,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "706": {
+            "id": 706,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndStop",
+                "removeMovieClip"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "707": {
+            "id": 707,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndStop",
+                "removeMovieClip"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "708": {
+            "id": 708,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": [
+                "gotoAndPlay(2)"
+            ]
+        },
+        "709": {
+            "id": 709,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "710": {
+            "id": 710,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "711": {
+            "id": 711,
+            "hasScript": true,
+            "scriptCount": 18,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "712": {
+            "id": 712,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "713": {
+            "id": 713,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "play",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "714": {
+            "id": 714,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": [
+                "gotoAndPlay(2)"
+            ]
+        },
+        "783": {
+            "id": 783,
+            "hasScript": true,
+            "scriptCount": 2,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "801": {
+            "id": 801,
+            "hasScript": true,
+            "scriptCount": 10,
+            "actions": [
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "802": {
+            "id": 802,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "803": {
+            "id": 803,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "804": {
+            "id": 804,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "805": {
+            "id": 805,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "806": {
+            "id": 806,
+            "hasScript": true,
+            "scriptCount": 21,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "onEnterFrame",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "807": {
+            "id": 807,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "stop",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "808": {
+            "id": 808,
+            "hasScript": true,
+            "scriptCount": 8,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "809": {
+            "id": 809,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "gotoAndPlay",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "810": {
+            "id": 810,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "811": {
+            "id": 811,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "gotoAndPlay",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "gotoAndPlay",
+            "notes": []
+        },
+        "812": {
+            "id": 812,
+            "hasScript": true,
+            "scriptCount": 7,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "removeMovieClip"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "813": {
+            "id": 813,
+            "hasScript": true,
+            "scriptCount": 4,
+            "actions": [
+                "stop"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        },
+        "814": {
+            "id": 814,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "815": {
+            "id": 815,
+            "hasScript": true,
+            "scriptCount": 21,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "onEnterFrame",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "816": {
+            "id": 816,
+            "hasScript": true,
+            "scriptCount": 21,
+            "actions": [
+                "stop",
+                "gotoAndStop",
+                "onEnterFrame",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "901": {
+            "id": 901,
+            "hasScript": true,
+            "scriptCount": 6,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "902": {
+            "id": 902,
+            "hasScript": true,
+            "scriptCount": 10,
+            "actions": [
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "903": {
+            "id": 903,
+            "hasScript": true,
+            "scriptCount": 10,
+            "actions": [
+                "gotoAndPlay",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale"
+            ],
+            "complexity": "random",
+            "notes": [
+                "gotoAndPlay(9)"
+            ]
+        },
+        "904": {
+            "id": 904,
+            "hasScript": true,
+            "scriptCount": 10,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "905": {
+            "id": 905,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "gotoAndPlay",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "906": {
+            "id": 906,
+            "hasScript": true,
+            "scriptCount": 17,
+            "actions": [
+                "stop",
+                "onEnterFrame",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "907": {
+            "id": 907,
+            "hasScript": true,
+            "scriptCount": 13,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "alpha",
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "908": {
+            "id": 908,
+            "hasScript": true,
+            "scriptCount": 5,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "909": {
+            "id": 909,
+            "hasScript": true,
+            "scriptCount": 10,
+            "actions": [
+                "stop",
+                "Math_random",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "910": {
+            "id": 910,
+            "hasScript": true,
+            "scriptCount": 3,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "911": {
+            "id": 911,
+            "hasScript": true,
+            "scriptCount": 9,
+            "actions": [
+                "stop",
+                "attachMovie",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "complex",
+            "notes": []
+        },
+        "912": {
+            "id": 912,
+            "hasScript": true,
+            "scriptCount": 12,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "variables",
+            "notes": []
+        },
+        "913": {
+            "id": 913,
+            "hasScript": true,
+            "scriptCount": 20,
+            "actions": [
+                "stop",
+                "Math_random",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [
+                "scale",
+                "rotation"
+            ],
+            "complexity": "random",
+            "notes": []
+        },
+        "0": {
+            "id": 0,
+            "hasScript": true,
+            "scriptCount": 2,
+            "actions": [
+                "stop",
+                "removeMovieClip",
+                "_parent"
+            ],
+            "variables": [],
+            "complexity": "simple",
+            "notes": []
+        }
+    }
+}

@@ -1,0 +1,109 @@
+{
+    "id": 2062,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "anim1",
+            "frameCount": 21,
+            "width": 1410.3000000000002,
+            "height": 741,
+            "offsetX": -709.8,
+            "offsetY": -369.9,
+            "stopFrame": 18,
+            "fadingFrame": 17,
+            "isComposite": false,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "anim1_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "anim1_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "anim1_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "anim1_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "anim1_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "anim1_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "anim1_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "anim1_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "anim1_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "anim1_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "anim1_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "anim1_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "anim1_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "anim1_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "anim1_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "anim1_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "anim1_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "anim1_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "anim1_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "anim1_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "anim1_20.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_2/frame_19/DoAction.as"
+    ],
+    "requiresTypeScript": false
+}

@@ -1,0 +1,12 @@
+{
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "require": {
+        "symfony/console": "^8.0",
+        "arakne/swf": "^0.5.0"
+    },
+    "bin": ["bin/swf-search"]
+}

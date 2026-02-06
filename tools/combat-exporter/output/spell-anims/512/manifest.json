@@ -1,0 +1,1653 @@
+{
+    "id": 512,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "sprite_10",
+            "frameCount": 2,
+            "width": 198,
+            "height": 264,
+            "offsetX": -27.299999999999997,
+            "offsetY": -135,
+            "isComposite": false,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "sprite_10_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "sprite_10_1.webp"
+                }
+            ]
+        },
+        {
+            "name": "sprite_27",
+            "frameCount": 93,
+            "width": 388.5,
+            "height": 277.5,
+            "offsetX": -178.8,
+            "offsetY": -261.6,
+            "isComposite": false,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "sprite_27_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "sprite_27_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "sprite_27_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "sprite_27_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "sprite_27_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "sprite_27_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "sprite_27_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "sprite_27_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "sprite_27_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "sprite_27_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "sprite_27_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "sprite_27_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "sprite_27_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "sprite_27_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "sprite_27_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "sprite_27_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "sprite_27_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "sprite_27_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "sprite_27_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "sprite_27_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "sprite_27_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "sprite_27_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "sprite_27_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "sprite_27_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "sprite_27_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "sprite_27_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "sprite_27_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "sprite_27_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "sprite_27_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "sprite_27_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "sprite_27_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "sprite_27_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "sprite_27_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "sprite_27_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "sprite_27_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "sprite_27_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "sprite_27_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "sprite_27_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "sprite_27_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "sprite_27_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "sprite_27_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "sprite_27_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "sprite_27_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "sprite_27_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "sprite_27_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "sprite_27_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "sprite_27_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "sprite_27_47.webp"
+                },
+                {
+                    "index": 48,
+                    "file": "sprite_27_48.webp"
+                },
+                {
+                    "index": 49,
+                    "file": "sprite_27_49.webp"
+                },
+                {
+                    "index": 50,
+                    "file": "sprite_27_50.webp"
+                },
+                {
+                    "index": 51,
+                    "file": "sprite_27_51.webp"
+                },
+                {
+                    "index": 52,
+                    "file": "sprite_27_52.webp"
+                },
+                {
+                    "index": 53,
+                    "file": "sprite_27_53.webp"
+                },
+                {
+                    "index": 54,
+                    "file": "sprite_27_54.webp"
+                },
+                {
+                    "index": 55,
+                    "file": "sprite_27_55.webp"
+                },
+                {
+                    "index": 56,
+                    "file": "sprite_27_56.webp"
+                },
+                {
+                    "index": 57,
+                    "file": "sprite_27_57.webp"
+                },
+                {
+                    "index": 58,
+                    "file": "sprite_27_58.webp"
+                },
+                {
+                    "index": 59,
+                    "file": "sprite_27_59.webp"
+                },
+                {
+                    "index": 60,
+                    "file": "sprite_27_60.webp"
+                },
+                {
+                    "index": 61,
+                    "file": "sprite_27_61.webp"
+                },
+                {
+                    "index": 62,
+                    "file": "sprite_27_62.webp"
+                },
+                {
+                    "index": 63,
+                    "file": "sprite_27_63.webp"
+                },
+                {
+                    "index": 64,
+                    "file": "sprite_27_64.webp"
+                },
+                {
+                    "index": 65,
+                    "file": "sprite_27_65.webp"
+                },
+                {
+                    "index": 66,
+                    "file": "sprite_27_66.webp"
+                },
+                {
+                    "index": 67,
+                    "file": "sprite_27_67.webp"
+                },
+                {
+                    "index": 68,
+                    "file": "sprite_27_68.webp"
+                },
+                {
+                    "index": 69,
+                    "file": "sprite_27_69.webp"
+                },
+                {
+                    "index": 70,
+                    "file": "sprite_27_70.webp"
+                },
+                {
+                    "index": 71,
+                    "file": "sprite_27_71.webp"
+                },
+                {
+                    "index": 72,
+                    "file": "sprite_27_72.webp"
+                },
+                {
+                    "index": 73,
+                    "file": "sprite_27_73.webp"
+                },
+                {
+                    "index": 74,
+                    "file": "sprite_27_74.webp"
+                },
+                {
+                    "index": 75,
+                    "file": "sprite_27_75.webp"
+                },
+                {
+                    "index": 76,
+                    "file": "sprite_27_76.webp"
+                },
+                {
+                    "index": 77,
+                    "file": "sprite_27_77.webp"
+                },
+                {
+                    "index": 78,
+                    "file": "sprite_27_78.webp"
+                },
+                {
+                    "index": 79,
+                    "file": "sprite_27_79.webp"
+                },
+                {
+                    "index": 80,
+                    "file": "sprite_27_80.webp"
+                },
+                {
+                    "index": 81,
+                    "file": "sprite_27_81.webp"
+                },
+                {
+                    "index": 82,
+                    "file": "sprite_27_82.webp"
+                },
+                {
+                    "index": 83,
+                    "file": "sprite_27_83.webp"
+                },
+                {
+                    "index": 84,
+                    "file": "sprite_27_84.webp"
+                },
+                {
+                    "index": 85,
+                    "file": "sprite_27_85.webp"
+                },
+                {
+                    "index": 86,
+                    "file": "sprite_27_86.webp"
+                },
+                {
+                    "index": 87,
+                    "file": "sprite_27_87.webp"
+                },
+                {
+                    "index": 88,
+                    "file": "sprite_27_88.webp"
+                },
+                {
+                    "index": 89,
+                    "file": "sprite_27_89.webp"
+                },
+                {
+                    "index": 90,
+                    "file": "sprite_27_90.webp"
+                },
+                {
+                    "index": 91,
+                    "file": "sprite_27_91.webp"
+                },
+                {
+                    "index": 92,
+                    "file": "sprite_27_92.webp"
+                }
+            ]
+        },
+        {
+            "name": "sprite_28",
+            "frameCount": 81,
+            "width": 639.3,
+            "height": 595.8,
+            "offsetX": -323.70000000000005,
+            "offsetY": -270.29999999999995,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "sprite_28_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "sprite_28_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "sprite_28_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "sprite_28_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "sprite_28_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "sprite_28_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "sprite_28_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "sprite_28_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "sprite_28_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "sprite_28_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "sprite_28_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "sprite_28_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "sprite_28_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "sprite_28_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "sprite_28_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "sprite_28_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "sprite_28_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "sprite_28_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "sprite_28_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "sprite_28_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "sprite_28_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "sprite_28_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "sprite_28_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "sprite_28_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "sprite_28_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "sprite_28_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "sprite_28_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "sprite_28_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "sprite_28_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "sprite_28_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "sprite_28_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "sprite_28_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "sprite_28_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "sprite_28_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "sprite_28_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "sprite_28_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "sprite_28_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "sprite_28_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "sprite_28_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "sprite_28_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "sprite_28_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "sprite_28_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "sprite_28_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "sprite_28_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "sprite_28_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "sprite_28_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "sprite_28_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "sprite_28_47.webp"
+                },
+                {
+                    "index": 48,
+                    "file": "sprite_28_48.webp"
+                },
+                {
+                    "index": 49,
+                    "file": "sprite_28_49.webp"
+                },
+                {
+                    "index": 50,
+                    "file": "sprite_28_50.webp"
+                },
+                {
+                    "index": 51,
+                    "file": "sprite_28_51.webp"
+                },
+                {
+                    "index": 52,
+                    "file": "sprite_28_52.webp"
+                },
+                {
+                    "index": 53,
+                    "file": "sprite_28_53.webp"
+                },
+                {
+                    "index": 54,
+                    "file": "sprite_28_54.webp"
+                },
+                {
+                    "index": 55,
+                    "file": "sprite_28_55.webp"
+                },
+                {
+                    "index": 56,
+                    "file": "sprite_28_56.webp"
+                },
+                {
+                    "index": 57,
+                    "file": "sprite_28_57.webp"
+                },
+                {
+                    "index": 58,
+                    "file": "sprite_28_58.webp"
+                },
+                {
+                    "index": 59,
+                    "file": "sprite_28_59.webp"
+                },
+                {
+                    "index": 60,
+                    "file": "sprite_28_60.webp"
+                },
+                {
+                    "index": 61,
+                    "file": "sprite_28_61.webp"
+                },
+                {
+                    "index": 62,
+                    "file": "sprite_28_62.webp"
+                },
+                {
+                    "index": 63,
+                    "file": "sprite_28_63.webp"
+                },
+                {
+                    "index": 64,
+                    "file": "sprite_28_64.webp"
+                },
+                {
+                    "index": 65,
+                    "file": "sprite_28_65.webp"
+                },
+                {
+                    "index": 66,
+                    "file": "sprite_28_66.webp"
+                },
+                {
+                    "index": 67,
+                    "file": "sprite_28_67.webp"
+                },
+                {
+                    "index": 68,
+                    "file": "sprite_28_68.webp"
+                },
+                {
+                    "index": 69,
+                    "file": "sprite_28_69.webp"
+                },
+                {
+                    "index": 70,
+                    "file": "sprite_28_70.webp"
+                },
+                {
+                    "index": 71,
+                    "file": "sprite_28_71.webp"
+                },
+                {
+                    "index": 72,
+                    "file": "sprite_28_72.webp"
+                },
+                {
+                    "index": 73,
+                    "file": "sprite_28_73.webp"
+                },
+                {
+                    "index": 74,
+                    "file": "sprite_28_74.webp"
+                },
+                {
+                    "index": 75,
+                    "file": "sprite_28_75.webp"
+                },
+                {
+                    "index": 76,
+                    "file": "sprite_28_76.webp"
+                },
+                {
+                    "index": 77,
+                    "file": "sprite_28_77.webp"
+                },
+                {
+                    "index": 78,
+                    "file": "sprite_28_78.webp"
+                },
+                {
+                    "index": 79,
+                    "file": "sprite_28_79.webp"
+                },
+                {
+                    "index": 80,
+                    "file": "sprite_28_80.webp"
+                }
+            ]
+        },
+        {
+            "name": "sprite_42",
+            "frameCount": 213,
+            "width": 723.5999999999999,
+            "height": 980.0999999999999,
+            "offsetX": -362.4,
+            "offsetY": -855.3000000000001,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "sprite_42_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "sprite_42_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "sprite_42_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "sprite_42_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "sprite_42_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "sprite_42_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "sprite_42_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "sprite_42_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "sprite_42_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "sprite_42_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "sprite_42_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "sprite_42_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "sprite_42_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "sprite_42_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "sprite_42_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "sprite_42_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "sprite_42_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "sprite_42_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "sprite_42_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "sprite_42_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "sprite_42_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "sprite_42_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "sprite_42_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "sprite_42_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "sprite_42_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "sprite_42_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "sprite_42_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "sprite_42_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "sprite_42_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "sprite_42_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "sprite_42_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "sprite_42_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "sprite_42_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "sprite_42_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "sprite_42_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "sprite_42_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "sprite_42_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "sprite_42_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "sprite_42_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "sprite_42_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "sprite_42_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "sprite_42_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "sprite_42_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "sprite_42_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "sprite_42_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "sprite_42_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "sprite_42_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "sprite_42_47.webp"
+                },
+                {
+                    "index": 48,
+                    "file": "sprite_42_48.webp"
+                },
+                {
+                    "index": 49,
+                    "file": "sprite_42_49.webp"
+                },
+                {
+                    "index": 50,
+                    "file": "sprite_42_50.webp"
+                },
+                {
+                    "index": 51,
+                    "file": "sprite_42_51.webp"
+                },
+                {
+                    "index": 52,
+                    "file": "sprite_42_52.webp"
+                },
+                {
+                    "index": 53,
+                    "file": "sprite_42_53.webp"
+                },
+                {
+                    "index": 54,
+                    "file": "sprite_42_54.webp"
+                },
+                {
+                    "index": 55,
+                    "file": "sprite_42_55.webp"
+                },
+                {
+                    "index": 56,
+                    "file": "sprite_42_56.webp"
+                },
+                {
+                    "index": 57,
+                    "file": "sprite_42_57.webp"
+                },
+                {
+                    "index": 58,
+                    "file": "sprite_42_58.webp"
+                },
+                {
+                    "index": 59,
+                    "file": "sprite_42_59.webp"
+                },
+                {
+                    "index": 60,
+                    "file": "sprite_42_60.webp"
+                },
+                {
+                    "index": 61,
+                    "file": "sprite_42_61.webp"
+                },
+                {
+                    "index": 62,
+                    "file": "sprite_42_62.webp"
+                },
+                {
+                    "index": 63,
+                    "file": "sprite_42_63.webp"
+                },
+                {
+                    "index": 64,
+                    "file": "sprite_42_64.webp"
+                },
+                {
+                    "index": 65,
+                    "file": "sprite_42_65.webp"
+                },
+                {
+                    "index": 66,
+                    "file": "sprite_42_66.webp"
+                },
+                {
+                    "index": 67,
+                    "file": "sprite_42_67.webp"
+                },
+                {
+                    "index": 68,
+                    "file": "sprite_42_68.webp"
+                },
+                {
+                    "index": 69,
+                    "file": "sprite_42_69.webp"
+                },
+                {
+                    "index": 70,
+                    "file": "sprite_42_70.webp"
+                },
+                {
+                    "index": 71,
+                    "file": "sprite_42_71.webp"
+                },
+                {
+                    "index": 72,
+                    "file": "sprite_42_72.webp"
+                },
+                {
+                    "index": 73,
+                    "file": "sprite_42_73.webp"
+                },
+                {
+                    "index": 74,
+                    "file": "sprite_42_74.webp"
+                },
+                {
+                    "index": 75,
+                    "file": "sprite_42_75.webp"
+                },
+                {
+                    "index": 76,
+                    "file": "sprite_42_76.webp"
+                },
+                {
+                    "index": 77,
+                    "file": "sprite_42_77.webp"
+                },
+                {
+                    "index": 78,
+                    "file": "sprite_42_78.webp"
+                },
+                {
+                    "index": 79,
+                    "file": "sprite_42_79.webp"
+                },
+                {
+                    "index": 80,
+                    "file": "sprite_42_80.webp"
+                },
+                {
+                    "index": 81,
+                    "file": "sprite_42_81.webp"
+                },
+                {
+                    "index": 82,
+                    "file": "sprite_42_82.webp"
+                },
+                {
+                    "index": 83,
+                    "file": "sprite_42_83.webp"
+                },
+                {
+                    "index": 84,
+                    "file": "sprite_42_84.webp"
+                },
+                {
+                    "index": 85,
+                    "file": "sprite_42_85.webp"
+                },
+                {
+                    "index": 86,
+                    "file": "sprite_42_86.webp"
+                },
+                {
+                    "index": 87,
+                    "file": "sprite_42_87.webp"
+                },
+                {
+                    "index": 88,
+                    "file": "sprite_42_88.webp"
+                },
+                {
+                    "index": 89,
+                    "file": "sprite_42_89.webp"
+                },
+                {
+                    "index": 90,
+                    "file": "sprite_42_90.webp"
+                },
+                {
+                    "index": 91,
+                    "file": "sprite_42_91.webp"
+                },
+                {
+                    "index": 92,
+                    "file": "sprite_42_92.webp"
+                },
+                {
+                    "index": 93,
+                    "file": "sprite_42_93.webp"
+                },
+                {
+                    "index": 94,
+                    "file": "sprite_42_94.webp"
+                },
+                {
+                    "index": 95,
+                    "file": "sprite_42_95.webp"
+                },
+                {
+                    "index": 96,
+                    "file": "sprite_42_96.webp"
+                },
+                {
+                    "index": 97,
+                    "file": "sprite_42_97.webp"
+                },
+                {
+                    "index": 98,
+                    "file": "sprite_42_98.webp"
+                },
+                {
+                    "index": 99,
+                    "file": "sprite_42_99.webp"
+                },
+                {
+                    "index": 100,
+                    "file": "sprite_42_100.webp"
+                },
+                {
+                    "index": 101,
+                    "file": "sprite_42_101.webp"
+                },
+                {
+                    "index": 102,
+                    "file": "sprite_42_102.webp"
+                },
+                {
+                    "index": 103,
+                    "file": "sprite_42_103.webp"
+                },
+                {
+                    "index": 104,
+                    "file": "sprite_42_104.webp"
+                },
+                {
+                    "index": 105,
+                    "file": "sprite_42_105.webp"
+                },
+                {
+                    "index": 106,
+                    "file": "sprite_42_106.webp"
+                },
+                {
+                    "index": 107,
+                    "file": "sprite_42_107.webp"
+                },
+                {
+                    "index": 108,
+                    "file": "sprite_42_108.webp"
+                },
+                {
+                    "index": 109,
+                    "file": "sprite_42_109.webp"
+                },
+                {
+                    "index": 110,
+                    "file": "sprite_42_110.webp"
+                },
+                {
+                    "index": 111,
+                    "file": "sprite_42_111.webp"
+                },
+                {
+                    "index": 112,
+                    "file": "sprite_42_112.webp"
+                },
+                {
+                    "index": 113,
+                    "file": "sprite_42_113.webp"
+                },
+                {
+                    "index": 114,
+                    "file": "sprite_42_114.webp"
+                },
+                {
+                    "index": 115,
+                    "file": "sprite_42_115.webp"
+                },
+                {
+                    "index": 116,
+                    "file": "sprite_42_116.webp"
+                },
+                {
+                    "index": 117,
+                    "file": "sprite_42_117.webp"
+                },
+                {
+                    "index": 118,
+                    "file": "sprite_42_118.webp"
+                },
+                {
+                    "index": 119,
+                    "file": "sprite_42_119.webp"
+                },
+                {
+                    "index": 120,
+                    "file": "sprite_42_120.webp"
+                },
+                {
+                    "index": 121,
+                    "file": "sprite_42_121.webp"
+                },
+                {
+                    "index": 122,
+                    "file": "sprite_42_122.webp"
+                },
+                {
+                    "index": 123,
+                    "file": "sprite_42_123.webp"
+                },
+                {
+                    "index": 124,
+                    "file": "sprite_42_124.webp"
+                },
+                {
+                    "index": 125,
+                    "file": "sprite_42_125.webp"
+                },
+                {
+                    "index": 126,
+                    "file": "sprite_42_126.webp"
+                },
+                {
+                    "index": 127,
+                    "file": "sprite_42_127.webp"
+                },
+                {
+                    "index": 128,
+                    "file": "sprite_42_128.webp"
+                },
+                {
+                    "index": 129,
+                    "file": "sprite_42_129.webp"
+                },
+                {
+                    "index": 130,
+                    "file": "sprite_42_130.webp"
+                },
+                {
+                    "index": 131,
+                    "file": "sprite_42_131.webp"
+                },
+                {
+                    "index": 132,
+                    "file": "sprite_42_132.webp"
+                },
+                {
+                    "index": 133,
+                    "file": "sprite_42_133.webp"
+                },
+                {
+                    "index": 134,
+                    "file": "sprite_42_134.webp"
+                },
+                {
+                    "index": 135,
+                    "file": "sprite_42_135.webp"
+                },
+                {
+                    "index": 136,
+                    "file": "sprite_42_136.webp"
+                },
+                {
+                    "index": 137,
+                    "file": "sprite_42_137.webp"
+                },
+                {
+                    "index": 138,
+                    "file": "sprite_42_138.webp"
+                },
+                {
+                    "index": 139,
+                    "file": "sprite_42_139.webp"
+                },
+                {
+                    "index": 140,
+                    "file": "sprite_42_140.webp"
+                },
+                {
+                    "index": 141,
+                    "file": "sprite_42_141.webp"
+                },
+                {
+                    "index": 142,
+                    "file": "sprite_42_142.webp"
+                },
+                {
+                    "index": 143,
+                    "file": "sprite_42_143.webp"
+                },
+                {
+                    "index": 144,
+                    "file": "sprite_42_144.webp"
+                },
+                {
+                    "index": 145,
+                    "file": "sprite_42_145.webp"
+                },
+                {
+                    "index": 146,
+                    "file": "sprite_42_146.webp"
+                },
+                {
+                    "index": 147,
+                    "file": "sprite_42_147.webp"
+                },
+                {
+                    "index": 148,
+                    "file": "sprite_42_148.webp"
+                },
+                {
+                    "index": 149,
+                    "file": "sprite_42_149.webp"
+                },
+                {
+                    "index": 150,
+                    "file": "sprite_42_150.webp"
+                },
+                {
+                    "index": 151,
+                    "file": "sprite_42_151.webp"
+                },
+                {
+                    "index": 152,
+                    "file": "sprite_42_152.webp"
+                },
+                {
+                    "index": 153,
+                    "file": "sprite_42_153.webp"
+                },
+                {
+                    "index": 154,
+                    "file": "sprite_42_154.webp"
+                },
+                {
+                    "index": 155,
+                    "file": "sprite_42_155.webp"
+                },
+                {
+                    "index": 156,
+                    "file": "sprite_42_156.webp"
+                },
+                {
+                    "index": 157,
+                    "file": "sprite_42_157.webp"
+                },
+                {
+                    "index": 158,
+                    "file": "sprite_42_158.webp"
+                },
+                {
+                    "index": 159,
+                    "file": "sprite_42_159.webp"
+                },
+                {
+                    "index": 160,
+                    "file": "sprite_42_160.webp"
+                },
+                {
+                    "index": 161,
+                    "file": "sprite_42_161.webp"
+                },
+                {
+                    "index": 162,
+                    "file": "sprite_42_162.webp"
+                },
+                {
+                    "index": 163,
+                    "file": "sprite_42_163.webp"
+                },
+                {
+                    "index": 164,
+                    "file": "sprite_42_164.webp"
+                },
+                {
+                    "index": 165,
+                    "file": "sprite_42_165.webp"
+                },
+                {
+                    "index": 166,
+                    "file": "sprite_42_166.webp"
+                },
+                {
+                    "index": 167,
+                    "file": "sprite_42_167.webp"
+                },
+                {
+                    "index": 168,
+                    "file": "sprite_42_168.webp"
+                },
+                {
+                    "index": 169,
+                    "file": "sprite_42_169.webp"
+                },
+                {
+                    "index": 170,
+                    "file": "sprite_42_170.webp"
+                },
+                {
+                    "index": 171,
+                    "file": "sprite_42_171.webp"
+                },
+                {
+                    "index": 172,
+                    "file": "sprite_42_172.webp"
+                },
+                {
+                    "index": 173,
+                    "file": "sprite_42_173.webp"
+                },
+                {
+                    "index": 174,
+                    "file": "sprite_42_174.webp"
+                },
+                {
+                    "index": 175,
+                    "file": "sprite_42_175.webp"
+                },
+                {
+                    "index": 176,
+                    "file": "sprite_42_176.webp"
+                },
+                {
+                    "index": 177,
+                    "file": "sprite_42_177.webp"
+                },
+                {
+                    "index": 178,
+                    "file": "sprite_42_178.webp"
+                },
+                {
+                    "index": 179,
+                    "file": "sprite_42_179.webp"
+                },
+                {
+                    "index": 180,
+                    "file": "sprite_42_180.webp"
+                },
+                {
+                    "index": 181,
+                    "file": "sprite_42_181.webp"
+                },
+                {
+                    "index": 182,
+                    "file": "sprite_42_182.webp"
+                },
+                {
+                    "index": 183,
+                    "file": "sprite_42_183.webp"
+                },
+                {
+                    "index": 184,
+                    "file": "sprite_42_184.webp"
+                },
+                {
+                    "index": 185,
+                    "file": "sprite_42_185.webp"
+                },
+                {
+                    "index": 186,
+                    "file": "sprite_42_186.webp"
+                },
+                {
+                    "index": 187,
+                    "file": "sprite_42_187.webp"
+                },
+                {
+                    "index": 188,
+                    "file": "sprite_42_188.webp"
+                },
+                {
+                    "index": 189,
+                    "file": "sprite_42_189.webp"
+                },
+                {
+                    "index": 190,
+                    "file": "sprite_42_190.webp"
+                },
+                {
+                    "index": 191,
+                    "file": "sprite_42_191.webp"
+                },
+                {
+                    "index": 192,
+                    "file": "sprite_42_192.webp"
+                },
+                {
+                    "index": 193,
+                    "file": "sprite_42_193.webp"
+                },
+                {
+                    "index": 194,
+                    "file": "sprite_42_194.webp"
+                },
+                {
+                    "index": 195,
+                    "file": "sprite_42_195.webp"
+                },
+                {
+                    "index": 196,
+                    "file": "sprite_42_196.webp"
+                },
+                {
+                    "index": 197,
+                    "file": "sprite_42_197.webp"
+                },
+                {
+                    "index": 198,
+                    "file": "sprite_42_198.webp"
+                },
+                {
+                    "index": 199,
+                    "file": "sprite_42_199.webp"
+                },
+                {
+                    "index": 200,
+                    "file": "sprite_42_200.webp"
+                },
+                {
+                    "index": 201,
+                    "file": "sprite_42_201.webp"
+                },
+                {
+                    "index": 202,
+                    "file": "sprite_42_202.webp"
+                },
+                {
+                    "index": 203,
+                    "file": "sprite_42_203.webp"
+                },
+                {
+                    "index": 204,
+                    "file": "sprite_42_204.webp"
+                },
+                {
+                    "index": 205,
+                    "file": "sprite_42_205.webp"
+                },
+                {
+                    "index": 206,
+                    "file": "sprite_42_206.webp"
+                },
+                {
+                    "index": 207,
+                    "file": "sprite_42_207.webp"
+                },
+                {
+                    "index": 208,
+                    "file": "sprite_42_208.webp"
+                },
+                {
+                    "index": 209,
+                    "file": "sprite_42_209.webp"
+                },
+                {
+                    "index": 210,
+                    "file": "sprite_42_210.webp"
+                },
+                {
+                    "index": 211,
+                    "file": "sprite_42_211.webp"
+                },
+                {
+                    "index": 212,
+                    "file": "sprite_42_212.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_27/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_42/frame_61/DoAction.as",
+        "scripts/scripts/DefineSprite_42/frame_61/PlaceObject2_35_12/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_42/frame_7/PlaceObject2_6_7/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_42/frame_7/PlaceObject2_6_7/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_42/frame_7/PlaceObject2_10_9/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_42/frame_7/PlaceObject2_10_9/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_42/frame_211/DoAction.as",
+        "scripts/scripts/DefineSprite_42/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_42/frame_1/DoAction_2.as",
+        "scripts/scripts/DefineSprite_42/frame_55/DoAction.as",
+        "scripts/scripts/frame_2/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "sounds": [
+        {
+            "frame": 0,
+            "soundId": "licrounch_1008"
+        },
+        {
+            "frame": 54,
+            "soundId": "many_512b"
+        }
+    ],
+    "librarySymbols": [
+        {
+            "name": "pierres",
+            "characterId": 3,
+            "internalName": "sprite_3",
+            "frameCount": 1,
+            "width": 38.400000000000006,
+            "height": 23.1,
+            "offsetX": -19.200000000000003,
+            "offsetY": -13.200000000000001,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_pierres_0.webp"
+                }
+            ]
+        }
+    ]
+}

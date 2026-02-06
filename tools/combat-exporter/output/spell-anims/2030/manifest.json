@@ -1,0 +1,60 @@
+{
+    "id": 2030,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "move",
+            "frameCount": 6,
+            "width": 93,
+            "height": 31.799999999999997,
+            "offsetX": -58.199999999999996,
+            "offsetY": -16.200000000000003,
+            "isComposite": false,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "move_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "move_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "move_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "move_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "move_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "move_5.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_8/frame_34/DoAction.as",
+        "scripts/scripts/DefineSprite_8/frame_1/DoAction.as",
+        "scripts/scripts/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_15_shoot/frame_106/DoAction.as",
+        "scripts/scripts/DefineSprite_15_shoot/frame_4/DoAction.as",
+        "scripts/scripts/DefineSprite_14/frame_295/DoAction.as",
+        "scripts/scripts/DefineSprite_12/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_12/frame_97/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "sounds": [
+        {
+            "frame": 0,
+            "soundId": "crockette_206"
+        }
+    ]
+}

@@ -1,0 +1,896 @@
+{
+    "version": "1.0",
+    "generated": "2026-01-23T19:57:26+00:00",
+    "format": "svg",
+    "scale": 6,
+    "characters": {
+        "84": {
+            "id": 84,
+            "exportName": "LoadingBanner",
+            "type": "sprite",
+            "width": 4452,
+            "height": 3339,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "84.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "501": {
+            "id": 501,
+            "exportName": "BannerSpriteInfos",
+            "type": "sprite",
+            "width": 1962,
+            "height": 750,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "501.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1307": {
+            "id": 1307,
+            "exportName": "UI_Banner",
+            "type": "sprite",
+            "width": 4497,
+            "height": 750.5999999999999,
+            "offsetX": -45,
+            "offsetY": 2592.3,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1307.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1762": {
+            "id": 1762,
+            "exportName": "UI_BannerPvpIcon",
+            "type": "sprite",
+            "width": 192,
+            "height": 198,
+            "offsetX": -96,
+            "offsetY": -102,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1762.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1932": {
+            "id": 1932,
+            "exportName": "UI_BannerStatsIcon",
+            "type": "sprite",
+            "width": 194.70000000000002,
+            "height": 193.20000000000002,
+            "offsetX": -96,
+            "offsetY": -97.19999999999999,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1932.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1934": {
+            "id": 1934,
+            "exportName": "UI_BannerSpellIcon",
+            "type": "sprite",
+            "width": 192,
+            "height": 192,
+            "offsetX": -96,
+            "offsetY": -96,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1934.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1936": {
+            "id": 1936,
+            "exportName": "UI_BannerMountIcon",
+            "type": "sprite",
+            "width": 192,
+            "height": 192,
+            "offsetX": -96,
+            "offsetY": -96,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1936.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1937": {
+            "id": 1937,
+            "exportName": "UI_BannerMapIcon",
+            "type": "sprite",
+            "width": 192,
+            "height": 192,
+            "offsetX": -96,
+            "offsetY": -96,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1937.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1939": {
+            "id": 1939,
+            "exportName": "UI_BannerInventoryIcon",
+            "type": "sprite",
+            "width": 192,
+            "height": 192,
+            "offsetX": -96,
+            "offsetY": -96,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1939.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1941": {
+            "id": 1941,
+            "exportName": "UI_BannerGuildIcon",
+            "type": "sprite",
+            "width": 192,
+            "height": 192,
+            "offsetX": -96,
+            "offsetY": -96,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1941.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1943": {
+            "id": 1943,
+            "exportName": "UI_BannerFriendsIcon",
+            "type": "sprite",
+            "width": 192,
+            "height": 192,
+            "offsetX": -96,
+            "offsetY": -96,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1943.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1944": {
+            "id": 1944,
+            "exportName": "UI_BannerContainerHighLight",
+            "type": "sprite",
+            "width": 150,
+            "height": 150,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1944.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1945": {
+            "id": 1945,
+            "exportName": "UI_BannerContainerBorder",
+            "type": "sprite",
+            "width": 150,
+            "height": 150,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1945.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1946": {
+            "id": 1946,
+            "exportName": "UI_BannerContainerBackground",
+            "type": "sprite",
+            "width": 150,
+            "height": 150,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1946.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1949": {
+            "id": 1949,
+            "exportName": "UI_BannerCompassNoArrow",
+            "type": "sprite",
+            "width": 600,
+            "height": 600,
+            "offsetX": -300,
+            "offsetY": -300,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1949.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1950": {
+            "id": 1950,
+            "exportName": "UI_BannerCompassBack",
+            "type": "sprite",
+            "width": 600,
+            "height": 600,
+            "offsetX": -300,
+            "offsetY": -300,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1950.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1951": {
+            "id": 1951,
+            "exportName": "UI_BannerCompassArrow",
+            "type": "sprite",
+            "width": 600,
+            "height": 600,
+            "offsetX": -300,
+            "offsetY": -300,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1951.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1952": {
+            "id": 1952,
+            "exportName": "UI_BannerClockBack",
+            "type": "sprite",
+            "width": 600,
+            "height": 600,
+            "offsetX": -300,
+            "offsetY": -300,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1952.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1953": {
+            "id": 1953,
+            "exportName": "UI_BannerClockArrowMinutes",
+            "type": "sprite",
+            "width": 600,
+            "height": 600,
+            "offsetX": -300,
+            "offsetY": -300,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1953.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1954": {
+            "id": 1954,
+            "exportName": "UI_BannerClockArrowHours",
+            "type": "sprite",
+            "width": 600,
+            "height": 600,
+            "offsetX": -300,
+            "offsetY": -300,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1954.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1956": {
+            "id": 1956,
+            "exportName": "UI_BannerChatCommandAll",
+            "type": "sprite",
+            "width": 78,
+            "height": 78,
+            "offsetX": -9,
+            "offsetY": -8.100000000000001,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1956.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1958": {
+            "id": 1958,
+            "exportName": "UI_BannerBookIcon",
+            "type": "sprite",
+            "width": 192,
+            "height": 196.79999999999998,
+            "offsetX": -96,
+            "offsetY": -100.80000000000001,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1958.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "2694": {
+            "id": 2694,
+            "exportName": "ButtonBannerRoundWaitResponseUp_TripleFramerate",
+            "type": "sprite",
+            "width": 156,
+            "height": 156,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "2694_0.svg"
+                },
+                {
+                    "index": 1,
+                    "file": "2694_1.svg"
+                },
+                {
+                    "index": 2,
+                    "file": "2694_2.svg"
+                },
+                {
+                    "index": 3,
+                    "file": "2694_3.svg"
+                },
+                {
+                    "index": 4,
+                    "file": "2694_4.svg"
+                },
+                {
+                    "index": 5,
+                    "file": "2694_5.svg"
+                },
+                {
+                    "index": 6,
+                    "file": "2694_6.svg"
+                },
+                {
+                    "index": 7,
+                    "file": "2694_7.svg"
+                },
+                {
+                    "index": 8,
+                    "file": "2694_8.svg"
+                },
+                {
+                    "index": 9,
+                    "file": "2694_9.svg"
+                },
+                {
+                    "index": 10,
+                    "file": "2694_10.svg"
+                },
+                {
+                    "index": 11,
+                    "file": "2694_11.svg"
+                },
+                {
+                    "index": 12,
+                    "file": "2694_12.svg"
+                },
+                {
+                    "index": 13,
+                    "file": "2694_13.svg"
+                },
+                {
+                    "index": 14,
+                    "file": "2694_14.svg"
+                },
+                {
+                    "index": 15,
+                    "file": "2694_15.svg"
+                },
+                {
+                    "index": 16,
+                    "file": "2694_16.svg"
+                },
+                {
+                    "index": 17,
+                    "file": "2694_17.svg"
+                },
+                {
+                    "index": 18,
+                    "file": "2694_18.svg"
+                },
+                {
+                    "index": 19,
+                    "file": "2694_19.svg"
+                },
+                {
+                    "index": 20,
+                    "file": "2694_20.svg"
+                },
+                {
+                    "index": 21,
+                    "file": "2694_21.svg"
+                },
+                {
+                    "index": 22,
+                    "file": "2694_22.svg"
+                },
+                {
+                    "index": 23,
+                    "file": "2694_23.svg"
+                },
+                {
+                    "index": 24,
+                    "file": "2694_24.svg"
+                },
+                {
+                    "index": 25,
+                    "file": "2694_25.svg"
+                },
+                {
+                    "index": 26,
+                    "file": "2694_26.svg"
+                },
+                {
+                    "index": 27,
+                    "file": "2694_27.svg"
+                },
+                {
+                    "index": 28,
+                    "file": "2694_28.svg"
+                },
+                {
+                    "index": 29,
+                    "file": "2694_29.svg"
+                },
+                {
+                    "index": 30,
+                    "file": "2694_30.svg"
+                },
+                {
+                    "index": 31,
+                    "file": "2694_31.svg"
+                },
+                {
+                    "index": 32,
+                    "file": "2694_32.svg"
+                },
+                {
+                    "index": 33,
+                    "file": "2694_33.svg"
+                },
+                {
+                    "index": 34,
+                    "file": "2694_34.svg"
+                },
+                {
+                    "index": 35,
+                    "file": "2694_35.svg"
+                },
+                {
+                    "index": 36,
+                    "file": "2694_36.svg"
+                },
+                {
+                    "index": 37,
+                    "file": "2694_37.svg"
+                },
+                {
+                    "index": 38,
+                    "file": "2694_38.svg"
+                },
+                {
+                    "index": 39,
+                    "file": "2694_39.svg"
+                },
+                {
+                    "index": 40,
+                    "file": "2694_40.svg"
+                },
+                {
+                    "index": 41,
+                    "file": "2694_41.svg"
+                },
+                {
+                    "index": 42,
+                    "file": "2694_42.svg"
+                },
+                {
+                    "index": 43,
+                    "file": "2694_43.svg"
+                },
+                {
+                    "index": 44,
+                    "file": "2694_44.svg"
+                },
+                {
+                    "index": 45,
+                    "file": "2694_45.svg"
+                },
+                {
+                    "index": 46,
+                    "file": "2694_46.svg"
+                },
+                {
+                    "index": 47,
+                    "file": "2694_47.svg"
+                },
+                {
+                    "index": 48,
+                    "file": "2694_48.svg"
+                },
+                {
+                    "index": 49,
+                    "file": "2694_49.svg"
+                },
+                {
+                    "index": 50,
+                    "file": "2694_50.svg"
+                },
+                {
+                    "index": 51,
+                    "file": "2694_51.svg"
+                },
+                {
+                    "index": 52,
+                    "file": "2694_52.svg"
+                },
+                {
+                    "index": 53,
+                    "file": "2694_53.svg"
+                },
+                {
+                    "index": 54,
+                    "file": "2694_54.svg"
+                },
+                {
+                    "index": 55,
+                    "file": "2694_55.svg"
+                },
+                {
+                    "index": 56,
+                    "file": "2694_56.svg"
+                },
+                {
+                    "index": 57,
+                    "file": "2694_57.svg"
+                },
+                {
+                    "index": 58,
+                    "file": "2694_58.svg"
+                },
+                {
+                    "index": 59,
+                    "file": "2694_59.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 60
+        },
+        "2696": {
+            "id": 2696,
+            "exportName": "ButtonBannerRoundWaitResponseUp",
+            "type": "sprite",
+            "width": 156,
+            "height": 156,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "2696_0.svg"
+                },
+                {
+                    "index": 1,
+                    "file": "2696_1.svg"
+                },
+                {
+                    "index": 2,
+                    "file": "2696_2.svg"
+                },
+                {
+                    "index": 3,
+                    "file": "2696_3.svg"
+                },
+                {
+                    "index": 4,
+                    "file": "2696_4.svg"
+                },
+                {
+                    "index": 5,
+                    "file": "2696_5.svg"
+                },
+                {
+                    "index": 6,
+                    "file": "2696_6.svg"
+                },
+                {
+                    "index": 7,
+                    "file": "2696_7.svg"
+                },
+                {
+                    "index": 8,
+                    "file": "2696_8.svg"
+                },
+                {
+                    "index": 9,
+                    "file": "2696_9.svg"
+                },
+                {
+                    "index": 10,
+                    "file": "2696_10.svg"
+                },
+                {
+                    "index": 11,
+                    "file": "2696_11.svg"
+                },
+                {
+                    "index": 12,
+                    "file": "2696_12.svg"
+                },
+                {
+                    "index": 13,
+                    "file": "2696_13.svg"
+                },
+                {
+                    "index": 14,
+                    "file": "2696_14.svg"
+                },
+                {
+                    "index": 15,
+                    "file": "2696_15.svg"
+                },
+                {
+                    "index": 16,
+                    "file": "2696_16.svg"
+                },
+                {
+                    "index": 17,
+                    "file": "2696_17.svg"
+                },
+                {
+                    "index": 18,
+                    "file": "2696_18.svg"
+                },
+                {
+                    "index": 19,
+                    "file": "2696_19.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 20
+        },
+        "2699": {
+            "id": 2699,
+            "exportName": "ButtonBannerRoundWaitResponseDown",
+            "type": "sprite",
+            "width": 156,
+            "height": 156,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "2699.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "2702": {
+            "id": 2702,
+            "exportName": "ButtonBannerRoundUp",
+            "type": "sprite",
+            "width": 156,
+            "height": 156,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "2702.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "2705": {
+            "id": 2705,
+            "exportName": "ButtonBannerRoundInSearchUp",
+            "type": "sprite",
+            "width": 156,
+            "height": 156,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "2705.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "2708": {
+            "id": 2708,
+            "exportName": "ButtonBannerRoundInSearchDown",
+            "type": "sprite",
+            "width": 156,
+            "height": 156,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "2708.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "2711": {
+            "id": 2711,
+            "exportName": "ButtonBannerRoundDown",
+            "type": "sprite",
+            "width": 156,
+            "height": 156,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "2711.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "20536": {
+            "id": 20536,
+            "exportName": "__Packages.dofus.\u001d\u0019\u0011.gapi.ui.\u0014\u0007.BannerCircleXtra",
+            "type": "sprite",
+            "width": 0,
+            "height": 0,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "20536.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "20613": {
+            "id": 20613,
+            "exportName": "__Packages.dofus.\u001d\u0019\u0011.gapi.\u001e\u001b\u001b.BannerSpriteInfos",
+            "type": "sprite",
+            "width": 0,
+            "height": 0,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "20613.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "20765": {
+            "id": 20765,
+            "exportName": "__Packages.dofus.\u001d\u0019\u0011.gapi.ui.Banner",
+            "type": "sprite",
+            "width": 0,
+            "height": 0,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 6,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "20765.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}

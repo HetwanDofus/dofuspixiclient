@@ -1,0 +1,298 @@
+{
+    "id": 210,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "griffes",
+            "frameCount": 30,
+            "width": 367.5,
+            "height": 230.70000000000002,
+            "offsetX": -145.8,
+            "offsetY": -129.60000000000002,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "griffes_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "griffes_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "griffes_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "griffes_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "griffes_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "griffes_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "griffes_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "griffes_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "griffes_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "griffes_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "griffes_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "griffes_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "griffes_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "griffes_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "griffes_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "griffes_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "griffes_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "griffes_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "griffes_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "griffes_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "griffes_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "griffes_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "griffes_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "griffes_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "griffes_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "griffes_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "griffes_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "griffes_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "griffes_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "griffes_29.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_7/frame_1/PlaceObject2_6_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_7/frame_1/PlaceObject2_6_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_7/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_7/frame_1/PlaceObject2_6_3/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_7/frame_1/PlaceObject2_6_3/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_7/frame_163/DoAction.as",
+        "scripts/scripts/DefineSprite_6/frame_7/DoAction.as",
+        "scripts/scripts/DefineSprite_6/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_6/frame_13/DoAction.as",
+        "scripts/scripts/DefineSprite_4_griffes/frame_28/DoAction.as",
+        "scripts/scripts/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_3/frame_1/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "sounds": [
+        {
+            "frame": 0,
+            "soundId": "crockette_201"
+        },
+        {
+            "frame": 6,
+            "soundId": "lance02"
+        }
+    ],
+    "librarySymbols": [
+        {
+            "name": "griffes",
+            "characterId": 4,
+            "internalName": "sprite_4",
+            "frameCount": 30,
+            "width": 367.5,
+            "height": 230.70000000000002,
+            "offsetX": -145.8,
+            "offsetY": -129.60000000000002,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_griffes_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "lib_griffes_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "lib_griffes_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "lib_griffes_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "lib_griffes_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "lib_griffes_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "lib_griffes_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "lib_griffes_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "lib_griffes_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "lib_griffes_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "lib_griffes_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "lib_griffes_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "lib_griffes_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "lib_griffes_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "lib_griffes_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "lib_griffes_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "lib_griffes_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "lib_griffes_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "lib_griffes_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "lib_griffes_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "lib_griffes_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "lib_griffes_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "lib_griffes_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "lib_griffes_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "lib_griffes_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "lib_griffes_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "lib_griffes_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "lib_griffes_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "lib_griffes_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "lib_griffes_29.webp"
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,73 @@
+{
+    "id": 815,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "anim1",
+            "frameCount": 5,
+            "width": 1429.5,
+            "height": 1454.1,
+            "offsetX": -507.90000000000003,
+            "offsetY": -866.6999999999999,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "anim1_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "anim1_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "anim1_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "anim1_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "anim1_4.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_9/frame_118/DoAction.as",
+        "scripts/scripts/DefineSprite_9/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_9/frame_79/DoAction.as",
+        "scripts/scripts/DefineSprite_7/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_7/frame_91/DoAction.as",
+        "scripts/scripts/DefineSprite_7/frame_22/DoAction.as",
+        "scripts/scripts/DefineSprite_6/frame_19/DoAction.as",
+        "scripts/scripts/DefineSprite_6/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_6/frame_1/DoAction_2.as",
+        "scripts/scripts/DefineSprite_8/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_8/frame_64/DoAction.as",
+        "scripts/scripts/DefineSprite_8/frame_106/DoAction.as",
+        "scripts/scripts/DefineSprite_10/frame_121/DoAction.as",
+        "scripts/scripts/DefineSprite_10/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_10/frame_79/DoAction.as",
+        "scripts/scripts/DefineSprite_11/frame_121/DoAction.as",
+        "scripts/scripts/DefineSprite_11/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_11/frame_79/DoAction.as",
+        "scripts/scripts/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_3/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_12/frame_1/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "sounds": [
+        {
+            "frame": 0,
+            "soundId": "punch"
+        },
+        {
+            "frame": 0,
+            "soundId": "vlad_806"
+        }
+    ]
+}

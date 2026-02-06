@@ -1,0 +1,17 @@
+#!/usr/bin/env php
+<?php
+
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+
+use App\Command\ExtractSpellsCommand;
+use App\Command\ExtractEffectsCommand;
+use App\Command\ExtractSpellAnimsCommand;
+use Symfony\Component\Console\Application;
+
+$app = new Application('Dofus Combat Data Exporter', '1.0.0');
+
+$app->addCommand(new ExtractSpellsCommand());
+$app->addCommand(new ExtractEffectsCommand());
+$app->addCommand(new ExtractSpellAnimsCommand());
+
+$app->run();

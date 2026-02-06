@@ -1,0 +1,292 @@
+{
+    "id": 1007,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "sprite_8",
+            "frameCount": 60,
+            "width": 140.39999999999998,
+            "height": 142.2,
+            "offsetX": -70.5,
+            "offsetY": -70.5,
+            "stopFrame": 54,
+            "fadingFrame": 53,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "sprite_8_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "sprite_8_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "sprite_8_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "sprite_8_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "sprite_8_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "sprite_8_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "sprite_8_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "sprite_8_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "sprite_8_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "sprite_8_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "sprite_8_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "sprite_8_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "sprite_8_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "sprite_8_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "sprite_8_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "sprite_8_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "sprite_8_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "sprite_8_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "sprite_8_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "sprite_8_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "sprite_8_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "sprite_8_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "sprite_8_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "sprite_8_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "sprite_8_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "sprite_8_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "sprite_8_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "sprite_8_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "sprite_8_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "sprite_8_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "sprite_8_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "sprite_8_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "sprite_8_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "sprite_8_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "sprite_8_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "sprite_8_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "sprite_8_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "sprite_8_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "sprite_8_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "sprite_8_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "sprite_8_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "sprite_8_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "sprite_8_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "sprite_8_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "sprite_8_44.webp"
+                },
+                {
+                    "index": 45,
+                    "file": "sprite_8_45.webp"
+                },
+                {
+                    "index": 46,
+                    "file": "sprite_8_46.webp"
+                },
+                {
+                    "index": 47,
+                    "file": "sprite_8_47.webp"
+                },
+                {
+                    "index": 48,
+                    "file": "sprite_8_48.webp"
+                },
+                {
+                    "index": 49,
+                    "file": "sprite_8_49.webp"
+                },
+                {
+                    "index": 50,
+                    "file": "sprite_8_50.webp"
+                },
+                {
+                    "index": 51,
+                    "file": "sprite_8_51.webp"
+                },
+                {
+                    "index": 52,
+                    "file": "sprite_8_52.webp"
+                },
+                {
+                    "index": 53,
+                    "file": "sprite_8_53.webp"
+                },
+                {
+                    "index": 54,
+                    "file": "sprite_8_54.webp"
+                },
+                {
+                    "index": 55,
+                    "file": "sprite_8_55.webp"
+                },
+                {
+                    "index": 56,
+                    "file": "sprite_8_56.webp"
+                },
+                {
+                    "index": 57,
+                    "file": "sprite_8_57.webp"
+                },
+                {
+                    "index": 58,
+                    "file": "sprite_8_58.webp"
+                },
+                {
+                    "index": 59,
+                    "file": "sprite_8_59.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_8/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_8/frame_55/DoAction.as",
+        "scripts/scripts/DefineSprite_14/frame_295/DoAction.as",
+        "scripts/scripts/DefineSprite_14/frame_58/DoAction.as",
+        "scripts/scripts/DefineSprite_14/frame_121/DoAction.as",
+        "scripts/scripts/DefineSprite_14/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_14/frame_184/DoAction.as",
+        "scripts/scripts/DefineSprite_14/frame_178/DoAction.as",
+        "scripts/scripts/DefineSprite_12/frame_289/DoAction.as",
+        "scripts/scripts/DefineSprite_12/frame_1/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "sounds": [
+        {
+            "frame": 0,
+            "soundId": "herbe"
+        },
+        {
+            "frame": 57,
+            "soundId": "herbe"
+        },
+        {
+            "frame": 120,
+            "soundId": "herbe"
+        },
+        {
+            "frame": 183,
+            "soundId": "herbe"
+        }
+    ]
+}

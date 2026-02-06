@@ -1,0 +1,186 @@
+{
+    "id": 3002,
+    "fps": 20,
+    "scale": 6,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "shoot",
+            "frameCount": 20,
+            "width": 178.5,
+            "height": 189.60000000000002,
+            "offsetX": -139.5,
+            "offsetY": -105.60000000000001,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "shoot_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "shoot_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "shoot_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "shoot_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "shoot_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "shoot_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "shoot_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "shoot_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "shoot_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "shoot_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "shoot_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "shoot_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "shoot_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "shoot_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "shoot_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "shoot_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "shoot_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "shoot_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "shoot_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "shoot_19.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_9/frame_1/PlaceObject2_5_2/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_9/frame_1/PlaceObject2_5_2/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_9/frame_22/DoAction.as",
+        "scripts/scripts/DefineSprite_10_shoot/frame_20/DoAction.as",
+        "scripts/scripts/DefineSprite_10_shoot/frame_1/PlaceObject2_1_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_29/frame_19/DoAction.as",
+        "scripts/scripts/DefineSprite_29/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_11_move/frame_1/PlaceObject2_1_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_11_move/frame_1/PlaceObject2_1_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_11_move/frame_1/PlaceObject2_5_3/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_11_move/frame_1/PlaceObject2_5_3/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_13/frame_11/DoAction.as",
+        "scripts/scripts/DefineSprite_13/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_24/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_24/frame_14/DoAction.as",
+        "scripts/scripts/DefineSprite_36/frame_9/DoAction.as",
+        "scripts/scripts/DefineSprite_36/frame_1/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "librarySymbols": [
+        {
+            "name": "part_f",
+            "characterId": 37,
+            "internalName": "sprite_37",
+            "frameCount": 1,
+            "width": 210.29999999999998,
+            "height": 193.20000000000002,
+            "offsetX": -27,
+            "offsetY": -135.60000000000002,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_part_f_0.webp"
+                }
+            ]
+        },
+        {
+            "name": "part_w",
+            "characterId": 30,
+            "internalName": "sprite_30",
+            "frameCount": 1,
+            "width": 153,
+            "height": 148.8,
+            "offsetX": -48.599999999999994,
+            "offsetY": -106.5,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_part_w_0.webp"
+                }
+            ]
+        },
+        {
+            "name": "part_e",
+            "characterId": 14,
+            "internalName": "sprite_14",
+            "frameCount": 1,
+            "width": 369.9,
+            "height": 363,
+            "offsetX": -97.19999999999999,
+            "offsetY": -155.10000000000002,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_part_e_0.webp"
+                }
+            ]
+        },
+        {
+            "name": "part_a",
+            "characterId": 25,
+            "internalName": "sprite_25",
+            "frameCount": 1,
+            "width": 193.20000000000002,
+            "height": 224.70000000000002,
+            "offsetX": -174,
+            "offsetY": -224.70000000000002,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_part_a_0.webp"
+                }
+            ]
+        }
+    ]
+}

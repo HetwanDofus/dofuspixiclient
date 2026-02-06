@@ -7,6 +7,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+build
+vendor
+
 node_modules
 dist
 dist-ssr
@@ -22,3 +25,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Assets
+assets/output
+assets/rasters
+assets/spritesheets

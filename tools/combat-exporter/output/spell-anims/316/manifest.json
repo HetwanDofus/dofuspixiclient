@@ -1,0 +1,402 @@
+{
+    "id": 316,
+    "fps": 60,
+    "scale": 6,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "pepite",
+            "frameCount": 45,
+            "width": 79.80000000000001,
+            "height": 106.80000000000001,
+            "offsetX": -39.3,
+            "offsetY": -73.5,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "pepite_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "pepite_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "pepite_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "pepite_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "pepite_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "pepite_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "pepite_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "pepite_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "pepite_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "pepite_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "pepite_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "pepite_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "pepite_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "pepite_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "pepite_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "pepite_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "pepite_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "pepite_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "pepite_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "pepite_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "pepite_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "pepite_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "pepite_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "pepite_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "pepite_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "pepite_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "pepite_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "pepite_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "pepite_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "pepite_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "pepite_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "pepite_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "pepite_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "pepite_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "pepite_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "pepite_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "pepite_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "pepite_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "pepite_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "pepite_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "pepite_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "pepite_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "pepite_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "pepite_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "pepite_44.webp"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_8/frame_127/PlaceObject2_7_2/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_8/frame_160/DoAction.as",
+        "scripts/scripts/DefineSprite_8/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_5_pepite/frame_45/DoAction.as",
+        "scripts/scripts/DefineSprite_5_pepite/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_5_pepite/frame_1/PlaceObject2_3_1/CLIPACTIONRECORD onClipEvent(load).as"
+    ],
+    "requiresTypeScript": true,
+    "librarySymbols": [
+        {
+            "name": "pepite",
+            "characterId": 5,
+            "internalName": "sprite_5",
+            "frameCount": 45,
+            "width": 79.80000000000001,
+            "height": 106.80000000000001,
+            "offsetX": -39.3,
+            "offsetY": -73.5,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_pepite_0.webp"
+                },
+                {
+                    "index": 1,
+                    "file": "lib_pepite_1.webp"
+                },
+                {
+                    "index": 2,
+                    "file": "lib_pepite_2.webp"
+                },
+                {
+                    "index": 3,
+                    "file": "lib_pepite_3.webp"
+                },
+                {
+                    "index": 4,
+                    "file": "lib_pepite_4.webp"
+                },
+                {
+                    "index": 5,
+                    "file": "lib_pepite_5.webp"
+                },
+                {
+                    "index": 6,
+                    "file": "lib_pepite_6.webp"
+                },
+                {
+                    "index": 7,
+                    "file": "lib_pepite_7.webp"
+                },
+                {
+                    "index": 8,
+                    "file": "lib_pepite_8.webp"
+                },
+                {
+                    "index": 9,
+                    "file": "lib_pepite_9.webp"
+                },
+                {
+                    "index": 10,
+                    "file": "lib_pepite_10.webp"
+                },
+                {
+                    "index": 11,
+                    "file": "lib_pepite_11.webp"
+                },
+                {
+                    "index": 12,
+                    "file": "lib_pepite_12.webp"
+                },
+                {
+                    "index": 13,
+                    "file": "lib_pepite_13.webp"
+                },
+                {
+                    "index": 14,
+                    "file": "lib_pepite_14.webp"
+                },
+                {
+                    "index": 15,
+                    "file": "lib_pepite_15.webp"
+                },
+                {
+                    "index": 16,
+                    "file": "lib_pepite_16.webp"
+                },
+                {
+                    "index": 17,
+                    "file": "lib_pepite_17.webp"
+                },
+                {
+                    "index": 18,
+                    "file": "lib_pepite_18.webp"
+                },
+                {
+                    "index": 19,
+                    "file": "lib_pepite_19.webp"
+                },
+                {
+                    "index": 20,
+                    "file": "lib_pepite_20.webp"
+                },
+                {
+                    "index": 21,
+                    "file": "lib_pepite_21.webp"
+                },
+                {
+                    "index": 22,
+                    "file": "lib_pepite_22.webp"
+                },
+                {
+                    "index": 23,
+                    "file": "lib_pepite_23.webp"
+                },
+                {
+                    "index": 24,
+                    "file": "lib_pepite_24.webp"
+                },
+                {
+                    "index": 25,
+                    "file": "lib_pepite_25.webp"
+                },
+                {
+                    "index": 26,
+                    "file": "lib_pepite_26.webp"
+                },
+                {
+                    "index": 27,
+                    "file": "lib_pepite_27.webp"
+                },
+                {
+                    "index": 28,
+                    "file": "lib_pepite_28.webp"
+                },
+                {
+                    "index": 29,
+                    "file": "lib_pepite_29.webp"
+                },
+                {
+                    "index": 30,
+                    "file": "lib_pepite_30.webp"
+                },
+                {
+                    "index": 31,
+                    "file": "lib_pepite_31.webp"
+                },
+                {
+                    "index": 32,
+                    "file": "lib_pepite_32.webp"
+                },
+                {
+                    "index": 33,
+                    "file": "lib_pepite_33.webp"
+                },
+                {
+                    "index": 34,
+                    "file": "lib_pepite_34.webp"
+                },
+                {
+                    "index": 35,
+                    "file": "lib_pepite_35.webp"
+                },
+                {
+                    "index": 36,
+                    "file": "lib_pepite_36.webp"
+                },
+                {
+                    "index": 37,
+                    "file": "lib_pepite_37.webp"
+                },
+                {
+                    "index": 38,
+                    "file": "lib_pepite_38.webp"
+                },
+                {
+                    "index": 39,
+                    "file": "lib_pepite_39.webp"
+                },
+                {
+                    "index": 40,
+                    "file": "lib_pepite_40.webp"
+                },
+                {
+                    "index": 41,
+                    "file": "lib_pepite_41.webp"
+                },
+                {
+                    "index": 42,
+                    "file": "lib_pepite_42.webp"
+                },
+                {
+                    "index": 43,
+                    "file": "lib_pepite_43.webp"
+                },
+                {
+                    "index": 44,
+                    "file": "lib_pepite_44.webp"
+                }
+            ]
+        }
+    ]
+}
