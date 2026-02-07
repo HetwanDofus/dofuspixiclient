@@ -3,7 +3,7 @@ import type { AssetEntry, BannerManifest, IconButtonWithOffset } from '@/types/b
 import { BANNER_ASSETS_PATH, ICON_BUTTON_CONFIGS } from '@/types/banner';
 
 export function createIconButton(
-  iconTexturePath: string,
+  iconTexture: Texture,
   iconData: AssetEntry,
   manifest: BannerManifest,
   buttonUpTexture: Texture,
@@ -15,12 +15,12 @@ export function createIconButton(
   button.anchor.set(0.5, 0.5);
   container.addChild(button);
 
-  const icon = Sprite.from(iconTexturePath);
+  const icon = new Sprite(iconTexture);
   icon.anchor.set(0.5, 0.5);
   container.addChild(icon);
 
-  const baseOffsetX = (iconData.width / 2 + iconData.offsetX) / manifest.scale;
-  const baseOffsetY = (iconData.height / 2 + iconData.offsetY) / manifest.scale;
+  const baseOffsetX = (iconData.width / 2 + iconData.offsetX) / manifest.iconScale;
+  const baseOffsetY = (iconData.height / 2 + iconData.offsetY) / manifest.iconScale;
 
   container.eventMode = 'static';
   container.cursor = 'pointer';
@@ -60,7 +60,8 @@ export function createIconButton(
 export function createAllIconButtons(
   manifest: BannerManifest,
   buttonUpTexture: Texture,
-  buttonDownTexture: Texture
+  buttonDownTexture: Texture,
+  getIconTexture: (path: string) => Texture
 ): Array<{ button: IconButtonWithOffset; relativeX: number }> {
   const buttons: Array<{ button: IconButtonWithOffset; relativeX: number }> = [];
 
@@ -69,7 +70,7 @@ export function createAllIconButtons(
     const iconPath = `${BANNER_ASSETS_PATH}/${iconData.file}`;
 
     const iconButton = createIconButton(
-      iconPath,
+      getIconTexture(iconPath),
       iconData,
       manifest,
       buttonUpTexture,

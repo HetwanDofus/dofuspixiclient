@@ -1,21 +1,21 @@
-import { Container, Graphics, Sprite } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 // import { Input } from '@pixi/ui'; // TODO: Re-enable when @pixi/ui is compatible with latest pixi.js
 import type { ChatButton, ChatFilter } from '@/types/banner';
-import { BANNER_ASSETS_PATH, CHAT_FILTER_CONFIGS } from '@/types/banner';
+import { CHAT_FILTER_CONFIGS } from '@/types/banner';
 
 export function createChatButton(
-  iconPath: string,
-  hoverIconPath?: string
+  iconTexture: Texture,
+  hoverIconTexture?: Texture
 ): ChatButton {
   const container = new Container();
 
-  const icon = Sprite.from(iconPath);
+  const icon = new Sprite(iconTexture);
   container.addChild(icon);
 
   let hoverIcon: Sprite | undefined;
 
-  if (hoverIconPath) {
-    hoverIcon = Sprite.from(hoverIconPath);
+  if (hoverIconTexture) {
+    hoverIcon = new Sprite(hoverIconTexture);
     hoverIcon.visible = false;
     container.addChild(hoverIcon);
   }
@@ -117,7 +117,18 @@ export interface ChatUI {
   isExpanded: boolean;
 }
 
-export function createChatUI(emotesPopup: Sprite): ChatUI {
+export interface ChatIconTextures {
+  expand: Texture;
+  emotes: Texture;
+  emotesHover: Texture;
+  sit: Texture;
+  sitHover: Texture;
+}
+
+export function createChatUI(
+  emotesPopup: Sprite,
+  iconTextures: ChatIconTextures
+): ChatUI {
   const container = new Container();
 
   const textBackground = new Graphics();
@@ -126,19 +137,13 @@ export function createChatUI(emotesPopup: Sprite): ChatUI {
   const input = createChatInput();
   container.addChild(input);
 
-  const expandButton = createChatButton(`${BANNER_ASSETS_PATH}/icons/expand.webp`);
+  const expandButton = createChatButton(iconTextures.expand);
   container.addChild(expandButton.container);
 
-  const emotesButton = createChatButton(
-    `${BANNER_ASSETS_PATH}/icons/emotes.webp`,
-    `${BANNER_ASSETS_PATH}/icons/emotes-hover.webp`
-  );
+  const emotesButton = createChatButton(iconTextures.emotes, iconTextures.emotesHover);
   container.addChild(emotesButton.container);
 
-  const sitButton = createChatButton(
-    `${BANNER_ASSETS_PATH}/icons/sit.webp`,
-    `${BANNER_ASSETS_PATH}/icons/sit-hover.webp`
-  );
+  const sitButton = createChatButton(iconTextures.sit, iconTextures.sitHover);
   container.addChild(sitButton.container);
 
   const filters = createAllChatFilters();
@@ -167,10 +172,11 @@ export function updateChatPositions(
   zoom: number,
   bannerOffsetY: number,
   textureScale: number,
+  iconTextureScale: number,
   emotesPopup: Sprite,
   onExpandToggle: () => void
 ): void {
-  const chatButtonScale = zoom / 3;
+  const chatButtonScale = iconTextureScale;
 
   chatUI.container.position.set(0, bannerOffsetY);
 

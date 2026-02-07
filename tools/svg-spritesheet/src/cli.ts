@@ -126,7 +126,7 @@ async function compileAnimation(
   const sprites = processFrames(frames, dedup);
 
   fs.mkdirSync(animOutputDir, { recursive: true });
-  await writeAtlasOutput(
+  const result = await writeAtlasOutput(
     animOutputDir,
     frames,
     dedup,
@@ -144,11 +144,8 @@ async function compileAnimation(
   }
 
   const finalSize = fs.statSync(atlasPath).size;
-  const manifestPath = path.join(animOutputDir, "atlas.json");
-  const manifestContent = fs.readFileSync(manifestPath, "utf-8");
-  const manifest = JSON.parse(manifestContent) as AtlasManifest;
 
-  return { manifest, outputSize: finalSize, inputSize };
+  return { manifest: result.manifest, outputSize: finalSize, inputSize };
 }
 
 async function generateCombinedManifest(
@@ -159,43 +156,30 @@ async function generateCombinedManifest(
   totalOutputSize: number,
   singleAnimation: boolean = false
 ): Promise<CombinedManifest> {
-  let totalFrames = 0;
-  let uniqueFrames = 0;
-
   const animations: CombinedManifest["animations"] = {};
 
   for (const [animName, { manifest }] of manifests) {
-    const frameCount = manifest.frameOrder.length;
-    const uniqueCount = manifest.frames.length;
-    totalFrames += frameCount;
-    uniqueFrames += uniqueCount;
-
     animations[animName] = {
-      frameCount,
-      uniqueFrames: uniqueCount,
-      atlasWidth: manifest.width,
-      atlasHeight: manifest.height,
       file: singleAnimation ? "atlas.svg" : `${animName}/atlas.svg`,
-      manifestFile: singleAnimation ? "atlas.json" : `${animName}/atlas.json`,
+      width: manifest.width,
+      height: manifest.height,
+      offsetX: manifest.offsetX,
+      offsetY: manifest.offsetY,
+      fps: manifest.fps,
+      frames: manifest.frames,
+      frameOrder: manifest.frameOrder,
+      duplicates: manifest.duplicates ?? {},
     };
   }
 
   const combined: CombinedManifest = {
     version: 1,
     spriteId,
-    generatedAt: new Date().toISOString(),
-    totalAnimations: manifests.size,
-    totalFrames,
-    uniqueFrames,
-    totalInputSize,
-    totalOutputSize,
-    compressionPercent:
-      Math.round((1 - totalOutputSize / totalInputSize) * 1000) / 10,
     animations,
   };
 
   const manifestPath = path.join(outputDir, "manifest.json");
-  await Bun.write(manifestPath, JSON.stringify(combined, null, 2));
+  await Bun.write(manifestPath, JSON.stringify(combined));
 
   return combined;
 }

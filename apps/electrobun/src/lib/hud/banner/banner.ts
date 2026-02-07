@@ -9,9 +9,14 @@ import {
 } from './banner-circle';
 import { createAllIconButtons, updateIconButtonPosition } from './banner-icons';
 import { createShortcutGrid, updateShortcutGridPositions } from './banner-shortcuts';
-import { createChatUI, updateChatPositions, type ChatUI } from './banner-chat';
+import {
+  createChatUI,
+  updateChatPositions,
+  type ChatUI,
+  type ChatIconTextures,
+} from './banner-chat';
 import type { BannerManifest, IconButtonWithOffset, ShortcutCell } from '@/types/banner';
-import { BANNER_ASSETS_PATH } from '@/types/banner';
+import { BANNER_ASSETS_PATH, ICON_BUTTON_CONFIGS } from '@/types/banner';
 
 const MASK_TEXTURE_SIZE = 256;
 const MASK_FEATHER_SIZE = 2;
@@ -81,6 +86,15 @@ export class Banner {
   private displayHeight = 432;
   private loaded = false;
 
+  /** All SVG icon paths for zoom-dependent reloading */
+  private allIconSvgPaths: string[] = [];
+  /** Current resolution at which icon SVGs are rasterized */
+  private currentIconResolution = 0;
+  /** Cached icon textures keyed by original path */
+  private iconTextures = new Map<string, Texture>();
+  /** PixiJS Assets aliases for icon textures (for cleanup) */
+  private iconAssetAliases = new Set<string>();
+
   private minimapContainer: Container;
   private minimapMask!: Sprite;
   private minimapMaskTexture!: Texture;
@@ -121,22 +135,23 @@ export class Banner {
   private async loadAssets(): Promise<void> {
     this.manifest = await Assets.load(`${BANNER_ASSETS_PATH}/manifest.json`);
 
-    const iconAssets = Object.values(this.manifest.icons).map(
-      (i) => `${BANNER_ASSETS_PATH}/${i.file}`
-    );
+    // Collect all SVG icon paths for zoom-dependent loading
+    this.allIconSvgPaths = [
+      ...Object.values(this.manifest.icons).map((i) => `${BANNER_ASSETS_PATH}/${i.file}`),
+      `${BANNER_ASSETS_PATH}/icons/expand.svg`,
+      `${BANNER_ASSETS_PATH}/icons/reduce.svg`,
+      `${BANNER_ASSETS_PATH}/icons/emotes.svg`,
+      `${BANNER_ASSETS_PATH}/icons/emotes-hover.svg`,
+      `${BANNER_ASSETS_PATH}/icons/sit.svg`,
+      `${BANNER_ASSETS_PATH}/icons/sit-hover.svg`,
+    ];
+
+    // Load icon SVGs at initial resolution (dpr * zoom)
+    await this.loadIconTextures();
 
     const containerAssets = Object.values(this.manifest.container).map(
       (c) => `${BANNER_ASSETS_PATH}/${c.file}`
     );
-
-    const chatAssets = [
-      `${BANNER_ASSETS_PATH}/icons/expand.webp`,
-      `${BANNER_ASSETS_PATH}/icons/reduce.webp`,
-      `${BANNER_ASSETS_PATH}/icons/emotes.webp`,
-      `${BANNER_ASSETS_PATH}/icons/emotes-hover.webp`,
-      `${BANNER_ASSETS_PATH}/icons/sit.webp`,
-      `${BANNER_ASSETS_PATH}/icons/sit-hover.webp`,
-    ];
 
     const loadedTextures = await Assets.load([
       `${BANNER_ASSETS_PATH}/heart.webp`,
@@ -144,9 +159,7 @@ export class Banner {
       `${BANNER_ASSETS_PATH}/heart-filler.webp`,
       `${BANNER_ASSETS_PATH}/container.webp`,
       `${BANNER_ASSETS_PATH}/emotes-popup.webp`,
-      ...iconAssets,
       ...containerAssets,
-      ...chatAssets,
     ]);
 
     // Enable mipmaps on loaded textures for smooth downscaling
@@ -157,11 +170,11 @@ export class Banner {
       }
     }
 
-    this.buttonUpTexture = Texture.from(
+    this.buttonUpTexture = this.getIconTexture(
       `${BANNER_ASSETS_PATH}/${this.manifest.icons['button-up'].file}`
     );
 
-    this.buttonDownTexture = Texture.from(
+    this.buttonDownTexture = this.getIconTexture(
       `${BANNER_ASSETS_PATH}/${this.manifest.icons['button-down'].file}`
     );
 
@@ -186,7 +199,8 @@ export class Banner {
     this.iconButtons = createAllIconButtons(
       this.manifest,
       this.buttonUpTexture,
-      this.buttonDownTexture
+      this.buttonDownTexture,
+      (path) => this.getIconTexture(path)
     );
 
     this.shortcutsContainer = new Container();
@@ -200,7 +214,14 @@ export class Banner {
       this.shortcutsContainer.addChild(cell.container);
     }
 
-    this.chatUI = createChatUI(this.emotesPopup);
+    const chatIconTextures: ChatIconTextures = {
+      expand: this.getIconTexture(`${BANNER_ASSETS_PATH}/icons/expand.svg`),
+      emotes: this.getIconTexture(`${BANNER_ASSETS_PATH}/icons/emotes.svg`),
+      emotesHover: this.getIconTexture(`${BANNER_ASSETS_PATH}/icons/emotes-hover.svg`),
+      sit: this.getIconTexture(`${BANNER_ASSETS_PATH}/icons/sit.svg`),
+      sitHover: this.getIconTexture(`${BANNER_ASSETS_PATH}/icons/sit-hover.svg`),
+    };
+    this.chatUI = createChatUI(this.emotesPopup, chatIconTextures);
     this.setupChatHandlers();
 
     this.heartFillerMask = new Graphics();
@@ -238,19 +259,122 @@ export class Banner {
     }
   }
 
+  private getTargetIconResolution(): number {
+    const raw = Math.max(window.devicePixelRatio, 1.1) * this.currentZoom;
+    return Math.round(raw * 100) / 100;
+  }
+
+  private getIconTexture(path: string): Texture {
+    return this.iconTextures.get(path) ?? Texture.EMPTY;
+  }
+
+  /**
+   * Load all icon SVGs at the current zoom-dependent resolution.
+   * Uses unique aliases and query params for cache busting (same pattern as AtlasLoader).
+   */
+  private async loadIconTextures(): Promise<void> {
+    const resolution = this.getTargetIconResolution();
+    this.currentIconResolution = resolution;
+
+    const prevAliases = new Set(this.iconAssetAliases);
+    this.iconAssetAliases.clear();
+
+    const assets = this.allIconSvgPaths.map((path) => {
+      const alias = `banner-icon:${path}:${resolution}`;
+      this.iconAssetAliases.add(alias);
+      return {
+        alias,
+        src: `${path}?r=${resolution}`,
+        data: { resolution },
+      };
+    });
+
+    const loadedTextures = await Assets.load(assets);
+
+    // Map textures by original path
+    for (let i = 0; i < this.allIconSvgPaths.length; i++) {
+      const alias = `banner-icon:${this.allIconSvgPaths[i]}:${resolution}`;
+      this.iconTextures.set(this.allIconSvgPaths[i], loadedTextures[alias]);
+    }
+
+    // Unload previous resolution textures
+    for (const alias of prevAliases) {
+      if (!this.iconAssetAliases.has(alias)) {
+        Assets.unload(alias);
+      }
+    }
+  }
+
+  /**
+   * Reload icon SVGs if the zoom-dependent resolution has changed.
+   * Updates all sprite textures after loading.
+   */
+  private async reloadIconTextures(): Promise<void> {
+    const targetResolution = this.getTargetIconResolution();
+    if (targetResolution === this.currentIconResolution) {
+      return;
+    }
+
+    await this.loadIconTextures();
+
+    // Update button-up/down textures
+    this.buttonUpTexture = this.getIconTexture(
+      `${BANNER_ASSETS_PATH}/${this.manifest.icons['button-up'].file}`
+    );
+    this.buttonDownTexture = this.getIconTexture(
+      `${BANNER_ASSETS_PATH}/${this.manifest.icons['button-down'].file}`
+    );
+
+    // Update toolbar icon button sprites
+    const configs = ICON_BUTTON_CONFIGS;
+    for (let i = 0; i < configs.length; i++) {
+      const iconData = this.manifest.icons[configs[i].key];
+      const iconPath = `${BANNER_ASSETS_PATH}/${iconData.file}`;
+      const ib = this.iconButtons[i].button;
+      ib.icon.texture = this.getIconTexture(iconPath);
+      ib.button.texture = ib.isPressed ? this.buttonDownTexture : this.buttonUpTexture;
+    }
+
+    // Update chat button sprites
+    this.chatUI.expandButton.icon.texture = this.chatUI.isExpanded
+      ? this.getIconTexture(`${BANNER_ASSETS_PATH}/icons/reduce.svg`)
+      : this.getIconTexture(`${BANNER_ASSETS_PATH}/icons/expand.svg`);
+
+    this.chatUI.emotesButton.icon.texture = this.getIconTexture(
+      `${BANNER_ASSETS_PATH}/icons/emotes.svg`
+    );
+    if (this.chatUI.emotesButton.hoverIcon) {
+      this.chatUI.emotesButton.hoverIcon.texture = this.getIconTexture(
+        `${BANNER_ASSETS_PATH}/icons/emotes-hover.svg`
+      );
+    }
+
+    this.chatUI.sitButton.icon.texture = this.getIconTexture(
+      `${BANNER_ASSETS_PATH}/icons/sit.svg`
+    );
+    if (this.chatUI.sitButton.hoverIcon) {
+      this.chatUI.sitButton.hoverIcon.texture = this.getIconTexture(
+        `${BANNER_ASSETS_PATH}/icons/sit-hover.svg`
+      );
+    }
+
+    this.draw();
+  }
+
   private setupChatHandlers(): void {
     this.chatUI.expandButton.container.off('pointerdown');
 
     this.chatUI.expandButton.container.on('pointerdown', () => {
       this.chatUI.isExpanded = !this.chatUI.isExpanded;
 
-      const expandTexture = Texture.from(`${BANNER_ASSETS_PATH}/icons/expand.webp`);
-      const reduceTexture = Texture.from(`${BANNER_ASSETS_PATH}/icons/reduce.webp`);
-
       if (this.chatUI.isExpanded) {
-        this.chatUI.expandButton.icon.texture = reduceTexture;
+        this.chatUI.expandButton.icon.texture = this.getIconTexture(
+          `${BANNER_ASSETS_PATH}/icons/reduce.svg`
+        );
       } else {
-        this.chatUI.expandButton.icon.texture = expandTexture;
+        this.chatUI.expandButton.icon.texture = this.getIconTexture(
+          `${BANNER_ASSETS_PATH}/icons/expand.svg`
+        );
       }
 
       this.draw();
@@ -285,6 +409,7 @@ export class Banner {
     this.currentZoom = zoom;
     this.currentWidth = width;
     this.draw();
+    this.reloadIconTextures();
   }
 
   public setLevelBadgeVisible(visible: boolean): void {
@@ -308,6 +433,7 @@ export class Banner {
     }
 
     const textureScale = s / this.manifest.scale;
+    const iconTextureScale = s / this.manifest.iconScale;
 
     this.whiteZoneTopRight.position.set(415 * s, bannerOffsetY - 0.05 * s);
     this.whiteZoneTopRight.removeChildren();
@@ -317,7 +443,7 @@ export class Banner {
     rectangle.fill({ color: 0xffffff });
     this.whiteZoneTopRight.addChild(rectangle);
 
-    const buttonLogicalWidth = this.manifest.icons['button-up'].width / this.manifest.scale;
+    const buttonLogicalWidth = this.manifest.icons['button-up'].width / this.manifest.iconScale;
     const buttonCenterOffsetX = buttonLogicalWidth / 2;
     const buttonCenterY = 20;
 
@@ -327,7 +453,7 @@ export class Banner {
         relativeX,
         buttonCenterOffsetX,
         buttonCenterY,
-        textureScale,
+        iconTextureScale,
         s
       );
       this.whiteZoneTopRight.addChild(iconButton.container);
@@ -399,6 +525,7 @@ export class Banner {
       s,
       bannerOffsetY,
       textureScale,
+      iconTextureScale,
       this.emotesPopup,
       () => this.draw()
     );

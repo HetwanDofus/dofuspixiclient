@@ -185,9 +185,226 @@ export interface PackResult {
   rects: PackedRect[];
 }
 
+/** Free rectangle in the MaxRects algorithm */
+interface FreeRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+function rectsIntersect(a: FreeRect, b: FreeRect): boolean {
+  return (
+    a.x < b.x + b.width &&
+    a.x + a.width > b.x &&
+    a.y < b.y + b.height &&
+    a.y + a.height > b.y
+  );
+}
+
+function isContainedIn(inner: FreeRect, outer: FreeRect): boolean {
+  return (
+    inner.x >= outer.x &&
+    inner.y >= outer.y &&
+    inner.x + inner.width <= outer.x + outer.width &&
+    inner.y + inner.height <= outer.y + outer.height
+  );
+}
+
+/** Split a free rect around a placed rect, returning remaining pieces */
+function splitFreeRect(free: FreeRect, placed: FreeRect): FreeRect[] {
+  if (!rectsIntersect(free, placed)) return [free];
+
+  const result: FreeRect[] = [];
+
+  // Left piece
+  if (placed.x > free.x) {
+    result.push({
+      x: free.x,
+      y: free.y,
+      width: placed.x - free.x,
+      height: free.height,
+    });
+  }
+  // Right piece
+  const placedRight = placed.x + placed.width;
+  const freeRight = free.x + free.width;
+  if (placedRight < freeRight) {
+    result.push({
+      x: placedRight,
+      y: free.y,
+      width: freeRight - placedRight,
+      height: free.height,
+    });
+  }
+  // Top piece
+  if (placed.y > free.y) {
+    result.push({
+      x: free.x,
+      y: free.y,
+      width: free.width,
+      height: placed.y - free.y,
+    });
+  }
+  // Bottom piece
+  const placedBottom = placed.y + placed.height;
+  const freeBottom = free.y + free.height;
+  if (placedBottom < freeBottom) {
+    result.push({
+      x: free.x,
+      y: placedBottom,
+      width: free.width,
+      height: freeBottom - placedBottom,
+    });
+  }
+
+  return result;
+}
+
+/** Remove free rects fully contained within another */
+function pruneFreeRects(freeRects: FreeRect[]): void {
+  for (let i = freeRects.length - 1; i >= 0; i--) {
+    for (let j = 0; j < freeRects.length; j++) {
+      if (i !== j && isContainedIn(freeRects[i], freeRects[j])) {
+        freeRects.splice(i, 1);
+        break;
+      }
+    }
+  }
+}
+
+/** MaxRects bin-packing with Best Short Side Fit heuristic */
+function maxRectsPack(
+  sorted: PackRect[],
+  padding: number,
+  stripWidth: number
+): PackResult {
+  if (sorted.length === 0) return { width: 0, height: 0, rects: [] };
+
+  const packed: PackedRect[] = [];
+  const maxH = sorted.reduce((sum, r) => sum + r.height + padding, padding);
+  const freeRects: FreeRect[] = [
+    { x: padding, y: padding, width: stripWidth - padding, height: maxH },
+  ];
+
+  for (const rect of sorted) {
+    const w = rect.width + padding;
+    const h = rect.height + padding;
+
+    // Best Short Side Fit
+    let bestIdx = -1;
+    let bestSSF = Infinity;
+    let bestLSF = Infinity;
+
+    for (let i = 0; i < freeRects.length; i++) {
+      const fr = freeRects[i];
+      if (w <= fr.width && h <= fr.height) {
+        const ssf = Math.min(fr.width - w, fr.height - h);
+        const lsf = Math.max(fr.width - w, fr.height - h);
+        if (ssf < bestSSF || (ssf === bestSSF && lsf < bestLSF)) {
+          bestSSF = ssf;
+          bestLSF = lsf;
+          bestIdx = i;
+        }
+      }
+    }
+
+    if (bestIdx === -1) continue;
+
+    const fr = freeRects[bestIdx];
+    packed.push({
+      id: rect.id,
+      x: fr.x,
+      y: fr.y,
+      width: rect.width,
+      height: rect.height,
+    });
+
+    const placedRect: FreeRect = { x: fr.x, y: fr.y, width: w, height: h };
+
+    // Split all free rects that intersect with the placed rect
+    const newFree: FreeRect[] = [];
+    for (const free of freeRects) {
+      newFree.push(...splitFreeRect(free, placedRect));
+    }
+
+    freeRects.length = 0;
+    freeRects.push(...newFree);
+    pruneFreeRects(freeRects);
+  }
+
+  let atlasWidth = 0;
+  let atlasHeight = 0;
+  for (const p of packed) {
+    atlasWidth = Math.max(atlasWidth, p.x + p.width + padding);
+    atlasHeight = Math.max(atlasHeight, p.y + p.height + padding);
+  }
+
+  return { width: atlasWidth, height: atlasHeight, rects: packed };
+}
+
+/** Sort comparators for trying different placement orders */
+const SORT_STRATEGIES: Array<(a: PackRect, b: PackRect) => number> = [
+  (a, b) => b.height - a.height || b.width - a.width,
+  (a, b) => b.width * b.height - a.width * a.height || b.height - a.height,
+  (a, b) => b.width - a.width || b.height - a.height,
+  (a, b) =>
+    Math.max(b.width, b.height) - Math.max(a.width, a.height) ||
+    b.width * b.height - a.width * a.height,
+];
+
 /**
- * Simple shelf bin-packing algorithm
- * Packs rectangles in rows (shelves), sorted by height descending
+ * Generate candidate widths to search.
+ * For small ranges, tries every integer; for large ranges, uses smart sampling.
+ */
+function generateSearchWidths(
+  rects: PackRect[],
+  padding: number,
+  minWidth: number,
+  maxWidth: number
+): number[] {
+  const totalWidth = rects.reduce((s, r) => s + r.width + padding, padding);
+  const upperWidth = Math.min(totalWidth, maxWidth);
+  const range = upperWidth - minWidth;
+
+  // Small range: brute-force every integer
+  if (range <= 1000) {
+    const widths: number[] = [];
+    for (let w = minWidth; w <= upperWidth; w++) widths.push(w);
+    return widths;
+  }
+
+  // Large range: sample key widths + evenly spaced grid
+  const candidates = new Set<number>();
+  const step = Math.max(1, Math.floor(range / 500));
+
+  for (let w = minWidth; w <= upperWidth; w += step) candidates.add(w);
+  candidates.add(minWidth);
+  candidates.add(upperWidth);
+
+  // Add pairwise sums of unique widths (important breakpoints)
+  const uniqueW = [...new Set(rects.map((r) => r.width))];
+  for (let i = 0; i < uniqueW.length; i++) {
+    for (let j = i; j < uniqueW.length; j++) {
+      const w = uniqueW[i] + uniqueW[j] + padding * 3;
+      if (w >= minWidth && w <= upperWidth) candidates.add(w);
+    }
+  }
+
+  // Add sqrt-area heuristic
+  const totalArea = rects.reduce(
+    (sum, r) => sum + (r.width + padding) * (r.height + padding),
+    0
+  );
+  const sqrtW = Math.ceil(Math.sqrt(totalArea));
+  if (sqrtW >= minWidth && sqrtW <= upperWidth) candidates.add(sqrtW);
+
+  return Array.from(candidates).sort((a, b) => a - b);
+}
+
+/**
+ * MaxRects bin-packing with optimal width search.
+ * Tries multiple strip widths and sort strategies, picking the minimum-area result.
  */
 export function packRectangles(
   rects: PackRect[],
@@ -198,46 +415,28 @@ export function packRectangles(
     return { width: 0, height: 0, rects: [] };
   }
 
-  // Sort by height descending for better shelf packing
-  const sorted = [...rects].sort((a, b) => b.height - a.height);
+  const minWidth =
+    rects.reduce((m, r) => Math.max(m, r.width), 0) + padding * 2;
+  const widths = generateSearchWidths(rects, padding, minWidth, maxWidth);
 
-  const packed: PackedRect[] = [];
-  let currentX = padding;
-  let currentY = padding;
-  let shelfHeight = 0;
-  let atlasWidth = 0;
+  let bestResult: PackResult | null = null;
+  let bestArea = Infinity;
 
-  for (const rect of sorted) {
-    const w = rect.width + padding;
-    const h = rect.height + padding;
+  for (const sortFn of SORT_STRATEGIES) {
+    const sorted = [...rects].sort(sortFn);
 
-    // Check if we need to start a new shelf
-    if (currentX + w > maxWidth) {
-      currentX = padding;
-      currentY += shelfHeight;
-      shelfHeight = 0;
+    for (const w of widths) {
+      const result = maxRectsPack(sorted, padding, w);
+      if (result.rects.length < rects.length) continue;
+      const area = result.width * result.height;
+      if (area < bestArea) {
+        bestArea = area;
+        bestResult = result;
+      }
     }
-
-    packed.push({
-      id: rect.id,
-      x: currentX,
-      y: currentY,
-      width: rect.width,
-      height: rect.height,
-    });
-
-    currentX += w;
-    shelfHeight = Math.max(shelfHeight, h);
-    atlasWidth = Math.max(atlasWidth, currentX);
   }
 
-  const atlasHeight = currentY + shelfHeight;
-
-  return {
-    width: atlasWidth,
-    height: atlasHeight,
-    rects: packed,
-  };
+  return bestResult!;
 }
 
 /** Build use element attribute string */

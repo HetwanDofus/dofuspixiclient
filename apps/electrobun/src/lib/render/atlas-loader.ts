@@ -13,19 +13,10 @@ registerSvgStrokeLoader();
 interface SpritesheetManifest {
   version: number;
   spriteId: string;
-  generatedAt: string;
-  totalAnimations: number;
-  totalFrames: number;
-  uniqueFrames: number;
   animations: Record<
     string,
-    {
-      frameCount: number;
-      uniqueFrames: number;
-      atlasWidth: number;
-      atlasHeight: number;
+    AtlasManifest & {
       file: string;
-      manifestFile: string;
     }
   >;
 }
@@ -219,17 +210,12 @@ export class AtlasLoader {
     const tilePath = `${this.basePath}/tiles/${type}/${idStr}`;
 
     try {
-      const [manifestRes, atlasRes] = await Promise.all([
-        fetch(`${tilePath}/manifest.json`),
-        fetch(`${tilePath}/atlas.json`),
-      ]);
+      const res = await fetch(`${tilePath}/manifest.json`);
+      if (!res.ok) return null;
 
-      if (!manifestRes.ok || !atlasRes.ok) {
-        return null;
-      }
-
-      const manifest: SpritesheetManifest = await manifestRes.json();
-      const atlas: AtlasManifest = await atlasRes.json();
+      const manifest: SpritesheetManifest = await res.json();
+      const animName = Object.keys(manifest.animations)[0];
+      const atlas = manifest.animations[animName] as AtlasManifest;
 
       const data: CachedTileData = {
         manifest,

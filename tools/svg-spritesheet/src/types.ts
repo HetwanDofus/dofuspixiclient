@@ -185,22 +185,18 @@ export interface CompileResult {
 export interface CombinedManifest {
   version: number;
   spriteId: string;
-  generatedAt: string;
-  totalAnimations: number;
-  totalFrames: number;
-  uniqueFrames: number;
-  totalInputSize: number;
-  totalOutputSize: number;
-  compressionPercent: number;
   animations: Record<string, AnimationManifestEntry>;
 }
 
 /** Entry for a single animation in combined manifest */
 export interface AnimationManifestEntry {
-  frameCount: number;
-  uniqueFrames: number;
-  atlasWidth: number;
-  atlasHeight: number;
   file: string;
-  manifestFile: string;
+  width: number;
+  height: number;
+  offsetX: number;
+  offsetY: number;
+  fps: number;
+  frames: AtlasFrame[];
+  frameOrder: string[];
+  duplicates: Record<string, string>;
 }

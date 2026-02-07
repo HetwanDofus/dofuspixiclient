@@ -1,83 +1,84 @@
 {
   "version": "1.0",
   "generated": "2026-01-23",
-  "format": "webp",
+  "format": "svg",
   "scale": 6,
+  "iconScale": 1,
   "icons": {
     "pvp": {
-      "file": "icons/pvp.webp",
-      "width": 192,
-      "height": 198,
-      "offsetX": -96,
-      "offsetY": -102
+      "file": "icons/pvp.svg",
+      "width": 34,
+      "height": 35,
+      "offsetX": -16,
+      "offsetY": -17
     },
     "stats": {
-      "file": "icons/stats.webp",
-      "width": 194.7,
-      "height": 193.2,
-      "offsetX": -96,
-      "offsetY": -97.2
+      "file": "icons/stats.svg",
+      "width": 35,
+      "height": 35,
+      "offsetX": -16,
+      "offsetY": -16.2
     },
     "spells": {
-      "file": "icons/spells.webp",
-      "width": 192,
-      "height": 192,
-      "offsetX": -96,
-      "offsetY": -96
+      "file": "icons/spells.svg",
+      "width": 34,
+      "height": 34,
+      "offsetX": -16,
+      "offsetY": -16
     },
     "mount": {
-      "file": "icons/mount.webp",
-      "width": 192,
-      "height": 192,
-      "offsetX": -96,
-      "offsetY": -96
+      "file": "icons/mount.svg",
+      "width": 34,
+      "height": 34,
+      "offsetX": -16,
+      "offsetY": -16
     },
     "map": {
-      "file": "icons/map.webp",
-      "width": 192,
-      "height": 192,
-      "offsetX": -96,
-      "offsetY": -96
+      "file": "icons/map.svg",
+      "width": 34,
+      "height": 34,
+      "offsetX": -16,
+      "offsetY": -16
     },
     "inventory": {
-      "file": "icons/inventory.webp",
-      "width": 192,
-      "height": 192,
-      "offsetX": -96,
-      "offsetY": -96
+      "file": "icons/inventory.svg",
+      "width": 34,
+      "height": 34,
+      "offsetX": -16,
+      "offsetY": -16
     },
     "guild": {
-      "file": "icons/guild.webp",
-      "width": 192,
-      "height": 192,
-      "offsetX": -96,
-      "offsetY": -96
+      "file": "icons/guild.svg",
+      "width": 34,
+      "height": 34,
+      "offsetX": -16,
+      "offsetY": -16
     },
     "friends": {
-      "file": "icons/friends.webp",
-      "width": 192,
-      "height": 192,
-      "offsetX": -96,
-      "offsetY": -96
+      "file": "icons/friends.svg",
+      "width": 34,
+      "height": 34,
+      "offsetX": -16,
+      "offsetY": -16
     },
     "quest": {
-      "file": "icons/quest.webp",
-      "width": 192,
-      "height": 196.8,
-      "offsetX": -96,
-      "offsetY": -100.8
+      "file": "icons/quest.svg",
+      "width": 34,
+      "height": 35,
+      "offsetX": -16,
+      "offsetY": -16.8
     },
     "button-up": {
-      "file": "icons/button-up.webp",
-      "width": 156,
-      "height": 156,
+      "file": "icons/button-up.svg",
+      "width": 28,
+      "height": 28,
       "offsetX": 0,
       "offsetY": 0
     },
     "button-down": {
-      "file": "icons/button-down.webp",
-      "width": 156,
-      "height": 156,
+      "file": "icons/button-down.svg",
+      "width": 28,
+      "height": 28,
       "offsetX": 0,
       "offsetY": 0
     }

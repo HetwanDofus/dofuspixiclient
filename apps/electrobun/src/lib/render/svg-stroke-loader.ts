@@ -28,8 +28,8 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
   name: "loadSvgStroke",
 
   test(url: string): boolean {
-    // Only handle SVG files from our spritesheets path
-    return url.includes("/spritesheets/") && url.endsWith(".svg");
+    // Handle SVG files from spritesheets and banner icons
+    return (url.includes("/spritesheets/") || url.includes("/hud/banner/")) && url.endsWith(".svg");
   },
 
   async load(
@@ -48,11 +48,9 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
     const strokeScale = (1 / resolution).toString();
     svgContent = svgContent.replace(/__RESOLUTION__/g, strokeScale);
 
-    // Create Blob URL from SVG content
+    // Create Blob URL and decode via Image (Chromium can't createImageBitmap from SVG blobs)
     const blob = new Blob([svgContent], { type: "image/svg+xml" });
     const blobUrl = URL.createObjectURL(blob);
-
-    // Use Image element to parse SVG (resolves internal refs like <use>, <clipPath>)
     const image = DOMAdapter.get().createImage();
     image.src = blobUrl;
 
@@ -62,19 +60,21 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
       URL.revokeObjectURL(blobUrl);
     }
 
-    // Get dimensions
-    const width = asset?.data?.width ?? image.width;
-    const height = asset?.data?.height ?? image.height;
+    // Extract dimensions from SVG attributes, falling back to decoded image size
+    const widthMatch = svgContent.match(/\bwidth="(\d+(?:\.\d+)?)"/);
+    const heightMatch = svgContent.match(/\bheight="(\d+(?:\.\d+)?)"/);
+    const width = widthMatch ? parseFloat(widthMatch[1]) : image.width;
+    const height = heightMatch ? parseFloat(heightMatch[1]) : image.height;
 
     // Ensure output dimensions are integers to prevent edge trimming
     const outputWidth = Math.ceil(width * resolution);
     const outputHeight = Math.ceil(height * resolution);
 
     // Use createImageBitmap for rasterization at target size (avoids canvas intermediate)
-    const bitmap = await createImageBitmap(image, {
+    const bitmap = await createImageBitmap(image as ImageBitmapSource, {
       resizeWidth: outputWidth,
       resizeHeight: outputHeight,
-      resizeQuality: "medium",
+      resizeQuality: "low",
     });
 
     // Create texture source directly from ImageBitmap

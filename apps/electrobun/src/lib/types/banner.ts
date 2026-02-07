@@ -12,6 +12,7 @@ export interface AssetEntry {
 export interface BannerManifest {
   version: string;
   scale: number;
+  iconScale: number;
   icons: Record<string, AssetEntry>;
   container: Record<string, AssetEntry>;
   compass: Record<string, AssetEntry>;

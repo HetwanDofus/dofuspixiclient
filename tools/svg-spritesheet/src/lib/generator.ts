@@ -135,6 +135,76 @@ interface FrameDimension {
 /** Lookup map from frame id to packed position */
 type PackedPositionMap = Map<string, PackedRect>;
 
+/** Parse transform to extract translation offset */
+function extractTranslation(transform: string | undefined): { x: number; y: number } {
+  if (!transform) return { x: 0, y: 0 };
+
+  const matrixMatch = transform.match(
+    /matrix\s*\(\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/
+  );
+  if (matrixMatch) {
+    return { x: parseFloat(matrixMatch[5]), y: parseFloat(matrixMatch[6]) };
+  }
+
+  const translateMatch = transform.match(
+    /translate\s*\(\s*([^,)]+)(?:,\s*([^)]+))?\)/
+  );
+  if (translateMatch) {
+    return {
+      x: parseFloat(translateMatch[1]),
+      y: translateMatch[2] ? parseFloat(translateMatch[2]) : 0,
+    };
+  }
+
+  return { x: 0, y: 0 };
+}
+
+/** Compute tight content bounds from use elements + transforms */
+function computeContentBounds(
+  sprite: ProcessedSprite,
+  vbMinX: number,
+  vbMinY: number,
+  vbWidth: number,
+  vbHeight: number
+): { minX: number; minY: number; width: number; height: number } {
+  const mainOff = extractTranslation(sprite.mainTransform);
+  const validUses = sprite.useElements.filter(hasValidReference);
+
+  // Fall back to full viewBox if any use element lacks dimensions
+  if (validUses.length === 0 || validUses.some((u) => u.width == null || u.height == null)) {
+    return { minX: vbMinX, minY: vbMinY, width: vbWidth, height: vbHeight };
+  }
+
+  let bMinX = Infinity;
+  let bMinY = Infinity;
+  let bMaxX = -Infinity;
+  let bMaxY = -Infinity;
+
+  for (const use of validUses) {
+    const useOff = extractTranslation(use.transform);
+    const x = mainOff.x + useOff.x;
+    const y = mainOff.y + useOff.y;
+    bMinX = Math.min(bMinX, x);
+    bMinY = Math.min(bMinY, y);
+    bMaxX = Math.max(bMaxX, x + use.width!);
+    bMaxY = Math.max(bMaxY, y + use.height!);
+  }
+
+  // Clamp to viewBox and add 1px margin
+  const margin = 1;
+  bMinX = Math.max(Math.floor(bMinX) - margin, vbMinX);
+  bMinY = Math.max(Math.floor(bMinY) - margin, vbMinY);
+  bMaxX = Math.min(Math.ceil(bMaxX) + margin, vbMinX + vbWidth);
+  bMaxY = Math.min(Math.ceil(bMaxY) + margin, vbMinY + vbHeight);
+
+  return {
+    minX: bMinX,
+    minY: bMinY,
+    width: bMaxX - bMinX,
+    height: bMaxY - bMinY,
+  };
+}
+
 function generateAtlasSvg(
   frames: ParsedFrame[],
   dedup: DeduplicationResult,
@@ -146,17 +216,23 @@ function generateAtlasSvg(
   const opts = { ...DEFAULT_OPTIMIZATION, ...options };
   const uniqueSprites = sprites.filter((s) => !s.duplicateOf);
 
-  // Build frame dimensions with index for later lookup
+  // Build frame dimensions cropped to content bounds
   const frameDimensions: FrameDimension[] = uniqueSprites.map(
     (sprite, index) => {
       const parts = sprite.viewBox.split(/\s+/).map(Number);
+      const vbMinX = parts[0] || 0;
+      const vbMinY = parts[1] || 0;
+      const vbWidth = parts[2] || 100;
+      const vbHeight = parts[3] || 100;
+
+      const bounds = computeContentBounds(sprite, vbMinX, vbMinY, vbWidth, vbHeight);
       return {
         id: sprite.id,
         index,
-        minX: parts[0] || 0,
-        minY: parts[1] || 0,
-        width: parts[2] || 100,
-        height: parts[3] || 100,
+        minX: bounds.minX,
+        minY: bounds.minY,
+        width: bounds.width,
+        height: bounds.height,
       };
     }
   );
@@ -320,7 +396,7 @@ export async function writeAtlasOutput(
   sprites: ProcessedSprite[],
   options: Partial<OptimizationOptions> = {},
   imageRegistry?: ImageRegistry
-): Promise<{ atlasSize: number; manifestSize: number }> {
+): Promise<{ atlasSize: number; manifest: AtlasManifest }> {
   fs.mkdirSync(outputDir, { recursive: true });
 
   const { svg, manifest } = generateAtlasSvg(
@@ -335,13 +411,9 @@ export async function writeAtlasOutput(
   const atlasPath = path.join(outputDir, "atlas.svg");
   await Bun.write(atlasPath, svg);
 
-  const manifestPath = path.join(outputDir, "atlas.json");
-  const manifestJson = JSON.stringify(manifest, null, 2);
-  await Bun.write(manifestPath, manifestJson);
-
   return {
     atlasSize: svg.length,
-    manifestSize: manifestJson.length,
+    manifest,
   };
 }
 
