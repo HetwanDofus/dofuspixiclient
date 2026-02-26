@@ -1,4 +1,4 @@
-import type { Container, Sprite, Graphics, Text } from 'pixi.js';
+import type { Container, Sprite, Graphics, Text, Texture } from 'pixi.js';
 // import type { Input } from '@pixi/ui'; // TODO: Re-enable when compatible
 
 export interface AssetEntry {
@@ -31,6 +31,8 @@ export interface IconButtonWithOffset extends IconButton {
   baseOffsetX: number;
   baseOffsetY: number;
   currentZoom: number;
+  buttonUpTexture: Texture;
+  buttonDownTexture: Texture;
 }
 
 export interface ShortcutCell {

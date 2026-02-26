@@ -33,15 +33,17 @@ export function createIconButton(
     baseOffsetX,
     baseOffsetY,
     currentZoom: 1,
+    buttonUpTexture,
+    buttonDownTexture,
   };
 
   container.on('pointerdown', () => {
     iconButton.isPressed = !iconButton.isPressed;
 
     if (iconButton.isPressed) {
-      button.texture = buttonDownTexture;
+      button.texture = iconButton.buttonDownTexture;
     } else {
-      button.texture = buttonUpTexture;
+      button.texture = iconButton.buttonUpTexture;
     }
 
     // Flash shifts icon by +0.5px when pressed (Button.as lines 41-44)

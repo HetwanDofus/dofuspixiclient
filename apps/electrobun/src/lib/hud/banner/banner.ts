@@ -297,12 +297,8 @@ export class Banner {
       this.iconTextures.set(this.allIconSvgPaths[i], loadedTextures[alias]);
     }
 
-    // Unload previous resolution textures
-    for (const alias of prevAliases) {
-      if (!this.iconAssetAliases.has(alias)) {
-        Assets.unload(alias);
-      }
-    }
+    // Don't destroy old textures — let GC handle cleanup to avoid GPU conflicts
+    // (same pattern as AtlasLoader.evictOldestFrame)
   }
 
   /**
@@ -325,13 +321,15 @@ export class Banner {
       `${BANNER_ASSETS_PATH}/${this.manifest.icons['button-down'].file}`
     );
 
-    // Update toolbar icon button sprites
+    // Update toolbar icon button sprites and stored texture references
     const configs = ICON_BUTTON_CONFIGS;
     for (let i = 0; i < configs.length; i++) {
       const iconData = this.manifest.icons[configs[i].key];
       const iconPath = `${BANNER_ASSETS_PATH}/${iconData.file}`;
       const ib = this.iconButtons[i].button;
       ib.icon.texture = this.getIconTexture(iconPath);
+      ib.buttonUpTexture = this.buttonUpTexture;
+      ib.buttonDownTexture = this.buttonDownTexture;
       ib.button.texture = ib.isPressed ? this.buttonDownTexture : this.buttonUpTexture;
     }
 
