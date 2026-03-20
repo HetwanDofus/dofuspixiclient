@@ -1,36 +1,47 @@
-import type { Application } from 'pixi.js';
-import { Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
-import { MinimapRenderer } from '@/ank/gapi/worldmap/minimap-renderer';
+import type { Application } from "pixi.js";
+import { Assets, Container, Graphics, Sprite, Texture } from "pixi.js";
+
+import type {
+  BannerManifest,
+  IconButtonWithOffset,
+  ShortcutCell,
+} from "@/types/banner";
+import { MinimapRenderer } from "@/ank/gapi/worldmap/minimap-renderer";
+import { getLoadProgress } from "@/render/load-progress";
+import { loadSvg } from "@/render/load-svg";
+import { getColors, getLayout } from "@/themes";
+import { BANNER_ASSETS_PATH, ICON_BUTTON_CONFIGS } from "@/types/banner";
+
 import {
-  createBannerCircle,
-  CIRCLE_INNER_CONTENT_RADIUS,
-  CIRCLE_FILLABLE_OUTER_RADIUS,
-  type BannerCircle,
-} from './banner-circle';
-import { createAllIconButtons, updateIconButtonPosition } from './banner-icons';
-import { createShortcutGrid, updateShortcutGridPositions } from './banner-shortcuts';
-import {
+  type ChatIconTextures,
+  type ChatUI,
   createChatUI,
   updateChatPositions,
-  type ChatUI,
-  type ChatIconTextures,
-} from './banner-chat';
-import type { BannerManifest, IconButtonWithOffset, ShortcutCell } from '@/types/banner';
-import { BANNER_ASSETS_PATH, ICON_BUTTON_CONFIGS } from '@/types/banner';
-import { getColors, getLayout } from '@/themes';
+} from "./banner-chat";
+import {
+  type BannerCircle,
+  CIRCLE_FILLABLE_OUTER_RADIUS,
+  CIRCLE_INNER_CONTENT_RADIUS,
+  createBannerCircle,
+} from "./banner-circle";
+import { createAllIconButtons, updateIconButtonPosition } from "./banner-icons";
+import {
+  createShortcutGrid,
+  updateShortcutGridPositions,
+} from "./banner-shortcuts";
 
 const MASK_TEXTURE_SIZE = 256;
 const MASK_FEATHER_SIZE = 2;
 const MASK_VISIBLE_RADIUS = MASK_TEXTURE_SIZE / 2 - MASK_FEATHER_SIZE;
 
 function createSoftCircleMaskTexture(): Texture {
-  const canvas = document.createElement('canvas');
+  const canvas = document.createElement("canvas");
   canvas.width = MASK_TEXTURE_SIZE;
   canvas.height = MASK_TEXTURE_SIZE;
 
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext("2d");
   if (!ctx) {
-    throw new Error('Could not get canvas context');
+    throw new Error("Could not get canvas context");
   }
 
   const centerX = MASK_TEXTURE_SIZE / 2;
@@ -46,9 +57,9 @@ function createSoftCircleMaskTexture(): Texture {
     radius + MASK_FEATHER_SIZE
   );
 
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-  gradient.addColorStop(0.5, 'rgba(255, 255, 255, 1)');
-  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
+  gradient.addColorStop(0.5, "rgba(255, 255, 255, 1)");
+  gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
 
   ctx.fillStyle = gradient;
   ctx.beginPath();
@@ -77,7 +88,10 @@ export class Banner {
   private bannerContainer!: Sprite;
   private emotesPopup!: Sprite;
 
-  private iconButtons: Array<{ button: IconButtonWithOffset; relativeX: number }> = [];
+  private iconButtons: Array<{
+    button: IconButtonWithOffset;
+    relativeX: number;
+  }> = [];
   private shortcutCells: ShortcutCell[] = [];
   private shortcutsContainer!: Container;
   private chatUI!: ChatUI;
@@ -105,6 +119,8 @@ export class Banner {
   private onMinimapTeleport?: (mapId: number) => void;
   private onStatsToggle?: () => void;
   private onMapToggle?: () => void;
+  private minimapExpandTimer: ReturnType<typeof setTimeout> | null = null;
+  private minimapExpanded = false;
 
   constructor(app: Application, displayHeight: number) {
     this.app = app;
@@ -120,22 +136,34 @@ export class Banner {
     this.container.addChild(this.whiteZoneTopRight);
 
     this.minimapContainer = new Container();
-    this.minimapContainer.eventMode = 'none';
+    this.minimapContainer.eventMode = "none";
 
     this.minimapHitArea = new Graphics();
-    this.minimapHitArea.eventMode = 'static';
-    this.minimapHitArea.cursor = 'pointer';
+    this.minimapHitArea.eventMode = "static";
+    this.minimapHitArea.cursor = "pointer";
 
-    this.minimapHitArea.on('pointerover', () => {
-      this.expandMinimap();
+    this.minimapHitArea.on("pointerover", () => {
+      if (this.minimapExpanded) return;
+      this.minimapExpandTimer = setTimeout(() => {
+        this.minimapExpandTimer = null;
+        this.minimapExpanded = true;
+        this.expandMinimap();
+      }, 100);
     });
 
-    this.minimapHitArea.on('pointerout', () => {
-      this.collapseMinimap();
+    this.minimapHitArea.on("pointerout", () => {
+      if (this.minimapExpandTimer !== null) {
+        clearTimeout(this.minimapExpandTimer);
+        this.minimapExpandTimer = null;
+      }
+      if (this.minimapExpanded) {
+        this.minimapExpanded = false;
+        this.collapseMinimap();
+      }
     });
 
     let lastClickTime = 0;
-    this.minimapHitArea.on('pointerdown', (event) => {
+    this.minimapHitArea.on("pointerdown", (event) => {
       const now = performance.now();
       if (now - lastClickTime < 400) {
         this.handleMinimapDoubleClick(event.global.x, event.global.y);
@@ -158,7 +186,9 @@ export class Banner {
 
     // Collect all SVG icon paths for zoom-dependent loading
     this.allIconSvgPaths = [
-      ...Object.values(this.manifest.icons).map((i) => `${BANNER_ASSETS_PATH}/${i.file}`),
+      ...Object.values(this.manifest.icons).map(
+        (i) => `${BANNER_ASSETS_PATH}/${i.file}`
+      ),
       `${BANNER_ASSETS_PATH}/icons/expand.svg`,
       `${BANNER_ASSETS_PATH}/icons/reduce.svg`,
       `${BANNER_ASSETS_PATH}/icons/emotes.svg`,
@@ -192,11 +222,11 @@ export class Banner {
     }
 
     this.buttonUpTexture = this.getIconTexture(
-      `${BANNER_ASSETS_PATH}/${this.manifest.icons['button-up'].file}`
+      `${BANNER_ASSETS_PATH}/${this.manifest.icons["button-up"].file}`
     );
 
     this.buttonDownTexture = this.getIconTexture(
-      `${BANNER_ASSETS_PATH}/${this.manifest.icons['button-down'].file}`
+      `${BANNER_ASSETS_PATH}/${this.manifest.icons["button-down"].file}`
     );
 
     const cellBgTexture = Texture.from(
@@ -212,7 +242,9 @@ export class Banner {
     );
 
     this.heart = Sprite.from(`${BANNER_ASSETS_PATH}/heart.webp`);
-    this.heartDefaultFiller = Sprite.from(`${BANNER_ASSETS_PATH}/heart-default-filler.webp`);
+    this.heartDefaultFiller = Sprite.from(
+      `${BANNER_ASSETS_PATH}/heart-default-filler.webp`
+    );
     this.heartFiller = Sprite.from(`${BANNER_ASSETS_PATH}/heart-filler.webp`);
     this.bannerContainer = Sprite.from(`${BANNER_ASSETS_PATH}/container.webp`);
     this.emotesPopup = Sprite.from(`${BANNER_ASSETS_PATH}/emotes-popup.webp`);
@@ -227,7 +259,7 @@ export class Banner {
     // Wire stats button (index 0) to toggle callback
     const statsBtn = this.iconButtons[0];
     if (statsBtn) {
-      statsBtn.button.container.on('pointerdown', () => {
+      statsBtn.button.container.on("pointerdown", () => {
         this.onStatsToggle?.();
       });
     }
@@ -235,7 +267,7 @@ export class Banner {
     // Wire map button (index 4) to toggle callback
     const mapBtn = this.iconButtons[4];
     if (mapBtn) {
-      mapBtn.button.container.on('pointerdown', () => {
+      mapBtn.button.container.on("pointerdown", () => {
         this.onMapToggle?.();
       });
     }
@@ -254,9 +286,13 @@ export class Banner {
     const chatIconTextures: ChatIconTextures = {
       expand: this.getIconTexture(`${BANNER_ASSETS_PATH}/icons/expand.svg`),
       emotes: this.getIconTexture(`${BANNER_ASSETS_PATH}/icons/emotes.svg`),
-      emotesHover: this.getIconTexture(`${BANNER_ASSETS_PATH}/icons/emotes-hover.svg`),
+      emotesHover: this.getIconTexture(
+        `${BANNER_ASSETS_PATH}/icons/emotes-hover.svg`
+      ),
       sit: this.getIconTexture(`${BANNER_ASSETS_PATH}/icons/sit.svg`),
-      sitHover: this.getIconTexture(`${BANNER_ASSETS_PATH}/icons/sit-hover.svg`),
+      sitHover: this.getIconTexture(
+        `${BANNER_ASSETS_PATH}/icons/sit-hover.svg`
+      ),
     };
     this.chatUI = createChatUI(this.emotesPopup, chatIconTextures);
     this.setupChatHandlers();
@@ -272,7 +308,7 @@ export class Banner {
     this.xpCircle = createBannerCircle({
       innerLayerContent: this.minimapContainer,
       fillableCircleValue: 34,
-      fillableCircleValueTooltip: '34 %',
+      fillableCircleValueTooltip: "34 %",
       scale: this.currentZoom,
     });
 
@@ -315,22 +351,23 @@ export class Banner {
 
     this.iconAssetAliases.clear();
 
-    const assets = this.allIconSvgPaths.map((path) => {
+    const progress = getLoadProgress();
+    const total = this.allIconSvgPaths.length;
+    let loaded = 0;
+
+    const loadPromises = this.allIconSvgPaths.map(async (path) => {
       const alias = `banner-icon:${path}:${resolution}`;
       this.iconAssetAliases.add(alias);
-      return {
-        alias,
-        src: `${path}?r=${resolution}`,
-        data: { resolution },
-      };
+      const tex = await loadSvg(path, resolution, alias);
+      loaded++;
+      progress.report("banner-icons", loaded, total);
+      return tex;
     });
 
-    const loadedTextures = await Assets.load(assets);
+    const textures = await Promise.all(loadPromises);
 
-    // Map textures by original path
     for (let i = 0; i < this.allIconSvgPaths.length; i++) {
-      const alias = `banner-icon:${this.allIconSvgPaths[i]}:${resolution}`;
-      this.iconTextures.set(this.allIconSvgPaths[i], loadedTextures[alias]);
+      this.iconTextures.set(this.allIconSvgPaths[i], textures[i]);
     }
 
     // Don't destroy old textures — let GC handle cleanup to avoid GPU conflicts
@@ -351,10 +388,10 @@ export class Banner {
 
     // Update button-up/down textures
     this.buttonUpTexture = this.getIconTexture(
-      `${BANNER_ASSETS_PATH}/${this.manifest.icons['button-up'].file}`
+      `${BANNER_ASSETS_PATH}/${this.manifest.icons["button-up"].file}`
     );
     this.buttonDownTexture = this.getIconTexture(
-      `${BANNER_ASSETS_PATH}/${this.manifest.icons['button-down'].file}`
+      `${BANNER_ASSETS_PATH}/${this.manifest.icons["button-down"].file}`
     );
 
     // Update toolbar icon button sprites and stored texture references
@@ -366,7 +403,9 @@ export class Banner {
       ib.icon.texture = this.getIconTexture(iconPath);
       ib.buttonUpTexture = this.buttonUpTexture;
       ib.buttonDownTexture = this.buttonDownTexture;
-      ib.button.texture = ib.isPressed ? this.buttonDownTexture : this.buttonUpTexture;
+      ib.button.texture = ib.isPressed
+        ? this.buttonDownTexture
+        : this.buttonUpTexture;
     }
 
     // Update chat button sprites
@@ -396,9 +435,9 @@ export class Banner {
   }
 
   private setupChatHandlers(): void {
-    this.chatUI.expandButton.container.off('pointerdown');
+    this.chatUI.expandButton.container.off("pointerdown");
 
-    this.chatUI.expandButton.container.on('pointerdown', () => {
+    this.chatUI.expandButton.container.on("pointerdown", () => {
       this.chatUI.isExpanded = !this.chatUI.isExpanded;
 
       if (this.chatUI.isExpanded) {
@@ -414,9 +453,9 @@ export class Banner {
       this.draw();
     });
 
-    this.chatUI.emotesButton.container.off('pointerdown');
+    this.chatUI.emotesButton.container.off("pointerdown");
 
-    this.chatUI.emotesButton.container.on('pointerdown', () => {
+    this.chatUI.emotesButton.container.on("pointerdown", () => {
       this.emotesPopup.visible = !this.emotesPopup.visible;
     });
   }
@@ -449,6 +488,10 @@ export class Banner {
     this.reloadIconTextures();
   }
 
+  public onResize(event: { baseZoom: number; screenWidth: number }): void {
+    this.resize(event.screenWidth, event.baseZoom);
+  }
+
   public setLevelBadgeVisible(visible: boolean): void {
     this.heartDefaultFiller.visible = visible;
   }
@@ -460,11 +503,21 @@ export class Banner {
     const bannerLayout = getLayout().banner;
 
     this.background.clear();
-    this.background.rect(0, bannerOffsetY, this.currentWidth, bannerLayout.offsetY * s);
+    this.background.rect(
+      0,
+      bannerOffsetY,
+      this.currentWidth,
+      bannerLayout.offsetY * s
+    );
     this.background.fill({ color: bannerColors.background });
 
     this.whiteZoneBottomLeft.clear();
-    this.whiteZoneBottomLeft.rect(-7.5 * s, bannerOffsetY + 104 * s, 430 * s, 21 * s);
+    this.whiteZoneBottomLeft.rect(
+      -7.5 * s,
+      bannerOffsetY + 104 * s,
+      430 * s,
+      21 * s
+    );
     this.whiteZoneBottomLeft.fill({ color: bannerColors.whiteZone });
 
     if (!this.loaded) {
@@ -483,7 +536,8 @@ export class Banner {
     rectangle.fill({ color: bannerColors.whiteZone });
     this.whiteZoneTopRight.addChild(rectangle);
 
-    const buttonLogicalWidth = this.manifest.icons['button-up'].width / this.manifest.iconScale;
+    const buttonLogicalWidth =
+      this.manifest.icons["button-up"].width / this.manifest.iconScale;
     const buttonCenterOffsetX = buttonLogicalWidth / 2;
     const buttonCenterY = 20;
 
@@ -527,22 +581,19 @@ export class Banner {
     this.heartFiller.position.set(heartX, heartY);
     this.heartFiller.scale.set(textureScale);
 
-    const heartHeight = 41;
-    const hpPercentage = 0.54;
-    const visibleHeight = heartHeight * hpPercentage;
-    const maskStartY = heartY + (heartHeight - visibleHeight) * s;
-
-    this.heartFillerMask.clear();
-    this.heartFillerMask.rect(heartX, maskStartY, 44 * s, visibleHeight * s);
-    this.heartFillerMask.fill({ color: 0xffffff });
+    this.updateHeartFillerMask(heartX, heartY, s);
 
     this.heart.position.set(heartX, heartY);
     this.heart.scale.set(textureScale);
 
-    this.bannerContainer.position.set(bannerLayout.bannerContainer.x * s, bannerOffsetY + bannerLayout.bannerContainer.yOffset * s);
+    this.bannerContainer.position.set(
+      bannerLayout.bannerContainer.x * s,
+      bannerOffsetY + bannerLayout.bannerContainer.yOffset * s
+    );
     this.bannerContainer.scale.set(textureScale);
 
-    const cellHeight = this.manifest.container.background.height / this.manifest.scale;
+    const cellHeight =
+      this.manifest.container.background.height / this.manifest.scale;
     const cellSpacingX = bannerLayout.shortcuts.spacingX;
     const cellSpacingY = bannerLayout.shortcuts.spacingY;
     const containerHeight = 64;
@@ -574,6 +625,16 @@ export class Banner {
     );
   }
 
+  private updateHeartFillerMask(heartX: number, heartY: number, s: number): void {
+    const heartHeight = 41;
+    const hpPercentage = 0.54;
+    const visibleHeight = heartHeight * hpPercentage;
+    const maskStartY = heartY + (heartHeight - visibleHeight) * s;
+    this.heartFillerMask.clear();
+    this.heartFillerMask.rect(heartX, maskStartY, 44 * s, visibleHeight * s);
+    this.heartFillerMask.fill({ color: 0xffffff });
+  }
+
   private expandMinimap(): void {
     if (!this.loaded) {
       return;
@@ -598,7 +659,11 @@ export class Banner {
       this.minimapMask.scale.set(maskScale);
 
       this.minimapHitArea.clear();
-      this.minimapHitArea.circle(xpCircleCenterX, xpCircleCenterY, scaledRadius);
+      this.minimapHitArea.circle(
+        xpCircleCenterX,
+        xpCircleCenterY,
+        scaledRadius
+      );
       this.minimapHitArea.fill({ color: 0x000000, alpha: 0 });
 
       this.minimapContainer.scale.set(minimapScale);
@@ -612,6 +677,8 @@ export class Banner {
       this.heart.y = currentHeartY;
       this.heartDefaultFiller.y = currentHeartY;
       this.heartFiller.y = currentHeartY;
+
+      this.updateHeartFillerMask(bl.heart.x * s, currentHeartY, s);
     });
   }
 
@@ -639,7 +706,11 @@ export class Banner {
       this.minimapMask.scale.set(maskScale);
 
       this.minimapHitArea.clear();
-      this.minimapHitArea.circle(xpCircleCenterX, xpCircleCenterY, scaledRadius);
+      this.minimapHitArea.circle(
+        xpCircleCenterX,
+        xpCircleCenterY,
+        scaledRadius
+      );
       this.minimapHitArea.fill({ color: 0x000000, alpha: 0 });
 
       this.minimapContainer.scale.set(minimapScale);
@@ -653,6 +724,8 @@ export class Banner {
       this.heart.y = currentHeartY;
       this.heartDefaultFiller.y = currentHeartY;
       this.heartFiller.y = currentHeartY;
+
+      this.updateHeartFillerMask(bl.heart.x * s, currentHeartY, s);
     });
   }
 
@@ -672,7 +745,9 @@ export class Banner {
     const statsButton = this.iconButtons[0]?.button;
     if (statsButton) {
       statsButton.isPressed = pressed;
-      statsButton.button.texture = pressed ? statsButton.buttonDownTexture : statsButton.buttonUpTexture;
+      statsButton.button.texture = pressed
+        ? statsButton.buttonDownTexture
+        : statsButton.buttonUpTexture;
     }
   }
 
@@ -681,7 +756,7 @@ export class Banner {
 
     const mapId = this.minimapRenderer.getMapIdAtPoint(globalX, globalY);
     if (mapId !== null) {
-      console.log('[Banner] Minimap double-click teleport to map', mapId);
+      console.log("[Banner] Minimap double-click teleport to map", mapId);
       this.onMinimapTeleport?.(mapId);
     }
   }
@@ -691,6 +766,11 @@ export class Banner {
   }
 
   public destroy(): void {
+    if (this.minimapExpandTimer !== null) {
+      clearTimeout(this.minimapExpandTimer);
+      this.minimapExpandTimer = null;
+    }
+
     if (this.minimapRenderer) {
       this.minimapRenderer.destroy();
     }

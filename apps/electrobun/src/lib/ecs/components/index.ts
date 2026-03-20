@@ -40,6 +40,8 @@ export {
   FighterTeam,
   type FighterTeamValue,
 } from "./fighter";
+// Lifecycle
+export { Resizable, type ResizeEvent } from "./lifecycle";
 // Combat - Movement
 export {
   ForcedMovement,
@@ -53,6 +55,7 @@ export { NetworkId } from "./network-id";
 export {
   Animated,
   type DisplayObject,
+  HoverState,
   Interactive,
   Renderable,
 } from "./renderable";
@@ -60,11 +63,13 @@ export {
 export {
   FrameTime,
   type FrameTimeData,
+  InteractionEvent,
   MapContext,
   type NetworkCommand,
   NetworkCommandQueue,
   PlayerContext,
   RenderContext,
+  ResizeContext,
 } from "./singletons";
 // Combat - Spells
 export {

@@ -23,6 +23,7 @@ export class WorldMapPanel {
   private areaW = 0;
   private areaH = 0;
   private onClose?: () => void;
+  private onTeleport?: (mapId: number) => void;
 
   constructor(app: Application) {
     this.app = app;
@@ -91,6 +92,7 @@ export class WorldMapPanel {
     this.renderer = new WorldMapRenderer({
       app: this.app,
       parentContainer: this.mapContainer,
+      onTeleport: (mapId) => this.onTeleport?.(mapId),
     });
 
     this.renderer.setViewSize(this.areaW, this.areaH - HEADER_H);
@@ -98,10 +100,13 @@ export class WorldMapPanel {
     this.loaded = true;
   }
 
-  async show(): Promise<void> {
+  async show(currentMapId?: number): Promise<void> {
     await this.ensureLoaded();
     this.container.visible = true;
     this.renderer?.show();
+    if (currentMapId != null) {
+      this.renderer?.centerOnMapId(currentMapId);
+    }
   }
 
   hide(): void {
@@ -110,11 +115,11 @@ export class WorldMapPanel {
     this.onClose?.();
   }
 
-  toggle(): void {
+  toggle(currentMapId?: number): void {
     if (this.container.visible) {
       this.hide();
     } else {
-      this.show();
+      this.show(currentMapId);
     }
   }
 
@@ -124,6 +129,10 @@ export class WorldMapPanel {
 
   setOnClose(fn: () => void): void {
     this.onClose = fn;
+  }
+
+  setOnTeleport(fn: (mapId: number) => void): void {
+    this.onTeleport = fn;
   }
 
   destroy(): void {

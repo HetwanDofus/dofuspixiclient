@@ -2,6 +2,8 @@ import { Assets, Rectangle, type Renderer, Texture } from "pixi.js";
 
 import type { FrameInfo, TileBehavior, TileManifest } from "@/types";
 
+import { getLoadProgress } from "./load-progress";
+import { loadSvg } from "./load-svg";
 import { registerSvgStrokeLoader } from "./svg-stroke-loader";
 
 // Register the custom SVG loader on module load
@@ -312,22 +314,14 @@ export class AtlasLoader {
     const rawScale = Math.max(window.devicePixelRatio, 1.1) * this.currentZoom;
     const effectiveScale = Math.min(rawScale, maxSafeScale);
     const [type, idStr] = tileKey.split("_");
-
-    // Add resolution as query param to bust PixiJS cache (it caches by src URL)
-    const svgPath = `${this.basePath}/tiles/${type}/${idStr}/atlas.svg?r=${effectiveScale}`;
-
-    // Use unique alias to prevent PixiJS cache conflicts between different scales
     const cacheAlias = `${tileKey}:svg:${effectiveScale}`;
 
     try {
-      const texture = await Assets.load({
-        alias: cacheAlias,
-        src: svgPath,
-        parser: "loadSvgStroke",
-        data: {
-          resolution: effectiveScale,
-        },
-      });
+      const texture = await loadSvg(
+        `${this.basePath}/tiles/${type}/${idStr}/atlas.svg`,
+        effectiveScale,
+        cacheAlias,
+      );
 
       // Track the alias for proper cleanup later
       this.loadedAssetAliases.add(cacheAlias);
@@ -644,6 +638,10 @@ export class AtlasLoader {
    * After prefetch, use sync methods (loadFrameSync, getTileManifestSync) for zero-overhead access.
    */
   async prefetchTiles(tileKeys: string[], scale: number): Promise<void> {
+    const progress = getLoadProgress();
+    const total = tileKeys.length;
+    let loaded = 0;
+
     // Each tile loads its own JSON then immediately loads its SVG — all tiles in parallel.
     // This eliminates the waterfall where ALL JSON had to finish before ANY SVG could start.
     await Promise.all(
@@ -651,6 +649,8 @@ export class AtlasLoader {
         await this.loadTileData(key);
         await this.loadBaseTexture(key, scale);
         this.getTileManifestSync(key);
+        loaded++;
+        progress.report("map-tiles", loaded, total);
       })
     );
   }

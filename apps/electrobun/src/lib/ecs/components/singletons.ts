@@ -44,3 +44,19 @@ export class RenderContext {
   @field.object declare actorsContainer: Container;
   @field.object declare combatContainer: Container | null;
 }
+
+@component
+export class ResizeContext {
+  @field.float64 declare zoom: number;
+  @field.float64 declare baseZoom: number;
+  @field.float64 declare screenWidth: number;
+  @field.float64 declare screenHeight: number;
+  @field.boolean declare dirty: boolean;
+}
+
+@component
+export class InteractionEvent {
+  @field.int32 declare hoveredPickableId: number;
+  @field.int32 declare clickedPickableId: number;
+  @field.boolean declare dirty: boolean;
+}

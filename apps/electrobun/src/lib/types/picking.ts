@@ -1,4 +1,4 @@
-import type { Sprite } from 'pixi.js';
+import type { Container, Sprite } from 'pixi.js';
 
 export interface PickableBounds {
   x: number;
@@ -11,6 +11,7 @@ export interface PickableObject {
   id: number;
   sprite: Sprite;
   bounds?: PickableBounds;
+  parentContainer?: Container;
 }
 
 export interface PickResult {

@@ -1,6 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+import type { Element } from "domhandler";
+import * as cheerio from "cheerio";
+
 import type {
   AtlasFrame,
   AtlasManifest,
@@ -54,20 +57,57 @@ function stripDefaultAttributes(content: string): string {
 }
 
 /**
- * Replace stroke-width with __RESOLUTION__ placeholder for non-scaling-stroke elements
+ * Replace stroke-width with __RESOLUTION__ placeholder for elements that use
+ * or inherit non-scaling-stroke, but only when stroke-width is the default
+ * value (1 or 1px). Uses cheerio for proper DOM traversal so
+ * inherited stroke-width from any ancestor depth is handled correctly.
  */
 function processNonScalingStroke(content: string): string {
-  // Match elements with vector-effect="non-scaling-stroke" and replace their stroke-width
-  return content
-    .replace(
-      /(<[^>]*vector-effect="non-scaling-stroke"[^>]*stroke-width=")([^"]+)("[^>]*>)/g,
-      "$1__RESOLUTION__$3"
-    )
-    .replace(
-      // Also handle case where stroke-width comes before vector-effect
-      /(<[^>]*stroke-width=")([^"]+)("[^>]*vector-effect="non-scaling-stroke"[^>]*>)/g,
-      "$1__RESOLUTION__$3"
-    );
+  const $ = cheerio.load(content, { xml: true });
+
+  // Find all elements with vector-effect="non-scaling-stroke"
+  const nonScalingEls = $('[vector-effect="non-scaling-stroke"]');
+
+  if (nonScalingEls.length === 0) {
+    return content;
+  }
+
+  // Only replace default stroke-width values
+  const is1OfSize = (v: string) => v === "1" || v === "1px";
+
+  // Collect all ancestors that provide inherited stroke-width
+  const ancestorsToFix = new Set<Element>();
+
+  nonScalingEls.each((_, el) => {
+    const $el = $(el);
+
+    // If the element itself has stroke-width, replace directly
+    const sw = $el.attr("stroke-width");
+
+    if (sw) {
+      if (is1OfSize(sw)) $el.attr("stroke-width", "__RESOLUTION__");
+
+      return;
+    }
+
+    // Walk up ancestors to find the one providing stroke-width
+    $el.parents().each((__, parent) => {
+      const $parent = $(parent);
+      const psw = $parent.attr("stroke-width");
+
+      if (psw) {
+        if (is1OfSize(psw)) ancestorsToFix.add(parent);
+
+        return false; // stop at the nearest ancestor with stroke-width either way
+      }
+    });
+  });
+
+  ancestorsToFix.forEach((ancestor) => {
+    $(ancestor).attr("stroke-width", "__RESOLUTION__");
+  });
+
+  return $.xml();
 }
 
 function minifySvg(content: string): string {
@@ -136,7 +176,10 @@ interface FrameDimension {
 type PackedPositionMap = Map<string, PackedRect>;
 
 /** Parse transform to extract translation offset */
-function extractTranslation(transform: string | undefined): { x: number; y: number } {
+function extractTranslation(transform: string | undefined): {
+  x: number;
+  y: number;
+} {
   if (!transform) return { x: 0, y: 0 };
 
   const matrixMatch = transform.match(
@@ -171,7 +214,10 @@ function computeContentBounds(
   const validUses = sprite.useElements.filter(hasValidReference);
 
   // Fall back to full viewBox if any use element lacks dimensions
-  if (validUses.length === 0 || validUses.some((u) => u.width == null || u.height == null)) {
+  if (
+    validUses.length === 0 ||
+    validUses.some((u) => u.width == null || u.height == null)
+  ) {
     return { minX: vbMinX, minY: vbMinY, width: vbWidth, height: vbHeight };
   }
 
@@ -225,7 +271,13 @@ function generateAtlasSvg(
       const vbWidth = parts[2] || 100;
       const vbHeight = parts[3] || 100;
 
-      const bounds = computeContentBounds(sprite, vbMinX, vbMinY, vbWidth, vbHeight);
+      const bounds = computeContentBounds(
+        sprite,
+        vbMinX,
+        vbMinY,
+        vbWidth,
+        vbHeight
+      );
       return {
         id: sprite.id,
         index,

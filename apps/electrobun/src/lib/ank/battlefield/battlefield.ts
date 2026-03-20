@@ -13,6 +13,7 @@ import type { InteractiveObjectData, PickResult, RenderStats } from "@/types";
 import { ZaapContextMenu } from "@/ank/gapi/controls";
 import { DISPLAY_HEIGHT } from "@/constants/battlefield";
 import { type GameWorld, getGameWorld } from "@/ecs/world";
+
 import { Banner } from "@/hud/banner";
 import { initTooltipBounds } from "@/hud/core/tooltip";
 import { StatsPanel } from "@/hud/stats";
@@ -20,13 +21,16 @@ import { WorldMapPanel } from "@/hud/worldmap";
 import { AtlasLoader } from "@/render/atlas-loader";
 import { Engine } from "@/render/engine";
 import { PickingSystem } from "@/render/picking-system";
+import { RendererRegistry } from "@/render/renderer-registry";
 import { loadTheme } from "@/themes";
+import { pushInteractionEvent } from "@/ecs/systems/interaction-dispatch-system";
 
 import {
   CellHighlighter,
   HighlightType,
   type HighlightTypeValue,
 } from "./cell-highlighter";
+import { getCharacterSpriteLoader } from "./character-sprite";
 import {
   type DamageDisplayConfig,
   DamageRenderer,
@@ -93,6 +97,7 @@ export class Battlefield {
   private worldMapPanel: WorldMapPanel | null = null;
 
   private currentMapData: MapData | null = null;
+  private currentMapId: number | null = null;
   private cellDataMap: Map<number, CellData> = new Map();
 
   private interactiveGfxIds = new Set<number>();
@@ -125,6 +130,17 @@ export class Battlefield {
   // ECS
   private gameWorld: GameWorld;
   private ecsTickerCallback: (() => void) | null = null;
+
+  // Renderer registry
+  private rendererRegistry = new RendererRegistry();
+
+  // Interactive entity tracking (temporary bridge for fighters)
+  private interactiveCallbacks = new Map<number, {
+    onHover: ((hovered: boolean) => void) | null;
+    onClick: (() => void) | null;
+  }>();
+  private fighterIdToPickableId = new Map<number, number>();
+  private lastHoveredPickableId: number | undefined;
 
   private onCellClickCallback?: (cellId: number) => void;
   private onMinimapTeleportCallback?: (mapId: number) => void;
@@ -162,19 +178,21 @@ export class Battlefield {
       this.pickingSystem.markDirty();
     }
 
-    if (this.banner && this.app) {
-      this.banner.resize(width, this.engine.getBaseZoom());
-    }
-
-    this.updateStatsPanelPosition();
-
     if (this.interactionHandler) {
       this.interactionHandler.setBaseZoom(this.engine.getBaseZoom());
     }
 
-    if (this.debugOverlay) {
-      this.debugOverlay.setScreenSize(width, height);
-    }
+    const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
+    this.notifyResize(zoom, width, height);
+  }
+
+  private notifyResize(zoom: number, screenW: number, screenH: number): void {
+    this.rendererRegistry.notifyResize({
+      zoom,
+      baseZoom: this.engine.getBaseZoom(),
+      screenWidth: screenW,
+      screenHeight: screenH,
+    });
   }
 
   private handleResizeStart(): void {
@@ -277,12 +295,20 @@ export class Battlefield {
       this.statsPanel?.toggle();
     });
     this.banner.setOnMapToggle(() => {
-      this.worldMapPanel?.toggle();
+      this.toggleWorldMap();
     });
     // World map panel — covers the game render area (below banner z-order)
     this.worldMapPanel = new WorldMapPanel(this.app);
     const gameAreaH = Math.floor(DISPLAY_HEIGHT * baseZoom);
     this.worldMapPanel.setArea(this.app.screen.width, gameAreaH);
+    this.worldMapPanel.setOnTeleport((mapId) => {
+      this.onMinimapTeleportCallback?.(mapId);
+    });
+    this.worldMapPanel.setOnClose(() => {
+      if (this.interactionHandler) {
+        this.interactionHandler.enabled = true;
+      }
+    });
     this.app.stage.addChild(this.worldMapPanel.container);
 
     // Banner — always on top of world map
@@ -320,9 +346,10 @@ export class Battlefield {
       if (this.isPointOverUI(e.global.x, e.global.y)) return;
       this.interactionHandler?.handlePointerDown(e);
     });
-    this.app.stage.on("pointermove", (e) =>
-      this.interactionHandler?.handlePointerMove(e)
-    );
+    this.app.stage.on("pointermove", (e) => {
+      if (this.isPointOverUI(e.global.x, e.global.y)) return;
+      this.interactionHandler?.handlePointerMove(e);
+    });
     this.app.stage.on("pointerup", () =>
       this.interactionHandler?.handlePointerUp()
     );
@@ -348,6 +375,12 @@ export class Battlefield {
     };
 
     Ticker.shared.add(this.ecsTickerCallback);
+
+    // Register renderers
+    this.rendererRegistry.register("banner", (e) => this.banner!.onResize(e));
+    this.rendererRegistry.register("stats-panel", (e) => this.statsPanel!.onResize(e));
+    this.rendererRegistry.register("debug-overlay", (e) => this.debugOverlay!.onResize(e));
+    this.rendererRegistry.register("grid-overlay", (e) => this.gridOverlay!.onResize(e));
   }
 
   /** Resolves when banner assets are fully loaded and drawn. */
@@ -411,8 +444,9 @@ export class Battlefield {
     this.debugOverlay?.clear();
 
     const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
-    // Set zoom on atlas loader for crisp SVG rasterization at current zoom level
+    // Set zoom on loaders for crisp SVG rasterization at current zoom level
     this.atlasLoader.setZoom(zoom);
+    getCharacterSpriteLoader().setZoom(zoom);
     await this.mapHandler.renderMap(
       mapData,
       this.mapContainer,
@@ -425,6 +459,7 @@ export class Battlefield {
    * Load a map from already-parsed MapData (e.g., from server MAP_DATA).
    */
   updateMinimapPosition(mapId: number): void {
+    this.currentMapId = mapId;
     this.banner?.updateMinimapPosition(mapId);
   }
 
@@ -462,6 +497,7 @@ export class Battlefield {
 
     const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
     this.atlasLoader.setZoom(zoom);
+    getCharacterSpriteLoader().setZoom(zoom);
     await this.mapHandler.renderMap(
       mapData,
       this.mapContainer,
@@ -532,19 +568,22 @@ export class Battlefield {
       mapWidth,
       groundLevel: 7,
       cellDataMap: this.cellDataMap,
+      pickingSystem: this.pickingSystem,
     });
+
+    this.rendererRegistry.register("world-actor-renderer", (e) => this.worldActorRenderer!.onResize(e));
   }
 
   /**
    * Add a world actor (player/NPC) to the map.
    * Returns a promise that resolves when the sprite is loaded.
    */
-  addWorldActor(data: WorldActorData): Promise<void> {
+  async addWorldActor(data: WorldActorData): Promise<void> {
     if (!this.worldActorRenderer) {
       this.initWorldActorContainer();
     }
 
-    return (
+    await (
       this.worldActorRenderer?.addFighter({
         id: data.id,
         name: data.name,
@@ -557,12 +596,22 @@ export class Battlefield {
         isPlayer: data.isCurrentPlayer,
       }) ?? Promise.resolve()
     );
+
+    this.registerFighterForPicking(data.id, this.worldActorRenderer!);
+    this.pickingSystem?.markDirty();
   }
 
   /**
    * Remove a world actor from the map.
    */
   removeWorldActor(id: number): void {
+    const pickableId = this.fighterIdToPickableId.get(id);
+    if (pickableId !== undefined) {
+      this.pickingSystem?.unregisterObject(pickableId);
+      this.interactiveCallbacks.delete(pickableId);
+      this.fighterIdToPickableId.delete(id);
+    }
+
     this.worldActorRenderer?.removeFighter(id);
   }
 
@@ -627,6 +676,29 @@ export class Battlefield {
     }
     this.pickableIdToGfxId.clear();
     this.nextPickableId = 1;
+  }
+
+  private registerFighterForPicking(
+    fighterId: number,
+    renderer: FighterRenderer,
+  ): void {
+    const data = renderer.getFighterPickingData(fighterId);
+    if (!data || !this.pickingSystem) return;
+
+    const pickableId = this.nextPickableId++;
+    this.pickingSystem.registerObject({
+      id: pickableId,
+      sprite: data.sprite,
+      parentContainer: data.container,
+    });
+    this.interactiveCallbacks.set(pickableId, {
+      onHover: (hovered) => {
+        if (hovered) renderer.showName(fighterId);
+        else renderer.hideName(fighterId);
+      },
+      onClick: null,
+    });
+    this.fighterIdToPickableId.set(fighterId, pickableId);
   }
 
   /**
@@ -732,6 +804,11 @@ export class Battlefield {
     } finally {
       this.isRendering = false;
 
+      // Notify all renderers (fighters, overlays, etc.) of the new zoom
+      const screenW = this.app?.screen.width ?? 0;
+      const screenH = this.app?.screen.height ?? 0;
+      this.notifyResize(zoom, screenW, screenH);
+
       // If another zoom was requested while rendering, handle it
       if (this.pendingZoom !== null && this.pendingZoom !== zoom) {
         const nextZoom = this.pendingZoom;
@@ -747,20 +824,47 @@ export class Battlefield {
       this.currentContextMenu.hide();
     }
 
-    const gfxId = this.pickableIdToGfxId.get(result.object.id);
+    // Direct callbacks (temporary bridge for fighters)
+    const cb = this.interactiveCallbacks.get(result.object.id);
+    if (cb?.onClick) {
+      cb.onClick();
+    }
 
+    // Push to ECS for entities with Interactive component
+    pushInteractionEvent({
+      type: "click",
+      pickableId: result.object.id,
+    });
+
+    // Fallback for non-ECS interactive tiles (zaap etc.)
+    const gfxId = this.pickableIdToGfxId.get(result.object.id);
     if (gfxId) {
       const objData = this.interactiveObjectsData.get(gfxId);
       console.log("Clicked interactive object:", gfxId, objData);
-
       if (this.isZaap(result.object.id)) {
         this.showZaapContextMenu(result.x, result.y);
       }
     }
   }
 
-  private handleObjectHover(_result: PickResult | null): void {
-    // Can be extended for hover effects
+  private handleObjectHover(result: PickResult | null): void {
+    // Unhover previous via direct callbacks (temporary bridge)
+    if (this.lastHoveredPickableId !== undefined && this.lastHoveredPickableId !== result?.object.id) {
+      this.interactiveCallbacks.get(this.lastHoveredPickableId)?.onHover?.(false);
+      this.lastHoveredPickableId = undefined;
+    }
+    if (result) {
+      const cb = this.interactiveCallbacks.get(result.object.id);
+      if (cb) {
+        cb.onHover?.(true);
+        this.lastHoveredPickableId = result.object.id;
+      }
+    }
+    // Also push to ECS for entities that have Interactive component
+    pushInteractionEvent({
+      type: "hover",
+      pickableId: result?.object.id ?? -1,
+    });
   }
 
   private handleGroundClick(mapX: number, mapY: number): void {
@@ -787,6 +891,9 @@ export class Battlefield {
    * Check if a screen point falls over an open UI panel (stats, etc.)
    */
   private isPointOverUI(x: number, y: number): boolean {
+    if (this.worldMapPanel?.isVisible()) {
+      return true;
+    }
     if (this.statsPanel?.isVisible()) {
       const c = this.statsPanel.container;
       const bounds = c.getBounds();
@@ -815,7 +922,7 @@ export class Battlefield {
     this.statsPanel.rebuild(zoom);
     this.statsPanel.setPosition(
       Math.round(this.app.screen.width - this.statsPanel.panelW - 4),
-      Math.round((bannerY - this.statsPanel.panelH) / 2)
+      Math.round(bannerY - this.statsPanel.panelH)
     );
   }
 
@@ -837,6 +944,15 @@ export class Battlefield {
 
   getWorldMapPanel(): WorldMapPanel | null {
     return this.worldMapPanel;
+  }
+
+  toggleWorldMap(): void {
+    const wasVisible = this.worldMapPanel?.isVisible() ?? false;
+    this.worldMapPanel?.toggle(this.currentMapId ?? undefined);
+    if (this.interactionHandler) {
+      // wasVisible means we're closing; !wasVisible means we're opening
+      this.interactionHandler.enabled = wasVisible;
+    }
   }
 
   private isZaap(pickableId: number): boolean {
@@ -932,6 +1048,10 @@ export class Battlefield {
     this.stressTest = null;
 
     this.exitCombatMode();
+
+    // Clean up renderer registry
+    this.rendererRegistry.clear();
+    this.interactiveCallbacks.clear();
 
     // Clean up world actors
     this.worldActorRenderer?.destroy();
@@ -1042,6 +1162,7 @@ export class Battlefield {
       mapWidth,
       groundLevel,
       cellDataMap: this.cellDataMap,
+      pickingSystem: this.pickingSystem,
     });
 
     this.damageRenderer = new DamageRenderer(this.combatContainer, {
@@ -1055,6 +1176,12 @@ export class Battlefield {
       groundLevel,
       cellDataMap: this.cellDataMap,
     });
+
+    // Register combat renderers
+    this.rendererRegistry.register("cell-highlighter", (e) => this.cellHighlighter!.onResize(e));
+    this.rendererRegistry.register("fighter-renderer", (e) => this.fighterRenderer!.onResize(e));
+    this.rendererRegistry.register("damage-renderer", (e) => this.damageRenderer!.onResize(e));
+    this.rendererRegistry.register("spell-renderer", (e) => this.spellRenderer!.onResize(e));
   }
 
   /**
@@ -1076,6 +1203,12 @@ export class Battlefield {
 
     this.cellHighlighter?.destroy();
     this.cellHighlighter = null;
+
+    // Clean up combat renderer registrations
+    this.rendererRegistry.unregister("cell-highlighter");
+    this.rendererRegistry.unregister("fighter-renderer");
+    this.rendererRegistry.unregister("damage-renderer");
+    this.rendererRegistry.unregister("spell-renderer");
 
     if (this.combatContainer) {
       this.mapContainer?.removeChild(this.combatContainer);

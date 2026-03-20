@@ -189,6 +189,13 @@ export class CellHighlighter {
   }
 
   /**
+   * Handle resize/zoom changes.
+   */
+  onResize(event: { zoom: number }): void {
+    this.setScale(event.zoom);
+  }
+
+  /**
    * Redraw all highlights.
    */
   private redraw(): void {

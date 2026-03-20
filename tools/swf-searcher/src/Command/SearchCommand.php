@@ -226,33 +226,48 @@ final class SearchCommand extends Command
         /** @var QuestionHelper $helper */
         $helper = $this->getHelper('question');
 
-        // Build choices
-        $choices = [];
+        // Build choices with string keys to prevent array_merge re-indexing
+        $choices = ['all' => 'Export all'];
+        $indexToId = [];
+        $index = 0;
         foreach ($characters as $id => $char) {
+            $key = (string) $index;
             $label = $char['exportName']
                 ? sprintf('[%d] %s (%s)', $id, $char['exportName'], $char['type'])
                 : sprintf('[%d] (%s)', $id, $char['type']);
-            $choices[$id] = $label;
+            $choices[$key] = $label;
+            $indexToId[$key] = $id;
+            $index++;
         }
 
         $question = new ChoiceQuestion(
             'Select characters to export (comma-separated numbers, or "all"):',
-            array_merge(['all' => 'Export all'], $choices),
+            $choices,
             'all'
         );
         $question->setMultiselect(true);
 
         $selected = $helper->ask($input, $output, $question);
 
-        if (in_array('Export all', $selected, true)) {
-            return $characters;
+        // Check for "all" - handle both key and value returns
+        foreach ($selected as $item) {
+            if ($item === 'all' || $item === 'Export all') {
+                return $characters;
+            }
         }
 
-        // Map selected labels back to character IDs
+        // Map selected back to character IDs
         $selectedIds = [];
-        foreach ($selected as $label) {
-            foreach ($choices as $id => $choiceLabel) {
-                if ($label === $choiceLabel) {
+        foreach ($selected as $item) {
+            // Check if it's an index key
+            if (isset($indexToId[$item])) {
+                $id = $indexToId[$item];
+                $selectedIds[$id] = $characters[$id];
+                continue;
+            }
+            // Check if it's a label value
+            foreach ($indexToId as $key => $id) {
+                if ($item === $choices[$key]) {
                     $selectedIds[$id] = $characters[$id];
                     break;
                 }

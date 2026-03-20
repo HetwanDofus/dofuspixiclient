@@ -1,6 +1,7 @@
 import { Assets, Rectangle, Sprite, Texture } from "pixi.js";
 
 import { Direction } from "@/ecs/components";
+import { loadSvg } from "@/render/load-svg";
 
 /**
  * Atlas JSON format for character sprite animations.
@@ -127,6 +128,31 @@ export class CharacterSpriteLoader {
   private manifestCache = new Map<number, Set<string>>();
   /** Pending manifest loads */
   private pendingManifests = new Map<number, Promise<Set<string> | null>>();
+  /** Current zoom level for SVG rasterization */
+  private currentZoom = 1;
+
+  /**
+   * Set zoom level. Clears the animation cache so new loads rasterize at the
+   * updated resolution. Old textures are NOT destroyed — PixiJS will GC them
+   * once no sprite references them. We only need to bust the PixiJS Assets
+   * alias cache so the next `loadSvg` call re-rasterizes the SVG.
+   */
+  setZoom(zoom: number): void {
+    if (Math.abs(zoom - this.currentZoom) < 0.001) return;
+    this.currentZoom = zoom;
+    this.cache.clear();
+    this.pending.clear();
+    // Bust the Assets alias cache so re-fetches produce new textures at the
+    // new resolution.  We do NOT call Assets.unload (which destroys the
+    // TextureSource) because existing sprites still reference those textures
+    // until reloadAllSprites swaps them.
+    this.loadedAssets.clear();
+  }
+
+  private getResolution(): number {
+    const dpr = window.devicePixelRatio ?? 1;
+    return Math.max(2, Math.ceil(this.currentZoom * dpr));
+  }
 
   /**
    * Load a character animation.
@@ -233,21 +259,18 @@ export class CharacterSpriteLoader {
 
       const atlas: SpriteAtlas = await res.json();
 
-      // Load SVG at 2x resolution for crisp rendering
-      const resolution = Math.max(window.devicePixelRatio ?? 1, 2);
+      // Load SVG at zoom-aware resolution for crisp rendering
+      const resolution = this.getResolution();
       const alias = `char:${gfxId}:${animName}:${resolution}`;
-
-      const svgPath = `${SPRITES_BASE_PATH}/${gfxId}/${animName}/atlas.svg?r=${resolution}`;
 
       let baseTexture: Texture;
 
       try {
-        baseTexture = await Assets.load({
+        baseTexture = await loadSvg(
+          `${SPRITES_BASE_PATH}/${gfxId}/${animName}/atlas.svg`,
+          resolution,
           alias,
-          src: svgPath,
-          parser: "loadSvgStroke",
-          data: { resolution },
-        });
+        );
 
         this.loadedAssets.add(alias);
       } catch {

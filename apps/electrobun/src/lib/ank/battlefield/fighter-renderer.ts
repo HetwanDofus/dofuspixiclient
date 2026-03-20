@@ -5,6 +5,7 @@ import {
   DEFAULT_MAP_WIDTH,
 } from "@/constants/battlefield";
 import { FighterTeam } from "@/ecs/components";
+import type { PickingSystem } from "@/render/picking-system";
 
 import {
   type CharacterAnimation,
@@ -68,6 +69,7 @@ interface ActiveFighter {
   sprite: Sprite | null;
   placeholderGraphics: Graphics | null;
   nameText: Text;
+  nameBg: Graphics;
   hpBar: Graphics;
   cellId: number;
   direction: number;
@@ -108,6 +110,7 @@ export interface FighterRendererConfig {
   mapWidth?: number;
   groundLevel?: number;
   cellDataMap?: Map<number, CellData>;
+  pickingSystem?: PickingSystem | null;
 }
 
 /**
@@ -140,11 +143,13 @@ export class FighterRenderer {
   private groundLevel: number;
   private cellDataMap: Map<number, CellData>;
   private tickerCallback: () => void;
+  private pickingSystem: PickingSystem | null;
 
   constructor(parentContainer: Container, config: FighterRendererConfig = {}) {
     this.mapWidth = config.mapWidth ?? DEFAULT_MAP_WIDTH;
     this.groundLevel = config.groundLevel ?? DEFAULT_GROUND_LEVEL;
     this.cellDataMap = config.cellDataMap ?? new Map();
+    this.pickingSystem = config.pickingSystem ?? null;
 
     this.container = new Container();
     this.container.label = "fighter-renderer";
@@ -188,19 +193,25 @@ export class FighterRenderer {
     this.drawFighterPlaceholder(placeholderGraphics, data.team, data.direction);
     fighterContainer.addChild(placeholderGraphics);
 
-    // Name text
+    // Name background (semi-transparent black rounded rect)
+    const nameBg = new Graphics();
+    nameBg.visible = false;
+    fighterContainer.addChild(nameBg);
+
+    // Name text (white, hidden by default — shown on hover)
     const nameStyle = new TextStyle({
       fontFamily: "Arial",
       fontSize: 10,
       fontWeight: "bold",
-      fill: data.isPlayer ? 0x66ff66 : 0xffffff,
-      stroke: { color: 0x000000, width: 2 },
+      fill: 0xffffff,
       align: "center",
     });
 
     const nameText = new Text({ text: data.name, style: nameStyle });
-    nameText.anchor.set(0.5, 1);
+    nameText.resolution = 2;
+    nameText.anchor.set(0.5, 0.5);
     nameText.y = -50;
+    nameText.visible = false;
     fighterContainer.addChild(nameText);
 
     // HP bar (hidden for world actors in roleplay mode)
@@ -224,6 +235,7 @@ export class FighterRenderer {
       sprite: null,
       placeholderGraphics,
       nameText,
+      nameBg,
       hpBar,
       cellId: data.cellId,
       direction: data.direction,
@@ -382,8 +394,8 @@ export class FighterRenderer {
       fighter.sprite.y = animation.offsetY;
     }
 
-    // Update name position based on sprite height
-    fighter.nameText.y = animation.offsetY - animation.frameHeight - 5;
+    // Update name position above sprite
+    this.updateNamePosition(fighter, animation);
   }
 
   /**
@@ -628,6 +640,7 @@ export class FighterRenderer {
     const deltaMs = Ticker.shared.deltaMS;
     const deltaS = deltaMs / 1000;
     const clampedMs = Math.min(deltaMs, MAX_FRAME_MS);
+    let anyMoved = false;
 
     for (const fighter of this.fighters.values()) {
       // Animate sprite frames
@@ -638,6 +651,7 @@ export class FighterRenderer {
         continue;
       }
 
+      anyMoved = true;
       const deltaPx = fighter.movePixelSpeed * clampedMs;
 
       if (fighter.moveDistance <= deltaPx) {
@@ -676,6 +690,10 @@ export class FighterRenderer {
         fighter.container.y += deltaPx * fighter.moveSinRot;
         fighter.moveDistance -= deltaPx;
       }
+    }
+
+    if (anyMoved) {
+      this.pickingSystem?.markDirty();
     }
   }
 
@@ -790,6 +808,111 @@ export class FighterRenderer {
    */
   setScale(scale: number): void {
     this.container.scale.set(scale);
+  }
+
+  /**
+   * Handle resize/zoom changes.
+   */
+  onResize(event: { zoom: number }): void {
+    // NOTE: do NOT scale the container here — it lives inside mapContainer
+    // which is already scaled to the zoom level.
+
+    // Update text resolution so names render crisply at the current zoom
+    const res = Math.max(2, Math.ceil(event.zoom * window.devicePixelRatio));
+    for (const fighter of this.fighters.values()) {
+      fighter.nameText.resolution = res;
+    }
+
+    // Re-rasterize character SVGs at the new zoom level
+    const loader = getCharacterSpriteLoader();
+    loader.setZoom(event.zoom);
+    this.reloadAllSprites();
+
+    this.pickingSystem?.markDirty();
+  }
+
+  /**
+   * Reload all fighter sprites at the current zoom resolution.
+   * Cache was cleared by setZoom, so loadAnimation will re-rasterize SVGs.
+   * Old textures are left for GC — no explicit unload needed.
+   */
+  private reloadAllSprites(): void {
+    const loader = getCharacterSpriteLoader();
+
+    for (const fighter of this.fighters.values()) {
+      if (fighter.gfxId > 0 && fighter.currentAnimName) {
+        const animName = fighter.currentAnimName;
+        // Force cache miss so applyAnimation accepts the new data
+        fighter.currentAnimName = "";
+        loader.loadAnimation(fighter.gfxId, animName).then((anim) => {
+          if (anim && this.fighters.has(fighter.id)) {
+            this.applyAnimation(fighter, anim, animName);
+          }
+        });
+      }
+    }
+  }
+
+  getContainer(): Container {
+    return this.container;
+  }
+
+  /**
+   * Show name tooltip for a fighter.
+   */
+  showName(id: number): void {
+    const f = this.fighters.get(id);
+    if (!f) return;
+    f.nameText.visible = true;
+    this.updateNameBg(f);
+    f.nameBg.visible = true;
+  }
+
+  /**
+   * Hide name tooltip for a fighter.
+   */
+  hideName(id: number): void {
+    const f = this.fighters.get(id);
+    if (!f) return;
+    f.nameText.visible = false;
+    f.nameBg.visible = false;
+  }
+
+  /**
+   * Get fighter sprite and container for picking registration.
+   */
+  getFighterPickingData(
+    id: number,
+  ): { sprite: Sprite; container: Container } | null {
+    const f = this.fighters.get(id);
+    if (!f?.sprite) return null;
+    return { sprite: f.sprite, container: f.container };
+  }
+
+  /**
+   * Update the name label Y position above the sprite.
+   */
+  private updateNamePosition(
+    f: ActiveFighter,
+    animation: CharacterAnimation,
+  ): void {
+    const margin = 5;
+    // Top of sprite is at offsetY - frameHeight, place name center above it
+    const spriteTop = animation.offsetY - animation.frameHeight;
+    f.nameText.y = spriteTop - margin - f.nameText.height / 2;
+  }
+
+  /**
+   * Redraw the name background to fit the current text.
+   */
+  private updateNameBg(f: ActiveFighter): void {
+    const padX = 6;
+    const padY = 3;
+    const w = f.nameText.width + padX * 2;
+    const h = f.nameText.height + padY * 2;
+    f.nameBg.clear();
+    f.nameBg.roundRect(-w / 2, f.nameText.y - h / 2, w, h, 4);
+    f.nameBg.fill({ color: 0x000000, alpha: 0.5 });
   }
 
   /**

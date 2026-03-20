@@ -13,7 +13,9 @@ import {
   FighterLook,
   FighterStats,
   ForcedMovement,
+  HoverState,
   Interactive,
+  InteractionEvent,
   MovementAnimation,
   MovementPath,
   MovementRestriction,
@@ -38,6 +40,9 @@ import {
   ZIndex,
 } from "@/ecs/components";
 import { RenderSystem } from "@/ecs/systems/render-system";
+import {
+  InteractionDispatchSystem,
+} from "@/ecs/systems/interaction-dispatch-system";
 import {
   NetworkIngestSystem,
   pushNetworkCommand,
@@ -77,6 +82,10 @@ export class GameWorld {
         Renderable,
         Animated,
         Interactive,
+        HoverState,
+
+        // Interaction singleton
+        InteractionEvent,
 
         // Combat - Fighter components
         Fighter,
@@ -116,6 +125,7 @@ export class GameWorld {
 
         // Systems
         RenderSystem,
+        InteractionDispatchSystem,
         NetworkIngestSystem,
       ],
     });

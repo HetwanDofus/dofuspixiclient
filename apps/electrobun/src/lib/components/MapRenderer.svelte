@@ -4,6 +4,7 @@
   import { Battlefield } from "@/ank/battlefield";
   import { GameClient } from "@/game/game-client";
   import { Keybindings } from "@/hud/core/keybindings";
+  import { getLoadProgress } from "@/render/load-progress";
 
   interface Props {
     onReady?: () => void;
@@ -39,8 +40,18 @@
     isResizing = false;
   }
 
+  let unsubProgress: (() => void) | null = null;
+
   onMount(async () => {
     try {
+      // Subscribe to asset load progress
+      unsubProgress = getLoadProgress().onProgress((loaded, total, label) => {
+        if (total > 0) {
+          const pct = Math.round((loaded / total) * 100);
+          onProgress?.(pct, label);
+        }
+      });
+
       onProgress?.(5, "Initializing engine...");
 
       battlefield = new Battlefield({
@@ -152,9 +163,7 @@
       }
     });
     keybindings.on("toggleWorldMap", () => {
-      if (battlefield) {
-        battlefield.getWorldMapPanel()?.toggle();
-      }
+      battlefield?.toggleWorldMap();
     });
     keybindings.on("escape", () => {
       if (!battlefield) return;
@@ -169,6 +178,7 @@
   }
 
   onDestroy(() => {
+    unsubProgress?.();
     keybindings?.destroy();
     gameClient?.destroy();
     battlefield?.destroy();

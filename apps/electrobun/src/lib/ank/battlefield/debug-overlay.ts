@@ -197,6 +197,14 @@ export class DebugOverlay {
     this.screenHeight = height;
   }
 
+  onResize(event: { screenWidth: number; screenHeight: number }): void {
+    this.setScreenSize(event.screenWidth, event.screenHeight);
+  }
+
+  getContainer(): Container {
+    return this.container;
+  }
+
   private hideTooltip(): void {
     this.tooltip.visible = false;
   }

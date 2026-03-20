@@ -368,6 +368,17 @@ export class DamageRenderer {
   }
 
   /**
+   * Handle resize/zoom changes.
+   */
+  onResize(event: { zoom: number }): void {
+    this.setScale(event.zoom);
+  }
+
+  getContainer(): Container {
+    return this.container;
+  }
+
+  /**
    * Clear all active damage displays.
    */
   clear(): void {

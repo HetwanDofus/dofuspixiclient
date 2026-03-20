@@ -21,4 +21,11 @@ export class Animated {
 export class Interactive {
   @field.uint32 declare pickableId: number;
   @field.uint32 declare gfxId: number;
+  @field.object declare onHover: ((hovered: boolean) => void) | null;
+  @field.object declare onClick: (() => void) | null;
+}
+
+@component
+export class HoverState {
+  @field.boolean declare hovered: boolean;
 }

@@ -29,7 +29,10 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
 
   test(url: string): boolean {
     // Handle SVG files from spritesheets and banner icons
-    return (url.includes("/spritesheets/") || url.includes("/hud/banner/")) && url.endsWith(".svg");
+    return (
+      (url.includes("/spritesheets/") || url.includes("/hud/banner/")) &&
+      url.endsWith(".svg")
+    );
   },
 
   async load(
@@ -45,7 +48,7 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
 
     // Replace __RESOLUTION__ placeholders with inverse of resolution
     // This ensures strokes appear at consistent visual width regardless of scale
-    const strokeScale = (1 / resolution).toString();
+    const strokeScale = ((1 / resolution) * 1.5).toString();
     svgContent = svgContent.replace(/__RESOLUTION__/g, strokeScale);
 
     // Create Blob URL and decode via Image (Chromium can't createImageBitmap from SVG blobs)
@@ -74,7 +77,7 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
     const bitmap = await createImageBitmap(image as ImageBitmapSource, {
       resizeWidth: outputWidth,
       resizeHeight: outputHeight,
-      resizeQuality: "low",
+      resizeQuality: "high",
     });
 
     // Create texture source directly from ImageBitmap

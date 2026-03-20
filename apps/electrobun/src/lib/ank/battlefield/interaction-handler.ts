@@ -38,6 +38,7 @@ export class InteractionHandler {
   private currentZoomIndex = 0;
 
   private hoveredObject: PickResult | null = null;
+  private _enabled = true;
 
   private onZoomChange?: (zoom: number, index: number) => void;
   private onPan?: (dx: number, dy: number) => void;
@@ -160,8 +161,13 @@ export class InteractionHandler {
     this.isDragging = false;
   }
 
+  set enabled(value: boolean) {
+    this._enabled = value;
+  }
+
   private handleWheel(e: WheelEvent): void {
     e.preventDefault();
+    if (!this._enabled) return;
 
     const rect = this.canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;

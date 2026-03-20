@@ -1,0 +1,26 @@
+{
+    "version": "1.0",
+    "generated": "2026-03-18T14:49:07+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "175": {
+            "id": 175,
+            "exportName": "StatsViewer",
+            "type": "sprite",
+            "width": 0,
+            "height": 0,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "175.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}

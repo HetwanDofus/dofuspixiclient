@@ -1,4 +1,6 @@
-import { Assets, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
+import { Container, Graphics, Sprite, Text, Texture } from "pixi.js";
+
+import { loadSvg } from "@/render/load-svg";
 
 import type { CharacterStats } from "@/types/stats";
 import { i18n } from "@/i18n";
@@ -56,6 +58,7 @@ export class StatsPanel {
 
   private onBoostStat?: (statId: number) => void;
   private onClose?: () => void;
+  private loadGeneration = 0;
 
   constructor(zoom: number) {
     this.zoom = zoom;
@@ -113,10 +116,15 @@ export class StatsPanel {
 
     // ═══════ TOP: Name header (dark) ═══════
     const headerH = p(28);
+    const headerR = p(10); // inner radius = cornerradius(13) - borderwidth(3)
     const headerBg = new Graphics();
-    headerBg.roundRect(0, 0, W, headerH, p(3));
-    headerBg.fill({ color: COLORS.HEADER_BG });
-    headerBg.rect(0, p(3), W, headerH - p(3));
+    headerBg.moveTo(headerR, 0);
+    headerBg.lineTo(W - headerR, 0);
+    headerBg.arcTo(W, 0, W, headerR, headerR);
+    headerBg.lineTo(W, headerH);
+    headerBg.lineTo(0, headerH);
+    headerBg.lineTo(0, headerR);
+    headerBg.arcTo(0, 0, headerR, 0, headerR);
     headerBg.fill({ color: COLORS.HEADER_BG });
     headerBg.eventMode = "static";
     this.container.addChild(headerBg);
@@ -234,7 +242,7 @@ export class StatsPanel {
       onVal: (t: Text) => void;
     }> = [
       {
-        icon: "IconVita.svg",
+        icon: "icon-heart.svg",
         label: i18n._(LABELS.hp),
         isLP: true,
         tip: i18n._(TOOLTIPS.hp),
@@ -430,16 +438,30 @@ export class StatsPanel {
     }
 
     // ═══════ FIXED HEIGHT background (at bottom of z-order) ═══════
+    // Rounded top corners, flat bottom (glued to banner)
+    // Original: cornerradius=13, borderwidth=3, bordercolor=0xFFFFFF
+    const r = p(13);
     const bgFill = new Graphics();
-    bgFill.roundRect(0, 0, W, panelH, p(3));
+    bgFill.moveTo(r, 0);
+    bgFill.lineTo(W - r, 0);
+    bgFill.arcTo(W, 0, W, r, r);
+    bgFill.lineTo(W, panelH);
+    bgFill.lineTo(0, panelH);
+    bgFill.lineTo(0, r);
+    bgFill.arcTo(0, 0, r, 0, r);
     bgFill.fill({ color: COLORS.BG });
     bgFill.eventMode = "static";
     this.container.addChildAt(bgFill, 0);
 
-    // Border overlay (on top of everything)
+    // Border overlay — white, open bottom (no bottom edge)
     const borderOverlay = new Graphics();
-    borderOverlay.roundRect(0, 0, W, panelH, p(3));
-    borderOverlay.stroke({ color: COLORS.BORDER, width: 2 });
+    borderOverlay.moveTo(0, panelH);
+    borderOverlay.lineTo(0, r);
+    borderOverlay.arcTo(0, 0, r, 0, r);
+    borderOverlay.lineTo(W - r, 0);
+    borderOverlay.arcTo(W, 0, W, r, r);
+    borderOverlay.lineTo(W, panelH);
+    borderOverlay.stroke({ color: 0xffffff, width: p(3) });
     borderOverlay.eventMode = "none";
     this.container.addChild(borderOverlay);
 
@@ -523,6 +545,7 @@ export class StatsPanel {
   }
 
   private async loadIcons(): Promise<void> {
+    const gen = ++this.loadGeneration;
     const res = this.zoom * (window.devicePixelRatio || 1);
     const entries: Array<{ spr: Sprite; path: string }> = [];
     for (const [spr] of this.iconSizes) {
@@ -530,19 +553,30 @@ export class StatsPanel {
     }
 
     const results = await Promise.allSettled(
-      entries.map((e) =>
-        Assets.load({ src: e.path, data: { resolution: res } })
-      )
+      entries.map((e) => loadSvg(e.path, res))
     );
+
+    if (gen !== this.loadGeneration) return;
 
     for (let i = 0; i < entries.length; i++) {
       const result = results[i];
       if (result.status === "fulfilled" && result.value) {
         const { spr } = entries[i];
-        const size = this.iconSizes.get(spr)!;
-        spr.texture = result.value;
-        spr.width = size.w;
-        spr.height = size.h;
+        const box = this.iconSizes.get(spr)!;
+        const tex = result.value as Texture;
+        spr.texture = tex;
+
+        // Fit within the requested box while preserving aspect ratio
+        const tw = tex.width;
+        const th = tex.height;
+        if (tw > 0 && th > 0) {
+          const scale = Math.min(box.w / tw, box.h / th);
+          spr.width = tw * scale;
+          spr.height = th * scale;
+        } else {
+          spr.width = box.w;
+          spr.height = box.h;
+        }
       }
     }
   }
@@ -634,6 +668,14 @@ export class StatsPanel {
   setPosition(x: number, y: number): void {
     this.container.x = x;
     this.container.y = y;
+  }
+
+  onResize(event: { baseZoom: number }): void {
+    this.rebuild(event.baseZoom);
+  }
+
+  getContainer(): Container {
+    return this.container;
   }
 
   destroy(): void {

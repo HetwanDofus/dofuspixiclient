@@ -1,31 +1,40 @@
 import {
-  Application,
+  type Application,
+  Assets,
+  BlurFilter,
   Container,
-  Sprite,
   Graphics,
+  Sprite,
   Text,
   TextStyle,
-  Assets,
-} from 'pixi.js';
-import { DropShadowFilter } from 'pixi-filters';
+} from "pixi.js";
+
 import type {
-  WorldMapManifest,
+  HintGroup,
   HintManifest,
+  HintSpriteData,
   HintsData,
   HintsLayering,
   MapCoordinates,
-  HintSpriteData,
-  HintGroup,
-} from '@/types/worldmap';
-import { WORLDMAP_CONSTANTS, HINT_COLORS } from '@/types/worldmap';
-import { loadWorldMapData, mapCoordToPixel, filterHintsByArea } from './world-map-data';
-import { animateSprite, animateTileSurface } from './animations';
+  WorldMapManifest,
+} from "@/types/worldmap";
+import { HINT_COLORS, WORLDMAP_CONSTANTS } from "@/types/worldmap";
+
+import { animateSprite, animateTileSurface } from "./animations";
+import {
+  filterHintsByArea,
+  findMapAtCoord,
+  loadWorldMapData,
+  mapCoordToPixel,
+  pixelToMapCoord,
+} from "./world-map-data";
 
 interface HintSprite extends Sprite, HintSpriteData {}
 
 interface WorldMapRendererConfig {
   app: Application;
   parentContainer?: Container;
+  onTeleport?: (mapId: number) => void;
 }
 
 export class WorldMapRenderer {
@@ -58,10 +67,19 @@ export class WorldMapRenderer {
   private gridGraphics: Graphics;
   private showGrid = true;
 
+  private positionMarker: Graphics;
+
   private hintGroups = new Map<string, HintGroup>();
   private collapseTimers = new Map<string, number>();
+  private activeGroupKey: string | null = null;
+  private groupShadows = new Map<string, Sprite[]>();
   private viewWidth: number;
   private viewHeight: number;
+  private onTeleport?: (mapId: number) => void;
+  private dragDistance = 0;
+  private pointerDownPos = { x: 0, y: 0 };
+  private lastClickTime = 0;
+  private lastClickPos = { x: 0, y: 0 };
 
   constructor(config: WorldMapRendererConfig) {
     this.app = config.app;
@@ -77,9 +95,12 @@ export class WorldMapRenderer {
     this.hintsContainer = new Container();
     this.uiContainer = new Container();
 
+    this.positionMarker = new Graphics();
+
     this.worldContainer.addChild(this.mapContainer);
     this.worldContainer.addChild(this.gridContainer);
     this.worldContainer.addChild(this.hintsContainer);
+    this.worldContainer.addChild(this.positionMarker);
 
     this.root.addChild(this.worldContainer);
     this.root.addChild(this.uiContainer);
@@ -91,9 +112,9 @@ export class WorldMapRenderer {
     this.tooltip.addChild(this.tooltipBg);
 
     this.tooltipText = new Text({
-      text: '',
+      text: "",
       style: new TextStyle({
-        fontFamily: 'bitMini6',
+        fontFamily: "bitMini6",
         fontSize: 14,
         fill: 0xffffff,
       }),
@@ -104,15 +125,17 @@ export class WorldMapRenderer {
 
     this.root.addChild(this.tooltip);
 
+    this.onTeleport = config.onTeleport;
     this.setupControls();
   }
 
   private setupControls(): void {
-    this.worldContainer.eventMode = 'static';
-    this.root.eventMode = 'static';
+    this.worldContainer.eventMode = "static";
+    this.root.eventMode = "static";
 
     this.setupZoomControl();
     this.setupDragControl();
+    this.setupGroupTracking();
   }
 
   private setupZoomControl(): void {
@@ -150,7 +173,9 @@ export class WorldMapRenderer {
       this.clampPosition();
     };
 
-    this.app.canvas?.addEventListener('wheel', this.wheelHandler, { passive: false });
+    this.app.canvas?.addEventListener("wheel", this.wheelHandler, {
+      passive: false,
+    });
   }
 
   private clampPosition(): void {
@@ -166,37 +191,101 @@ export class WorldMapRenderer {
     const maxX = 0;
     const maxY = 0;
 
-    this.worldContainer.x = Math.max(minX, Math.min(maxX, this.worldContainer.x));
-    this.worldContainer.y = Math.max(minY, Math.min(maxY, this.worldContainer.y));
+    this.worldContainer.x = Math.max(
+      minX,
+      Math.min(maxX, this.worldContainer.x)
+    );
+    this.worldContainer.y = Math.max(
+      minY,
+      Math.min(maxY, this.worldContainer.y)
+    );
+  }
+
+  private isPointOverUI(x: number, y: number): boolean {
+    if (!this.uiContainer.visible) return false;
+    const bounds = this.uiContainer.getBounds();
+    return (
+      x >= bounds.x &&
+      x <= bounds.x + bounds.width &&
+      y >= bounds.y &&
+      y <= bounds.y + bounds.height
+    );
   }
 
   private setupDragControl(): void {
-    this.root.on('pointerdown', (e) => {
+    this.root.on("pointerdown", (e) => {
+      // Don't start drag when clicking on the category UI panel
+      if (this.isPointOverUI(e.global.x, e.global.y)) return;
+
       this.isDragging = true;
+      this.dragDistance = 0;
+      this.pointerDownPos.x = e.global.x;
+      this.pointerDownPos.y = e.global.y;
       this.dragStart.x = e.global.x - this.worldContainer.x;
       this.dragStart.y = e.global.y - this.worldContainer.y;
 
       if (this.app.canvas) {
-        this.app.canvas.style.cursor = 'grabbing';
+        this.app.canvas.style.cursor = "grabbing";
       }
     });
 
-    this.root.on('pointermove', (e) => {
+    this.root.on("pointermove", (e) => {
       if (!this.isDragging) return;
+      const dx = e.global.x - this.pointerDownPos.x;
+      const dy = e.global.y - this.pointerDownPos.y;
+      this.dragDistance = Math.sqrt(dx * dx + dy * dy);
       this.worldContainer.x = e.global.x - this.dragStart.x;
       this.worldContainer.y = e.global.y - this.dragStart.y;
       this.clampPosition();
     });
 
-    const stopDrag = () => {
+    const stopDrag = (e?: { global: { x: number; y: number } }) => {
+      const wasDrag = this.dragDistance > 5;
       this.isDragging = false;
       if (this.app.canvas) {
-        this.app.canvas.style.cursor = 'default';
+        this.app.canvas.style.cursor = "default";
+      }
+
+      // Manual double-click detection (not a drag)
+      if (!wasDrag && e) {
+        const now = performance.now();
+        const dx = e.global.x - this.lastClickPos.x;
+        const dy = e.global.y - this.lastClickPos.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (now - this.lastClickTime < 400 && dist < 20) {
+          this.handleDoubleClick(e.global.x, e.global.y);
+          this.lastClickTime = 0;
+        } else {
+          this.lastClickTime = now;
+          this.lastClickPos.x = e.global.x;
+          this.lastClickPos.y = e.global.y;
+        }
       }
     };
 
-    this.root.on('pointerup', stopDrag);
-    this.root.on('pointerupoutside', stopDrag);
+    this.root.on("pointerup", (e) => stopDrag(e));
+    this.root.on("pointerupoutside", () => stopDrag());
+  }
+
+  private handleDoubleClick(screenX: number, screenY: number): void {
+    if (!this.manifest || !this.mapCoordinates || !this.onTeleport) return;
+
+    const { bounds } = this.manifest;
+
+    // Convert screen position to world-container-local coordinates
+    const localX =
+      (screenX - this.worldContainer.x) / this.worldContainer.scale.x;
+    const localY =
+      (screenY - this.worldContainer.y) / this.worldContainer.scale.y;
+
+    // Convert pixel to game map coordinates
+    const coord = pixelToMapCoord(localX, localY, bounds.xMin, bounds.yMin);
+
+    const mapId = findMapAtCoord(coord.x, coord.y, this.mapCoordinates);
+    if (mapId != null) {
+      this.onTeleport(mapId);
+    }
   }
 
   async loadWorldMap(superarea: number = 0): Promise<void> {
@@ -272,7 +361,10 @@ export class WorldMapRenderer {
 
     // Auto-fit: calculate zoom so the map fills the available height
     const fitZoom = (this.viewHeight / mapSize) * 100;
-    this.currentZoom = Math.max(WORLDMAP_CONSTANTS.MIN_ZOOM, Math.min(fitZoom, WORLDMAP_CONSTANTS.MAX_ZOOM));
+    this.currentZoom = Math.max(
+      WORLDMAP_CONSTANTS.MIN_ZOOM,
+      Math.min(fitZoom, WORLDMAP_CONSTANTS.MAX_ZOOM)
+    );
 
     const scale = this.currentZoom / 100;
     this.worldContainer.scale.set(scale);
@@ -286,25 +378,23 @@ export class WorldMapRenderer {
     this.gridGraphics.clear();
     if (!this.showGrid) return;
 
-    const { bounds, grid_size, tile_size } = this.manifest;
+    const { bounds } = this.manifest;
+    const { DISPLAY_WIDTH, DISPLAY_HEIGHT, CHUNK_SIZE } = WORLDMAP_CONSTANTS;
 
-    // Total map in pixels (tile space)
-    const mapPx = grid_size * tile_size;
+    // Bounds are inclusive — each chunk is one SWF sprite rendered at DISPLAY_WIDTH × DISPLAY_HEIGHT
+    const chunksX = bounds.xMax - bounds.xMin + 1;
+    const chunksY = bounds.yMax - bounds.yMin + 1;
 
-    // Number of chunks
-    const chunksX = bounds.xMax - bounds.xMin;
-    const chunksY = bounds.yMax - bounds.yMin;
+    // Each chunk is exactly DISPLAY_WIDTH × DISPLAY_HEIGHT pixels in tile space
+    const totalW = chunksX * DISPLAY_WIDTH;
+    const totalH = chunksY * DISPLAY_HEIGHT;
 
-    // Pixels per chunk in tile space
-    const chunkPxW = mapPx / chunksX;
-    const chunkPxH = mapPx / chunksY;
+    // Pixels per game-map cell within a chunk
+    const cellW = DISPLAY_WIDTH / CHUNK_SIZE;
+    const cellH = DISPLAY_HEIGHT / CHUNK_SIZE;
 
-    // Pixels per game-map cell
-    const cellW = chunkPxW / WORLDMAP_CONSTANTS.CHUNK_SIZE;
-    const cellH = chunkPxH / WORLDMAP_CONSTANTS.CHUNK_SIZE;
-
-    const totalCellsX = chunksX * WORLDMAP_CONSTANTS.CHUNK_SIZE;
-    const totalCellsY = chunksY * WORLDMAP_CONSTANTS.CHUNK_SIZE;
+    const totalCellsX = chunksX * CHUNK_SIZE;
+    const totalCellsY = chunksY * CHUNK_SIZE;
 
     const gridColor = 0x000000;
     const gridAlpha = 0.12;
@@ -312,14 +402,14 @@ export class WorldMapRenderer {
     // Vertical lines
     for (let i = 0; i <= totalCellsX; i++) {
       const x = i * cellW;
-      this.gridGraphics.rect(x, 0, 1, mapPx);
+      this.gridGraphics.rect(x, 0, 1, totalH);
       this.gridGraphics.fill({ color: gridColor, alpha: gridAlpha });
     }
 
     // Horizontal lines
     for (let j = 0; j <= totalCellsY; j++) {
       const y = j * cellH;
-      this.gridGraphics.rect(0, y, mapPx, 1);
+      this.gridGraphics.rect(0, y, totalW, 1);
       this.gridGraphics.fill({ color: gridColor, alpha: gridAlpha });
     }
   }
@@ -448,22 +538,13 @@ export class WorldMapRenderer {
       };
       texturePath: string;
     }>,
-    textures: Record<string, import('pixi.js').Texture>
+    textures: Record<string, import("pixi.js").Texture>
   ): void {
     if (!this.hintManifest) {
       return;
     }
 
     const sprites: HintSprite[] = [];
-    let hitArea: Graphics | null = null;
-
-    if (groupData.length > 1) {
-      hitArea = new Graphics();
-      hitArea.eventMode = 'static';
-      hitArea.cursor = 'pointer';
-      hitArea.alpha = 0;
-      this.hintsContainer.addChild(hitArea);
-    }
 
     for (let i = 0; i < groupData.length; i++) {
       const hintData = groupData[i];
@@ -496,8 +577,8 @@ export class WorldMapRenderer {
 
       const hintScale = 1.2 / (this.hintManifest.supersample || 1);
       sprite.scale.set(hintScale);
-      sprite.eventMode = 'static';
-      sprite.cursor = 'pointer';
+      sprite.eventMode = "static";
+      sprite.cursor = "pointer";
 
       sprites.push(sprite);
       this.hintsContainer.addChild(sprite);
@@ -509,15 +590,15 @@ export class WorldMapRenderer {
 
     const group: HintGroup = {
       sprites,
-      hitArea,
+      hitArea: null,
       visualCircle: null,
       isSpread: false,
     };
 
     this.hintGroups.set(posKey, group);
 
-    if (sprites.length > 1 && hitArea) {
-      this.setupMultiHintInteractions(posKey, sprites, hitArea);
+    if (sprites.length > 1) {
+      this.setupMultiHintInteractions(posKey, sprites);
     } else {
       this.setupSingleHintInteractions(sprites[0]);
     }
@@ -525,64 +606,68 @@ export class WorldMapRenderer {
 
   private setupMultiHintInteractions(
     posKey: string,
-    sprites: HintSprite[],
-    hitArea: Graphics
+    sprites: HintSprite[]
   ): void {
-    const firstSprite = sprites[0];
-    const deckSize = 20 + (sprites.length - 1) * 2;
-
-    hitArea.rect(firstSprite.baseX - 10, firstSprite.baseY - 10, deckSize, deckSize);
-    hitArea.fill({ color: 0xff0000, alpha: 0 });
-
-    hitArea.on('pointerover', () => {
-      this.spreadHints(posKey);
-    });
-
-    hitArea.on('pointerout', (e) => {
-      const isOverAnySprite = sprites.some((s) => s.containsPoint(e.global));
-
-      if (!isOverAnySprite) {
-        this.collapseHints(posKey);
-        this.hideTooltip();
-      }
-    });
-
+    // Sprite pointerover triggers spread + tooltip.
+    // Collapse is handled by the global pointermove on worldContainer (setupGroupTracking).
     for (const sprite of sprites) {
-      sprite.on('pointerover', (e) => {
+      sprite.on("pointerover", (e) => {
+        this.activeGroupKey = posKey;
         this.spreadHints(posKey);
         this.showTooltip(sprite.hintData.name, e.global.x, e.global.y);
       });
 
-      sprite.on('pointermove', (e) => {
+      sprite.on("pointermove", (e) => {
         this.updateTooltipPosition(e.global.x, e.global.y);
       });
 
-      sprite.on('pointerout', (e) => {
-        const stillOverOther = sprites.some(
-          (s) => s !== sprite && s.containsPoint(e.global)
-        );
-
-        if (!stillOverOther && !hitArea.containsPoint(e.global)) {
-          this.collapseHints(posKey);
-        }
-
-        if (!stillOverOther) {
-          this.hideTooltip();
-        }
+      sprite.on("pointerout", () => {
+        this.hideTooltip();
       });
     }
   }
 
+  /** Global pointermove: collapse the active group when cursor moves far enough away. */
+  private setupGroupTracking(): void {
+    this.worldContainer.on("globalpointermove", (e) => {
+      if (!this.activeGroupKey) return;
+
+      const group = this.hintGroups.get(this.activeGroupKey);
+      if (!group || !group.isSpread) {
+        this.activeGroupKey = null;
+        return;
+      }
+
+      const firstSprite = group.sprites[0] as HintSprite;
+
+      // Convert group center to screen coordinates
+      const centerScreen = this.worldContainer.toGlobal({
+        x: firstSprite.baseX,
+        y: firstSprite.baseY,
+      });
+      const dx = e.global.x - centerScreen.x;
+      const dy = e.global.y - centerScreen.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // Collapse when cursor is more than 150 screen pixels from group center
+      if (dist > 150) {
+        this.collapseHints(this.activeGroupKey);
+        this.hideTooltip();
+        this.activeGroupKey = null;
+      }
+    });
+  }
+
   private setupSingleHintInteractions(sprite: HintSprite): void {
-    sprite.on('pointerover', (e) => {
+    sprite.on("pointerover", (e) => {
       this.showTooltip(sprite.hintData.name, e.global.x, e.global.y);
     });
 
-    sprite.on('pointermove', (e) => {
+    sprite.on("pointermove", (e) => {
       this.updateTooltipPosition(e.global.x, e.global.y);
     });
 
-    sprite.on('pointerout', () => {
+    sprite.on("pointerout", () => {
       this.hideTooltip();
     });
   }
@@ -611,30 +696,32 @@ export class WorldMapRenderer {
     const maxRotation = 15;
     const angleStep = (maxRotation * 2) / (group.sprites.length - 1);
 
+    const shadows: Sprite[] = [];
+    const firstIdx = this.hintsContainer.getChildIndex(group.sprites[0]);
+
     group.sprites.forEach((sprite, index) => {
-      const targetX = baseX + (index - (group.sprites.length - 1) / 2) * cardSpacing;
+      const targetX =
+        baseX + (index - (group.sprites.length - 1) / 2) * cardSpacing;
       const rotation = -maxRotation + index * angleStep;
 
-      if (!sprite.filters) {
-        sprite.filters = [
-          new DropShadowFilter({
-            offset: { x: 2, y: 2 },
-            blur: 4,
-            alpha: 0.5,
-          }),
-        ];
-      }
+      // Create a shadow sprite: a blurred, darkened copy offset behind the original
+      const shadow = new Sprite(sprite.texture);
+      shadow.anchor.copyFrom(sprite.anchor);
+      shadow.scale.copyFrom(sprite.scale);
+      shadow.x = sprite.x + 2;
+      shadow.y = sprite.y + 2;
+      shadow.alpha = 0.4;
+      shadow.tint = 0x000000;
+      shadow.filters = [new BlurFilter({ strength: 3, quality: 2 })];
+      shadow.eventMode = "none";
+      this.hintsContainer.addChildAt(shadow, firstIdx);
+      shadows.push(shadow);
 
+      animateSprite(shadow, targetX + 2, baseY + 2, 150, rotation);
       animateSprite(sprite, targetX, baseY, 150, rotation);
     });
 
-    if (group.hitArea) {
-      const totalWidth = (group.sprites.length - 1) * 30 + 30;
-
-      group.hitArea.clear();
-      group.hitArea.rect(baseX - totalWidth / 2, baseY - 20, totalWidth, 40);
-      group.hitArea.fill({ color: 0xff0000, alpha: 0 });
-    }
+    this.groupShadows.set(groupKey, shadows);
   }
 
   private collapseHints(groupKey: string): void {
@@ -653,9 +740,16 @@ export class WorldMapRenderer {
 
       group.isSpread = false;
 
-      group.sprites.forEach((sprite, index) => {
-        sprite.filters = null;
+      // Remove shadow sprites
+      const shadows = this.groupShadows.get(groupKey);
+      if (shadows) {
+        for (const s of shadows) {
+          s.destroy();
+        }
+        this.groupShadows.delete(groupKey);
+      }
 
+      group.sprites.forEach((sprite, index) => {
         const hintSprite = sprite as HintSprite;
         animateSprite(
           sprite,
@@ -666,20 +760,6 @@ export class WorldMapRenderer {
         );
       });
 
-      if (group.hitArea) {
-        const firstSprite = group.sprites[0] as HintSprite;
-        const deckSize = 20 + (group.sprites.length - 1) * 2;
-
-        group.hitArea.clear();
-        group.hitArea.rect(
-          firstSprite.baseX - 10,
-          firstSprite.baseY - 10,
-          deckSize,
-          deckSize
-        );
-        group.hitArea.fill({ color: 0xff0000, alpha: 0 });
-      }
-
       this.collapseTimers.delete(groupKey);
     }, 250);
 
@@ -689,6 +769,10 @@ export class WorldMapRenderer {
   private clearHintGroups(): void {
     this.collapseTimers.forEach((timer) => void clearTimeout(timer));
     this.collapseTimers.clear();
+    this.groupShadows.forEach((shadows) => {
+      for (const s of shadows) s.destroy();
+    });
+    this.groupShadows.clear();
     this.hintGroups.clear();
   }
 
@@ -706,11 +790,11 @@ export class WorldMapRenderer {
     this.uiContainer.addChild(panelBg);
 
     const title = new Text({
-      text: 'Categories',
+      text: "Categories",
       style: new TextStyle({
-        fontFamily: 'Arial',
+        fontFamily: "Arial",
         fontSize: 18,
-        fontWeight: 'bold',
+        fontWeight: "bold",
         fill: 0xffffff,
       }),
     });
@@ -719,7 +803,7 @@ export class WorldMapRenderer {
     this.uiContainer.addChild(title);
 
     const categoryStyle = new TextStyle({
-      fontFamily: 'Arial',
+      fontFamily: "Arial",
       fontSize: 14,
       fill: 0xffffff,
     });
@@ -739,9 +823,9 @@ export class WorldMapRenderer {
 
       checkbox.stroke({ color: 0xffffff, width: 1 });
       checkbox.interactive = true;
-      checkbox.cursor = 'pointer';
+      checkbox.cursor = "pointer";
 
-      checkbox.on('pointerdown', () => {
+      checkbox.on("pointerdown", () => {
         if (this.enabledCategories.has(category.id)) {
           this.enabledCategories.delete(category.id);
         } else {
@@ -776,15 +860,15 @@ export class WorldMapRenderer {
     gridCheckbox.fill({ color: this.showGrid ? 0x44ff44 : 0x444444 });
     gridCheckbox.stroke({ color: 0xffffff, width: 1 });
     gridCheckbox.interactive = true;
-    gridCheckbox.cursor = 'pointer';
-    gridCheckbox.on('pointerdown', () => {
+    gridCheckbox.cursor = "pointer";
+    gridCheckbox.on("pointerdown", () => {
       this.toggleGrid();
       this.createCategoryUI();
     });
     this.uiContainer.addChild(gridCheckbox);
 
     const gridLabel = new Text({
-      text: 'Grille',
+      text: "Grille",
       style: categoryStyle,
     });
     gridLabel.x = 50;
@@ -845,12 +929,75 @@ export class WorldMapRenderer {
   hide(): void {
     this.worldContainer.visible = false;
     this.uiContainer.visible = false;
-    this.clearHintGroups();
+    this.hideTooltip();
+
+    // Collapse any spread group immediately (without destroying group data)
+    if (this.activeGroupKey) {
+      const group = this.hintGroups.get(this.activeGroupKey);
+      if (group?.isSpread) {
+        group.isSpread = false;
+
+        const shadows = this.groupShadows.get(this.activeGroupKey);
+        if (shadows) {
+          for (const s of shadows) s.destroy();
+          this.groupShadows.delete(this.activeGroupKey);
+        }
+
+        group.sprites.forEach((sprite, index) => {
+          const hs = sprite as HintSprite;
+          sprite.x = hs.baseX + index * 2;
+          sprite.y = hs.baseY + index * 2;
+          sprite.rotation = 0;
+        });
+      }
+      this.activeGroupKey = null;
+    }
+
+    // Clear pending collapse timers but keep hintGroups intact
+    this.collapseTimers.forEach((timer) => clearTimeout(timer));
+    this.collapseTimers.clear();
+  }
+
+  /** Center the view on a specific map ID. */
+  centerOnMapId(mapId: number): void {
+    if (!this.manifest || !this.mapCoordinates) return;
+
+    const coord = this.mapCoordinates[mapId.toString()];
+    if (!coord) return;
+
+    const { bounds } = this.manifest;
+    const [pixelX, pixelY] = mapCoordToPixel(
+      coord.x,
+      coord.y,
+      bounds.xMin,
+      bounds.yMin
+    );
+
+    const scale = this.currentZoom / 100;
+    this.worldContainer.x = this.viewWidth / 2 - pixelX * scale;
+    this.worldContainer.y = this.viewHeight / 2 - pixelY * scale;
+    this.clampPosition();
+    this.drawPositionMarker(pixelX, pixelY);
+  }
+
+  private drawPositionMarker(pixelX: number, pixelY: number): void {
+    const cellW = WORLDMAP_CONSTANTS.DISPLAY_WIDTH / WORLDMAP_CONSTANTS.CHUNK_SIZE;
+    const cellH = WORLDMAP_CONSTANTS.DISPLAY_HEIGHT / WORLDMAP_CONSTANTS.CHUNK_SIZE;
+
+    this.positionMarker.clear();
+    this.positionMarker.rect(
+      pixelX - cellW / 2,
+      pixelY - cellH / 2,
+      cellW,
+      cellH
+    );
+    this.positionMarker.fill({ color: 0xff0000, alpha: 0.5 });
+    this.positionMarker.stroke({ color: 0xff0000, width: 1, alpha: 0.5 });
   }
 
   destroy(): void {
     if (this.wheelHandler) {
-      this.app.canvas?.removeEventListener('wheel', this.wheelHandler);
+      this.app.canvas?.removeEventListener("wheel", this.wheelHandler);
     }
 
     this.clearHintGroups();

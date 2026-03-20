@@ -6,6 +6,7 @@ import type {
   HintsLayering,
   MapCoordinates,
 } from '@/types/worldmap';
+import { WORLDMAP_CONSTANTS } from '@/types/worldmap';
 import { loadWorldMapData, mapCoordToPixel, pixelToMapCoord, findMapAtCoord, filterHintsByArea } from './world-map-data';
 
 interface MinimapRendererConfig {
@@ -283,11 +284,19 @@ export class MinimapRenderer {
   }
 
   private drawPositionMarker(pixelX: number, pixelY: number): void {
+    const cellW = WORLDMAP_CONSTANTS.DISPLAY_WIDTH / WORLDMAP_CONSTANTS.CHUNK_SIZE;
+    const cellH = WORLDMAP_CONSTANTS.DISPLAY_HEIGHT / WORLDMAP_CONSTANTS.CHUNK_SIZE;
+
     this.positionMarker.clear();
-    this.positionMarker.circle(pixelX, pixelY, 8);
-    this.positionMarker.fill({ color: 0xffffff, alpha: 0.9 });
-    this.positionMarker.circle(pixelX, pixelY, 5);
-    this.positionMarker.fill({ color: 0x44aaff, alpha: 1 });
+    // Pink filled rectangle matching one map cell, like original Dofus
+    this.positionMarker.rect(
+      pixelX - cellW / 2,
+      pixelY - cellH / 2,
+      cellW,
+      cellH
+    );
+    this.positionMarker.fill({ color: 0xff0000, alpha: 0.5 });
+    this.positionMarker.stroke({ color: 0xff0000, width: 1, alpha: 0.5 });
   }
 
   /**

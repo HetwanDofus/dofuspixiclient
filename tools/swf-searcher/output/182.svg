@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100px" height="15px">
+    <g transform="matrix(1, 0, 0, 1, 0, 0)">
+        <use xlink:href="#object-0" width="100" height="32.5" transform="matrix(1, 0, 0, 0.4617, 0, 0)" id="" />
+        <use xlink:href="#object-2" width="100" height="32.5" transform="matrix(1.0002, 0, 0, 0.4615, 0, 0)"
+            id="_mcBarHighlight" />
+        <use xlink:href="#object-4" width="100" height="32.5" transform="matrix(1.0002, 0, 0, 0.4615, 0, 0)"
+            id="_mcBar" />
+        <use xlink:href="#object-6" width="100" height="32.5" transform="matrix(1, 0, 0, 0.4615, 0, 0)"
+            id="_mcBorder" />
+    </g>
+    <defs>
+        <g transform="matrix(1, 0, 0, 1, 0, 16.25)" id="object-0">
+            <use xlink:href="#object-1" width="100" height="32.5" transform="matrix(1, 0, 0, 1, 0, -16.25)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 16.25)" id="object-1">
+            <path fill-rule="evenodd" fill="#750202" stroke="none"
+                d="M100 16.25L0 16.25L0 -16.25L100 -16.25L100 16.25" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 16.25)" id="object-2">
+            <use xlink:href="#object-3" width="100" height="32.5" transform="matrix(1, 0, 0, 1, 0, -16.25)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 16.25)" id="object-3">
+            <path fill-rule="evenodd" fill="#ff3300" stroke="none" d="M0 -16.25L100 -16.25L100 -4.5L0 -4.5L0 -16.25" />
+            <path fill-rule="evenodd" fill="#cc0000" stroke="none" d="M100 16.25L0 16.25L0 -4.5L100 -4.5L100 16.25" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 16.25)" id="object-4">
+            <use xlink:href="#object-5" width="100" height="32.5" transform="matrix(1, 0, 0, 1, 0, -16.25)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 16.25)" id="object-5">
+            <path fill-rule="evenodd" fill="#ff3300" stroke="none" d="M0 -16.25L100 -16.25L100 -4.5L0 -4.5L0 -16.25" />
+            <path fill-rule="evenodd" fill="#cc0000" stroke="none" d="M100 16.25L0 16.25L0 -4.5L100 -4.5L100 16.25" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 16.25)" id="object-6">
+            <use xlink:href="#object-7" width="100" height="32.5" transform="matrix(1, 0, 0, 1, 0, -16.25)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 16.25)" id="object-7">
+            <path fill="none" stroke="#cc0000" vector-effect="non-scaling-stroke" stroke-width="1"
+                stroke-linecap="round" stroke-linejoin="round" d="M100 16.25L0 16.25L0 -16.25L100 -16.25L100 16.25" />
+        </g>
+    </defs>
+</svg>

@@ -92,6 +92,16 @@ export class GridOverlay {
     }
   }
 
+  onResize(_event: { zoom: number }): void {
+    if (this.visible) {
+      this.draw();
+    }
+  }
+
+  getContainer(): Container {
+    return this.container;
+  }
+
   clear(): void {
     this.graphics.clear();
   }
