@@ -41,23 +41,23 @@ export class StatRow {
     this.btnW = p(16);
     this.btnH = p(15);
 
-    // SVG icon (loaded async)
+    // SVG icon (loaded async) — FLA: characteristic icons at relX=20
     this.iconSprite = new Sprite(Texture.EMPTY);
     this.iconSprite.width = ICON_SIZE;
     this.iconSprite.height = ICON_SIZE;
-    this.iconSprite.x = PX;
+    this.iconSprite.x = p(20);
     this.iconSprite.y = (ROW_H - ICON_SIZE) / 2;
     this.container.addChild(this.iconSprite);
 
     this.loadIcon(iconPath);
 
-    // Stat name
+    // Stat name — FLA: characteristic labels at relX=38
     const nameText = new Text({
       text: name,
       style: regularText(f(11), COLORS.TEXT_DARK),
     });
     nameText.anchor.set(0, 0.5);
-    nameText.x = PX + p(18);
+    nameText.x = p(38);
     nameText.y = ROW_H / 2;
     this.container.addChild(nameText);
     if (tooltip) {
@@ -70,10 +70,10 @@ export class StatRow {
       nameText.on("pointerout", () => hideTooltip());
     }
 
-    // Value (right-aligned, vertically centered)
+    // Value (right-aligned, vertically centered) — BrownRightMediumLabel: Font1/Verdana, size 11
     this.valueText = new Text({
       text: "0",
-      style: boldText(f(11), COLORS.TEXT_DARK),
+      style: regularText(f(11), COLORS.TEXT_DARK),
     });
     this.valueText.anchor.set(1, 0.5);
     this.valueText.x = panelWidth - PX - p(20);
@@ -141,11 +141,24 @@ export class StatRow {
       const tex = await Assets.load({ src: path, data: { resolution: res } });
 
       if (tex) {
-        const w = this.iconSprite.width;
-        const h = this.iconSprite.height;
+        const boxW = this.iconSprite.width;
+        const boxH = this.iconSprite.height;
+        const origX = this.iconSprite.x;
+        const origY = this.iconSprite.y;
         this.iconSprite.texture = tex;
-        this.iconSprite.width = w;
-        this.iconSprite.height = h;
+        // Fit within box preserving aspect ratio, then center
+        const tw = tex.width;
+        const th = tex.height;
+        if (tw > 0 && th > 0) {
+          const scale = Math.min(boxW / tw, boxH / th);
+          this.iconSprite.width = tw * scale;
+          this.iconSprite.height = th * scale;
+          this.iconSprite.x = origX + (boxW - tw * scale) / 2;
+          this.iconSprite.y = origY + (boxH - th * scale) / 2;
+        } else {
+          this.iconSprite.width = boxW;
+          this.iconSprite.height = boxH;
+        }
       }
     } catch {
       // icon not found — keep empty

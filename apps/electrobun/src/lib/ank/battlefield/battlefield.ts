@@ -15,7 +15,14 @@ import { DISPLAY_HEIGHT } from "@/constants/battlefield";
 import { type GameWorld, getGameWorld } from "@/ecs/world";
 
 import { Banner } from "@/hud/banner";
+import { ConquestPanel } from "@/hud/conquest";
 import { initTooltipBounds } from "@/hud/core/tooltip";
+import { FriendsPanel } from "@/hud/friends";
+import { GuildPanel } from "@/hud/guild";
+import { InventoryPanel } from "@/hud/inventory";
+import { MountPanel } from "@/hud/mount";
+import { QuestsPanel } from "@/hud/quests";
+import { SpellsPanel } from "@/hud/spells";
 import { StatsPanel } from "@/hud/stats";
 import { WorldMapPanel } from "@/hud/worldmap";
 import { AtlasLoader } from "@/render/atlas-loader";
@@ -94,6 +101,13 @@ export class Battlefield {
   private pickingSystem: PickingSystem | null = null;
   private banner: Banner | null = null;
   private statsPanel: StatsPanel | null = null;
+  private spellsPanel: SpellsPanel | null = null;
+  private inventoryPanel: InventoryPanel | null = null;
+  private questsPanel: QuestsPanel | null = null;
+  private friendsPanel: FriendsPanel | null = null;
+  private guildPanel: GuildPanel | null = null;
+  private mountPanel: MountPanel | null = null;
+  private conquestPanel: ConquestPanel | null = null;
   private worldMapPanel: WorldMapPanel | null = null;
 
   private currentMapData: MapData | null = null;
@@ -193,6 +207,7 @@ export class Battlefield {
       screenWidth: screenW,
       screenHeight: screenH,
     });
+    this.updatePanelPositions();
   }
 
   private handleResizeStart(): void {
@@ -291,12 +306,17 @@ export class Battlefield {
     this.banner.setOnMinimapTeleport((mapId) => {
       this.onMinimapTeleportCallback?.(mapId);
     });
-    this.banner.setOnStatsToggle(() => {
-      this.statsPanel?.toggle();
-    });
-    this.banner.setOnMapToggle(() => {
-      this.toggleWorldMap();
-    });
+    // Wire banner button toggles with mutual exclusion
+    this.banner.setOnStatsToggle(() => this.togglePanel('stats'));
+    this.banner.setOnSpellsToggle(() => this.togglePanel('spells'));
+    this.banner.setOnInventoryToggle(() => this.togglePanel('inventory'));
+    this.banner.setOnQuestsToggle(() => this.togglePanel('quests'));
+    this.banner.setOnMapToggle(() => this.toggleWorldMap());
+    this.banner.setOnFriendsToggle(() => this.togglePanel('friends'));
+    this.banner.setOnGuildToggle(() => this.togglePanel('guild'));
+    this.banner.setOnMountToggle(() => this.togglePanel('mount'));
+    this.banner.setOnConquestToggle(() => this.togglePanel('conquest'));
+
     // World map panel — covers the game render area (below banner z-order)
     this.worldMapPanel = new WorldMapPanel(this.app);
     const gameAreaH = Math.floor(DISPLAY_HEIGHT * baseZoom);
@@ -314,16 +334,43 @@ export class Battlefield {
     // Banner — always on top of world map
     this.app.stage.addChild(this.banner.getGraphics());
 
-    // Stats panel — anchored above the banner, right side
-    this.statsPanel = new StatsPanel(this.engine.getBaseZoom());
-    this.updateStatsPanelPosition();
+    // Create all panels — anchored above the banner
+    this.statsPanel = new StatsPanel(baseZoom);
     this.statsPanel.setOnBoostStat((statId) => {
       this.onBoostStatCallback?.(statId);
     });
-    this.statsPanel.setOnClose(() => {
-      this.banner?.setStatsPressed(false);
-    });
+    this.statsPanel.setOnClose(() => this.banner?.setStatsPressed(false));
     this.app.stage.addChild(this.statsPanel.container);
+
+    this.spellsPanel = new SpellsPanel(baseZoom);
+    this.spellsPanel.setOnClose(() => this.banner?.setSpellsPressed(false));
+    this.app.stage.addChild(this.spellsPanel.container);
+
+    this.inventoryPanel = new InventoryPanel(baseZoom);
+    this.inventoryPanel.setOnClose(() => this.banner?.setInventoryPressed(false));
+    this.app.stage.addChild(this.inventoryPanel.container);
+
+    this.questsPanel = new QuestsPanel(baseZoom);
+    this.questsPanel.setOnClose(() => this.banner?.setQuestsPressed(false));
+    this.app.stage.addChild(this.questsPanel.container);
+
+    this.friendsPanel = new FriendsPanel(baseZoom);
+    this.friendsPanel.setOnClose(() => this.banner?.setFriendsPressed(false));
+    this.app.stage.addChild(this.friendsPanel.container);
+
+    this.guildPanel = new GuildPanel(baseZoom);
+    this.guildPanel.setOnClose(() => this.banner?.setGuildPressed(false));
+    this.app.stage.addChild(this.guildPanel.container);
+
+    this.mountPanel = new MountPanel(baseZoom);
+    this.mountPanel.setOnClose(() => this.banner?.setMountPressed(false));
+    this.app.stage.addChild(this.mountPanel.container);
+
+    this.conquestPanel = new ConquestPanel(baseZoom);
+    this.conquestPanel.setOnClose(() => this.banner?.setConquestPressed(false));
+    this.app.stage.addChild(this.conquestPanel.container);
+
+    this.updatePanelPositions();
 
     initTooltipBounds(this.app);
 
@@ -378,9 +425,9 @@ export class Battlefield {
 
     // Register renderers
     this.rendererRegistry.register("banner", (e) => this.banner!.onResize(e));
-    this.rendererRegistry.register("stats-panel", (e) => this.statsPanel!.onResize(e));
     this.rendererRegistry.register("debug-overlay", (e) => this.debugOverlay!.onResize(e));
     this.rendererRegistry.register("grid-overlay", (e) => this.gridOverlay!.onResize(e));
+    // Panels are rebuilt + repositioned together in updatePanelPositions()
   }
 
   /** Resolves when banner assets are fully loaded and drawn. */
@@ -888,28 +935,71 @@ export class Battlefield {
   }
 
   /**
-   * Check if a screen point falls over an open UI panel (stats, etc.)
+   * Check if a screen point falls over an open UI panel.
    */
   private isPointOverUI(x: number, y: number): boolean {
     if (this.worldMapPanel?.isVisible()) {
       return true;
     }
-    if (this.statsPanel?.isVisible()) {
-      const c = this.statsPanel.container;
-      const bounds = c.getBounds();
-      if (
-        x >= bounds.x &&
-        x <= bounds.x + bounds.width &&
-        y >= bounds.y &&
-        y <= bounds.y + bounds.height
-      ) {
-        return true;
+    const panels = [
+      this.statsPanel, this.spellsPanel, this.inventoryPanel,
+      this.questsPanel, this.friendsPanel, this.guildPanel,
+      this.mountPanel, this.conquestPanel,
+    ];
+    for (const panel of panels) {
+      if (panel?.isVisible()) {
+        const bounds = panel.container.getBounds();
+        if (
+          x >= bounds.x &&
+          x <= bounds.x + bounds.width &&
+          y >= bounds.y &&
+          y <= bounds.y + bounds.height
+        ) {
+          return true;
+        }
       }
     }
     return false;
   }
 
-  private updateStatsPanelPosition(): void {
+  /** All managed panels mapped to their banner button key */
+  private get panelMap() {
+    return {
+      stats: { panel: this.statsPanel, setPressed: (p: boolean) => this.banner?.setStatsPressed(p) },
+      spells: { panel: this.spellsPanel, setPressed: (p: boolean) => this.banner?.setSpellsPressed(p) },
+      inventory: { panel: this.inventoryPanel, setPressed: (p: boolean) => this.banner?.setInventoryPressed(p) },
+      quests: { panel: this.questsPanel, setPressed: (p: boolean) => this.banner?.setQuestsPressed(p) },
+      friends: { panel: this.friendsPanel, setPressed: (p: boolean) => this.banner?.setFriendsPressed(p) },
+      guild: { panel: this.guildPanel, setPressed: (p: boolean) => this.banner?.setGuildPressed(p) },
+      mount: { panel: this.mountPanel, setPressed: (p: boolean) => this.banner?.setMountPressed(p) },
+      conquest: { panel: this.conquestPanel, setPressed: (p: boolean) => this.banner?.setConquestPressed(p) },
+    } as const;
+  }
+
+  private closeAllPanels(): void {
+    const map = this.panelMap;
+    const keys = Object.keys(map) as Array<keyof typeof map>;
+    for (const key of keys) {
+      const { panel, setPressed } = map[key];
+      if (panel?.isVisible()) {
+        panel.hide();
+        setPressed(false);
+      }
+    }
+  }
+
+  private togglePanel(key: keyof Battlefield['panelMap']): void {
+    const map = this.panelMap;
+    const entry = map[key];
+    const wasVisible = entry.panel?.isVisible();
+    this.closeAllPanels();
+    if (!wasVisible) {
+      entry.panel?.show();
+      entry.setPressed(true);
+    }
+  }
+
+  private updatePanelPositions(): void {
     if (!this.app) return;
     const zoom = this.engine.getBaseZoom();
     const bannerY = Math.floor(DISPLAY_HEIGHT * zoom);
@@ -917,13 +1007,25 @@ export class Battlefield {
     // Update world map panel area
     this.worldMapPanel?.setArea(this.app.screen.width, bannerY);
 
-    if (!this.statsPanel) return;
-    // Rebuild panel at the correct zoom so everything is pixel-crisp
-    this.statsPanel.rebuild(zoom);
-    this.statsPanel.setPosition(
-      Math.round(this.app.screen.width - this.statsPanel.panelW - 4),
-      Math.round(bannerY - this.statsPanel.panelH)
-    );
+    // Position each panel above the banner, right-aligned
+    const screenW = this.app.screen.width;
+    const positionPanel = (panel: { rebuild: (z: number) => void; setPosition: (x: number, y: number) => void; panelW: number; panelH: number } | null) => {
+      if (!panel) return;
+      panel.rebuild(zoom);
+      panel.setPosition(
+        Math.round(screenW - panel.panelW - 4),
+        Math.round(bannerY - panel.panelH),
+      );
+    };
+
+    positionPanel(this.statsPanel);
+    positionPanel(this.spellsPanel);
+    positionPanel(this.inventoryPanel);
+    positionPanel(this.questsPanel);
+    positionPanel(this.friendsPanel);
+    positionPanel(this.guildPanel);
+    positionPanel(this.mountPanel);
+    positionPanel(this.conquestPanel);
   }
 
   setOnCellClick(callback: (cellId: number) => void): void {
@@ -942,15 +1044,20 @@ export class Battlefield {
     return this.statsPanel;
   }
 
+  getInventoryPanel(): InventoryPanel | null {
+    return this.inventoryPanel;
+  }
+
   getWorldMapPanel(): WorldMapPanel | null {
     return this.worldMapPanel;
   }
 
   toggleWorldMap(): void {
+    this.closeAllPanels();
     const wasVisible = this.worldMapPanel?.isVisible() ?? false;
     this.worldMapPanel?.toggle(this.currentMapId ?? undefined);
+    this.banner?.setMapPressed(!wasVisible);
     if (this.interactionHandler) {
-      // wasVisible means we're closing; !wasVisible means we're opening
       this.interactionHandler.enabled = wasVisible;
     }
   }
@@ -1068,6 +1175,20 @@ export class Battlefield {
 
     this.statsPanel?.destroy();
     this.statsPanel = null;
+    this.spellsPanel?.destroy();
+    this.spellsPanel = null;
+    this.inventoryPanel?.destroy();
+    this.inventoryPanel = null;
+    this.questsPanel?.destroy();
+    this.questsPanel = null;
+    this.friendsPanel?.destroy();
+    this.friendsPanel = null;
+    this.guildPanel?.destroy();
+    this.guildPanel = null;
+    this.mountPanel?.destroy();
+    this.mountPanel = null;
+    this.conquestPanel?.destroy();
+    this.conquestPanel = null;
     this.worldMapPanel?.destroy();
     this.worldMapPanel = null;
     this.interactionHandler?.destroy();

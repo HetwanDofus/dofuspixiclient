@@ -1,0 +1,26 @@
+{
+    "version": "1.0",
+    "generated": "2026-03-21T18:24:24+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "1095": {
+            "id": 1095,
+            "exportName": "StarSymbol",
+            "type": "sprite",
+            "width": 23.75,
+            "height": 22.6,
+            "offsetX": -1.65,
+            "offsetY": -2.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1095.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}

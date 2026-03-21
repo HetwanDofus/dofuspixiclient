@@ -1,0 +1,1556 @@
+{
+    "version": "1.0",
+    "generated": "2026-03-21T18:17:28+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "1": {
+            "id": 1,
+            "exportName": null,
+            "type": "shape",
+            "width": 14,
+            "height": 14,
+            "offsetX": -7,
+            "offsetY": -7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "2": {
+            "id": 2,
+            "exportName": null,
+            "type": "sprite",
+            "width": 14,
+            "height": 14,
+            "offsetX": -7,
+            "offsetY": -7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "2.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "3": {
+            "id": 3,
+            "exportName": null,
+            "type": "shape",
+            "width": 16,
+            "height": 16,
+            "offsetX": -8,
+            "offsetY": -8,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "3.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "4": {
+            "id": 4,
+            "exportName": null,
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": -8,
+            "offsetY": -8,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "4.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "5": {
+            "id": 5,
+            "exportName": null,
+            "type": "shape",
+            "width": 15.4,
+            "height": 15.4,
+            "offsetX": -7.7,
+            "offsetY": -7.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "5.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "6": {
+            "id": 6,
+            "exportName": null,
+            "type": "shape",
+            "width": 5.55,
+            "height": 12.3,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "6.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "7": {
+            "id": 7,
+            "exportName": null,
+            "type": "shape",
+            "width": 3.1,
+            "height": 3.65,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "7.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "8": {
+            "id": 8,
+            "exportName": null,
+            "type": "shape",
+            "width": 3.35,
+            "height": 6.25,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "8.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "9": {
+            "id": 9,
+            "exportName": null,
+            "type": "shape",
+            "width": 3.4,
+            "height": 2.65,
+            "offsetX": -1.65,
+            "offsetY": -5.3,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "9.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "10": {
+            "id": 10,
+            "exportName": null,
+            "type": "sprite",
+            "width": 15.4,
+            "height": 15.4,
+            "offsetX": -7.7,
+            "offsetY": -7.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "10.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "11": {
+            "id": 11,
+            "exportName": "Icon_103",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "11.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "12": {
+            "id": 12,
+            "exportName": null,
+            "type": "shape",
+            "width": 10.2,
+            "height": 12.75,
+            "offsetX": 3.2,
+            "offsetY": 1.6,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "12.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "13": {
+            "id": 13,
+            "exportName": "Icon_82",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "13.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "14": {
+            "id": 14,
+            "exportName": null,
+            "type": "shape",
+            "width": 10.05,
+            "height": 11.9,
+            "offsetX": 3,
+            "offsetY": 2.05,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "14.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "15": {
+            "id": 15,
+            "exportName": "Icon_80",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "15.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "16": {
+            "id": 16,
+            "exportName": null,
+            "type": "shape",
+            "width": 11.25,
+            "height": 10.45,
+            "offsetX": 2.4,
+            "offsetY": 2.85,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "16.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "17": {
+            "id": 17,
+            "exportName": "Icon_49",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "17.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "18": {
+            "id": 18,
+            "exportName": null,
+            "type": "shape",
+            "width": 15.4,
+            "height": 15.4,
+            "offsetX": -7.7,
+            "offsetY": -7.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "18.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "19": {
+            "id": 19,
+            "exportName": null,
+            "type": "sprite",
+            "width": 15.4,
+            "height": 15.4,
+            "offsetX": -7.7,
+            "offsetY": -7.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "19.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "20": {
+            "id": 20,
+            "exportName": "Icon_37",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "20.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "21": {
+            "id": 21,
+            "exportName": null,
+            "type": "shape",
+            "width": 15.4,
+            "height": 15.4,
+            "offsetX": -7.7,
+            "offsetY": -7.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "21.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "22": {
+            "id": 22,
+            "exportName": null,
+            "type": "sprite",
+            "width": 15.4,
+            "height": 15.4,
+            "offsetX": -7.7,
+            "offsetY": -7.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "22.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "23": {
+            "id": 23,
+            "exportName": "Icon_36",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "23.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "24": {
+            "id": 24,
+            "exportName": null,
+            "type": "shape",
+            "width": 15.4,
+            "height": 15.4,
+            "offsetX": -7.7,
+            "offsetY": -7.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "24.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "25": {
+            "id": 25,
+            "exportName": null,
+            "type": "sprite",
+            "width": 15.4,
+            "height": 15.4,
+            "offsetX": -7.7,
+            "offsetY": -7.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "25.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "26": {
+            "id": 26,
+            "exportName": "Icon_35",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "26.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "27": {
+            "id": 27,
+            "exportName": null,
+            "type": "shape",
+            "width": 15.4,
+            "height": 15.4,
+            "offsetX": -7.7,
+            "offsetY": -7.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "27.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "28": {
+            "id": 28,
+            "exportName": null,
+            "type": "sprite",
+            "width": 15.4,
+            "height": 15.4,
+            "offsetX": -7.7,
+            "offsetY": -7.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "28.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "29": {
+            "id": 29,
+            "exportName": "Icon_34",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "29.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "30": {
+            "id": 30,
+            "exportName": null,
+            "type": "shape",
+            "width": 15.4,
+            "height": 15.4,
+            "offsetX": -7.7,
+            "offsetY": -7.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "30.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "31": {
+            "id": 31,
+            "exportName": null,
+            "type": "sprite",
+            "width": 15.4,
+            "height": 15.4,
+            "offsetX": -7.7,
+            "offsetY": -7.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "31.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "32": {
+            "id": 32,
+            "exportName": "Icon_33",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "32.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "33": {
+            "id": 33,
+            "exportName": "Icon_79",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "33.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "34": {
+            "id": 34,
+            "exportName": "Icon_31",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "34.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "35": {
+            "id": 35,
+            "exportName": null,
+            "type": "shape",
+            "width": 11.4,
+            "height": 9.35,
+            "offsetX": 2.3,
+            "offsetY": 3.35,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "35.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "36": {
+            "id": 36,
+            "exportName": "Icon_30",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "36.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "37": {
+            "id": 37,
+            "exportName": null,
+            "type": "shape",
+            "width": 10.2,
+            "height": 12.75,
+            "offsetX": 3.2,
+            "offsetY": 1.6,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "37.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "38": {
+            "id": 38,
+            "exportName": "Icon_29",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "38.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "39": {
+            "id": 39,
+            "exportName": null,
+            "type": "shape",
+            "width": 8.35,
+            "height": 10.35,
+            "offsetX": 3.85,
+            "offsetY": 2.85,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "39.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "40": {
+            "id": 40,
+            "exportName": "Icon_28",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "40.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "41": {
+            "id": 41,
+            "exportName": null,
+            "type": "shape",
+            "width": 11.3,
+            "height": 9.85,
+            "offsetX": 2.35,
+            "offsetY": 3.1,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "41.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "42": {
+            "id": 42,
+            "exportName": "Icon_27",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "42.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "43": {
+            "id": 43,
+            "exportName": null,
+            "type": "shape",
+            "width": 11.95,
+            "height": 10.9,
+            "offsetX": 2,
+            "offsetY": 2.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "43.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "44": {
+            "id": 44,
+            "exportName": "Icon_26",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "44.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "45": {
+            "id": 45,
+            "exportName": null,
+            "type": "shape",
+            "width": 12.7,
+            "height": 11.5,
+            "offsetX": 1.65,
+            "offsetY": 2.75,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "45.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "46": {
+            "id": 46,
+            "exportName": "Icon_24",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "46.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "47": {
+            "id": 47,
+            "exportName": "Icon_23",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "47.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "48": {
+            "id": 48,
+            "exportName": null,
+            "type": "shape",
+            "width": 12.85,
+            "height": 7.15,
+            "offsetX": 1.55,
+            "offsetY": 4.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "48.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "49": {
+            "id": 49,
+            "exportName": "Icon_22",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "49.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "50": {
+            "id": 50,
+            "exportName": "Icon_21",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "50.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "51": {
+            "id": 51,
+            "exportName": "Icon_20",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "51.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "52": {
+            "id": 52,
+            "exportName": null,
+            "type": "shape",
+            "width": 12.7,
+            "height": 7.85,
+            "offsetX": 1.65,
+            "offsetY": 4.1,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "52.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "53": {
+            "id": 53,
+            "exportName": "Icon_19",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "53.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "54": {
+            "id": 54,
+            "exportName": null,
+            "type": "shape",
+            "width": 9.35,
+            "height": 10.4,
+            "offsetX": 3.35,
+            "offsetY": 2.8,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "54.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "55": {
+            "id": 55,
+            "exportName": "Icon_18",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "55.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "56": {
+            "id": 56,
+            "exportName": "Icon_17",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "56.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "57": {
+            "id": 57,
+            "exportName": "Icon_16",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "57.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "58": {
+            "id": 58,
+            "exportName": null,
+            "type": "shape",
+            "width": 9.65,
+            "height": 11.2,
+            "offsetX": 3.2,
+            "offsetY": 2.4,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "58.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "59": {
+            "id": 59,
+            "exportName": "Icon_15",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "59.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "60": {
+            "id": 60,
+            "exportName": "Icon_14",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "60.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "61": {
+            "id": 61,
+            "exportName": null,
+            "type": "shape",
+            "width": 9.2,
+            "height": 12.5,
+            "offsetX": 3.4,
+            "offsetY": 1.75,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "61.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "62": {
+            "id": 62,
+            "exportName": "Icon_13",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "62.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "63": {
+            "id": 63,
+            "exportName": null,
+            "type": "shape",
+            "width": 9.2,
+            "height": 12.5,
+            "offsetX": 3.4,
+            "offsetY": 1.75,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "63.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "64": {
+            "id": 64,
+            "exportName": "Icon_12",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "64.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "65": {
+            "id": 65,
+            "exportName": null,
+            "type": "shape",
+            "width": 6.2,
+            "height": 11,
+            "offsetX": 4.9,
+            "offsetY": 2.5,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "65.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "66": {
+            "id": 66,
+            "exportName": "Icon_11",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "66.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "67": {
+            "id": 67,
+            "exportName": null,
+            "type": "shape",
+            "width": 10.65,
+            "height": 12.8,
+            "offsetX": 2.7,
+            "offsetY": 1.65,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "67.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "68": {
+            "id": 68,
+            "exportName": "Icon_10",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "68.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "69": {
+            "id": 69,
+            "exportName": null,
+            "type": "shape",
+            "width": 9.3,
+            "height": 8.6,
+            "offsetX": 3.35,
+            "offsetY": 3.7,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "69.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "70": {
+            "id": 70,
+            "exportName": "Icon_9",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "70.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "71": {
+            "id": 71,
+            "exportName": "Icon_8",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "71.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "72": {
+            "id": 72,
+            "exportName": "Icon_7",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "72.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "73": {
+            "id": 73,
+            "exportName": "Icon_6",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "73.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "74": {
+            "id": 74,
+            "exportName": null,
+            "type": "shape",
+            "width": 7.9,
+            "height": 9.15,
+            "offsetX": 4.05,
+            "offsetY": 3.45,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "74.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "75": {
+            "id": 75,
+            "exportName": "Icon_5",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "75.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "76": {
+            "id": 76,
+            "exportName": "Icon_4",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "76.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "77": {
+            "id": 77,
+            "exportName": "Icon_3",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "77.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "78": {
+            "id": 78,
+            "exportName": null,
+            "type": "shape",
+            "width": 8.6,
+            "height": 12.45,
+            "offsetX": 3.7,
+            "offsetY": 1.8,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "78.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "79": {
+            "id": 79,
+            "exportName": "Icon_2",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "79.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "80": {
+            "id": 80,
+            "exportName": "Icon_1",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "80.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "81": {
+            "id": 81,
+            "exportName": "Icon_0",
+            "type": "sprite",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "81.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "82": {
+            "id": 82,
+            "exportName": null,
+            "type": "shape",
+            "width": 8,
+            "height": 8,
+            "offsetX": -4,
+            "offsetY": -4,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "82.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "83": {
+            "id": 83,
+            "exportName": "Icon+",
+            "type": "sprite",
+            "width": 8,
+            "height": 8,
+            "offsetX": -4,
+            "offsetY": -4,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "83.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "84": {
+            "id": 84,
+            "exportName": null,
+            "type": "shape",
+            "width": 7.9,
+            "height": 7.95,
+            "offsetX": -3.95,
+            "offsetY": -3.95,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "84.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "85": {
+            "id": 85,
+            "exportName": "Icon*",
+            "type": "sprite",
+            "width": 7.9,
+            "height": 7.95,
+            "offsetX": -3.95,
+            "offsetY": -3.95,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "85.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "86": {
+            "id": 86,
+            "exportName": null,
+            "type": "shape",
+            "width": 8,
+            "height": 4.4,
+            "offsetX": -4,
+            "offsetY": -2.2,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "86.svg"
+                }
+            ],
+            "frameCount": 1
+        },
+        "87": {
+            "id": 87,
+            "exportName": "icon-",
+            "type": "sprite",
+            "width": 8,
+            "height": 4.4,
+            "offsetX": -4,
+            "offsetY": -2.2,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "87.svg"
+                }
+            ],
+            "fps": 12,
+            "frameCount": 1
+        },
+        "88": {
+            "id": 88,
+            "exportName": null,
+            "type": "shape",
+            "width": 16,
+            "height": 16,
+            "offsetX": 0,
+            "offsetY": 0.05,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "88.svg"
+                }
+            ],
+            "frameCount": 1
+        }
+    }
+}

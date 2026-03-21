@@ -118,7 +118,14 @@ export class Banner {
   private minimapRenderer: MinimapRenderer | null = null;
   private onMinimapTeleport?: (mapId: number) => void;
   private onStatsToggle?: () => void;
+  private onSpellsToggle?: () => void;
+  private onInventoryToggle?: () => void;
+  private onQuestsToggle?: () => void;
   private onMapToggle?: () => void;
+  private onFriendsToggle?: () => void;
+  private onGuildToggle?: () => void;
+  private onMountToggle?: () => void;
+  private onConquestToggle?: () => void;
   private minimapExpandTimer: ReturnType<typeof setTimeout> | null = null;
   private minimapExpanded = false;
 
@@ -256,20 +263,23 @@ export class Banner {
       (path) => this.getIconTexture(path)
     );
 
-    // Wire stats button (index 0) to toggle callback
-    const statsBtn = this.iconButtons[0];
-    if (statsBtn) {
-      statsBtn.button.container.on("pointerdown", () => {
-        this.onStatsToggle?.();
-      });
-    }
-
-    // Wire map button (index 4) to toggle callback
-    const mapBtn = this.iconButtons[4];
-    if (mapBtn) {
-      mapBtn.button.container.on("pointerdown", () => {
-        this.onMapToggle?.();
-      });
+    // Wire icon buttons to toggle callbacks
+    const buttonCallbacks: Array<{ index: number; cb: () => void }> = [
+      { index: 0, cb: () => this.onStatsToggle?.() },
+      { index: 1, cb: () => this.onSpellsToggle?.() },
+      { index: 2, cb: () => this.onInventoryToggle?.() },
+      { index: 3, cb: () => this.onQuestsToggle?.() },
+      { index: 4, cb: () => this.onMapToggle?.() },
+      { index: 5, cb: () => this.onFriendsToggle?.() },
+      { index: 6, cb: () => this.onGuildToggle?.() },
+      { index: 7, cb: () => this.onMountToggle?.() },
+      { index: 8, cb: () => this.onConquestToggle?.() },
+    ];
+    for (const { index, cb } of buttonCallbacks) {
+      const btn = this.iconButtons[index];
+      if (btn) {
+        btn.button.container.on("pointerdown", cb);
+      }
     }
 
     this.shortcutsContainer = new Container();
@@ -625,7 +635,11 @@ export class Banner {
     );
   }
 
-  private updateHeartFillerMask(heartX: number, heartY: number, s: number): void {
+  private updateHeartFillerMask(
+    heartX: number,
+    heartY: number,
+    s: number
+  ): void {
     const heartHeight = 41;
     const hpPercentage = 0.54;
     const visibleHeight = heartHeight * hpPercentage;
@@ -737,18 +751,83 @@ export class Banner {
     this.onStatsToggle = callback;
   }
 
+  public setOnSpellsToggle(callback: () => void): void {
+    this.onSpellsToggle = callback;
+  }
+
+  public setOnInventoryToggle(callback: () => void): void {
+    this.onInventoryToggle = callback;
+  }
+
+  public setOnQuestsToggle(callback: () => void): void {
+    this.onQuestsToggle = callback;
+  }
+
   public setOnMapToggle(callback: () => void): void {
     this.onMapToggle = callback;
   }
 
-  public setStatsPressed(pressed: boolean): void {
-    const statsButton = this.iconButtons[0]?.button;
-    if (statsButton) {
-      statsButton.isPressed = pressed;
-      statsButton.button.texture = pressed
-        ? statsButton.buttonDownTexture
-        : statsButton.buttonUpTexture;
+  public setOnFriendsToggle(callback: () => void): void {
+    this.onFriendsToggle = callback;
+  }
+
+  public setOnGuildToggle(callback: () => void): void {
+    this.onGuildToggle = callback;
+  }
+
+  public setOnMountToggle(callback: () => void): void {
+    this.onMountToggle = callback;
+  }
+
+  public setOnConquestToggle(callback: () => void): void {
+    this.onConquestToggle = callback;
+  }
+
+  /** Set the pressed visual state of a banner icon button by index */
+  public setButtonPressed(index: number, pressed: boolean): void {
+    const btn = this.iconButtons[index]?.button;
+    if (btn) {
+      btn.isPressed = pressed;
+      btn.button.texture = pressed
+        ? btn.buttonDownTexture
+        : btn.buttonUpTexture;
     }
+  }
+
+  public setStatsPressed(pressed: boolean): void {
+    this.setButtonPressed(0, pressed);
+  }
+
+  public setSpellsPressed(pressed: boolean): void {
+    this.setButtonPressed(1, pressed);
+  }
+
+  public setInventoryPressed(pressed: boolean): void {
+    this.setButtonPressed(2, pressed);
+  }
+
+  public setQuestsPressed(pressed: boolean): void {
+    this.setButtonPressed(3, pressed);
+  }
+
+  public setMapPressed(pressed: boolean): void {
+    this.setButtonPressed(4, pressed);
+  }
+
+  public setFriendsPressed(pressed: boolean): void {
+    this.setButtonPressed(5, pressed);
+  }
+
+  public setGuildPressed(pressed: boolean): void {
+    this.setButtonPressed(6, pressed);
+  }
+
+  public setMountPressed(pressed: boolean): void {
+    this.setButtonPressed(7, pressed);
+  }
+
+  public setConquestPressed(pressed: boolean): void {
+    this.setButtonPressed(8, pressed);
   }
 
   private handleMinimapDoubleClick(globalX: number, globalY: number): void {

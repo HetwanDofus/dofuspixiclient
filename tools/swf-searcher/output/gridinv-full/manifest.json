@@ -1,0 +1,44 @@
+{
+    "version": "1.0",
+    "generated": "2026-03-21T20:40:35+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "570": {
+            "id": 570,
+            "exportName": "GridInventoryViewer",
+            "type": "sprite",
+            "width": 101.6,
+            "height": 18.8,
+            "offsetX": 71,
+            "offsetY": 282.5,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "570.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "20631": {
+            "id": 20631,
+            "exportName": "__Packages.dofus.\u001d\u0019\u0011.gapi.\u001e\u001b\u001b.GridInventoryViewer",
+            "type": "sprite",
+            "width": 0,
+            "height": 0,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "20631.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}

@@ -1,0 +1,80 @@
+{
+    "version": "1.0",
+    "generated": "2026-03-21T18:36:33+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "287": {
+            "id": 287,
+            "exportName": "UI_StatsJob",
+            "type": "sprite",
+            "width": 742,
+            "height": 450,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "287.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1032": {
+            "id": 1032,
+            "exportName": "UI_StatsJobContainerHighlight",
+            "type": "sprite",
+            "width": 5,
+            "height": 5,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1032.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1033": {
+            "id": 1033,
+            "exportName": "UI_StatsJobContainerBackground2",
+            "type": "sprite",
+            "width": 3,
+            "height": 4,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1033.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1034": {
+            "id": 1034,
+            "exportName": "UI_StatsJobContainerBackground",
+            "type": "sprite",
+            "width": 3,
+            "height": 4,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1034.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}

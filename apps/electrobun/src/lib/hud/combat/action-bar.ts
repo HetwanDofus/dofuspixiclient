@@ -94,19 +94,27 @@ export class ActionBar {
     mpContainer.addChild(this.mpText);
 
     // Pass turn button
-    this.passTurnButton = this.createButton(i18n._(combatLabels.pass), combat.passTurnButton, () => {
-      if (this.isMyTurn) {
-        this.callbacks.onPassTurn?.();
+    this.passTurnButton = this.createButton(
+      i18n._(combatLabels.pass),
+      combat.passTurnButton,
+      () => {
+        if (this.isMyTurn) {
+          this.callbacks.onPassTurn?.();
+        }
       }
-    });
+    );
     this.passTurnButton.x = this.width - 140;
     this.passTurnButton.y = 10;
     this.container.addChild(this.passTurnButton);
 
     // Forfeit button
-    this.forfeitButton = this.createButton(i18n._(combatLabels.forfeit), combat.forfeitButton, () => {
-      this.callbacks.onForfeit?.();
-    });
+    this.forfeitButton = this.createButton(
+      i18n._(combatLabels.forfeit),
+      combat.forfeitButton,
+      () => {
+        this.callbacks.onForfeit?.();
+      }
+    );
     this.forfeitButton.x = this.width - 70;
     this.forfeitButton.y = 10;
     this.container.addChild(this.forfeitButton);

@@ -2,18 +2,19 @@
   "name": "classic",
   "version": "1.0.0",
   "colors": {
-    "bg": "0xddd7b2",
-    "bgAlt": "0xc4be96",
-    "headerBg": "0x5c5040",
-    "border": "0x8a7f5f",
-    "textDark": "0x3d3529",
+    "bg": "0xd5cfaa",
+    "bgAlt": "0xc9bf9d",
+    "bgAltDark": "0xb4ac8d",
+    "headerBg": "0x514a3c",
+    "border": "0x4e4028",
+    "textDark": "0x514a3c",
     "textWhite": "0xffffff",
-    "barBg": "0x3d3529",
-    "barFill": "0xe86420",
-    "barBorder": "0x2a2218",
-    "closeBg": "0xcc4400",
-    "boost": "0xe86420",
-    "boostHover": "0xffaa44",
+    "barBg": "0x514a3c",
+    "barFill": "0xff6600",
+    "barBorder": "0x514a3c",
+    "closeBg": "0xff6500",
+    "boost": "0xff6100",
+    "boostHover": "0xeca272",
     "slotBg": "0xdcd5bf",
     "alignBorder": "0x88bbcc",
     "banner": {
@@ -43,21 +44,21 @@
     ]
   },
   "fonts": {
-    "primary": "Arial"
+    "primary": "Verdana"
   },
   "metrics": {
     "rowH": 18,
-    "headerH": 17,
+    "headerH": 18,
     "px": 10,
     "iconSize": 14,
-    "barH": 12,
-    "closeSize": 16,
-    "alignFrame": 50,
+    "barH": 10,
+    "closeSize": 12,
+    "alignFrame": 40,
     "jobSlot": 42,
     "specSlot": 30
   },
   "layout": {
-    "statsPanel": { "width": 250, "height": 420, "headerH": 28 },
+    "statsPanel": { "width": 240, "height": 417, "headerH": 22 },
     "banner": {
       "offsetY": 125,
       "whiteZoneTopRight": { "x": 415, "y": 0, "w": 327, "h": 40 },

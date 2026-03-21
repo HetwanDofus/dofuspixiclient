@@ -46,8 +46,8 @@ export class MinimapRenderer {
     this.positionMarker = new Graphics();
 
     this.worldContainer.addChild(this.mapContainer);
-    this.worldContainer.addChild(this.hintsContainer);
     this.worldContainer.addChild(this.positionMarker);
+    this.worldContainer.addChild(this.hintsContainer);
 
     const parent = config.parentContainer ?? config.app.stage;
     parent.addChild(this.worldContainer);

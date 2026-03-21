@@ -1,5 +1,6 @@
-import { Application, Container, Graphics, Text } from 'pixi.js';
-import { regularText } from './theme';
+import { type Application, Container, Graphics, Text } from "pixi.js";
+
+import { regularText } from "./theme";
 
 const TOOLTIP_BG = 0x2a2218;
 const TOOLTIP_BORDER = 0x8a7f5f;
@@ -22,7 +23,7 @@ let tooltipRoot: Container | null = null;
 export function initTooltipBounds(app: Application): void {
   canvasW = app.screen.width;
   canvasH = app.screen.height;
-  app.renderer.on('resize', (w: number, h: number) => {
+  app.renderer.on("resize", (w: number, h: number) => {
     canvasW = w;
     canvasH = h;
   });
@@ -38,15 +39,15 @@ function ensureTooltip(root: Container): void {
   }
 
   tooltipContainer = new Container();
-  tooltipContainer.label = 'tooltip';
-  tooltipContainer.eventMode = 'none';
+  tooltipContainer.label = "tooltip";
+  tooltipContainer.eventMode = "none";
   tooltipContainer.visible = false;
 
   tooltipBg = new Graphics();
   tooltipContainer.addChild(tooltipBg);
 
   tooltipLabel = new Text({
-    text: '',
+    text: "",
     style: regularText(10, TOOLTIP_TEXT),
     resolution: 2,
   });
@@ -68,7 +69,7 @@ export function showTooltip(
   stage: Container,
   text: string,
   globalX: number,
-  globalY: number,
+  globalY: number
 ): void {
   // Find root stage
   let root: Container = stage;

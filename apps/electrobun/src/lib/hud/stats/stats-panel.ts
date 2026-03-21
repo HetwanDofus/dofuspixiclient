@@ -1,13 +1,12 @@
 import { Container, Graphics, Sprite, Text, Texture } from "pixi.js";
 
-import { loadSvg } from "@/render/load-svg";
-
 import type { CharacterStats } from "@/types/stats";
 import { i18n } from "@/i18n";
 import {
   statsLabels as LABELS,
   statsTooltips as TOOLTIPS,
 } from "@/i18n/hud.messages";
+import { loadSvg } from "@/render/load-svg";
 import { getAssetPath } from "@/themes";
 import { STAT_IDS } from "@/types/stats";
 
@@ -16,7 +15,6 @@ import {
   COLORS,
   createCloseButton,
   createProgressBar,
-  createSectionHeader,
   createSlot,
   hideTooltip,
   METRICS,
@@ -68,16 +66,16 @@ export class StatsPanel {
     this.container.eventMode = "static";
 
     // Compute zoomed dimensions
-    this.panelW = Math.round(250 * zoom);
-    this.panelH = Math.round(420 * zoom);
+    this.panelW = Math.round(240 * zoom);
+    this.panelH = Math.round(417 * zoom);
 
     this.build();
   }
 
   rebuild(zoom: number): void {
     this.zoom = zoom;
-    this.panelW = Math.round(250 * zoom);
-    this.panelH = Math.round(420 * zoom);
+    this.panelW = Math.round(240 * zoom);
+    this.panelH = Math.round(417 * zoom);
 
     // Clear old children
     for (const row of this.statRows.values()) row.destroy();
@@ -114,61 +112,68 @@ export class StatsPanel {
 
     let y = 0;
 
-    // ═══════ TOP: Name header (dark) ═══════
-    const headerH = p(28);
-    const headerR = p(10); // inner radius = cornerradius(13) - borderwidth(3)
-    const headerBg = new Graphics();
-    headerBg.moveTo(headerR, 0);
-    headerBg.lineTo(W - headerR, 0);
-    headerBg.arcTo(W, 0, W, headerR, headerR);
-    headerBg.lineTo(W, headerH);
-    headerBg.lineTo(0, headerH);
-    headerBg.lineTo(0, headerR);
-    headerBg.arcTo(0, 0, headerR, 0, headerR);
-    headerBg.fill({ color: COLORS.HEADER_BG });
-    headerBg.eventMode = "static";
-    this.container.addChild(headerBg);
+    // Original Window layout: borderwidth=3, cornerradius tl/tr=13, titleheight=22
+    const BW = p(3);     // borderwidth
+    const TR = p(13);    // corner radius
+    const TH = p(22);    // titleheight
+    const IR = TR - BW;  // inner corner radius = 10
 
+    // ═══════ Title bar (dark) — inside border, from (BW,BW) to (W-BW, BW+TH) ═══════
+    const titleBg = new Graphics();
+    titleBg.moveTo(BW + IR, BW);
+    titleBg.lineTo(W - BW - IR, BW);
+    titleBg.arcTo(W - BW, BW, W - BW, BW + IR, IR);
+    titleBg.lineTo(W - BW, BW + TH);
+    titleBg.lineTo(BW, BW + TH);
+    titleBg.lineTo(BW, BW + IR);
+    titleBg.arcTo(BW, BW, BW + IR, BW, IR);
+    titleBg.fill({ color: COLORS.HEADER_BG });
+    titleBg.eventMode = "static";
+    this.container.addChild(titleBg);
+
+    // _lblName at FLA relY=4 (from panel top), relX=57
     this.nameText = new Text({
       text: "",
-      style: boldText(f(13), COLORS.TEXT_WHITE),
+      style: boldText(f(11), COLORS.TEXT_WHITE),
     });
     this.nameText.anchor.set(0, 0.5);
-    this.nameText.x = ALIGN_FRAME + PX + p(12);
-    this.nameText.y = headerH / 2;
+    this.nameText.x = p(57);
+    this.nameText.y = BW + TH / 2; // vertically centered in title bar
     this.container.addChild(this.nameText);
 
+    // _btnClose at FLA relX=220, relY=8
     const closeBtn = createCloseButton(() => {
       this.hide();
       this.onClose?.();
     }, z);
-    closeBtn.x = W - p(19);
-    closeBtn.y = (headerH - CLOSE_SIZE) / 2;
+    closeBtn.x = W - BW - CLOSE_SIZE - p(3);
+    closeBtn.y = BW + (TH - CLOSE_SIZE) / 2;
     this.container.addChild(closeBtn);
 
-    // ═══════ Level (below header, beige zone) ═══════
+    // _lblLevel at FLA relX=57, relY=29.5
     this.levelText = new Text({
       text: i18n._(LABELS.level.id, { level: 1 }),
       style: boldText(f(11), COLORS.TEXT_DARK),
     });
-    this.levelText.x = ALIGN_FRAME + PX + p(6);
-    this.levelText.y = headerH + p(8);
+    this.levelText.x = p(57);
+    this.levelText.y = p(30);
     this.container.addChild(this.levelText);
 
-    y = headerH + ROW_H + p(18);
+    y = p(53); // Energy row starts at relY=53
 
-    // Alignment icon frame — added at end for z-index
+    // _ctrAlignment at FLA relX=10, relY=10 (visually spans title+level area)
+    // Scale 0.8 of base container (64px) = 51.2 ≈ ALIGN_FRAME(50)
     const alignFrame = new Container();
     const alignBg = new Graphics();
     alignBg.roundRect(0, 0, ALIGN_FRAME, ALIGN_FRAME, p(3));
     alignBg.fill({ color: COLORS.SLOT_BG });
     alignBg.stroke({ color: COLORS.ALIGN_BORDER, width: 2 });
     alignFrame.addChild(alignBg);
-    alignFrame.x = PX;
-    alignFrame.y = p(4);
+    alignFrame.x = p(10);
+    alignFrame.y = p(10);
 
     const alignIcon = this.makeIcon(
-      "AlignIcon.svg",
+      "icon-alignment.svg",
       ALIGN_FRAME - p(6),
       ALIGN_FRAME - p(6)
     );
@@ -177,111 +182,120 @@ export class StatsPanel {
     this.container.removeChild(alignIcon);
     alignFrame.addChild(alignIcon);
 
-    // ═══════ ALTERNATING ROW BACKGROUNDS — single Graphics ═══════
-    const totalRows = 13;
+    // ═══════ CONTENT AREA BACKGROUNDS — 3 colors from SWF ═══════
+    // 1. Light content bg (#c9bf9d = BG_ALT): 234x260 at relY=54, 234x60 at relY=348
+    // 2. Dark alternating rows (#b4ac8d = BG_ALT_DARK): at specific row positions
+    const contentBg = new Graphics();
+    // Main content area (energy through agility)
+    contentBg.rect(BW, p(54), W - BW * 2, p(260));
+    contentBg.fill({ color: COLORS.BG_ALT });
+    // Jobs area
+    contentBg.rect(BW, p(348), W - BW * 2, p(60));
+    contentBg.fill({ color: COLORS.BG_ALT });
+    this.container.addChild(contentBg);
+
+    // Dark alternating rows (relY = 73, 111, 147, 202, 238, 274)
     const altBg = new Graphics();
-    let tempY = y;
-    for (let i = 0; i < totalRows; i++) {
-      if (i % 2 === 1) {
-        altBg.rect(0, tempY, W, ROW_H);
-        altBg.fill({ color: COLORS.BG_ALT });
-      }
-      tempY += ROW_H;
-      if (i === 6) tempY += HEADER_H;
+    const darkRows = [73, 111, 147, 202, 238, 274];
+    for (const ry of darkRows) {
+      altBg.rect(BW, p(ry), W - BW * 2, ROW_H);
+      altBg.fill({ color: COLORS.BG_ALT_DARK });
     }
     this.container.addChild(altBg);
 
-    // ═══════ ENERGY BAR (row 0) ═══════
-    const barLabelX = p(90);
-    this.energyBar = createProgressBar(
-      barLabelX,
-      y + (ROW_H - BAR_H) / 2,
-      W - barLabelX - PX,
-      BAR_H
-    );
+    // ═══════ ENERGY — label at relX=20 relY=53, bar at relX=124 relY=59 ═══════
+    // Bar: from x=124, width=100 (FLA: _pbEnergy sx=1.0, base 100px) → ends at x=224
+    const barX = p(124);
+    const barW = p(100);
+
     const energyLabel = new Text({
       text: i18n._(LABELS.energy),
       style: boldText(f(11), COLORS.TEXT_DARK),
     });
     energyLabel.anchor.set(0, 0.5);
-    energyLabel.x = PX;
-    energyLabel.y = y + ROW_H / 2;
+    energyLabel.x = p(20);
+    energyLabel.y = p(53) + ROW_H / 2;
     this.container.addChild(energyLabel);
     this.withTooltip(energyLabel, i18n._(TOOLTIPS.energy));
+
+    this.energyBar = createProgressBar(barX, p(53) + (ROW_H - BAR_H) / 2, barW, BAR_H);
     this.container.addChild(this.energyBar.graphics);
     this.withDynamicTooltip(this.energyBar.graphics, () => this.energyTip);
-    y += ROW_H;
 
-    // ═══════ XP BAR (row 1) ═══════
-    this.xpBar = createProgressBar(
-      barLabelX,
-      y + (ROW_H - BAR_H) / 2,
-      W - barLabelX - PX,
-      BAR_H
-    );
+    // ═══════ XP — label at relX=20 relY=73, bar at relX=124 relY=78 ═══════
     const xpLabel = new Text({
       text: i18n._(LABELS.xp),
       style: boldText(f(11), COLORS.TEXT_DARK),
     });
     xpLabel.anchor.set(0, 0.5);
-    xpLabel.x = PX;
-    xpLabel.y = y + ROW_H / 2;
+    xpLabel.x = p(20);
+    xpLabel.y = p(73) + ROW_H / 2;
     this.container.addChild(xpLabel);
     this.withTooltip(xpLabel, i18n._(TOOLTIPS.xp));
+
+    this.xpBar = createProgressBar(barX, p(73) + (ROW_H - BAR_H) / 2, barW, BAR_H);
     this.container.addChild(this.xpBar.graphics);
     this.withDynamicTooltip(this.xpBar.graphics, () => this.xpTip);
-    y += ROW_H;
+
+    y = p(92); // LP row starts at relY=92
 
     // ═══════ COMBAT STATS (rows 2-6) ═══════
+    // LP/AP/MP: BrownLeftMediumBoldLabel (Font2) + BrownRightMediumBoldLabel (Font2)
+    // Initiative/Discernment: BrownLeftMediumLabel (Font1) + BrownRightMediumLabel (Font1)
     const combatRows: Array<{
       icon: string;
       label: string;
       isLP: boolean;
+      bold: boolean;
       tip: string;
       tint?: number;
       onVal: (t: Text) => void;
     }> = [
       {
-        icon: "icon-heart.svg",
+        icon: "icon-hp.svg",
         label: i18n._(LABELS.hp),
         isLP: true,
+        bold: true,
         tip: i18n._(TOOLTIPS.hp),
         onVal: (t) => {
           this.lpVal = t;
         },
       },
       {
-        icon: "StarSymbol.svg",
+        icon: "icon-ap.svg",
         label: i18n._(LABELS.ap),
         isLP: false,
+        bold: true,
         tip: i18n._(TOOLTIPS.ap),
-        tint: 0xffcc00,
         onVal: (t) => {
           this.apVal = t;
         },
       },
       {
-        icon: "IconMP.svg",
+        icon: "icon-mp.svg",
         label: i18n._(LABELS.mp),
         isLP: false,
+        bold: true,
         tip: i18n._(TOOLTIPS.mp),
         onVal: (t) => {
           this.mpVal = t;
         },
       },
       {
-        icon: "IconInit.svg",
+        icon: "icon-initiative.svg",
         label: i18n._(LABELS.initiative),
         isLP: false,
+        bold: false,
         tip: i18n._(TOOLTIPS.initiative),
         onVal: (t) => {
           this.initVal = t;
         },
       },
       {
-        icon: "IconPP.svg",
+        icon: "icon-prospection.svg",
         label: i18n._(LABELS.prospection),
         isLP: false,
+        bold: false,
         tip: i18n._(TOOLTIPS.prospection),
         onVal: (t) => {
           this.discVal = t;
@@ -294,6 +308,7 @@ export class StatsPanel {
         cr.icon,
         cr.label,
         cr.isLP,
+        cr.bold,
         cr.onVal,
         W,
         ROW_H,
@@ -305,15 +320,20 @@ export class StatsPanel {
       );
     }
 
-    // ═══════ CARACTÉRISTIQUES HEADER ═══════
-    const caracHdr = createSectionHeader(
-      y,
-      W,
-      i18n._(LABELS.characteristics),
-      z
-    );
-    this.container.addChild(caracHdr.graphics);
-    this.container.addChild(caracHdr.text);
+    // ═══════ CARACTÉRISTIQUES HEADER — relX=15, relY=183 ═══════
+    const caracBg = new Graphics();
+    caracBg.rect(BW, y, W - BW * 2, HEADER_H);
+    caracBg.fill({ color: COLORS.HEADER_BG });
+    this.container.addChild(caracBg);
+
+    const caracLabel = new Text({
+      text: i18n._(LABELS.characteristics),
+      style: boldText(f(11), COLORS.TEXT_WHITE),
+    });
+    caracLabel.anchor.set(0, 0.5);
+    caracLabel.x = p(15);
+    caracLabel.y = y + HEADER_H / 2;
+    this.container.addChild(caracLabel);
 
     const quillSize = p(12);
     const quill = this.makeIcon("QuillIcon.svg", quillSize, quillSize);
@@ -321,44 +341,44 @@ export class StatsPanel {
     quill.y = y + (HEADER_H - quillSize) / 2;
     this.withTooltip(quill, i18n._(TOOLTIPS.quill));
 
-    y = caracHdr.nextY;
+    y += HEADER_H;
 
     // ═══════ 6 CHARACTERISTIC ROWS (rows 7-12) ═══════
     const stats = [
       {
         id: STAT_IDS.VITALITY,
         n: i18n._(LABELS.vitality),
-        ic: "IconVita.svg",
+        ic: "icon-vitality.svg",
         tip: i18n._(TOOLTIPS.vitality),
       },
       {
         id: STAT_IDS.WISDOM,
         n: i18n._(LABELS.wisdom),
-        ic: "IconWisdom.svg",
+        ic: "icon-wisdom.svg",
         tip: i18n._(TOOLTIPS.wisdom),
       },
       {
         id: STAT_IDS.STRENGTH,
         n: i18n._(LABELS.strength),
-        ic: "IconEarth.svg",
+        ic: "icon-earth-bonus.svg",
         tip: i18n._(TOOLTIPS.strength),
       },
       {
         id: STAT_IDS.INTELLIGENCE,
         n: i18n._(LABELS.intelligence),
-        ic: "IconFire.svg",
+        ic: "icon-fire-bonus.svg",
         tip: i18n._(TOOLTIPS.intelligence),
       },
       {
         id: STAT_IDS.CHANCE,
         n: i18n._(LABELS.chance),
-        ic: "IconWater.svg",
+        ic: "icon-water-bonus.svg",
         tip: i18n._(TOOLTIPS.chance),
       },
       {
         id: STAT_IDS.AGILITY,
         n: i18n._(LABELS.agility),
-        ic: "IconAir.svg",
+        ic: "icon-air-bonus.svg",
         tip: i18n._(TOOLTIPS.agility),
       },
     ];
@@ -372,98 +392,105 @@ export class StatsPanel {
       y += ROW_H;
     }
 
-    // ═══════ CAPITAL HEADER ═══════
+    // ═══════ CAPITAL HEADER — relX=20, relY=310 ═══════
     const capBg = new Graphics();
-    capBg.rect(0, y, W, HEADER_H);
-    capBg.fill({ color: 0x7a7a56 });
+    capBg.rect(BW, y, W - BW * 2, HEADER_H);
+    capBg.fill({ color: 0x93866c });
     this.container.addChild(capBg);
     const capLabel = new Text({
       text: i18n._(LABELS.capital),
       style: boldText(f(11), COLORS.TEXT_WHITE),
     });
     capLabel.anchor.set(0, 0.5);
-    capLabel.x = PX;
+    capLabel.x = p(20);
     capLabel.y = y + HEADER_H / 2;
     this.container.addChild(capLabel);
     this.withTooltip(capLabel, i18n._(TOOLTIPS.capital));
 
     this.capitalVal = new Text({
       text: "0",
-      style: boldText(f(12), COLORS.TEXT_WHITE),
+      style: boldText(f(11), COLORS.TEXT_WHITE),
     });
     this.capitalVal.anchor.set(1, 0.5);
-    this.capitalVal.x = W - PX;
+    this.capitalVal.x = p(190); // FLA: relX=40 + width=150 = 190
     this.capitalVal.y = y + HEADER_H / 2;
     this.container.addChild(this.capitalVal);
     y += HEADER_H;
 
-    // ═══════ MES MÉTIERS HEADER ═══════
-    const jobHdr = createSectionHeader(y, W, i18n._(LABELS.jobs), z);
-    this.container.addChild(jobHdr.graphics);
-    this.container.addChild(jobHdr.text);
-    y = jobHdr.nextY;
+    // ═══════ MES MÉTIERS HEADER — relX=15, relY=329 ═══════
+    const jobBg = new Graphics();
+    jobBg.rect(BW, y, W - BW * 2, HEADER_H);
+    jobBg.fill({ color: COLORS.HEADER_BG });
+    this.container.addChild(jobBg);
+    const jobLabel = new Text({
+      text: i18n._(LABELS.jobs),
+      style: boldText(f(11), COLORS.TEXT_WHITE),
+    });
+    jobLabel.anchor.set(0, 0.5);
+    jobLabel.x = p(15);
+    jobLabel.y = y + HEADER_H / 2;
+    this.container.addChild(jobLabel);
+    y += HEADER_H;
 
-    // ═══════ JOB & SPEC SLOTS — side by side, centered vertically ═══════
-    const jobAreaH = panelH - y;
-    const jobGap = p(4);
-    const specGap = p(3);
-    const midGap = p(8);
-    const jobTotalW = 3 * JOB_SLOT + 2 * jobGap;
-    const specTotalW = 3 * SPEC_SLOT + 2 * specGap;
-    const allW = jobTotalW + midGap + specTotalW;
-    const startX = (W - allW) / 2;
-    const jobY = y + (jobAreaH - JOB_SLOT) / 2;
-
-    for (let i = 0; i < 3; i++) {
-      const sx = startX + i * (JOB_SLOT + jobGap);
-      const slot = createSlot(sx, jobY, JOB_SLOT);
+    // ═══════ JOB & SPEC SLOTS — exact FLA positions ═══════
+    // Job slots: relX=[9, 54, 99], relY=355, scale=0.8 → 45px spacing
+    // Spec label: relX=141, relY=349
+    // Spec slots: relX=[146, 175, 205], relY=370, scale=0.5 → 29px spacing
+    const jobSlotPositions = [9, 54, 99];
+    for (const jx of jobSlotPositions) {
+      const slot = createSlot(p(jx), p(355), JOB_SLOT);
       this.container.addChild(slot.graphics);
     }
 
-    const specX = startX + jobTotalW + midGap;
-    const specBlockH = p(10) + SPEC_SLOT;
-    const specTopY = jobY + (JOB_SLOT - specBlockH) / 2;
     const specLabel = new Text({
       text: i18n._(LABELS.specializations),
-      style: regularText(f(8), COLORS.TEXT_DARK),
+      style: regularText(f(11), COLORS.TEXT_DARK),
     });
-    specLabel.x = specX;
-    specLabel.y = specTopY;
+    specLabel.x = p(141);
+    specLabel.y = p(349);
     this.container.addChild(specLabel);
-    const specSlotY = specTopY + p(12);
-    for (let i = 0; i < 3; i++) {
-      const sx = specX + i * (SPEC_SLOT + specGap);
-      const slot = createSlot(sx, specSlotY, SPEC_SLOT);
+
+    const specSlotPositions = [146, 175, 205];
+    for (const sx of specSlotPositions) {
+      const slot = createSlot(p(sx), p(370), SPEC_SLOT);
       this.container.addChild(slot.graphics);
     }
 
-    // ═══════ FIXED HEIGHT background (at bottom of z-order) ═══════
-    // Rounded top corners, flat bottom (glued to banner)
-    // Original: cornerradius=13, borderwidth=3, bordercolor=0xFFFFFF
-    const r = p(13);
-    const bgFill = new Graphics();
-    bgFill.moveTo(r, 0);
-    bgFill.lineTo(W - r, 0);
-    bgFill.arcTo(W, 0, W, r, r);
-    bgFill.lineTo(W, panelH);
-    bgFill.lineTo(0, panelH);
-    bgFill.lineTo(0, r);
-    bgFill.arcTo(0, 0, r, 0, r);
-    bgFill.fill({ color: COLORS.BG });
-    bgFill.eventMode = "static";
-    this.container.addChildAt(bgFill, 0);
+    // ═══════ BACKGROUND (at bottom of z-order) ═══════
+    // Original Window.draw(): filled border rect, then filled background inside
+    // cornerradius tl/tr=13, br/bl=0, bordercolor=0xFFFFFF, borderwidth=3
 
-    // Border overlay — white, open bottom (no bottom edge)
-    const borderOverlay = new Graphics();
-    borderOverlay.moveTo(0, panelH);
-    borderOverlay.lineTo(0, r);
-    borderOverlay.arcTo(0, 0, r, 0, r);
-    borderOverlay.lineTo(W - r, 0);
-    borderOverlay.arcTo(W, 0, W, r, r);
-    borderOverlay.lineTo(W, panelH);
-    borderOverlay.stroke({ color: 0xffffff, width: p(3) });
-    borderOverlay.eventMode = "none";
-    this.container.addChild(borderOverlay);
+    // 1. White border — U-shape: left + top + right, NO bottom (panel sits on banner)
+    const borderFill = new Graphics();
+    borderFill.moveTo(0, panelH);       // bottom-left (no border here)
+    borderFill.lineTo(0, TR);            // left edge up
+    borderFill.arcTo(0, 0, TR, 0, TR);  // top-left corner
+    borderFill.lineTo(W - TR, 0);        // top edge
+    borderFill.arcTo(W, 0, W, TR, TR);  // top-right corner
+    borderFill.lineTo(W, panelH);        // right edge down
+    // Close with bottom at panelH, then inner path back up
+    borderFill.lineTo(W - BW, panelH);
+    borderFill.lineTo(W - BW, BW + IR);
+    borderFill.arcTo(W - BW, BW, W - BW - IR, BW, IR);
+    borderFill.lineTo(BW + IR, BW);
+    borderFill.arcTo(BW, BW, BW, BW + IR, IR);
+    borderFill.lineTo(BW, panelH);
+    borderFill.lineTo(0, panelH);
+    borderFill.fill({ color: 0xffffff });
+    borderFill.eventMode = "static";
+    this.container.addChildAt(borderFill, 0);
+
+    // 2. Beige background fill (inside border, extends to bottom — no bottom border)
+    const bgFill = new Graphics();
+    bgFill.moveTo(BW + IR, BW);
+    bgFill.lineTo(W - BW - IR, BW);
+    bgFill.arcTo(W - BW, BW, W - BW, BW + IR, IR);
+    bgFill.lineTo(W - BW, panelH);
+    bgFill.lineTo(BW, panelH);
+    bgFill.lineTo(BW, BW + IR);
+    bgFill.arcTo(BW, BW, BW + IR, BW, IR);
+    bgFill.fill({ color: COLORS.BG });
+    this.container.addChildAt(bgFill, 1);
 
     // Alignment frame on top
     this.container.addChild(alignFrame);
@@ -506,38 +533,41 @@ export class StatsPanel {
     iconFile: string,
     label: string,
     isLP: boolean,
+    bold: boolean,
     onVal: (t: Text) => void,
-    W: number,
+    _W: number,
     ROW_H: number,
     ICON_SIZE: number,
-    PX: number,
+    _PX: number,
     f: (n: number) => number,
     tooltip?: string,
     tint?: number
   ): number {
     const midY = y + ROW_H / 2;
+    const textFn = bold ? boldText : regularText;
+    const p = (n: number) => Math.round(n * this.zoom);
 
     const ico = this.makeIcon(iconFile, ICON_SIZE, ICON_SIZE);
-    ico.x = PX;
+    ico.x = p(20);
     ico.y = y + (ROW_H - ICON_SIZE) / 2;
     if (tint != null) ico.tint = tint;
 
     const lbl = new Text({
       text: label,
-      style: boldText(f(11), COLORS.TEXT_DARK),
+      style: textFn(f(11), COLORS.TEXT_DARK),
     });
     lbl.anchor.set(0, 0.5);
-    lbl.x = PX + Math.round(18 * this.zoom);
+    lbl.x = p(38);
     lbl.y = midY;
     this.container.addChild(lbl);
     if (tooltip) this.withTooltip(lbl, tooltip);
 
     const val = new Text({
       text: isLP ? "0 / 0" : "0",
-      style: boldText(f(11), COLORS.TEXT_DARK),
+      style: textFn(f(11), COLORS.TEXT_DARK),
     });
     val.anchor.set(1, 0.5);
-    val.x = W - PX;
+    val.x = p(219); // FLA: relX=69 + width=150 = 219
     val.y = midY;
     this.container.addChild(val);
     onVal(val);
@@ -564,15 +594,19 @@ export class StatsPanel {
         const { spr } = entries[i];
         const box = this.iconSizes.get(spr)!;
         const tex = result.value as Texture;
+        const origX = spr.x;
+        const origY = spr.y;
         spr.texture = tex;
 
-        // Fit within the requested box while preserving aspect ratio
+        // Fit within the requested box preserving aspect ratio, then center
         const tw = tex.width;
         const th = tex.height;
         if (tw > 0 && th > 0) {
           const scale = Math.min(box.w / tw, box.h / th);
           spr.width = tw * scale;
           spr.height = th * scale;
+          spr.x = origX + (box.w - tw * scale) / 2;
+          spr.y = origY + (box.h - th * scale) / 2;
         } else {
           spr.width = box.w;
           spr.height = box.h;

@@ -1,0 +1,152 @@
+{
+    "version": "1.0",
+    "generated": "2026-03-21T18:17:25+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "1030": {
+            "id": 1030,
+            "exportName": "FilterIcon0",
+            "type": "sprite",
+            "width": 11,
+            "height": 14.4,
+            "offsetX": -0.1,
+            "offsetY": -0.1,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1030.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1566": {
+            "id": 1566,
+            "exportName": "FilterIcon7",
+            "type": "sprite",
+            "width": 13.8,
+            "height": 8.15,
+            "offsetX": -1,
+            "offsetY": 2.5,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1566.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1568": {
+            "id": 1568,
+            "exportName": "FilterIcon6",
+            "type": "sprite",
+            "width": 9.4,
+            "height": 14.25,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1568.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1570": {
+            "id": 1570,
+            "exportName": "FilterIcon5",
+            "type": "sprite",
+            "width": 12.4,
+            "height": 13.15,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1570.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1572": {
+            "id": 1572,
+            "exportName": "FilterIcon4",
+            "type": "sprite",
+            "width": 12.8,
+            "height": 14.55,
+            "offsetX": 0.9,
+            "offsetY": 0.9,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1572.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1574": {
+            "id": 1574,
+            "exportName": "FilterIcon3",
+            "type": "sprite",
+            "width": 29,
+            "height": 27.55,
+            "offsetX": -8.4,
+            "offsetY": -7.95,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1574.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1576": {
+            "id": 1576,
+            "exportName": "FilterIcon2",
+            "type": "sprite",
+            "width": 13.2,
+            "height": 10.7,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1576.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1578": {
+            "id": 1578,
+            "exportName": "FilterIcon1",
+            "type": "sprite",
+            "width": 11.1,
+            "height": 13.3,
+            "offsetX": -0.1,
+            "offsetY": -0.1,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1578.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}

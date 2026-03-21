@@ -1,0 +1,133 @@
+<?xml version="1.0"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="711px" height="367px">
+    <g transform="matrix(1, 0, 0, 1, -10, -63)">
+        <use xlink:href="#object-0" width="100" height="100" transform="matrix(3.16, 0, 0, 1.5399, 253, 273.95)" />
+        <use xlink:href="#object-2" width="100" height="100" transform="matrix(1, 0, 0, 0.9995, 253, 273.95)" id="" />
+        <use xlink:href="#object-4" width="100" height="100" transform="matrix(1.42, 0, 0, 2.85, 579, 143)"
+            id="bggrid_mc" />
+        <use xlink:href="#object-6" width="100" height="100" transform="matrix(3.16, 0, 0, 0.5397, 253, 373.95)"
+            id="" />
+        <use xlink:href="#object-8" width="126" height="1" transform="matrix(0.9998, 0, 0, 1, 348, 67)" id="" />
+        <use xlink:href="#object-11" width="148.2" height="158.6" transform="matrix(1, 0, 0, 0.9999, 329, 63)" />
+        <use xlink:href="#object-14" width="14.65" height="14.3" transform="matrix(1, 0, 0, 1, 331.7, 203.85)" />
+        <use xlink:href="#object-16" width="7.85" height="7.9" transform="matrix(2.6144, 0, 0, 2.61, 329.85, 76.7)"
+            id="" />
+        <use xlink:href="#object-18" width="7.85" height="7.9" transform="matrix(2.6144, 0, 0, 2.61, 459.85, 76.7)"
+            id="" />
+        <use xlink:href="#object-20" width="7.85" height="7.9" transform="matrix(2.6144, 0, 0, 2.61, 523.75, 197.7)"
+            id="" />
+        <use xlink:href="#object-22" width="100" height="100" transform="matrix(2.22, 0, 0, 2.05, 10, 225)" id="" />
+        <use xlink:href="#object-24" width="100" height="100" transform="matrix(2.22, 0, 0, 1.9998, 10, 225)" id="" />
+    </g>
+    <defs>
+        <g transform="matrix(1, 0, 0, 1, 0, 0)" id="object-0">
+            <use xlink:href="#object-1" width="100" height="8" transform="matrix(1, 0, 0, 12.5, 0, 0)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, -2, -2)" id="object-1">
+            <path fill-rule="evenodd" fill="#beb998" stroke="none" d="M102 10L2 10L2 2L102 2L102 10" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 0)" id="object-2">
+            <use xlink:href="#object-3" width="100" height="8" transform="matrix(1, 0, 0, 12.5, 0, 0)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, -2, -2)" id="object-3">
+            <path fill-rule="evenodd" fill="#dad6b8" stroke="none" d="M102 10L2 10L2 2L102 2L102 10" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 0)" id="object-4">
+            <use xlink:href="#object-5" width="100" height="8" transform="matrix(1, 0, 0, 12.5, 0, 0)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, -2, -2)" id="object-5">
+            <path fill-rule="evenodd" fill="#beb998" stroke="none" d="M102 10L2 10L2 2L102 2L102 10" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 0)" id="object-6">
+            <use xlink:href="#object-7" width="100" height="8" transform="matrix(1, 0, 0, 12.5, 0, 0)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, -2, -2)" id="object-7">
+            <path fill-rule="evenodd" fill="#edebdc" stroke="none" d="M102 10L2 10L2 2L102 2L102 10" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 25, 0)" id="object-8">
+            <use xlink:href="#object-9" width="100" height="100" transform="matrix(1.2599, 0, 0, 0.01, -25, 0)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 0)" id="object-9">
+            <use xlink:href="#object-10" width="100" height="8" transform="matrix(1, 0, 0, 12.5, 0, 0)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, -2, -2)" id="object-10">
+            <path fill-rule="evenodd" fill="#ffffff" fill-opacity="0.37647058823529" stroke="none"
+                d="M102 10L2 10L2 2L102 2L102 10" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 0)" id="object-11">
+            <use xlink:href="#object-12" width="74.2" height="158.55" transform="matrix(-1, 0, 0, 1.0003, 148.2, 0)" />
+            <use xlink:href="#object-13" width="74.2" height="158.55" transform="matrix(1, 0, 0, 1, 0, 0)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 74.1, 2.5)" id="object-12">
+            <path fill-rule="evenodd" fill="#ada592" fill-opacity="0.50196078431373" stroke="none"
+                d="M-60.15 68.25L-62.25 73.3L-63.7 73.75L-63.7 69.9L-65 71.05L-65.55 68L-68.45 70L-68.95 71L-70.65 71.85L-70.95 69.5L-68.45 65.05L-73.35 66.5L-74.1 65.05L-70.65 62.45L-66.9 60.55L-64.7 57.8L-58.15 57.4L-54.5 59.3L-38.55 51L-35.5 53.65Q-31.2 50.9 -28.05 48.05Q-23.9 44.25 -21.7 40.25L-20.9 38.6L-22.65 37.05L-14.55 31.9Q-12.6 31.2 -8.05 32.7L-6.15 32.25L-5.05 27.1L-5.7 25.3L-3.8 24.4L-3.65 24.4L-5.25 23.35L-8.15 18.2L-9.8 16.35L-9.7 9.25L-10.4 9.2L-8.65 2.4Q-5 -1.2 -1.65 -2.1L-1.5 -2.5L0.1 -2.5L0.1 30.65L0.1 90.05L-5.7 90.5L-8.1 95.3Q-10.3 100.35 -10.35 104.55Q-10.4 107.5 -9.4 110.05Q-7.35 114.35 -6.55 121.9L-5.6 130.3Q-5.55 131 -5.85 135.15L-3.25 139.95L-3.25 142.95L-8.15 145.2L-18.35 156.05L-22.95 154.3L-22.3 153L-25.6 148.85L-12.65 137.15Q-9.4 124.2 -17.75 113.3L-17.75 104.55L-17.45 95.3L-16.7 90.65L-14.9 80.9Q-13.9 77.1 -13.6 74.75L-15.6 73L-12.85 66.1L-13.95 56L-16.5 48.4Q-21.15 46.8 -28.05 53.1Q-30.3 55.15 -32.75 58L-31.95 62.4L-55.55 64.75L-60.15 68.25" />
+            <path fill="none" stroke="#c0bbad" vector-effect="non-scaling-stroke" stroke-width="1"
+                stroke-linecap="round" stroke-linejoin="round"
+                d="M-60.15 68.25L-62.25 73.3L-63.7 73.75L-63.7 69.9L-65 71.05L-65.55 68L-68.45 70L-68.95 71L-70.65 71.85L-70.95 69.5L-68.45 65.05L-73.35 66.5L-74.1 65.05L-70.65 62.45L-66.9 60.55L-64.7 57.8L-58.15 57.4L-54.5 59.3L-38.55 51L-35.5 53.65Q-31.2 50.9 -28.05 48.05Q-23.9 44.25 -21.7 40.25L-20.9 38.6L-22.65 37.05L-14.55 31.9Q-12.6 31.2 -8.05 32.7L-6.15 32.25L-5.05 27.1L-5.7 25.3L-3.8 24.4L-3.65 24.4L-5.25 23.35L-8.15 18.2L-9.8 16.35L-9.7 9.25L-10.4 9.2L-8.65 2.4Q-5 -1.2 -1.65 -2.1L-1.5 -2.5L0.1 -2.5M0.1 90.05L-5.7 90.5L-8.1 95.3Q-10.3 100.35 -10.35 104.55Q-10.4 107.5 -9.4 110.05Q-7.35 114.35 -6.55 121.9L-5.6 130.3Q-5.55 131 -5.85 135.15L-3.25 139.95L-3.25 142.95L-8.15 145.2L-18.35 156.05L-22.95 154.3L-22.3 153L-25.6 148.85L-12.65 137.15Q-9.4 124.2 -17.75 113.3L-17.75 104.55L-17.45 95.3L-16.7 90.65L-14.9 80.9Q-13.9 77.1 -13.6 74.75L-15.6 73L-12.85 66.1L-13.95 56L-16.5 48.4Q-21.15 46.8 -28.05 53.1Q-30.3 55.15 -32.75 58L-31.95 62.4L-55.55 64.75L-60.15 68.25" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 74.1, 2.5)" id="object-13">
+            <path fill-rule="evenodd" fill="#ada592" fill-opacity="0.50196078431373" stroke="none"
+                d="M-60.15 68.25L-62.25 73.3L-63.7 73.75L-63.7 69.9L-65 71.05L-65.55 68L-68.45 70L-68.95 71L-70.65 71.85L-70.95 69.5L-68.45 65.05L-73.35 66.5L-74.1 65.05L-70.65 62.45L-66.9 60.55L-64.7 57.8L-58.15 57.4L-54.5 59.3L-38.55 51L-35.5 53.65Q-31.2 50.9 -28.05 48.05Q-23.9 44.25 -21.7 40.25L-20.9 38.6L-22.65 37.05L-14.55 31.9Q-12.6 31.2 -8.05 32.7L-6.15 32.25L-5.05 27.1L-5.7 25.3L-3.8 24.4L-3.65 24.4L-5.25 23.35L-8.15 18.2L-9.8 16.35L-9.7 9.25L-10.4 9.2L-8.65 2.4Q-5 -1.2 -1.65 -2.1L-1.5 -2.5L0.1 -2.5L0.1 30.65L0.1 90.05L-5.7 90.5L-8.1 95.3Q-10.3 100.35 -10.35 104.55Q-10.4 107.5 -9.4 110.05Q-7.35 114.35 -6.55 121.9L-5.6 130.3Q-5.55 131 -5.85 135.15L-3.25 139.95L-3.25 142.95L-8.15 145.2L-18.35 156.05L-22.95 154.3L-22.3 153L-25.6 148.85L-12.65 137.15Q-9.4 124.2 -17.75 113.3L-17.75 104.55L-17.45 95.3L-16.7 90.65L-14.9 80.9Q-13.9 77.1 -13.6 74.75L-15.6 73L-12.85 66.1L-13.95 56L-16.5 48.4Q-21.15 46.8 -28.05 53.1Q-30.3 55.15 -32.75 58L-31.95 62.4L-55.55 64.75L-60.15 68.25" />
+            <path fill="none" stroke="#c0bbad" vector-effect="non-scaling-stroke" stroke-width="1"
+                stroke-linecap="round" stroke-linejoin="round"
+                d="M-60.15 68.25L-62.25 73.3L-63.7 73.75L-63.7 69.9L-65 71.05L-65.55 68L-68.45 70L-68.95 71L-70.65 71.85L-70.95 69.5L-68.45 65.05L-73.35 66.5L-74.1 65.05L-70.65 62.45L-66.9 60.55L-64.7 57.8L-58.15 57.4L-54.5 59.3L-38.55 51L-35.5 53.65Q-31.2 50.9 -28.05 48.05Q-23.9 44.25 -21.7 40.25L-20.9 38.6L-22.65 37.05L-14.55 31.9Q-12.6 31.2 -8.05 32.7L-6.15 32.25L-5.05 27.1L-5.7 25.3L-3.8 24.4L-3.65 24.4L-5.25 23.35L-8.15 18.2L-9.8 16.35L-9.7 9.25L-10.4 9.2L-8.65 2.4Q-5 -1.2 -1.65 -2.1L-1.5 -2.5L0.1 -2.5M0.1 90.05L-5.7 90.5L-8.1 95.3Q-10.3 100.35 -10.35 104.55Q-10.4 107.5 -9.4 110.05Q-7.35 114.35 -6.55 121.9L-5.6 130.3Q-5.55 131 -5.85 135.15L-3.25 139.95L-3.25 142.95L-8.15 145.2L-18.35 156.05L-22.95 154.3L-22.3 153L-25.6 148.85L-12.65 137.15Q-9.4 124.2 -17.75 113.3L-17.75 104.55L-17.45 95.3L-16.7 90.65L-14.9 80.9Q-13.9 77.1 -13.6 74.75L-15.6 73L-12.85 66.1L-13.95 56L-16.5 48.4Q-21.15 46.8 -28.05 53.1Q-30.3 55.15 -32.75 58L-31.95 62.4L-55.55 64.75L-60.15 68.25" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 0)" id="object-14">
+            <use xlink:href="#object-15" width="14.65" height="14.3" transform="matrix(1, 0, 0, 1, 0, 0)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 0)" id="object-15">
+            <path fill-rule="evenodd" fill="#000000" stroke="none"
+                d="M11.15 1.85L13.55 4.3L12.1 6.55L14.65 6.6L11.8 7.05L10.8 8.6L14.65 8.6L11.05 9.2L10.35 9.2Q10.2 10.2 13.55 11.55L11.15 13.95L7.1 9.95L6.55 13.75L3.05 14.3Q3.05 13.2 3.35 11.35L3.6 9.55L0.65 9.7L3.05 8.55L3.7 8.55L3.75 7.5L0.65 7.7L3.05 6.5L3.85 6.5L4.2 2.2L7.65 1.05L7.1 5.9Q9.55 5.45 10.55 4.5Q11.65 3.45 11.15 1.85" />
+            <path fill-rule="evenodd" fill="#4a92c8" stroke="none"
+                d="M11.15 6L10.15 7.55L3.05 7.5L3.1 6.45L10.4 6.1L11.15 6" />
+            <path fill-rule="evenodd" fill="#02416f" stroke="none"
+                d="M10.15 7.55L14 7.55L10.4 8.15L9.7 8.15L2.95 8.5L0 8.65L2.4 7.5L3.05 7.5L10.15 7.55M3.1 6.45L0 6.65L2.4 5.45L3.2 5.45L11.45 5.5L14 5.55L11.15 6L10.4 6.1L3.1 6.45" />
+            <path fill-rule="evenodd" fill="#d1d8e9" stroke="none"
+                d="M9.7 8.15Q9.55 9.15 12.9 10.5L10.5 12.9L6.45 8.9L5.9 12.7L2.4 13.25Q2.4 12.15 2.7 10.3L2.95 8.5L9.7 8.15" />
+            <path fill-rule="evenodd" fill="#ffffff" stroke="none"
+                d="M3.2 5.45L3.55 1.15L7 0L6.45 4.85Q8.9 4.4 9.9 3.45Q11 2.4 10.5 0.8L12.9 3.25L11.45 5.5L3.2 5.45" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0.1, 0.1)" id="object-16">
+            <use xlink:href="#object-17" width="7.85" height="7.9" transform="matrix(1, 0, 0, 1, -0.1, -0.1)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0.1, 0.1)" id="object-17">
+            <path fill-rule="evenodd" fill="#cccccc" fill-opacity="0.4" stroke="none"
+                d="M5.1 3.85L7.65 6.4L6.4 7.7L3.85 5.15L1.3 7.65L0 6.35L2.55 3.85L0 1.3L1.25 0L3.8 2.55L6.35 0.05L7.65 1.35L5.1 3.85" />
+            <path fill="none" stroke="#ffffff" stroke-opacity="0.8" vector-effect="non-scaling-stroke" stroke-width="1"
+                stroke-linecap="round" stroke-linejoin="round"
+                d="M5.1 3.85L7.65 6.4L6.4 7.7L3.85 5.15L1.3 7.65L0 6.35L2.55 3.85L0 1.3L1.25 0L3.8 2.55L6.35 0.05L7.65 1.35L5.1 3.85" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0.1, 0.1)" id="object-18">
+            <use xlink:href="#object-19" width="7.85" height="7.9" transform="matrix(1, 0, 0, 1, -0.1, -0.1)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0.1, 0.1)" id="object-19">
+            <path fill-rule="evenodd" fill="#cccccc" fill-opacity="0.4" stroke="none"
+                d="M5.1 3.85L7.65 6.4L6.4 7.7L3.85 5.15L1.3 7.65L0 6.35L2.55 3.85L0 1.3L1.25 0L3.8 2.55L6.35 0.05L7.65 1.35L5.1 3.85" />
+            <path fill="none" stroke="#ffffff" stroke-opacity="0.8" vector-effect="non-scaling-stroke" stroke-width="1"
+                stroke-linecap="round" stroke-linejoin="round"
+                d="M5.1 3.85L7.65 6.4L6.4 7.7L3.85 5.15L1.3 7.65L0 6.35L2.55 3.85L0 1.3L1.25 0L3.8 2.55L6.35 0.05L7.65 1.35L5.1 3.85" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0.1, 0.1)" id="object-20">
+            <use xlink:href="#object-21" width="7.85" height="7.9" transform="matrix(1, 0, 0, 1, -0.1, -0.1)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0.1, 0.1)" id="object-21">
+            <path fill-rule="evenodd" fill="#cccccc" fill-opacity="0.4" stroke="none"
+                d="M5.1 3.85L7.65 6.4L6.4 7.7L3.85 5.15L1.3 7.65L0 6.35L2.55 3.85L0 1.3L1.25 0L3.8 2.55L6.35 0.05L7.65 1.35L5.1 3.85" />
+            <path fill="none" stroke="#ffffff" stroke-opacity="0.8" vector-effect="non-scaling-stroke" stroke-width="1"
+                stroke-linecap="round" stroke-linejoin="round"
+                d="M5.1 3.85L7.65 6.4L6.4 7.7L3.85 5.15L1.3 7.65L0 6.35L2.55 3.85L0 1.3L1.25 0L3.8 2.55L6.35 0.05L7.65 1.35L5.1 3.85" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 0)" id="object-22">
+            <use xlink:href="#object-23" width="100" height="8" transform="matrix(1, 0, 0, 12.5, 0, 0)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, -2, -2)" id="object-23">
+            <path fill-rule="evenodd" fill="#ff00ff" fill-opacity="0" stroke="none" d="M102 10L2 10L2 2L102 2L102 10" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, 0, 0)" id="object-24">
+            <use xlink:href="#object-25" width="100" height="8" transform="matrix(1, 0, 0, 12.5, 0, 0)" />
+        </g>
+        <g transform="matrix(1, 0, 0, 1, -2, -2)" id="object-25">
+            <path fill-rule="evenodd" fill="#ff00ff" fill-opacity="0" stroke="none" d="M102 10L2 10L2 2L102 2L102 10" />
+        </g>
+    </defs>
+</svg>

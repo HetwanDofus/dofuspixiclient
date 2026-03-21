@@ -1,17 +1,17 @@
-import { BitmapText, Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { BitmapText, Container, Graphics, Sprite, Texture } from "pixi.js";
 
 const TEXTURE_SIZE = 256;
 const FEATHER_SIZE = 2;
 const VISIBLE_RADIUS = TEXTURE_SIZE / 2 - FEATHER_SIZE;
 
 function createSoftCircleTexture(color: number, alpha: number = 1): Texture {
-  const canvas = document.createElement('canvas');
+  const canvas = document.createElement("canvas");
   canvas.width = TEXTURE_SIZE;
   canvas.height = TEXTURE_SIZE;
 
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext("2d");
   if (!ctx) {
-    throw new Error('Could not get canvas context');
+    throw new Error("Could not get canvas context");
   }
 
   const centerX = TEXTURE_SIZE / 2;
@@ -132,7 +132,10 @@ export function createBannerCircle({
     innerWhiteSprite.scale.set(innerWhiteScale);
 
     if (innerDarkSprite) {
-      const innerDarkScale = textureToScreenScale(CIRCLE_INNER_CONTENT_RADIUS, s);
+      const innerDarkScale = textureToScreenScale(
+        CIRCLE_INNER_CONTENT_RADIUS,
+        s
+      );
       innerDarkSprite.scale.set(innerDarkScale);
     }
 
@@ -155,7 +158,11 @@ export function createBannerCircle({
   const fillableGraphics = new Graphics();
   container.addChild(fillableGraphics);
 
-  const drawFillableSections = (value: number, targetRadius: number, s: number) => {
+  const drawFillableSections = (
+    value: number,
+    targetRadius: number,
+    s: number
+  ) => {
     fillableGraphics.clear();
 
     if (value <= 0) {
@@ -177,14 +184,27 @@ export function createBannerCircle({
         centerY + Math.sin(startAngle) * innerRadius
       );
 
-      fillableGraphics.arc(centerX, centerY, scaledTargetRadius, startAngle, endAngle);
+      fillableGraphics.arc(
+        centerX,
+        centerY,
+        scaledTargetRadius,
+        startAngle,
+        endAngle
+      );
 
       fillableGraphics.lineTo(
         centerX + Math.cos(endAngle) * innerRadius,
         centerY + Math.sin(endAngle) * innerRadius
       );
 
-      fillableGraphics.arc(centerX, centerY, innerRadius, endAngle, startAngle, true);
+      fillableGraphics.arc(
+        centerX,
+        centerY,
+        innerRadius,
+        endAngle,
+        startAngle,
+        true
+      );
 
       fillableGraphics.closePath();
       fillableGraphics.fill({ color: 0x7d9ea4, alpha: 1 });
@@ -218,7 +238,11 @@ export function createBannerCircle({
   drawDivisionLines(scale);
 
   if (fillableCircleValue !== undefined) {
-    drawFillableSections(fillableCircleValue, CIRCLE_FILLABLE_OUTER_RADIUS, scale);
+    drawFillableSections(
+      fillableCircleValue,
+      CIRCLE_FILLABLE_OUTER_RADIUS,
+      scale
+    );
   }
 
   if (innerLayerContent) {
@@ -247,8 +271,8 @@ export function createBannerCircle({
     hitArea = new Graphics();
     updateTooltipHitArea(scale);
 
-    hitArea.eventMode = 'static';
-    hitArea.cursor = 'pointer';
+    hitArea.eventMode = "static";
+    hitArea.cursor = "pointer";
     container.addChild(hitArea);
 
     tooltipContainer = new Container();
@@ -261,7 +285,7 @@ export function createBannerCircle({
     const tooltipText = new BitmapText({
       text: fillableCircleValueTooltip,
       style: {
-        fontFamily: 'bitmini6',
+        fontFamily: "bitmini6",
         fontSize: 8,
       },
     });
@@ -275,7 +299,7 @@ export function createBannerCircle({
     tooltipBg.rect(-bgWidth / 2, -bgHeight / 2, bgWidth, bgHeight);
     tooltipBg.fill({ color: 0x000000, alpha: 0.5 });
 
-    hitArea.on('pointerover', () => {
+    hitArea.on("pointerover", () => {
       if (!tooltipContainer) {
         return;
       }
@@ -283,7 +307,7 @@ export function createBannerCircle({
       tooltipContainer.visible = true;
     });
 
-    hitArea.on('pointerout', () => {
+    hitArea.on("pointerout", () => {
       if (!tooltipContainer) {
         return;
       }
@@ -291,7 +315,7 @@ export function createBannerCircle({
       tooltipContainer.visible = false;
     });
 
-    hitArea.on('pointermove', (event) => {
+    hitArea.on("pointermove", (event) => {
       if (!tooltipContainer) {
         return;
       }
@@ -333,7 +357,11 @@ export function createBannerCircle({
           CIRCLE_FILLABLE_OUTER_RADIUS +
           (CIRCLE_OUTER_RADIUS - CIRCLE_FILLABLE_OUTER_RADIUS) * eased;
 
-        drawFillableSections(currentFillableValue, fillTargetRadius, currentScale);
+        drawFillableSections(
+          currentFillableValue,
+          fillTargetRadius,
+          currentScale
+        );
       }
 
       if (progress < 1) {
@@ -374,7 +402,11 @@ export function createBannerCircle({
           CIRCLE_OUTER_RADIUS -
           (CIRCLE_OUTER_RADIUS - CIRCLE_FILLABLE_OUTER_RADIUS) * eased;
 
-        drawFillableSections(currentFillableValue, fillTargetRadius, currentScale);
+        drawFillableSections(
+          currentFillableValue,
+          fillTargetRadius,
+          currentScale
+        );
       }
 
       if (progress < 1) {

@@ -50,3 +50,101 @@ export const combatLabels = {
   pass: msg`Pass`,
   forfeit: msg`Forfeit`,
 };
+
+export const spellsLabels = {
+  title: msg`Sorts`,
+  spellList: msg`Liste des sorts`,
+  boostPoints: msg`Points de sorts`,
+  name: msg`Nom`,
+  level: msg`Niveau`,
+  filterAll: msg`Tous`,
+  filterGuild: msg`Guilde`,
+  filterWater: msg`Eau`,
+  filterFire: msg`Feu`,
+  filterEarth: msg`Terre`,
+  filterAir: msg`Air`,
+  filterUpgradable: msg`Améliorables`,
+  spellType: msg`Type de sort`,
+};
+
+export const inventoryLabels = {
+  title: msg`Inventaire`,
+  kamas: msg`Kamas`,
+  weight: msg`Pods`,
+  filterEquipment: msg`Equipement`,
+  filterNonEquipment: msg`Divers`,
+  filterResources: msg`Ressources`,
+  filterRunes: msg`Runes`,
+  filterCards: msg`Cartes`,
+  filterSouls: msg`Ames`,
+  filterQuest: msg`Quête`,
+  equipment: msg`Equipement`,
+  noItem: msg`Aucun objet`,
+};
+
+export const questsLabels = {
+  title: msg`Quêtes`,
+  currentStep: msg`Etape en cours`,
+  stepsList: msg`Liste des étapes`,
+  finishedQuests: msg`Quêtes terminées`,
+  questCount: msg`{count} quête(s)`,
+  status: msg`Etat`,
+  name: msg`Nom`,
+  steps: msg`Etapes`,
+};
+
+export const friendsLabels = {
+  title: msg`Amis`,
+  friends: msg`Amis`,
+  enemies: msg`Ennemis`,
+  ignored: msg`Ignorés`,
+  online: msg`En ligne`,
+  offline: msg`Hors ligne`,
+  addFriend: msg`Ajouter un ami`,
+  addEnemy: msg`Ajouter un ennemi`,
+  addIgnored: msg`Ajouter un ignoré`,
+  add: msg`Ajouter`,
+  pseudonym: msg`Pseudo`,
+  info: msg`Informations`,
+};
+
+export const guildLabels = {
+  title: msg`Guilde`,
+  members: msg`Membres`,
+  info: msg`Infos`,
+  boosts: msg`Boosts`,
+  taxCollectors: msg`Percepteurs`,
+  mountParks: msg`Enclos`,
+  houses: msg`Maisons`,
+  guildNote: msg`Note de guilde`,
+  noData: msg`Aucune donnée`,
+  level: msg`Niveau {level}`,
+  emblem: msg`Emblème`,
+  xp: msg`Expérience`,
+};
+
+export const mountLabels = {
+  title: msg`Monture`,
+  xp: msg`Expérience`,
+  ride: msg`Monter`,
+  release: msg`Libérer`,
+  noMount: msg`Aucune monture`,
+  energy: msg`Energie`,
+  maturity: msg`Maturité`,
+  love: msg`Amour`,
+  name: msg`Nom`,
+  inventory: msg`Inventaire`,
+};
+
+export const conquestLabels = {
+  title: msg`Conquête`,
+  stats: msg`Stats`,
+  zones: msg`Zones`,
+  join: msg`Rejoindre`,
+  worldBalance: msg`Equilibre mondial`,
+  areaBalance: msg`Equilibre de zone`,
+  pvpActive: msg`PvP Actif`,
+  pvpInactive: msg`PvP Inactif`,
+  alignment: msg`Alignement`,
+  guildRanking: msg`Classement de guilde`,
+};

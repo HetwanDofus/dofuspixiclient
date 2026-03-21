@@ -117,6 +117,7 @@ export class GameClient {
       this.currentCellId = payload.cellId;
       console.log("[GameClient] Character selected:", payload.name, "on map", payload.mapId, "cell", payload.cellId);
       this.battlefield?.getStatsPanel()?.setCharacterName(payload.name);
+      this.battlefield?.getInventoryPanel()?.setCharacterGfx(payload.gfx);
       this.battlefield?.setDebugPlayerId(payload.id);
     });
 

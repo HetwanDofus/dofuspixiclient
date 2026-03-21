@@ -1,6 +1,11 @@
-import { Container, Sprite, Texture } from 'pixi.js';
-import type { AssetEntry, BannerManifest, IconButtonWithOffset } from '@/types/banner';
-import { BANNER_ASSETS_PATH, ICON_BUTTON_CONFIGS } from '@/types/banner';
+import { Container, Sprite, type Texture } from "pixi.js";
+
+import type {
+  AssetEntry,
+  BannerManifest,
+  IconButtonWithOffset,
+} from "@/types/banner";
+import { BANNER_ASSETS_PATH, ICON_BUTTON_CONFIGS } from "@/types/banner";
 
 export function createIconButton(
   iconTexture: Texture,
@@ -19,11 +24,13 @@ export function createIconButton(
   icon.anchor.set(0.5, 0.5);
   container.addChild(icon);
 
-  const baseOffsetX = (iconData.width / 2 + iconData.offsetX) / manifest.iconScale;
-  const baseOffsetY = (iconData.height / 2 + iconData.offsetY) / manifest.iconScale;
+  const baseOffsetX =
+    (iconData.width / 2 + iconData.offsetX) / manifest.iconScale;
+  const baseOffsetY =
+    (iconData.height / 2 + iconData.offsetY) / manifest.iconScale;
 
-  container.eventMode = 'static';
-  container.cursor = 'pointer';
+  container.eventMode = "static";
+  container.cursor = "pointer";
 
   const iconButton: IconButtonWithOffset = {
     container,
@@ -37,7 +44,7 @@ export function createIconButton(
     buttonDownTexture,
   };
 
-  container.on('pointerdown', () => {
+  container.on("pointerdown", () => {
     iconButton.isPressed = !iconButton.isPressed;
 
     if (iconButton.isPressed) {
@@ -65,7 +72,8 @@ export function createAllIconButtons(
   buttonDownTexture: Texture,
   getIconTexture: (path: string) => Texture
 ): Array<{ button: IconButtonWithOffset; relativeX: number }> {
-  const buttons: Array<{ button: IconButtonWithOffset; relativeX: number }> = [];
+  const buttons: Array<{ button: IconButtonWithOffset; relativeX: number }> =
+    [];
 
   for (const config of ICON_BUTTON_CONFIGS) {
     const iconData = manifest.icons[config.key];

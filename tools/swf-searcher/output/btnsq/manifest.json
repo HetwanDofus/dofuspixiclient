@@ -1,0 +1,44 @@
+{
+    "version": "1.0",
+    "generated": "2026-03-21T18:45:17+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "1629": {
+            "id": 1629,
+            "exportName": "ButtonSquareUp",
+            "type": "sprite",
+            "width": 12,
+            "height": 12,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1629.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1631": {
+            "id": 1631,
+            "exportName": "ButtonSquareDown",
+            "type": "sprite",
+            "width": 12,
+            "height": 12,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1631.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}

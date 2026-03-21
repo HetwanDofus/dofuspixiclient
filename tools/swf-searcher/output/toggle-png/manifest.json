@@ -1,0 +1,44 @@
+{
+    "version": "1.0",
+    "generated": "2026-03-21T20:01:36+00:00",
+    "format": "png",
+    "scale": 4,
+    "characters": {
+        "37": {
+            "id": 37,
+            "exportName": "ButtonToggleDown",
+            "type": "sprite",
+            "width": 152,
+            "height": 72,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 4,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "37.png"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "41": {
+            "id": 41,
+            "exportName": "ButtonToggleUp",
+            "type": "sprite",
+            "width": 152,
+            "height": 72,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 4,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "41.png"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}

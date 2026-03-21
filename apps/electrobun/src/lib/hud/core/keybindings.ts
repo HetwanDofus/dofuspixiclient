@@ -4,20 +4,20 @@
  */
 
 export type KeyAction =
-  | 'toggleStats'
-  | 'toggleDebug'
-  | 'toggleGrid'
-  | 'toggleStressTest'
-  | 'toggleWorldMap'
-  | 'escape';
+  | "toggleStats"
+  | "toggleDebug"
+  | "toggleGrid"
+  | "toggleStressTest"
+  | "toggleWorldMap"
+  | "escape";
 
 const defaultBindings: Record<KeyAction, string> = {
-  toggleStats: 'c',
-  toggleDebug: 'd',
-  toggleGrid: 'g',
-  toggleStressTest: 't',
-  toggleWorldMap: 'm',
-  escape: 'escape',
+  toggleStats: "c",
+  toggleDebug: "d",
+  toggleGrid: "g",
+  toggleStressTest: "t",
+  toggleWorldMap: "m",
+  escape: "escape",
 };
 
 type ActionHandler = () => void;
@@ -62,7 +62,7 @@ export class Keybindings {
     this.onKeyDown = (e: KeyboardEvent) => {
       // Ignore when typing in inputs
       const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
 
       const key = e.key.toLowerCase();
       for (const [action, boundKey] of Object.entries(this.bindings)) {
@@ -75,13 +75,13 @@ export class Keybindings {
         }
       }
     };
-    window.addEventListener('keydown', this.onKeyDown);
+    window.addEventListener("keydown", this.onKeyDown);
   }
 
   /** Stop listening to keyboard events. */
   detach(): void {
     if (this.onKeyDown) {
-      window.removeEventListener('keydown', this.onKeyDown);
+      window.removeEventListener("keydown", this.onKeyDown);
       this.onKeyDown = null;
     }
   }

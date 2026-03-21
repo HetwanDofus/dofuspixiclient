@@ -1,12 +1,16 @@
-import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
-import { COLORS, METRICS, boldText } from './theme';
+import { Container, Graphics, Sprite, Text, Texture } from "pixi.js";
+
+import { getAssetPath } from "@/themes";
+import { loadSvg } from "@/render/load-svg";
+
+import { boldText, COLORS, METRICS } from "./theme";
 
 export function createPanelBackground(w: number, h: number): Graphics {
   const bg = new Graphics();
   bg.roundRect(0, 0, w, h, 3);
   bg.fill({ color: COLORS.BG });
   bg.stroke({ color: COLORS.BORDER, width: 2 });
-  bg.eventMode = 'static';
+  bg.eventMode = "static";
   return bg;
 }
 
@@ -14,7 +18,7 @@ export function createSectionHeader(
   y: number,
   w: number,
   label: string,
-  zoom = 1,
+  zoom = 1
 ): { graphics: Graphics; text: Text; nextY: number } {
   const HEADER_H = Math.round(METRICS.HEADER_H * zoom);
   const PX = Math.round(METRICS.PX * zoom);
@@ -37,7 +41,7 @@ export function createSectionHeader(
 export function createAlternatingRow(
   y: number,
   w: number,
-  rowIndex: number,
+  rowIndex: number
 ): Graphics | null {
   if (rowIndex % 2 === 1) {
     const row = new Graphics();
@@ -52,7 +56,7 @@ export function createProgressBar(
   x: number,
   y: number,
   w: number,
-  h: number,
+  h: number
 ): { graphics: Graphics; redraw: (pct: number) => void } {
   const r = h / 2;
   const graphics = new Graphics();
@@ -83,21 +87,48 @@ export function createProgressBar(
 export function createCloseButton(onClick: () => void, zoom = 1): Container {
   const CLOSE_SIZE = Math.round(METRICS.CLOSE_SIZE * zoom);
   const c = new Container();
-  c.eventMode = 'static';
-  c.cursor = 'pointer';
+  c.eventMode = "static";
+  c.cursor = "pointer";
 
-  const bg = new Graphics();
-  bg.rect(0, 0, CLOSE_SIZE, CLOSE_SIZE);
-  bg.fill({ color: COLORS.CLOSE_BG });
-  c.addChild(bg);
+  const upSprite = new Sprite(Texture.EMPTY);
+  upSprite.width = CLOSE_SIZE;
+  upSprite.height = CLOSE_SIZE;
+  c.addChild(upSprite);
 
-  const x = new Text({ text: 'x', style: boldText(11 * zoom, COLORS.TEXT_WHITE) });
-  x.anchor.set(0.5, 0.5);
-  x.x = CLOSE_SIZE / 2;
-  x.y = CLOSE_SIZE / 2;
-  c.addChild(x);
+  const downSprite = new Sprite(Texture.EMPTY);
+  downSprite.width = CLOSE_SIZE;
+  downSprite.height = CLOSE_SIZE;
+  downSprite.visible = false;
+  c.addChild(downSprite);
 
-  c.on('pointerdown', onClick);
+  // Load SVG textures from theme
+  const res = zoom * (globalThis.devicePixelRatio || 1);
+  const basePath = getAssetPath("common");
+  loadSvg(`${basePath}/close-up.svg`, res).then((tex) => {
+    upSprite.texture = tex;
+    upSprite.width = CLOSE_SIZE;
+    upSprite.height = CLOSE_SIZE;
+  }).catch(() => {});
+  loadSvg(`${basePath}/close-down.svg`, res).then((tex) => {
+    downSprite.texture = tex;
+    downSprite.width = CLOSE_SIZE;
+    downSprite.height = CLOSE_SIZE;
+  }).catch(() => {});
+
+  c.on("pointerdown", () => {
+    upSprite.visible = false;
+    downSprite.visible = true;
+  });
+  c.on("pointerup", () => {
+    upSprite.visible = true;
+    downSprite.visible = false;
+    onClick();
+  });
+  c.on("pointerupoutside", () => {
+    upSprite.visible = true;
+    downSprite.visible = false;
+  });
+
   return c;
 }
 
@@ -105,7 +136,7 @@ export function createSlot(
   x: number,
   y: number,
   size: number,
-  borderColor?: number,
+  borderColor?: number
 ): { graphics: Graphics; iconSprite: Sprite } {
   const graphics = new Graphics();
   graphics.rect(x, y, size, size);

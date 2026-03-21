@@ -1,0 +1,26 @@
+{
+    "version": "1.0",
+    "generated": "2026-03-21T18:47:06+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "222": {
+            "id": 222,
+            "exportName": "Coeur",
+            "type": "sprite",
+            "width": 11.4,
+            "height": 10.4,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "222.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}

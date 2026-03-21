@@ -99,8 +99,8 @@ export class WorldMapRenderer {
 
     this.worldContainer.addChild(this.mapContainer);
     this.worldContainer.addChild(this.gridContainer);
-    this.worldContainer.addChild(this.hintsContainer);
     this.worldContainer.addChild(this.positionMarker);
+    this.worldContainer.addChild(this.hintsContainer);
 
     this.root.addChild(this.worldContainer);
     this.root.addChild(this.uiContainer);

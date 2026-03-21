@@ -1,1 +1,1 @@
-export { WorldMapPanel } from './world-map-panel';
+export { WorldMapPanel } from "./world-map-panel";

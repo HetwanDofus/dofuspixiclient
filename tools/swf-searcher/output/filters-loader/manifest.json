@@ -1,0 +1,26 @@
+{
+    "version": "1.0",
+    "generated": "2026-03-21T19:25:29+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "2315": {
+            "id": 2315,
+            "exportName": "iconCustomSet",
+            "type": "sprite",
+            "width": 15.05,
+            "height": 11.4,
+            "offsetX": -7.55,
+            "offsetY": -5.2,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "2315.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}

@@ -1,0 +1,62 @@
+{
+    "version": "1.0",
+    "generated": "2026-03-21T18:24:18+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "874": {
+            "id": 874,
+            "exportName": "ActionPointsViewer",
+            "type": "sprite",
+            "width": 0,
+            "height": 0,
+            "offsetX": -13,
+            "offsetY": -9.2,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "874.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1415": {
+            "id": 1415,
+            "exportName": "PointsViewerMP",
+            "type": "sprite",
+            "width": 33.45,
+            "height": 34.45,
+            "offsetX": -18.95,
+            "offsetY": -19.95,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1415.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1416": {
+            "id": 1416,
+            "exportName": "PointsViewerAP",
+            "type": "sprite",
+            "width": 31.5,
+            "height": 33.75,
+            "offsetX": -17,
+            "offsetY": -19.25,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1416.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}

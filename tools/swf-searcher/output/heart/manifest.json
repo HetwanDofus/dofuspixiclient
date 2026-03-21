@@ -1,0 +1,142 @@
+{
+    "version": "1.0",
+    "generated": "2026-03-21T18:39:51+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "872": {
+            "id": 872,
+            "exportName": "Heart",
+            "type": "sprite",
+            "width": 50.2,
+            "height": 39.1,
+            "offsetX": -28.4,
+            "offsetY": -19.55,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "872_0.svg"
+                },
+                {
+                    "index": 1,
+                    "file": "872_1.svg"
+                },
+                {
+                    "index": 2,
+                    "file": "872_2.svg"
+                },
+                {
+                    "index": 3,
+                    "file": "872_3.svg"
+                },
+                {
+                    "index": 4,
+                    "file": "872_4.svg"
+                },
+                {
+                    "index": 5,
+                    "file": "872_5.svg"
+                },
+                {
+                    "index": 6,
+                    "file": "872_6.svg"
+                },
+                {
+                    "index": 7,
+                    "file": "872_7.svg"
+                },
+                {
+                    "index": 8,
+                    "file": "872_8.svg"
+                },
+                {
+                    "index": 9,
+                    "file": "872_9.svg"
+                },
+                {
+                    "index": 10,
+                    "file": "872_10.svg"
+                },
+                {
+                    "index": 11,
+                    "file": "872_11.svg"
+                },
+                {
+                    "index": 12,
+                    "file": "872_12.svg"
+                },
+                {
+                    "index": 13,
+                    "file": "872_13.svg"
+                },
+                {
+                    "index": 14,
+                    "file": "872_14.svg"
+                },
+                {
+                    "index": 15,
+                    "file": "872_15.svg"
+                },
+                {
+                    "index": 16,
+                    "file": "872_16.svg"
+                },
+                {
+                    "index": 17,
+                    "file": "872_17.svg"
+                },
+                {
+                    "index": 18,
+                    "file": "872_18.svg"
+                },
+                {
+                    "index": 19,
+                    "file": "872_19.svg"
+                },
+                {
+                    "index": 20,
+                    "file": "872_20.svg"
+                },
+                {
+                    "index": 21,
+                    "file": "872_21.svg"
+                },
+                {
+                    "index": 22,
+                    "file": "872_22.svg"
+                },
+                {
+                    "index": 23,
+                    "file": "872_23.svg"
+                },
+                {
+                    "index": 24,
+                    "file": "872_24.svg"
+                },
+                {
+                    "index": 25,
+                    "file": "872_25.svg"
+                },
+                {
+                    "index": 26,
+                    "file": "872_26.svg"
+                },
+                {
+                    "index": 27,
+                    "file": "872_27.svg"
+                },
+                {
+                    "index": 28,
+                    "file": "872_28.svg"
+                },
+                {
+                    "index": 29,
+                    "file": "872_29.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 30
+        }
+    }
+}

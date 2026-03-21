@@ -1,6 +1,7 @@
 export interface ThemeColors {
   bg: number;
   bgAlt: number;
+  bgAltDark: number;
   headerBg: number;
   border: number;
   textDark: number;

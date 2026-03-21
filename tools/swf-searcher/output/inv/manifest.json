@@ -1,0 +1,26 @@
+{
+    "version": "1.0",
+    "generated": "2026-03-21T19:49:46+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "946": {
+            "id": 946,
+            "exportName": "UI_Inventory",
+            "type": "sprite",
+            "width": 711,
+            "height": 367,
+            "offsetX": 10,
+            "offsetY": 63,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "946.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}
