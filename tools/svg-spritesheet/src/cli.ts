@@ -219,6 +219,9 @@ async function generateCombinedManifest(
       frames: manifest.frames,
       frameOrder: manifest.frameOrder,
       duplicates: manifest.duplicates ?? {},
+      elementDedup: manifest.elementDedup,
+      baseFrame: manifest.baseFrame,
+      baseZOrder: manifest.baseZOrder,
     };
   }
 
@@ -325,12 +328,25 @@ async function compileSprite(
       tileClassification ?? null
     );
 
+    // Aggregate element dedup stats across animations
+    let elemTotal = 0, elemUnique = 0, elemPooled = 0, elemBase = 0, elemFlips = 0;
+    for (const { manifest } of manifests.values()) {
+      if (manifest.elementDedup) {
+        elemTotal += manifest.elementDedup.totalElements;
+        elemUnique += manifest.elementDedup.uniqueElements;
+        elemPooled += manifest.elementDedup.pooledElements;
+        elemBase += manifest.elementDedup.baseElements;
+        elemFlips += manifest.elementDedup.flipPairs;
+      }
+    }
+
     return {
       spriteId,
       success: true,
       inputSize: totalInputSize,
       outputSize: totalOutputSize,
       animationCount: manifests.size,
+      elementDedup: elemTotal > 0 ? { total: elemTotal, unique: elemUnique, pooled: elemPooled, base: elemBase, flips: elemFlips } : undefined,
     };
   } catch (error) {
     return {
@@ -430,6 +446,7 @@ async function compileAll(options: CompileOptions): Promise<void> {
   let failed = 0;
   let totalInputSize = 0;
   let totalOutputSize = 0;
+  let totalElemDedup = { total: 0, unique: 0, pooled: 0, base: 0, flips: 0 };
 
   for (let i = 0; i < spriteIds.length; i++) {
     const spriteId = spriteIds[i];
@@ -472,10 +489,23 @@ async function compileAll(options: CompileOptions): Promise<void> {
         ? Math.round((1 - (result.outputSize ?? 0) / result.inputSize) * 100)
         : 0;
 
+      const elemInfo = result.elementDedup
+        ? `, elem: ${result.elementDedup.pooled} pooled/${result.elementDedup.unique} unique` +
+          (result.elementDedup.base > 0 ? `, ${result.elementDedup.base} base` : "") +
+          (result.elementDedup.flips > 0 ? `, ${result.elementDedup.flips} flips` : "")
+        : "";
       logger.info(
         `[${i + 1}/${spriteIds.length}] ${spriteId}: ${result.animationCount} anims, ` +
-          `${formatBytes(result.inputSize ?? 0)} -> ${formatBytes(result.outputSize ?? 0)} (${compression}%)`
+          `${formatBytes(result.inputSize ?? 0)} -> ${formatBytes(result.outputSize ?? 0)} (${compression}%)${elemInfo}`
       );
+
+      if (result.elementDedup) {
+        totalElemDedup.total += result.elementDedup.total;
+        totalElemDedup.unique += result.elementDedup.unique;
+        totalElemDedup.pooled += result.elementDedup.pooled;
+        totalElemDedup.base += result.elementDedup.base;
+        totalElemDedup.flips += result.elementDedup.flips;
+      }
     } else {
       failed++;
       logger.error(
@@ -500,6 +530,15 @@ async function compileAll(options: CompileOptions): Promise<void> {
   if (totalInputSize > 0) {
     logger.info(
       `Compression: ${Math.round((1 - totalOutputSize / totalInputSize) * 100)}%`
+    );
+  }
+
+  if (totalElemDedup.total > 0) {
+    const elemSaved = totalElemDedup.total - totalElemDedup.unique;
+    const elemPct = Math.round((elemSaved / totalElemDedup.total) * 100);
+    logger.info(
+      `Element dedup: ${totalElemDedup.total} total, ${totalElemDedup.unique} unique (${elemPct}% dedup), ` +
+        `${totalElemDedup.pooled} pooled, ${totalElemDedup.base} base, ${totalElemDedup.flips} flip pairs`
     );
   }
 

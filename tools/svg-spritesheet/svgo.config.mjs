@@ -31,7 +31,7 @@ export default {
     "sortAttrs",
     "sortDefsChildren",
     "removeDesc",
-    { name: "cleanupNumericValues", params: { floatPrecision: 1 } },
-    { name: "convertPathData", params: { floatPrecision: 1 } },
+    { name: "cleanupNumericValues", params: { floatPrecision: 6 } },
+    { name: "convertPathData", params: { floatPrecision: 6 } },
   ],
 };

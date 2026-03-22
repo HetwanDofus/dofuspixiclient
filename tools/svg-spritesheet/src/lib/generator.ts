@@ -8,6 +8,8 @@ import type {
   AtlasFrame,
   AtlasManifest,
   DeduplicationResult,
+  ElementDeduplicationResult,
+  ElementRef,
   OptimizationOptions,
   ParsedFrame,
   ProcessedSprite,
@@ -16,6 +18,7 @@ import type {
 import type { ImageRegistry } from "./image-exporter.ts";
 import {
   buildCanonicalDefinitions,
+  deduplicateElements,
   sortDefinitionsTopologically,
 } from "./deduplicator.ts";
 import {
@@ -202,54 +205,211 @@ function extractTranslation(transform: string | undefined): {
   return { x: 0, y: 0 };
 }
 
-/** Compute tight content bounds from use elements + transforms */
+/**
+ * Compute frame bounds from viewBox.
+ *
+ * Previously this tried to compute tight bounds from use element positions,
+ * but that only extracted translation offsets and ignored rotation/scale/matrix
+ * transforms, causing frames to be clipped. Using the full viewBox is correct
+ * and matches the original working output.
+ */
 function computeContentBounds(
-  sprite: ProcessedSprite,
+  _sprite: ProcessedSprite,
   vbMinX: number,
   vbMinY: number,
   vbWidth: number,
   vbHeight: number
 ): { minX: number; minY: number; width: number; height: number } {
-  const mainOff = extractTranslation(sprite.mainTransform);
-  const validUses = sprite.useElements.filter(hasValidReference);
+  return { minX: vbMinX, minY: vbMinY, width: vbWidth, height: vbHeight };
+}
 
-  // Fall back to full viewBox if any use element lacks dimensions
-  if (
-    validUses.length === 0 ||
-    validUses.some((u) => u.width == null || u.height == null)
-  ) {
+/**
+ * Parse a transform string into a 2×3 affine matrix [a, b, c, d, tx, ty].
+ */
+function parseMatrix(
+  transform: string | undefined
+): [number, number, number, number, number, number] {
+  if (!transform) return [1, 0, 0, 1, 0, 0];
+
+  const m = transform.match(
+    /matrix\s*\(\s*([^,)\s]+)[,\s]+([^,)\s]+)[,\s]+([^,)\s]+)[,\s]+([^,)\s]+)[,\s]+([^,)\s]+)[,\s]+([^,)\s]+)\s*\)/
+  );
+  if (m) {
+    return [
+      parseFloat(m[1]), parseFloat(m[2]), parseFloat(m[3]),
+      parseFloat(m[4]), parseFloat(m[5]), parseFloat(m[6]),
+    ];
+  }
+
+  const t = transform.match(/translate\s*\(\s*([^,)\s]+)(?:[,\s]+([^,)\s]+))?\s*\)/);
+  if (t) {
+    return [1, 0, 0, 1, parseFloat(t[1]), t[2] ? parseFloat(t[2]) : 0];
+  }
+
+  const s = transform.match(/scale\s*\(\s*([^,)\s]+)(?:[,\s]+([^,)\s]+))?\s*\)/);
+  if (s) {
+    const sx = parseFloat(s[1]);
+    return [sx, 0, 0, s[2] ? parseFloat(s[2]) : sx, 0, 0];
+  }
+
+  const r = transform.match(
+    /rotate\s*\(\s*([^,)\s]+)(?:[,\s]+([^,)\s]+)[,\s]+([^,)\s]+))?\s*\)/
+  );
+  if (r) {
+    const angle = (parseFloat(r[1]) * Math.PI) / 180;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    if (r[2] && r[3]) {
+      const cx = parseFloat(r[2]);
+      const cy = parseFloat(r[3]);
+      return [cos, sin, -sin, cos, cx - cos * cx + sin * cy, cy - sin * cx - cos * cy];
+    }
+    return [cos, sin, -sin, cos, 0, 0];
+  }
+
+  return [1, 0, 0, 1, 0, 0];
+}
+
+/**
+ * Compute the axis-aligned bounding box of a use element after its transform.
+ * Transforms the 4 corners of (0,0,width,height) through the affine matrix
+ * and returns the enclosing AABB.
+ */
+function computeElementAABB(
+  use: UseElement,
+  mainTransform: string
+): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  if (use.width == null || use.height == null) return null;
+
+  const [ma, mb, mc, md, mtx, mty] = parseMatrix(mainTransform);
+  const [ea, eb, ec, ed, etx, ety] = parseMatrix(use.transform);
+
+  // Compose: main × element
+  const a = ma * ea + mc * eb;
+  const b = mb * ea + md * eb;
+  const c = ma * ec + mc * ed;
+  const d = mb * ec + md * ed;
+  const tx = ma * etx + mc * ety + mtx;
+  const ty = mb * etx + md * ety + mty;
+
+  // Transform 4 corners of (0, 0, w, h)
+  const w = use.width;
+  const h = use.height;
+  const corners = [
+    [tx, ty],
+    [a * w + tx, b * w + ty],
+    [c * h + tx, d * h + ty],
+    [a * w + c * h + tx, b * w + d * h + ty],
+  ];
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [cx, cy] of corners) {
+    minX = Math.min(minX, cx);
+    minY = Math.min(minY, cy);
+    maxX = Math.max(maxX, cx);
+    maxY = Math.max(maxY, cy);
+  }
+
+  return { minX, minY, maxX, maxY };
+}
+
+/**
+ * Compute the union AABB of multiple use elements, clamped to the viewBox.
+ */
+function computeElementsAABB(
+  uses: UseElement[],
+  mainTransform: string,
+  vbMinX: number,
+  vbMinY: number,
+  vbWidth: number,
+  vbHeight: number
+): { minX: number; minY: number; width: number; height: number } {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+  for (const use of uses) {
+    const aabb = computeElementAABB(use, mainTransform);
+    if (!aabb) {
+      // Can't compute bounds — fall back to full viewBox
+      return { minX: vbMinX, minY: vbMinY, width: vbWidth, height: vbHeight };
+    }
+    minX = Math.min(minX, aabb.minX);
+    minY = Math.min(minY, aabb.minY);
+    maxX = Math.max(maxX, aabb.maxX);
+    maxY = Math.max(maxY, aabb.maxY);
+  }
+
+  if (!isFinite(minX)) {
     return { minX: vbMinX, minY: vbMinY, width: vbWidth, height: vbHeight };
   }
 
-  let bMinX = Infinity;
-  let bMinY = Infinity;
-  let bMaxX = -Infinity;
-  let bMaxY = -Infinity;
+  // Clamp to viewBox with 1px margin
+  minX = Math.max(Math.floor(minX) - 1, vbMinX);
+  minY = Math.max(Math.floor(minY) - 1, vbMinY);
+  maxX = Math.min(Math.ceil(maxX) + 1, vbMinX + vbWidth);
+  maxY = Math.min(Math.ceil(maxY) + 1, vbMinY + vbHeight);
 
-  for (const use of validUses) {
-    const useOff = extractTranslation(use.transform);
-    const x = mainOff.x + useOff.x;
-    const y = mainOff.y + useOff.y;
-    bMinX = Math.min(bMinX, x);
-    bMinY = Math.min(bMinY, y);
-    bMaxX = Math.max(bMaxX, x + use.width!);
-    bMaxY = Math.max(bMaxY, y + use.height!);
+  return { minX, minY, width: maxX - minX, height: maxY - minY };
+}
+
+/**
+ * Render a pooled element reference.
+ * - Inlined: render the full <use> element inline (same as before)
+ * - Pooled: render <use xlink:href="#eN"/>
+ * - Flipped: render <g transform="scale(-1,1)"><use xlink:href="#eN"/></g>
+ */
+function renderElementRef(
+  ref: ElementRef,
+  elemDedup: ElementDeduplicationResult,
+  sprite: ProcessedSprite,
+  refIndex: number
+): string {
+  const instance = elemDedup.pool.get(ref.hash);
+  if (!instance) return "";
+
+  // Inlined: render full use element as before
+  if (ref.inlined) {
+    const use = sprite.useElements.filter(hasValidReference)[refIndex];
+    if (!use) return "";
+    return renderUseElement(use, true);
   }
 
-  // Clamp to viewBox and add 1px margin
-  const margin = 1;
-  bMinX = Math.max(Math.floor(bMinX) - margin, vbMinX);
-  bMinY = Math.max(Math.floor(bMinY) - margin, vbMinY);
-  bMaxX = Math.min(Math.ceil(bMaxX) + margin, vbMinX + vbWidth);
-  bMaxY = Math.min(Math.ceil(bMaxY) + margin, vbMinY + vbHeight);
+  // Pooled reference
+  const useRef = `<use xlink:href="#${instance.id}"/>`;
 
-  return {
-    minX: bMinX,
-    minY: bMinY,
-    width: bMaxX - bMinX,
-    height: bMaxY - bMinY,
-  };
+  if (ref.flipped) {
+    return `<g transform="scale(-1,1)">${useRef}</g>`;
+  }
+
+  return useRef;
 }
+
+/** Helper: render a frame group into the atlas */
+function renderFrameGroup(
+  lines: string[],
+  clipId: string,
+  translateX: number,
+  translateY: number,
+  mainTransform: string,
+  elements: string[]
+): void {
+  lines.push(`  <g clip-path="url(#${clipId})">`);
+  lines.push(`    <g transform="translate(${translateX}, ${translateY})">`);
+  if (mainTransform) {
+    lines.push(`      <g transform="${mainTransform}">`);
+  }
+  for (const el of elements) {
+    lines.push("        " + el);
+  }
+  if (mainTransform) {
+    lines.push("      </g>");
+  }
+  lines.push("    </g>");
+  lines.push("  </g>");
+}
+
+/** Minimum base element ratio to trigger base/delta splitting */
+const BASE_DELTA_MIN_BASE_RATIO = 0.3;
+const BASE_DELTA_MIN_FRAMES = 3;
 
 function generateAtlasSvg(
   frames: ParsedFrame[],
@@ -262,66 +422,161 @@ function generateAtlasSvg(
   const opts = { ...DEFAULT_OPTIMIZATION, ...options };
   const uniqueSprites = sprites.filter((s) => !s.duplicateOf);
 
-  // Build frame dimensions cropped to content bounds
-  const frameDimensions: FrameDimension[] = uniqueSprites.map(
-    (sprite, index) => {
-      const parts = sprite.viewBox.split(/\s+/).map(Number);
-      const vbMinX = parts[0] || 0;
-      const vbMinY = parts[1] || 0;
-      const vbWidth = parts[2] || 100;
-      const vbHeight = parts[3] || 100;
+  // --- Element-level deduplication ---
+  const elemDedup = deduplicateElements(sprites);
 
-      const bounds = computeContentBounds(
-        sprite,
-        vbMinX,
-        vbMinY,
-        vbWidth,
-        vbHeight
-      );
-      return {
-        id: sprite.id,
-        index,
-        minX: bounds.minX,
-        minY: bounds.minY,
-        width: bounds.width,
-        height: bounds.height,
-      };
+  // --- Decide base/delta splitting (z-order safe) ---
+  // Try two strategies and pick the one that captures more base elements:
+  //   "above": base elements above the highest delta → base composited on top
+  //   "below": base elements below the lowest delta → base composited below
+  const firstSprite = uniqueSprites[0];
+  const firstFrameRefs = firstSprite ? elemDedup.frameElements.get(firstSprite.id) : undefined;
+  const totalElementsPerFrame = firstFrameRefs?.length ?? 0;
+
+  // Find delta z-range
+  let lowestDeltaZ = totalElementsPerFrame;
+  let highestDeltaZ = -1;
+  if (firstFrameRefs) {
+    for (let z = 0; z < firstFrameRefs.length; z++) {
+      const ref = firstFrameRefs[z];
+      if (!elemDedup.baseElementHashes.has(ref.hash) || ref.flipped) {
+        if (z < lowestDeltaZ) lowestDeltaZ = z;
+        if (z > highestDeltaZ) highestDeltaZ = z;
+      }
     }
-  );
+  }
 
-  // Create pack rectangles for bin-packing
-  const packRects: PackRect[] = frameDimensions.map((dim) => ({
-    id: dim.id,
-    width: Math.ceil(dim.width),
-    height: Math.ceil(dim.height),
-  }));
+  // Strategy "above": base elements above highest delta
+  const aboveIndices = new Set<number>();
+  if (firstFrameRefs && highestDeltaZ >= 0) {
+    for (let z = highestDeltaZ + 1; z < firstFrameRefs.length; z++) {
+      const ref = firstFrameRefs[z];
+      if (elemDedup.baseElementHashes.has(ref.hash) && !ref.flipped) {
+        aboveIndices.add(z);
+      }
+    }
+  }
 
-  // Pack rectangles using bin-packing algorithm
+  // Strategy "below": base elements below lowest delta
+  const belowIndices = new Set<number>();
+  if (firstFrameRefs && lowestDeltaZ < totalElementsPerFrame) {
+    for (let z = 0; z < lowestDeltaZ; z++) {
+      const ref = firstFrameRefs[z];
+      if (elemDedup.baseElementHashes.has(ref.hash) && !ref.flipped) {
+        belowIndices.add(z);
+      }
+    }
+  }
+
+  // Pick the strategy with more base elements
+  let splitBaseIndices: Set<number>;
+  let splitZOrder: "above" | "below";
+  if (aboveIndices.size >= belowIndices.size) {
+    splitBaseIndices = aboveIndices;
+    splitZOrder = "above";
+  } else {
+    splitBaseIndices = belowIndices;
+    splitZOrder = "below";
+  }
+
+  // Rename for consistency with the rest of the function
+  const aboveBaseIndices = splitBaseIndices;
+  const aboveBaseCount = splitBaseIndices.size;
+  const aboveBaseRatio = totalElementsPerFrame > 0 ? aboveBaseCount / totalElementsPerFrame : 0;
+  const useBaseDelta =
+    uniqueSprites.length >= BASE_DELTA_MIN_FRAMES &&
+    aboveBaseRatio >= BASE_DELTA_MIN_BASE_RATIO &&
+    aboveBaseCount > 0;
+
+  // Parse viewBox once (shared by all frames in an animation)
+  const vbParts = firstSprite ? firstSprite.viewBox.split(/\s+/).map(Number) : [0, 0, 100, 100];
+  const vbMinX = vbParts[0] || 0;
+  const vbMinY = vbParts[1] || 0;
+  const vbWidth = vbParts[2] || 100;
+  const vbHeight = vbParts[3] || 100;
+
+  // Get positioning offset from first frame
+  const firstFrame = frames[0];
+  const positioningOffsetX = firstFrame ? -firstFrame.positioningOffset.x : 0;
+  const positioningOffsetY = firstFrame ? -firstFrame.positioningOffset.y : 0;
+
+  // --- Build pack rectangles ---
+  const packRects: PackRect[] = [];
+  const dimMap = new Map<string, FrameDimension>();
+
+  // Delta-content dedup: maps sprite id → canonical sprite id when deltas are identical
+  const deltaDuplicates = new Map<string, string>();
+
+  if (useBaseDelta) {
+    // Base frame: full viewBox
+    const baseId = "__base__";
+    packRects.push({ id: baseId, width: Math.ceil(vbWidth), height: Math.ceil(vbHeight) });
+    dimMap.set(baseId, { id: baseId, index: -1, minX: vbMinX, minY: vbMinY, width: vbWidth, height: vbHeight });
+
+    // Hash delta content per frame for delta-level dedup
+    const deltaHashToCanonical = new Map<string, string>();
+
+    // Delta frames: compute tight bounds from delta elements only
+    for (let i = 0; i < uniqueSprites.length; i++) {
+      const sprite = uniqueSprites[i];
+      const refs = elemDedup.frameElements.get(sprite.id);
+      if (!refs) continue;
+
+      // Collect delta element refs and use elements
+      const deltaRefHashes: string[] = [];
+      const deltaUses: UseElement[] = [];
+      const validUses = sprite.useElements.filter(hasValidReference);
+      for (let j = 0; j < refs.length; j++) {
+        if (!aboveBaseIndices.has(j)) {
+          deltaRefHashes.push(refs[j].hash + (refs[j].flipped ? "_f" : ""));
+          if (validUses[j]) deltaUses.push(validUses[j]);
+        }
+      }
+
+      // Hash the delta content for dedup
+      const deltaHash = deltaRefHashes.join("|");
+      const existingCanonical = deltaHashToCanonical.get(deltaHash);
+
+      if (existingCanonical) {
+        // This delta is identical to an already-seen delta — mark as duplicate
+        deltaDuplicates.set(sprite.id, existingCanonical);
+        continue;
+      }
+
+      deltaHashToCanonical.set(deltaHash, sprite.id);
+
+      let bounds: { minX: number; minY: number; width: number; height: number };
+      if (deltaUses.length === 0) {
+        bounds = { minX: vbMinX, minY: vbMinY, width: 1, height: 1 };
+      } else {
+        bounds = computeElementsAABB(deltaUses, sprite.mainTransform, vbMinX, vbMinY, vbWidth, vbHeight);
+      }
+
+      packRects.push({ id: sprite.id, width: Math.ceil(bounds.width), height: Math.ceil(bounds.height) });
+      dimMap.set(sprite.id, { id: sprite.id, index: i, minX: bounds.minX, minY: bounds.minY, width: bounds.width, height: bounds.height });
+    }
+  } else {
+    // No splitting — full frames as before
+    for (let i = 0; i < uniqueSprites.length; i++) {
+      const sprite = uniqueSprites[i];
+      packRects.push({ id: sprite.id, width: Math.ceil(vbWidth), height: Math.ceil(vbHeight) });
+      dimMap.set(sprite.id, { id: sprite.id, index: i, minX: vbMinX, minY: vbMinY, width: vbWidth, height: vbHeight });
+    }
+  }
+
+  // Pack rectangles
   const packResult = packRectangles(packRects, 1, 4096);
   const atlasWidth = packResult.width;
   const atlasHeight = packResult.height;
 
-  // Create lookup map from frame id to packed position
   const packedPositions: PackedPositionMap = new Map();
   for (const packed of packResult.rects) {
     packedPositions.set(packed.id, packed);
   }
 
-  // Get positioning offset from first frame (all frames in an animation share the same offset)
-  const firstFrame = frames[0];
-  const positioningOffsetX = firstFrame ? -firstFrame.positioningOffset.x : 0;
-  const positioningOffsetY = firstFrame ? -firstFrame.positioningOffset.y : 0;
-
-  const rebuiltDefs = buildCanonicalDefinitions(
-    frames,
-    dedup,
-    svgOutputDir,
-    imageRegistry
-  );
-  const sortedHashes = sortDefinitionsTopologically(
-    dedup.canonicalDefs,
-    rebuiltDefs
-  );
+  // --- Build SVG ---
+  const rebuiltDefs = buildCanonicalDefinitions(frames, dedup, svgOutputDir, imageRegistry);
+  const sortedHashes = sortDefinitionsTopologically(dedup.canonicalDefs, rebuiltDefs);
 
   const lines: string[] = [];
   lines.push(SVG_HEADER);
@@ -330,85 +585,164 @@ function generateAtlasSvg(
   );
   lines.push("  <defs>");
 
+  // Emit definition-level deduped content
   for (const hash of sortedHashes) {
     const canonicalDef = dedup.canonicalDefs.get(hash);
-    if (!canonicalDef) {
-      continue;
-    }
-
+    if (!canonicalDef) continue;
     let content = rebuiltDefs.get(canonicalDef.id);
-    if (!content) {
-      continue;
-    }
-
+    if (!content) continue;
     content = processNonScalingStroke(content);
-    if (opts.stripDefaults) {
-      content = stripDefaultAttributes(content);
-    }
+    if (opts.stripDefaults) content = stripDefaultAttributes(content);
     lines.push(indent(content, 4, opts.minify));
   }
 
-  // Generate clip paths for each packed frame
-  for (let i = 0; i < uniqueSprites.length; i++) {
-    const sprite = uniqueSprites[i];
-    const packed = packedPositions.get(sprite.id);
-    if (!packed) {
-      continue;
+  // Emit pooled element instance groups
+  const flipSources = new Set(elemDedup.flipPairs.values());
+  for (const [hash, instance] of elemDedup.pool) {
+    const isInlined = instance.occurrences < 2 && !instance.flipSourceHash;
+    if (isInlined && !flipSources.has(hash)) continue;
+
+    const useStr = `<use ${buildUseElementAttrs({
+      href: toInternalRef(instance.href),
+      width: instance.width,
+      height: instance.height,
+      transform: instance.transform,
+      additionalAttrs: instance.attributes,
+    })}/>`;
+    lines.push(`    <g id="${instance.id}">${useStr}</g>`);
+  }
+
+  // Emit clip paths
+  let clipIndex = 0;
+  const clipIds = new Map<string, string>();
+
+  if (useBaseDelta) {
+    // Clip for base frame
+    const basePacked = packedPositions.get("__base__");
+    if (basePacked) {
+      const cid = `clip_${clipIndex++}`;
+      clipIds.set("__base__", cid);
+      lines.push(`    <clipPath id="${cid}"><rect x="${basePacked.x}" y="${basePacked.y}" width="${basePacked.width}" height="${basePacked.height}"/></clipPath>`);
     }
-    lines.push(
-      `    <clipPath id="clip_${i}"><rect x="${packed.x}" y="${packed.y}" width="${packed.width}" height="${packed.height}"/></clipPath>`
-    );
+  }
+  for (const sprite of uniqueSprites) {
+    const packed = packedPositions.get(sprite.id);
+    if (!packed) continue;
+    const cid = `clip_${clipIndex++}`;
+    clipIds.set(sprite.id, cid);
+    lines.push(`    <clipPath id="${cid}"><rect x="${packed.x}" y="${packed.y}" width="${packed.width}" height="${packed.height}"/></clipPath>`);
   }
 
   lines.push("  </defs>");
   lines.push("");
 
+  // --- Render frames ---
   const atlasFrames: AtlasFrame[] = [];
   const duplicates: Record<string, string> = {};
+  let baseFrameManifest: AtlasFrame | undefined;
 
-  for (let i = 0; i < uniqueSprites.length; i++) {
-    const sprite = uniqueSprites[i];
-    const dim = frameDimensions[i];
-    const packed = packedPositions.get(sprite.id);
+  if (useBaseDelta) {
+    // Render base frame (only base elements)
+    const basePacked = packedPositions.get("__base__");
+    const baseDim = dimMap.get("__base__");
+    const baseClip = clipIds.get("__base__");
+    if (basePacked && baseDim && baseClip && firstSprite && firstFrameRefs) {
+      baseFrameManifest = {
+        id: "__base__",
+        x: basePacked.x, y: basePacked.y,
+        width: basePacked.width, height: basePacked.height,
+        offsetX: baseDim.minX, offsetY: baseDim.minY,
+      };
 
-    if (!packed) {
-      continue;
+      const baseElements: string[] = [];
+      const validUses = firstSprite.useElements.filter(hasValidReference);
+      for (let j = 0; j < firstFrameRefs.length; j++) {
+        if (aboveBaseIndices.has(j)) {
+          const ref = firstFrameRefs[j];
+          const rendered = renderElementRef(ref, elemDedup, firstSprite, j);
+          if (rendered) baseElements.push(rendered);
+        }
+      }
+
+      const translateX = basePacked.x - baseDim.minX;
+      const translateY = basePacked.y - baseDim.minY;
+      lines.push(`  <!-- Base frame -->`);
+      renderFrameGroup(lines, baseClip, translateX, translateY, firstSprite.mainTransform, baseElements);
     }
 
-    // Store frame position and dimensions in atlas
-    // offsetX/offsetY are the viewBox origin (trim offset within the frame)
-    atlasFrames.push({
-      id: sprite.id,
-      x: packed.x,
-      y: packed.y,
-      width: packed.width,
-      height: packed.height,
-      offsetX: dim.minX,
-      offsetY: dim.minY,
-    });
+    // Render delta frames (only non-base elements), skipping delta-duplicates
+    for (let i = 0; i < uniqueSprites.length; i++) {
+      const sprite = uniqueSprites[i];
 
-    // Calculate translation to place content at packed position
-    const translateX = packed.x - dim.minX;
-    const translateY = packed.y - dim.minY;
+      // Delta-duplicate: point to canonical delta's atlas entry
+      const deltaCanonical = deltaDuplicates.get(sprite.id);
+      if (deltaCanonical) {
+        duplicates[sprite.id] = deltaCanonical;
+        continue;
+      }
 
-    lines.push(`  <!-- Frame: ${sprite.id} -->`);
-    lines.push(`  <g clip-path="url(#clip_${i})">`);
-    lines.push(`    <g transform="translate(${translateX}, ${translateY})">`);
+      const dim = dimMap.get(sprite.id);
+      const packed = packedPositions.get(sprite.id);
+      const clip = clipIds.get(sprite.id);
+      const refs = elemDedup.frameElements.get(sprite.id);
+      if (!dim || !packed || !clip) continue;
 
-    if (sprite.mainTransform) {
-      lines.push(`      <g transform="${sprite.mainTransform}">`);
+      atlasFrames.push({
+        id: sprite.id,
+        x: packed.x, y: packed.y,
+        width: packed.width, height: packed.height,
+        offsetX: dim.minX, offsetY: dim.minY,
+      });
+
+      const deltaElements: string[] = [];
+      if (refs) {
+        for (let j = 0; j < refs.length; j++) {
+          if (!aboveBaseIndices.has(j)) {
+            const rendered = renderElementRef(refs[j], elemDedup, sprite, j);
+            if (rendered) deltaElements.push(rendered);
+          }
+        }
+      }
+
+      const translateX = packed.x - dim.minX;
+      const translateY = packed.y - dim.minY;
+      lines.push(`  <!-- Delta: ${sprite.id} -->`);
+      renderFrameGroup(lines, clip, translateX, translateY, sprite.mainTransform, deltaElements);
     }
+  } else {
+    // No splitting — full frames
+    for (let i = 0; i < uniqueSprites.length; i++) {
+      const sprite = uniqueSprites[i];
+      const dim = dimMap.get(sprite.id);
+      const packed = packedPositions.get(sprite.id);
+      const clip = clipIds.get(sprite.id);
+      if (!dim || !packed || !clip) continue;
 
-    const validUseElements = sprite.useElements.filter(hasValidReference);
-    for (const use of validUseElements) {
-      lines.push("        " + renderUseElement(use, true));
-    }
+      atlasFrames.push({
+        id: sprite.id,
+        x: packed.x, y: packed.y,
+        width: packed.width, height: packed.height,
+        offsetX: dim.minX, offsetY: dim.minY,
+      });
 
-    if (sprite.mainTransform) {
-      lines.push("      </g>");
+      const translateX = packed.x - dim.minX;
+      const translateY = packed.y - dim.minY;
+      const elements: string[] = [];
+      const frameRefs = elemDedup.frameElements.get(sprite.id);
+      if (frameRefs) {
+        for (let j = 0; j < frameRefs.length; j++) {
+          const rendered = renderElementRef(frameRefs[j], elemDedup, sprite, j);
+          if (rendered) elements.push(rendered);
+        }
+      } else {
+        for (const use of sprite.useElements.filter(hasValidReference)) {
+          elements.push(renderUseElement(use, true));
+        }
+      }
+
+      lines.push(`  <!-- Frame: ${sprite.id} -->`);
+      renderFrameGroup(lines, clip, translateX, translateY, sprite.mainTransform, elements);
     }
-    lines.push("    </g>");
-    lines.push("  </g>");
   }
 
   for (const sprite of sprites) {
@@ -431,6 +765,9 @@ function generateAtlasSvg(
     frameOrder: sprites.map((s) => s.id),
     duplicates,
     fps: 60,
+    elementDedup: elemDedup.stats,
+    baseFrame: baseFrameManifest,
+    baseZOrder: useBaseDelta ? splitZOrder : undefined,
   };
 
   const svg = opts.minify ? minifySvg(lines.join("\n")) : lines.join("\n");

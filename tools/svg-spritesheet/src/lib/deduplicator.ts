@@ -8,6 +8,10 @@ import type {
   DeduplicationResult,
   DeduplicationStats,
   Definition,
+  ElementDeduplicationResult,
+  ElementDedupStats,
+  ElementInstance,
+  ElementRef,
   ImageExportOptions,
   OptimizationOptions,
   ParsedFrame,
@@ -657,4 +661,307 @@ export function sortDefinitionsTopologically(
 
   // Reverse because we want dependencies first (nodes with most dependents last)
   return sorted.reverse();
+}
+
+// ---------------------------------------------------------------------------
+// Element-level deduplication
+// ---------------------------------------------------------------------------
+
+/**
+ * Hash a use element by its visual identity: (href, transform, width, height, attributes).
+ */
+function hashUseElement(use: UseElement): string {
+  const content = JSON.stringify({
+    href: use.canonicalHref ?? use.originalHref,
+    transform: use.transform ?? "",
+    width: use.width,
+    height: use.height,
+    attributes: use.attributes,
+  });
+  return shortHash(content);
+}
+
+/**
+ * Parse a CSS/SVG transform string into a 2×3 affine matrix [a, b, c, d, tx, ty].
+ * Supports: matrix(), translate(), scale(), rotate().
+ * Returns null if the transform cannot be parsed.
+ */
+function parseTransformToMatrix(
+  transform: string | undefined
+): [number, number, number, number, number, number] | null {
+  if (!transform) return [1, 0, 0, 1, 0, 0];
+
+  const matrixMatch = transform.match(
+    /matrix\s*\(\s*([^,)]+)[,\s]+([^,)]+)[,\s]+([^,)]+)[,\s]+([^,)]+)[,\s]+([^,)]+)[,\s]+([^,)]+)\s*\)/
+  );
+  if (matrixMatch) {
+    return [
+      parseFloat(matrixMatch[1]),
+      parseFloat(matrixMatch[2]),
+      parseFloat(matrixMatch[3]),
+      parseFloat(matrixMatch[4]),
+      parseFloat(matrixMatch[5]),
+      parseFloat(matrixMatch[6]),
+    ];
+  }
+
+  const translateMatch = transform.match(
+    /translate\s*\(\s*([^,)]+)(?:[,\s]+([^,)]+))?\s*\)/
+  );
+  if (translateMatch) {
+    return [
+      1,
+      0,
+      0,
+      1,
+      parseFloat(translateMatch[1]),
+      translateMatch[2] ? parseFloat(translateMatch[2]) : 0,
+    ];
+  }
+
+  const scaleMatch = transform.match(
+    /scale\s*\(\s*([^,)]+)(?:[,\s]+([^,)]+))?\s*\)/
+  );
+  if (scaleMatch) {
+    const sx = parseFloat(scaleMatch[1]);
+    const sy = scaleMatch[2] ? parseFloat(scaleMatch[2]) : sx;
+    return [sx, 0, 0, sy, 0, 0];
+  }
+
+  const rotateMatch = transform.match(
+    /rotate\s*\(\s*([^,)]+)(?:[,\s]+([^,)]+)[,\s]+([^,)]+))?\s*\)/
+  );
+  if (rotateMatch) {
+    const angle = (parseFloat(rotateMatch[1]) * Math.PI) / 180;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    if (rotateMatch[2] && rotateMatch[3]) {
+      const cx = parseFloat(rotateMatch[2]);
+      const cy = parseFloat(rotateMatch[3]);
+      return [cos, sin, -sin, cos, cx - cos * cx + sin * cy, cy - sin * cx - cos * cy];
+    }
+    return [cos, sin, -sin, cos, 0, 0];
+  }
+
+  // Compound transform — not supported for flip detection
+  return null;
+}
+
+/**
+ * Serialize a matrix back to a CSS transform string.
+ * Uses the most compact representation: identity → "", pure translate, or full matrix.
+ */
+function matrixToTransform(
+  m: [number, number, number, number, number, number],
+  precision: number = 4
+): string {
+  const r = (n: number) => {
+    const rounded = parseFloat(n.toFixed(precision));
+    return rounded === 0 ? 0 : rounded; // avoid -0
+  };
+
+  const [a, b, c, d, tx, ty] = m.map(r);
+
+  // Identity
+  if (a === 1 && b === 0 && c === 0 && d === 1 && tx === 0 && ty === 0) {
+    return "";
+  }
+
+  // Pure translate
+  if (a === 1 && b === 0 && c === 0 && d === 1) {
+    return ty === 0 ? `translate(${tx})` : `translate(${tx}, ${ty})`;
+  }
+
+  return `matrix(${a}, ${b}, ${c}, ${d}, ${tx}, ${ty})`;
+}
+
+/**
+ * Compute the horizontally-flipped version of a use element's hash.
+ * Horizontal flip = premultiply by scale(-1, 1):
+ *   matrix(a, b, c, d, tx, ty) → matrix(-a, b, -c, d, -tx, ty)
+ *
+ * Returns null if the transform cannot be parsed.
+ */
+function computeFlippedElementHash(use: UseElement): string | null {
+  const matrix = parseTransformToMatrix(use.transform);
+  if (!matrix) return null;
+
+  const [a, b, c, d, tx, ty] = matrix;
+  const flippedMatrix: [number, number, number, number, number, number] = [
+    -a, b, -c, d, -tx, ty,
+  ];
+  const flippedTransform = matrixToTransform(flippedMatrix);
+
+  const content = JSON.stringify({
+    href: use.canonicalHref ?? use.originalHref,
+    transform: flippedTransform,
+    width: use.width,
+    height: use.height,
+    attributes: use.attributes,
+  });
+  return shortHash(content);
+}
+
+/**
+ * Deduplicate use elements across all frames in an animation.
+ *
+ * 1. Hash every use element → build pool of unique instances with occurrence counts
+ * 2. Detect flip pairs (h-flipped hash matches an existing instance)
+ * 3. Identify base elements (present in ALL unique frames)
+ * 4. Mark instances with occurrences < 2 (and no flip pair) as inlined
+ */
+export function deduplicateElements(
+  sprites: ProcessedSprite[]
+): ElementDeduplicationResult {
+  const uniqueSprites = sprites.filter((s) => !s.duplicateOf);
+
+  // --- Pass 1: build pool and per-frame refs ---
+  const pool = new Map<string, ElementInstance>();
+  const frameElements = new Map<string, ElementRef[]>();
+  let idCounter = 0;
+  let totalElements = 0;
+
+  // Track which hashes appear in which frames (for base detection)
+  const hashFramePresence = new Map<string, number>();
+
+  for (const sprite of uniqueSprites) {
+    const refs: ElementRef[] = [];
+
+    for (const use of sprite.useElements) {
+      // Skip elements with unresolved references
+      const href = use.canonicalHref ?? use.originalHref;
+      if (
+        href.startsWith("#") &&
+        !href.startsWith("#def_") &&
+        !/^#d\d/.test(href)
+      ) {
+        continue;
+      }
+
+      totalElements++;
+      const hash = hashUseElement(use);
+
+      if (!pool.has(hash)) {
+        pool.set(hash, {
+          id: `e${idCounter++}`,
+          href,
+          transform: use.transform,
+          width: use.width,
+          height: use.height,
+          attributes: { ...use.attributes },
+          hash,
+          occurrences: 0,
+        });
+        hashFramePresence.set(hash, 0);
+      }
+
+      const instance = pool.get(hash)!;
+      instance.occurrences++;
+
+      refs.push({ hash, flipped: false, inlined: false });
+    }
+
+    // Track unique frame presence for base detection
+    const uniqueHashesInFrame = new Set(refs.map((r) => r.hash));
+    for (const h of uniqueHashesInFrame) {
+      hashFramePresence.set(h, (hashFramePresence.get(h) ?? 0) + 1);
+    }
+
+    frameElements.set(sprite.id, refs);
+  }
+
+  // --- Pass 2: detect flip pairs ---
+  const flipPairs = new Map<string, string>();
+
+  for (const sprite of uniqueSprites) {
+    for (const use of sprite.useElements) {
+      const hash = hashUseElement(use);
+      // Already has a flip pair or is a flip source? skip
+      if (flipPairs.has(hash)) continue;
+
+      const flippedHash = computeFlippedElementHash(use);
+      if (!flippedHash || flippedHash === hash) continue;
+
+      // Check if the flipped form exists in the pool
+      if (pool.has(flippedHash) && !flipPairs.has(flippedHash)) {
+        const original = pool.get(hash)!;
+        const flipped = pool.get(flippedHash)!;
+
+        // Keep the one with more occurrences as the source
+        if (original.occurrences >= flipped.occurrences) {
+          flipPairs.set(flippedHash, hash);
+          flipped.flipSourceHash = hash;
+        } else {
+          flipPairs.set(hash, flippedHash);
+          original.flipSourceHash = flippedHash;
+        }
+      }
+    }
+  }
+
+  // --- Pass 3: identify base elements ---
+  const uniqueFrameCount = uniqueSprites.length;
+  const baseElementHashes = new Set<string>();
+
+  for (const [hash, count] of hashFramePresence) {
+    if (count === uniqueFrameCount && uniqueFrameCount > 1) {
+      baseElementHashes.add(hash);
+    }
+  }
+
+  // --- Pass 4: decide pool vs inline ---
+  // Pool if: occurrences >= 2 OR element is the source of a flip pair
+  const flipSources = new Set(flipPairs.values());
+
+  for (const [hash, instance] of pool) {
+    const isFlipSource = flipSources.has(hash);
+    const isFlipped = flipPairs.has(hash);
+    const shouldPool = instance.occurrences >= 2 || isFlipSource || isFlipped;
+
+    // Mark refs as inlined for single-occurrence non-flip elements
+    if (!shouldPool) {
+      for (const [, refs] of frameElements) {
+        for (const ref of refs) {
+          if (ref.hash === hash) {
+            ref.inlined = true;
+          }
+        }
+      }
+    }
+  }
+
+  // Mark flipped refs
+  for (const [, refs] of frameElements) {
+    for (const ref of refs) {
+      if (flipPairs.has(ref.hash)) {
+        ref.flipped = true;
+        // Point ref to the source element hash
+        ref.hash = flipPairs.get(ref.hash)!;
+      }
+    }
+  }
+
+  // --- Stats ---
+  let pooledElements = 0;
+  for (const instance of pool.values()) {
+    if (instance.occurrences >= 2 || flipSources.has(instance.hash) || flipPairs.has(instance.hash)) {
+      pooledElements++;
+    }
+  }
+
+  const stats: ElementDedupStats = {
+    totalElements,
+    uniqueElements: pool.size,
+    pooledElements,
+    baseElements: baseElementHashes.size,
+    flipPairs: flipPairs.size,
+  };
+
+  return {
+    pool,
+    frameElements,
+    baseElementHashes,
+    flipPairs,
+    stats,
+  };
 }

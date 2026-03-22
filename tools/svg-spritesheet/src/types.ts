@@ -155,6 +155,17 @@ export interface AtlasManifest {
   frameOrder: string[];
   duplicates: Record<string, string>;
   fps: number;
+  /** Element deduplication stats (informational) */
+  elementDedup?: ElementDedupStats;
+  /**
+   * Base frame for base/delta splitting.
+   * When present, each frame in `frames` contains only the changing (delta) elements.
+   * The client must composite: render delta frame, then render baseFrame on top
+   * (or vice versa depending on baseZOrder).
+   */
+  baseFrame?: AtlasFrame;
+  /** Whether the base renders "above" or "below" the delta. Default "above". */
+  baseZOrder?: "above" | "below";
 }
 
 /** CLI compile options */
@@ -179,6 +190,7 @@ export interface CompileResult {
   inputSize?: number;
   outputSize?: number;
   animationCount?: number;
+  elementDedup?: { total: number; unique: number; pooled: number; base: number; flips: number };
 }
 
 /** Tile behavior classification */
@@ -208,4 +220,64 @@ export interface AnimationManifestEntry {
   frames: AtlasFrame[];
   frameOrder: string[];
   duplicates: Record<string, string>;
+  /** Element deduplication stats (informational) */
+  elementDedup?: ElementDedupStats;
+  /** Base frame for base/delta compositing */
+  baseFrame?: AtlasFrame;
+  /** Whether the base renders "above" or "below" the delta */
+  baseZOrder?: "above" | "below";
+}
+
+// ---------------------------------------------------------------------------
+// Element-level deduplication
+// ---------------------------------------------------------------------------
+
+/** A unique (href, transform, width, height) use-element configuration */
+export interface ElementInstance {
+  /** Short id used in the SVG (e.g. "e0") */
+  id: string;
+  /** Canonical href (e.g. "#d5") */
+  href: string;
+  transform?: string;
+  width?: number;
+  height?: number;
+  attributes: Record<string, string>;
+  /** Content hash of this instance */
+  hash: string;
+  /** How many times this instance appears across all frames */
+  occurrences: number;
+  /** If this instance is the horizontal flip of another, the source's hash */
+  flipSourceHash?: string;
+}
+
+/** Reference from a frame to an element instance */
+export interface ElementRef {
+  /** Hash of the element instance in the pool */
+  hash: string;
+  /** Whether this occurrence is the h-flipped version of the pool entry */
+  flipped: boolean;
+  /** True when the instance appears only once (not worth pooling — inline it) */
+  inlined: boolean;
+}
+
+/** Result of element-level deduplication */
+export interface ElementDeduplicationResult {
+  /** Pool of unique element instances keyed by hash */
+  pool: Map<string, ElementInstance>;
+  /** Per-frame element references (sprite id → element refs in z-order) */
+  frameElements: Map<string, ElementRef[]>;
+  /** Hashes of elements present in ALL unique frames with identical config */
+  baseElementHashes: Set<string>;
+  /** Flip pairs: flipped element hash → source element hash */
+  flipPairs: Map<string, string>;
+  stats: ElementDedupStats;
+}
+
+/** Element dedup statistics */
+export interface ElementDedupStats {
+  totalElements: number;
+  uniqueElements: number;
+  pooledElements: number;
+  baseElements: number;
+  flipPairs: number;
 }

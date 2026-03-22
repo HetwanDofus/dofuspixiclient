@@ -58,16 +58,13 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
   name: "loadSvgStroke",
 
   test(url: string): boolean {
-    return (
-      (url.includes("/spritesheets/") || url.includes("/hud/banner/")) &&
-      url.endsWith(".svg")
-    );
+    return url.endsWith(".svg");
   },
 
   async load(
     url: string,
     asset?: ResolvedAsset<TextureSourceOptions>,
-    _loader?: Loader,
+    _loader?: Loader
   ): Promise<Texture> {
     const resolution = asset?.data?.resolution ?? 1;
 
@@ -83,8 +80,12 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
     const outputWidth = Math.ceil(width * resolution);
     const outputHeight = Math.ceil(height * resolution);
 
-    // Decode from Blob URL (single fetch, no double request)
-    const blob = new Blob([svgContent], { type: "image/svg+xml" });
+    const enhancedSvg = svgContent.replace(
+      "<svg ",
+      '<svg shape-rendering="geometricPrecision" '
+    );
+
+    const blob = new Blob([enhancedSvg], { type: "image/svg+xml" });
     const blobUrl = URL.createObjectURL(blob);
     const image = DOMAdapter.get().createImage();
     image.src = blobUrl;
@@ -102,7 +103,7 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
       bitmap = await createImageBitmap(image as ImageBitmapSource, {
         resizeWidth: outputWidth,
         resizeHeight: outputHeight,
-        resizeQuality: "low",
+        resizeQuality: "medium",
       });
     } finally {
       releaseSlot();
