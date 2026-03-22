@@ -6,7 +6,7 @@ const GFX_POOL = [
   10, 11, 20, 21, 30, 31, 40, 41, 50, 51, 60, 61, 70, 71, 80, 81, 90, 91, 100,
   101, 110, 111,
 ];
-const ACTOR_COUNT = 1000;
+const ACTOR_COUNT = 500;
 const MOVE_INTERVAL_MIN = 1500;
 const MOVE_INTERVAL_MAX = 4000;
 
@@ -49,8 +49,15 @@ export class StressTest {
     this.running = true;
 
     console.log(`[StressTest] Spawning ${ACTOR_COUNT} actors...`);
+    this.spawnBatched();
+  }
+
+  private async spawnBatched(): Promise<void> {
+    const BATCH_SIZE = 50;
 
     for (let i = 0; i < ACTOR_COUNT; i++) {
+      if (!this.running) return;
+
       const id = 100_000 + i;
       const cellId = randomItem(this.walkableCells);
       const gfxId = randomItem(GFX_POOL);
@@ -74,6 +81,11 @@ export class StressTest {
       // Stagger initial moves so they don't all fire at once
       const delay = Math.random() * 3000;
       actor.timer = setTimeout(() => this.scheduleMove(actor), delay);
+
+      // Yield to the renderer every BATCH_SIZE fighters
+      if ((i + 1) % BATCH_SIZE === 0) {
+        await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      }
     }
 
     console.log(`[StressTest] All ${ACTOR_COUNT} actors spawned.`);

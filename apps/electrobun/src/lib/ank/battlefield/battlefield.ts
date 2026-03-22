@@ -3,7 +3,6 @@ import {
   type Application,
   Container,
   extensions,
-  type Sprite as PixiSprite,
   type Sprite,
   TextureSource,
   Ticker,
@@ -54,6 +53,7 @@ import {
 import { GridOverlay } from "./grid-overlay";
 import { InteractionHandler } from "./interaction-handler";
 import { MapHandler } from "./map-handler";
+import { MapTransition } from "./map-transition";
 import { type SpellAnimationConfig, SpellRenderer } from "./spell-renderer";
 import { StressTest } from "./stress-test";
 
@@ -137,8 +137,8 @@ export class Battlefield {
   private gridOverlay: GridOverlay | null = null;
   private stressTest: StressTest | null = null;
 
-  // Transition snapshot: keeps old map visible while new one loads
-  private transitionSnapshot: PixiSprite | null = null;
+  // Map transition: blur out old map → blur in new map
+  private mapTransition: MapTransition | null = null;
 
   // Ground click callback
   // ECS
@@ -280,6 +280,8 @@ export class Battlefield {
 
     this.mapContainer = new Container();
     this.app.stage.addChild(this.mapContainer);
+
+    this.mapTransition = new MapTransition(this.app, this.mapContainer);
 
     await this.loadInteractiveObjects();
 
@@ -520,9 +522,8 @@ export class Battlefield {
       return;
     }
 
-    // Keep mapContainer visible during the entire transition.
-    // Old world actors stay alive until MAP_ACTORS replaces them (avoids flicker).
-    // Tiles are rebuilt in-place (the layers just swap their children).
+    // Capture snapshot of old map — non-blocking, tiles render behind it.
+    this.mapTransition?.startTransition();
 
     this.currentMapData = mapData;
 
@@ -537,10 +538,6 @@ export class Battlefield {
     this.clearPickableObjects();
     this.debugOverlay?.clear();
     this.gridOverlay?.clear();
-
-    // NOTE: we intentionally do NOT clear world actors here.
-    // The old actors stay visible on the old map until MAP_ACTORS replaces them.
-    // This prevents the character from disappearing during the transition.
 
     const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
     this.atlasLoader.setZoom(zoom);
@@ -565,11 +562,6 @@ export class Battlefield {
   }
 
   /**
-   * Reveal the map container after map + actors are ready.
-   * Called by GameClient after MAP_ACTORS have been added.
-   * Removes the transition snapshot so the swap is instant with no black frame.
-   */
-  /**
    * Prepare world actors for the new map.
    * Destroys old actor container + renderer and creates fresh ones.
    * Called by GameClient right before adding MAP_ACTORS.
@@ -578,8 +570,13 @@ export class Battlefield {
     this.initWorldActorContainer();
   }
 
-  revealMap(): void {
-    // No-op now — mapContainer is never hidden.
+  /**
+   * Reveal the map container after map + actors are ready.
+   * Called by GameClient after MAP_ACTORS have been added.
+   * Crossfades old snapshot out while unblurring the new map.
+   */
+  async revealMap(): Promise<void> {
+    await this.mapTransition?.reveal();
   }
 
   /** Set the player character ID (used for tracking). */
@@ -1127,11 +1124,9 @@ export class Battlefield {
   }
 
   destroy(): void {
-    // Clear transition snapshot
-    if (this.transitionSnapshot) {
-      this.transitionSnapshot.destroy({ texture: true });
-      this.transitionSnapshot = null;
-    }
+    // Clean up map transition
+    this.mapTransition?.destroy();
+    this.mapTransition = null;
 
     // Clear zoom debounce timer
     if (this.zoomDebounceTimer) {

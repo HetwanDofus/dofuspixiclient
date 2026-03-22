@@ -424,7 +424,6 @@ export class FighterRenderer {
       this.applyAnimation(fighter, cached, animName);
     } else {
       // Load asynchronously — the old animation keeps showing until this completes
-      console.warn(`[FighterRenderer] Animation "${animName}" not cached for gfx ${fighter.gfxId}, loading async`);
       this.loadFighterSprite(fighter, baseAnim, direction);
     }
   }

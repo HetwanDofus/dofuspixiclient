@@ -10,17 +10,47 @@ import {
   type TextureSourceOptions,
 } from "pixi.js";
 
+// ---------------------------------------------------------------------------
+// Concurrency throttle — only kicks in during extreme bulk loads (stress test)
+// to prevent the browser from queueing hundreds of createImageBitmap at once.
+// ---------------------------------------------------------------------------
+
+const CONCURRENCY_LIMIT = 32;
+
+let activeCount = 0;
+const waitQueue: (() => void)[] = [];
+
+async function acquireSlot(): Promise<void> {
+  if (activeCount < CONCURRENCY_LIMIT) {
+    activeCount++;
+    return;
+  }
+  await new Promise<void>((resolve) => waitQueue.push(resolve));
+  activeCount++;
+}
+
+function releaseSlot(): void {
+  activeCount--;
+  const next = waitQueue.shift();
+  if (next) next();
+}
+
+// ---------------------------------------------------------------------------
+// PixiJS LoaderParser
+// ---------------------------------------------------------------------------
+
 /**
- * Custom PixiJS LoaderParser that transforms SVG stroke-width placeholders
- * based on the resolution parameter.
+ * Custom PixiJS LoaderParser for SVG spritesheets.
  *
- * Replaces __RESOLUTION__ placeholders with 1/resolution to ensure
- * stroke widths appear consistent at any scale.
+ * __RESOLUTION__ placeholder replacement is handled server-side by the Vite
+ * middleware (svgResolutionPlugin). This loader fetches SVG text once,
+ * decodes via Blob URL + <img>, rasterizes at target resolution via
+ * createImageBitmap, and wraps the result in a PixiJS Texture.
  */
 export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
   extension: {
     type: ExtensionType.LoadParser,
-    priority: 110, // Higher priority than default SVG loader (Low = 0)
+    priority: 110,
     name: "loadSvgStroke",
   },
 
@@ -28,7 +58,6 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
   name: "loadSvgStroke",
 
   test(url: string): boolean {
-    // Handle SVG files from spritesheets and banner icons
     return (
       (url.includes("/spritesheets/") || url.includes("/hud/banner/")) &&
       url.endsWith(".svg")
@@ -38,20 +67,23 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
   async load(
     url: string,
     asset?: ResolvedAsset<TextureSourceOptions>,
-    _loader?: Loader
+    _loader?: Loader,
   ): Promise<Texture> {
-    const response = await DOMAdapter.get().fetch(url);
-    let svgContent = await response.text();
-
-    // Get resolution from asset data (defaults to 1)
     const resolution = asset?.data?.resolution ?? 1;
 
-    // Replace __RESOLUTION__ placeholders with inverse of resolution
-    // This ensures strokes appear at consistent visual width regardless of scale
-    const strokeScale = ((1 / resolution) * 1.5).toString();
-    svgContent = svgContent.replace(/__RESOLUTION__/g, strokeScale);
+    // Single fetch — read SVG text for dimensions, then decode from Blob URL
+    const response = await DOMAdapter.get().fetch(url);
+    const svgContent = await response.text();
 
-    // Create Blob URL and decode via Image (Chromium can't createImageBitmap from SVG blobs)
+    const widthMatch = svgContent.match(/\bwidth="(\d+(?:\.\d+)?)"/);
+    const heightMatch = svgContent.match(/\bheight="(\d+(?:\.\d+)?)"/);
+    const width = widthMatch ? parseFloat(widthMatch[1]) : 256;
+    const height = heightMatch ? parseFloat(heightMatch[1]) : 256;
+
+    const outputWidth = Math.ceil(width * resolution);
+    const outputHeight = Math.ceil(height * resolution);
+
+    // Decode from Blob URL (single fetch, no double request)
     const blob = new Blob([svgContent], { type: "image/svg+xml" });
     const blobUrl = URL.createObjectURL(blob);
     const image = DOMAdapter.get().createImage();
@@ -63,24 +95,19 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
       URL.revokeObjectURL(blobUrl);
     }
 
-    // Extract dimensions from SVG attributes, falling back to decoded image size
-    const widthMatch = svgContent.match(/\bwidth="(\d+(?:\.\d+)?)"/);
-    const heightMatch = svgContent.match(/\bheight="(\d+(?:\.\d+)?)"/);
-    const width = widthMatch ? parseFloat(widthMatch[1]) : image.width;
-    const height = heightMatch ? parseFloat(heightMatch[1]) : image.height;
+    await acquireSlot();
 
-    // Ensure output dimensions are integers to prevent edge trimming
-    const outputWidth = Math.ceil(width * resolution);
-    const outputHeight = Math.ceil(height * resolution);
+    let bitmap: ImageBitmap;
+    try {
+      bitmap = await createImageBitmap(image as ImageBitmapSource, {
+        resizeWidth: outputWidth,
+        resizeHeight: outputHeight,
+        resizeQuality: "low",
+      });
+    } finally {
+      releaseSlot();
+    }
 
-    // Use createImageBitmap for rasterization at target size (avoids canvas intermediate)
-    const bitmap = await createImageBitmap(image as ImageBitmapSource, {
-      resizeWidth: outputWidth,
-      resizeHeight: outputHeight,
-      resizeQuality: "high",
-    });
-
-    // Create texture source directly from ImageBitmap
     const source = new ImageSource({
       resource: bitmap,
       alphaMode: "premultiply-alpha-on-upload",
@@ -97,8 +124,8 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
 };
 
 /**
- * Register the SVG stroke loader with PixiJS
- * Call this before loading any SVG assets
+ * Register the SVG stroke loader with PixiJS.
+ * Call this before loading any SVG assets.
  */
 export function registerSvgStrokeLoader(): void {
   extensions.add(svgStrokeLoader);
