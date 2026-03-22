@@ -44,24 +44,22 @@ export function createIconButton(
     buttonDownTexture,
   };
 
-  container.on("pointerdown", () => {
-    iconButton.isPressed = !iconButton.isPressed;
-
-    if (iconButton.isPressed) {
-      button.texture = iconButton.buttonDownTexture;
-    } else {
-      button.texture = iconButton.buttonUpTexture;
-    }
-
-    // Flash shifts icon by +0.5px when pressed (Button.as lines 41-44)
-    const pressedShift = iconButton.isPressed ? 0.5 : 0;
+  const setPressed = (pressed: boolean) => {
+    iconButton.isPressed = pressed;
+    button.texture = pressed
+      ? iconButton.buttonDownTexture
+      : iconButton.buttonUpTexture;
+    const pressedShift = pressed ? 0.5 : 0;
     const zoom = iconButton.currentZoom;
-
     icon.position.set(
       (baseOffsetX + pressedShift) * zoom,
       (baseOffsetY + pressedShift) * zoom
     );
-  });
+  };
+
+  container.on("pointerdown", () => setPressed(true));
+  container.on("pointerup", () => setPressed(false));
+  container.on("pointerupoutside", () => setPressed(false));
 
   return iconButton;
 }

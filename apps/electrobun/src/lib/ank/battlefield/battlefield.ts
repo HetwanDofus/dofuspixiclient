@@ -1,6 +1,7 @@
 import { LayoutSystem } from "@pixi/layout";
 import {
   type Application,
+  ColorMatrixFilter,
   Container,
   extensions,
   type Sprite,
@@ -11,8 +12,8 @@ import {
 import type { InteractiveObjectData, PickResult, RenderStats } from "@/types";
 import { ZaapContextMenu } from "@/ank/gapi/controls";
 import { DISPLAY_HEIGHT } from "@/constants/battlefield";
+import { pushInteractionEvent } from "@/ecs/systems/interaction-dispatch-system";
 import { type GameWorld, getGameWorld } from "@/ecs/world";
-
 import { Banner } from "@/hud/banner";
 import { ConquestPanel } from "@/hud/conquest";
 import { initTooltipBounds } from "@/hud/core/tooltip";
@@ -29,7 +30,6 @@ import { Engine } from "@/render/engine";
 import { PickingSystem } from "@/render/picking-system";
 import { RendererRegistry } from "@/render/renderer-registry";
 import { loadTheme } from "@/themes";
-import { pushInteractionEvent } from "@/ecs/systems/interaction-dispatch-system";
 
 import {
   CellHighlighter,
@@ -149,10 +149,13 @@ export class Battlefield {
   private rendererRegistry = new RendererRegistry();
 
   // Interactive entity tracking (temporary bridge for fighters)
-  private interactiveCallbacks = new Map<number, {
-    onHover: ((hovered: boolean) => void) | null;
-    onClick: (() => void) | null;
-  }>();
+  private interactiveCallbacks = new Map<
+    number,
+    {
+      onHover: ((hovered: boolean) => void) | null;
+      onClick: (() => void) | null;
+    }
+  >();
   private fighterIdToPickableId = new Map<number, number>();
   private lastHoveredPickableId: number | undefined;
 
@@ -280,7 +283,6 @@ export class Battlefield {
 
     this.mapContainer = new Container();
     this.app.stage.addChild(this.mapContainer);
-
     this.mapTransition = new MapTransition(this.app, this.mapContainer);
 
     await this.loadInteractiveObjects();
@@ -309,15 +311,15 @@ export class Battlefield {
       this.onMinimapTeleportCallback?.(mapId);
     });
     // Wire banner button toggles with mutual exclusion
-    this.banner.setOnStatsToggle(() => this.togglePanel('stats'));
-    this.banner.setOnSpellsToggle(() => this.togglePanel('spells'));
-    this.banner.setOnInventoryToggle(() => this.togglePanel('inventory'));
-    this.banner.setOnQuestsToggle(() => this.togglePanel('quests'));
+    this.banner.setOnStatsToggle(() => this.togglePanel("stats"));
+    this.banner.setOnSpellsToggle(() => this.togglePanel("spells"));
+    this.banner.setOnInventoryToggle(() => this.togglePanel("inventory"));
+    this.banner.setOnQuestsToggle(() => this.togglePanel("quests"));
     this.banner.setOnMapToggle(() => this.toggleWorldMap());
-    this.banner.setOnFriendsToggle(() => this.togglePanel('friends'));
-    this.banner.setOnGuildToggle(() => this.togglePanel('guild'));
-    this.banner.setOnMountToggle(() => this.togglePanel('mount'));
-    this.banner.setOnConquestToggle(() => this.togglePanel('conquest'));
+    this.banner.setOnFriendsToggle(() => this.togglePanel("friends"));
+    this.banner.setOnGuildToggle(() => this.togglePanel("guild"));
+    this.banner.setOnMountToggle(() => this.togglePanel("mount"));
+    this.banner.setOnConquestToggle(() => this.togglePanel("conquest"));
 
     // World map panel — covers the game render area (below banner z-order)
     this.worldMapPanel = new WorldMapPanel(this.app);
@@ -341,35 +343,27 @@ export class Battlefield {
     this.statsPanel.setOnBoostStat((statId) => {
       this.onBoostStatCallback?.(statId);
     });
-    this.statsPanel.setOnClose(() => this.banner?.setStatsPressed(false));
     this.app.stage.addChild(this.statsPanel.container);
 
     this.spellsPanel = new SpellsPanel(baseZoom);
-    this.spellsPanel.setOnClose(() => this.banner?.setSpellsPressed(false));
     this.app.stage.addChild(this.spellsPanel.container);
 
     this.inventoryPanel = new InventoryPanel(baseZoom);
-    this.inventoryPanel.setOnClose(() => this.banner?.setInventoryPressed(false));
     this.app.stage.addChild(this.inventoryPanel.container);
 
     this.questsPanel = new QuestsPanel(baseZoom);
-    this.questsPanel.setOnClose(() => this.banner?.setQuestsPressed(false));
     this.app.stage.addChild(this.questsPanel.container);
 
     this.friendsPanel = new FriendsPanel(baseZoom);
-    this.friendsPanel.setOnClose(() => this.banner?.setFriendsPressed(false));
     this.app.stage.addChild(this.friendsPanel.container);
 
     this.guildPanel = new GuildPanel(baseZoom);
-    this.guildPanel.setOnClose(() => this.banner?.setGuildPressed(false));
     this.app.stage.addChild(this.guildPanel.container);
 
     this.mountPanel = new MountPanel(baseZoom);
-    this.mountPanel.setOnClose(() => this.banner?.setMountPressed(false));
     this.app.stage.addChild(this.mountPanel.container);
 
     this.conquestPanel = new ConquestPanel(baseZoom);
-    this.conquestPanel.setOnClose(() => this.banner?.setConquestPressed(false));
     this.app.stage.addChild(this.conquestPanel.container);
 
     this.updatePanelPositions();
@@ -427,8 +421,12 @@ export class Battlefield {
 
     // Register renderers
     this.rendererRegistry.register("banner", (e) => this.banner!.onResize(e));
-    this.rendererRegistry.register("debug-overlay", (e) => this.debugOverlay!.onResize(e));
-    this.rendererRegistry.register("grid-overlay", (e) => this.gridOverlay!.onResize(e));
+    this.rendererRegistry.register("debug-overlay", (e) =>
+      this.debugOverlay!.onResize(e)
+    );
+    this.rendererRegistry.register("grid-overlay", (e) =>
+      this.gridOverlay!.onResize(e)
+    );
     // Panels are rebuilt + repositioned together in updatePanelPositions()
   }
 
@@ -615,7 +613,9 @@ export class Battlefield {
       pickingSystem: this.pickingSystem,
     });
 
-    this.rendererRegistry.register("world-actor-renderer", (e) => this.worldActorRenderer!.onResize(e));
+    this.rendererRegistry.register("world-actor-renderer", (e) =>
+      this.worldActorRenderer!.onResize(e)
+    );
   }
 
   /**
@@ -627,19 +627,17 @@ export class Battlefield {
       this.initWorldActorContainer();
     }
 
-    await (
-      this.worldActorRenderer?.addFighter({
-        id: data.id,
-        name: data.name,
-        team: data.isCurrentPlayer ? 1 : 0, // Blue for self, red for others
-        cellId: data.cellId,
-        direction: data.direction,
-        look: data.look,
-        hp: 100,
-        maxHp: 100,
-        isPlayer: data.isCurrentPlayer,
-      }) ?? Promise.resolve()
-    );
+    await (this.worldActorRenderer?.addFighter({
+      id: data.id,
+      name: data.name,
+      team: data.isCurrentPlayer ? 1 : 0, // Blue for self, red for others
+      cellId: data.cellId,
+      direction: data.direction,
+      look: data.look,
+      hp: 100,
+      maxHp: 100,
+      isPlayer: data.isCurrentPlayer,
+    }) ?? Promise.resolve());
 
     this.registerFighterForPicking(data.id, this.worldActorRenderer!);
     this.pickingSystem?.markDirty();
@@ -724,7 +722,7 @@ export class Battlefield {
 
   private registerFighterForPicking(
     fighterId: number,
-    renderer: FighterRenderer,
+    renderer: FighterRenderer
   ): void {
     const data = renderer.getFighterPickingData(fighterId);
     if (!data || !this.pickingSystem) return;
@@ -893,8 +891,13 @@ export class Battlefield {
 
   private handleObjectHover(result: PickResult | null): void {
     // Unhover previous via direct callbacks (temporary bridge)
-    if (this.lastHoveredPickableId !== undefined && this.lastHoveredPickableId !== result?.object.id) {
-      this.interactiveCallbacks.get(this.lastHoveredPickableId)?.onHover?.(false);
+    if (
+      this.lastHoveredPickableId !== undefined &&
+      this.lastHoveredPickableId !== result?.object.id
+    ) {
+      this.interactiveCallbacks
+        .get(this.lastHoveredPickableId)
+        ?.onHover?.(false);
       this.lastHoveredPickableId = undefined;
     }
     if (result) {
@@ -939,9 +942,14 @@ export class Battlefield {
       return true;
     }
     const panels = [
-      this.statsPanel, this.spellsPanel, this.inventoryPanel,
-      this.questsPanel, this.friendsPanel, this.guildPanel,
-      this.mountPanel, this.conquestPanel,
+      this.statsPanel,
+      this.spellsPanel,
+      this.inventoryPanel,
+      this.questsPanel,
+      this.friendsPanel,
+      this.guildPanel,
+      this.mountPanel,
+      this.conquestPanel,
     ];
     for (const panel of panels) {
       if (panel?.isVisible()) {
@@ -962,14 +970,14 @@ export class Battlefield {
   /** All managed panels mapped to their banner button key */
   private get panelMap() {
     return {
-      stats: { panel: this.statsPanel, setPressed: (p: boolean) => this.banner?.setStatsPressed(p) },
-      spells: { panel: this.spellsPanel, setPressed: (p: boolean) => this.banner?.setSpellsPressed(p) },
-      inventory: { panel: this.inventoryPanel, setPressed: (p: boolean) => this.banner?.setInventoryPressed(p) },
-      quests: { panel: this.questsPanel, setPressed: (p: boolean) => this.banner?.setQuestsPressed(p) },
-      friends: { panel: this.friendsPanel, setPressed: (p: boolean) => this.banner?.setFriendsPressed(p) },
-      guild: { panel: this.guildPanel, setPressed: (p: boolean) => this.banner?.setGuildPressed(p) },
-      mount: { panel: this.mountPanel, setPressed: (p: boolean) => this.banner?.setMountPressed(p) },
-      conquest: { panel: this.conquestPanel, setPressed: (p: boolean) => this.banner?.setConquestPressed(p) },
+      stats: { panel: this.statsPanel },
+      spells: { panel: this.spellsPanel },
+      inventory: { panel: this.inventoryPanel },
+      quests: { panel: this.questsPanel },
+      friends: { panel: this.friendsPanel },
+      guild: { panel: this.guildPanel },
+      mount: { panel: this.mountPanel },
+      conquest: { panel: this.conquestPanel },
     } as const;
   }
 
@@ -977,22 +985,20 @@ export class Battlefield {
     const map = this.panelMap;
     const keys = Object.keys(map) as Array<keyof typeof map>;
     for (const key of keys) {
-      const { panel, setPressed } = map[key];
+      const { panel } = map[key];
       if (panel?.isVisible()) {
         panel.hide();
-        setPressed(false);
       }
     }
   }
 
-  private togglePanel(key: keyof Battlefield['panelMap']): void {
+  private togglePanel(key: keyof Battlefield["panelMap"]): void {
     const map = this.panelMap;
     const entry = map[key];
     const wasVisible = entry.panel?.isVisible();
     this.closeAllPanels();
     if (!wasVisible) {
       entry.panel?.show();
-      entry.setPressed(true);
     }
   }
 
@@ -1006,12 +1012,19 @@ export class Battlefield {
 
     // Position each panel above the banner, right-aligned
     const screenW = this.app.screen.width;
-    const positionPanel = (panel: { rebuild: (z: number) => void; setPosition: (x: number, y: number) => void; panelW: number; panelH: number } | null) => {
+    const positionPanel = (
+      panel: {
+        rebuild: (z: number) => void;
+        setPosition: (x: number, y: number) => void;
+        panelW: number;
+        panelH: number;
+      } | null
+    ) => {
       if (!panel) return;
       panel.rebuild(zoom);
       panel.setPosition(
         Math.round(screenW - panel.panelW - 4),
-        Math.round(bannerY - panel.panelH),
+        Math.round(bannerY - panel.panelH)
       );
     };
 
@@ -1053,7 +1066,6 @@ export class Battlefield {
     this.closeAllPanels();
     const wasVisible = this.worldMapPanel?.isVisible() ?? false;
     this.worldMapPanel?.toggle(this.currentMapId ?? undefined);
-    this.banner?.setMapPressed(!wasVisible);
     if (this.interactionHandler) {
       this.interactionHandler.enabled = wasVisible;
     }
@@ -1294,10 +1306,18 @@ export class Battlefield {
     });
 
     // Register combat renderers
-    this.rendererRegistry.register("cell-highlighter", (e) => this.cellHighlighter!.onResize(e));
-    this.rendererRegistry.register("fighter-renderer", (e) => this.fighterRenderer!.onResize(e));
-    this.rendererRegistry.register("damage-renderer", (e) => this.damageRenderer!.onResize(e));
-    this.rendererRegistry.register("spell-renderer", (e) => this.spellRenderer!.onResize(e));
+    this.rendererRegistry.register("cell-highlighter", (e) =>
+      this.cellHighlighter!.onResize(e)
+    );
+    this.rendererRegistry.register("fighter-renderer", (e) =>
+      this.fighterRenderer!.onResize(e)
+    );
+    this.rendererRegistry.register("damage-renderer", (e) =>
+      this.damageRenderer!.onResize(e)
+    );
+    this.rendererRegistry.register("spell-renderer", (e) =>
+      this.spellRenderer!.onResize(e)
+    );
   }
 
   /**

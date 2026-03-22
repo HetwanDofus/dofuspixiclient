@@ -783,53 +783,6 @@ export class Banner {
     this.onConquestToggle = callback;
   }
 
-  /** Set the pressed visual state of a banner icon button by index */
-  public setButtonPressed(index: number, pressed: boolean): void {
-    const btn = this.iconButtons[index]?.button;
-    if (btn) {
-      btn.isPressed = pressed;
-      btn.button.texture = pressed
-        ? btn.buttonDownTexture
-        : btn.buttonUpTexture;
-    }
-  }
-
-  public setStatsPressed(pressed: boolean): void {
-    this.setButtonPressed(0, pressed);
-  }
-
-  public setSpellsPressed(pressed: boolean): void {
-    this.setButtonPressed(1, pressed);
-  }
-
-  public setInventoryPressed(pressed: boolean): void {
-    this.setButtonPressed(2, pressed);
-  }
-
-  public setQuestsPressed(pressed: boolean): void {
-    this.setButtonPressed(3, pressed);
-  }
-
-  public setMapPressed(pressed: boolean): void {
-    this.setButtonPressed(4, pressed);
-  }
-
-  public setFriendsPressed(pressed: boolean): void {
-    this.setButtonPressed(5, pressed);
-  }
-
-  public setGuildPressed(pressed: boolean): void {
-    this.setButtonPressed(6, pressed);
-  }
-
-  public setMountPressed(pressed: boolean): void {
-    this.setButtonPressed(7, pressed);
-  }
-
-  public setConquestPressed(pressed: boolean): void {
-    this.setButtonPressed(8, pressed);
-  }
-
   private handleMinimapDoubleClick(globalX: number, globalY: number): void {
     if (!this.minimapRenderer) return;
 

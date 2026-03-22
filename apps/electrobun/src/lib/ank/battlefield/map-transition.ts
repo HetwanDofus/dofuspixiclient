@@ -1,6 +1,7 @@
 import {
   BlurFilter,
   type Container,
+  type Filter,
   type Application,
   RenderTexture,
   Sprite,
@@ -31,6 +32,9 @@ export class MapTransition {
   private transitioning = false;
   private transitionStartTime = 0;
 
+  /** Persistent filters on mapContainer that must survive transitions */
+  private baseFilters: Filter[] = [];
+
   /** Cancel handles for running animations */
   private activeAnimations: (() => void)[] = [];
 
@@ -40,9 +44,10 @@ export class MapTransition {
   private readonly MIN_COVER_MS = 300; // minimum time snapshot stays visible
   private readonly REVEAL_MS = 400; // crossfade + unblur duration
 
-  constructor(app: Application, mapContainer: Container) {
+  constructor(app: Application, mapContainer: Container, baseFilters: Filter[] = []) {
     this.app = app;
     this.mapContainer = mapContainer;
+    this.baseFilters = baseFilters;
   }
 
   /**
@@ -130,7 +135,7 @@ export class MapTransition {
       quality: 3,
     });
     this.mapBlur.padding = this.MAX_BLUR + 4;
-    this.mapContainer.filters = [this.mapBlur];
+    this.mapContainer.filters = [...this.baseFilters, this.mapBlur];
 
     await this.animateAsync(this.REVEAL_MS, (t) => {
       // Unblur new map
@@ -189,7 +194,7 @@ export class MapTransition {
 
   private removeMapBlur(): void {
     if (this.mapBlur) {
-      this.mapContainer.filters = null;
+      this.mapContainer.filters = this.baseFilters.length > 0 ? this.baseFilters : null;
       this.mapBlur = null;
     }
   }

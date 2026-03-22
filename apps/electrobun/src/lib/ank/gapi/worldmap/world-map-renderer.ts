@@ -58,6 +58,12 @@ export class WorldMapRenderer {
   private enabledCategories = new Set<number>([1, 2, 3, 4, 5, 6]);
   private currentSuperarea = 0;
   private currentZoom: number = WORLDMAP_CONSTANTS.DEFAULT_ZOOM;
+  /**
+   * Scale factor so that at DEFAULT_ZOOM (50), the full game map fits the viewport.
+   * Zoom then scales linearly: scale = baseScale * (currentZoom / DEFAULT_ZOOM).
+   * This matches the original MapNavigator.as behavior where cell size = _nWPage * _nZoom / 100.
+   */
+  private baseScale = 1;
 
   private isDragging = false;
   private dragStart = { x: 0, y: 0 };
@@ -129,6 +135,11 @@ export class WorldMapRenderer {
     this.setupControls();
   }
 
+  /** Current render scale — baseScale × zoom. At MIN_ZOOM (10) the map fits the viewport. */
+  private getScale(): number {
+    return this.baseScale * this.currentZoom;
+  }
+
   private setupControls(): void {
     this.worldContainer.eventMode = "static";
     this.root.eventMode = "static";
@@ -147,12 +158,7 @@ export class WorldMapRenderer {
       }
 
       const { MIN_ZOOM, MAX_ZOOM, ZOOM_STEP } = WORLDMAP_CONSTANTS;
-
-      let zoomDelta = -ZOOM_STEP;
-      if (e.deltaY < 0) {
-        zoomDelta = ZOOM_STEP;
-      }
-
+      const zoomDelta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
       const newZoom = this.currentZoom + zoomDelta;
 
       if (newZoom < MIN_ZOOM || newZoom > MAX_ZOOM) {
@@ -165,7 +171,7 @@ export class WorldMapRenderer {
       };
 
       this.currentZoom = newZoom;
-      const newScale = this.currentZoom / 100;
+      const newScale = this.getScale();
 
       this.worldContainer.scale.set(newScale);
       this.worldContainer.x = e.clientX - worldPos.x * newScale;
@@ -181,7 +187,7 @@ export class WorldMapRenderer {
   private clampPosition(): void {
     if (!this.manifest) return;
     const mapSize = this.manifest.grid_size * this.manifest.tile_size;
-    const scale = this.currentZoom / 100;
+    const scale = this.getScale();
     const scaledW = mapSize * scale;
     const scaledH = mapSize * scale;
 
@@ -357,16 +363,28 @@ export class WorldMapRenderer {
       return;
     }
 
-    const mapSize = this.manifest.grid_size * this.manifest.tile_size;
+    const { bounds } = this.manifest;
+    const { DISPLAY_WIDTH, DISPLAY_HEIGHT } = WORLDMAP_CONSTANTS;
 
-    // Auto-fit: calculate zoom so the map fills the available height
-    const fitZoom = (this.viewHeight / mapSize) * 100;
-    this.currentZoom = Math.max(
-      WORLDMAP_CONSTANTS.MIN_ZOOM,
-      Math.min(fitZoom, WORLDMAP_CONSTANTS.MAX_ZOOM)
+    // Game map extent in tile pixel space
+    const chunksW = bounds.xMax - bounds.xMin + 1;
+    const chunksH = bounds.yMax - bounds.yMin + 1;
+    const mapPixelW = chunksW * DISPLAY_WIDTH;
+    const mapPixelH = chunksH * DISPLAY_HEIGHT;
+
+    // At MIN_ZOOM (10), the full game map fits the viewport.
+    // At MAX_ZOOM (100), you see ~1/10th of the map per axis (~14 cells across ≈ 4×4 grid).
+    // This matches the original Dofus MapExplorer zoom behavior.
+    const fitScale = Math.min(
+      this.viewWidth / mapPixelW,
+      this.viewHeight / mapPixelH
     );
+    this.baseScale = fitScale / WORLDMAP_CONSTANTS.MIN_ZOOM;
 
-    const scale = this.currentZoom / 100;
+    this.currentZoom = WORLDMAP_CONSTANTS.DEFAULT_ZOOM;
+
+    const scale = this.getScale();
+    const mapSize = this.manifest.grid_size * this.manifest.tile_size;
     this.worldContainer.scale.set(scale);
     this.worldContainer.x = (this.viewWidth - mapSize * scale) / 2;
     this.worldContainer.y = (this.viewHeight - mapSize * scale) / 2;
@@ -973,7 +991,7 @@ export class WorldMapRenderer {
       bounds.yMin
     );
 
-    const scale = this.currentZoom / 100;
+    const scale = this.getScale();
     this.worldContainer.x = this.viewWidth / 2 - pixelX * scale;
     this.worldContainer.y = this.viewHeight / 2 - pixelY * scale;
     this.clampPosition();

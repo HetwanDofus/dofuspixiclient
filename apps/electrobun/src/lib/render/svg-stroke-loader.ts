@@ -103,7 +103,8 @@ export const svgStrokeLoader: LoaderParser<Texture, TextureSourceOptions> = {
       bitmap = await createImageBitmap(image as ImageBitmapSource, {
         resizeWidth: outputWidth,
         resizeHeight: outputHeight,
-        resizeQuality: "medium",
+        resizeQuality: "high",
+        colorSpaceConversion: "none",
       });
     } finally {
       releaseSlot();

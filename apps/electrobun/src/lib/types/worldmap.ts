@@ -111,13 +111,18 @@ export interface MinimapConfig {
   zoom?: number;
 }
 
+/**
+ * Zoom matches original MapNavigator.as: range 10–100, step ±5.
+ * MIN_ZOOM (10) = full map fits viewport. MAX_ZOOM (100) = ~14 cells across ≈ 4×4 grid.
+ * DEFAULT_ZOOM (50) = opens at mid-zoom, matching Basics.as `mapExplorer_zoom = 50`.
+ */
 export const WORLDMAP_CONSTANTS = {
   DISPLAY_WIDTH: 742,
   DISPLAY_HEIGHT: 432,
   CHUNK_SIZE: 15,
   DEFAULT_ZOOM: 50,
-  MIN_ZOOM: 40,
-  MAX_ZOOM: 120,
+  MIN_ZOOM: 10,
+  MAX_ZOOM: 100,
   ZOOM_STEP: 5,
 } as const;
 
