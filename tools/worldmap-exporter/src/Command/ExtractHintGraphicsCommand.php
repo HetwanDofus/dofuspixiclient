@@ -3,7 +3,6 @@
 namespace App\Command;
 
 use Arakne\Swf\Extractor\Drawer\Converter\Converter;
-use Arakne\Swf\Extractor\Drawer\Converter\ScaleResizer;
 use Arakne\Swf\Extractor\Sprite\SpriteDefinition;
 use Arakne\Swf\Extractor\SwfExtractor;
 use Arakne\Swf\SwfFile;
@@ -26,9 +25,7 @@ use Symfony\Component\Console\Helper\ProgressBar;
 final class ExtractHintGraphicsCommand extends Command
 {
     protected static $defaultName = 'extract:hint-graphics';
-    protected static $defaultDescription = 'Extract hint graphics from hints.swf as PNG files';
-
-    private const SUPERSAMPLE_FACTOR = 3;
+    protected static $defaultDescription = 'Extract hint graphics from hints.swf as SVG files';
 
     private const SOURCES_CLIPS_DIR = __DIR__ . '/../../../../assets/sources/clips/maps';
     private const OUTPUT_DIR = __DIR__ . '/../../../../assets/output/data/hints-graphics';
@@ -37,7 +34,7 @@ final class ExtractHintGraphicsCommand extends Command
     {
         $this
             ->setName('extract:hint-graphics')
-            ->setDescription('Extract all hint graphics from hints.swf by export name')
+            ->setDescription('Extract all hint graphics from hints.swf as SVG by export name')
             ->addOption('output', 'o', InputOption::VALUE_OPTIONAL, 'Output directory (optional)')
         ;
     }
@@ -74,8 +71,7 @@ final class ExtractHintGraphicsCommand extends Command
         try {
             $swf = new SwfFile($hintsSwfPath);
             $extractor = new SwfExtractor($swf);
-            $scaleResizer = new ScaleResizer(scale: self::SUPERSAMPLE_FACTOR);
-            $converter = new Converter(resizer: $scaleResizer, subpixelStrokeWidth: false);
+            $converter = new Converter();
 
             $exported = $extractor->exported();
             $output->writeln('<info>  ✓ Found ' . count($exported) . ' exported assets</info>');
@@ -99,14 +95,14 @@ final class ExtractHintGraphicsCommand extends Command
                     $character = $extractor->character($characterId);
 
                     if ($character instanceof SpriteDefinition) {
-                        $webpData = $converter->toWebp($character, 0, ['quality' => 95]);
-                        $filename = $outputDir . '/' . $name . '.webp';
+                        $svgData = $converter->toSvg($character, 0);
+                        $filename = $outputDir . '/' . $name . '.svg';
 
-                        if (file_put_contents($filename, $webpData)) {
+                        if (file_put_contents($filename, $svgData)) {
                             $bounds = $character->bounds();
                             $exportManifest[$name] = [
                                 'character_id' => $characterId,
-                                'file' => $name . '.webp',
+                                'file' => $name . '.svg',
                                 'width' => $bounds->width() / 20,
                                 'height' => $bounds->height() / 20,
                                 'offsetX' => $bounds->xmin / 20,
@@ -137,7 +133,7 @@ final class ExtractHintGraphicsCommand extends Command
                 'version' => '1.0',
                 'generated' => date('c'),
                 'source' => 'hints.swf',
-                'supersample' => self::SUPERSAMPLE_FACTOR,
+                'format' => 'svg',
                 'total_assets' => count($exported),
                 'extracted' => $extracted,
                 'skipped' => $skipped,

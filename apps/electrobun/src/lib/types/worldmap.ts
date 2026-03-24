@@ -31,7 +31,7 @@ export interface HintGraphic {
 }
 
 export interface HintManifest {
-  supersample: number;
+  format: string;
   graphics: Record<string, HintGraphic>;
 }
 

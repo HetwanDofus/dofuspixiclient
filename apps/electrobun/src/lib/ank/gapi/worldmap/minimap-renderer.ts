@@ -1,13 +1,21 @@
-import type { Application } from 'pixi.js';
-import { Assets, Container, Graphics, Sprite } from 'pixi.js';
+import type { Application } from "pixi.js";
+import { Assets, Container, Graphics, Sprite } from "pixi.js";
+
 import type {
-  WorldMapManifest,
   HintManifest,
   HintsLayering,
   MapCoordinates,
-} from '@/types/worldmap';
-import { WORLDMAP_CONSTANTS } from '@/types/worldmap';
-import { loadWorldMapData, mapCoordToPixel, pixelToMapCoord, findMapAtCoord, filterHintsByArea } from './world-map-data';
+  WorldMapManifest,
+} from "@/types/worldmap";
+import { WORLDMAP_CONSTANTS } from "@/types/worldmap";
+
+import {
+  filterHintsByArea,
+  findMapAtCoord,
+  loadWorldMapData,
+  mapCoordToPixel,
+  pixelToMapCoord,
+} from "./world-map-data";
 
 interface MinimapRendererConfig {
   app: Application;
@@ -100,7 +108,7 @@ export class MinimapRenderer {
 
         if (texture.source) {
           texture.source.autoGenerateMipmaps = true;
-          texture.source.scaleMode = 'linear';
+          texture.source.scaleMode = "linear";
           texture.source.updateMipmaps();
         }
 
@@ -186,7 +194,7 @@ export class MinimapRenderer {
       }
     }
 
-    const hintScale = 1.2 / (this.hintManifest.supersample || 1);
+    const targetSize = 30;
 
     for (const hintData of hintsToRender) {
       const texture = loadedTextures[hintData.texturePath];
@@ -198,8 +206,16 @@ export class MinimapRenderer {
       const sprite = new Sprite(texture);
       sprite.anchor.set(0.5, 0.5);
 
-      sprite.x = hintData.pixelX + hintData.hintInfo.offsetX + hintData.hintInfo.width / 2;
-      sprite.y = hintData.pixelY + hintData.hintInfo.offsetY + hintData.hintInfo.height / 2;
+      sprite.x =
+        hintData.pixelX +
+        hintData.hintInfo.offsetX +
+        hintData.hintInfo.width / 2;
+      sprite.y =
+        hintData.pixelY +
+        hintData.hintInfo.offsetY +
+        hintData.hintInfo.height / 2;
+      const maxDim = Math.max(texture.width, texture.height);
+      const hintScale = maxDim > 0 ? targetSize / maxDim : 1;
       sprite.scale.set(hintScale);
 
       this.hintSprites.push(sprite);
@@ -284,8 +300,10 @@ export class MinimapRenderer {
   }
 
   private drawPositionMarker(pixelX: number, pixelY: number): void {
-    const cellW = WORLDMAP_CONSTANTS.DISPLAY_WIDTH / WORLDMAP_CONSTANTS.CHUNK_SIZE;
-    const cellH = WORLDMAP_CONSTANTS.DISPLAY_HEIGHT / WORLDMAP_CONSTANTS.CHUNK_SIZE;
+    const cellW =
+      WORLDMAP_CONSTANTS.DISPLAY_WIDTH / WORLDMAP_CONSTANTS.CHUNK_SIZE;
+    const cellH =
+      WORLDMAP_CONSTANTS.DISPLAY_HEIGHT / WORLDMAP_CONSTANTS.CHUNK_SIZE;
 
     this.positionMarker.clear();
     // Pink filled rectangle matching one map cell, like original Dofus
@@ -309,7 +327,12 @@ export class MinimapRenderer {
 
     const localPoint = this.worldContainer.toLocal({ x: globalX, y: globalY });
     const { bounds } = this.manifest;
-    const gameCoord = pixelToMapCoord(localPoint.x, localPoint.y, bounds.xMin, bounds.yMin);
+    const gameCoord = pixelToMapCoord(
+      localPoint.x,
+      localPoint.y,
+      bounds.xMin,
+      bounds.yMin
+    );
     return findMapAtCoord(gameCoord.x, gameCoord.y, this.mapCoordinates);
   }
 

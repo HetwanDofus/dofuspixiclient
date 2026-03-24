@@ -30,7 +30,7 @@
         </div>
         {percent}%
       </div>
-      <div>
+      <div class="loader__line">
         {label}
         <div class="loader__bar">
           <div class="loader__bar_fill" style="width: {percent}%"></div>

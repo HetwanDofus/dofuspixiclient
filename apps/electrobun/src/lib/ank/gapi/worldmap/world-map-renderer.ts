@@ -593,7 +593,9 @@ export class WorldMapRenderer {
         sprite.y = baseY;
       }
 
-      const hintScale = 1.2 / (this.hintManifest.supersample || 1);
+      const targetSize = 30;
+      const maxDim = Math.max(texture.width, texture.height);
+      const hintScale = maxDim > 0 ? targetSize / maxDim : 1;
       sprite.scale.set(hintScale);
       sprite.eventMode = "static";
       sprite.cursor = "pointer";
@@ -999,8 +1001,10 @@ export class WorldMapRenderer {
   }
 
   private drawPositionMarker(pixelX: number, pixelY: number): void {
-    const cellW = WORLDMAP_CONSTANTS.DISPLAY_WIDTH / WORLDMAP_CONSTANTS.CHUNK_SIZE;
-    const cellH = WORLDMAP_CONSTANTS.DISPLAY_HEIGHT / WORLDMAP_CONSTANTS.CHUNK_SIZE;
+    const cellW =
+      WORLDMAP_CONSTANTS.DISPLAY_WIDTH / WORLDMAP_CONSTANTS.CHUNK_SIZE;
+    const cellH =
+      WORLDMAP_CONSTANTS.DISPLAY_HEIGHT / WORLDMAP_CONSTANTS.CHUNK_SIZE;
 
     this.positionMarker.clear();
     this.positionMarker.rect(

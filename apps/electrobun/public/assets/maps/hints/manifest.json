@@ -1,8 +1,8 @@
 {
     "version": "1.0",
-    "generated": "2025-12-29T13:36:25+00:00",
+    "generated": "2026-03-24T19:16:50+00:00",
     "source": "hints.swf",
-    "supersample": 3,
+    "format": "svg",
     "total_assets": 96,
     "extracted": 96,
     "skipped": 0,
@@ -10,7 +10,7 @@
     "graphics": {
         "908": {
             "character_id": 2,
-            "file": "908.webp",
+            "file": "908.svg",
             "width": 29.1,
             "height": 23,
             "offsetX": -14.55,
@@ -18,7 +18,7 @@
         },
         "907": {
             "character_id": 4,
-            "file": "907.webp",
+            "file": "907.svg",
             "width": 20.5,
             "height": 23,
             "offsetX": -10.25,
@@ -26,7 +26,7 @@
         },
         "906": {
             "character_id": 6,
-            "file": "906.webp",
+            "file": "906.svg",
             "width": 23.3,
             "height": 22.95,
             "offsetX": -11.65,
@@ -34,7 +34,7 @@
         },
         "905": {
             "character_id": 8,
-            "file": "905.webp",
+            "file": "905.svg",
             "width": 26.5,
             "height": 26.15,
             "offsetX": -13.25,
@@ -42,7 +42,7 @@
         },
         "904": {
             "character_id": 10,
-            "file": "904.webp",
+            "file": "904.svg",
             "width": 26.5,
             "height": 20.2,
             "offsetX": -13.25,
@@ -50,7 +50,7 @@
         },
         "903": {
             "character_id": 12,
-            "file": "903.webp",
+            "file": "903.svg",
             "width": 27.3,
             "height": 21.3,
             "offsetX": -13.65,
@@ -58,7 +58,7 @@
         },
         "902": {
             "character_id": 14,
-            "file": "902.webp",
+            "file": "902.svg",
             "width": 27.3,
             "height": 21.3,
             "offsetX": -13.65,
@@ -66,7 +66,7 @@
         },
         "901": {
             "character_id": 16,
-            "file": "901.webp",
+            "file": "901.svg",
             "width": 14.05,
             "height": 23,
             "offsetX": -7,
@@ -74,7 +74,7 @@
         },
         "900": {
             "character_id": 18,
-            "file": "900.webp",
+            "file": "900.svg",
             "width": 13.5,
             "height": 23,
             "offsetX": -6.75,
@@ -82,7 +82,7 @@
         },
         "0": {
             "character_id": 23,
-            "file": "0.webp",
+            "file": "0.svg",
             "width": 83.95,
             "height": 24,
             "offsetX": -71.95,
@@ -90,7 +90,7 @@
         },
         "428": {
             "character_id": 27,
-            "file": "428.webp",
+            "file": "428.svg",
             "width": 34.55,
             "height": 22.7,
             "offsetX": -17.25,
@@ -98,7 +98,7 @@
         },
         "429": {
             "character_id": 30,
-            "file": "429.webp",
+            "file": "429.svg",
             "width": 29.25,
             "height": 24.4,
             "offsetX": -14.65,
@@ -106,7 +106,7 @@
         },
         "430": {
             "character_id": 32,
-            "file": "430.webp",
+            "file": "430.svg",
             "width": 24.05,
             "height": 20.75,
             "offsetX": -11.55,
@@ -114,7 +114,7 @@
         },
         "410": {
             "character_id": 34,
-            "file": "410.webp",
+            "file": "410.svg",
             "width": 24.05,
             "height": 19.6,
             "offsetX": -11.55,
@@ -122,7 +122,7 @@
         },
         "409": {
             "character_id": 36,
-            "file": "409.webp",
+            "file": "409.svg",
             "width": 24.25,
             "height": 20.9,
             "offsetX": -11.75,
@@ -130,7 +130,7 @@
         },
         "416": {
             "character_id": 38,
-            "file": "416.webp",
+            "file": "416.svg",
             "width": 24.05,
             "height": 29.75,
             "offsetX": -11.55,
@@ -138,7 +138,7 @@
         },
         "408": {
             "character_id": 40,
-            "file": "408.webp",
+            "file": "408.svg",
             "width": 24.05,
             "height": 27.15,
             "offsetX": -11.55,
@@ -146,7 +146,7 @@
         },
         "427": {
             "character_id": 47,
-            "file": "427.webp",
+            "file": "427.svg",
             "width": 24.2,
             "height": 25.1,
             "offsetX": -11.55,
@@ -154,7 +154,7 @@
         },
         "421": {
             "character_id": 51,
-            "file": "421.webp",
+            "file": "421.svg",
             "width": 24.05,
             "height": 22.2,
             "offsetX": -11.55,
@@ -162,7 +162,7 @@
         },
         "420": {
             "character_id": 53,
-            "file": "420.webp",
+            "file": "420.svg",
             "width": 24.05,
             "height": 22.25,
             "offsetX": -11.55,
@@ -170,7 +170,7 @@
         },
         "424": {
             "character_id": 55,
-            "file": "424.webp",
+            "file": "424.svg",
             "width": 24,
             "height": 19.75,
             "offsetX": -11.55,
@@ -178,7 +178,7 @@
         },
         "407": {
             "character_id": 58,
-            "file": "407.webp",
+            "file": "407.svg",
             "width": 24.05,
             "height": 22,
             "offsetX": -11.55,
@@ -186,7 +186,7 @@
         },
         "418": {
             "character_id": 60,
-            "file": "418.webp",
+            "file": "418.svg",
             "width": 24.05,
             "height": 19.6,
             "offsetX": -11.55,
@@ -194,7 +194,7 @@
         },
         "415": {
             "character_id": 62,
-            "file": "415.webp",
+            "file": "415.svg",
             "width": 24.05,
             "height": 23.1,
             "offsetX": -11.55,
@@ -202,7 +202,7 @@
         },
         "406": {
             "character_id": 64,
-            "file": "406.webp",
+            "file": "406.svg",
             "width": 24.05,
             "height": 20.8,
             "offsetX": -11.55,
@@ -210,7 +210,7 @@
         },
         "405": {
             "character_id": 66,
-            "file": "405.webp",
+            "file": "405.svg",
             "width": 24.05,
             "height": 19.95,
             "offsetX": -11.55,
@@ -218,7 +218,7 @@
         },
         "426": {
             "character_id": 68,
-            "file": "426.webp",
+            "file": "426.svg",
             "width": 24.5,
             "height": 19.75,
             "offsetX": -12,
@@ -226,7 +226,7 @@
         },
         "404": {
             "character_id": 70,
-            "file": "404.webp",
+            "file": "404.svg",
             "width": 25.35,
             "height": 21.55,
             "offsetX": -11.55,
@@ -234,7 +234,7 @@
         },
         "425": {
             "character_id": 73,
-            "file": "425.webp",
+            "file": "425.svg",
             "width": 24.05,
             "height": 24.15,
             "offsetX": -11.55,
@@ -242,7 +242,7 @@
         },
         "419": {
             "character_id": 76,
-            "file": "419.webp",
+            "file": "419.svg",
             "width": 26.75,
             "height": 22.45,
             "offsetX": -13.4,
@@ -250,7 +250,7 @@
         },
         "Mouth": {
             "character_id": 78,
-            "file": "Mouth.webp",
+            "file": "Mouth.svg",
             "width": 15,
             "height": 15,
             "offsetX": -7.5,
@@ -258,7 +258,7 @@
         },
         "423": {
             "character_id": 79,
-            "file": "423.webp",
+            "file": "423.svg",
             "width": 24.05,
             "height": 20.55,
             "offsetX": -11.55,
@@ -266,7 +266,7 @@
         },
         "403": {
             "character_id": 81,
-            "file": "403.webp",
+            "file": "403.svg",
             "width": 24.05,
             "height": 21.15,
             "offsetX": -11.55,
@@ -274,7 +274,7 @@
         },
         "422": {
             "character_id": 83,
-            "file": "422.webp",
+            "file": "422.svg",
             "width": 26.95,
             "height": 21.7,
             "offsetX": -13.2,
@@ -282,7 +282,7 @@
         },
         "414": {
             "character_id": 85,
-            "file": "414.webp",
+            "file": "414.svg",
             "width": 24.05,
             "height": 27.55,
             "offsetX": -11.55,
@@ -290,7 +290,7 @@
         },
         "402": {
             "character_id": 87,
-            "file": "402.webp",
+            "file": "402.svg",
             "width": 24.05,
             "height": 24.45,
             "offsetX": -11.55,
@@ -298,7 +298,7 @@
         },
         "417": {
             "character_id": 90,
-            "file": "417.webp",
+            "file": "417.svg",
             "width": 24,
             "height": 21.8,
             "offsetX": -11.55,
@@ -306,7 +306,7 @@
         },
         "413": {
             "character_id": 92,
-            "file": "413.webp",
+            "file": "413.svg",
             "width": 24.65,
             "height": 19.7,
             "offsetX": -12.15,
@@ -314,7 +314,7 @@
         },
         "401": {
             "character_id": 94,
-            "file": "401.webp",
+            "file": "401.svg",
             "width": 24.1,
             "height": 23.6,
             "offsetX": -11.65,
@@ -322,7 +322,7 @@
         },
         "412": {
             "character_id": 96,
-            "file": "412.webp",
+            "file": "412.svg",
             "width": 24.05,
             "height": 22.15,
             "offsetX": -11.55,
@@ -330,7 +330,7 @@
         },
         "411": {
             "character_id": 98,
-            "file": "411.webp",
+            "file": "411.svg",
             "width": 24.05,
             "height": 19.6,
             "offsetX": -11.55,
@@ -338,7 +338,7 @@
         },
         "315": {
             "character_id": 104,
-            "file": "315.webp",
+            "file": "315.svg",
             "width": 25,
             "height": 22.2,
             "offsetX": -12.4,
@@ -346,7 +346,7 @@
         },
         "314": {
             "character_id": 106,
-            "file": "314.webp",
+            "file": "314.svg",
             "width": 21.35,
             "height": 22.9,
             "offsetX": -10,
@@ -354,7 +354,7 @@
         },
         "313": {
             "character_id": 108,
-            "file": "313.webp",
+            "file": "313.svg",
             "width": 21.85,
             "height": 22.2,
             "offsetX": -10.5,
@@ -362,7 +362,7 @@
         },
         "312": {
             "character_id": 110,
-            "file": "312.webp",
+            "file": "312.svg",
             "width": 25,
             "height": 26,
             "offsetX": -12.8,
@@ -370,7 +370,7 @@
         },
         "311": {
             "character_id": 112,
-            "file": "311.webp",
+            "file": "311.svg",
             "width": 21.35,
             "height": 24.15,
             "offsetX": -10,
@@ -378,7 +378,7 @@
         },
         "310": {
             "character_id": 114,
-            "file": "310.webp",
+            "file": "310.svg",
             "width": 21.35,
             "height": 23,
             "offsetX": -10,
@@ -386,7 +386,7 @@
         },
         "309": {
             "character_id": 116,
-            "file": "309.webp",
+            "file": "309.svg",
             "width": 22,
             "height": 22.2,
             "offsetX": -10.65,
@@ -394,7 +394,7 @@
         },
         "308": {
             "character_id": 118,
-            "file": "308.webp",
+            "file": "308.svg",
             "width": 21.35,
             "height": 24.5,
             "offsetX": -10,
@@ -402,7 +402,7 @@
         },
         "307": {
             "character_id": 120,
-            "file": "307.webp",
+            "file": "307.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -410,7 +410,7 @@
         },
         "306": {
             "character_id": 122,
-            "file": "306.webp",
+            "file": "306.svg",
             "width": 22.65,
             "height": 22.2,
             "offsetX": -11.3,
@@ -418,7 +418,7 @@
         },
         "319": {
             "character_id": 127,
-            "file": "319.webp",
+            "file": "319.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -426,7 +426,7 @@
         },
         "305": {
             "character_id": 129,
-            "file": "305.webp",
+            "file": "305.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -434,7 +434,7 @@
         },
         "317": {
             "character_id": 131,
-            "file": "317.webp",
+            "file": "317.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10.65,
@@ -442,7 +442,7 @@
         },
         "304": {
             "character_id": 133,
-            "file": "304.webp",
+            "file": "304.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -450,7 +450,7 @@
         },
         "316": {
             "character_id": 135,
-            "file": "316.webp",
+            "file": "316.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -458,7 +458,7 @@
         },
         "303": {
             "character_id": 137,
-            "file": "303.webp",
+            "file": "303.svg",
             "width": 22.55,
             "height": 22.2,
             "offsetX": -11.2,
@@ -466,7 +466,7 @@
         },
         "302": {
             "character_id": 139,
-            "file": "302.webp",
+            "file": "302.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -474,7 +474,7 @@
         },
         "318": {
             "character_id": 144,
-            "file": "318.webp",
+            "file": "318.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -482,7 +482,7 @@
         },
         "301": {
             "character_id": 146,
-            "file": "301.webp",
+            "file": "301.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -490,7 +490,7 @@
         },
         "215": {
             "character_id": 150,
-            "file": "215.webp",
+            "file": "215.svg",
             "width": 25,
             "height": 22.2,
             "offsetX": -12,
@@ -498,7 +498,7 @@
         },
         "214": {
             "character_id": 151,
-            "file": "214.webp",
+            "file": "214.svg",
             "width": 21.35,
             "height": 22.95,
             "offsetX": -10,
@@ -506,7 +506,7 @@
         },
         "220": {
             "character_id": 153,
-            "file": "220.webp",
+            "file": "220.svg",
             "width": 21,
             "height": 21.95,
             "offsetX": -10.6,
@@ -514,7 +514,7 @@
         },
         "213": {
             "character_id": 155,
-            "file": "213.webp",
+            "file": "213.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -522,7 +522,7 @@
         },
         "212": {
             "character_id": 156,
-            "file": "212.webp",
+            "file": "212.svg",
             "width": 22.65,
             "height": 22.2,
             "offsetX": -11.3,
@@ -530,7 +530,7 @@
         },
         "217": {
             "character_id": 158,
-            "file": "217.webp",
+            "file": "217.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -538,7 +538,7 @@
         },
         "211": {
             "character_id": 159,
-            "file": "211.webp",
+            "file": "211.svg",
             "width": 25,
             "height": 26,
             "offsetX": -12,
@@ -546,7 +546,7 @@
         },
         "210": {
             "character_id": 160,
-            "file": "210.webp",
+            "file": "210.svg",
             "width": 21.35,
             "height": 24.15,
             "offsetX": -10,
@@ -554,7 +554,7 @@
         },
         "219": {
             "character_id": 162,
-            "file": "219.webp",
+            "file": "219.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10.65,
@@ -562,7 +562,7 @@
         },
         "221": {
             "character_id": 166,
-            "file": "221.webp",
+            "file": "221.svg",
             "width": 22,
             "height": 22.9,
             "offsetX": -11,
@@ -570,7 +570,7 @@
         },
         "209": {
             "character_id": 168,
-            "file": "209.webp",
+            "file": "209.svg",
             "width": 21.35,
             "height": 24.2,
             "offsetX": -10,
@@ -578,7 +578,7 @@
         },
         "208": {
             "character_id": 169,
-            "file": "208.webp",
+            "file": "208.svg",
             "width": 22,
             "height": 22.2,
             "offsetX": -10.65,
@@ -586,7 +586,7 @@
         },
         "218": {
             "character_id": 172,
-            "file": "218.webp",
+            "file": "218.svg",
             "width": 21.35,
             "height": 24.15,
             "offsetX": -10.65,
@@ -594,7 +594,7 @@
         },
         "207": {
             "character_id": 173,
-            "file": "207.webp",
+            "file": "207.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -602,7 +602,7 @@
         },
         "206": {
             "character_id": 174,
-            "file": "206.webp",
+            "file": "206.svg",
             "width": 22.85,
             "height": 22.2,
             "offsetX": -11.5,
@@ -610,7 +610,7 @@
         },
         "224": {
             "character_id": 175,
-            "file": "224.webp",
+            "file": "224.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -618,7 +618,7 @@
         },
         "205": {
             "character_id": 176,
-            "file": "205.webp",
+            "file": "205.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -626,7 +626,7 @@
         },
         "222": {
             "character_id": 178,
-            "file": "222.webp",
+            "file": "222.svg",
             "width": 21.2,
             "height": 22.05,
             "offsetX": -10.6,
@@ -634,7 +634,7 @@
         },
         "204": {
             "character_id": 179,
-            "file": "204.webp",
+            "file": "204.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -642,7 +642,7 @@
         },
         "216": {
             "character_id": 181,
-            "file": "216.webp",
+            "file": "216.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -650,7 +650,7 @@
         },
         "203": {
             "character_id": 182,
-            "file": "203.webp",
+            "file": "203.svg",
             "width": 22.15,
             "height": 22.2,
             "offsetX": -10.8,
@@ -658,7 +658,7 @@
         },
         "202": {
             "character_id": 183,
-            "file": "202.webp",
+            "file": "202.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -666,7 +666,7 @@
         },
         "223": {
             "character_id": 184,
-            "file": "223.webp",
+            "file": "223.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -674,7 +674,7 @@
         },
         "201": {
             "character_id": 185,
-            "file": "201.webp",
+            "file": "201.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -682,7 +682,7 @@
         },
         "50": {
             "character_id": 190,
-            "file": "50.webp",
+            "file": "50.svg",
             "width": 24.15,
             "height": 27.85,
             "offsetX": -11.85,
@@ -690,7 +690,7 @@
         },
         "40": {
             "character_id": 192,
-            "file": "40.webp",
+            "file": "40.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -698,7 +698,7 @@
         },
         "100": {
             "character_id": 207,
-            "file": "100.webp",
+            "file": "100.svg",
             "width": 24.2,
             "height": 24.4,
             "offsetX": -12.4,
@@ -706,7 +706,7 @@
         },
         "110": {
             "character_id": 210,
-            "file": "110.webp",
+            "file": "110.svg",
             "width": 21.35,
             "height": 24.2,
             "offsetX": -10,
@@ -714,7 +714,7 @@
         },
         "120": {
             "character_id": 221,
-            "file": "120.webp",
+            "file": "120.svg",
             "width": 21.35,
             "height": 22.2,
             "offsetX": -10,
@@ -722,7 +722,7 @@
         },
         "20": {
             "character_id": 223,
-            "file": "20.webp",
+            "file": "20.svg",
             "width": 21.35,
             "height": 27.85,
             "offsetX": -10,
@@ -730,7 +730,7 @@
         },
         "80": {
             "character_id": 225,
-            "file": "80.webp",
+            "file": "80.svg",
             "width": 21.35,
             "height": 24.35,
             "offsetX": -10,
@@ -738,7 +738,7 @@
         },
         "10": {
             "character_id": 230,
-            "file": "10.webp",
+            "file": "10.svg",
             "width": 21.95,
             "height": 23.1,
             "offsetX": -10.6,
@@ -746,7 +746,7 @@
         },
         "30": {
             "character_id": 232,
-            "file": "30.webp",
+            "file": "30.svg",
             "width": 21.35,
             "height": 22.45,
             "offsetX": -10,
@@ -754,7 +754,7 @@
         },
         "70": {
             "character_id": 237,
-            "file": "70.webp",
+            "file": "70.svg",
             "width": 21.35,
             "height": 25.2,
             "offsetX": -10,
@@ -762,7 +762,7 @@
         },
         "60": {
             "character_id": 239,
-            "file": "60.webp",
+            "file": "60.svg",
             "width": 21.8,
             "height": 23.15,
             "offsetX": -10.45,
@@ -770,7 +770,7 @@
         },
         "90": {
             "character_id": 241,
-            "file": "90.webp",
+            "file": "90.svg",
             "width": 26.5,
             "height": 22.2,
             "offsetX": -11.7,
