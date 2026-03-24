@@ -6,7 +6,15 @@ import {
   Text,
 } from "pixi.js";
 
+import {
+  CELL_HALF_HEIGHT,
+  CELL_HALF_WIDTH,
+} from "@/constants/battlefield";
 import type { ExtendedTexture } from "@/types";
+
+import type { CellData } from "./datacenter/cell";
+import { getCellPosition } from "./datacenter/cell";
+import { computeMapScale, type MapScale } from "./datacenter/map";
 
 export interface SpriteDebugInfo {
   sprite: Sprite;
@@ -14,6 +22,9 @@ export interface SpriteDebugInfo {
   cellId: number;
   layer: number; // 0=ground, 1=object1, 2=object2
   type: "ground" | "objects";
+  rotation: number;
+  flip: boolean;
+  groundSlope?: number;
 }
 
 export class DebugOverlay {
@@ -21,10 +32,19 @@ export class DebugOverlay {
   private tooltip: Container;
   private tooltipBg: Graphics;
   private tooltipText: Text;
-  private sprites: SpriteDebugInfo[] = [];
+  private spritesByCellId = new Map<number, SpriteDebugInfo[]>();
   private enabled = false;
   private screenWidth = 1484;
   private screenHeight = 1114;
+  private currentCellId = -1;
+
+  // Cell picking data
+  private mapContainer: Container | null = null;
+  private cells: CellData[] = [];
+  private mapWidth = 15;
+  private mapScale: MapScale = { scale: 1, offsetX: 0, offsetY: 0 };
+  private boundOnPointerMove: ((e: FederatedPointerEvent) => void) | null = null;
+  private boundOnPointerLeave: (() => void) | null = null;
 
   constructor(parentContainer: Container) {
     this.container = new Container();
@@ -55,40 +75,42 @@ export class DebugOverlay {
     this.container.addChild(this.tooltip);
   }
 
-  setMapContainer(_mapContainer: Container): void {
-    // Reserved for future use
+  setMapContainer(mapContainer: Container): void {
+    this.mapContainer = mapContainer;
+  }
+
+  setMapData(cells: CellData[], mapWidth: number, mapHeight: number): void {
+    this.cells = cells;
+    this.mapWidth = mapWidth;
+    this.mapScale = computeMapScale(mapWidth, mapHeight);
   }
 
   registerSprite(info: SpriteDebugInfo): void {
-    this.sprites.push(info);
-
-    // Make sprite interactive for hover detection
-    info.sprite.eventMode = "static";
-    info.sprite.cursor = "pointer";
-
-    info.sprite.on("pointerenter", (e: FederatedPointerEvent) =>
-      this.showTooltip(info, e)
-    );
-    info.sprite.on("pointermove", (e: FederatedPointerEvent) =>
-      this.updateTooltipPosition(e)
-    );
-    info.sprite.on("pointerleave", () => this.hideTooltip());
+    let arr = this.spritesByCellId.get(info.cellId);
+    if (!arr) {
+      arr = [];
+      this.spritesByCellId.set(info.cellId, arr);
+    }
+    arr.push(info);
   }
 
   clear(): void {
-    this.sprites = [];
+    this.spritesByCellId.clear();
+    this.currentCellId = -1;
     this.hideTooltip();
   }
 
   enable(): void {
     this.enabled = true;
     this.container.visible = true;
+    this.attachEvents();
   }
 
   disable(): void {
     this.enabled = false;
     this.container.visible = false;
     this.hideTooltip();
+    this.detachEvents();
   }
 
   toggle(): boolean {
@@ -104,56 +126,133 @@ export class DebugOverlay {
     return this.enabled;
   }
 
-  private showTooltip(info: SpriteDebugInfo, e: FederatedPointerEvent): void {
+  private attachEvents(): void {
+    if (!this.mapContainer || this.boundOnPointerMove) return;
+
+    this.mapContainer.eventMode = "static";
+    this.boundOnPointerMove = (e: FederatedPointerEvent) => this.onPointerMove(e);
+    this.boundOnPointerLeave = () => this.hideTooltip();
+    this.mapContainer.on("pointermove", this.boundOnPointerMove);
+    this.mapContainer.on("pointerleave", this.boundOnPointerLeave);
+  }
+
+  private detachEvents(): void {
+    if (!this.mapContainer) return;
+    if (this.boundOnPointerMove) {
+      this.mapContainer.off("pointermove", this.boundOnPointerMove);
+      this.boundOnPointerMove = null;
+    }
+    if (this.boundOnPointerLeave) {
+      this.mapContainer.off("pointerleave", this.boundOnPointerLeave);
+      this.boundOnPointerLeave = null;
+    }
+  }
+
+  private onPointerMove(e: FederatedPointerEvent): void {
     if (!this.enabled) return;
 
-    const tex = info.sprite.texture as ExtendedTexture;
-    const scale = tex._scale ?? "unknown";
-    const isFallback = tex._isFallback ?? false;
-    const requestedScale = tex._requestedScale;
+    // Convert global position to map-local position
+    const local = this.mapContainer
+      ? this.mapContainer.toLocal(e.global)
+      : e.global;
 
-    const layerNames = ["ground", "object1", "object2"];
-    const layerName = layerNames[info.layer] ?? `layer${info.layer}`;
-
-    let text = `Tile: ${info.type}_${info.tileId}\n`;
-    text += `Cell: ${info.cellId}\n`;
-    text += `Layer: ${layerName}\n`;
-    text += `Scale: ${scale}`;
-
-    if (isFallback && requestedScale !== undefined) {
-      text += ` (FALLBACK! wanted ${requestedScale})`;
+    const cell = this.findCellAt(local.x, local.y);
+    if (!cell) {
+      this.hideTooltip();
+      this.currentCellId = -1;
+      return;
     }
 
-    this.tooltipText.text = text;
+    // Only rebuild tooltip when cell changes
+    if (cell.id !== this.currentCellId) {
+      this.currentCellId = cell.id;
+      this.buildTooltip(cell);
+    }
+
+    // Always update position
+    const padding = 8;
+    const width = this.tooltipText.width + padding * 2;
+    const height = this.tooltipText.height + padding * 2;
+    this.positionTooltipAtMouse(e.global.x, e.global.y, width, height);
+    this.tooltip.visible = true;
+  }
+
+  private findCellAt(mapX: number, mapY: number): CellData | null {
+    const { scale, offsetX, offsetY } = this.mapScale;
+    const hw = CELL_HALF_WIDTH * scale;
+    const hh = CELL_HALF_HEIGHT * scale;
+
+    for (const cell of this.cells) {
+      const pos = getCellPosition(cell.id, this.mapWidth, cell.groundLevel);
+      const cx = pos.x * scale + offsetX;
+      const cy = pos.y * scale + offsetY;
+
+      const dx = mapX - cx;
+      const dy = mapY - cy;
+
+      if (Math.abs(dx / hw) + Math.abs(dy / hh) <= 1) {
+        return cell;
+      }
+    }
+    return null;
+  }
+
+  private buildTooltip(cell: CellData): void {
+    const cellSprites = this.spritesByCellId.get(cell.id) ?? [];
+    // Sort by layer: ground (0) → object1 (1) → object2 (2)
+    cellSprites.sort((a, b) => a.layer - b.layer);
+
+    const layerNames = ["ground", "object1", "object2"];
+    let text = `Cell: ${cell.id}\n`;
+
+    for (const s of cellSprites) {
+      const layerName = layerNames[s.layer] ?? `layer${s.layer}`;
+      const tex = s.sprite.texture as ExtendedTexture;
+      const scale = tex._scale ?? "?";
+      const isFallback = tex._isFallback ?? false;
+      const requestedScale = tex._requestedScale;
+
+      let line = `${layerName}: ${s.type}_${s.tileId}`;
+      if (s.rotation) line += ` R${s.rotation}`;
+      if (s.flip) line += " F";
+      if (s.groundSlope && s.groundSlope !== 1) line += ` S${s.groundSlope}`;
+      line += ` (s:${scale})`;
+      if (isFallback && requestedScale !== undefined) {
+        line += ` FALLBACK(${requestedScale})`;
+      }
+      text += `${line}\n`;
+    }
+
+    // Show which layers are missing
+    const presentLayers = new Set(cellSprites.map(s => s.layer));
+    for (let i = 0; i < 3; i++) {
+      if (!presentLayers.has(i)) {
+        text += `${layerNames[i]}: —\n`;
+      }
+    }
+
+    this.tooltipText.text = text.trimEnd();
 
     // Update background
     const padding = 8;
     const width = this.tooltipText.width + padding * 2;
     const height = this.tooltipText.height + padding * 2;
 
+    const hasFallback = cellSprites.some(s => {
+      const t = s.sprite.texture as ExtendedTexture;
+      return t._isFallback ?? false;
+    });
+
     this.tooltipBg.clear();
     this.tooltipBg.roundRect(0, 0, width, height, 4);
     this.tooltipBg.fill({
-      color: isFallback ? 0x990000 : 0x000000,
+      color: hasFallback ? 0x990000 : 0x000000,
       alpha: 0.9,
     });
     this.tooltipBg.stroke({
-      color: isFallback ? 0xff0000 : 0x666666,
+      color: hasFallback ? 0xff0000 : 0x666666,
       width: 1,
     });
-
-    // Position tooltip at mouse cursor
-    this.positionTooltipAtMouse(e.global.x, e.global.y, width, height);
-
-    this.tooltip.visible = true;
-  }
-
-  private updateTooltipPosition(e: FederatedPointerEvent): void {
-    if (!this.tooltip.visible) return;
-
-    const width = this.tooltipBg.width;
-    const height = this.tooltipBg.height;
-    this.positionTooltipAtMouse(e.global.x, e.global.y, width, height);
   }
 
   private positionTooltipAtMouse(
@@ -164,26 +263,18 @@ export class DebugOverlay {
   ): void {
     const margin = 15;
 
-    // Try to position to the right and above the cursor
     let x = mouseX + margin;
     let y = mouseY - height - margin;
 
-    // If tooltip goes off the right edge, position to the left of cursor
     if (x + width > this.screenWidth) {
       x = mouseX - width - margin;
     }
-
-    // If still off screen on left, clamp to left edge
     if (x < 0) {
       x = margin;
     }
-
-    // If tooltip goes off the top, position below the cursor
     if (y < 0) {
       y = mouseY + margin;
     }
-
-    // If still off screen on bottom, clamp to bottom
     if (y + height > this.screenHeight) {
       y = this.screenHeight - height - margin;
     }
@@ -207,9 +298,11 @@ export class DebugOverlay {
 
   private hideTooltip(): void {
     this.tooltip.visible = false;
+    this.currentCellId = -1;
   }
 
   destroy(): void {
+    this.detachEvents();
     this.clear();
     this.container.destroy({ children: true });
   }

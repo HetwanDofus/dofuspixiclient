@@ -55,6 +55,18 @@ interface AtlasManifest {
   frameOrder: string[];
   duplicates: Record<string, string>;
   fps: number;
+  /** Base frame for base/delta splitting (shared static elements) */
+  baseFrame?: {
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    offsetX: number;
+    offsetY: number;
+  };
+  /** Whether the base renders "above" or "below" the delta */
+  baseZOrder?: "above" | "below";
 }
 
 /**
@@ -393,6 +405,21 @@ export class AtlasLoader {
       oy: f.offsetY,
     }));
 
+    // Convert base frame if present (base/delta splitting)
+    let baseFrame: FrameInfo | undefined;
+    if (atlas.baseFrame) {
+      const bf = atlas.baseFrame;
+      baseFrame = {
+        frame: -1,
+        x: bf.x,
+        y: bf.y,
+        w: bf.width,
+        h: bf.height,
+        ox: bf.offsetX,
+        oy: bf.offsetY,
+      };
+    }
+
     return {
       id: parseInt(manifest.spriteId, 10),
       type,
@@ -406,6 +433,8 @@ export class AtlasLoader {
       offsetX: atlas.offsetX ?? 0,
       offsetY: atlas.offsetY ?? 0,
       frames,
+      baseFrame,
+      baseZOrder: atlas.baseZOrder,
     };
   }
 
@@ -604,6 +633,48 @@ export class AtlasLoader {
     });
 
     // Add to LRU cache
+    this.addToFrameCache(cacheKey, texture);
+    return texture;
+  }
+
+  /**
+   * Load the base frame texture for base/delta split tiles.
+   * Returns null if the tile has no base frame or data isn't cached.
+   */
+  loadBaseFrameSync(tileKey: string): Texture | null {
+    const zoomKey = this.getEffectiveZoomKey();
+    const cacheKey = `${tileKey}:${zoomKey}:__base__`;
+
+    const cachedTexture = this.getFromFrameCache(cacheKey);
+    if (cachedTexture) return cachedTexture;
+
+    const data = this.tileDataCache.get(tileKey);
+    if (!data) return null;
+
+    const bf = data.atlas.baseFrame;
+    if (!bf) return null;
+
+    const baseTexture = data.baseTextures.get(zoomKey);
+    if (!baseTexture?.source) return null;
+
+    const sourceWidth = baseTexture.source.width;
+    const sourceHeight = baseTexture.source.height;
+    const actualScale = sourceWidth / data.atlas.width;
+
+    const frameX = Math.round(bf.x * actualScale);
+    const frameY = Math.round(bf.y * actualScale);
+    let frameW = Math.round(bf.width * actualScale);
+    let frameH = Math.round(bf.height * actualScale);
+
+    if (frameX + frameW > sourceWidth) frameW = Math.floor(sourceWidth - frameX);
+    if (frameY + frameH > sourceHeight) frameH = Math.floor(sourceHeight - frameY);
+    if (frameW <= 0 || frameH <= 0) return null;
+
+    const texture = new Texture({
+      source: baseTexture.source,
+      frame: new Rectangle(frameX, frameY, frameW, frameH),
+    });
+
     this.addToFrameCache(cacheKey, texture);
     return texture;
   }

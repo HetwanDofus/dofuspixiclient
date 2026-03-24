@@ -450,7 +450,7 @@ export class Battlefield {
     this.mapHandler = new MapHandler({
       atlasLoader: this.atlasLoader,
       interactiveGfxIds: this.interactiveGfxIds,
-      onSpriteCreated: (sprite, tileId, cellId, layer) => {
+      onSpriteCreated: (sprite, tileId, cellId, layer, rotation, flip, groundSlope) => {
         if (layer > 0 && this.isInteractiveTile(tileId)) {
           const pickableId = this.nextPickableId++;
           this.registerPickableObject(pickableId, sprite, tileId);
@@ -465,6 +465,9 @@ export class Battlefield {
             cellId,
             layer,
             type,
+            rotation,
+            flip,
+            groundSlope,
           });
         }
       },
@@ -553,6 +556,13 @@ export class Battlefield {
       mapData.width,
       mapData.height,
       mapData.triggerCellIds ?? []
+    );
+
+    // Update debug overlay with cell data for cell picking
+    this.debugOverlay?.setMapData(
+      mapData.cells,
+      mapData.width,
+      mapData.height,
     );
 
     // Map is ready for actors. World actor container will be re-created

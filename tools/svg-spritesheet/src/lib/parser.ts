@@ -194,9 +194,80 @@ function extractUseElements(
 }
 
 /**
- * Extract all definitions from <defs> section
+ * Extract all definitions from <defs> section.
+ * After extraction, resolves intra-defs <use> references: when a definition
+ * contains <use xlink:href="#X"> and #X is an element defined inside a sibling
+ * definition (e.g. an <image> inside a <pattern>), inline the referenced
+ * content so the definition is self-contained.
  */
 function extractDefinitions($: CheerioAPI, defs: CheerioElement): Definition[] {
+  // First pass: build a map of id → element content for all elements with ids
+  // (including nested ones like <image id="..."> inside <pattern>)
+  const idContentMap = new Map<string, string>();
+  defs.find("[id]").each((_, el) => {
+    const elem = $(el);
+    const id = elem.attr("id");
+    if (id) {
+      // Get the outer HTML without the id attribute for inlining
+      const clone = elem.clone();
+      clone.removeAttr("id");
+      idContentMap.set(id, $.html(clone));
+    }
+  });
+
+  // Second pass: resolve intra-defs <use> refs that point to NESTED elements
+  // (elements defined inside a sibling def, not top-level defs children).
+  // Top-level defs children get their own canonical IDs during deduplication,
+  // so <use> refs to them are properly remapped — inlining those would destroy
+  // cross-frame definition sharing.
+  // Only inline when the target is nested (e.g. <image> inside <pattern>,
+  // or <g> inside another <g>).
+  // Repeat until no more inlining happens (handles chained refs).
+  const topLevelDefIds = new Set<string>();
+  defs.children().each((_, el) => {
+    const id = $(el).attr("id");
+    if (id) topLevelDefIds.add(id);
+  });
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    defs.children().each((_, el) => {
+      const element = $(el);
+      const ownId = element.attr("id");
+      element.find("use").each((_, useEl) => {
+        const use = $(useEl);
+        const href = use.attr("xlink:href") ?? use.attr("href") ?? "";
+        const refMatch = href.match(/^#(.+)$/);
+        if (!refMatch) return;
+
+        const refId = refMatch[1];
+        if (refId === ownId) return; // skip self-refs
+
+        // Only inline local refs (not canonical refs from previous processing)
+        if (refId.startsWith("def_") || /^d\d+$/.test(refId)) return;
+
+        // Don't inline top-level defs — they get canonical IDs and are shared
+        if (topLevelDefIds.has(refId)) return;
+
+        const targetContent = idContentMap.get(refId);
+        if (targetContent) {
+          // Preserve the <use> element's transform by wrapping the inlined
+          // content in a <g> with the use's transform. Without this, the
+          // target content's own transform gets applied without the use's
+          // compensating transform, causing incorrect positioning.
+          const useTransform = use.attr("transform");
+          if (useTransform) {
+            use.replaceWith(`<g transform="${useTransform}">${targetContent}</g>`);
+          } else {
+            use.replaceWith(targetContent);
+          }
+          changed = true;
+        }
+      });
+    });
+  }
+
   const definitions: Definition[] = [];
 
   defs.children().each((_, el) => {

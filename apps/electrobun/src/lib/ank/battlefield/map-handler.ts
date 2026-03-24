@@ -6,11 +6,7 @@ import type { TileManifest } from "@/types";
 import type { CellData } from "./datacenter/cell";
 import type { MapData, MapScale } from "./datacenter/map";
 import { computeMapScale, getCellPosition } from "./datacenter";
-import {
-  computePhpLikeOffsets,
-  computeTransformedMin,
-  normalizeRotation,
-} from "./datacenter/sprite";
+import { normalizeRotation } from "./datacenter/sprite";
 
 export interface MapHandlerConfig {
   atlasLoader: AtlasLoader;
@@ -19,7 +15,10 @@ export interface MapHandlerConfig {
     sprite: Sprite,
     tileId: number,
     cellId: number,
-    layer: number
+    layer: number,
+    rotation: number,
+    flip: boolean,
+    groundSlope?: number
   ) => void;
 }
 
@@ -53,7 +52,10 @@ export class MapHandler {
     sprite: Sprite,
     tileId: number,
     cellId: number,
-    layer: number
+    layer: number,
+    rotation: number,
+    flip: boolean,
+    groundSlope?: number
   ) => void;
 
   // Opt #5: Persistent container layers — created once, reused across renders
@@ -223,20 +225,21 @@ export class MapHandler {
       return;
     }
 
-    // Account for frame trim offset (same as positionSpriteWithManifest)
+    // Background uses same pivot approach: registration point at cell origin (0,0)
     const bgFrame = bgTile?.frames[0];
-    const bgBaseX = (bgTile?.offsetX ?? 0) + (bgFrame?.ox ?? 0);
-    const bgBaseY = (bgTile?.offsetY ?? 0) + (bgFrame?.oy ?? 0);
+    const trimX = bgFrame?.ox ?? 0;
+    const trimY = bgFrame?.oy ?? 0;
+
+    bgSprite.pivot.set(
+      -((bgTile?.offsetX ?? 0) + trimX),
+      -((bgTile?.offsetY ?? 0) + trimY)
+    );
 
     const bgScale = mapScale.scale;
     bgSprite.scale.set(bgScale, bgScale);
-    bgSprite.anchor.set(0, 0);
 
-    const bgTopLeftX = bgBaseX * bgScale + mapScale.offsetX;
-    const bgTopLeftY = bgBaseY * bgScale + mapScale.offsetY;
-
-    bgSprite.x = bgTopLeftX;
-    bgSprite.y = bgTopLeftY;
+    // Background's registration point goes at map origin
+    bgSprite.position.set(mapScale.offsetX, mapScale.offsetY);
 
     layer.addChild(bgSprite);
 
@@ -293,8 +296,14 @@ export class MapHandler {
           0,
           targetFrame
         );
-        groundLayer.addChild(sprite);
-        this.onSpriteCreated?.(sprite, cell.ground, cell.id, 0);
+
+        // Base/delta compositing
+        this.addSpriteWithBase(
+          sprite, tile, tileKey, basePosition, groundRot,
+          cell.layerGroundFlip, cell.id, mapScale, 0, groundLayer
+        );
+
+        this.onSpriteCreated?.(sprite, cell.ground, cell.id, 0, groundRot, cell.layerGroundFlip, groundSlope);
 
         // Opt #7: Track for texture swap
         this.spriteRefs.push({
@@ -331,8 +340,11 @@ export class MapHandler {
           1,
           targetFrame
         );
-        objectLayer1.addChild(sprite);
-        this.onSpriteCreated?.(sprite, cell.layer1, cell.id, 1);
+        this.addSpriteWithBase(
+          sprite, tile, tileKey, basePosition, objRot,
+          cell.layerObject1Flip, cell.id, mapScale, 1, objectLayer1
+        );
+        this.onSpriteCreated?.(sprite, cell.layer1, cell.id, 1, objRot, cell.layerObject1Flip);
 
         // Opt #7: Track for texture swap
         this.spriteRefs.push({
@@ -371,9 +383,12 @@ export class MapHandler {
             2,
             0
           );
-          objectLayer2.addChild(animSprite);
+          this.addSpriteWithBase(
+            animSprite, tile, tileKey, basePosition, 0,
+            cell.layerObject2Flip, cell.id, mapScale, 2, objectLayer2
+          );
           this.animatedSprites.push(animSprite);
-          this.onSpriteCreated?.(animSprite, cell.layer2, cell.id, 2);
+          this.onSpriteCreated?.(animSprite, cell.layer2, cell.id, 2, 0, cell.layerObject2Flip);
 
           // Opt #7: Track animated sprite for texture swap
           this.spriteRefs.push({
@@ -399,8 +414,11 @@ export class MapHandler {
             2,
             targetFrame
           );
-          objectLayer2.addChild(sprite);
-          this.onSpriteCreated?.(sprite, cell.layer2, cell.id, 2);
+          this.addSpriteWithBase(
+            sprite, tile, tileKey, basePosition, 0,
+            cell.layerObject2Flip, cell.id, mapScale, 2, objectLayer2
+          );
+          this.onSpriteCreated?.(sprite, cell.layer2, cell.id, 2, 0, cell.layerObject2Flip);
 
           // Opt #7: Track for texture swap
           this.spriteRefs.push({
@@ -412,6 +430,57 @@ export class MapHandler {
         }
       }
     }
+  }
+
+  /**
+   * Add a delta sprite to a layer, compositing with its base frame if present.
+   * baseZOrder "above" = base rendered on top of delta, "below" = base behind delta.
+   */
+  private addSpriteWithBase(
+    deltaSprite: Sprite,
+    tile: TileManifest | null,
+    tileKey: string,
+    position: { x: number; y: number },
+    rotation: number,
+    flip: boolean,
+    cellId: number,
+    mapScale: MapScale,
+    layer: number,
+    container: Container
+  ): void {
+    if (!tile?.baseFrame) {
+      // No base/delta split — just add the sprite directly
+      container.addChild(deltaSprite);
+      return;
+    }
+
+    const baseSprite = this.createBaseFrameSprite(tileKey, tile);
+    if (!baseSprite) {
+      // Base frame failed to load — fall back to delta only
+      container.addChild(deltaSprite);
+      return;
+    }
+
+    this.positionBaseFrameSprite(
+      baseSprite, tile, position, rotation, flip, cellId, mapScale, layer
+    );
+
+    // Add in correct z-order: "above" means base on top, "below" means base behind
+    if (tile.baseZOrder === "below") {
+      container.addChild(baseSprite);
+      container.addChild(deltaSprite);
+    } else {
+      // Default "above": delta first, then base on top
+      container.addChild(deltaSprite);
+      container.addChild(baseSprite);
+    }
+
+    this.spriteRefs.push({
+      sprite: baseSprite,
+      tileKey,
+      frameIndex: -1, // base frame marker
+      isAnimated: false,
+    });
   }
 
   /**
@@ -450,6 +519,81 @@ export class MapHandler {
   }
 
   /**
+   * Create a sprite for the base frame of a base/delta split tile.
+   */
+  private createBaseFrameSprite(
+    tileKey: string,
+    tile: TileManifest
+  ): Sprite | null {
+    if (!tile.baseFrame) return null;
+
+    const zoom = this.atlasLoader.getZoom();
+    const cacheKey = `${tileKey}:${zoom}:base`;
+
+    const cachedTexture = this.textureCache.get(cacheKey);
+    if (cachedTexture) {
+      const sprite = new Sprite(cachedTexture);
+      sprite.anchor.set(0, 0);
+      return sprite;
+    }
+
+    const texture = this.atlasLoader.loadBaseFrameSync(tileKey);
+    if (!texture) return null;
+
+    const sprite = new Sprite(texture);
+    sprite.anchor.set(0, 0);
+    this.textureCache.set(cacheKey, texture);
+    return sprite;
+  }
+
+  /**
+   * Position a base frame sprite. The base frame may have different dimensions/offsets
+   * than the delta frames, so it uses baseFrame's own offset values.
+   */
+  private positionBaseFrameSprite(
+    sprite: Sprite,
+    tile: TileManifest,
+    position: { x: number; y: number },
+    rotation: number,
+    flip: boolean,
+    cellId: number,
+    mapScale: MapScale,
+    layer: number,
+  ): void {
+    const bf = tile.baseFrame;
+    if (!bf) return;
+
+    const r = normalizeRotation(rotation);
+
+    // Base frame uses the tile's atlas-level offset + the base frame's own trim offset
+    sprite.pivot.set(
+      -(tile.offsetX + bf.ox),
+      -(tile.offsetY + bf.oy)
+    );
+
+    const globalScale = mapScale.scale;
+    sprite.position.set(
+      position.x * globalScale + mapScale.offsetX,
+      position.y * globalScale + mapScale.offsetY
+    );
+
+    sprite.angle = r * 90;
+
+    let scaleX = globalScale;
+    let scaleY = globalScale;
+    if (r === 1 || r === 3) {
+      scaleX *= 51.85 / 100;
+      scaleY *= 192.86 / 100;
+    }
+    if (flip) {
+      scaleX *= -1;
+    }
+    sprite.scale.set(scaleX, scaleY);
+
+    sprite.zIndex = layer === 2 ? cellId * 100 : cellId;
+  }
+
+  /**
    * Create an animated sprite synchronously from cached tile data.
    * Opt #4: Accepts pre-resolved manifest to avoid redundant lookup.
    */
@@ -476,8 +620,20 @@ export class MapHandler {
   }
 
   /**
-   * Position a sprite synchronously using pre-resolved tile manifest.
-   * Opt #4: Accepts manifest directly to avoid redundant Map lookup.
+   * Position a sprite using PixiJS pivot to match Flash's registration point behavior.
+   *
+   * In the original Flash client:
+   *   mc._x = cellX; mc._y = cellY;
+   *   mc._rotation = rot * 90;
+   *   if (rot % 2) { mc._xscale = 51.85; mc._yscale = 192.86; }
+   *   if (flip) mc._xscale *= -1;
+   *
+   * The SWF MovieClip's registration point (0,0) is placed at the cell position.
+   * Rotation and scale happen around that registration point.
+   *
+   * In PixiJS, `pivot` is the equivalent of Flash's registration point.
+   * Setting pivot to the registration point in texture space and position to
+   * the cell screen position replicates Flash's behavior exactly.
    */
   private positionSpriteWithManifest(
     sprite: Sprite,
@@ -496,68 +652,43 @@ export class MapHandler {
 
     const r = normalizeRotation(rotation);
 
-    const baseWidth = tile.width;
-    const baseHeight = tile.height;
-
-    // The atlas-level offset is the registration point relative to SVG origin (0,0).
-    // The frame trim offset (frame.ox, frame.oy) is where the frame content starts
-    // in SVG space. We must adjust the atlas offset by the trim to get the correct
-    // registration point within the frame texture.
+    // tile.offsetX/Y = displacement from registration point to content top-left
+    // (typically negative: content extends left/up from reg point)
+    // frame.ox/oy = trim offset within the full tile
+    // Registration point in trimmed texture space = -(tile.offsetX + trimX), -(tile.offsetY + trimY)
     const frame = tile.frames[frameIndex];
     const trimX = frame?.ox ?? 0;
     const trimY = frame?.oy ?? 0;
 
-    const { offsetX, offsetY } = computePhpLikeOffsets(
-      {
-        width: baseWidth,
-        height: baseHeight,
-        offsetX: tile.offsetX + trimX,
-        offsetY: tile.offsetY + trimY,
-      },
-      r,
-      flip
+    sprite.pivot.set(
+      -(tile.offsetX + trimX),
+      -(tile.offsetY + trimY)
     );
 
-    const ROT_SCALE_X = 51.85 / 100;
-    const ROT_SCALE_Y = 192.86 / 100;
+    // Position: registration point goes at cell screen position
+    const globalScale = mapScale.scale;
+    sprite.position.set(
+      position.x * globalScale + mapScale.offsetX,
+      position.y * globalScale + mapScale.offsetY
+    );
 
-    let scaleX = 1;
-    let scaleY = 1;
+    // Rotation: 0°, 90°, 180°, 270°
+    sprite.angle = r * 90;
 
+    // Scale: isometric compensation for 90°/270° rotations (from original AS code)
+    let scaleX = globalScale;
+    let scaleY = globalScale;
     if (r === 1 || r === 3) {
-      scaleX = ROT_SCALE_X;
-      scaleY = ROT_SCALE_Y;
+      scaleX *= 51.85 / 100;
+      scaleY *= 192.86 / 100;
     }
-
     if (flip) {
       scaleX *= -1;
     }
+    sprite.scale.set(scaleX, scaleY);
 
-    const globalScale = mapScale.scale;
-    const finalScaleX = scaleX * globalScale;
-    const finalScaleY = scaleY * globalScale;
-
-    const { minX, minY } = computeTransformedMin(
-      baseWidth,
-      baseHeight,
-      r,
-      finalScaleX,
-      finalScaleY
-    );
-
-    sprite.angle = r * 90;
-    sprite.scale.set(finalScaleX, finalScaleY);
-
-    const topLeftBaseX = position.x + offsetX;
-    const topLeftBaseY = position.y + offsetY;
-
-    const topLeftScaledX = topLeftBaseX * globalScale + mapScale.offsetX;
-    const topLeftScaledY = topLeftBaseY * globalScale + mapScale.offsetY;
-
-    sprite.x = topLeftScaledX - minX;
-    sprite.y = topLeftScaledY - minY;
+    // Z-index: layer2 uses wider spacing for interleaved character sprites
     sprite.zIndex = layer === 2 ? cellId * 100 : cellId;
-
   }
 
   /**

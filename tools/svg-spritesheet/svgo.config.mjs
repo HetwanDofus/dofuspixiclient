@@ -20,9 +20,10 @@ export default {
     "removeEmptyText",
     "convertShapeToPath",
     "convertEllipseToCircle",
-    "moveElemsAttrsToGroup",
-    "moveGroupAttrsToElems",
-    "collapseGroups",
+    // Disabled: these flatten <g>+<use> nesting and break transforms in our atlas
+    // "moveElemsAttrsToGroup",
+    // "moveGroupAttrsToElems",
+    // "collapseGroups",
     "convertTransform",
     "removeEmptyAttrs",
     "removeEmptyContainers",

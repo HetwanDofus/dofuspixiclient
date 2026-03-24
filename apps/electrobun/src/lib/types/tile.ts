@@ -34,4 +34,8 @@ export interface TileManifest {
   offsetX: number;
   offsetY: number;
   frames: FrameInfo[];
+  /** Base frame for base/delta splitting (shared static elements) */
+  baseFrame?: FrameInfo;
+  /** Whether the base renders "above" or "below" the delta. Default "above". */
+  baseZOrder?: "above" | "below";
 }
