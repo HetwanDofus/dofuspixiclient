@@ -120,6 +120,7 @@ export class PickingSystem {
       const pickingSprite = new Sprite(sprite.texture);
 
       pickingSprite.anchor.copyFrom(sprite.anchor);
+      pickingSprite.pivot.copyFrom(sprite.pivot);
       if (object.parentContainer) {
         const global = object.parentContainer.toGlobal({ x: sprite.x, y: sprite.y });
         const local = worldContainer.toLocal(global);
