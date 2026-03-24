@@ -277,14 +277,16 @@ function pruneFreeRects(freeRects: FreeRect[]): void {
 function maxRectsPack(
   sorted: PackRect[],
   padding: number,
-  stripWidth: number
+  stripWidth: number,
+  maxHeight?: number
 ): PackResult {
   if (sorted.length === 0) return { width: 0, height: 0, rects: [] };
 
   const packed: PackedRect[] = [];
-  const maxH = sorted.reduce((sum, r) => sum + r.height + padding, padding);
+  const unboundedH = sorted.reduce((sum, r) => sum + r.height + padding, padding);
+  const maxH = maxHeight ? Math.min(maxHeight, unboundedH) : unboundedH;
   const freeRects: FreeRect[] = [
-    { x: padding, y: padding, width: stripWidth - padding, height: maxH },
+    { x: padding, y: padding, width: stripWidth - padding, height: maxH - padding },
   ];
 
   for (const rect of sorted) {
@@ -437,6 +439,88 @@ export function packRectangles(
   }
 
   return bestResult!;
+}
+
+/**
+ * Pack rectangles into multiple constrained pages.
+ * Each page is guaranteed to fit within maxDimension in both width and height.
+ * Falls back to relaxed constraints for single oversized rects.
+ */
+export function packRectanglesMultiPage(
+  rects: PackRect[],
+  padding: number,
+  maxDimension: number
+): PackResult[] {
+  if (rects.length === 0) return [];
+
+  // Try single page first
+  const single = packRectangles(rects, padding, maxDimension);
+  if (single.width <= maxDimension && single.height <= maxDimension) {
+    return [single];
+  }
+
+  // Need multi-page: pack greedily into constrained pages
+  const pages: PackResult[] = [];
+  let remaining = [...rects];
+
+  while (remaining.length > 0) {
+    const result = packRectanglesConstrained(remaining, padding, maxDimension, maxDimension);
+
+    if (result.rects.length === 0) {
+      // Largest rect doesn't fit in constrained space — give it its own page
+      const oversized = packRectangles([remaining[0]], padding, remaining[0].width + padding * 2);
+      pages.push(oversized);
+      remaining = remaining.slice(1);
+      continue;
+    }
+
+    pages.push(result);
+    const packedIds = new Set(result.rects.map((r) => r.id));
+    remaining = remaining.filter((r) => !packedIds.has(r.id));
+  }
+
+  return pages;
+}
+
+/**
+ * Pack rectangles with both width and height constraints.
+ * Returns the best-fitting result; may not include all rects if they don't fit.
+ */
+function packRectanglesConstrained(
+  rects: PackRect[],
+  padding: number,
+  maxWidth: number,
+  maxHeight: number
+): PackResult {
+  if (rects.length === 0) return { width: 0, height: 0, rects: [] };
+
+  const minWidth = rects.reduce((m, r) => Math.max(m, r.width), 0) + padding * 2;
+  if (minWidth > maxWidth) {
+    // Can't fit the widest rect
+    return { width: 0, height: 0, rects: [] };
+  }
+
+  const widths = generateSearchWidths(rects, padding, minWidth, maxWidth);
+  let bestResult: PackResult | null = null;
+  let bestCount = 0;
+  let bestArea = Infinity;
+
+  for (const sortFn of SORT_STRATEGIES) {
+    const sorted = [...rects].sort(sortFn);
+    for (const w of widths) {
+      const result = maxRectsPack(sorted, padding, w, maxHeight);
+      const count = result.rects.length;
+      const area = result.width * result.height;
+      // Prefer fitting more rects, then smaller area
+      if (count > bestCount || (count === bestCount && area < bestArea)) {
+        bestCount = count;
+        bestArea = area;
+        bestResult = result;
+      }
+    }
+  }
+
+  return bestResult ?? { width: 0, height: 0, rects: [] };
 }
 
 /** Build use element attribute string */

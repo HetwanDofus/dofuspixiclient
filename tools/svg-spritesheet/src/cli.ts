@@ -101,7 +101,8 @@ async function compileAnimation(
   svgoConfigPath: string,
   opts: OptimizationOptions,
   singleAnimation: boolean = false,
-  imageRegistry?: ImageRegistry
+  imageRegistry?: ImageRegistry,
+  maxPageDimension?: number
 ): Promise<{
   manifest: AtlasManifest;
   outputSize: number;
@@ -133,18 +134,20 @@ async function compileAnimation(
     dedup,
     sprites,
     opts,
-    imageRegistry
+    imageRegistry,
+    maxPageDimension
   );
 
-  const atlasPath = path.join(animOutputDir, "atlas.svg");
-
-  try {
-    await runSvgo(atlasPath, svgoConfigPath);
-  } catch {
-    // SVGO failure is non-fatal
+  // Run SVGO on each output SVG file
+  let finalSize = 0;
+  for (const svgPath of result.svgFiles) {
+    try {
+      await runSvgo(svgPath, svgoConfigPath);
+    } catch {
+      // SVGO failure is non-fatal
+    }
+    finalSize += fs.statSync(svgPath).size;
   }
-
-  const finalSize = fs.statSync(atlasPath).size;
 
   return { manifest: result.manifest, outputSize: finalSize, inputSize };
 }
@@ -209,7 +212,8 @@ async function generateCombinedManifest(
   const animations: CombinedManifest["animations"] = {};
 
   for (const [animName, { manifest }] of manifests) {
-    animations[animName] = {
+    const isMultiPage = manifest.pages && manifest.pages.length > 1;
+    const entry: CombinedManifest["animations"][string] = {
       file: singleAnimation ? "atlas.svg" : `${animName}/atlas.svg`,
       width: manifest.width,
       height: manifest.height,
@@ -223,6 +227,15 @@ async function generateCombinedManifest(
       baseFrame: manifest.baseFrame,
       baseZOrder: manifest.baseZOrder,
     };
+    if (isMultiPage) {
+      // Prefix page filenames with animation subdir when not single-animation
+      entry.pages = manifest.pages!.map((p) => ({
+        file: singleAnimation ? p.file : `${animName}/${p.file}`,
+        width: p.width,
+        height: p.height,
+      }));
+    }
+    animations[animName] = entry;
   }
 
   const combined: CombinedManifest = {
@@ -259,7 +272,8 @@ async function compileSprite(
   svgoConfigPath: string,
   parallel: number,
   imageRegistry?: ImageRegistry,
-  tileClassification?: TileClassificationEntry | null
+  tileClassification?: TileClassificationEntry | null,
+  maxPageDimension?: number
 ): Promise<CompileResult> {
   try {
     const svgFiles = fs
@@ -301,7 +315,8 @@ async function compileSprite(
             svgoConfigPath,
             opts,
             singleAnimation,
-            imageRegistry
+            imageRegistry,
+            maxPageDimension
           )
         )
       );
@@ -385,10 +400,11 @@ interface CompileOptions {
   webBasePath?: string;
   tileClassifications?: string;
   tileType?: "ground" | "objects";
+  maxPageDimension?: number;
 }
 
 async function compileAll(options: CompileOptions): Promise<void> {
-  const { inputBase, outputBase, svgoConfig, parallel, exportImages, webBasePath, tileClassifications: tileClassPath, tileType } = options;
+  const { inputBase, outputBase, svgoConfig, parallel, exportImages, webBasePath, tileClassifications: tileClassPath, tileType, maxPageDimension } = options;
 
   logger.info("=== SVG Sprite Compiler ===");
   logger.info(`Input: ${inputBase}`);
@@ -477,7 +493,8 @@ async function compileAll(options: CompileOptions): Promise<void> {
       svgoConfigPath,
       parallel,
       imageRegistry,
-      tileClass
+      tileClass,
+      maxPageDimension
     );
 
     if (result.success) {
@@ -584,11 +601,15 @@ program
     "--tile-type <type>",
     "Tile type for classification lookup: ground or objects"
   )
+  .option(
+    "--max-page-dimension <pixels>",
+    "Max atlas dimension in pixels at 1x (splits into pages if exceeded). Default: 2700 (fits 3x in 8192 GPU limit)"
+  )
   .action(
     async (
       input: string,
       output: string,
-      opts: { parallel: string; config?: string; exportImages?: string; webBasePath?: string; tileClassifications?: string; tileType?: string }
+      opts: { parallel: string; config?: string; exportImages?: string; webBasePath?: string; tileClassifications?: string; tileType?: string; maxPageDimension?: string }
     ) => {
       try {
         await compileAll({
@@ -600,6 +621,7 @@ program
           webBasePath: opts.webBasePath,
           tileClassifications: opts.tileClassifications,
           tileType: opts.tileType as "ground" | "objects" | undefined,
+          maxPageDimension: opts.maxPageDimension ? parseInt(opts.maxPageDimension, 10) : undefined,
         });
       } catch (error) {
         logger.error(`Compilation failed: ${error}`);

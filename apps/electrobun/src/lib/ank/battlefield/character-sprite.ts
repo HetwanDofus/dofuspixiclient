@@ -20,10 +20,14 @@ interface SpriteAtlas {
     height: number;
     offsetX: number;
     offsetY: number;
+    /** For multi-page atlases: index into pages[]. Absent = page 0. */
+    page?: number;
   }>;
   frameOrder: string[];
   duplicates: Record<string, string>;
   fps: number;
+  /** Multi-page atlas: SVG files with their dimensions. Absent = single atlas.svg. */
+  pages?: Array<{ file: string; width: number; height: number }>;
 }
 
 /**
@@ -259,25 +263,43 @@ export class CharacterSpriteLoader {
 
       const atlas: SpriteAtlas = await res.json();
 
-      // Load SVG at zoom-aware resolution for crisp rendering
+      // Load SVG(s) at zoom-aware resolution for crisp rendering
       const resolution = this.getResolution();
-      const alias = `char:${gfxId}:${animName}:${resolution}`;
+      const baseSvgPath = `${SPRITES_BASE_PATH}/${gfxId}/${animName}`;
 
-      let baseTexture: Texture;
+      let pageTextures: Texture[];
 
       try {
-        baseTexture = await loadSvg(
-          `${SPRITES_BASE_PATH}/${gfxId}/${animName}/atlas.svg`,
-          resolution,
-          alias,
-        );
-
-        this.loadedAssets.add(alias);
+        if (atlas.pages && atlas.pages.length > 1) {
+          // Multi-page: load each page SVG in parallel
+          pageTextures = await Promise.all(
+            atlas.pages.map(async (page, i) => {
+              const alias = `char:${gfxId}:${animName}:${i}:${resolution}`;
+              const texture = await loadSvg(
+                `${baseSvgPath}/${page.file}`,
+                resolution,
+                alias,
+              );
+              this.loadedAssets.add(alias);
+              return texture;
+            })
+          );
+        } else {
+          // Single page
+          const alias = `char:${gfxId}:${animName}:${resolution}`;
+          const texture = await loadSvg(
+            `${baseSvgPath}/atlas.svg`,
+            resolution,
+            alias,
+          );
+          this.loadedAssets.add(alias);
+          pageTextures = [texture];
+        }
       } catch {
         return null;
       }
 
-      if (!baseTexture?.source) return null;
+      if (pageTextures.length === 0 || !pageTextures[0]?.source) return null;
 
       // Build frame lookup: frameId → frame data
       const frameLookup = new Map<string, (typeof atlas.frames)[0]>();
@@ -285,9 +307,11 @@ export class CharacterSpriteLoader {
         frameLookup.set(frame.id, frame);
       }
 
-      // Resolve actual scale from loaded texture
-      const sourceWidth = baseTexture.source.width;
-      const actualScale = sourceWidth / atlas.width;
+      // Pre-compute actual scale per page
+      const pageScales: number[] = pageTextures.map((tex, i) => {
+        const pageWidth = atlas.pages?.[i]?.width ?? atlas.width;
+        return tex.source.width / pageWidth;
+      });
 
       // Build texture array following frameOrder with duplicate resolution
       const textures: Texture[] = [];
@@ -296,6 +320,11 @@ export class CharacterSpriteLoader {
         const frame = frameLookup.get(resolvedId);
         if (!frame) continue;
 
+        const pageIndex = frame.page ?? 0;
+        const pageTex = pageTextures[pageIndex];
+        if (!pageTex?.source) continue;
+
+        const actualScale = pageScales[pageIndex];
         const fx = Math.round(frame.x * actualScale);
         const fy = Math.round(frame.y * actualScale);
         const fw = Math.round(frame.width * actualScale);
@@ -304,7 +333,7 @@ export class CharacterSpriteLoader {
         if (fw <= 0 || fh <= 0) continue;
 
         const texture = new Texture({
-          source: baseTexture.source,
+          source: pageTex.source,
           frame: new Rectangle(fx, fy, fw, fh),
         });
         textures.push(texture);

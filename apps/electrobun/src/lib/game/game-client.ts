@@ -6,6 +6,7 @@ import {
   type ServerMapDataPayload,
 } from "@/ank/battlefield/datacenter/map";
 import { DofusPathfinding } from "@/ank/battlefield/dofus-pathfinding";
+import { AudioManager } from "@/audio/audio-manager";
 import { Connection, type ConnectionEvent } from "@/network/connection";
 import {
   createMessageHandler,
@@ -51,6 +52,7 @@ export class GameClient {
   private mapLoadPromise: Promise<void> = Promise.resolve();
   private gameWorld: GameWorld | null = null;
   private currentStats: CharacterStats | null = null;
+  private audioManager: AudioManager;
 
   /** Incremented on each MAP_DATA to invalidate stale MAP_ACTORS handlers. */
   private mapGeneration = 0;
@@ -67,6 +69,8 @@ export class GameClient {
       url: config?.serverUrl ?? "ws://localhost:8080/game",
     });
     this.messageHandler = createMessageHandler();
+    this.audioManager = AudioManager.getInstance();
+    this.audioManager.init();
 
     this.connection.addEventListener((event: ConnectionEvent) => {
       match(event)
@@ -143,6 +147,9 @@ export class GameClient {
       try {
         const mapData = loadMapDataFromServer(serverPayload);
         this.currentMapId = serverPayload.mapId;
+
+        // Play the music for this map
+        this.audioManager.playForMap(serverPayload.mapId);
 
         // Reset movement state — a map change interrupts any in-progress movement
         this.isMoving = false;
@@ -413,6 +420,10 @@ export class GameClient {
     return this.currentStats;
   }
 
+  getAudioManager(): AudioManager {
+    return this.audioManager;
+  }
+
   /** Debug: give capital points (persisted server-side) */
   debugGiveCapital(amount: number): void {
     this.connection.send(
@@ -440,6 +451,7 @@ export class GameClient {
   destroy(): void {
     this.connection.destroy();
     this.messageHandler.clear();
+    this.audioManager.destroy();
     this.battlefield = null;
   }
 }

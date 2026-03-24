@@ -27,6 +27,7 @@ import {
   type PackedRect,
   type PackRect,
   packRectangles,
+  packRectanglesMultiPage,
 } from "./utils.ts";
 
 const SVG_HEADER = `<?xml version="1.0" encoding="UTF-8"?>`;
@@ -411,14 +412,21 @@ function renderFrameGroup(
 const BASE_DELTA_MIN_BASE_RATIO = 0.3;
 const BASE_DELTA_MIN_FRAMES = 3;
 
+/** Result of atlas generation — one or more page SVGs + unified manifest */
+interface AtlasGeneratorResult {
+  pages: Array<{ svg: string; filename: string; width: number; height: number }>;
+  manifest: AtlasManifest;
+}
+
 function generateAtlasSvg(
   frames: ParsedFrame[],
   dedup: DeduplicationResult,
   sprites: ProcessedSprite[],
   options: Partial<OptimizationOptions> = {},
   svgOutputDir?: string,
-  imageRegistry?: ImageRegistry
-): { svg: string; manifest: AtlasManifest } {
+  imageRegistry?: ImageRegistry,
+  maxPageDimension?: number
+): AtlasGeneratorResult {
   const opts = { ...DEFAULT_OPTIMIZATION, ...options };
   const uniqueSprites = sprites.filter((s) => !s.duplicateOf);
 
@@ -565,218 +573,283 @@ function generateAtlasSvg(
   }
 
   // Pack rectangles
-  const packResult = packRectangles(packRects, 1, 4096);
-  const atlasWidth = packResult.width;
-  const atlasHeight = packResult.height;
+  const packMaxWidth = maxPageDimension ? Math.min(4096, maxPageDimension) : 4096;
+  const packResult = packRectangles(packRects, 1, packMaxWidth);
 
-  const packedPositions: PackedPositionMap = new Map();
-  for (const packed of packResult.rects) {
-    packedPositions.set(packed.id, packed);
-  }
+  const needsMultiPage = maxPageDimension != null &&
+    (packResult.width > maxPageDimension || packResult.height > maxPageDimension);
 
-  // --- Build SVG ---
+  // --- Build shared defs content ---
   const rebuiltDefs = buildCanonicalDefinitions(frames, dedup, svgOutputDir, imageRegistry);
   const sortedHashes = sortDefinitionsTopologically(dedup.canonicalDefs, rebuiltDefs);
-
-  const lines: string[] = [];
-  lines.push(SVG_HEADER);
-  lines.push(
-    `<svg xmlns="${SVG_NS}" xmlns:xlink="${XLINK_NS}" width="${atlasWidth}" height="${atlasHeight}" viewBox="0 0 ${atlasWidth} ${atlasHeight}">`
-  );
-  lines.push("  <defs>");
-
-  // Emit definition-level deduped content
-  for (const hash of sortedHashes) {
-    const canonicalDef = dedup.canonicalDefs.get(hash);
-    if (!canonicalDef) continue;
-    let content = rebuiltDefs.get(canonicalDef.id);
-    if (!content) continue;
-    content = processNonScalingStroke(content);
-    if (opts.stripDefaults) content = stripDefaultAttributes(content);
-    lines.push(indent(content, 4, opts.minify));
-  }
-
-  // Emit pooled element instance groups
   const flipSources = new Set(elemDedup.flipPairs.values());
-  for (const [hash, instance] of elemDedup.pool) {
-    const isInlined = instance.occurrences < 2 && !instance.flipSourceHash;
-    if (isInlined && !flipSources.has(hash)) continue;
 
-    const useStr = `<use ${buildUseElementAttrs({
-      href: toInternalRef(instance.href),
-      width: instance.width,
-      height: instance.height,
-      transform: instance.transform,
-      additionalAttrs: instance.attributes,
-    })}/>`;
-    lines.push(`    <g id="${instance.id}">${useStr}</g>`);
+  /** Build the shared <defs> lines (definitions + pooled elements). Reused across pages. */
+  function buildDefsLines(): string[] {
+    const dLines: string[] = [];
+    for (const hash of sortedHashes) {
+      const canonicalDef = dedup.canonicalDefs.get(hash);
+      if (!canonicalDef) continue;
+      let content = rebuiltDefs.get(canonicalDef.id);
+      if (!content) continue;
+      content = processNonScalingStroke(content);
+      if (opts.stripDefaults) content = stripDefaultAttributes(content);
+      dLines.push(indent(content, 4, opts.minify));
+    }
+    for (const [hash, instance] of elemDedup.pool) {
+      const isInlined = instance.occurrences < 2 && !instance.flipSourceHash;
+      if (isInlined && !flipSources.has(hash)) continue;
+      const useStr = `<use ${buildUseElementAttrs({
+        href: toInternalRef(instance.href),
+        width: instance.width,
+        height: instance.height,
+        transform: instance.transform,
+        additionalAttrs: instance.attributes,
+      })}/>`;
+      dLines.push(`    <g id="${instance.id}">${useStr}</g>`);
+    }
+    return dLines;
   }
 
-  // Emit clip paths
-  let clipIndex = 0;
-  const clipIds = new Map<string, string>();
+  /** Generate a complete SVG for one page worth of sprites. */
+  function buildPageSvg(
+    pageWidth: number,
+    pageHeight: number,
+    pagePackedPositions: PackedPositionMap,
+    pageSprites: ProcessedSprite[],
+  ): { svg: string; atlasFrames: AtlasFrame[]; baseFrameManifest?: AtlasFrame; duplicates: Record<string, string> } {
+    const lines: string[] = [];
+    lines.push(SVG_HEADER);
+    lines.push(
+      `<svg xmlns="${SVG_NS}" xmlns:xlink="${XLINK_NS}" width="${pageWidth}" height="${pageHeight}" viewBox="0 0 ${pageWidth} ${pageHeight}">`
+    );
+    lines.push("  <defs>");
+    lines.push(...buildDefsLines());
 
-  if (useBaseDelta) {
-    // Clip for base frame
-    const basePacked = packedPositions.get("__base__");
-    if (basePacked) {
+    // Clip paths for this page's frames
+    let clipIndex = 0;
+    const clipIds = new Map<string, string>();
+
+    if (useBaseDelta) {
+      const basePacked = pagePackedPositions.get("__base__");
+      if (basePacked) {
+        const cid = `clip_${clipIndex++}`;
+        clipIds.set("__base__", cid);
+        lines.push(`    <clipPath id="${cid}"><rect x="${basePacked.x}" y="${basePacked.y}" width="${basePacked.width}" height="${basePacked.height}"/></clipPath>`);
+      }
+    }
+    for (const sprite of pageSprites) {
+      const packed = pagePackedPositions.get(sprite.id);
+      if (!packed) continue;
       const cid = `clip_${clipIndex++}`;
-      clipIds.set("__base__", cid);
-      lines.push(`    <clipPath id="${cid}"><rect x="${basePacked.x}" y="${basePacked.y}" width="${basePacked.width}" height="${basePacked.height}"/></clipPath>`);
-    }
-  }
-  for (const sprite of uniqueSprites) {
-    const packed = packedPositions.get(sprite.id);
-    if (!packed) continue;
-    const cid = `clip_${clipIndex++}`;
-    clipIds.set(sprite.id, cid);
-    lines.push(`    <clipPath id="${cid}"><rect x="${packed.x}" y="${packed.y}" width="${packed.width}" height="${packed.height}"/></clipPath>`);
-  }
-
-  lines.push("  </defs>");
-  lines.push("");
-
-  // --- Render frames ---
-  const atlasFrames: AtlasFrame[] = [];
-  const duplicates: Record<string, string> = {};
-  let baseFrameManifest: AtlasFrame | undefined;
-
-  if (useBaseDelta) {
-    // Render base frame (only base elements)
-    const basePacked = packedPositions.get("__base__");
-    const baseDim = dimMap.get("__base__");
-    const baseClip = clipIds.get("__base__");
-    if (basePacked && baseDim && baseClip && firstSprite && firstFrameRefs) {
-      baseFrameManifest = {
-        id: "__base__",
-        x: basePacked.x, y: basePacked.y,
-        width: basePacked.width, height: basePacked.height,
-        offsetX: baseDim.minX, offsetY: baseDim.minY,
-      };
-
-      const baseElements: string[] = [];
-      const validUses = firstSprite.useElements.filter(hasValidReference);
-      for (let j = 0; j < firstFrameRefs.length; j++) {
-        if (aboveBaseIndices.has(j)) {
-          const ref = firstFrameRefs[j];
-          const rendered = renderElementRef(ref, elemDedup, firstSprite, j);
-          if (rendered) baseElements.push(rendered);
-        }
-      }
-
-      const translateX = basePacked.x - baseDim.minX;
-      const translateY = basePacked.y - baseDim.minY;
-      lines.push(`  <!-- Base frame -->`);
-      renderFrameGroup(lines, baseClip, translateX, translateY, firstSprite.mainTransform, baseElements);
+      clipIds.set(sprite.id, cid);
+      lines.push(`    <clipPath id="${cid}"><rect x="${packed.x}" y="${packed.y}" width="${packed.width}" height="${packed.height}"/></clipPath>`);
     }
 
-    // Render delta frames (only non-base elements), skipping delta-duplicates
-    for (let i = 0; i < uniqueSprites.length; i++) {
-      const sprite = uniqueSprites[i];
+    lines.push("  </defs>");
+    lines.push("");
 
-      // Delta-duplicate: point to canonical delta's atlas entry
-      const deltaCanonical = deltaDuplicates.get(sprite.id);
-      if (deltaCanonical) {
-        duplicates[sprite.id] = deltaCanonical;
-        continue;
-      }
+    // Render frames
+    const pageAtlasFrames: AtlasFrame[] = [];
+    const pageDuplicates: Record<string, string> = {};
+    let pageBaseFrame: AtlasFrame | undefined;
 
-      const dim = dimMap.get(sprite.id);
-      const packed = packedPositions.get(sprite.id);
-      const clip = clipIds.get(sprite.id);
-      const refs = elemDedup.frameElements.get(sprite.id);
-      if (!dim || !packed || !clip) continue;
-
-      atlasFrames.push({
-        id: sprite.id,
-        x: packed.x, y: packed.y,
-        width: packed.width, height: packed.height,
-        offsetX: dim.minX, offsetY: dim.minY,
-      });
-
-      const deltaElements: string[] = [];
-      if (refs) {
-        for (let j = 0; j < refs.length; j++) {
-          if (!aboveBaseIndices.has(j)) {
-            const rendered = renderElementRef(refs[j], elemDedup, sprite, j);
-            if (rendered) deltaElements.push(rendered);
+    if (useBaseDelta) {
+      // Base frame (only base elements)
+      const basePacked = pagePackedPositions.get("__base__");
+      const baseDim = dimMap.get("__base__");
+      const baseClip = clipIds.get("__base__");
+      if (basePacked && baseDim && baseClip && firstSprite && firstFrameRefs) {
+        pageBaseFrame = {
+          id: "__base__",
+          x: basePacked.x, y: basePacked.y,
+          width: basePacked.width, height: basePacked.height,
+          offsetX: baseDim.minX, offsetY: baseDim.minY,
+        };
+        const baseElements: string[] = [];
+        for (let j = 0; j < firstFrameRefs.length; j++) {
+          if (aboveBaseIndices.has(j)) {
+            const rendered = renderElementRef(firstFrameRefs[j], elemDedup, firstSprite, j);
+            if (rendered) baseElements.push(rendered);
           }
         }
+        const translateX = basePacked.x - baseDim.minX;
+        const translateY = basePacked.y - baseDim.minY;
+        lines.push(`  <!-- Base frame -->`);
+        renderFrameGroup(lines, baseClip, translateX, translateY, firstSprite.mainTransform, baseElements);
       }
 
-      const translateX = packed.x - dim.minX;
-      const translateY = packed.y - dim.minY;
-      lines.push(`  <!-- Delta: ${sprite.id} -->`);
-      renderFrameGroup(lines, clip, translateX, translateY, sprite.mainTransform, deltaElements);
-    }
-  } else {
-    // No splitting — full frames
-    for (let i = 0; i < uniqueSprites.length; i++) {
-      const sprite = uniqueSprites[i];
-      const dim = dimMap.get(sprite.id);
-      const packed = packedPositions.get(sprite.id);
-      const clip = clipIds.get(sprite.id);
-      if (!dim || !packed || !clip) continue;
-
-      atlasFrames.push({
-        id: sprite.id,
-        x: packed.x, y: packed.y,
-        width: packed.width, height: packed.height,
-        offsetX: dim.minX, offsetY: dim.minY,
-      });
-
-      const translateX = packed.x - dim.minX;
-      const translateY = packed.y - dim.minY;
-      const elements: string[] = [];
-      const frameRefs = elemDedup.frameElements.get(sprite.id);
-      if (frameRefs) {
-        for (let j = 0; j < frameRefs.length; j++) {
-          const rendered = renderElementRef(frameRefs[j], elemDedup, sprite, j);
-          if (rendered) elements.push(rendered);
+      // Delta frames
+      for (const sprite of pageSprites) {
+        const deltaCanonical = deltaDuplicates.get(sprite.id);
+        if (deltaCanonical) {
+          pageDuplicates[sprite.id] = deltaCanonical;
+          continue;
         }
-      } else {
-        for (const use of sprite.useElements.filter(hasValidReference)) {
-          elements.push(renderUseElement(use, true));
+        const dim = dimMap.get(sprite.id);
+        const packed = pagePackedPositions.get(sprite.id);
+        const clip = clipIds.get(sprite.id);
+        const refs = elemDedup.frameElements.get(sprite.id);
+        if (!dim || !packed || !clip) continue;
+
+        pageAtlasFrames.push({
+          id: sprite.id,
+          x: packed.x, y: packed.y,
+          width: packed.width, height: packed.height,
+          offsetX: dim.minX, offsetY: dim.minY,
+        });
+
+        const deltaElements: string[] = [];
+        if (refs) {
+          for (let j = 0; j < refs.length; j++) {
+            if (!aboveBaseIndices.has(j)) {
+              const rendered = renderElementRef(refs[j], elemDedup, sprite, j);
+              if (rendered) deltaElements.push(rendered);
+            }
+          }
         }
+        const translateX = packed.x - dim.minX;
+        const translateY = packed.y - dim.minY;
+        lines.push(`  <!-- Delta: ${sprite.id} -->`);
+        renderFrameGroup(lines, clip, translateX, translateY, sprite.mainTransform, deltaElements);
       }
+    } else {
+      // Full frames
+      for (const sprite of pageSprites) {
+        const dim = dimMap.get(sprite.id);
+        const packed = pagePackedPositions.get(sprite.id);
+        const clip = clipIds.get(sprite.id);
+        if (!dim || !packed || !clip) continue;
 
-      lines.push(`  <!-- Frame: ${sprite.id} -->`);
-      renderFrameGroup(lines, clip, translateX, translateY, sprite.mainTransform, elements);
+        pageAtlasFrames.push({
+          id: sprite.id,
+          x: packed.x, y: packed.y,
+          width: packed.width, height: packed.height,
+          offsetX: dim.minX, offsetY: dim.minY,
+        });
+
+        const translateX = packed.x - dim.minX;
+        const translateY = packed.y - dim.minY;
+        const elements: string[] = [];
+        const frameRefs = elemDedup.frameElements.get(sprite.id);
+        if (frameRefs) {
+          for (let j = 0; j < frameRefs.length; j++) {
+            const rendered = renderElementRef(frameRefs[j], elemDedup, sprite, j);
+            if (rendered) elements.push(rendered);
+          }
+        } else {
+          for (const use of sprite.useElements.filter(hasValidReference)) {
+            elements.push(renderUseElement(use, true));
+          }
+        }
+        lines.push(`  <!-- Frame: ${sprite.id} -->`);
+        renderFrameGroup(lines, clip, translateX, translateY, sprite.mainTransform, elements);
+      }
     }
+
+    lines.push("</svg>");
+    const svg = opts.minify ? minifySvg(lines.join("\n")) : lines.join("\n");
+    return { svg, atlasFrames: pageAtlasFrames, baseFrameManifest: pageBaseFrame, duplicates: pageDuplicates };
   }
 
+  // Collect duplicates from sprite-level dedup
+  const spriteDuplicates: Record<string, string> = {};
   for (const sprite of sprites) {
     if (sprite.duplicateOf) {
-      duplicates[sprite.id] = sprite.duplicateOf;
+      spriteDuplicates[sprite.id] = sprite.duplicateOf;
     }
   }
 
-  lines.push("</svg>");
-
   const animationName = uniqueSprites[0]?.animationName || "unknown";
+
+  if (!needsMultiPage) {
+    // --- Single page ---
+    const packedPositions: PackedPositionMap = new Map();
+    for (const packed of packResult.rects) {
+      packedPositions.set(packed.id, packed);
+    }
+
+    const pageResult = buildPageSvg(packResult.width, packResult.height, packedPositions, uniqueSprites);
+
+    const manifest: AtlasManifest = {
+      version: 1,
+      animation: animationName,
+      width: packResult.width,
+      height: packResult.height,
+      offsetX: positioningOffsetX,
+      offsetY: positioningOffsetY,
+      frames: pageResult.atlasFrames,
+      frameOrder: sprites.map((s) => s.id),
+      duplicates: { ...pageResult.duplicates, ...spriteDuplicates },
+      fps: 60,
+      elementDedup: elemDedup.stats,
+      baseFrame: pageResult.baseFrameManifest,
+      baseZOrder: useBaseDelta ? splitZOrder : undefined,
+    };
+
+    return {
+      pages: [{ svg: pageResult.svg, filename: "atlas.svg", width: packResult.width, height: packResult.height }],
+      manifest,
+    };
+  }
+
+  // --- Multi-page ---
+  const pagePackResults = packRectanglesMultiPage(packRects, 1, maxPageDimension!);
+  const allAtlasFrames: AtlasFrame[] = [];
+  const allDuplicates: Record<string, string> = { ...spriteDuplicates };
+  let allBaseFrameManifest: AtlasFrame | undefined;
+  const resultPages: AtlasGeneratorResult["pages"] = [];
+  const manifestPages: Array<{ file: string; width: number; height: number }> = [];
+
+  for (let pageIdx = 0; pageIdx < pagePackResults.length; pageIdx++) {
+    const pagePackResult = pagePackResults[pageIdx];
+    const pagePackedPositions: PackedPositionMap = new Map();
+    for (const packed of pagePackResult.rects) {
+      pagePackedPositions.set(packed.id, packed);
+    }
+
+    const pageSprites = uniqueSprites.filter((s) => pagePackedPositions.has(s.id));
+    const pageResult = buildPageSvg(pagePackResult.width, pagePackResult.height, pagePackedPositions, pageSprites);
+    const filename = `atlas_${pageIdx}.svg`;
+
+    // Tag frames with page index
+    for (const frame of pageResult.atlasFrames) {
+      frame.page = pageIdx;
+      allAtlasFrames.push(frame);
+    }
+    if (pageResult.baseFrameManifest) {
+      pageResult.baseFrameManifest.page = pageIdx;
+      allBaseFrameManifest = pageResult.baseFrameManifest;
+    }
+    Object.assign(allDuplicates, pageResult.duplicates);
+
+    resultPages.push({ svg: pageResult.svg, filename, width: pagePackResult.width, height: pagePackResult.height });
+    manifestPages.push({ file: filename, width: pagePackResult.width, height: pagePackResult.height });
+  }
+
   const manifest: AtlasManifest = {
     version: 1,
     animation: animationName,
-    width: atlasWidth,
-    height: atlasHeight,
+    width: manifestPages[0]?.width ?? 0,
+    height: manifestPages[0]?.height ?? 0,
     offsetX: positioningOffsetX,
     offsetY: positioningOffsetY,
-    frames: atlasFrames,
+    frames: allAtlasFrames,
     frameOrder: sprites.map((s) => s.id),
-    duplicates,
+    duplicates: allDuplicates,
     fps: 60,
     elementDedup: elemDedup.stats,
-    baseFrame: baseFrameManifest,
+    baseFrame: allBaseFrameManifest,
     baseZOrder: useBaseDelta ? splitZOrder : undefined,
+    pages: manifestPages,
   };
 
-  const svg = opts.minify ? minifySvg(lines.join("\n")) : lines.join("\n");
-
-  return { svg, manifest };
+  return { pages: resultPages, manifest };
 }
 
 /**
- * Write atlas output files
+ * Write atlas output files.
+ * Returns paths to all written SVG files (for SVGO processing).
  */
 export async function writeAtlasOutput(
   outputDir: string,
@@ -784,25 +857,34 @@ export async function writeAtlasOutput(
   dedup: DeduplicationResult,
   sprites: ProcessedSprite[],
   options: Partial<OptimizationOptions> = {},
-  imageRegistry?: ImageRegistry
-): Promise<{ atlasSize: number; manifest: AtlasManifest }> {
+  imageRegistry?: ImageRegistry,
+  maxPageDimension?: number
+): Promise<{ atlasSize: number; manifest: AtlasManifest; svgFiles: string[] }> {
   fs.mkdirSync(outputDir, { recursive: true });
 
-  const { svg, manifest } = generateAtlasSvg(
+  const { pages, manifest } = generateAtlasSvg(
     frames,
     dedup,
     sprites,
     options,
     outputDir,
-    imageRegistry
+    imageRegistry,
+    maxPageDimension
   );
 
-  const atlasPath = path.join(outputDir, "atlas.svg");
-  await Bun.write(atlasPath, svg);
+  const svgFiles: string[] = [];
+  let totalSize = 0;
+  for (const page of pages) {
+    const pagePath = path.join(outputDir, page.filename);
+    await Bun.write(pagePath, page.svg);
+    svgFiles.push(pagePath);
+    totalSize += page.svg.length;
+  }
 
   return {
-    atlasSize: svg.length,
+    atlasSize: totalSize,
     manifest,
+    svgFiles,
   };
 }
 

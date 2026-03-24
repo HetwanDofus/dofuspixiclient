@@ -51,6 +51,8 @@ interface AtlasManifest {
     /** Trim offset within the frame (viewBox origin) */
     offsetX: number;
     offsetY: number;
+    /** For multi-page atlases: index into pages[]. Absent = page 0. */
+    page?: number;
   }>;
   frameOrder: string[];
   duplicates: Record<string, string>;
@@ -64,9 +66,12 @@ interface AtlasManifest {
     height: number;
     offsetX: number;
     offsetY: number;
+    page?: number;
   };
   /** Whether the base renders "above" or "below" the delta */
   baseZOrder?: "above" | "below";
+  /** Multi-page atlas: SVG files with their dimensions. Absent = single atlas.svg. */
+  pages?: Array<{ file: string; width: number; height: number }>;
 }
 
 /**
@@ -75,8 +80,8 @@ interface AtlasManifest {
 interface CachedTileData {
   manifest: SpritesheetManifest;
   atlas: AtlasManifest;
-  /** Base textures keyed by scale */
-  baseTextures: Map<number, Texture>;
+  /** Base textures keyed by zoom level. Array has one entry per page (single-page = [texture]). */
+  baseTextures: Map<number, Texture[]>;
 }
 
 /**
@@ -106,7 +111,7 @@ export class AtlasLoader {
     string,
     Promise<CachedTileData | null>
   >();
-  private pendingBaseTextureLoads = new Map<string, Promise<Texture | null>>();
+  private pendingBaseTextureLoads = new Map<string, Promise<Texture[] | null>>();
   private basePath: string;
   private currentZoom = 1;
   /** Track PixiJS Assets cache aliases for proper cleanup */
@@ -262,14 +267,14 @@ export class AtlasLoader {
   }
 
   /**
-   * Load the base texture for a tile (SVG atlas)
-   * Uses request deduplication to prevent multiple concurrent fetches
-   * Note: The scale parameter is ignored; currentZoom is used instead for SVG rasterization
+   * Load the base texture(s) for a tile (SVG atlas).
+   * Returns array of textures (one per page).
+   * Uses request deduplication to prevent multiple concurrent fetches.
    */
-  private async loadBaseTexture(
+  private async loadBaseTextures(
     tileKey: string,
     _scale: number
-  ): Promise<Texture | null> {
+  ): Promise<Texture[] | null> {
     const data = await this.loadTileData(tileKey);
 
     if (!data) {
@@ -279,7 +284,7 @@ export class AtlasLoader {
     // Use actual zoom level (rounded) as cache key for crisp SVG rendering at any zoom
     const zoomKey = this.getEffectiveZoomKey();
 
-    // Check if we have a cached texture for this zoom level
+    // Check if we have cached textures for this zoom level
     if (data.baseTextures.has(zoomKey)) {
       return data.baseTextures.get(zoomKey)!;
     }
@@ -293,7 +298,7 @@ export class AtlasLoader {
     }
 
     // Create and cache the loading promise
-    const loadPromise = this.doLoadBaseTexture(tileKey, zoomKey, data);
+    const loadPromise = this.doLoadBaseTextures(tileKey, zoomKey, data);
     this.pendingBaseTextureLoads.set(cacheKey, loadPromise);
 
     try {
@@ -304,42 +309,61 @@ export class AtlasLoader {
   }
 
   /**
-   * Internal implementation of base texture loading
-   * Uses the custom svgStrokeLoader to handle __RESOLUTION__ placeholder replacement
+   * Internal implementation of base texture loading.
+   * Loads all page SVGs (single or multi-page).
    */
-  private async doLoadBaseTexture(
+  private async doLoadBaseTextures(
     tileKey: string,
     zoomKey: number,
     data: CachedTileData
-  ): Promise<Texture | null> {
+  ): Promise<Texture[] | null> {
     // WebGPU max texture size (conservative - most GPUs support 8192, some 16384)
     const MAX_TEXTURE_SIZE = 8192;
-
-    // Calculate max safe scale based on atlas dimensions
-    const atlasWidth = data.atlas.width;
-    const atlasHeight = data.atlas.height;
-    const maxDimension = Math.max(atlasWidth, atlasHeight);
-    const maxSafeScale = maxDimension > 0 ? MAX_TEXTURE_SIZE / maxDimension : 10;
-
-    // Use actual zoom level for pixel-perfect SVG rasterization
-    // Cap to prevent exceeding WebGPU texture size limits
-    const rawScale = Math.max(window.devicePixelRatio, 1.1) * this.currentZoom;
-    const effectiveScale = Math.min(rawScale, maxSafeScale);
     const [type, idStr] = tileKey.split("_");
-    const cacheAlias = `${tileKey}:svg:${effectiveScale}`;
+    const rawScale = Math.max(window.devicePixelRatio, 1.1) * this.currentZoom;
+
+    const pages = data.atlas.pages;
 
     try {
-      const texture = await loadSvg(
-        `${this.basePath}/tiles/${type}/${idStr}/atlas.svg`,
-        effectiveScale,
-        cacheAlias,
-      );
+      let textures: Texture[];
 
-      // Track the alias for proper cleanup later
-      this.loadedAssetAliases.add(cacheAlias);
-      data.baseTextures.set(zoomKey, texture);
+      if (pages && pages.length > 1) {
+        // Multi-page: load each page SVG in parallel
+        textures = await Promise.all(
+          pages.map(async (page, i) => {
+            const pageDim = Math.max(page.width, page.height);
+            const maxSafeScale = pageDim > 0 ? MAX_TEXTURE_SIZE / pageDim : 10;
+            const effectiveScale = Math.min(rawScale, maxSafeScale);
+            const alias = `${tileKey}:svg:${i}:${effectiveScale}`;
+            const texture = await loadSvg(
+              `${this.basePath}/tiles/${type}/${idStr}/${page.file}`,
+              effectiveScale,
+              alias,
+            );
+            this.loadedAssetAliases.add(alias);
+            return texture;
+          })
+        );
+      } else {
+        // Single page
+        const atlasWidth = data.atlas.width;
+        const atlasHeight = data.atlas.height;
+        const maxDimension = Math.max(atlasWidth, atlasHeight);
+        const maxSafeScale = maxDimension > 0 ? MAX_TEXTURE_SIZE / maxDimension : 10;
+        const effectiveScale = Math.min(rawScale, maxSafeScale);
+        const cacheAlias = `${tileKey}:svg:${effectiveScale}`;
 
-      return texture;
+        const texture = await loadSvg(
+          `${this.basePath}/tiles/${type}/${idStr}/atlas.svg`,
+          effectiveScale,
+          cacheAlias,
+        );
+        this.loadedAssetAliases.add(cacheAlias);
+        textures = [texture];
+      }
+
+      data.baseTextures.set(zoomKey, textures);
+      return textures;
     } catch (e) {
       console.warn(`[AtlasLoader] Failed to load SVG for ${tileKey}:`, e);
       return null;
@@ -403,6 +427,7 @@ export class AtlasLoader {
       h: f.height,
       ox: f.offsetX,
       oy: f.offsetY,
+      ...(f.page != null && f.page > 0 ? { page: f.page } : {}),
     }));
 
     // Convert base frame if present (base/delta splitting)
@@ -435,6 +460,7 @@ export class AtlasLoader {
       frames,
       baseFrame,
       baseZOrder: atlas.baseZOrder,
+      pages: atlas.pages,
     };
   }
 
@@ -460,9 +486,9 @@ export class AtlasLoader {
       return null;
     }
 
-    const baseTexture = await this.loadBaseTexture(tileKey, scale);
+    const baseTextures = await this.loadBaseTextures(tileKey, scale);
 
-    if (!baseTexture || !baseTexture.source) {
+    if (!baseTextures || baseTextures.length === 0) {
       return null;
     }
 
@@ -473,10 +499,19 @@ export class AtlasLoader {
       return null;
     }
 
+    // Select the correct page texture
+    const pageIndex = frame.page ?? 0;
+    const baseTexture = baseTextures[pageIndex];
+    if (!baseTexture?.source) return null;
+
+    // Get page dimensions for scale calculation
+    const pageInfo = atlas.pages?.[pageIndex];
+    const pageWidth = pageInfo?.width ?? atlas.width;
+
     // Get source dimensions - these match atlas.json at 1x
     const sourceWidth = baseTexture.source.width;
     const sourceHeight = baseTexture.source.height;
-    const actualScale = sourceWidth / atlas.width;
+    const actualScale = sourceWidth / pageWidth;
 
     // Scale frame coordinates to pixel space
     const frameX = Math.round(frame.x * actualScale);
@@ -591,9 +626,9 @@ export class AtlasLoader {
       return null;
     }
 
-    const baseTexture = data.baseTextures.get(zoomKey);
+    const baseTextures = data.baseTextures.get(zoomKey);
 
-    if (!baseTexture || !baseTexture.source) {
+    if (!baseTextures || baseTextures.length === 0) {
       return null;
     }
 
@@ -604,10 +639,19 @@ export class AtlasLoader {
       return null;
     }
 
+    // Select the correct page texture
+    const pageIndex = frame.page ?? 0;
+    const baseTexture = baseTextures[pageIndex];
+    if (!baseTexture?.source) return null;
+
+    // Get page dimensions for scale calculation
+    const pageInfo = atlas.pages?.[pageIndex];
+    const pageWidth = pageInfo?.width ?? atlas.width;
+
     // Scale frame coordinates to pixel space
     const sourceWidth = baseTexture.source.width;
     const sourceHeight = baseTexture.source.height;
-    const actualScale = sourceWidth / atlas.width;
+    const actualScale = sourceWidth / pageWidth;
 
     const frameX = Math.round(frame.x * actualScale);
     const frameY = Math.round(frame.y * actualScale);
@@ -654,12 +698,20 @@ export class AtlasLoader {
     const bf = data.atlas.baseFrame;
     if (!bf) return null;
 
-    const baseTexture = data.baseTextures.get(zoomKey);
+    const baseTextures = data.baseTextures.get(zoomKey);
+    if (!baseTextures || baseTextures.length === 0) return null;
+
+    // Select the correct page texture for the base frame
+    const pageIndex = bf.page ?? 0;
+    const baseTexture = baseTextures[pageIndex];
     if (!baseTexture?.source) return null;
+
+    const pageInfo = data.atlas.pages?.[pageIndex];
+    const pageWidth = pageInfo?.width ?? data.atlas.width;
 
     const sourceWidth = baseTexture.source.width;
     const sourceHeight = baseTexture.source.height;
-    const actualScale = sourceWidth / data.atlas.width;
+    const actualScale = sourceWidth / pageWidth;
 
     const frameX = Math.round(bf.x * actualScale);
     const frameY = Math.round(bf.y * actualScale);
@@ -718,7 +770,7 @@ export class AtlasLoader {
     await Promise.all(
       tileKeys.map(async (key) => {
         await this.loadTileData(key);
-        await this.loadBaseTexture(key, scale);
+        await this.loadBaseTextures(key, scale);
         this.getTileManifestSync(key);
         loaded++;
         progress.report("map-tiles", loaded, total);

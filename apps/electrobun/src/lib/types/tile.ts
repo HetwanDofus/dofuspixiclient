@@ -19,6 +19,8 @@ export interface FrameInfo {
   h: number;
   ox: number;
   oy: number;
+  /** For multi-page atlases: index into the pages[] array. Absent or 0 = first/only page. */
+  page?: number;
 }
 
 export interface TileManifest {
@@ -38,4 +40,6 @@ export interface TileManifest {
   baseFrame?: FrameInfo;
   /** Whether the base renders "above" or "below" the delta. Default "above". */
   baseZOrder?: "above" | "below";
+  /** Multi-page atlas: SVG files with their dimensions. Absent = single atlas.svg. */
+  pages?: Array<{ file: string; width: number; height: number }>;
 }

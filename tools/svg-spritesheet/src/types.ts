@@ -120,6 +120,8 @@ export interface AtlasFrame {
   height: number;
   offsetX: number;
   offsetY: number;
+  /** For multi-page atlases: index into the pages[] array. Absent or 0 = first/only page. */
+  page?: number;
 }
 
 /** Content bounds for bin-packing */
@@ -166,6 +168,8 @@ export interface AtlasManifest {
   baseFrame?: AtlasFrame;
   /** Whether the base renders "above" or "below" the delta. Default "above". */
   baseZOrder?: "above" | "below";
+  /** Multi-page atlas: list of page SVG files with their dimensions. Absent = single atlas.svg. */
+  pages?: Array<{ file: string; width: number; height: number }>;
 }
 
 /** CLI compile options */
@@ -226,6 +230,8 @@ export interface AnimationManifestEntry {
   baseFrame?: AtlasFrame;
   /** Whether the base renders "above" or "below" the delta */
   baseZOrder?: "above" | "below";
+  /** Multi-page atlas: list of page SVG files with their dimensions. Absent = single file. */
+  pages?: Array<{ file: string; width: number; height: number }>;
 }
 
 // ---------------------------------------------------------------------------
