@@ -4,6 +4,7 @@ export { getCellPosition, getSlopeYOffset };
 
 export interface CellData {
   id: number;
+  active?: boolean;
   ground: number;
   layer1: number;
   layer2: number;

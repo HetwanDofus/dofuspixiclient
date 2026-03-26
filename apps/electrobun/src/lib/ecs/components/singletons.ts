@@ -1,6 +1,7 @@
 import type { Container } from "pixi.js";
 import { component, field } from "@lastolivegames/becsy";
 
+import type { CharacterSpriteLoader } from "@/ank/battlefield/character-sprite";
 import type { CellData } from "@/ank/battlefield/datacenter/cell";
 
 export interface NetworkCommand {
@@ -43,6 +44,7 @@ export class FrameTime {
 export class RenderContext {
   @field.object declare actorsContainer: Container;
   @field.object declare combatContainer: Container | null;
+  @field.object declare spriteLoader: CharacterSpriteLoader;
 }
 
 @component

@@ -4,6 +4,10 @@ import { getCharacterById } from "../game/character.ts";
 import { encodeServerMessage } from "../protocol/codec.ts";
 import { ServerMessageType } from "../protocol/types.ts";
 import type { ClientSession } from "../ws/client-session.ts";
+import type { CharactersTable } from "../db/schema.ts";
+import { createLogger } from "../utils/logger.ts";
+
+const log = createLogger("Stats");
 
 // Stat IDs
 const STAT_VITALITY = 0;
@@ -154,7 +158,7 @@ const STAT_COLUMNS = {
   [STAT_INTELLIGENCE]: "intelligence",
 } as const;
 
-export function buildCharacterStatsPayload(character: any): CharacterStatsPayload {
+export function buildCharacterStatsPayload(character: CharactersTable): CharacterStatsPayload {
   return {
     vitality: { base: character.vitality ?? 0, items: 0, boost: 0 },
     wisdom: { base: character.wisdom ?? 0, items: 0, boost: 0 },
@@ -208,7 +212,7 @@ export async function handleDebugGiveCapital(
     .where("id", "=", session.characterId)
     .execute();
 
-  console.log(`[Stats] DEBUG: gave ${amount} capital to character ${session.characterId}`);
+  log.info(`DEBUG: gave ${amount} capital to character ${session.characterId}`);
   await sendCharacterStats(session);
 }
 

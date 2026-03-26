@@ -10,7 +10,11 @@ import { getPathfinding } from "../maps/pathfinding.ts";
 import { encodeServerMessage } from "../protocol/codec.ts";
 import { ServerMessageType } from "../protocol/types.ts";
 import { type ClientSession, SessionState } from "../ws/client-session.ts";
+import { requireInWorld } from "../ws/guards.ts";
+import { createLogger } from "../utils/logger.ts";
 import { changeMap, getMapTriggers } from "./map.ts";
+
+const log = createLogger("Movement");
 
 /**
  * Pending transition after a move completes.
@@ -28,12 +32,7 @@ export async function handleMovement(
   session: ClientSession,
   payload: CharacterMovePayload,
 ): Promise<void> {
-  if (
-    !session.characterId ||
-    session.mapId === null ||
-    session.cellId === null
-  )
-    return;
+  if (!requireInWorld(session)) return;
   if (session.state !== SessionState.IN_WORLD) return;
 
   const { path } = payload;
@@ -44,8 +43,8 @@ export async function handleMovement(
 
   // Validate path
   if (!pf.validatePath(path, session.cellId)) {
-    console.log(
-      `[Movement] REJECTED path: map=${session.mapId} from=${session.cellId} to=${path[path.length - 1]} path=[${path.join(",")}]`,
+    log.warn(
+      `REJECTED path: map=${session.mapId} from=${session.cellId} to=${path[path.length - 1]} path=[${path.join(",")}]`,
     );
     session.ws.send(
       encodeServerMessage(ServerMessageType.ERROR, {
@@ -55,8 +54,8 @@ export async function handleMovement(
     return;
   }
 
-  console.log(
-    `[Movement] OK: map=${session.mapId} cell ${session.cellId} -> ${path[path.length - 1]} (${path.length - 1} steps)`,
+  log.debug(
+    `OK: map=${session.mapId} cell ${session.cellId} -> ${path[path.length - 1]} (${path.length - 1} steps)`,
   );
 
   // Load all triggers for this map (cached after first load)
@@ -72,8 +71,8 @@ export async function handleMovement(
     if (trigger) {
       effectivePath = path.slice(0, i + 1);
       triggerAtEnd = trigger;
-      console.log(
-        `[Movement] Path passes through trigger at cell ${path[i]} (step ${i}/${path.length - 1}), truncating`,
+      log.debug(
+        `Path passes through trigger at cell ${path[i]} (step ${i}/${path.length - 1}), truncating`,
       );
       break;
     }
@@ -121,8 +120,8 @@ export async function handleMovement(
 
   // Store pending transition — will fire when client sends CHARACTER_MOVE_END
   if (triggerAtEnd) {
-    console.log(
-      `[Movement] Pending trigger: cell ${endCellId} -> map ${triggerAtEnd.targetMapId} cell ${triggerAtEnd.targetCellId}`,
+    log.debug(
+      `Pending trigger: cell ${endCellId} -> map ${triggerAtEnd.targetMapId} cell ${triggerAtEnd.targetCellId}`,
     );
     pendingTransitions.set(session.sessionId, {
       type: "trigger",
@@ -155,8 +154,8 @@ export async function handleMovement(
         transition.dy,
         targetMap.walkable_ids,
       );
-      console.log(
-        `[Movement] Pending edge: cell ${endCellId} -> map ${targetMap.id} cell ${spawnCellId}`,
+      log.debug(
+        `Pending edge: cell ${endCellId} -> map ${targetMap.id} cell ${spawnCellId}`,
       );
       pendingTransitions.set(session.sessionId, {
         type: "edge",
@@ -177,8 +176,8 @@ export async function handleMoveEnd(session: ClientSession): Promise<void> {
 
   pendingTransitions.delete(session.sessionId);
 
-  console.log(
-    `[Movement] Move ended, executing ${pending.type} transition -> map ${pending.targetMapId} cell ${pending.targetCellId}`,
+  log.debug(
+    `Move ended, executing ${pending.type} transition -> map ${pending.targetMapId} cell ${pending.targetCellId}`,
   );
 
   await changeMap(session, pending.targetMapId, pending.targetCellId);

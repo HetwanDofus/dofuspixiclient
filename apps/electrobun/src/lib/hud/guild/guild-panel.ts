@@ -17,6 +17,7 @@ export class GuildPanel extends BasePanel {
 
   constructor(zoom: number) {
     super(zoom, 320, 363, i18n._(L.title), "guild-panel");
+    this.init();
   }
 
   protected buildContent(y: number): void {

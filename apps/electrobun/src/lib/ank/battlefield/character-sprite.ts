@@ -392,11 +392,23 @@ export class CharacterSpriteLoader {
 }
 
 /**
- * Global singleton instance.
+ * Legacy global singleton instance for backward compatibility.
+ * Deprecated: pass CharacterSpriteLoader as a dependency instead.
  */
 let globalLoader: CharacterSpriteLoader | null = null;
 
 export function getCharacterSpriteLoader(): CharacterSpriteLoader {
+  if (!globalLoader) {
+    globalLoader = new CharacterSpriteLoader();
+  }
+  return globalLoader;
+}
+
+/**
+ * Initialize the global sprite loader instance.
+ * Call this once during app initialization.
+ */
+export function initCharacterSpriteLoader(): CharacterSpriteLoader {
   if (!globalLoader) {
     globalLoader = new CharacterSpriteLoader();
   }

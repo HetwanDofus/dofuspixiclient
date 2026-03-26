@@ -1,30 +1,32 @@
-import { ServerMessageType, encodeMessage, ClientMessageType } from './protocol';
+import {
+  ServerMessageType,
+  ClientMessageType,
+  type CombatInitPayload,
+  type CombatFighterPayload,
+  type CombatLeavePayload,
+  type CombatStartPayload,
+  type CombatEndPayload,
+  type CombatTurnStartPayload,
+  type CombatTurnEndPayload,
+  type CombatEffectPayload,
+  type CombatMovementPayload,
+  type CombatSpellPayload,
+  type CombatPlacementPayload,
+  type CombatTimelinePayload,
+  type CombatStatsPayload,
+  type CombatReadyPayload,
+  type CombatChallengePayload,
+  type CombatChallengeRequestPayload,
+  type CombatChallengeResponsePayload,
+  type CombatReadyRequestPayload,
+  type CombatMoveRequestPayload,
+  type CombatCastRequestPayload,
+  type CombatPlacementRequestPayload,
+  type CombatSpectateRequestPayload,
+  encodeClientMessage,
+} from '@dofus/protocol';
 import type { MessageHandler } from './message-handler';
 import type { Connection } from './connection';
-import type {
-  CombatInitPayload,
-  CombatFighterPayload,
-  CombatLeavePayload,
-  CombatStartPayload,
-  CombatEndPayload,
-  CombatTurnStartPayload,
-  CombatTurnEndPayload,
-  CombatEffectPayload,
-  CombatMovementPayload,
-  CombatSpellPayload,
-  CombatPlacementPayload,
-  CombatTimelinePayload,
-  CombatStatsPayload,
-  CombatReadyPayload,
-  CombatChallengePayload,
-  CombatChallengeRequestPayload,
-  CombatChallengeResponsePayload,
-  CombatReadyRequestPayload,
-  CombatMoveRequestPayload,
-  CombatCastRequestPayload,
-  CombatPlacementRequestPayload,
-  CombatSpectateRequestPayload,
-} from './combat-payloads';
 
 /**
  * Combat event callbacks.
@@ -172,7 +174,7 @@ export class CombatHandler {
    */
   challenge(targetId: number): void {
     const payload: CombatChallengeRequestPayload = { targetId };
-    this.connection.send(encodeMessage(ClientMessageType.COMBAT_CHALLENGE, payload));
+    this.connection.send(encodeClientMessage(ClientMessageType.COMBAT_CHALLENGE, payload));
   }
 
   /**
@@ -180,7 +182,7 @@ export class CombatHandler {
    */
   acceptChallenge(challengerId: number): void {
     const payload: CombatChallengeResponsePayload = { challengerId, accept: true };
-    this.connection.send(encodeMessage(ClientMessageType.COMBAT_ACCEPT, payload));
+    this.connection.send(encodeClientMessage(ClientMessageType.COMBAT_ACCEPT, payload));
   }
 
   /**
@@ -188,7 +190,7 @@ export class CombatHandler {
    */
   refuseChallenge(challengerId: number): void {
     const payload: CombatChallengeResponsePayload = { challengerId, accept: false };
-    this.connection.send(encodeMessage(ClientMessageType.COMBAT_REFUSE, payload));
+    this.connection.send(encodeClientMessage(ClientMessageType.COMBAT_REFUSE, payload));
   }
 
   /**
@@ -196,7 +198,7 @@ export class CombatHandler {
    */
   setReady(ready: boolean): void {
     const payload: CombatReadyRequestPayload = { ready };
-    this.connection.send(encodeMessage(ClientMessageType.COMBAT_READY, payload));
+    this.connection.send(encodeClientMessage(ClientMessageType.COMBAT_READY, payload));
   }
 
   /**
@@ -204,7 +206,7 @@ export class CombatHandler {
    */
   move(path: number[]): void {
     const payload: CombatMoveRequestPayload = { path };
-    this.connection.send(encodeMessage(ClientMessageType.COMBAT_MOVE, payload));
+    this.connection.send(encodeClientMessage(ClientMessageType.COMBAT_MOVE, payload));
   }
 
   /**
@@ -212,21 +214,21 @@ export class CombatHandler {
    */
   castSpell(spellId: number, targetCellId: number): void {
     const payload: CombatCastRequestPayload = { spellId, targetCellId };
-    this.connection.send(encodeMessage(ClientMessageType.COMBAT_CAST, payload));
+    this.connection.send(encodeClientMessage(ClientMessageType.COMBAT_CAST, payload));
   }
 
   /**
    * Pass the current turn.
    */
   passTurn(): void {
-    this.connection.send(encodeMessage(ClientMessageType.COMBAT_PASS, {}));
+    this.connection.send(encodeClientMessage(ClientMessageType.COMBAT_PASS, {}));
   }
 
   /**
    * Forfeit the combat.
    */
   forfeit(): void {
-    this.connection.send(encodeMessage(ClientMessageType.COMBAT_FORFEIT, {}));
+    this.connection.send(encodeClientMessage(ClientMessageType.COMBAT_FORFEIT, {}));
   }
 
   /**
@@ -234,7 +236,7 @@ export class CombatHandler {
    */
   setPlacement(cellId: number): void {
     const payload: CombatPlacementRequestPayload = { cellId };
-    this.connection.send(encodeMessage(ClientMessageType.COMBAT_PLACEMENT, payload));
+    this.connection.send(encodeClientMessage(ClientMessageType.COMBAT_PLACEMENT, payload));
   }
 
   /**
@@ -242,7 +244,7 @@ export class CombatHandler {
    */
   spectate(fightId: number): void {
     const payload: CombatSpectateRequestPayload = { fightId };
-    this.connection.send(encodeMessage(ClientMessageType.COMBAT_SPECTATE, payload));
+    this.connection.send(encodeClientMessage(ClientMessageType.COMBAT_SPECTATE, payload));
   }
 
   /**

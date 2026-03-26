@@ -35,7 +35,10 @@ export abstract class BasePanel {
 
     this.panelW = Math.round(baseW * zoom);
     this.panelH = Math.round(baseH * zoom);
+  }
 
+  /** Call after construction to build the panel. Subclasses must call this in their constructor. */
+  protected init(): void {
     this.build();
   }
 

@@ -7,6 +7,7 @@ export type KeyAction =
   | "toggleStats"
   | "toggleDebug"
   | "toggleGrid"
+  | "toggleTransparency"
   | "toggleStressTest"
   | "toggleWorldMap"
   | "escape";
@@ -15,6 +16,7 @@ const defaultBindings: Record<KeyAction, string> = {
   toggleStats: "c",
   toggleDebug: "d",
   toggleGrid: "g",
+  toggleTransparency: "v",
   toggleStressTest: "t",
   toggleWorldMap: "m",
   escape: "escape",

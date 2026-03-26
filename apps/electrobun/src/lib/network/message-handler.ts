@@ -1,4 +1,13 @@
-import { ServerMessageType, type ServerMessage, type ServerMessageTypeValue } from './protocol';
+import {
+  ServerMessageType,
+  type ServerMessage,
+  type ServerMessageTypeValue,
+  type ServerPayloadMap,
+  type PongPayload,
+} from './protocol';
+import { createLogger } from '@/utils/logger';
+
+const log = createLogger("MessageHandler");
 
 export type MessageHandlerFn<T = unknown> = (payload: T, message: ServerMessage<T>) => void;
 
@@ -6,7 +15,10 @@ export class MessageHandler {
   private handlers: Map<ServerMessageTypeValue, MessageHandlerFn[]> = new Map();
   private globalHandlers: MessageHandlerFn[] = [];
 
-  on<T = unknown>(type: ServerMessageTypeValue, handler: MessageHandlerFn<T>): () => void {
+  on<T extends ServerMessageTypeValue>(
+    type: T,
+    handler: MessageHandlerFn<ServerPayloadMap[T]>,
+  ): () => void {
     if (!this.handlers.has(type)) {
       this.handlers.set(type, []);
     }
@@ -16,7 +28,10 @@ export class MessageHandler {
     return () => this.off(type, handler);
   }
 
-  off<T = unknown>(type: ServerMessageTypeValue, handler: MessageHandlerFn<T>): void {
+  off<T extends ServerMessageTypeValue>(
+    type: T,
+    handler: MessageHandlerFn<ServerPayloadMap[T]>,
+  ): void {
     const handlers = this.handlers.get(type);
 
     if (handlers) {
@@ -45,7 +60,7 @@ export class MessageHandler {
       try {
         handler(message.payload, message);
       } catch (e) {
-        console.error('Handler error:', e);
+        log.error('Handler error:', e);
       }
     }
 
@@ -56,7 +71,7 @@ export class MessageHandler {
         try {
           handler(message.payload, message);
         } catch (e) {
-          console.error('Handler error:', e);
+          log.error('Handler error:', e);
         }
       }
     }
@@ -70,10 +85,10 @@ export class MessageHandler {
 
 export function createMessageHandler(): MessageHandler {
   const handler = new MessageHandler();
-  handler.on(ServerMessageType.ERROR, (payload) => console.error('Server error:', payload));
-  handler.on(ServerMessageType.PONG, (payload) => {
-    const latency = Date.now() - ((payload as { time: number }).time || 0);
-    console.log(`Pong: ${latency}ms`);
+  handler.on(ServerMessageType.ERROR, (payload) => log.error('Server error:', payload));
+  handler.on(ServerMessageType.PONG, (payload: PongPayload) => {
+    const latency = Date.now() - (payload.time || 0);
+    log.debug(`Pong: ${latency}ms`);
   });
   return handler;
 }

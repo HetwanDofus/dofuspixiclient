@@ -1,6 +1,9 @@
+import { createLogger } from "@/utils/logger";
 import type { CellData } from "./datacenter/cell";
 import type { FighterRenderer } from "./fighter-renderer";
 import { DofusPathfinding } from "./dofus-pathfinding";
+
+const log = createLogger("StressTest");
 
 const GFX_POOL = [
   10, 11, 20, 21, 30, 31, 40, 41, 50, 51, 60, 61, 70, 71, 80, 81, 90, 91, 100,
@@ -48,7 +51,7 @@ export class StressTest {
     if (this.running) return;
     this.running = true;
 
-    console.log(`[StressTest] Spawning ${ACTOR_COUNT} actors...`);
+    log.info(`Spawning ${ACTOR_COUNT} actors...`);
     this.spawnBatched();
   }
 
@@ -88,7 +91,7 @@ export class StressTest {
       }
     }
 
-    console.log(`[StressTest] All ${ACTOR_COUNT} actors spawned.`);
+    log.info(`All ${ACTOR_COUNT} actors spawned.`);
   }
 
   private scheduleMove(actor: StressActor): void {
@@ -132,6 +135,6 @@ export class StressTest {
       this.renderer.removeFighter(actor.id);
     }
     this.actors = [];
-    console.log("[StressTest] Stopped and cleaned up.");
+    log.info("Stopped and cleaned up.");
   }
 }

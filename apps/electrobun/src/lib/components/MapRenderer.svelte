@@ -157,6 +157,9 @@
         battlefield.toggleGridOverlay();
       }
     });
+    keybindings.on("toggleTransparency", () => {
+      battlefield?.toggleTransparency();
+    });
     keybindings.on("toggleStressTest", () => {
       if (battlefield) {
         stressTestActive = battlefield.toggleStressTest();

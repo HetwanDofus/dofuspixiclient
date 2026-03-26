@@ -1,5 +1,6 @@
 import type { Application } from "pixi.js";
 import { Assets, Container, Graphics, Sprite, Texture } from "pixi.js";
+import { createLogger } from "@/utils/logger";
 
 import type {
   BannerManifest,
@@ -126,6 +127,7 @@ export class Banner {
   private onGuildToggle?: () => void;
   private onMountToggle?: () => void;
   private onConquestToggle?: () => void;
+  private onSitToggle?: () => void;
   private minimapExpandTimer: ReturnType<typeof setTimeout> | null = null;
   private minimapExpanded = false;
 
@@ -468,6 +470,12 @@ export class Banner {
     this.chatUI.emotesButton.container.on("pointerdown", () => {
       this.emotesPopup.visible = !this.emotesPopup.visible;
     });
+
+    this.chatUI.sitButton.container.off("pointerdown");
+
+    this.chatUI.sitButton.container.on("pointerdown", () => {
+      this.onSitToggle?.();
+    });
   }
 
   private async loadMinimap(): Promise<void> {
@@ -783,12 +791,16 @@ export class Banner {
     this.onConquestToggle = callback;
   }
 
+  public setOnSitToggle(callback: () => void): void {
+    this.onSitToggle = callback;
+  }
+
   private handleMinimapDoubleClick(globalX: number, globalY: number): void {
     if (!this.minimapRenderer) return;
 
     const mapId = this.minimapRenderer.getMapIdAtPoint(globalX, globalY);
     if (mapId !== null) {
-      console.log("[Banner] Minimap double-click teleport to map", mapId);
+      createLogger("Banner").debug(`Minimap double-click teleport to map ${mapId}`);
       this.onMinimapTeleport?.(mapId);
     }
   }

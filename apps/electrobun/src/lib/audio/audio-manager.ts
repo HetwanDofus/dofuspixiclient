@@ -1,3 +1,6 @@
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("Audio");
 const MUSIC_BASE_PATH = "/assets/sound/musics/";
 const FADE_DURATION_MS = 4000;
 
@@ -32,14 +35,10 @@ export class AudioManager {
       .then((resp) => resp.json())
       .then((data: MusicData) => {
         this.musicData = data;
-        console.log(
-          "[AudioManager] Loaded music data:",
-          Object.keys(data.mapToFile).length,
-          "maps"
-        );
+        log.debug(`Loaded music data: ${Object.keys(data.mapToFile).length} maps`);
       })
       .catch((e) => {
-        console.error("[AudioManager] Failed to load music data:", e);
+        log.error("Failed to load music data:", e);
       });
     return this.initPromise;
   }
@@ -52,12 +51,12 @@ export class AudioManager {
 
     const file = this.musicData.mapToFile[String(mapId)];
     if (!file) {
-      console.log("[AudioManager] No music for map", mapId);
+      log.debug("No music for map", mapId);
       return;
     }
     if (file === this.currentFile) return;
 
-    console.log("[AudioManager] Map", mapId, "→", file);
+    log.debug("Map", mapId, "→", file);
     this.playMusic(file);
   }
 
@@ -171,7 +170,7 @@ export class AudioManager {
     audio.addEventListener(
       "error",
       () => {
-        console.warn("[AudioManager] Failed to load:", file);
+        log.warn("Failed to load:", file);
       },
       { once: true }
     );

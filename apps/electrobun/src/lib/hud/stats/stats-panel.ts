@@ -10,10 +10,10 @@ import { loadSvg } from "@/render/load-svg";
 import { getAssetPath } from "@/themes";
 import { STAT_IDS } from "@/types/stats";
 
+import { BasePanel } from "../core/base-panel";
 import {
   boldText,
   COLORS,
-  createCloseButton,
   createProgressBar,
   createSlot,
   hideTooltip,
@@ -26,13 +26,7 @@ import { StatRow } from "./stat-row";
 
 const ICON = () => getAssetPath("stats");
 
-export class StatsPanel {
-  public container: Container;
-
-  /** Actual pixel dimensions after zoom */
-  public panelW: number;
-  public panelH: number;
-
+export class StatsPanel extends BasePanel {
   private nameText!: Text;
   private levelText!: Text;
   private energyBar!: { graphics: Graphics; redraw: (pct: number) => void };
@@ -48,137 +42,89 @@ export class StatsPanel {
   private classId = 0;
   private energyTip = "";
   private xpTip = "";
-  private zoom: number;
 
   // State for rebuild
   private storedName = "";
   private storedStats: CharacterStats | null = null;
 
   private onBoostStat?: (statId: number) => void;
-  private onClose?: () => void;
   private loadGeneration = 0;
 
   constructor(zoom: number) {
-    this.zoom = zoom;
-    this.container = new Container();
-    this.container.label = "stats-panel";
-    this.container.visible = false;
-    this.container.eventMode = "static";
-
-    // Compute zoomed dimensions
-    this.panelW = Math.round(240 * zoom);
-    this.panelH = Math.round(417 * zoom);
-
-    this.build();
+    super(zoom, 240, 417, "Caractéristiques", "stats-panel");
+    this.init();
   }
 
-  rebuild(zoom: number): void {
-    this.zoom = zoom;
-    this.panelW = Math.round(240 * zoom);
-    this.panelH = Math.round(417 * zoom);
-
+  override rebuild(zoom: number): void {
     // Clear old children
     for (const row of this.statRows.values()) row.destroy();
     this.statRows.clear();
     this.iconSizes.clear();
-    this.container.removeChildren();
 
-    this.build();
+    // Call parent rebuild
+    super.rebuild(zoom);
 
     // Restore state
     if (this.storedName) this.nameText.text = this.storedName;
     if (this.storedStats) this.updateStats(this.storedStats);
   }
 
-  private build(): void {
-    const z = this.zoom;
+  protected buildContent(contentY: number): void {
     const W = this.panelW;
-    const panelH = this.panelH;
-
-    // Scaled helpers
-    const p = (n: number) => Math.round(n * z);
-    const f = (n: number) => n * z;
+    const border = this.p(3);
 
     // Scaled metrics
-    const ROW_H = p(METRICS.ROW_H);
-    const HEADER_H = p(METRICS.HEADER_H);
-    const PX = p(METRICS.PX);
-    const ICON_SIZE = p(METRICS.ICON_SIZE);
-    const BAR_H = p(METRICS.BAR_H);
-    const CLOSE_SIZE = p(METRICS.CLOSE_SIZE);
-    const ALIGN_FRAME = p(METRICS.ALIGN_FRAME);
-    const JOB_SLOT = p(METRICS.JOB_SLOT);
-    const SPEC_SLOT = p(METRICS.SPEC_SLOT);
+    const ROW_H = this.p(METRICS.ROW_H);
+    const HEADER_H = this.p(METRICS.HEADER_H);
+    const PX = this.p(METRICS.PX);
+    const ICON_SIZE = this.p(METRICS.ICON_SIZE);
+    const BAR_H = this.p(METRICS.BAR_H);
+    const ALIGN_FRAME = this.p(METRICS.ALIGN_FRAME);
+    const JOB_SLOT = this.p(METRICS.JOB_SLOT);
+    const SPEC_SLOT = this.p(METRICS.SPEC_SLOT);
+    const TH = this.p(22); // titleheight
 
-    let y = 0;
-
-    // Original Window layout: borderwidth=3, cornerradius tl/tr=13, titleheight=22
-    const BW = p(3);     // borderwidth
-    const TR = p(13);    // corner radius
-    const TH = p(22);    // titleheight
-    const IR = TR - BW;  // inner corner radius = 10
-
-    // ═══════ Title bar (dark) — inside border, from (BW,BW) to (W-BW, BW+TH) ═══════
-    const titleBg = new Graphics();
-    titleBg.moveTo(BW + IR, BW);
-    titleBg.lineTo(W - BW - IR, BW);
-    titleBg.arcTo(W - BW, BW, W - BW, BW + IR, IR);
-    titleBg.lineTo(W - BW, BW + TH);
-    titleBg.lineTo(BW, BW + TH);
-    titleBg.lineTo(BW, BW + IR);
-    titleBg.arcTo(BW, BW, BW + IR, BW, IR);
-    titleBg.fill({ color: COLORS.HEADER_BG });
-    titleBg.eventMode = "static";
-    this.container.addChild(titleBg);
+    let y = contentY;
 
     // _lblName at FLA relY=4 (from panel top), relX=57
     this.nameText = new Text({
       text: "",
-      style: boldText(f(11), COLORS.TEXT_WHITE),
+      style: boldText(this.f(11), COLORS.TEXT_WHITE),
     });
     this.nameText.anchor.set(0, 0.5);
-    this.nameText.x = p(57);
-    this.nameText.y = BW + TH / 2; // vertically centered in title bar
+    this.nameText.x = this.p(57);
+    this.nameText.y = border + TH / 2; // vertically centered in title bar
     this.container.addChild(this.nameText);
-
-    // _btnClose at FLA relX=220, relY=8
-    const closeBtn = createCloseButton(() => {
-      this.hide();
-      this.onClose?.();
-    }, z);
-    closeBtn.x = W - BW - CLOSE_SIZE - p(3);
-    closeBtn.y = BW + (TH - CLOSE_SIZE) / 2;
-    this.container.addChild(closeBtn);
 
     // _lblLevel at FLA relX=57, relY=29.5
     this.levelText = new Text({
       text: i18n._(LABELS.level.id, { level: 1 }),
-      style: boldText(f(11), COLORS.TEXT_DARK),
+      style: boldText(this.f(11), COLORS.TEXT_DARK),
     });
-    this.levelText.x = p(57);
-    this.levelText.y = p(30);
+    this.levelText.x = this.p(57);
+    this.levelText.y = this.p(30);
     this.container.addChild(this.levelText);
 
-    y = p(53); // Energy row starts at relY=53
+    y = this.p(53); // Energy row starts at relY=53
 
     // _ctrAlignment at FLA relX=10, relY=10 (visually spans title+level area)
     // Scale 0.8 of base container (64px) = 51.2 ≈ ALIGN_FRAME(50)
     const alignFrame = new Container();
     const alignBg = new Graphics();
-    alignBg.roundRect(0, 0, ALIGN_FRAME, ALIGN_FRAME, p(3));
+    alignBg.roundRect(0, 0, ALIGN_FRAME, ALIGN_FRAME, this.p(3));
     alignBg.fill({ color: COLORS.SLOT_BG });
     alignBg.stroke({ color: COLORS.ALIGN_BORDER, width: 2 });
     alignFrame.addChild(alignBg);
-    alignFrame.x = p(10);
-    alignFrame.y = p(10);
+    alignFrame.x = this.p(10);
+    alignFrame.y = this.p(10);
 
     const alignIcon = this.makeIcon(
       "icon-alignment.svg",
-      ALIGN_FRAME - p(6),
-      ALIGN_FRAME - p(6)
+      ALIGN_FRAME - this.p(6),
+      ALIGN_FRAME - this.p(6)
     );
-    alignIcon.x = p(3);
-    alignIcon.y = p(3);
+    alignIcon.x = this.p(3);
+    alignIcon.y = this.p(3);
     this.container.removeChild(alignIcon);
     alignFrame.addChild(alignIcon);
 
@@ -187,10 +133,10 @@ export class StatsPanel {
     // 2. Dark alternating rows (#b4ac8d = BG_ALT_DARK): at specific row positions
     const contentBg = new Graphics();
     // Main content area (energy through agility)
-    contentBg.rect(BW, p(54), W - BW * 2, p(260));
+    contentBg.rect(border, this.p(54), W - border * 2, this.p(260));
     contentBg.fill({ color: COLORS.BG_ALT });
     // Jobs area
-    contentBg.rect(BW, p(348), W - BW * 2, p(60));
+    contentBg.rect(border, this.p(348), W - border * 2, this.p(60));
     contentBg.fill({ color: COLORS.BG_ALT });
     this.container.addChild(contentBg);
 
@@ -198,50 +144,48 @@ export class StatsPanel {
     const altBg = new Graphics();
     const darkRows = [73, 111, 147, 202, 238, 274];
     for (const ry of darkRows) {
-      altBg.rect(BW, p(ry), W - BW * 2, ROW_H);
+      altBg.rect(border, this.p(ry), W - border * 2, ROW_H);
       altBg.fill({ color: COLORS.BG_ALT_DARK });
     }
     this.container.addChild(altBg);
 
     // ═══════ ENERGY — label at relX=20 relY=53, bar at relX=124 relY=59 ═══════
     // Bar: from x=124, width=100 (FLA: _pbEnergy sx=1.0, base 100px) → ends at x=224
-    const barX = p(124);
-    const barW = p(100);
+    const barX = this.p(124);
+    const barW = this.p(100);
 
     const energyLabel = new Text({
       text: i18n._(LABELS.energy),
-      style: boldText(f(11), COLORS.TEXT_DARK),
+      style: boldText(this.f(11), COLORS.TEXT_DARK),
     });
     energyLabel.anchor.set(0, 0.5);
-    energyLabel.x = p(20);
-    energyLabel.y = p(53) + ROW_H / 2;
+    energyLabel.x = this.p(20);
+    energyLabel.y = this.p(53) + ROW_H / 2;
     this.container.addChild(energyLabel);
     this.withTooltip(energyLabel, i18n._(TOOLTIPS.energy));
 
-    this.energyBar = createProgressBar(barX, p(53) + (ROW_H - BAR_H) / 2, barW, BAR_H);
+    this.energyBar = createProgressBar(barX, this.p(53) + (ROW_H - BAR_H) / 2, barW, BAR_H);
     this.container.addChild(this.energyBar.graphics);
     this.withDynamicTooltip(this.energyBar.graphics, () => this.energyTip);
 
     // ═══════ XP — label at relX=20 relY=73, bar at relX=124 relY=78 ═══════
     const xpLabel = new Text({
       text: i18n._(LABELS.xp),
-      style: boldText(f(11), COLORS.TEXT_DARK),
+      style: boldText(this.f(11), COLORS.TEXT_DARK),
     });
     xpLabel.anchor.set(0, 0.5);
-    xpLabel.x = p(20);
-    xpLabel.y = p(73) + ROW_H / 2;
+    xpLabel.x = this.p(20);
+    xpLabel.y = this.p(73) + ROW_H / 2;
     this.container.addChild(xpLabel);
     this.withTooltip(xpLabel, i18n._(TOOLTIPS.xp));
 
-    this.xpBar = createProgressBar(barX, p(73) + (ROW_H - BAR_H) / 2, barW, BAR_H);
+    this.xpBar = createProgressBar(barX, this.p(73) + (ROW_H - BAR_H) / 2, barW, BAR_H);
     this.container.addChild(this.xpBar.graphics);
     this.withDynamicTooltip(this.xpBar.graphics, () => this.xpTip);
 
-    y = p(92); // LP row starts at relY=92
+    y = this.p(92); // LP row starts at relY=92
 
     // ═══════ COMBAT STATS (rows 2-6) ═══════
-    // LP/AP/MP: BrownLeftMediumBoldLabel (Font2) + BrownRightMediumBoldLabel (Font2)
-    // Initiative/Discernment: BrownLeftMediumLabel (Font1) + BrownRightMediumLabel (Font1)
     const combatRows: Array<{
       icon: string;
       label: string;
@@ -314,7 +258,6 @@ export class StatsPanel {
         ROW_H,
         ICON_SIZE,
         PX,
-        f,
         cr.tip,
         cr.tint
       );
@@ -322,22 +265,22 @@ export class StatsPanel {
 
     // ═══════ CARACTÉRISTIQUES HEADER — relX=15, relY=183 ═══════
     const caracBg = new Graphics();
-    caracBg.rect(BW, y, W - BW * 2, HEADER_H);
+    caracBg.rect(border, y, W - border * 2, HEADER_H);
     caracBg.fill({ color: COLORS.HEADER_BG });
     this.container.addChild(caracBg);
 
     const caracLabel = new Text({
       text: i18n._(LABELS.characteristics),
-      style: boldText(f(11), COLORS.TEXT_WHITE),
+      style: boldText(this.f(11), COLORS.TEXT_WHITE),
     });
     caracLabel.anchor.set(0, 0.5);
-    caracLabel.x = p(15);
+    caracLabel.x = this.p(15);
     caracLabel.y = y + HEADER_H / 2;
     this.container.addChild(caracLabel);
 
-    const quillSize = p(12);
+    const quillSize = this.p(12);
     const quill = this.makeIcon("QuillIcon.svg", quillSize, quillSize);
-    quill.x = W - PX - p(14);
+    quill.x = W - PX - this.p(14);
     quill.y = y + (HEADER_H - quillSize) / 2;
     this.withTooltip(quill, i18n._(TOOLTIPS.quill));
 
@@ -384,7 +327,7 @@ export class StatsPanel {
     ];
 
     for (const s of stats) {
-      const row = new StatRow(s.n, `${ICON()}/${s.ic}`, W, s.tip, z);
+      const row = new StatRow(s.n, `${ICON()}/${s.ic}`, W, s.tip, this.zoom);
       row.container.y = y;
       row.setOnBoost(() => this.onBoostStat?.(s.id));
       this.statRows.set(s.id, row);
@@ -394,103 +337,64 @@ export class StatsPanel {
 
     // ═══════ CAPITAL HEADER — relX=20, relY=310 ═══════
     const capBg = new Graphics();
-    capBg.rect(BW, y, W - BW * 2, HEADER_H);
+    capBg.rect(border, y, W - border * 2, HEADER_H);
     capBg.fill({ color: 0x93866c });
     this.container.addChild(capBg);
     const capLabel = new Text({
       text: i18n._(LABELS.capital),
-      style: boldText(f(11), COLORS.TEXT_WHITE),
+      style: boldText(this.f(11), COLORS.TEXT_WHITE),
     });
     capLabel.anchor.set(0, 0.5);
-    capLabel.x = p(20);
+    capLabel.x = this.p(20);
     capLabel.y = y + HEADER_H / 2;
     this.container.addChild(capLabel);
     this.withTooltip(capLabel, i18n._(TOOLTIPS.capital));
 
     this.capitalVal = new Text({
       text: "0",
-      style: boldText(f(11), COLORS.TEXT_WHITE),
+      style: boldText(this.f(11), COLORS.TEXT_WHITE),
     });
     this.capitalVal.anchor.set(1, 0.5);
-    this.capitalVal.x = p(190); // FLA: relX=40 + width=150 = 190
+    this.capitalVal.x = this.p(190); // FLA: relX=40 + width=150 = 190
     this.capitalVal.y = y + HEADER_H / 2;
     this.container.addChild(this.capitalVal);
     y += HEADER_H;
 
     // ═══════ MES MÉTIERS HEADER — relX=15, relY=329 ═══════
     const jobBg = new Graphics();
-    jobBg.rect(BW, y, W - BW * 2, HEADER_H);
+    jobBg.rect(border, y, W - border * 2, HEADER_H);
     jobBg.fill({ color: COLORS.HEADER_BG });
     this.container.addChild(jobBg);
     const jobLabel = new Text({
       text: i18n._(LABELS.jobs),
-      style: boldText(f(11), COLORS.TEXT_WHITE),
+      style: boldText(this.f(11), COLORS.TEXT_WHITE),
     });
     jobLabel.anchor.set(0, 0.5);
-    jobLabel.x = p(15);
+    jobLabel.x = this.p(15);
     jobLabel.y = y + HEADER_H / 2;
     this.container.addChild(jobLabel);
     y += HEADER_H;
 
     // ═══════ JOB & SPEC SLOTS — exact FLA positions ═══════
-    // Job slots: relX=[9, 54, 99], relY=355, scale=0.8 → 45px spacing
-    // Spec label: relX=141, relY=349
-    // Spec slots: relX=[146, 175, 205], relY=370, scale=0.5 → 29px spacing
     const jobSlotPositions = [9, 54, 99];
     for (const jx of jobSlotPositions) {
-      const slot = createSlot(p(jx), p(355), JOB_SLOT);
+      const slot = createSlot(this.p(jx), this.p(355), JOB_SLOT);
       this.container.addChild(slot.graphics);
     }
 
     const specLabel = new Text({
       text: i18n._(LABELS.specializations),
-      style: regularText(f(11), COLORS.TEXT_DARK),
+      style: regularText(this.f(11), COLORS.TEXT_DARK),
     });
-    specLabel.x = p(141);
-    specLabel.y = p(349);
+    specLabel.x = this.p(141);
+    specLabel.y = this.p(349);
     this.container.addChild(specLabel);
 
     const specSlotPositions = [146, 175, 205];
     for (const sx of specSlotPositions) {
-      const slot = createSlot(p(sx), p(370), SPEC_SLOT);
+      const slot = createSlot(this.p(sx), this.p(370), SPEC_SLOT);
       this.container.addChild(slot.graphics);
     }
-
-    // ═══════ BACKGROUND (at bottom of z-order) ═══════
-    // Original Window.draw(): filled border rect, then filled background inside
-    // cornerradius tl/tr=13, br/bl=0, bordercolor=0xFFFFFF, borderwidth=3
-
-    // 1. White border — U-shape: left + top + right, NO bottom (panel sits on banner)
-    const borderFill = new Graphics();
-    borderFill.moveTo(0, panelH);       // bottom-left (no border here)
-    borderFill.lineTo(0, TR);            // left edge up
-    borderFill.arcTo(0, 0, TR, 0, TR);  // top-left corner
-    borderFill.lineTo(W - TR, 0);        // top edge
-    borderFill.arcTo(W, 0, W, TR, TR);  // top-right corner
-    borderFill.lineTo(W, panelH);        // right edge down
-    // Close with bottom at panelH, then inner path back up
-    borderFill.lineTo(W - BW, panelH);
-    borderFill.lineTo(W - BW, BW + IR);
-    borderFill.arcTo(W - BW, BW, W - BW - IR, BW, IR);
-    borderFill.lineTo(BW + IR, BW);
-    borderFill.arcTo(BW, BW, BW, BW + IR, IR);
-    borderFill.lineTo(BW, panelH);
-    borderFill.lineTo(0, panelH);
-    borderFill.fill({ color: 0xffffff });
-    borderFill.eventMode = "static";
-    this.container.addChildAt(borderFill, 0);
-
-    // 2. Beige background fill (inside border, extends to bottom — no bottom border)
-    const bgFill = new Graphics();
-    bgFill.moveTo(BW + IR, BW);
-    bgFill.lineTo(W - BW - IR, BW);
-    bgFill.arcTo(W - BW, BW, W - BW, BW + IR, IR);
-    bgFill.lineTo(W - BW, panelH);
-    bgFill.lineTo(BW, panelH);
-    bgFill.lineTo(BW, BW + IR);
-    bgFill.arcTo(BW, BW, BW + IR, BW, IR);
-    bgFill.fill({ color: COLORS.BG });
-    this.container.addChildAt(bgFill, 1);
 
     // Alignment frame on top
     this.container.addChild(alignFrame);
@@ -539,35 +443,33 @@ export class StatsPanel {
     ROW_H: number,
     ICON_SIZE: number,
     _PX: number,
-    f: (n: number) => number,
     tooltip?: string,
     tint?: number
   ): number {
     const midY = y + ROW_H / 2;
     const textFn = bold ? boldText : regularText;
-    const p = (n: number) => Math.round(n * this.zoom);
 
     const ico = this.makeIcon(iconFile, ICON_SIZE, ICON_SIZE);
-    ico.x = p(20);
+    ico.x = this.p(20);
     ico.y = y + (ROW_H - ICON_SIZE) / 2;
     if (tint != null) ico.tint = tint;
 
     const lbl = new Text({
       text: label,
-      style: textFn(f(11), COLORS.TEXT_DARK),
+      style: textFn(this.f(11), COLORS.TEXT_DARK),
     });
     lbl.anchor.set(0, 0.5);
-    lbl.x = p(38);
+    lbl.x = this.p(38);
     lbl.y = midY;
     this.container.addChild(lbl);
     if (tooltip) this.withTooltip(lbl, tooltip);
 
     const val = new Text({
       text: isLP ? "0 / 0" : "0",
-      style: textFn(f(11), COLORS.TEXT_DARK),
+      style: textFn(this.f(11), COLORS.TEXT_DARK),
     });
     val.anchor.set(1, 0.5);
-    val.x = p(219); // FLA: relX=69 + width=150 = 219
+    val.x = this.p(219); // FLA: relX=69 + width=150 = 219
     val.y = midY;
     this.container.addChild(val);
     onVal(val);
@@ -620,9 +522,7 @@ export class StatsPanel {
   setOnBoostStat(fn: (statId: number) => void): void {
     this.onBoostStat = fn;
   }
-  setOnClose(fn: () => void): void {
-    this.onClose = fn;
-  }
+
   setClassId(classId: number): void {
     this.classId = classId;
   }
@@ -686,36 +586,10 @@ export class StatsPanel {
     this.capitalVal.text = String(bp);
   }
 
-  toggle(): void {
-    this.container.visible = !this.container.visible;
-  }
-  show(): void {
-    this.container.visible = true;
-  }
-  hide(): void {
-    this.container.visible = false;
-  }
-  isVisible(): boolean {
-    return this.container.visible;
-  }
-
-  setPosition(x: number, y: number): void {
-    this.container.x = x;
-    this.container.y = y;
-  }
-
-  onResize(event: { baseZoom: number }): void {
-    this.rebuild(event.baseZoom);
-  }
-
-  getContainer(): Container {
-    return this.container;
-  }
-
-  destroy(): void {
+  override destroy(): void {
     for (const row of this.statRows.values()) row.destroy();
     this.statRows.clear();
     this.iconSizes.clear();
-    this.container.destroy({ children: true });
+    super.destroy();
   }
 }

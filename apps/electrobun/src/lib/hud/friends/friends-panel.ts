@@ -13,6 +13,7 @@ export class FriendsPanel extends BasePanel {
 
   constructor(zoom: number) {
     super(zoom, 280, 368, i18n._(L.title), "friends-panel");
+    this.init();
   }
 
   protected buildContent(y: number): void {

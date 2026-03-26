@@ -1,4 +1,7 @@
 import { Container, Graphics, Sprite, Text, TextStyle, Ticker } from "pixi.js";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("FighterRenderer");
 
 import {
   DEFAULT_GROUND_LEVEL,
@@ -8,42 +11,27 @@ import { FighterTeam } from "@/ecs/components";
 import type { PickingSystem } from "@/render/picking-system";
 
 import {
+  FighterAnimation,
+  type FighterAnimationValue,
+  advanceMovement,
+  getAnimationBaseFromType,
+  getClampedDeltaMs,
+  getMovementOffset,
+  getCellPositionWithSlope,
+  initFrameState,
+  initMovementState,
+  shouldUseRun,
+  startMovementSegment,
+  updateFrameAnimation,
+} from "./fighter-animation";
+import {
   type CharacterAnimation,
+  type CharacterSpriteLoader,
   getCharacterSpriteLoader,
   getDirectionSuffix,
   isDirectionFlipped,
 } from "./character-sprite";
-import { getCellPosition, getSlopeYOffset, type CellData } from "./datacenter/cell";
-import { getDirection } from "./dofus-pathfinding";
-
-/**
- * Fighter animation state.
- */
-export const FighterAnimation = {
-  IDLE: "idle",
-  WALK: "walk",
-  RUN: "run",
-  ATTACK: "attack",
-  HIT: "hit",
-  DEATH: "death",
-  CAST: "cast",
-} as const;
-
-export type FighterAnimationValue =
-  (typeof FighterAnimation)[keyof typeof FighterAnimation];
-
-/**
- * Map FighterAnimation state to sprite animation base name.
- */
-const ANIM_TO_SPRITE_BASE: Record<string, string> = {
-  [FighterAnimation.IDLE]: "static",
-  [FighterAnimation.WALK]: "walk",
-  [FighterAnimation.RUN]: "run",
-  [FighterAnimation.ATTACK]: "anim0",
-  [FighterAnimation.HIT]: "hit",
-  [FighterAnimation.DEATH]: "die",
-  [FighterAnimation.CAST]: "anim1",
-};
+import type { CellData } from "./datacenter/cell";
 
 /**
  * Fighter sprite data.
@@ -82,19 +70,12 @@ interface ActiveFighter {
   currentAnimData: CharacterAnimation | null;
   frameIndex: number;
   frameTimer: number;
-  /** Full path of cell IDs for current movement. */
   path: number[];
-  /** Index into path: currently moving FROM path[pathIndex] TO path[pathIndex+1]. */
   pathIndex: number;
-  /** Remaining pixel distance to the target cell of the current segment. */
   moveDistance: number;
-  /** Movement direction unit vector (x component). */
   moveCosRot: number;
-  /** Movement direction unit vector (y component). */
   moveSinRot: number;
-  /** Current segment pixel speed in px/ms. */
   movePixelSpeed: number;
-  /** Whether the current movement uses run speed. */
   useRun: boolean;
   moving: boolean;
   moveResolve?: () => void;
@@ -111,17 +92,8 @@ export interface FighterRendererConfig {
   groundLevel?: number;
   cellDataMap?: Map<number, CellData>;
   pickingSystem?: PickingSystem | null;
+  spriteLoader?: CharacterSpriteLoader;
 }
-
-/**
- * Per-direction movement speeds in px/ms (from ank.battlefield.mc.Sprite).
- */
-const WALK_SPEEDS = [0.07, 0.06, 0.06, 0.06, 0.07, 0.06, 0.06, 0.06];
-const RUN_SPEEDS = [0.17, 0.15, 0.15, 0.15, 0.17, 0.15, 0.15, 0.15];
-/** Maximum frame delta in ms — matches original's cap in basicMove. */
-const MAX_FRAME_MS = 125;
-/** Paths with more steps than this use run animation (original: DEFAULT_RUNLINIT = 6, checked as path.length > 6). */
-const RUN_THRESHOLD = 6;
 
 /**
  * Parse gfxId from the look string (format: "gfx|color1|color2|color3").
@@ -136,6 +108,10 @@ function parseGfxId(look: string): number {
  * Fighter renderer.
  * Manages fighter sprites on the battlefield using character sprite atlases.
  */
+// Ghost view offset: added to zIndex to push fighters above all Object2 tiles
+const GHOST_VIEW_ZINDEX_OFFSET = 100000;
+const GHOST_VIEW_ALPHA = 0.8;
+
 export class FighterRenderer {
   private container: Container;
   private fighters: Map<number, ActiveFighter> = new Map();
@@ -144,18 +120,19 @@ export class FighterRenderer {
   private cellDataMap: Map<number, CellData>;
   private tickerCallback: () => void;
   private pickingSystem: PickingSystem | null;
+  private spriteLoader: CharacterSpriteLoader;
+  private ghostView = false;
 
   constructor(parentContainer: Container, config: FighterRendererConfig = {}) {
     this.mapWidth = config.mapWidth ?? DEFAULT_MAP_WIDTH;
     this.groundLevel = config.groundLevel ?? DEFAULT_GROUND_LEVEL;
     this.cellDataMap = config.cellDataMap ?? new Map();
     this.pickingSystem = config.pickingSystem ?? null;
+    this.spriteLoader = config.spriteLoader ?? getCharacterSpriteLoader();
 
-    this.container = new Container();
-    this.container.label = "fighter-renderer";
-    this.container.sortableChildren = true;
-
-    parentContainer.addChild(this.container);
+    // Add fighters directly to the parent container (typically objectLayer2)
+    // so they interleave with Object2 tiles by zIndex
+    this.container = parentContainer;
 
     this.tickerCallback = () => this.update();
     Ticker.shared.add(this.tickerCallback);
@@ -165,11 +142,12 @@ export class FighterRenderer {
    * Get cell position using per-cell ground data when available.
    */
   private getCellPos(cellId: number): { x: number; y: number } {
-    const cell = this.cellDataMap.get(cellId);
-    const level = cell?.groundLevel ?? this.groundLevel;
-    const slope = cell?.groundSlope ?? 1;
-    const pos = getCellPosition(cellId, this.mapWidth, level);
-    return { x: pos.x, y: pos.y + getSlopeYOffset(slope) };
+    return getCellPositionWithSlope(
+      cellId,
+      this.mapWidth,
+      this.groundLevel,
+      this.cellDataMap
+    );
   }
 
   /**
@@ -229,6 +207,9 @@ export class FighterRenderer {
 
     const gfxId = parseGfxId(data.look);
 
+    const frameState = initFrameState();
+    const movementState = initMovementState();
+
     const fighter: ActiveFighter = {
       id: data.id,
       container: fighterContainer,
@@ -246,16 +227,16 @@ export class FighterRenderer {
       animation: FighterAnimation.IDLE,
       currentAnimName: "",
       currentAnimData: null,
-      frameIndex: 0,
-      frameTimer: 0,
-      path: [],
-      pathIndex: 0,
-      moveDistance: 0,
-      moveCosRot: 0,
-      moveSinRot: 0,
-      movePixelSpeed: 0,
-      useRun: false,
-      moving: false,
+      frameIndex: frameState.frameIndex,
+      frameTimer: frameState.frameTimer,
+      path: movementState.path,
+      pathIndex: movementState.pathIndex,
+      moveDistance: movementState.moveDistance,
+      moveCosRot: movementState.moveCosRot,
+      moveSinRot: movementState.moveSinRot,
+      movePixelSpeed: movementState.movePixelSpeed,
+      useRun: movementState.useRun,
+      moving: movementState.moving,
       spriteLoading: false,
       pendingAnim: null,
     };
@@ -264,12 +245,11 @@ export class FighterRenderer {
 
     // Try to apply sprite synchronously from cache first (avoids flicker on map change)
     if (gfxId > 0) {
-      const loader = getCharacterSpriteLoader();
       const suffix = getDirectionSuffix(data.direction);
-      const cached = loader.getAnimationSync(gfxId, `static${suffix}`);
+      const cached = this.spriteLoader.getAnimationSync(gfxId, `static${suffix}`);
 
       // Kick off preloading ALL common animations (static/walk/run × all directions)
-      const preloadDone = this.preloadCommonAnimations(loader, gfxId);
+      const preloadDone = this.preloadCommonAnimations(gfxId);
 
       if (cached) {
         // Sprite already in cache — apply immediately, no flicker
@@ -296,15 +276,12 @@ export class FighterRenderer {
    * Loads static + walk + run for ALL direction suffixes.
    * Returns a promise that resolves when all preloads complete.
    */
-  private preloadCommonAnimations(
-    loader: ReturnType<typeof getCharacterSpriteLoader>,
-    gfxId: number,
-  ): Promise<void> {
+  private preloadCommonAnimations(gfxId: number): Promise<void> {
     const promises: Promise<unknown>[] = [];
     for (const s of ["S", "R", "F", "L", "B"]) {
-      promises.push(loader.loadAnimation(gfxId, `static${s}`));
-      promises.push(loader.loadAnimation(gfxId, `walk${s}`));
-      promises.push(loader.loadAnimation(gfxId, `run${s}`));
+      promises.push(this.spriteLoader.loadAnimation(gfxId, `static${s}`));
+      promises.push(this.spriteLoader.loadAnimation(gfxId, `walk${s}`));
+      promises.push(this.spriteLoader.loadAnimation(gfxId, `run${s}`));
     }
     return Promise.allSettled(promises).then(() => {});
   }
@@ -326,8 +303,7 @@ export class FighterRenderer {
     fighter.spriteLoading = true;
     fighter.pendingAnim = null;
 
-    const loader = getCharacterSpriteLoader();
-    const result = await loader.loadAnimationWithFallback(
+    const result = await this.spriteLoader.loadAnimationWithFallback(
       fighter.gfxId,
       baseAnim,
       direction
@@ -417,8 +393,7 @@ export class FighterRenderer {
     }
 
     // Check if cached
-    const loader = getCharacterSpriteLoader();
-    const cached = loader.getAnimationSync(fighter.gfxId, animName);
+    const cached = this.spriteLoader.getAnimationSync(fighter.gfxId, animName);
 
     if (cached) {
       this.applyAnimation(fighter, cached, animName);
@@ -450,7 +425,7 @@ export class FighterRenderer {
       return;
     }
 
-    console.log("[FighterRenderer] removeFighter", id);
+    log.debug(`removeFighter ${id}`);
     this.container.removeChild(fighter.container);
     fighter.container.destroy({ children: true });
     this.fighters.delete(id);
@@ -477,7 +452,7 @@ export class FighterRenderer {
     if (data.direction !== undefined && data.direction !== fighter.direction) {
       fighter.direction = data.direction;
       if (fighter.sprite) {
-        const baseAnim = ANIM_TO_SPRITE_BASE[fighter.animation] ?? "static";
+        const baseAnim = getAnimationBaseFromType(fighter.animation);
         this.switchAnimation(fighter, baseAnim, data.direction);
       } else if (fighter.placeholderGraphics) {
         this.drawFighterPlaceholder(
@@ -513,8 +488,8 @@ export class FighterRenderer {
         return;
       }
 
-      // Choose walk or run based on path length (original: path.length > DEFAULT_RUNLINIT)
-      const useRun = path.length > RUN_THRESHOLD;
+      // Choose walk or run based on path length
+      const useRun = shouldUseRun(path.length);
       fighter.path = path;
       fighter.pathIndex = 0;
       fighter.useRun = useRun;
@@ -532,31 +507,29 @@ export class FighterRenderer {
    * Computes pixel distance, direction vector, and speed for the current segment.
    */
   private startMoveSegment(fighter: ActiveFighter): void {
-    const fromCell = fighter.path[fighter.pathIndex];
-    const toCell = fighter.path[fighter.pathIndex + 1];
+    const movementState = {
+      path: fighter.path,
+      pathIndex: fighter.pathIndex,
+      moveDistance: fighter.moveDistance,
+      moveCosRot: fighter.moveCosRot,
+      moveSinRot: fighter.moveSinRot,
+      movePixelSpeed: fighter.movePixelSpeed,
+      useRun: fighter.useRun,
+      moving: fighter.moving,
+    };
 
-    // Compute direction
-    const dir = getDirection(fromCell, toCell, this.mapWidth);
+    const dir = startMovementSegment(
+      movementState,
+      this.mapWidth,
+      this.groundLevel,
+      this.cellDataMap
+    );
+
     fighter.direction = dir;
-
-    // Get pixel positions
-    const fromPos = this.getCellPos(fromCell);
-    const toPos = this.getCellPos(toCell);
-
-    // Pixel distance (matches original: Math.sqrt(dx^2 + dy^2))
-    const dx = toPos.x - fromPos.x;
-    const dy = toPos.y - fromPos.y;
-    fighter.moveDistance = Math.sqrt(dx * dx + dy * dy);
-
-    // Direction unit vector (matches original: atan2 → cos/sin)
-    const angle = Math.atan2(dy, dx);
-    fighter.moveCosRot = Math.cos(angle);
-    fighter.moveSinRot = Math.sin(angle);
-
-    // Speed in px/ms (matches original WALK_SPEEDS / RUN_SPEEDS indexed by direction)
-    fighter.movePixelSpeed = fighter.useRun
-      ? RUN_SPEEDS[dir]
-      : WALK_SPEEDS[dir];
+    fighter.moveDistance = movementState.moveDistance;
+    fighter.moveCosRot = movementState.moveCosRot;
+    fighter.moveSinRot = movementState.moveSinRot;
+    fighter.movePixelSpeed = movementState.movePixelSpeed;
 
     // Switch animation for this segment's direction
     const baseAnim = fighter.useRun ? "run" : "walk";
@@ -591,7 +564,7 @@ export class FighterRenderer {
     }
 
     fighter.animation = animation;
-    const baseAnim = ANIM_TO_SPRITE_BASE[animation] ?? "static";
+    const baseAnim = getAnimationBaseFromType(animation);
     this.switchAnimation(fighter, baseAnim, fighter.direction);
   }
 
@@ -606,7 +579,7 @@ export class FighterRenderer {
     }
 
     fighter.direction = direction;
-    const baseAnim = ANIM_TO_SPRITE_BASE[fighter.animation] ?? "static";
+    const baseAnim = getAnimationBaseFromType(fighter.animation);
     this.switchAnimation(fighter, baseAnim, direction);
   }
 
@@ -638,7 +611,7 @@ export class FighterRenderer {
   private update(): void {
     const deltaMs = Ticker.shared.deltaMS;
     const deltaS = deltaMs / 1000;
-    const clampedMs = Math.min(deltaMs, MAX_FRAME_MS);
+    const clampedMs = getClampedDeltaMs(deltaMs);
     let anyMoved = false;
 
     for (const fighter of this.fighters.values()) {
@@ -653,40 +626,59 @@ export class FighterRenderer {
       anyMoved = true;
       const deltaPx = fighter.movePixelSpeed * clampedMs;
 
-      if (fighter.moveDistance <= deltaPx) {
-        // Segment complete — snap to destination cell and advance
-        const toCell = fighter.path[fighter.pathIndex + 1];
-        const toPos = this.getCellPos(toCell);
+      const movementState = {
+        path: fighter.path,
+        pathIndex: fighter.pathIndex,
+        moveDistance: fighter.moveDistance,
+        moveCosRot: fighter.moveCosRot,
+        moveSinRot: fighter.moveSinRot,
+        movePixelSpeed: fighter.movePixelSpeed,
+        useRun: fighter.useRun,
+        moving: fighter.moving,
+      };
+
+      const result = advanceMovement(
+        movementState,
+        deltaPx,
+        this.mapWidth,
+        this.groundLevel,
+        this.cellDataMap
+      );
+
+      // Update fighter state from movement result
+      fighter.pathIndex = movementState.pathIndex;
+      fighter.moving = movementState.moving;
+
+      if (result.complete) {
+        // Entire path complete — stop and return to idle
+        fighter.path = [];
+        fighter.pathIndex = 0;
+        fighter.moveDistance = 0;
+        fighter.moving = false;
+        fighter.animation = FighterAnimation.IDLE;
+
+        this.switchAnimation(fighter, "static", fighter.direction);
+
+        if (fighter.moveResolve) {
+          const resolve = fighter.moveResolve;
+          fighter.moveResolve = undefined;
+          resolve();
+        }
+      } else if (result.nextCell !== undefined) {
+        // Segment complete — snap to destination cell and start next
+        const toPos = this.getCellPos(result.nextCell);
         fighter.container.x = toPos.x;
         fighter.container.y = toPos.y;
-        fighter.cellId = toCell;
-        fighter.container.zIndex = this.calculateZIndex(toCell);
+        fighter.cellId = result.nextCell;
+        fighter.container.zIndex = this.calculateZIndex(result.nextCell);
 
-        fighter.pathIndex++;
-
-        if (fighter.pathIndex >= fighter.path.length - 1) {
-          // Entire path complete — stop and return to idle
-          fighter.path = [];
-          fighter.pathIndex = 0;
-          fighter.moveDistance = 0;
-          fighter.moving = false;
-          fighter.animation = FighterAnimation.IDLE;
-
-          this.switchAnimation(fighter, "static", fighter.direction);
-
-          if (fighter.moveResolve) {
-            const resolve = fighter.moveResolve;
-            fighter.moveResolve = undefined;
-            resolve();
-          }
-        } else {
-          // Start next segment
-          this.startMoveSegment(fighter);
-        }
+        // Start next segment
+        this.startMoveSegment(fighter);
       } else {
         // Mid-segment: advance position by deltaPx along direction vector
-        fighter.container.x += deltaPx * fighter.moveCosRot;
-        fighter.container.y += deltaPx * fighter.moveSinRot;
+        const offset = getMovementOffset(movementState, deltaPx);
+        fighter.container.x += offset.x;
+        fighter.container.y += offset.y;
         fighter.moveDistance -= deltaPx;
       }
     }
@@ -703,23 +695,36 @@ export class FighterRenderer {
     if (!fighter.sprite || !fighter.currentAnimData) return;
 
     const anim = fighter.currentAnimData;
-    if (anim.textures.length <= 1) return;
+    const frameState = {
+      frameIndex: fighter.frameIndex,
+      frameTimer: fighter.frameTimer,
+    };
 
-    fighter.frameTimer += deltaS;
+    updateFrameAnimation(frameState, deltaS, anim.textures.length, anim.fps);
 
-    const frameDuration = 1 / anim.fps;
-    if (fighter.frameTimer >= frameDuration) {
-      fighter.frameTimer -= frameDuration;
-      fighter.frameIndex = (fighter.frameIndex + 1) % anim.textures.length;
-      fighter.sprite.texture = anim.textures[fighter.frameIndex];
-    }
+    fighter.frameIndex = frameState.frameIndex;
+    fighter.frameTimer = frameState.frameTimer;
+    fighter.sprite.texture = anim.textures[fighter.frameIndex];
   }
 
   /**
    * Calculate z-index from cell position.
+   * In ghost view, offset pushes fighters above all Object2 tiles.
    */
   private calculateZIndex(cellId: number): number {
-    return cellId * 100 + 30;
+    return cellId * 100 + 30 + (this.ghostView ? GHOST_VIEW_ZINDEX_OFFSET : 0);
+  }
+
+  /**
+   * Toggle ghost/transparency view.
+   * When enabled, fighters render above Object2 at reduced alpha.
+   */
+  setGhostView(enabled: boolean): void {
+    this.ghostView = enabled;
+    for (const fighter of this.fighters.values()) {
+      fighter.container.zIndex = this.calculateZIndex(fighter.cellId);
+      fighter.container.alpha = enabled ? GHOST_VIEW_ALPHA : 1;
+    }
   }
 
   /**
@@ -823,8 +828,7 @@ export class FighterRenderer {
     }
 
     // Re-rasterize character SVGs at the new zoom level
-    const loader = getCharacterSpriteLoader();
-    loader.setZoom(event.zoom);
+    this.spriteLoader.setZoom(event.zoom);
     this.reloadAllSprites();
 
     this.pickingSystem?.markDirty();
@@ -836,14 +840,12 @@ export class FighterRenderer {
    * Old textures are left for GC — no explicit unload needed.
    */
   private reloadAllSprites(): void {
-    const loader = getCharacterSpriteLoader();
-
     for (const fighter of this.fighters.values()) {
       if (fighter.gfxId > 0 && fighter.currentAnimName) {
         const animName = fighter.currentAnimName;
         // Force cache miss so applyAnimation accepts the new data
         fighter.currentAnimName = "";
-        loader.loadAnimation(fighter.gfxId, animName).then((anim) => {
+        this.spriteLoader.loadAnimation(fighter.gfxId, animName).then((anim) => {
           if (anim && this.fighters.has(fighter.id)) {
             this.applyAnimation(fighter, anim, animName);
           }
@@ -918,13 +920,12 @@ export class FighterRenderer {
    * Clear all fighters.
    */
   clear(): void {
-    console.log("[FighterRenderer] clear() — removing", this.fighters.size, "fighters");
+    log.debug(`clear() — removing ${this.fighters.size} fighters`);
     for (const fighter of this.fighters.values()) {
+      this.container.removeChild(fighter.container);
       fighter.container.destroy({ children: true });
     }
-
     this.fighters.clear();
-    this.container.removeChildren();
   }
 
   /**
@@ -933,6 +934,9 @@ export class FighterRenderer {
   destroy(): void {
     Ticker.shared.remove(this.tickerCallback);
     this.clear();
-    this.container.destroy();
   }
 }
+
+// Re-export animation constants and types for backward compatibility
+export type { FighterAnimationValue };
+export { FighterAnimation };

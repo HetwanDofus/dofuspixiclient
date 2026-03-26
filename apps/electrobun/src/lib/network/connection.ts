@@ -1,5 +1,8 @@
 import type { ConnectionConfig, ConnectionState } from '@/types';
+import { createLogger } from '@/utils/logger';
 import { decodeMessage, type ServerMessage } from './protocol';
+
+const log = createLogger("Connection");
 
 export type ConnectionEvent =
   | { type: 'connected' }
@@ -50,7 +53,7 @@ export class Connection {
       try {
         listener(event);
       } catch (e) {
-        console.error('Connection listener error:', e);
+        log.error('Connection listener error:', e);
       }
     }
   }
@@ -131,7 +134,7 @@ export class Connection {
     try {
       this.emit({ type: 'message', message: decodeMessage(event.data as ArrayBuffer) });
     } catch (e) {
-      console.error('Failed to decode message:', e);
+      log.error('Failed to decode message:', e);
     }
   }
 

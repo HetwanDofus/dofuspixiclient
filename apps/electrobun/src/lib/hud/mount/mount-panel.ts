@@ -12,6 +12,7 @@ const STAT_ROWS = ["energy", "maturity", "love"] as const;
 export class MountPanel extends BasePanel {
   constructor(zoom: number) {
     super(zoom, 250, 300, i18n._(L.title), "mount-panel");
+    this.init();
   }
 
   protected buildContent(y: number): void {

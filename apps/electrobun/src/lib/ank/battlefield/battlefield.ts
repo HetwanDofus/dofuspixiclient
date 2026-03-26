@@ -1,4 +1,5 @@
 import { LayoutSystem } from "@pixi/layout";
+import { createLogger } from "@/utils/logger";
 import {
   type Application,
   Container,
@@ -13,17 +14,9 @@ import { ZaapContextMenu } from "@/ank/gapi/controls";
 import { DISPLAY_HEIGHT } from "@/constants/battlefield";
 import { pushInteractionEvent } from "@/ecs/systems/interaction-dispatch-system";
 import { type GameWorld, getGameWorld } from "@/ecs/world";
-import { Banner } from "@/hud/banner";
-import { ConquestPanel } from "@/hud/conquest";
-import { initTooltipBounds } from "@/hud/core/tooltip";
-import { FriendsPanel } from "@/hud/friends";
-import { GuildPanel } from "@/hud/guild";
-import { InventoryPanel } from "@/hud/inventory";
-import { MountPanel } from "@/hud/mount";
-import { QuestsPanel } from "@/hud/quests";
-import { SpellsPanel } from "@/hud/spells";
-import { StatsPanel } from "@/hud/stats";
-import { WorldMapPanel } from "@/hud/worldmap";
+import type { InventoryPanel } from "@/hud/inventory";
+import type { StatsPanel } from "@/hud/stats";
+import type { WorldMapPanel } from "@/hud/worldmap";
 import { AtlasLoader } from "@/render/atlas-loader";
 import { Engine } from "@/render/engine";
 import { PickingSystem } from "@/render/picking-system";
@@ -32,14 +25,13 @@ import { loadTheme } from "@/themes";
 
 import {
   CellHighlighter,
-  HighlightType,
   type HighlightTypeValue,
 } from "./cell-highlighter";
-import { getCharacterSpriteLoader } from "./character-sprite";
+import { CombatUI } from "./combat-ui";
+import { type CharacterSpriteLoader, initCharacterSpriteLoader } from "./character-sprite";
 import {
   type DamageDisplayConfig,
   DamageRenderer,
-  DamageType,
 } from "./damage-renderer";
 import { type CellData, findCellAtPosition } from "./datacenter/cell";
 import { computeMapScale, loadMapData, type MapData } from "./datacenter/map";
@@ -50,6 +42,7 @@ import {
   type FighterSpriteData,
 } from "./fighter-renderer";
 import { GridOverlay } from "./grid-overlay";
+import { HudManager } from "./hud-manager";
 import { InteractionHandler } from "./interaction-handler";
 import { MapHandler } from "./map-handler";
 import { AdjacentMapCache } from "./adjacent-map-cache";
@@ -91,6 +84,8 @@ export interface BattlefieldConfig {
   resizeDebounceMs?: number;
 }
 
+const log = createLogger("Battlefield");
+
 export class Battlefield {
   private engine: Engine;
   private app: Application | null = null;
@@ -99,34 +94,20 @@ export class Battlefield {
   private mapHandler: MapHandler | null = null;
   private interactionHandler: InteractionHandler | null = null;
   private pickingSystem: PickingSystem | null = null;
-  private banner: Banner | null = null;
-  private statsPanel: StatsPanel | null = null;
-  private spellsPanel: SpellsPanel | null = null;
-  private inventoryPanel: InventoryPanel | null = null;
-  private questsPanel: QuestsPanel | null = null;
-  private friendsPanel: FriendsPanel | null = null;
-  private guildPanel: GuildPanel | null = null;
-  private mountPanel: MountPanel | null = null;
-  private conquestPanel: ConquestPanel | null = null;
-  private worldMapPanel: WorldMapPanel | null = null;
+  private characterSpriteLoader: CharacterSpriteLoader;
+
+  private hudManager: HudManager | null = null;
+  private combatUI: CombatUI | null = null;
 
   private currentMapData: MapData | null = null;
-  private currentMapId: number | null = null;
   private cellDataMap: Map<number, CellData> = new Map();
 
+  private transparencyMode = false;
   private interactiveGfxIds = new Set<number>();
   private interactiveObjectsData = new Map<number, InteractiveObjectData>();
   private pickableIdToGfxId = new Map<number, number>();
   private nextPickableId = 1;
   private currentContextMenu: ZaapContextMenu | null = null;
-
-  // Combat mode state
-  private combatMode: CombatModeValue = CombatMode.NONE;
-  private combatContainer: Container | null = null;
-  private cellHighlighter: CellHighlighter | null = null;
-  private fighterRenderer: FighterRenderer | null = null;
-  private damageRenderer: DamageRenderer | null = null;
-  private spellRenderer: SpellRenderer | null = null;
 
   // World actors (roleplay mode)
   private worldActorContainer: Container | null = null;
@@ -142,7 +123,6 @@ export class Battlefield {
   // Adjacent map preloading
   private adjacentMapCache: AdjacentMapCache | null = null;
 
-  // Ground click callback
   // ECS
   private gameWorld: GameWorld;
   private ecsTickerCallback: (() => void) | null = null;
@@ -164,6 +144,7 @@ export class Battlefield {
   private onCellClickCallback?: (cellId: number) => void;
   private onMinimapTeleportCallback?: (mapId: number) => void;
   private onBoostStatCallback?: (statId: number) => void;
+  private onSitToggleCallback?: () => void;
 
   private onResizeStartCallback?: () => void;
   private onResizeEndCallback?: () => void;
@@ -178,6 +159,7 @@ export class Battlefield {
     this.onResizeEndCallback = config.onResizeEnd;
 
     this.gameWorld = getGameWorld();
+    this.characterSpriteLoader = initCharacterSpriteLoader();
 
     this.engine = new Engine({
       container: config.container,
@@ -212,7 +194,6 @@ export class Battlefield {
       screenWidth: screenW,
       screenHeight: screenH,
     });
-    this.updatePanelPositions();
   }
 
   private handleResizeStart(): void {
@@ -239,7 +220,7 @@ export class Battlefield {
 
     const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
 
-    console.log("[Battlefield] handleResizeEnd", { zoom });
+    log.debug("handleResizeEnd", { zoom });
 
     try {
       // Opt #7: Try texture-swap first
@@ -257,7 +238,7 @@ export class Battlefield {
       // Full rebuild fallback
       this.atlasLoader.setZoom(zoom);
 
-      console.log("[Battlefield] Re-rendering map at zoom:", zoom);
+      log.debug("Re-rendering map at zoom:", zoom);
 
       this.clearPickableObjects();
       this.debugOverlay?.clear();
@@ -270,7 +251,7 @@ export class Battlefield {
         this.getViewport()
       );
     } catch (error) {
-      console.error("[Battlefield] Resize render error:", error);
+      log.error("Resize render error:", error);
     }
 
     if (this.onResizeEndCallback) {
@@ -308,70 +289,22 @@ export class Battlefield {
     this.adjacentMapCache = new AdjacentMapCache(this.atlasLoader);
 
     const baseZoom = this.engine.getBaseZoom();
-    this.banner = new Banner(this.app, DISPLAY_HEIGHT);
-    this.banner.init(this.app.screen.width, baseZoom);
-    this.banner.setOnMinimapTeleport((mapId) => {
+    this.hudManager = new HudManager(
+      this.app,
+      baseZoom,
+      DISPLAY_HEIGHT,
+      null
+    );
+    await this.hudManager.init();
+    this.hudManager.setOnMinimapTeleport((mapId) => {
       this.onMinimapTeleportCallback?.(mapId);
     });
-    // Wire banner button toggles with mutual exclusion
-    this.banner.setOnStatsToggle(() => this.togglePanel("stats"));
-    this.banner.setOnSpellsToggle(() => this.togglePanel("spells"));
-    this.banner.setOnInventoryToggle(() => this.togglePanel("inventory"));
-    this.banner.setOnQuestsToggle(() => this.togglePanel("quests"));
-    this.banner.setOnMapToggle(() => this.toggleWorldMap());
-    this.banner.setOnFriendsToggle(() => this.togglePanel("friends"));
-    this.banner.setOnGuildToggle(() => this.togglePanel("guild"));
-    this.banner.setOnMountToggle(() => this.togglePanel("mount"));
-    this.banner.setOnConquestToggle(() => this.togglePanel("conquest"));
-
-    // World map panel — covers the game render area (below banner z-order)
-    this.worldMapPanel = new WorldMapPanel(this.app);
-    const gameAreaH = Math.floor(DISPLAY_HEIGHT * baseZoom);
-    this.worldMapPanel.setArea(this.app.screen.width, gameAreaH);
-    this.worldMapPanel.setOnTeleport((mapId) => {
-      this.onMinimapTeleportCallback?.(mapId);
-    });
-    this.worldMapPanel.setOnClose(() => {
-      if (this.interactionHandler) {
-        this.interactionHandler.enabled = true;
-      }
-    });
-    this.app.stage.addChild(this.worldMapPanel.container);
-
-    // Banner — always on top of world map
-    this.app.stage.addChild(this.banner.getGraphics());
-
-    // Create all panels — anchored above the banner
-    this.statsPanel = new StatsPanel(baseZoom);
-    this.statsPanel.setOnBoostStat((statId) => {
+    this.hudManager.setOnBoostStat((statId) => {
       this.onBoostStatCallback?.(statId);
     });
-    this.app.stage.addChild(this.statsPanel.container);
-
-    this.spellsPanel = new SpellsPanel(baseZoom);
-    this.app.stage.addChild(this.spellsPanel.container);
-
-    this.inventoryPanel = new InventoryPanel(baseZoom);
-    this.app.stage.addChild(this.inventoryPanel.container);
-
-    this.questsPanel = new QuestsPanel(baseZoom);
-    this.app.stage.addChild(this.questsPanel.container);
-
-    this.friendsPanel = new FriendsPanel(baseZoom);
-    this.app.stage.addChild(this.friendsPanel.container);
-
-    this.guildPanel = new GuildPanel(baseZoom);
-    this.app.stage.addChild(this.guildPanel.container);
-
-    this.mountPanel = new MountPanel(baseZoom);
-    this.app.stage.addChild(this.mountPanel.container);
-
-    this.conquestPanel = new ConquestPanel(baseZoom);
-    this.app.stage.addChild(this.conquestPanel.container);
-
-    this.updatePanelPositions();
-
-    initTooltipBounds(this.app);
+    this.hudManager.setOnSitToggle(() => {
+      this.onSitToggleCallback?.();
+    });
 
     this.app.stage.eventMode = "static";
     this.mapContainer.eventMode = "static";
@@ -387,6 +320,11 @@ export class Battlefield {
     });
     this.interactionHandler.init();
     this.interactionHandler.setBaseZoom(this.engine.getBaseZoom());
+
+    // Now update HudManager with the interaction handler for world map toggle
+    if (this.hudManager) {
+      this.hudManager.setInteractionHandler(this.interactionHandler);
+    }
 
     this.app.stage.on("pointerdown", (e) => {
       if (this.isPointOverUI(e.global.x, e.global.y)) return;
@@ -416,6 +354,11 @@ export class Battlefield {
 
     // Initialize ECS world and wire to PixiJS Ticker
     await this.gameWorld.init();
+    this.gameWorld.setRenderContext(
+      this.mapContainer,
+      null,
+      this.characterSpriteLoader
+    );
     this.ecsTickerCallback = () => {
       this.gameWorld.execute();
     };
@@ -423,7 +366,7 @@ export class Battlefield {
     Ticker.shared.add(this.ecsTickerCallback);
 
     // Register renderers
-    this.rendererRegistry.register("banner", (e) => this.banner!.onResize(e));
+    this.rendererRegistry.register("banner", (e) => this.hudManager?.onBannerResize(e));
     this.rendererRegistry.register("debug-overlay", (e) =>
       this.debugOverlay!.onResize(e)
     );
@@ -435,7 +378,7 @@ export class Battlefield {
 
   /** Resolves when banner assets are fully loaded and drawn. */
   async waitForBannerLoaded(): Promise<void> {
-    await this.banner?.whenLoaded();
+    await this.hudManager?.waitForBannerLoaded();
   }
 
   /**
@@ -499,7 +442,7 @@ export class Battlefield {
     const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
     // Set zoom on loaders for crisp SVG rasterization at current zoom level
     this.atlasLoader.setZoom(zoom);
-    getCharacterSpriteLoader().setZoom(zoom);
+    this.characterSpriteLoader.setZoom(zoom);
     await this.mapHandler.renderMap(
       mapData,
       this.mapContainer,
@@ -512,8 +455,7 @@ export class Battlefield {
    * Load a map from already-parsed MapData (e.g., from server MAP_DATA).
    */
   updateMinimapPosition(mapId: number): void {
-    this.currentMapId = mapId;
-    this.banner?.updateMinimapPosition(mapId);
+    this.hudManager?.updateMinimapPosition(mapId);
   }
 
   async loadMapFromData(mapData: MapData, direction?: TransitionDirection): Promise<void> {
@@ -545,13 +487,28 @@ export class Battlefield {
 
     const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
     this.atlasLoader.setZoom(zoom);
-    getCharacterSpriteLoader().setZoom(zoom);
+    this.characterSpriteLoader.setZoom(zoom);
     await this.mapHandler.renderMap(
       mapData,
       this.mapContainer,
       zoom,
       this.getViewport()
     );
+
+    // Position grid at original depth 400: above Ground(200) + Object1(300), below Object2(800)
+    // From ExternalContainer.as: Ground=200, Object1=300, Grid=400, Object2=800
+    if (this.gridOverlay) {
+      const gridContainer = this.gridOverlay.getContainer();
+      const obj2 = this.mapHandler.getObjectLayer2();
+      // Remove grid first, then get fresh index of obj2
+      if (this.mapContainer.children.includes(gridContainer)) {
+        this.mapContainer.removeChild(gridContainer);
+      }
+      if (this.mapContainer.children.includes(obj2)) {
+        const obj2Index = this.mapContainer.getChildIndex(obj2);
+        this.mapContainer.addChildAt(gridContainer, obj2Index);
+      }
+    }
 
     // Update grid overlay with new map data
     this.gridOverlay?.setMapData(
@@ -627,20 +584,26 @@ export class Battlefield {
   private initWorldActorContainer(): void {
     if (!this.mapContainer) return;
 
-    // Destroy previous
+    // Destroy previous renderer (removes its fighter children from the container)
     if (this.worldActorRenderer) {
       this.worldActorRenderer.destroy();
       this.worldActorRenderer = null;
     }
-    if (this.worldActorContainer) {
-      this.mapContainer.removeChild(this.worldActorContainer);
-      this.worldActorContainer.destroy({ children: true });
+
+    // Add fighters directly to objectLayer2 so they interleave with foreground tiles
+    // by zIndex (fighters: cellId*100+30, Object2 tiles: cellId*100)
+    const objectLayer2 = this.mapHandler?.getObjectLayer2();
+    this.worldActorContainer = objectLayer2 ?? new Container();
+    if (!objectLayer2) {
+      this.worldActorContainer.label = "world-actors";
+      this.worldActorContainer.sortableChildren = true;
+      this.mapContainer.addChild(this.worldActorContainer);
     }
 
-    this.worldActorContainer = new Container();
-    this.worldActorContainer.label = "world-actors";
-    this.worldActorContainer.sortableChildren = true;
-    this.mapContainer.addChild(this.worldActorContainer);
+    // Re-apply transparency mode if it was active
+    if (this.transparencyMode) {
+      this.applyTransparencyMode();
+    }
 
     const mapWidth = this.currentMapData?.width ?? 15;
 
@@ -648,6 +611,7 @@ export class Battlefield {
       mapWidth,
       groundLevel: 7,
       cellDataMap: this.cellDataMap,
+      spriteLoader: this.characterSpriteLoader,
       pickingSystem: this.pickingSystem,
     });
 
@@ -726,7 +690,7 @@ export class Battlefield {
         }
       }
     } catch (error) {
-      console.error("Failed to load interactive objects:", error);
+      log.error("Failed to load interactive objects:", error);
     }
   }
 
@@ -855,7 +819,7 @@ export class Battlefield {
     try {
       // Opt #7: Try texture-swap first (much faster than full rebuild)
       if (this.mapHandler.hasSpriteRefs()) {
-        console.log("[Battlefield] Texture-swap zoom:", zoom);
+        log.debug("Texture-swap zoom:", zoom);
         this.mapContainer.scale.set(zoom);
         const success = await this.mapHandler.updateTexturesForZoom(zoom);
         if (success) {
@@ -867,7 +831,7 @@ export class Battlefield {
       // Full rebuild fallback
       this.atlasLoader.setZoom(zoom);
 
-      console.log("[Battlefield] Full re-render at zoom:", zoom);
+      log.debug("Full re-render at zoom:", zoom);
 
       this.clearPickableObjects();
       this.debugOverlay?.clear();
@@ -880,7 +844,7 @@ export class Battlefield {
         this.getViewport()
       );
     } catch (error) {
-      console.error("[Battlefield] Render error:", error);
+      log.error("Render error:", error);
     } finally {
       this.isRendering = false;
 
@@ -920,7 +884,7 @@ export class Battlefield {
     const gfxId = this.pickableIdToGfxId.get(result.object.id);
     if (gfxId) {
       const objData = this.interactiveObjectsData.get(gfxId);
-      console.log("Clicked interactive object:", gfxId, objData);
+      log.debug("Clicked interactive object:", gfxId, objData);
       if (this.isZaap(result.object.id)) {
         this.showZaapContextMenu(result.x, result.y);
       }
@@ -976,104 +940,7 @@ export class Battlefield {
    * Check if a screen point falls over an open UI panel.
    */
   private isPointOverUI(x: number, y: number): boolean {
-    if (this.worldMapPanel?.isVisible()) {
-      return true;
-    }
-    const panels = [
-      this.statsPanel,
-      this.spellsPanel,
-      this.inventoryPanel,
-      this.questsPanel,
-      this.friendsPanel,
-      this.guildPanel,
-      this.mountPanel,
-      this.conquestPanel,
-    ];
-    for (const panel of panels) {
-      if (panel?.isVisible()) {
-        const bounds = panel.container.getBounds();
-        if (
-          x >= bounds.x &&
-          x <= bounds.x + bounds.width &&
-          y >= bounds.y &&
-          y <= bounds.y + bounds.height
-        ) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  /** All managed panels mapped to their banner button key */
-  private get panelMap() {
-    return {
-      stats: { panel: this.statsPanel },
-      spells: { panel: this.spellsPanel },
-      inventory: { panel: this.inventoryPanel },
-      quests: { panel: this.questsPanel },
-      friends: { panel: this.friendsPanel },
-      guild: { panel: this.guildPanel },
-      mount: { panel: this.mountPanel },
-      conquest: { panel: this.conquestPanel },
-    } as const;
-  }
-
-  private closeAllPanels(): void {
-    const map = this.panelMap;
-    const keys = Object.keys(map) as Array<keyof typeof map>;
-    for (const key of keys) {
-      const { panel } = map[key];
-      if (panel?.isVisible()) {
-        panel.hide();
-      }
-    }
-  }
-
-  private togglePanel(key: keyof Battlefield["panelMap"]): void {
-    const map = this.panelMap;
-    const entry = map[key];
-    const wasVisible = entry.panel?.isVisible();
-    this.closeAllPanels();
-    if (!wasVisible) {
-      entry.panel?.show();
-    }
-  }
-
-  private updatePanelPositions(): void {
-    if (!this.app) return;
-    const zoom = this.engine.getBaseZoom();
-    const bannerY = Math.floor(DISPLAY_HEIGHT * zoom);
-
-    // Update world map panel area
-    this.worldMapPanel?.setArea(this.app.screen.width, bannerY);
-
-    // Position each panel above the banner, right-aligned
-    const screenW = this.app.screen.width;
-    const positionPanel = (
-      panel: {
-        rebuild: (z: number) => void;
-        setPosition: (x: number, y: number) => void;
-        panelW: number;
-        panelH: number;
-      } | null
-    ) => {
-      if (!panel) return;
-      panel.rebuild(zoom);
-      panel.setPosition(
-        Math.round(screenW - panel.panelW - 4),
-        Math.round(bannerY - panel.panelH)
-      );
-    };
-
-    positionPanel(this.statsPanel);
-    positionPanel(this.spellsPanel);
-    positionPanel(this.inventoryPanel);
-    positionPanel(this.questsPanel);
-    positionPanel(this.friendsPanel);
-    positionPanel(this.guildPanel);
-    positionPanel(this.mountPanel);
-    positionPanel(this.conquestPanel);
+    return this.hudManager?.isPointOverUI(x, y) ?? false;
   }
 
   setOnCellClick(callback: (cellId: number) => void): void {
@@ -1088,25 +955,24 @@ export class Battlefield {
     this.onBoostStatCallback = callback;
   }
 
+  setOnSitToggle(callback: () => void): void {
+    this.onSitToggleCallback = callback;
+  }
+
+  setWorldActorAnimation(id: number, animation: FighterAnimationValue): void {
+    this.worldActorRenderer?.setAnimation(id, animation);
+  }
+
   getStatsPanel(): StatsPanel | null {
-    return this.statsPanel;
+    return this.hudManager?.getStatsPanel() ?? null;
   }
 
   getInventoryPanel(): InventoryPanel | null {
-    return this.inventoryPanel;
+    return this.hudManager?.getInventoryPanel() ?? null;
   }
 
   getWorldMapPanel(): WorldMapPanel | null {
-    return this.worldMapPanel;
-  }
-
-  toggleWorldMap(): void {
-    this.closeAllPanels();
-    const wasVisible = this.worldMapPanel?.isVisible() ?? false;
-    this.worldMapPanel?.toggle(this.currentMapId ?? undefined);
-    if (this.interactionHandler) {
-      this.interactionHandler.enabled = wasVisible;
-    }
+    return this.hudManager?.getWorldMapPanel() ?? null;
   }
 
   private isZaap(pickableId: number): boolean {
@@ -1126,7 +992,7 @@ export class Battlefield {
     }
 
     const onUse = () => {
-      console.log("Zaap: Use action triggered");
+      log.debug("Zaap: Use action triggered");
     };
 
     this.currentContextMenu = new ZaapContextMenu(onUse);
@@ -1201,48 +1067,30 @@ export class Battlefield {
     this.stressTest?.stop();
     this.stressTest = null;
 
-    this.exitCombatMode();
+    this.combatUI?.destroy();
+    this.combatUI = null;
+
+    this.hudManager?.destroy();
+    this.hudManager = null;
 
     // Clean up renderer registry
     this.rendererRegistry.clear();
     this.interactiveCallbacks.clear();
 
-    // Clean up world actors
+    // Clean up world actors (renderer removes its fighters; container is objectLayer2 owned by mapHandler)
     this.worldActorRenderer?.destroy();
     this.worldActorRenderer = null;
-    if (this.worldActorContainer) {
-      this.worldActorContainer.destroy({ children: true });
-      this.worldActorContainer = null;
-    }
+    this.worldActorContainer = null;
 
     this.debugOverlay?.destroy();
     this.debugOverlay = null;
     this.gridOverlay?.destroy();
     this.gridOverlay = null;
 
-    this.statsPanel?.destroy();
-    this.statsPanel = null;
-    this.spellsPanel?.destroy();
-    this.spellsPanel = null;
-    this.inventoryPanel?.destroy();
-    this.inventoryPanel = null;
-    this.questsPanel?.destroy();
-    this.questsPanel = null;
-    this.friendsPanel?.destroy();
-    this.friendsPanel = null;
-    this.guildPanel?.destroy();
-    this.guildPanel = null;
-    this.mountPanel?.destroy();
-    this.mountPanel = null;
-    this.conquestPanel?.destroy();
-    this.conquestPanel = null;
-    this.worldMapPanel?.destroy();
-    this.worldMapPanel = null;
     this.interactionHandler?.destroy();
     this.pickingSystem?.destroy();
     this.atlasLoader?.clearCache();
     this.mapHandler?.clearCache();
-    this.banner?.destroy();
     this.engine.destroy();
   }
 
@@ -1267,6 +1115,24 @@ export class Battlefield {
    */
   toggleGridOverlay(): boolean {
     return this.gridOverlay?.toggle() ?? false;
+  }
+
+  toggleTransparency(): boolean {
+    this.transparencyMode = !this.transparencyMode;
+    this.applyTransparencyMode();
+    return this.transparencyMode;
+  }
+
+  private applyTransparencyMode(): void {
+    if (!this.worldActorRenderer) return;
+
+    if (this.transparencyMode) {
+      // Ghost view: boost fighter zIndex above all Object2 tiles + semi-transparent
+      this.worldActorRenderer.setGhostView(true);
+    } else {
+      // Normal: fighters interleave with Object2 by cell depth
+      this.worldActorRenderer.setGhostView(false);
+    }
   }
 
   /**
@@ -1300,113 +1166,54 @@ export class Battlefield {
    * Enter combat mode.
    */
   enterCombatMode(mode: CombatModeValue): void {
-    if (this.combatMode !== CombatMode.NONE) {
-      this.exitCombatMode();
+    if (!this.combatUI) {
+      this.combatUI = new CombatUI(
+        this.mapContainer,
+        this.cellDataMap,
+        this.pickingSystem,
+        this.rendererRegistry,
+        this.currentMapData,
+        this.characterSpriteLoader
+      );
     }
-
-    if (!this.mapContainer) {
-      return;
+    this.combatUI.enterCombatMode(mode);
+    // Update render context with combat container
+    if (this.mapContainer) {
+      this.gameWorld.setRenderContext(
+        this.mapContainer,
+        this.combatUI.getCombatContainer(),
+        this.characterSpriteLoader
+      );
     }
-
-    this.combatMode = mode;
-
-    // Create combat container for all combat-related rendering
-    this.combatContainer = new Container();
-    this.combatContainer.label = "combat-container";
-    this.combatContainer.sortableChildren = true;
-    this.mapContainer.addChild(this.combatContainer);
-
-    // Initialize combat renderers
-    const mapWidth = this.currentMapData?.width ?? 15;
-    const groundLevel = 7;
-
-    this.cellHighlighter = new CellHighlighter(this.combatContainer, {
-      mapWidth,
-      groundLevel,
-      cellDataMap: this.cellDataMap,
-    });
-
-    this.fighterRenderer = new FighterRenderer(this.combatContainer, {
-      mapWidth,
-      groundLevel,
-      cellDataMap: this.cellDataMap,
-      pickingSystem: this.pickingSystem,
-    });
-
-    this.damageRenderer = new DamageRenderer(this.combatContainer, {
-      mapWidth,
-      groundLevel,
-      cellDataMap: this.cellDataMap,
-    });
-
-    this.spellRenderer = new SpellRenderer(this.combatContainer, {
-      mapWidth,
-      groundLevel,
-      cellDataMap: this.cellDataMap,
-    });
-
-    // Register combat renderers
-    this.rendererRegistry.register("cell-highlighter", (e) =>
-      this.cellHighlighter!.onResize(e)
-    );
-    this.rendererRegistry.register("fighter-renderer", (e) =>
-      this.fighterRenderer!.onResize(e)
-    );
-    this.rendererRegistry.register("damage-renderer", (e) =>
-      this.damageRenderer!.onResize(e)
-    );
-    this.rendererRegistry.register("spell-renderer", (e) =>
-      this.spellRenderer!.onResize(e)
-    );
   }
 
   /**
    * Exit combat mode and cleanup.
    */
   exitCombatMode(): void {
-    if (this.combatMode === CombatMode.NONE) {
-      return;
+    this.combatUI?.exitCombatMode();
+    // Clear combat container from render context
+    if (this.mapContainer) {
+      this.gameWorld.setRenderContext(
+        this.mapContainer,
+        null,
+        this.characterSpriteLoader
+      );
     }
-
-    this.spellRenderer?.destroy();
-    this.spellRenderer = null;
-
-    this.damageRenderer?.destroy();
-    this.damageRenderer = null;
-
-    this.fighterRenderer?.destroy();
-    this.fighterRenderer = null;
-
-    this.cellHighlighter?.destroy();
-    this.cellHighlighter = null;
-
-    // Clean up combat renderer registrations
-    this.rendererRegistry.unregister("cell-highlighter");
-    this.rendererRegistry.unregister("fighter-renderer");
-    this.rendererRegistry.unregister("damage-renderer");
-    this.rendererRegistry.unregister("spell-renderer");
-
-    if (this.combatContainer) {
-      this.mapContainer?.removeChild(this.combatContainer);
-      this.combatContainer.destroy({ children: true });
-      this.combatContainer = null;
-    }
-
-    this.combatMode = CombatMode.NONE;
   }
 
   /**
    * Get current combat mode.
    */
   getCombatMode(): CombatModeValue {
-    return this.combatMode;
+    return (this.combatUI?.getCombatMode() ?? CombatMode.NONE) as CombatModeValue;
   }
 
   /**
    * Check if in combat mode.
    */
   isInCombat(): boolean {
-    return this.combatMode !== CombatMode.NONE;
+    return this.combatUI?.isInCombat() ?? false;
   }
 
   // ============================================================================
@@ -1417,53 +1224,49 @@ export class Battlefield {
    * Add a fighter to the battlefield.
    */
   addFighter(data: FighterSpriteData): void {
-    this.fighterRenderer?.addFighter(data);
+    this.combatUI?.addFighter(data);
   }
 
   /**
    * Remove a fighter from the battlefield.
    */
   removeFighter(id: number): void {
-    this.fighterRenderer?.removeFighter(id);
+    this.combatUI?.removeFighter(id);
   }
 
   /**
    * Update fighter data.
    */
   updateFighter(id: number, data: Partial<FighterSpriteData>): void {
-    this.fighterRenderer?.updateFighter(id, data);
+    this.combatUI?.updateFighter(id, data);
   }
 
   /**
    * Move fighter along a path.
    */
   async moveFighter(id: number, path: number[]): Promise<void> {
-    if (!this.fighterRenderer) {
-      return;
-    }
-
-    await this.fighterRenderer.moveFighter(id, path);
+    await this.combatUI?.moveFighter(id, path);
   }
 
   /**
    * Teleport fighter to a cell.
    */
   teleportFighter(id: number, cellId: number): void {
-    this.fighterRenderer?.teleportFighter(id, cellId);
+    this.combatUI?.teleportFighter(id, cellId);
   }
 
   /**
    * Set fighter animation.
    */
   setFighterAnimation(id: number, animation: FighterAnimationValue): void {
-    this.fighterRenderer?.setAnimation(id, animation);
+    this.combatUI?.setFighterAnimation(id, animation);
   }
 
   /**
    * Set fighter direction.
    */
   setFighterDirection(id: number, direction: number): void {
-    this.fighterRenderer?.setDirection(id, direction);
+    this.combatUI?.setFighterDirection(id, direction);
   }
 
   // ============================================================================
@@ -1474,74 +1277,63 @@ export class Battlefield {
    * Highlight cells.
    */
   highlightCells(cellIds: number[], type: HighlightTypeValue): void {
-    this.cellHighlighter?.highlightCells(cellIds, type);
+    this.combatUI?.highlightCells(cellIds, type);
   }
 
   /**
    * Highlight a single cell.
    */
   highlightCell(cellId: number, type: HighlightTypeValue): void {
-    this.cellHighlighter?.highlightCell(cellId, type);
+    this.combatUI?.highlightCell(cellId, type);
   }
 
   /**
    * Clear highlights of a specific type.
    */
   clearHighlightType(type: HighlightTypeValue): void {
-    this.cellHighlighter?.clearHighlightType(type);
+    this.combatUI?.clearHighlightType(type);
   }
 
   /**
    * Clear all highlights.
    */
   clearAllHighlights(): void {
-    this.cellHighlighter?.clearAll();
+    this.combatUI?.clearAllHighlights();
   }
 
   /**
    * Show movement range for a fighter.
    */
   showMovementRange(cellIds: number[]): void {
-    this.cellHighlighter?.clearHighlightType(HighlightType.MOVEMENT);
-    this.cellHighlighter?.highlightCells(cellIds, HighlightType.MOVEMENT);
+    this.combatUI?.showMovementRange(cellIds);
   }
 
   /**
    * Show spell range.
    */
   showSpellRange(cellIds: number[]): void {
-    this.cellHighlighter?.clearHighlightType(HighlightType.SPELL_RANGE);
-    this.cellHighlighter?.highlightCells(cellIds, HighlightType.SPELL_RANGE);
+    this.combatUI?.showSpellRange(cellIds);
   }
 
   /**
    * Show spell zone (area of effect).
    */
   showSpellZone(cellIds: number[]): void {
-    this.cellHighlighter?.clearHighlightType(HighlightType.SPELL_ZONE);
-    this.cellHighlighter?.highlightCells(cellIds, HighlightType.SPELL_ZONE);
+    this.combatUI?.showSpellZone(cellIds);
   }
 
   /**
    * Show placement cells.
    */
   showPlacementCells(allyCells: number[], enemyCells: number[]): void {
-    this.cellHighlighter?.highlightCells(
-      allyCells,
-      HighlightType.PLACEMENT_ALLY
-    );
-    this.cellHighlighter?.highlightCells(
-      enemyCells,
-      HighlightType.PLACEMENT_ENEMY
-    );
+    this.combatUI?.showPlacementCells(allyCells, enemyCells);
   }
 
   /**
    * Clear placement highlights.
    */
   clearPlacementHighlights(): void {
-    this.cellHighlighter?.clearHighlightType(HighlightType.PLACEMENT_ALLY);
-    this.cellHighlighter?.clearHighlightType(HighlightType.PLACEMENT_ENEMY);
+    this.combatUI?.clearPlacementHighlights();
   }
 
   // ============================================================================
@@ -1552,18 +1344,14 @@ export class Battlefield {
    * Play spell animation.
    */
   async playSpell(config: SpellAnimationConfig): Promise<void> {
-    if (!this.spellRenderer) {
-      return;
-    }
-
-    await this.spellRenderer.playSpell(config);
+    await this.combatUI?.playSpell(config);
   }
 
   /**
    * Show damage number.
    */
   showDamage(config: DamageDisplayConfig): void {
-    this.damageRenderer?.showDamage(config);
+    this.combatUI?.showDamage(config);
   }
 
   /**
@@ -1575,25 +1363,14 @@ export class Battlefield {
     element?: number,
     critical?: boolean
   ): void {
-    this.damageRenderer?.showDamage({
-      cellId,
-      value,
-      type: DamageType.DAMAGE,
-      element,
-      critical,
-    });
+    this.combatUI?.showDamageAtCell(cellId, value, element, critical);
   }
 
   /**
    * Show healing on a cell.
    */
   showHealAtCell(cellId: number, value: number, critical?: boolean): void {
-    this.damageRenderer?.showDamage({
-      cellId,
-      value,
-      type: DamageType.HEAL,
-      critical,
-    });
+    this.combatUI?.showHealAtCell(cellId, value, critical);
   }
 
   // ============================================================================
@@ -1604,30 +1381,21 @@ export class Battlefield {
    * Update combat renderers with camera offset.
    */
   updateCombatOffset(x: number, y: number): void {
-    this.cellHighlighter?.setOffset(x, y);
-    this.fighterRenderer?.setOffset(x, y);
-    this.damageRenderer?.setOffset(x, y);
-    this.spellRenderer?.setOffset(x, y);
+    this.combatUI?.updateCombatOffset(x, y);
   }
 
   /**
    * Update combat renderers with scale.
    */
   updateCombatScale(scale: number): void {
-    this.cellHighlighter?.setScale(scale);
-    this.fighterRenderer?.setScale(scale);
-    this.damageRenderer?.setScale(scale);
-    this.spellRenderer?.setScale(scale);
+    this.combatUI?.updateCombatScale(scale);
   }
 
   /**
    * Update map dimensions for combat renderers.
    */
   updateCombatMapDimensions(width: number, groundLevel?: number): void {
-    this.cellHighlighter?.setMapDimensions(width, groundLevel);
-    this.fighterRenderer?.setMapDimensions(width, groundLevel);
-    this.damageRenderer?.setMapDimensions(width, groundLevel);
-    this.spellRenderer?.setMapDimensions(width, groundLevel);
+    this.combatUI?.updateCombatMapDimensions(width, groundLevel);
   }
 
   // ============================================================================
@@ -1638,37 +1406,34 @@ export class Battlefield {
    * Get the cell highlighter.
    */
   getCellHighlighter(): CellHighlighter | null {
-    return this.cellHighlighter;
+    return this.combatUI?.getCellHighlighter() ?? null;
   }
 
   /**
    * Get the fighter renderer.
    */
   getFighterRenderer(): FighterRenderer | null {
-    return this.fighterRenderer;
+    return this.combatUI?.getFighterRenderer() ?? null;
   }
 
   /**
    * Get the damage renderer.
    */
   getDamageRenderer(): DamageRenderer | null {
-    return this.damageRenderer;
+    return this.combatUI?.getDamageRenderer() ?? null;
   }
 
   /**
    * Get the spell renderer.
    */
   getSpellRenderer(): SpellRenderer | null {
-    return this.spellRenderer;
+    return this.combatUI?.getSpellRenderer() ?? null;
   }
 
   /**
    * Clear all combat visuals (fighters, highlights, damage).
    */
   clearCombatVisuals(): void {
-    this.cellHighlighter?.clearAll();
-    this.fighterRenderer?.clear();
-    this.damageRenderer?.clear();
-    this.spellRenderer?.clear();
+    this.combatUI?.clearCombatVisuals();
   }
 }

@@ -14,6 +14,10 @@ import { getAdjacentMaps, getCompressedMap, getMap, mapExists } from "../maps/ma
 import { getPathfinding } from "../maps/pathfinding.ts";
 import { encodeServerMessage } from "../protocol/codec.ts";
 import { ServerMessageType } from "../protocol/types.ts";
+import { createLogger } from "../utils/logger.ts";
+
+const log = createLogger("Map");
+const MAX_TRIGGER_CACHE_SIZE = 200;
 
 export interface MapTrigger {
   targetMapId: number;
@@ -46,6 +50,14 @@ async function loadMapTriggers(
       targetMapId: Number.parseInt(parts[0], 10),
       targetCellId: Number.parseInt(parts[1], 10),
     });
+  }
+
+  // Evict oldest if cache exceeds limit
+  if (triggerCache.size >= MAX_TRIGGER_CACHE_SIZE) {
+    const firstKey = triggerCache.keys().next().value;
+    if (firstKey !== undefined) {
+      triggerCache.delete(firstKey);
+    }
   }
 
   triggerCache.set(mapId, triggers);

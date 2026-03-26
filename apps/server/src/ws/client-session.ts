@@ -1,3 +1,7 @@
+import { createLogger } from "../utils/logger.ts";
+
+const log = createLogger("Session");
+
 export interface WsHandle {
   send(data: string | Uint8Array | ArrayBuffer): void;
   subscribe(topic: string): void;
@@ -58,8 +62,8 @@ export function transitionTo(
 ): boolean {
   const allowed = VALID_TRANSITIONS[session.state];
   if (!allowed?.includes(targetState)) {
-    console.warn(
-      `[Session] Invalid transition: ${session.state} → ${targetState} for ${session.sessionId}`
+    log.warn(
+      `Invalid transition: ${session.state} → ${targetState} for ${session.sessionId}`
     );
     return false;
   }

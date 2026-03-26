@@ -1,112 +1,20 @@
-import { Assets, Rectangle, type Renderer, Texture } from "pixi.js";
+import { Rectangle, type Renderer, Texture } from "pixi.js";
 
 import type { FrameInfo, TileBehavior, TileManifest } from "@/types";
+import { createLogger } from "@/utils/logger";
 
 import { getLoadProgress } from "./load-progress";
+import { AtlasCache, type AtlasManifest, type CachedTileData, type SpritesheetManifest } from "./atlas-cache";
+
+const log = createLogger("AtlasLoader");
 import { loadSvg } from "./load-svg";
 import { registerSvgStrokeLoader } from "./svg-stroke-loader";
 
 // Register the custom SVG loader on module load
 registerSvgStrokeLoader();
 
-/**
- * Spritesheet manifest format (per-tile manifest.json)
- */
-interface SpritesheetManifest {
-  version: number;
-  spriteId: string;
-  /** Tile behavior from tile-classifications.json (embedded by spritesheet compiler) */
-  behavior?: TileBehavior;
-  /** Animation fps hint from classification */
-  fps_hint?: number;
-  /** Whether to autoplay animations */
-  autoplay?: boolean;
-  /** Whether animations loop */
-  loop?: boolean;
-  animations: Record<
-    string,
-    AtlasManifest & {
-      file: string;
-    }
-  >;
-}
-
-/**
- * Atlas manifest format (atlas.json)
- */
-interface AtlasManifest {
-  version: number;
-  animation: string;
-  width: number;
-  height: number;
-  /** Positioning offset for placing the sprite in the game world */
-  offsetX: number;
-  offsetY: number;
-  frames: Array<{
-    id: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    /** Trim offset within the frame (viewBox origin) */
-    offsetX: number;
-    offsetY: number;
-    /** For multi-page atlases: index into pages[]. Absent = page 0. */
-    page?: number;
-  }>;
-  frameOrder: string[];
-  duplicates: Record<string, string>;
-  fps: number;
-  /** Base frame for base/delta splitting (shared static elements) */
-  baseFrame?: {
-    id: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    offsetX: number;
-    offsetY: number;
-    page?: number;
-  };
-  /** Whether the base renders "above" or "below" the delta */
-  baseZOrder?: "above" | "below";
-  /** Multi-page atlas: SVG files with their dimensions. Absent = single atlas.svg. */
-  pages?: Array<{ file: string; width: number; height: number }>;
-}
-
-/**
- * Cached tile data
- */
-interface CachedTileData {
-  manifest: SpritesheetManifest;
-  atlas: AtlasManifest;
-  /** Base textures keyed by zoom level. Array has one entry per page (single-page = [texture]). */
-  baseTextures: Map<number, Texture[]>;
-}
-
-/**
- * LRU cache entry with texture and approximate memory size
- */
-interface LRUCacheEntry {
-  texture: Texture;
-  memoryBytes: number;
-}
-
-/**
- * LRU cache configuration
- */
-const LRU_CACHE_CONFIG = {
-  /** Maximum memory in bytes (200MB) */
-  maxMemoryBytes: 200 * 1024 * 1024,
-  /** Bytes per pixel (RGBA = 4 bytes) */
-  bytesPerPixel: 4,
-};
-
 export class AtlasLoader {
-  private frameCache = new Map<string, LRUCacheEntry>();
-  private frameCacheMemoryBytes = 0;
-  private tileDataCache = new Map<string, CachedTileData>();
-  private tileManifestCache = new Map<string, TileManifest>();
+  private cache: AtlasCache;
   private pendingTileDataLoads = new Map<
     string,
     Promise<CachedTileData | null>
@@ -114,11 +22,10 @@ export class AtlasLoader {
   private pendingBaseTextureLoads = new Map<string, Promise<Texture[] | null>>();
   private basePath: string;
   private currentZoom = 1;
-  /** Track PixiJS Assets cache aliases for proper cleanup */
-  private loadedAssetAliases = new Set<string>();
 
   constructor(_renderer: Renderer, basePath = "/assets/spritesheets") {
     this.basePath = basePath;
+    this.cache = new AtlasCache();
   }
 
   /**
@@ -136,70 +43,6 @@ export class AtlasLoader {
     return this.currentZoom;
   }
 
-  /**
-   * Estimate memory usage for a texture in bytes
-   */
-  private estimateTextureMemory(texture: Texture): number {
-    const width = texture.frame?.width ?? texture.width ?? 0;
-    const height = texture.frame?.height ?? texture.height ?? 0;
-    return width * height * LRU_CACHE_CONFIG.bytesPerPixel;
-  }
-
-  /**
-   * Add entry to LRU frame cache, evicting old entries if needed
-   */
-  private addToFrameCache(key: string, texture: Texture): void {
-    const memoryBytes = this.estimateTextureMemory(texture);
-
-    // Evict old entries if cache is too large
-    while (
-      this.frameCacheMemoryBytes + memoryBytes >
-        LRU_CACHE_CONFIG.maxMemoryBytes &&
-      this.frameCache.size > 0
-    ) {
-      this.evictOldestFrame();
-    }
-
-    // Add new entry (Map insertion order = LRU order)
-    this.frameCache.set(key, { texture, memoryBytes });
-    this.frameCacheMemoryBytes += memoryBytes;
-  }
-
-  /**
-   * Get texture from LRU cache, updating access order
-   */
-  private getFromFrameCache(key: string): Texture | null {
-    const entry = this.frameCache.get(key);
-
-    if (!entry) {
-      return null;
-    }
-
-    // Move to end of Map iteration order (most recently used) — O(1)
-    this.frameCache.delete(key);
-    this.frameCache.set(key, entry);
-
-    return entry.texture;
-  }
-
-  /**
-   * Evict the least recently used frame from cache
-   * Does NOT destroy textures - just removes from cache and lets GC handle cleanup
-   * This prevents WebGPU errors from destroying textures still in use by the GPU
-   */
-  private evictOldestFrame(): void {
-    // Map iterates in insertion order — first key is the oldest (LRU)
-    const oldest = this.frameCache.entries().next();
-
-    if (oldest.done) {
-      return;
-    }
-
-    const [oldestKey, entry] = oldest.value;
-    this.frameCacheMemoryBytes -= entry.memoryBytes;
-    this.frameCache.delete(oldestKey);
-    // Don't destroy texture - let GC handle it to avoid GPU conflicts
-  }
 
   /**
    * Load tile data (manifest + atlas) for a tile
@@ -207,8 +50,8 @@ export class AtlasLoader {
    */
   private async loadTileData(tileKey: string): Promise<CachedTileData | null> {
     // Return from cache if available
-    if (this.tileDataCache.has(tileKey)) {
-      return this.tileDataCache.get(tileKey)!;
+    if (this.cache.hasTileData(tileKey)) {
+      return this.cache.getTileData(tileKey)!;
     }
 
     // Return pending promise if request is already in-flight
@@ -250,10 +93,10 @@ export class AtlasLoader {
         baseTextures: new Map(),
       };
 
-      this.tileDataCache.set(tileKey, data);
+      this.cache.setTileData(tileKey, data);
       return data;
     } catch (e) {
-      console.warn(`[AtlasLoader] Failed to load tile data for ${tileKey}:`, e);
+      log.warn(`Failed to load tile data for ${tileKey}:`, e);
       return null;
     }
   }
@@ -340,7 +183,7 @@ export class AtlasLoader {
               effectiveScale,
               alias,
             );
-            this.loadedAssetAliases.add(alias);
+            this.cache.registerAssetAlias(alias);
             return texture;
           })
         );
@@ -358,21 +201,21 @@ export class AtlasLoader {
           effectiveScale,
           cacheAlias,
         );
-        this.loadedAssetAliases.add(cacheAlias);
+        this.cache.registerAssetAlias(cacheAlias);
         textures = [texture];
       }
 
       data.baseTextures.set(zoomKey, textures);
       return textures;
     } catch (e) {
-      console.warn(`[AtlasLoader] Failed to load SVG for ${tileKey}:`, e);
+      log.warn(`Failed to load SVG for ${tileKey}:`, e);
       return null;
     }
   }
 
   async loadTileManifest(tileKey: string): Promise<TileManifest | null> {
-    if (this.tileManifestCache.has(tileKey)) {
-      return this.tileManifestCache.get(tileKey)!;
+    if (this.cache.hasTileManifest(tileKey)) {
+      return this.cache.getTileManifest(tileKey)!;
     }
 
     const data = await this.loadTileData(tileKey);
@@ -386,7 +229,7 @@ export class AtlasLoader {
       data,
       type as "ground" | "objects"
     );
-    this.tileManifestCache.set(tileKey, tileManifest);
+    this.cache.setTileManifest(tileKey, tileManifest);
     return tileManifest;
   }
 
@@ -474,7 +317,7 @@ export class AtlasLoader {
     const cacheKey = `${tileKey}:${zoomKey}:${frameIndex}`;
 
     // Check LRU cache first
-    const cachedTexture = this.getFromFrameCache(cacheKey);
+    const cachedTexture = this.cache.getFromFrameCache(cacheKey);
 
     if (cachedTexture) {
       return cachedTexture;
@@ -537,7 +380,7 @@ export class AtlasLoader {
     });
 
     // Add to LRU cache
-    this.addToFrameCache(cacheKey, texture);
+    this.cache.addToFrameCache(cacheKey, texture);
     return texture;
   }
 
@@ -571,7 +414,7 @@ export class AtlasLoader {
   }
 
   getTileManifest(tileKey: string): TileManifest | undefined {
-    return this.tileManifestCache.get(tileKey);
+    return this.cache.getTileManifest(tileKey);
   }
 
   /**
@@ -579,12 +422,12 @@ export class AtlasLoader {
    * Returns null if data not cached. Call prefetchTiles() first to populate.
    */
   getTileManifestSync(tileKey: string): TileManifest | null {
-    if (this.tileManifestCache.has(tileKey)) {
-      return this.tileManifestCache.get(tileKey)!;
+    if (this.cache.hasTileManifest(tileKey)) {
+      return this.cache.getTileManifest(tileKey)!;
     }
 
     // Try to compute from tile data cache
-    const data = this.tileDataCache.get(tileKey);
+    const data = this.cache.getTileData(tileKey);
 
     if (!data) {
       return null;
@@ -596,7 +439,7 @@ export class AtlasLoader {
       type as "ground" | "objects"
     );
 
-    this.tileManifestCache.set(tileKey, tileManifest);
+    this.cache.setTileManifest(tileKey, tileManifest);
     return tileManifest;
   }
 
@@ -613,14 +456,14 @@ export class AtlasLoader {
     const cacheKey = `${tileKey}:${zoomKey}:${frameIndex}`;
 
     // Check LRU cache first
-    const cachedTexture = this.getFromFrameCache(cacheKey);
+    const cachedTexture = this.cache.getFromFrameCache(cacheKey);
 
     if (cachedTexture) {
       return cachedTexture;
     }
 
     // Get from sync caches (populated by prefetchTiles)
-    const data = this.tileDataCache.get(tileKey);
+    const data = this.cache.getTileData(tileKey);
 
     if (!data) {
       return null;
@@ -677,7 +520,7 @@ export class AtlasLoader {
     });
 
     // Add to LRU cache
-    this.addToFrameCache(cacheKey, texture);
+    this.cache.addToFrameCache(cacheKey, texture);
     return texture;
   }
 
@@ -689,10 +532,10 @@ export class AtlasLoader {
     const zoomKey = this.getEffectiveZoomKey();
     const cacheKey = `${tileKey}:${zoomKey}:__base__`;
 
-    const cachedTexture = this.getFromFrameCache(cacheKey);
+    const cachedTexture = this.cache.getFromFrameCache(cacheKey);
     if (cachedTexture) return cachedTexture;
 
-    const data = this.tileDataCache.get(tileKey);
+    const data = this.cache.getTileData(tileKey);
     if (!data) return null;
 
     const bf = data.atlas.baseFrame;
@@ -727,7 +570,7 @@ export class AtlasLoader {
       frame: new Rectangle(frameX, frameY, frameW, frameH),
     });
 
-    this.addToFrameCache(cacheKey, texture);
+    this.cache.addToFrameCache(cacheKey, texture);
     return texture;
   }
 
@@ -779,41 +622,25 @@ export class AtlasLoader {
   }
 
   clearFrameCache(): void {
-    // Just clear references - let GC handle texture cleanup to avoid GPU conflicts
-    this.frameCache.clear();
-    this.frameCacheMemoryBytes = 0;
+    this.cache.clearFrameCache();
   }
 
   /**
    * Get current frame cache memory usage in bytes
    */
   getFrameCacheMemoryBytes(): number {
-    return this.frameCacheMemoryBytes;
+    return this.cache.getFrameCacheMemoryBytes();
   }
 
   /**
    * Get current frame cache entry count
    */
   getFrameCacheEntryCount(): number {
-    return this.frameCache.size;
+    return this.cache.getFrameCacheEntryCount();
   }
 
   clearCache(): void {
-    this.clearFrameCache();
-
-    // Clear base texture references - let GC handle cleanup
-    for (const data of this.tileDataCache.values()) {
-      data.baseTextures.clear();
-    }
-
-    // Unload from PixiJS Assets cache
-    for (const alias of this.loadedAssetAliases) {
-      Assets.unload(alias);
-    }
-    this.loadedAssetAliases.clear();
-
-    this.tileDataCache.clear();
-    this.tileManifestCache.clear();
+    this.cache.clearAll();
   }
 
   /**
@@ -821,20 +648,7 @@ export class AtlasLoader {
    * Does NOT destroy textures - lets GC handle cleanup to avoid GPU conflicts
    */
   clearZoomCache(zoom: number): void {
-    const zoomKey = Math.round(zoom * 100) / 100;
-
-    // Clear frame cache entries for this zoom
-    for (const [key, entry] of this.frameCache.entries()) {
-      if (key.includes(`:${zoomKey}:`)) {
-        this.frameCacheMemoryBytes -= entry.memoryBytes;
-        this.frameCache.delete(key);
-      }
-    }
-
-    // Clear base textures for this zoom - let GC handle cleanup
-    for (const data of this.tileDataCache.values()) {
-      data.baseTextures.delete(zoomKey);
-    }
+    this.cache.clearZoomLevel(zoom);
   }
 
   /**

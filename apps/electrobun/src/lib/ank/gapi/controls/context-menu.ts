@@ -1,3 +1,4 @@
+import { createLogger } from "@/utils/logger";
 import {
   CanvasTextMetrics,
   Container,
@@ -148,7 +149,7 @@ export class ZaapContextMenu {
   }
 
   private onRowClicked(label: string): void {
-    console.log(`Zaap context menu: ${label} clicked`);
+    createLogger("ContextMenu").debug(`Zaap context menu: ${label} clicked`);
     this.hide();
 
     // Handle "Use" button click

@@ -1,4 +1,7 @@
 import type { AtlasLoader } from "@/render/atlas-loader";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("AdjacentMapCache");
 
 import { loadMapDataFromServer, type MapData, type ServerMapDataPayload } from "./datacenter/map";
 
@@ -62,7 +65,7 @@ export class AdjacentMapCache {
           mapData,
         });
       } catch (err) {
-        console.warn(`[AdjacentMapCache] Failed to decode map ${entry.mapId}:`, err);
+        log.warn(`Failed to decode map ${entry.mapId}:`, err);
       }
     }
 

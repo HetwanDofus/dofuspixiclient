@@ -3,15 +3,12 @@ import { System, system } from "@lastolivegames/becsy";
 import { Container, Graphics, Sprite, Text, TextStyle } from "pixi.js";
 
 import {
-  getCharacterSpriteLoader,
-} from "@/ank/battlefield/character-sprite";
-import {
   ActorTag,
   CellPosition,
   FighterLook,
-  RenderContext,
   SpriteState,
 } from "@/ecs/components";
+import { sharedRenderContext } from "@/ecs/world";
 
 @system
 export class EntityLifecycleSystem extends System {
@@ -26,7 +23,6 @@ export class EntityLifecycleSystem extends System {
   private exiting = this.query(
     (q) => q.removed.with(ActorTag).read.with(SpriteState).write
   );
-  private renderCtx = this.singleton.read(RenderContext);
 
   execute(): void {
     // Handle new actors
@@ -74,7 +70,7 @@ export class EntityLifecycleSystem extends System {
       container.zIndex = cellPos.cellId * 100 + 30;
 
       // Add to actors container
-      const actorsContainer = this.renderCtx.actorsContainer;
+      const actorsContainer = sharedRenderContext.actorsContainer;
       if (actorsContainer) {
         actorsContainer.addChild(container);
       }
@@ -104,7 +100,12 @@ export class EntityLifecycleSystem extends System {
     if (spriteState.spriteLoading) return;
     spriteState.spriteLoading = true;
 
-    const loader = getCharacterSpriteLoader();
+    const loader = sharedRenderContext.spriteLoader;
+    if (!loader) {
+      spriteState.spriteLoading = false;
+      return;
+    }
+
     const result = await loader.loadAnimationWithFallback(
       spriteState.gfxId,
       "static",

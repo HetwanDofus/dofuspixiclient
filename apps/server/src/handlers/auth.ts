@@ -25,7 +25,11 @@ import {
   SessionState,
   transitionTo,
 } from "../ws/client-session.ts";
+import { requireAuthenticated } from "../ws/guards.ts";
+import { createLogger } from "../utils/logger.ts";
 import { sendCharacterStats } from "./stats.ts";
+
+const log = createLogger("Auth");
 
 export async function handleLogin(
   session: ClientSession,
@@ -74,10 +78,11 @@ export async function handleCharacterSelect(
   session: ClientSession,
   payload: CharacterSelectPayload
 ): Promise<void> {
-  if (!session.accountId) return;
+  if (!requireAuthenticated(session)) return;
 
   const character = await getCharacterById(payload.characterId);
   if (!character || character.account_id !== session.accountId) {
+    log.warn(`Character not found or unauthorized access attempt`);
     session.ws.send(
       encodeServerMessage(ServerMessageType.ERROR, {
         reason: "Character not found",

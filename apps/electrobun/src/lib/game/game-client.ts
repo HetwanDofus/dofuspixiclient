@@ -1,6 +1,7 @@
 import { match } from "ts-pattern";
 import type { Battlefield } from "@/ank/battlefield";
-import type { GameWorld } from "@/ecs/world";
+import { FighterAnimation } from "@/ank/battlefield/fighter-animation";
+import { createLogger } from "@/utils/logger";
 import {
   loadMapDataFromServer,
   type ServerMapDataPayload,
@@ -18,9 +19,12 @@ import {
   type ActorMovePayload,
   type ActorRemovePayload,
   type AdjacentMapsPayload,
+  type AuthSuccessPayload,
+  type CharacterInfoPayload,
   type CharacterStatsPayload,
+  type MapActorsPayload,
   ClientMessageType,
-  encodeMessage,
+  encodeClientMessage,
   ServerMessageType,
 } from "@/network/protocol";
 import type { CharacterStats } from "@/types/stats";
@@ -40,6 +44,8 @@ export interface GameClientConfig {
   serverUrl?: string;
 }
 
+const log = createLogger("GameClient");
+
 export class GameClient {
   private connection: Connection;
   private messageHandler: MessageHandler;
@@ -51,8 +57,8 @@ export class GameClient {
   private currentCellId: number | null = null;
   private pathfinding: DofusPathfinding | null = null;
   private isMoving = false;
+  private isSitting = false;
   private mapLoadPromise: Promise<void> = Promise.resolve();
-  private gameWorld: GameWorld | null = null;
   private currentStats: CharacterStats | null = null;
   private audioManager: AudioManager;
 
@@ -78,11 +84,11 @@ export class GameClient {
     this.connection.addEventListener((event: ConnectionEvent) => {
       match(event)
         .with({ type: "connected" }, () => {
-          console.log("[GameClient] Connected to server");
+          log.info("Connected to server");
           this.onConnected?.();
         })
         .with({ type: "disconnected" }, (e) => {
-          console.log("[GameClient] Disconnected:", e.reason);
+          log.info("Disconnected:", e.reason);
           this.onDisconnected?.();
         })
         .with({ type: "message" }, (e) => {
@@ -95,21 +101,18 @@ export class GameClient {
   }
 
   private registerHandlers(): void {
-    // AUTH_SUCCESS — receive character list
-    this.messageHandler.on(ServerMessageType.AUTH_SUCCESS, (payload: any) => {
+    this.messageHandler.on(ServerMessageType.AUTH_SUCCESS, (payload: AuthSuccessPayload) => {
       this.accountCharacters = payload.characters ?? [];
-      console.log("[GameClient] Login success, characters:", this.accountCharacters.length);
+      log.info("Login success, characters:", this.accountCharacters.length);
       this.onCharacterList?.(this.accountCharacters);
     });
 
-    // AUTH_FAILURE
-    this.messageHandler.on(ServerMessageType.AUTH_FAILURE, (payload: any) => {
-      console.error("[GameClient] Login failed:", payload.reason);
+    this.messageHandler.on(ServerMessageType.AUTH_FAILURE, (payload) => {
+      log.error("Login failed:", payload.reason);
       this.onLoginFailed?.(payload.reason);
     });
 
-    // CHARACTER_INFO — character selected, receive full info
-    this.messageHandler.on(ServerMessageType.CHARACTER_INFO, (payload: any) => {
+    this.messageHandler.on(ServerMessageType.CHARACTER_INFO, (payload: CharacterInfoPayload) => {
       this.currentCharacter = {
         id: payload.id,
         name: payload.name,
@@ -122,28 +125,21 @@ export class GameClient {
       };
       this.currentMapId = payload.mapId;
       this.currentCellId = payload.cellId;
-      console.log("[GameClient] Character selected:", payload.name, "on map", payload.mapId, "cell", payload.cellId);
+      log.info("Character selected:", payload.name, "on map", payload.mapId, "cell", payload.cellId);
       this.battlefield?.getStatsPanel()?.setCharacterName(payload.name);
       this.battlefield?.getInventoryPanel()?.setCharacterGfx(payload.gfx);
       this.battlefield?.setDebugPlayerId(payload.id);
     });
 
-    // CHARACTER_STATS — receive stats from server
-    this.messageHandler.on(ServerMessageType.CHARACTER_STATS, (payload: any) => {
-      const stats = payload as CharacterStatsPayload;
-      this.currentStats = stats as CharacterStats;
+    this.messageHandler.on(ServerMessageType.CHARACTER_STATS, (payload: CharacterStatsPayload) => {
+      this.currentStats = payload as CharacterStats;
       this.battlefield?.getStatsPanel()?.updateStats(this.currentStats);
     });
 
-    // MAP_DATA — receive compressed map data from server
-    this.messageHandler.on(ServerMessageType.MAP_DATA, (payload: any) => {
-      const serverPayload = payload as ServerMapDataPayload;
-      console.log(
-        "[GameClient] Received MAP_DATA for map",
-        serverPayload.mapId
-      );
+    this.messageHandler.on(ServerMessageType.MAP_DATA, (payload) => {
+      const serverPayload = payload as unknown as ServerMapDataPayload;
+      log.info(`Received MAP_DATA for map ${serverPayload.mapId}`);
 
-      // Increment generation to invalidate any in-flight MAP_ACTORS handler
       this.mapGeneration++;
       this.mapTransitioning = true;
 
@@ -152,13 +148,10 @@ export class GameClient {
         const oldMapId = this.currentMapId;
         this.currentMapId = serverPayload.mapId;
 
-        // Play the music for this map
         this.audioManager.playForMap(serverPayload.mapId);
 
-        // Reset movement state — a map change interrupts any in-progress movement
         this.isMoving = false;
 
-        // Build pathfinding from cell data
         const walkableIds = mapData.cells
           .filter((c) => c.walkable)
           .map((c) => c.id);
@@ -167,63 +160,45 @@ export class GameClient {
           mapData.height,
           walkableIds
         );
-        console.log(
-          "[GameClient] Pathfinding built:",
-          walkableIds.length,
-          "walkable cells"
-        );
+        log.debug(`Pathfinding built: ${walkableIds.length} walkable cells`);
 
-        // Log trigger cell IDs
         const triggerCellIds = mapData.triggerCellIds ?? [];
         if (triggerCellIds.length > 0) {
-          console.log(
-            `[GameClient] Trigger cells (${triggerCellIds.length}):`,
-            triggerCellIds.join(", ")
-          );
-        } else {
-          console.log("[GameClient] No trigger cells on this map");
+          log.debug(`Trigger cells (${triggerCellIds.length}): ${triggerCellIds.join(", ")}`);
         }
 
         if (this.battlefield) {
-          // Compute transition direction from map coordinates (old → new)
           const direction = oldMapId
             ? getMapTransitionDirection(oldMapId, serverPayload.mapId) ?? undefined
             : undefined;
           if (direction) {
-            console.log(`[GameClient] Directional transition: dx=${direction.dx} dy=${direction.dy}`);
+            log.debug(`Directional transition: dx=${direction.dx} dy=${direction.dy}`);
           }
 
-          // Store the promise so MAP_ACTORS can wait for map rendering to finish
           this.mapLoadPromise = this.battlefield.loadMapFromData(mapData, direction);
           this.battlefield.updateMinimapPosition(serverPayload.mapId);
         }
       } catch (err) {
-        console.error("[GameClient] Failed to decompress map data:", err);
+        log.error("Failed to decompress map data:", err);
       }
     });
 
-    // MAP_ACTORS — existing actors on the map
     this.messageHandler.on(
       ServerMessageType.MAP_ACTORS,
-      async (payload: any) => {
+      async (payload: MapActorsPayload) => {
         const actors: ActorAddPayload[] = payload.actors ?? [];
         const generation = this.mapGeneration;
-        console.log("[GameClient] MAP_ACTORS:", actors.length, "actors", "gen:", generation);
+        log.info("MAP_ACTORS:", actors.length, "actors", "gen:", generation);
 
         if (!this.battlefield) return;
 
-        // Wait for map to finish rendering before adding actors
         await this.mapLoadPromise;
 
-        // If a newer MAP_DATA arrived while we were waiting, abort — the newer
-        // MAP_ACTORS handler will take care of revealing the correct map.
         if (generation !== this.mapGeneration) {
-          console.log("[GameClient] MAP_ACTORS gen", generation, "stale (current:", this.mapGeneration, "), skipping");
+          log.info("MAP_ACTORS gen", generation, "stale (current:", this.mapGeneration, "), skipping");
           return;
         }
 
-        // Destroy old actor container and create a fresh one for the new map.
-        // This is the ONLY moment actors are removed — minimizing the visible gap.
         this.battlefield.prepareWorldActors();
 
         const spritePromises: Promise<void>[] = [];
@@ -240,18 +215,15 @@ export class GameClient {
           });
           spritePromises.push(promise);
 
-          // Sync current cell from server after map change
           if (isCurrentPlayer) {
             this.currentCellId = actor.cellId;
           }
         }
 
-        // Wait for all sprites to load (or fail).
         await Promise.allSettled(spritePromises);
 
-        // Check generation again — another MAP_DATA may have arrived during sprite loading
         if (generation !== this.mapGeneration) {
-          console.log("[GameClient] MAP_ACTORS gen", generation, "stale after sprites, skipping");
+          log.info("MAP_ACTORS gen", generation, "stale after sprites, skipping");
           return;
         }
 
@@ -260,94 +232,62 @@ export class GameClient {
       }
     );
 
-    // ACTOR_ADD — new actor joined the map
-    this.messageHandler.on(ServerMessageType.ACTOR_ADD, (payload: any) => {
-      const actor = payload as ActorAddPayload;
-      console.log("[GameClient] ACTOR_ADD:", actor.name ?? actor.id);
+    this.messageHandler.on(ServerMessageType.ACTOR_ADD, (payload: ActorAddPayload) => {
+      log.info("ACTOR_ADD:", payload.name ?? payload.id);
 
-      // Push to ECS command queue for NetworkIngestSystem
-      this.gameWorld?.pushCommand({
-        type: ServerMessageType.ACTOR_ADD,
-        payload: actor,
-        timestamp: Date.now(),
-      });
-
-      // Skip visual add during map transitions — MAP_ACTORS will provide the full list
       if (this.mapTransitioning) {
-        console.log("[GameClient] ACTOR_ADD skipped during map transition");
+        log.debug("ACTOR_ADD skipped during map transition");
         return;
       }
 
       this.battlefield?.addWorldActor({
-        id: actor.id,
-        name: actor.name ?? `Player ${actor.id}`,
-        cellId: actor.cellId,
-        direction: actor.direction,
-        look: actor.look ?? "",
-        isCurrentPlayer: actor.id === this.currentCharacter?.id,
+        id: payload.id,
+        name: payload.name ?? `Player ${payload.id}`,
+        cellId: payload.cellId,
+        direction: payload.direction,
+        look: payload.look ?? "",
+        isCurrentPlayer: payload.id === this.currentCharacter?.id,
       });
     });
 
-    // ACTOR_REMOVE — actor left the map
-    this.messageHandler.on(ServerMessageType.ACTOR_REMOVE, (payload: any) => {
-      const data = payload as ActorRemovePayload;
-      console.log("[GameClient] ACTOR_REMOVE:", data.id);
-
-      this.gameWorld?.pushCommand({
-        type: ServerMessageType.ACTOR_REMOVE,
-        payload: data,
-        timestamp: Date.now(),
-      });
-
-      this.battlefield?.removeWorldActor(data.id);
+    this.messageHandler.on(ServerMessageType.ACTOR_REMOVE, (payload: ActorRemovePayload) => {
+      log.debug("ACTOR_REMOVE:", payload.id);
+      this.battlefield?.removeWorldActor(payload.id);
     });
 
-    // ACTOR_MOVE — actor moved on the map
     this.messageHandler.on(
       ServerMessageType.ACTOR_MOVE,
-      async (payload: any) => {
-        const moveData = payload as ActorMovePayload;
-        const { id, path } = moveData;
-
-        this.gameWorld?.pushCommand({
-          type: ServerMessageType.ACTOR_MOVE,
-          payload: moveData,
-          timestamp: Date.now(),
-        });
+      async (payload: ActorMovePayload) => {
+        const { id, path } = payload;
 
         if (id === this.currentCharacter?.id && path.length > 0) {
           this.isMoving = true;
+          this.isSitting = false;
         }
         await this.battlefield?.moveWorldActor(id, path);
         if (id === this.currentCharacter?.id && path.length > 0) {
           this.currentCellId = path[path.length - 1];
           this.isMoving = false;
-          // Signal server that walk animation is complete
           this.connection.send(
-            encodeMessage(ClientMessageType.CHARACTER_MOVE_END, {}),
+            encodeClientMessage(ClientMessageType.CHARACTER_MOVE_END, {}),
           );
         }
       }
     );
 
-    // MAP_ADJACENT — preload adjacent maps for faster transitions
-    this.messageHandler.on(ServerMessageType.MAP_ADJACENT, (payload: any) => {
-      const data = payload as AdjacentMapsPayload;
-      console.log(
-        `[GameClient] MAP_ADJACENT: ${data.maps.length} adjacent maps`
-      );
-      this.battlefield?.loadAdjacentMaps(data.maps);
+    this.messageHandler.on(ServerMessageType.MAP_ADJACENT, (payload: AdjacentMapsPayload) => {
+      log.debug(`MAP_ADJACENT: ${payload.maps.length} adjacent maps`);
+      this.battlefield?.loadAdjacentMaps(payload.maps);
     });
   }
 
   setBattlefield(battlefield: Battlefield): void {
     this.battlefield = battlefield;
-    this.gameWorld = battlefield.getGameWorld();
     this.battlefield.setOnCellClick((cellId) => this.handleCellClick(cellId));
     this.battlefield.setOnMinimapTeleport((mapId) => this.handleMinimapTeleport(mapId));
     this.battlefield.setOnBoostStat((statId) => this.boostStat(statId));
+    this.battlefield.setOnSitToggle(() => this.toggleSit());
 
-    // If stats were received before battlefield was set, update the panel now
     if (this.currentStats) {
       this.battlefield.getStatsPanel()?.updateStats(this.currentStats);
     }
@@ -355,7 +295,7 @@ export class GameClient {
 
   private handleMinimapTeleport(mapId: number): void {
     if (this.currentMapId === mapId) return;
-    console.log(`[GameClient] Minimap teleport to map ${mapId}`);
+    log.info(`Minimap teleport to map ${mapId}`);
     this.changeMap(mapId);
   }
 
@@ -366,14 +306,17 @@ export class GameClient {
     const path = this.pathfinding.findPath(this.currentCellId, targetCellId);
     if (!path || path.length < 2) return;
 
-    console.log(
-      "[GameClient] Moving:",
-      this.currentCellId,
-      "→",
-      targetCellId,
-      `(${path.length - 1} steps)`
-    );
+    log.debug(`Moving: ${this.currentCellId} -> ${targetCellId} (${path.length - 1} steps)`);
     this.move(path);
+  }
+
+  private toggleSit(): void {
+    const charId = this.currentCharacter?.id;
+    if (charId == null || this.isMoving) return;
+
+    this.isSitting = !this.isSitting;
+    const animation = this.isSitting ? FighterAnimation.SIT : FighterAnimation.IDLE;
+    this.battlefield?.setWorldActorAnimation(charId, animation);
   }
 
   connect(): void {
@@ -386,7 +329,7 @@ export class GameClient {
 
   login(username: string, password: string): void {
     this.connection.send(
-      encodeMessage(ClientMessageType.AUTH_LOGIN, {
+      encodeClientMessage(ClientMessageType.AUTH_LOGIN, {
         username,
         password,
         version: "1.29",
@@ -399,25 +342,25 @@ export class GameClient {
       this.battlefield?.getStatsPanel()?.setClassId(classId);
     }
     this.connection.send(
-      encodeMessage(ClientMessageType.CHARACTER_SELECT, { characterId })
+      encodeClientMessage(ClientMessageType.CHARACTER_SELECT, { characterId })
     );
   }
 
   move(path: number[]): void {
     this.connection.send(
-      encodeMessage(ClientMessageType.CHARACTER_MOVE, { path })
+      encodeClientMessage(ClientMessageType.CHARACTER_MOVE, { path })
     );
   }
 
   changeMap(mapId: number): void {
     this.connection.send(
-      encodeMessage(ClientMessageType.MAP_CHANGE, { mapId })
+      encodeClientMessage(ClientMessageType.MAP_CHANGE, { mapId })
     );
   }
 
   boostStat(statId: number): void {
     this.connection.send(
-      encodeMessage(ClientMessageType.CHARACTER_BOOST_STAT, { statId })
+      encodeClientMessage(ClientMessageType.CHARACTER_BOOST_STAT, { statId })
     );
   }
 
@@ -445,14 +388,12 @@ export class GameClient {
     return this.audioManager;
   }
 
-  /** Debug: give capital points (persisted server-side) */
   debugGiveCapital(amount: number): void {
     this.connection.send(
-      encodeMessage(ClientMessageType.DEBUG_GIVE_CAPITAL, { amount })
+      encodeClientMessage(ClientMessageType.DEBUG_GIVE_CAPITAL, { amount })
     );
   }
 
-  // Event callbacks
   setOnCharacterList(fn: (characters: CharacterInfo[]) => void): void {
     this.onCharacterList = fn;
   }

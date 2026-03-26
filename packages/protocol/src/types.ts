@@ -215,3 +215,110 @@ export interface AdjacentMapEntry {
 export interface AdjacentMapsPayload {
   maps: AdjacentMapEntry[];
 }
+
+export interface PingPayload {
+  time: number;
+}
+
+export interface PongPayload {
+  time: number;
+}
+
+export interface ErrorPayload {
+  reason: string;
+}
+
+// ============================================================================
+// Payload type maps — map each message type to its payload interface
+// ============================================================================
+
+import type {
+  CombatCastRequestPayload,
+  CombatChallengePayload,
+  CombatChallengeRequestPayload,
+  CombatChallengeResponsePayload,
+  CombatEffectPayload,
+  CombatEndPayload,
+  CombatFighterPayload,
+  CombatInitPayload,
+  CombatLeavePayload,
+  CombatMoveRequestPayload,
+  CombatMovementPayload,
+  CombatPlacementPayload,
+  CombatPlacementRequestPayload,
+  CombatReadyPayload,
+  CombatReadyRequestPayload,
+  CombatSpectateRequestPayload,
+  CombatSpellPayload,
+  CombatStartPayload,
+  CombatStatsPayload,
+  CombatTimelinePayload,
+  CombatTurnEndPayload,
+  CombatTurnStartPayload,
+} from "./combat-types.ts";
+
+export interface ClientPayloadMap {
+  [ClientMessageType.AUTH_LOGIN]: LoginPayload;
+  [ClientMessageType.AUTH_LOGOUT]: Record<string, never>;
+  [ClientMessageType.CHARACTER_SELECT]: CharacterSelectPayload;
+  [ClientMessageType.CHARACTER_MOVE]: CharacterMovePayload;
+  [ClientMessageType.CHARACTER_MOVE_END]: Record<string, never>;
+  [ClientMessageType.CHARACTER_ACTION]: unknown;
+  [ClientMessageType.MAP_LOAD]: MapLoadPayload;
+  [ClientMessageType.MAP_CHANGE]: MapChangePayload;
+  [ClientMessageType.CHAT_MESSAGE]: ChatMessagePayload;
+  [ClientMessageType.CHAT_WHISPER]: unknown;
+  [ClientMessageType.INTERACT_OBJECT]: unknown;
+  [ClientMessageType.INTERACT_NPC]: unknown;
+  [ClientMessageType.COMBAT_CHALLENGE]: CombatChallengeRequestPayload;
+  [ClientMessageType.COMBAT_ACCEPT]: CombatChallengeResponsePayload;
+  [ClientMessageType.COMBAT_REFUSE]: CombatChallengeResponsePayload;
+  [ClientMessageType.COMBAT_READY]: CombatReadyRequestPayload;
+  [ClientMessageType.COMBAT_MOVE]: CombatMoveRequestPayload;
+  [ClientMessageType.COMBAT_CAST]: CombatCastRequestPayload;
+  [ClientMessageType.COMBAT_PASS]: Record<string, never>;
+  [ClientMessageType.COMBAT_FORFEIT]: Record<string, never>;
+  [ClientMessageType.COMBAT_SPECTATE]: CombatSpectateRequestPayload;
+  [ClientMessageType.COMBAT_PLACEMENT]: CombatPlacementRequestPayload;
+  [ClientMessageType.CHARACTER_BOOST_STAT]: BoostStatPayload;
+  [ClientMessageType.DEBUG_GIVE_CAPITAL]: { amount: number };
+  [ClientMessageType.PING]: PingPayload;
+}
+
+export interface ServerPayloadMap {
+  [ServerMessageType.AUTH_SUCCESS]: AuthSuccessPayload;
+  [ServerMessageType.AUTH_FAILURE]: { reason: string };
+  [ServerMessageType.AUTH_KICKED]: { reason: string };
+  [ServerMessageType.CHARACTER_INFO]: CharacterInfoPayload;
+  [ServerMessageType.CHARACTER_STATS]: CharacterStatsPayload;
+  [ServerMessageType.CHARACTER_POSITION]: unknown;
+  [ServerMessageType.MAP_DATA]: MapDataPayload;
+  [ServerMessageType.MAP_ACTORS]: MapActorsPayload;
+  [ServerMessageType.MAP_UPDATE]: unknown;
+  [ServerMessageType.MAP_ADJACENT]: AdjacentMapsPayload;
+  [ServerMessageType.ACTOR_ADD]: ActorAddPayload;
+  [ServerMessageType.ACTOR_REMOVE]: ActorRemovePayload;
+  [ServerMessageType.ACTOR_MOVE]: ActorMovePayload;
+  [ServerMessageType.ACTOR_UPDATE]: unknown;
+  [ServerMessageType.CHAT_MESSAGE]: ChatMessagePayload;
+  [ServerMessageType.CHAT_SYSTEM]: unknown;
+  [ServerMessageType.INTERACT_RESPONSE]: unknown;
+  [ServerMessageType.INTERACT_DIALOG]: unknown;
+  [ServerMessageType.COMBAT_INIT]: CombatInitPayload;
+  [ServerMessageType.COMBAT_JOIN]: CombatFighterPayload;
+  [ServerMessageType.COMBAT_LEAVE]: CombatLeavePayload;
+  [ServerMessageType.COMBAT_START]: CombatStartPayload;
+  [ServerMessageType.COMBAT_END]: CombatEndPayload;
+  [ServerMessageType.COMBAT_TURN_START]: CombatTurnStartPayload;
+  [ServerMessageType.COMBAT_TURN_END]: CombatTurnEndPayload;
+  [ServerMessageType.COMBAT_EFFECT]: CombatEffectPayload;
+  [ServerMessageType.COMBAT_MOVEMENT]: CombatMovementPayload;
+  [ServerMessageType.COMBAT_SPELL]: CombatSpellPayload;
+  [ServerMessageType.COMBAT_PLACEMENT]: CombatPlacementPayload;
+  [ServerMessageType.COMBAT_TIMELINE]: CombatTimelinePayload;
+  [ServerMessageType.COMBAT_STATS]: CombatStatsPayload;
+  [ServerMessageType.COMBAT_READY]: CombatReadyPayload;
+  [ServerMessageType.COMBAT_CHALLENGE]: CombatChallengePayload;
+  [ServerMessageType.ERROR]: ErrorPayload;
+  [ServerMessageType.PONG]: PongPayload;
+}

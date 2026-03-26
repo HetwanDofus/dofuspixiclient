@@ -134,6 +134,7 @@ export class InventoryPanel extends BasePanel {
   constructor(zoom: number) {
     // BasePanel = inventory window only (478 x 412)
     super(zoom, INV_W, INV_H, i18n._(L.title), "inventory-panel");
+    this.init();
   }
 
   /** Set the character gfxId and load the preview sprite */

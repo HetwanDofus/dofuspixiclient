@@ -14,24 +14,36 @@ import {
 } from "../handlers/movement.ts";
 import { handleBoostStat, handleDebugGiveCapital } from "../handlers/stats.ts";
 import { decodeClientMessage, encodeServerMessage } from "../protocol/codec.ts";
-import { ClientMessageType, ServerMessageType } from "../protocol/types.ts";
+import {
+  ClientMessageType,
+  type ClientPayloadMap,
+  ServerMessageType,
+} from "../protocol/types.ts";
 import {
   createSession,
   getSession,
   removeSession,
   type WsHandle,
 } from "./client-session.ts";
+import { createLogger } from "../utils/logger.ts";
+
+const log = createLogger("WS");
+
+/** Type-safe payload extraction from a decoded client message. */
+function payload<T extends keyof ClientPayloadMap>(
+  msg: { payload: unknown },
+): ClientPayloadMap[T] {
+  return msg.payload as ClientPayloadMap[T];
+}
 
 let sessionCounter = 0;
 
 export const gameWs = new Elysia().ws("/game", {
   open(ws) {
     const sessionId = `s${++sessionCounter}_${Date.now()}`;
-    // Store sessionId on the ws data context
     (ws.data as Record<string, unknown>).sessionId = sessionId;
-    // Use ws.raw (Bun's ServerWebSocket) to bypass Elysia's JSON serialization
     createSession(ws.raw as unknown as WsHandle, sessionId);
-    console.log(`[WS] Client connected: ${sessionId}`);
+    log.info(`Client connected: ${sessionId}`);
   },
 
   async message(ws, data) {
@@ -40,7 +52,6 @@ export const gameWs = new Elysia().ws("/game", {
     if (!session) return;
 
     try {
-      // data from Elysia WS can be string, Buffer, or undefined for binary
       const raw =
         data instanceof ArrayBuffer
           ? data
@@ -53,22 +64,30 @@ export const gameWs = new Elysia().ws("/game", {
       const msg = decodeClientMessage(raw as ArrayBuffer);
 
       await match(msg.type)
-        .with(ClientMessageType.AUTH_LOGIN, () => handleLogin(session, msg.payload as any))
-        .with(ClientMessageType.AUTH_LOGOUT, () => handleLogout(session))
-        .with(ClientMessageType.CHARACTER_SELECT, () => handleCharacterSelect(session, msg.payload as any))
-        .with(ClientMessageType.CHARACTER_MOVE, () => handleMovement(session, msg.payload as any))
-        .with(ClientMessageType.CHARACTER_MOVE_END, () => handleMoveEnd(session))
-        .with(ClientMessageType.MAP_CHANGE, () => handleMapChange(session, msg.payload as any))
-        .with(ClientMessageType.CHARACTER_BOOST_STAT, () => handleBoostStat(session, msg.payload as any))
-        .with(ClientMessageType.DEBUG_GIVE_CAPITAL, () => handleDebugGiveCapital(session, msg.payload as any))
+        .with(ClientMessageType.AUTH_LOGIN, () =>
+          handleLogin(session, payload<typeof ClientMessageType.AUTH_LOGIN>(msg)))
+        .with(ClientMessageType.AUTH_LOGOUT, () =>
+          handleLogout(session))
+        .with(ClientMessageType.CHARACTER_SELECT, () =>
+          handleCharacterSelect(session, payload<typeof ClientMessageType.CHARACTER_SELECT>(msg)))
+        .with(ClientMessageType.CHARACTER_MOVE, () =>
+          handleMovement(session, payload<typeof ClientMessageType.CHARACTER_MOVE>(msg)))
+        .with(ClientMessageType.CHARACTER_MOVE_END, () =>
+          handleMoveEnd(session))
+        .with(ClientMessageType.MAP_CHANGE, () =>
+          handleMapChange(session, payload<typeof ClientMessageType.MAP_CHANGE>(msg)))
+        .with(ClientMessageType.CHARACTER_BOOST_STAT, () =>
+          handleBoostStat(session, payload<typeof ClientMessageType.CHARACTER_BOOST_STAT>(msg)))
+        .with(ClientMessageType.DEBUG_GIVE_CAPITAL, () =>
+          handleDebugGiveCapital(session, payload<typeof ClientMessageType.DEBUG_GIVE_CAPITAL>(msg)))
         .with(ClientMessageType.PING, () => {
           ws.raw.send(encodeServerMessage(ServerMessageType.PONG, { time: Date.now() }));
         })
         .otherwise((type) => {
-          console.log(`[WS] Unknown message type: 0x${type.toString(16)}`);
+          log.warn(`Unknown message type: 0x${type.toString(16)}`);
         });
     } catch (err) {
-      console.error(`[WS] Message handling error:`, err);
+      log.error(`Message handling error:`, err);
     }
   },
 
@@ -80,6 +99,6 @@ export const gameWs = new Elysia().ws("/game", {
       await handleLogout(session);
       removeSession(sessionId);
     }
-    console.log(`[WS] Client disconnected: ${sessionId}`);
+    log.info(`Client disconnected: ${sessionId}`);
   },
 });

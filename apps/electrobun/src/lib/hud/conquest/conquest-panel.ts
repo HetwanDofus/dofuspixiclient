@@ -13,6 +13,7 @@ export class ConquestPanel extends BasePanel {
 
   constructor(zoom: number) {
     super(zoom, 228, 358, i18n._(L.title), "conquest-panel");
+    this.init();
   }
 
   protected buildContent(y: number): void {

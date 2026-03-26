@@ -1,5 +1,7 @@
 import { type Entity, World } from "@lastolivegames/becsy";
 
+import type { CharacterSpriteLoader } from "@/ank/battlefield/character-sprite";
+import type { Container } from "pixi.js";
 import type { NetworkCommand } from "@/ecs/components";
 import {
   ActiveEffect,
@@ -23,6 +25,7 @@ import {
   PendingDamage,
   PlayerTurnState,
   Position,
+  RenderContext,
   Renderable,
   Rotation,
   Scale,
@@ -51,6 +54,18 @@ import {
 export interface GameWorldConfig {
   maxEntities?: number;
 }
+
+export interface SharedRenderContext {
+  actorsContainer: Container | null;
+  combatContainer: Container | null;
+  spriteLoader: CharacterSpriteLoader | null;
+}
+
+export const sharedRenderContext: SharedRenderContext = {
+  actorsContainer: null,
+  combatContainer: null,
+  spriteLoader: null,
+};
 
 export class GameWorld {
   private world: World | null = null;
@@ -84,7 +99,8 @@ export class GameWorld {
         Interactive,
         HoverState,
 
-        // Interaction singleton
+        // Render & Interaction singletons
+        RenderContext,
         InteractionEvent,
 
         // Combat - Fighter components
@@ -134,6 +150,24 @@ export class GameWorld {
     await this.world.execute();
 
     this.initialized = true;
+  }
+
+  /**
+   * Set the render context singleton.
+   */
+  setRenderContext(
+    actorsContainer: Container,
+    combatContainer: Container | null,
+    spriteLoader: CharacterSpriteLoader
+  ): void {
+    if (!this.world) {
+      throw new Error("GameWorld not initialized");
+    }
+
+    // Store on module-level for ECS systems to access
+    sharedRenderContext.actorsContainer = actorsContainer;
+    sharedRenderContext.combatContainer = combatContainer;
+    sharedRenderContext.spriteLoader = spriteLoader;
   }
 
   /**

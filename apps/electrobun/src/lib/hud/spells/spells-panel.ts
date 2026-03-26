@@ -25,6 +25,7 @@ export class SpellsPanel extends BasePanel {
 
   constructor(zoom: number) {
     super(zoom, 250, 390, i18n._(L.title), "spells-panel");
+    this.init();
   }
 
   protected buildContent(y: number): void {

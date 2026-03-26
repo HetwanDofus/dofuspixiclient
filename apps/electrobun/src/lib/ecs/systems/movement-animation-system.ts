@@ -4,6 +4,7 @@ import { System, system } from "@lastolivegames/becsy";
 import {
   CellPosition,
   FrameTime,
+  MapContext,
   MovementPath,
   SpriteState,
 } from "@/ecs/components";
@@ -22,6 +23,7 @@ export class MovementAnimationSystem extends System {
         .write.with(SpriteState).write
   );
   private frameTime = this.singleton.read(FrameTime);
+  private mapContext = this.singleton.read(MapContext);
 
   execute(): void {
     const deltaMs = this.frameTime.data.deltaMs;
@@ -49,9 +51,10 @@ export class MovementAnimationSystem extends System {
       const toCell = path[currentStep + 1];
 
       // Compute direction and movement vectors
-      const dir = getDirection(fromCell, toCell, 15); // TODO: get mapWidth from MapContext
-      const fromPos = getCellPosition(fromCell, 15, 7);
-      const toPos = getCellPosition(toCell, 15, 7);
+      const mapWidth = this.mapContext.mapWidth || 15;
+      const dir = getDirection(fromCell, toCell, mapWidth);
+      const fromPos = getCellPosition(fromCell, mapWidth, 7);
+      const toPos = getCellPosition(toCell, mapWidth, 7);
 
       const dx = toPos.x - fromPos.x;
       const dy = toPos.y - fromPos.y;

@@ -13,6 +13,7 @@ export class QuestsPanel extends BasePanel {
 
   constructor(zoom: number) {
     super(zoom, 280, 312, i18n._(L.title), "quests-panel");
+    this.init();
   }
 
   protected buildContent(y: number): void {
