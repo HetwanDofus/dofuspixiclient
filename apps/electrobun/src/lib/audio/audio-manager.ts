@@ -14,7 +14,7 @@ export class AudioManager {
   private currentFile: string | null = null;
   private savedFile: string | null = null;
   private savedTime = 0;
-  private masterVolume = 0.5;
+  private masterVolume = 0.3;
   private muted = false;
   private fadeInterval: ReturnType<typeof setInterval> | null = null;
   private initPromise: Promise<void> | null = null;
@@ -32,7 +32,11 @@ export class AudioManager {
       .then((resp) => resp.json())
       .then((data: MusicData) => {
         this.musicData = data;
-        console.log("[AudioManager] Loaded music data:", Object.keys(data.mapToFile).length, "maps");
+        console.log(
+          "[AudioManager] Loaded music data:",
+          Object.keys(data.mapToFile).length,
+          "maps"
+        );
       })
       .catch((e) => {
         console.error("[AudioManager] Failed to load music data:", e);
@@ -119,7 +123,9 @@ export class AudioManager {
 
     if (oldAudio) {
       // Fade out old track, then start new
-      this.fadeOutAudio(oldAudio, () => this.startNewTrack(file, loop, startTime));
+      this.fadeOutAudio(oldAudio, () =>
+        this.startNewTrack(file, loop, startTime)
+      );
     } else {
       this.startNewTrack(file, loop, startTime);
     }
@@ -162,9 +168,13 @@ export class AudioManager {
     };
 
     audio.addEventListener("canplaythrough", onReady, { once: true });
-    audio.addEventListener("error", () => {
-      console.warn("[AudioManager] Failed to load:", file);
-    }, { once: true });
+    audio.addEventListener(
+      "error",
+      () => {
+        console.warn("[AudioManager] Failed to load:", file);
+      },
+      { once: true }
+    );
   }
 
   private fadeIn(audio: HTMLAudioElement): void {

@@ -21,6 +21,8 @@ export {
   type MapDataPayload,
   type MapActorsPayload,
   type AuthSuccessPayload,
+  type AdjacentMapEntry,
+  type AdjacentMapsPayload,
   encodeClientMessage,
   decodeServerMessage,
 } from "@dofus/protocol";

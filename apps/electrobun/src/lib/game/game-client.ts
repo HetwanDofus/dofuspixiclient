@@ -5,6 +5,7 @@ import {
   loadMapDataFromServer,
   type ServerMapDataPayload,
 } from "@/ank/battlefield/datacenter/map";
+import { getMapTransitionDirection, preloadMapCoordinates } from "@/ank/battlefield/map-coordinates";
 import { DofusPathfinding } from "@/ank/battlefield/dofus-pathfinding";
 import { AudioManager } from "@/audio/audio-manager";
 import { Connection, type ConnectionEvent } from "@/network/connection";
@@ -16,6 +17,7 @@ import {
   type ActorAddPayload,
   type ActorMovePayload,
   type ActorRemovePayload,
+  type AdjacentMapsPayload,
   type CharacterStatsPayload,
   ClientMessageType,
   encodeMessage,
@@ -71,6 +73,7 @@ export class GameClient {
     this.messageHandler = createMessageHandler();
     this.audioManager = AudioManager.getInstance();
     this.audioManager.init();
+    preloadMapCoordinates();
 
     this.connection.addEventListener((event: ConnectionEvent) => {
       match(event)
@@ -146,6 +149,7 @@ export class GameClient {
 
       try {
         const mapData = loadMapDataFromServer(serverPayload);
+        const oldMapId = this.currentMapId;
         this.currentMapId = serverPayload.mapId;
 
         // Play the music for this map
@@ -181,8 +185,16 @@ export class GameClient {
         }
 
         if (this.battlefield) {
+          // Compute transition direction from map coordinates (old → new)
+          const direction = oldMapId
+            ? getMapTransitionDirection(oldMapId, serverPayload.mapId) ?? undefined
+            : undefined;
+          if (direction) {
+            console.log(`[GameClient] Directional transition: dx=${direction.dx} dy=${direction.dy}`);
+          }
+
           // Store the promise so MAP_ACTORS can wait for map rendering to finish
-          this.mapLoadPromise = this.battlefield.loadMapFromData(mapData);
+          this.mapLoadPromise = this.battlefield.loadMapFromData(mapData, direction);
           this.battlefield.updateMinimapPosition(serverPayload.mapId);
         }
       } catch (err) {
@@ -317,6 +329,15 @@ export class GameClient {
         }
       }
     );
+
+    // MAP_ADJACENT — preload adjacent maps for faster transitions
+    this.messageHandler.on(ServerMessageType.MAP_ADJACENT, (payload: any) => {
+      const data = payload as AdjacentMapsPayload;
+      console.log(
+        `[GameClient] MAP_ADJACENT: ${data.maps.length} adjacent maps`
+      );
+      this.battlefield?.loadAdjacentMaps(data.maps);
+    });
   }
 
   setBattlefield(battlefield: Battlefield): void {

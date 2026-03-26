@@ -39,6 +39,7 @@ export const ServerMessageType = {
   MAP_DATA: 0x20,
   MAP_ACTORS: 0x21,
   MAP_UPDATE: 0x22,
+  MAP_ADJACENT: 0x23,
   ACTOR_ADD: 0x30,
   ACTOR_REMOVE: 0x31,
   ACTOR_MOVE: 0x32,
@@ -198,4 +199,19 @@ export interface CharacterStatsPayload {
 
 export interface BoostStatPayload {
   statId: number; // 0=vita, 1=wisdom, 2=strength, 3=chance, 4=agility, 5=intel
+}
+
+export interface AdjacentMapEntry {
+  mapId: number;
+  dx: number;
+  dy: number;
+  width: number;
+  height: number;
+  background: number;
+  compressed: Uint8Array;
+  encoding: "gzip";
+}
+
+export interface AdjacentMapsPayload {
+  maps: AdjacentMapEntry[];
 }

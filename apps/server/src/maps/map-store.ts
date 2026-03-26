@@ -90,3 +90,65 @@ export async function mapExists(mapId: number): Promise<boolean> {
   const map = await getMap(mapId);
   return map !== null;
 }
+
+/**
+ * Get adjacent maps (up/down/left/right) for a given map.
+ * Returns maps at x±1 / y±1 in the same superarea.
+ */
+export async function getAdjacentMaps(
+  mapId: number
+): Promise<
+  Array<{
+    id: number;
+    dx: number;
+    dy: number;
+    width: number;
+    height: number;
+    background: number;
+    cellsGzip: Buffer;
+  }>
+> {
+  const currentMap = await getMap(mapId);
+  if (!currentMap) return [];
+
+  const directions = [
+    { dx: 1, dy: 0 },
+    { dx: -1, dy: 0 },
+    { dx: 0, dy: 1 },
+    { dx: 0, dy: -1 },
+  ];
+
+  const results: Array<{
+    id: number;
+    dx: number;
+    dy: number;
+    width: number;
+    height: number;
+    background: number;
+    cellsGzip: Buffer;
+  }> = [];
+
+  for (const dir of directions) {
+    const row = await db
+      .selectFrom("maps")
+      .select(["id", "width", "height", "background", "cells_gzip"])
+      .where("x", "=", currentMap.x + dir.dx)
+      .where("y", "=", currentMap.y + dir.dy)
+      .where("superarea", "=", currentMap.superarea)
+      .executeTakeFirst();
+
+    if (row) {
+      results.push({
+        id: row.id,
+        dx: dir.dx,
+        dy: dir.dy,
+        width: row.width,
+        height: row.height,
+        background: row.background ?? 0,
+        cellsGzip: row.cells_gzip,
+      });
+    }
+  }
+
+  return results;
+}

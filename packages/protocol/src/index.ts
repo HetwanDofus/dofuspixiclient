@@ -27,4 +27,6 @@ export {
   type ServerMessageTypeValue,
   type CharacterStatsPayload,
   type BoostStatPayload,
+  type AdjacentMapEntry,
+  type AdjacentMapsPayload,
 } from "./types.ts";

@@ -10,7 +10,7 @@ import {
   getMapInstance,
   getOrCreateMapInstance,
 } from "../game/game-manager.ts";
-import { getCompressedMap, getMap, mapExists } from "../maps/map-store.ts";
+import { getAdjacentMaps, getCompressedMap, getMap, mapExists } from "../maps/map-store.ts";
 import { getPathfinding } from "../maps/pathfinding.ts";
 import { encodeServerMessage } from "../protocol/codec.ts";
 import { ServerMessageType } from "../protocol/types.ts";
@@ -169,4 +169,23 @@ export async function changeMap(
   if (newPf) {
     newPf.addOccupied(newCellId);
   }
+
+  // Send adjacent maps for preloading (fire and forget — non-blocking)
+  getAdjacentMaps(newMapId).then((adjacentMaps) => {
+    if (adjacentMaps.length === 0) return;
+    session.ws.send(
+      encodeServerMessage(ServerMessageType.MAP_ADJACENT, {
+        maps: adjacentMaps.map((m) => ({
+          mapId: m.id,
+          dx: m.dx,
+          dy: m.dy,
+          width: m.width,
+          height: m.height,
+          background: m.background,
+          compressed: new Uint8Array(m.cellsGzip),
+          encoding: "gzip" as const,
+        })),
+      })
+    );
+  });
 }

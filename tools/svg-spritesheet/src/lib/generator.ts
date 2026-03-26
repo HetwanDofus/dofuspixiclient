@@ -95,16 +95,24 @@ function processNonScalingStroke(content: string): string {
     }
 
     // Walk up ancestors to find the one providing stroke-width
+    let foundAncestor = false;
+
     $el.parents().each((__, parent) => {
       const $parent = $(parent);
       const psw = $parent.attr("stroke-width");
 
       if (psw) {
+        foundAncestor = true;
         if (is1OfSize(psw)) ancestorsToFix.add(parent);
 
         return false; // stop at the nearest ancestor with stroke-width either way
       }
     });
+
+    // No stroke-width anywhere — SVG default is 1, so add placeholder directly
+    if (!foundAncestor) {
+      $el.attr("stroke-width", "__RESOLUTION__");
+    }
   });
 
   ancestorsToFix.forEach((ancestor) => {
@@ -795,6 +803,38 @@ function generateAtlasSvg(
 
   // --- Multi-page ---
   const pagePackResults = packRectanglesMultiPage(packRects, 1, maxPageDimension!);
+
+  // If repacking fits in a single page, treat as single-page (use atlas.svg, no pages array)
+  if (pagePackResults.length === 1) {
+    const singlePack = pagePackResults[0];
+    const packedPositions: PackedPositionMap = new Map();
+    for (const packed of singlePack.rects) {
+      packedPositions.set(packed.id, packed);
+    }
+    const pageResult = buildPageSvg(singlePack.width, singlePack.height, packedPositions, uniqueSprites);
+
+    const manifest: AtlasManifest = {
+      version: 1,
+      animation: animationName,
+      width: singlePack.width,
+      height: singlePack.height,
+      offsetX: positioningOffsetX,
+      offsetY: positioningOffsetY,
+      frames: pageResult.atlasFrames,
+      frameOrder: sprites.map((s) => s.id),
+      duplicates: { ...pageResult.duplicates, ...spriteDuplicates },
+      fps: 60,
+      elementDedup: elemDedup.stats,
+      baseFrame: pageResult.baseFrameManifest,
+      baseZOrder: useBaseDelta ? splitZOrder : undefined,
+    };
+
+    return {
+      pages: [{ svg: pageResult.svg, filename: "atlas.svg", width: singlePack.width, height: singlePack.height }],
+      manifest,
+    };
+  }
+
   const allAtlasFrames: AtlasFrame[] = [];
   const allDuplicates: Record<string, string> = { ...spriteDuplicates };
   let allBaseFrameManifest: AtlasFrame | undefined;

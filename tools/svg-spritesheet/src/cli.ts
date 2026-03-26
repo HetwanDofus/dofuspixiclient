@@ -621,7 +621,7 @@ program
           webBasePath: opts.webBasePath,
           tileClassifications: opts.tileClassifications,
           tileType: opts.tileType as "ground" | "objects" | undefined,
-          maxPageDimension: opts.maxPageDimension ? parseInt(opts.maxPageDimension, 10) : undefined,
+          maxPageDimension: opts.maxPageDimension ? parseInt(opts.maxPageDimension, 10) : 2700,
         });
       } catch (error) {
         logger.error(`Compilation failed: ${error}`);

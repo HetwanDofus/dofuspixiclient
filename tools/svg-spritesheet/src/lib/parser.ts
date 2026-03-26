@@ -11,6 +11,179 @@ import {
 
 type CheerioElement = ReturnType<CheerioAPI>;
 
+// ---------------------------------------------------------------------------
+// 2D affine matrix utilities for transform composition
+// ---------------------------------------------------------------------------
+
+/** 2D affine matrix [a, b, c, d, tx, ty] */
+type Matrix2D = [number, number, number, number, number, number];
+
+const IDENTITY: Matrix2D = [1, 0, 0, 1, 0, 0];
+
+function parseTransformMatrix(transform: string | undefined): Matrix2D {
+  if (!transform) return [...IDENTITY] as Matrix2D;
+
+  const matrixMatch = transform.match(
+    /matrix\s*\(\s*([^,)]+)[,\s]+([^,)]+)[,\s]+([^,)]+)[,\s]+([^,)]+)[,\s]+([^,)]+)[,\s]+([^,)]+)\s*\)/
+  );
+  if (matrixMatch) {
+    return [
+      parseFloat(matrixMatch[1]),
+      parseFloat(matrixMatch[2]),
+      parseFloat(matrixMatch[3]),
+      parseFloat(matrixMatch[4]),
+      parseFloat(matrixMatch[5]),
+      parseFloat(matrixMatch[6]),
+    ];
+  }
+
+  const translateMatch = transform.match(
+    /translate\s*\(\s*([^,)]+)(?:[,\s]+([^,)]+))?\s*\)/
+  );
+  if (translateMatch) {
+    return [1, 0, 0, 1, parseFloat(translateMatch[1]), translateMatch[2] ? parseFloat(translateMatch[2]) : 0];
+  }
+
+  const scaleMatch = transform.match(
+    /scale\s*\(\s*([^,)]+)(?:[,\s]+([^,)]+))?\s*\)/
+  );
+  if (scaleMatch) {
+    const sx = parseFloat(scaleMatch[1]);
+    const sy = scaleMatch[2] ? parseFloat(scaleMatch[2]) : sx;
+    return [sx, 0, 0, sy, 0, 0];
+  }
+
+  // Unsupported transform — return identity (safe fallback)
+  return [...IDENTITY] as Matrix2D;
+}
+
+function composeMatrices(m1: Matrix2D, m2: Matrix2D): Matrix2D {
+  const [a1, b1, c1, d1, tx1, ty1] = m1;
+  const [a2, b2, c2, d2, tx2, ty2] = m2;
+  return [
+    a1 * a2 + c1 * b2,
+    b1 * a2 + d1 * b2,
+    a1 * c2 + c1 * d2,
+    b1 * c2 + d1 * d2,
+    a1 * tx2 + c1 * ty2 + tx1,
+    b1 * tx2 + d1 * ty2 + ty1,
+  ];
+}
+
+function matrixToTransformString(m: Matrix2D, precision: number = 2): string {
+  const r = (n: number) => {
+    const rounded = parseFloat(n.toFixed(precision));
+    return rounded === 0 ? 0 : rounded; // avoid -0
+  };
+  const [a, b, c, d, tx, ty] = m.map(r);
+
+  if (a === 1 && b === 0 && c === 0 && d === 1 && tx === 0 && ty === 0) return "";
+  if (a === 1 && b === 0 && c === 0 && d === 1) {
+    return ty === 0 ? `translate(${tx})` : `translate(${tx}, ${ty})`;
+  }
+  return `matrix(${a}, ${b}, ${c}, ${d}, ${tx}, ${ty})`;
+}
+
+// ---------------------------------------------------------------------------
+// Wrapper definition flattening
+// ---------------------------------------------------------------------------
+
+/**
+ * When a frame has a single top-level <use> pointing to a <g> wrapper definition
+ * that only contains sub-<use> elements, flatten the wrapper by inlining the
+ * sub-uses as top-level use elements with composed transforms.
+ *
+ * This exposes individual sub-elements to element-level deduplication, enabling
+ * base/delta splitting (static background vs changing elements across frames).
+ *
+ * Transform composition: each sub-use gets transform = wrapperUse.T × wrapperDef.T × subUse.T
+ * The mainTransform is unchanged (still applied as outer wrapper during rendering).
+ */
+function tryFlattenWrapperDefinition(
+  $: CheerioAPI,
+  parent: CheerioElement,
+  defs: CheerioElement
+): { useElements: UseElement[]; definitions: Definition[] } | null {
+  if (!defs.length) return null;
+
+  // Check for exactly 1 direct <use> child in the main group
+  const directUses = parent.children("use");
+  if (directUses.length !== 1) return null;
+
+  const mainUse = $(directUses[0]);
+  const href = mainUse.attr("xlink:href") ?? mainUse.attr("href") ?? "";
+  const refMatch = href.match(/^#(.+)$/);
+  if (!refMatch) return null;
+
+  const wrapperDefId = refMatch[1];
+
+  // Find the wrapper definition in defs — must be a <g>
+  let wrapperEl: CheerioElement | null = null;
+  defs.children().each((_, el) => {
+    const elem = $(el);
+    if (elem.attr("id") === wrapperDefId) {
+      wrapperEl = elem;
+    }
+  });
+  if (!wrapperEl) return null;
+
+  const wrapperTag = (wrapperEl as CheerioElement).prop("tagName")?.toLowerCase();
+  if (wrapperTag !== "g") return null;
+
+  // Check all direct children are <use> elements
+  const wrapperChildren = (wrapperEl as CheerioElement).children();
+  let allUses = true;
+  wrapperChildren.each((_, el) => {
+    if ($(el).prop("tagName")?.toLowerCase() !== "use") allUses = false;
+  });
+  if (!allUses || wrapperChildren.length === 0) return null;
+
+  // Compose parent transform: mainUse.transform × wrapperDef.transform
+  const mainUseTransform = parseTransformMatrix(mainUse.attr("transform"));
+  const wrapperGroupTransform = parseTransformMatrix((wrapperEl as CheerioElement).attr("transform"));
+  const parentTransform = composeMatrices(mainUseTransform, wrapperGroupTransform);
+
+  // Extract sub-use elements with composed transforms
+  const flattenedUses: UseElement[] = [];
+  wrapperChildren.each((_, el) => {
+    const subUse = $(el);
+    const subHref = subUse.attr("xlink:href") ?? subUse.attr("href") ?? "";
+    const subTransform = parseTransformMatrix(subUse.attr("transform"));
+    const composed = composeMatrices(parentTransform, subTransform);
+    const composedStr = matrixToTransformString(composed);
+
+    const element: UseElement = {
+      originalHref: subHref,
+      attributes: {},
+    };
+
+    if (composedStr) element.transform = composedStr;
+
+    const width = subUse.attr("width");
+    const height = subUse.attr("height");
+    if (width) element.width = parseFloat(width);
+    if (height) element.height = parseFloat(height);
+
+    // Non-standard attributes
+    if ("attribs" in el) {
+      const attrs = el.attribs as Record<string, string>;
+      for (const [name, value] of Object.entries(attrs)) {
+        if (!USE_EXCLUDED_ATTRS.has(name)) {
+          element.attributes[name] = value;
+        }
+      }
+    }
+
+    flattenedUses.push(element);
+  });
+
+  // Remove wrapper def from DOM and extract remaining definitions
+  (wrapperEl as CheerioElement).remove();
+  const definitions = extractDefinitions($, defs);
+
+  return { useElements: flattenedUses, definitions };
+}
+
 /**
  * Parse a single SVG file into structured data
  */
@@ -32,10 +205,13 @@ export function parseSvgFile(content: string, filename: string): ParsedFrame {
   const positioningOffset = parseTransformOffset(mainTransform);
 
   const parent = mainGroup.length > 0 ? mainGroup : svg;
-  const useElements = extractUseElements($, parent);
-
   const defs = svg.find("defs").first();
-  const definitions = defs.length > 0 ? extractDefinitions($, defs) : [];
+
+  // Try to flatten wrapper definitions for better element-level dedup
+  const flattened = tryFlattenWrapperDefinition($, parent, defs);
+
+  const useElements = flattened?.useElements ?? extractUseElements($, parent);
+  const definitions = flattened?.definitions ?? (defs.length > 0 ? extractDefinitions($, defs) : []);
 
   const { animationName, frameIndex } = parseFilename(filename);
 

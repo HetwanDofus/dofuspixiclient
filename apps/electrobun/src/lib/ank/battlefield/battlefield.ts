@@ -1,7 +1,6 @@
 import { LayoutSystem } from "@pixi/layout";
 import {
   type Application,
-  ColorMatrixFilter,
   Container,
   extensions,
   type Sprite,
@@ -53,7 +52,8 @@ import {
 import { GridOverlay } from "./grid-overlay";
 import { InteractionHandler } from "./interaction-handler";
 import { MapHandler } from "./map-handler";
-import { MapTransition } from "./map-transition";
+import { AdjacentMapCache } from "./adjacent-map-cache";
+import { type TransitionDirection, MapTransition } from "./map-transition";
 import { type SpellAnimationConfig, SpellRenderer } from "./spell-renderer";
 import { StressTest } from "./stress-test";
 
@@ -139,6 +139,8 @@ export class Battlefield {
 
   // Map transition: blur out old map → blur in new map
   private mapTransition: MapTransition | null = null;
+  // Adjacent map preloading
+  private adjacentMapCache: AdjacentMapCache | null = null;
 
   // Ground click callback
   // ECS
@@ -303,6 +305,7 @@ export class Battlefield {
       this.app.renderer,
       "/assets/spritesheets"
     );
+    this.adjacentMapCache = new AdjacentMapCache(this.atlasLoader);
 
     const baseZoom = this.engine.getBaseZoom();
     this.banner = new Banner(this.app, DISPLAY_HEIGHT);
@@ -513,7 +516,7 @@ export class Battlefield {
     this.banner?.updateMinimapPosition(mapId);
   }
 
-  async loadMapFromData(mapData: MapData): Promise<void> {
+  async loadMapFromData(mapData: MapData, direction?: TransitionDirection): Promise<void> {
     if (
       !this.mapContainer ||
       !this.mapHandler ||
@@ -524,7 +527,7 @@ export class Battlefield {
     }
 
     // Capture snapshot of old map — non-blocking, tiles render behind it.
-    this.mapTransition?.startTransition();
+    this.mapTransition?.startTransition(direction);
 
     this.currentMapData = mapData;
 
@@ -585,6 +588,31 @@ export class Battlefield {
    */
   async revealMap(): Promise<void> {
     await this.mapTransition?.reveal();
+  }
+
+  /**
+   * Load adjacent map data into the cache for background prefetching.
+   */
+  loadAdjacentMaps(
+    maps: Array<{
+      mapId: number;
+      dx: number;
+      dy: number;
+      width: number;
+      height: number;
+      background: number;
+      compressed: Uint8Array;
+      encoding: "gzip";
+    }>
+  ): void {
+    this.adjacentMapCache?.loadAdjacentMaps(maps);
+  }
+
+  /**
+   * Get the transition direction for a target map from the adjacent cache.
+   */
+  getAdjacentDirection(mapId: number): TransitionDirection | null {
+    return this.adjacentMapCache?.getDirection(mapId) ?? null;
   }
 
   /** Set the player character ID (used for tracking). */
@@ -1146,9 +1174,11 @@ export class Battlefield {
   }
 
   destroy(): void {
-    // Clean up map transition
+    // Clean up map transition and adjacent cache
     this.mapTransition?.destroy();
     this.mapTransition = null;
+    this.adjacentMapCache?.destroy();
+    this.adjacentMapCache = null;
 
     // Clear zoom debounce timer
     if (this.zoomDebounceTimer) {
