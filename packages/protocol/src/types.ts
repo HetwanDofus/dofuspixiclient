@@ -22,7 +22,12 @@ export const ClientMessageType = {
   COMBAT_SPECTATE: 0x68,
   COMBAT_PLACEMENT: 0x69,
   CHARACTER_BOOST_STAT: 0x70,
+  ITEM_MOVE: 0x80,
+  ITEM_USE: 0x81,
+  ITEM_DROP: 0x82,
+  ITEM_DESTROY: 0x83,
   DEBUG_GIVE_CAPITAL: 0xd0,
+  DEBUG_GIVE_ITEM: 0xd1,
   PING: 0xff,
 } as const;
 
@@ -63,6 +68,12 @@ export const ServerMessageType = {
   COMBAT_STATS: 0x7c,
   COMBAT_READY: 0x7d,
   COMBAT_CHALLENGE: 0x7e,
+  INVENTORY_LIST: 0x80,
+  ITEM_ADD: 0x81,
+  ITEM_REMOVE: 0x82,
+  ITEM_QUANTITY: 0x83,
+  ITEM_MOVE: 0x84,
+  ITEM_WEIGHT: 0x85,
   ERROR: 0xfe,
   PONG: 0xff,
 } as const;
@@ -124,6 +135,11 @@ export interface ActorAddPayload {
 export interface ActorMovePayload {
   id: number;
   path: number[];
+}
+
+export interface ActorUpdatePayload {
+  id: number;
+  look?: string;
 }
 
 export interface ActorRemovePayload {
@@ -257,6 +273,19 @@ import type {
   CombatTurnStartPayload,
 } from "./combat-types.ts";
 
+import type {
+  InventoryListPayload,
+  InventoryWeightPayload,
+  ItemAddPayload,
+  ItemDestroyRequestPayload,
+  ItemDropRequestPayload,
+  ItemMovePayload,
+  ItemMoveRequestPayload,
+  ItemQuantityPayload,
+  ItemRemovePayload,
+  ItemUseRequestPayload,
+} from "./item-types.ts";
+
 export interface ClientPayloadMap {
   [ClientMessageType.AUTH_LOGIN]: LoginPayload;
   [ClientMessageType.AUTH_LOGOUT]: Record<string, never>;
@@ -281,7 +310,12 @@ export interface ClientPayloadMap {
   [ClientMessageType.COMBAT_SPECTATE]: CombatSpectateRequestPayload;
   [ClientMessageType.COMBAT_PLACEMENT]: CombatPlacementRequestPayload;
   [ClientMessageType.CHARACTER_BOOST_STAT]: BoostStatPayload;
+  [ClientMessageType.ITEM_MOVE]: ItemMoveRequestPayload;
+  [ClientMessageType.ITEM_USE]: ItemUseRequestPayload;
+  [ClientMessageType.ITEM_DROP]: ItemDropRequestPayload;
+  [ClientMessageType.ITEM_DESTROY]: ItemDestroyRequestPayload;
   [ClientMessageType.DEBUG_GIVE_CAPITAL]: { amount: number };
+  [ClientMessageType.DEBUG_GIVE_ITEM]: { templateId: number; quantity: number };
   [ClientMessageType.PING]: PingPayload;
 }
 
@@ -299,7 +333,7 @@ export interface ServerPayloadMap {
   [ServerMessageType.ACTOR_ADD]: ActorAddPayload;
   [ServerMessageType.ACTOR_REMOVE]: ActorRemovePayload;
   [ServerMessageType.ACTOR_MOVE]: ActorMovePayload;
-  [ServerMessageType.ACTOR_UPDATE]: unknown;
+  [ServerMessageType.ACTOR_UPDATE]: ActorUpdatePayload;
   [ServerMessageType.CHAT_MESSAGE]: ChatMessagePayload;
   [ServerMessageType.CHAT_SYSTEM]: unknown;
   [ServerMessageType.INTERACT_RESPONSE]: unknown;
@@ -319,6 +353,12 @@ export interface ServerPayloadMap {
   [ServerMessageType.COMBAT_STATS]: CombatStatsPayload;
   [ServerMessageType.COMBAT_READY]: CombatReadyPayload;
   [ServerMessageType.COMBAT_CHALLENGE]: CombatChallengePayload;
+  [ServerMessageType.INVENTORY_LIST]: InventoryListPayload;
+  [ServerMessageType.ITEM_ADD]: ItemAddPayload;
+  [ServerMessageType.ITEM_REMOVE]: ItemRemovePayload;
+  [ServerMessageType.ITEM_QUANTITY]: ItemQuantityPayload;
+  [ServerMessageType.ITEM_MOVE]: ItemMovePayload;
+  [ServerMessageType.ITEM_WEIGHT]: InventoryWeightPayload;
   [ServerMessageType.ERROR]: ErrorPayload;
   [ServerMessageType.PONG]: PongPayload;
 }

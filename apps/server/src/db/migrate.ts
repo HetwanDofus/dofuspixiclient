@@ -90,6 +90,46 @@ async function migrate() {
     db
   );
 
+  // ── Item templates (static data) ──
+  await db.schema
+    .createTable("item_templates")
+    .ifNotExists()
+    .addColumn("id", "integer", (col) => col.primaryKey())
+    .addColumn("name", "varchar(100)", (col) => col.notNull())
+    .addColumn("type", "smallint", (col) => col.notNull()) // ItemCategory
+    .addColumn("super_type", "smallint", (col) => col.defaultTo(0)) // ItemSuperType
+    .addColumn("level", "smallint", (col) => col.defaultTo(1))
+    .addColumn("weight", "integer", (col) => col.defaultTo(1))
+    .addColumn("gfx_id", "integer", (col) => col.defaultTo(0))
+    .addColumn("equip_positions", "jsonb", (col) => col.defaultTo("[]"))
+    .addColumn("effects", "jsonb", (col) => col.defaultTo("[]"))
+    .addColumn("item_set_id", "integer", (col) => col.defaultTo(0))
+    .addColumn("two_handed", "boolean", (col) => col.defaultTo(false))
+    .addColumn("usable", "boolean", (col) => col.defaultTo(false))
+    .addColumn("stackable", "boolean", (col) => col.defaultTo(true))
+    .addColumn("description", "text", (col) => col.defaultTo(""))
+    .execute();
+
+  // ── Character inventory items ──
+  await db.schema
+    .createTable("character_items")
+    .ifNotExists()
+    .addColumn("id", "serial", (col) => col.primaryKey())
+    .addColumn("character_id", "integer", (col) =>
+      col.notNull().references("characters.id").onDelete("cascade")
+    )
+    .addColumn("template_id", "integer", (col) =>
+      col.notNull().references("item_templates.id")
+    )
+    .addColumn("quantity", "integer", (col) => col.defaultTo(1))
+    .addColumn("position", "smallint", (col) => col.defaultTo(-1)) // -1 = bag
+    .addColumn("effects", "jsonb", (col) => col.defaultTo("[]"))
+    .execute();
+
+  await sql`CREATE INDEX IF NOT EXISTS idx_character_items_char_id ON character_items (character_id)`.execute(
+    db
+  );
+
   // Add stats columns to existing characters table (safe to re-run)
   const statsColumns: Array<[string, string, string | number]> = [
     ["vitality", "integer", 0],

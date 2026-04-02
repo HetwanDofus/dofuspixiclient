@@ -1,0 +1,17 @@
+{
+    "symbol": "8_46",
+    "direction": "L",
+    "width": 19.1,
+    "height": 51,
+    "frames": [
+        {
+            "id": "frame_0",
+            "file": "frame_0.svg",
+            "width": 19.1,
+            "height": 50.95,
+            "offsetX": -10.35,
+            "offsetY": -32.6
+        }
+    ],
+    "fps": 12
+}

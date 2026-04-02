@@ -12,6 +12,13 @@ import {
   handleMoveEnd,
   handleMovement,
 } from "../handlers/movement.ts";
+import {
+  handleDebugGiveItem,
+  handleItemDestroy,
+  handleItemDrop,
+  handleItemMove,
+  handleItemUse,
+} from "../handlers/inventory.ts";
 import { handleBoostStat, handleDebugGiveCapital } from "../handlers/stats.ts";
 import { decodeClientMessage, encodeServerMessage } from "../protocol/codec.ts";
 import {
@@ -62,6 +69,7 @@ export const gameWs = new Elysia().ws("/game", {
               : data;
 
       const msg = decodeClientMessage(raw as ArrayBuffer);
+      log.info(`Received message type=0x${msg.type.toString(16)} from ${sessionId}`);
 
       await match(msg.type)
         .with(ClientMessageType.AUTH_LOGIN, () =>
@@ -78,8 +86,18 @@ export const gameWs = new Elysia().ws("/game", {
           handleMapChange(session, payload<typeof ClientMessageType.MAP_CHANGE>(msg)))
         .with(ClientMessageType.CHARACTER_BOOST_STAT, () =>
           handleBoostStat(session, payload<typeof ClientMessageType.CHARACTER_BOOST_STAT>(msg)))
+        .with(ClientMessageType.ITEM_MOVE, () =>
+          handleItemMove(session, payload<typeof ClientMessageType.ITEM_MOVE>(msg)))
+        .with(ClientMessageType.ITEM_USE, () =>
+          handleItemUse(session, payload<typeof ClientMessageType.ITEM_USE>(msg)))
+        .with(ClientMessageType.ITEM_DROP, () =>
+          handleItemDrop(session, payload<typeof ClientMessageType.ITEM_DROP>(msg)))
+        .with(ClientMessageType.ITEM_DESTROY, () =>
+          handleItemDestroy(session, payload<typeof ClientMessageType.ITEM_DESTROY>(msg)))
         .with(ClientMessageType.DEBUG_GIVE_CAPITAL, () =>
           handleDebugGiveCapital(session, payload<typeof ClientMessageType.DEBUG_GIVE_CAPITAL>(msg)))
+        .with(ClientMessageType.DEBUG_GIVE_ITEM, () =>
+          handleDebugGiveItem(session, payload<typeof ClientMessageType.DEBUG_GIVE_ITEM>(msg)))
         .with(ClientMessageType.PING, () => {
           ws.raw.send(encodeServerMessage(ServerMessageType.PONG, { time: Date.now() }));
         })

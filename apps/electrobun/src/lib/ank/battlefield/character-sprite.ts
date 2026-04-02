@@ -161,12 +161,14 @@ export class CharacterSpriteLoader {
   /**
    * Load a character animation.
    * Returns cached data if available, otherwise fetches atlas.json + atlas.svg.
+   * If `look` is provided, the middleware composes the SVG with accessories and colors.
    */
   async loadAnimation(
     gfxId: number,
-    animName: string
+    animName: string,
+    look?: string
   ): Promise<CharacterAnimation | null> {
-    const key = `${gfxId}:${animName}`;
+    const key = look ? `${gfxId}:${animName}:${look}` : `${gfxId}:${animName}`;
 
     const cached = this.cache.get(key);
     if (cached) return cached;
@@ -174,7 +176,7 @@ export class CharacterSpriteLoader {
     const pendingLoad = this.pending.get(key);
     if (pendingLoad) return pendingLoad;
 
-    const promise = this.doLoadAnimation(gfxId, animName);
+    const promise = this.doLoadAnimation(gfxId, animName, look);
     this.pending.set(key, promise);
 
     try {
@@ -191,20 +193,21 @@ export class CharacterSpriteLoader {
   async loadAnimationWithFallback(
     gfxId: number,
     baseAnim: string,
-    direction: number
+    direction: number,
+    look?: string
   ): Promise<{ animation: CharacterAnimation; animName: string } | null> {
     const suffix = getDirectionSuffix(direction);
     const primaryName = `${baseAnim}${suffix}`;
 
     // Try primary
-    const primary = await this.loadAnimation(gfxId, primaryName);
+    const primary = await this.loadAnimation(gfxId, primaryName, look);
     if (primary) return { animation: primary, animName: primaryName };
 
     // Try fallbacks
     const fallbacks = SUFFIX_FALLBACKS[suffix] ?? [];
     for (const fb of fallbacks) {
       const fbName = `${baseAnim}${fb}`;
-      const result = await this.loadAnimation(gfxId, fbName);
+      const result = await this.loadAnimation(gfxId, fbName, look);
       if (result) return { animation: result, animName: fbName };
     }
 
@@ -214,8 +217,9 @@ export class CharacterSpriteLoader {
   /**
    * Get cached animation synchronously. Returns null if not loaded.
    */
-  getAnimationSync(gfxId: number, animName: string): CharacterAnimation | null {
-    return this.cache.get(`${gfxId}:${animName}`) ?? null;
+  getAnimationSync(gfxId: number, animName: string, look?: string): CharacterAnimation | null {
+    const key = look ? `${gfxId}:${animName}:${look}` : `${gfxId}:${animName}`;
+    return this.cache.get(key) ?? null;
   }
 
   /**
@@ -253,44 +257,46 @@ export class CharacterSpriteLoader {
 
   private async doLoadAnimation(
     gfxId: number,
-    animName: string
+    animName: string,
+    look?: string
   ): Promise<CharacterAnimation | null> {
     const atlasPath = `${SPRITES_BASE_PATH}/${gfxId}/${animName}/atlas.json`;
 
     try {
       const res = await fetch(atlasPath);
       if (!res.ok) return null;
-
       const atlas: SpriteAtlas = await res.json();
 
       // Load SVG(s) at zoom-aware resolution for crisp rendering
       const resolution = this.getResolution();
       const baseSvgPath = `${SPRITES_BASE_PATH}/${gfxId}/${animName}`;
+      // Include look in alias so different looks get different textures
+      const lookSuffix = look ? `:${look}` : "";
 
       let pageTextures: Texture[];
 
       try {
         if (atlas.pages && atlas.pages.length > 1) {
-          // Multi-page: load each page SVG in parallel
           pageTextures = await Promise.all(
             atlas.pages.map(async (page, i) => {
-              const alias = `char:${gfxId}:${animName}:${i}:${resolution}`;
+              const alias = `char:${gfxId}:${animName}:${i}:${resolution}${lookSuffix}`;
               const texture = await loadSvg(
                 `${baseSvgPath}/${page.file}`,
                 resolution,
                 alias,
+                look,
               );
               this.loadedAssets.add(alias);
               return texture;
             })
           );
         } else {
-          // Single page
-          const alias = `char:${gfxId}:${animName}:${resolution}`;
+          const alias = `char:${gfxId}:${animName}:${resolution}${lookSuffix}`;
           const texture = await loadSvg(
             `${baseSvgPath}/atlas.svg`,
             resolution,
             alias,
+            look,
           );
           this.loadedAssets.add(alias);
           pageTextures = [texture];
@@ -355,7 +361,7 @@ export class CharacterSpriteLoader {
         frameHeight: firstFrame?.height ?? 0,
       };
 
-      const key = `${gfxId}:${animName}`;
+      const key = look ? `${gfxId}:${animName}:${look}` : `${gfxId}:${animName}`;
       this.cache.set(key, animation);
       return animation;
     } catch {
@@ -370,7 +376,7 @@ export class CharacterSpriteLoader {
   createSprite(animation: CharacterAnimation, frameIndex = 0): Sprite {
     const texture = animation.textures[frameIndex % animation.textures.length];
     const sprite = new Sprite(texture);
-    sprite.anchor.set(0, 1); // Bottom-left anchor (feet at position)
+    sprite.anchor.set(0, 0); // Top-left anchor; offset positions feet at (0,0)
     sprite.x = animation.offsetX;
     sprite.y = animation.offsetY;
     return sprite;

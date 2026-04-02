@@ -1,0 +1,17 @@
+{
+    "symbol": "19_6",
+    "direction": "R",
+    "width": 13.9,
+    "height": 27.4,
+    "frames": [
+        {
+            "id": "frame_0",
+            "file": "frame_0.svg",
+            "width": 13.85,
+            "height": 27.35,
+            "offsetX": -3.7,
+            "offsetY": -22.65
+        }
+    ],
+    "fps": 12
+}

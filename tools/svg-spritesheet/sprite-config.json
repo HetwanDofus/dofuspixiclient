@@ -1,0 +1,22 @@
+{
+  "defaults": {
+    "staticFrameLimit": 1
+  },
+  "accessoryBounds": {
+    "0": { "left": 76, "top": 76, "right": 76, "bottom": 76 },
+    "1": { "left": 34, "top": 34, "right": 23, "bottom": 22 },
+    "2": { "left": 31, "top": 28, "right": 54, "bottom": 33 },
+    "3": { "left": 0, "top": 0, "right": 0, "bottom": 0 },
+    "4": { "left": 13, "top": 15, "right": 11, "bottom": 16 }
+  },
+  "sprites": {
+    "80": {
+      "hairToggle": {
+        "sourceFrame": 0,
+        "compareFrame": 1,
+        "cssClass": "hair-long",
+        "triggerSlot": 1
+      }
+    }
+  }
+}

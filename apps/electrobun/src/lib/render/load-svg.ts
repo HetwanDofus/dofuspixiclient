@@ -8,11 +8,14 @@ export async function loadSvg(
   path: string,
   resolution: number,
   alias?: string,
+  look?: string,
 ): Promise<Texture> {
-  const effectiveAlias = alias ?? `svg:${path}:${resolution}`;
+  const effectiveAlias = alias ?? `svg:${path}:${resolution}${look ? `:${look}` : ""}`;
+  let src = `${path}?r=${resolution}`;
+  if (look) src += `&look=${encodeURIComponent(look)}`;
   return Assets.load({
     alias: effectiveAlias,
-    src: `${path}?r=${resolution}`,
+    src,
     parser: "loadSvgStroke",
     data: { resolution },
   });

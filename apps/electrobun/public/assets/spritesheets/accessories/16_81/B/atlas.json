@@ -1,0 +1,33 @@
+{
+    "symbol": "16_81",
+    "direction": "B",
+    "width": 20,
+    "height": 23,
+    "frames": [
+        {
+            "id": "frame_0",
+            "file": "frame_0.svg",
+            "width": 20,
+            "height": 22.95,
+            "offsetX": -10.4,
+            "offsetY": -11.8
+        },
+        {
+            "id": "frame_1",
+            "file": "frame_1.svg",
+            "width": 20,
+            "height": 22.95,
+            "offsetX": -10.4,
+            "offsetY": -11.8
+        },
+        {
+            "id": "frame_2",
+            "file": "frame_2.svg",
+            "width": 20,
+            "height": 22.95,
+            "offsetX": -10.4,
+            "offsetY": -11.8
+        }
+    ],
+    "fps": 12
+}

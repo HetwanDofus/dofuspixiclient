@@ -5,6 +5,7 @@ import {
   getCharacterById,
   updateCharacterPosition,
 } from "../game/character.ts";
+import { buildLookString } from "../game/inventory.ts";
 import {
   cleanupEmptyMap,
   getMapInstance,
@@ -153,10 +154,10 @@ export async function changeMap(
     })
   );
 
-  // Get character look
+  // Get character look (including accessories)
   const character = await getCharacterById(session.characterId);
   const look = character
-    ? `${character.gfx}|${character.color1}|${character.color2}|${character.color3}`
+    ? await buildLookString(character.gfx, character.color1, character.color2, character.color3, character.id)
     : "";
 
   // Join new map instance — add self first so we appear in the actors list

@@ -133,7 +133,7 @@ export class EntityLifecycleSystem extends System {
 
     // Create sprite
     const sprite = new Sprite(animation.textures[0]);
-    sprite.anchor.set(0, 1);
+    sprite.anchor.set(0, 0);
     sprite.x = animation.offsetX;
     sprite.y = animation.offsetY;
     sprite.zIndex = 0;

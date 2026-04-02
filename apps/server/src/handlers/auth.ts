@@ -27,6 +27,8 @@ import {
 } from "../ws/client-session.ts";
 import { requireAuthenticated } from "../ws/guards.ts";
 import { createLogger } from "../utils/logger.ts";
+import { sendInventoryList } from "./inventory.ts";
+import { buildLookString } from "../game/inventory.ts";
 import { sendCharacterStats } from "./stats.ts";
 
 const log = createLogger("Auth");
@@ -121,6 +123,9 @@ export async function handleCharacterSelect(
   // Send CHARACTER_STATS
   await sendCharacterStats(session);
 
+  // Send INVENTORY_LIST
+  await sendInventoryList(session);
+
   // Send MAP_DATA
   const map = await getMap(character.map_id);
   const compressed = await getCompressedMap(character.map_id);
@@ -139,7 +144,9 @@ export async function handleCharacterSelect(
 
   // Join map instance — add self first so we appear in the actors list
   const mapInstance = getOrCreateMapInstance(character.map_id);
-  const look = `${character.gfx}|${character.color1}|${character.color2}|${character.color3}`;
+  const look = await buildLookString(
+    character.gfx, character.color1, character.color2, character.color3, character.id
+  );
   mapInstance.addActor(
     session,
     character.id,

@@ -73,6 +73,7 @@
 
       // Initialize game client
       gameClient = new GameClient();
+      (window as any).gameClient = gameClient;
       gameClient.setBattlefield(battlefield);
 
       gameClient.setOnConnected(() => {

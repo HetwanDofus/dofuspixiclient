@@ -236,19 +236,20 @@ function parseTransformOffset(transform: string): PositioningOffset {
     return { x: 0, y: 0 };
   }
 
-  // Try matrix format: matrix(a, b, c, d, tx, ty)
-  const matrixMatch = transform.match(/matrix\s*\(\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)/);
+  // Try matrix format: matrix(a, b, c, d, tx, ty) — comma or space separated
+  const matrixMatch = transform.match(/matrix\s*\(\s*([^,\s]+)[\s,]+([^,\s]+)[\s,]+([^,\s]+)[\s,]+([^,\s]+)[\s,]+([^,\s]+)[\s,]+([^)\s]+)\s*\)/);
   if (matrixMatch) {
     const tx = parseFloat(matrixMatch[5]);
     const ty = parseFloat(matrixMatch[6]);
     return { x: tx, y: ty };
   }
 
-  // Try translate format: translate(tx, ty) or translate(tx)
-  const translateMatch = transform.match(/translate\s*\(\s*([^,)]+)(?:,\s*([^)]+))?\)/);
+  // Try translate format: translate(tx, ty) or translate(tx ty) or translate(tx)
+  // SVG allows both comma and space as separator
+  const translateMatch = transform.match(/translate\s*\(\s*([^,\s)]+)[\s,]*([^)]*)\)/);
   if (translateMatch) {
     const tx = parseFloat(translateMatch[1]);
-    const ty = translateMatch[2] ? parseFloat(translateMatch[2]) : 0;
+    const ty = translateMatch[2]?.trim() ? parseFloat(translateMatch[2]) : 0;
     return { x: tx, y: ty };
   }
 

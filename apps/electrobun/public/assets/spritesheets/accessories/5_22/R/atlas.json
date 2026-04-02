@@ -1,0 +1,17 @@
+{
+    "symbol": "5_22",
+    "direction": "R",
+    "width": 312.9,
+    "height": 281.4,
+    "frames": [
+        {
+            "id": "frame_0",
+            "file": "frame_0.svg",
+            "width": 312.85,
+            "height": 281.4,
+            "offsetX": -157.05,
+            "offsetY": -152.75
+        }
+    ],
+    "fps": 12
+}

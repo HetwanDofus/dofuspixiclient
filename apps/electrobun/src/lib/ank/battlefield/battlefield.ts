@@ -646,6 +646,13 @@ export class Battlefield {
   }
 
   /**
+   * Update a world actor's look (accessories changed on equip/unequip).
+   */
+  updateActorLook(id: number, look: string): void {
+    this.worldActorRenderer?.updateFighterLook(id, look);
+  }
+
+  /**
    * Remove a world actor from the map.
    */
   removeWorldActor(id: number): void {

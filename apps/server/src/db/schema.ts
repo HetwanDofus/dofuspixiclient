@@ -5,6 +5,8 @@ export interface Database {
   accounts: AccountsTable;
   characters: CharactersTable;
   scripted_cells: ScriptedCellsTable;
+  item_templates: ItemTemplatesTable;
+  character_items: CharacterItemsTable;
 }
 
 export interface MapsTable {
@@ -75,4 +77,30 @@ export interface ScriptedCellsTable {
   event_id: number;
   action_args: string;
   conditions: string;
+}
+
+export interface ItemTemplatesTable {
+  id: number;
+  name: string;
+  type: number; // ItemCategory
+  super_type: number; // ItemSuperType
+  level: number;
+  weight: number;
+  gfx_id: number;
+  equip_positions: string; // JSON array of EquipmentPosition values
+  effects: string; // JSON array of default ItemEffect[]
+  item_set_id: number;
+  two_handed: boolean;
+  usable: boolean;
+  stackable: boolean;
+  description: string;
+}
+
+export interface CharacterItemsTable {
+  id: Generated<number>;
+  character_id: number;
+  template_id: number;
+  quantity: number;
+  position: number; // EquipmentPosition (-1 = bag)
+  effects: string; // JSON array of ItemEffect[] (rolled stats)
 }

@@ -1,0 +1,33 @@
+{
+    "symbol": "16_180",
+    "direction": "F",
+    "width": 26.2,
+    "height": 27.1,
+    "frames": [
+        {
+            "id": "frame_0",
+            "file": "frame_0.svg",
+            "width": 26.2,
+            "height": 27.05,
+            "offsetX": -12.7,
+            "offsetY": -20.15
+        },
+        {
+            "id": "frame_1",
+            "file": "frame_1.svg",
+            "width": 26.2,
+            "height": 27.05,
+            "offsetX": -12.7,
+            "offsetY": -20.15
+        },
+        {
+            "id": "frame_2",
+            "file": "frame_2.svg",
+            "width": 26.2,
+            "height": 27.05,
+            "offsetX": -12.7,
+            "offsetY": -20.15
+        }
+    ],
+    "fps": 12
+}

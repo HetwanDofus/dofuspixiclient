@@ -105,8 +105,32 @@ export class MapInstance {
     return result;
   }
 
-  broadcast(data: Uint8Array, sender: ClientSession): void {
-    sender.ws.publish(this.topic, data);
+  updateActorLook(characterId: number, look: string): void {
+    const actor = this.actors.get(characterId);
+    if (actor) {
+      actor.look = look;
+    }
+  }
+
+  broadcast(data: Uint8Array, sender?: ClientSession): void {
+    if (sender) {
+      sender.ws.publish(this.topic, data);
+    } else {
+      // Broadcast to all — use any actor's session to publish
+      for (const actor of this.actors.values()) {
+        actor.session.ws.publish(this.topic, data);
+        // Also send to the publishing actor themselves
+        actor.session.ws.send(data);
+        break;
+      }
+    }
+  }
+
+  /** Broadcast to all actors including sender */
+  broadcastToAll(data: Uint8Array): void {
+    for (const actor of this.actors.values()) {
+      actor.session.ws.send(data);
+    }
   }
 
   get actorCount(): number {

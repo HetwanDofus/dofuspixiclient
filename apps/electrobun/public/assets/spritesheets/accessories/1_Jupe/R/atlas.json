@@ -1,0 +1,17 @@
+{
+    "symbol": "1_Jupe",
+    "direction": "R",
+    "width": 4.4,
+    "height": 5,
+    "frames": [
+        {
+            "id": "frame_0",
+            "file": "frame_0.svg",
+            "width": 4.4,
+            "height": 5,
+            "offsetX": -6.6,
+            "offsetY": -2.75
+        }
+    ],
+    "fps": 12
+}

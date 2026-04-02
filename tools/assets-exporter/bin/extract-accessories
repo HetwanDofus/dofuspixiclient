@@ -1,0 +1,12 @@
+#!/usr/bin/env php
+<?php
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use App\Command\ExtractAccessoriesCommand;
+use Symfony\Component\Console\Application;
+
+$application = new Application('Accessory Sprite Extractor', '1.0.0');
+$application->addCommand(new ExtractAccessoriesCommand());
+$application->setDefaultCommand('accessories:extract', true);
+$application->run();

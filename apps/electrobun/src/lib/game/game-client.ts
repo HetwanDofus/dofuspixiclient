@@ -18,16 +18,24 @@ import {
   type ActorAddPayload,
   type ActorMovePayload,
   type ActorRemovePayload,
+  type ActorUpdatePayload,
   type AdjacentMapsPayload,
   type AuthSuccessPayload,
   type CharacterInfoPayload,
   type CharacterStatsPayload,
+  type InventoryListPayload,
+  type ItemAddPayload,
+  type ItemMovePayload,
+  type ItemQuantityPayload,
+  type ItemRemovePayload,
+  type InventoryWeightPayload,
   type MapActorsPayload,
   ClientMessageType,
   encodeClientMessage,
   ServerMessageType,
 } from "@/network/protocol";
 import type { CharacterStats } from "@/types/stats";
+import { InventoryStore } from "./inventory-store";
 
 export interface CharacterInfo {
   id: number;
@@ -61,6 +69,7 @@ export class GameClient {
   private mapLoadPromise: Promise<void> = Promise.resolve();
   private currentStats: CharacterStats | null = null;
   private audioManager: AudioManager;
+  private inventoryStore = new InventoryStore();
 
   /** Incremented on each MAP_DATA to invalidate stale MAP_ACTORS handlers. */
   private mapGeneration = 0;
@@ -128,12 +137,33 @@ export class GameClient {
       log.info("Character selected:", payload.name, "on map", payload.mapId, "cell", payload.cellId);
       this.battlefield?.getStatsPanel()?.setCharacterName(payload.name);
       this.battlefield?.getInventoryPanel()?.setCharacterGfx(payload.gfx);
+      this.battlefield?.getInventoryPanel()?.bindStore(this.inventoryStore);
       this.battlefield?.setDebugPlayerId(payload.id);
     });
 
     this.messageHandler.on(ServerMessageType.CHARACTER_STATS, (payload: CharacterStatsPayload) => {
       this.currentStats = payload as CharacterStats;
       this.battlefield?.getStatsPanel()?.updateStats(this.currentStats);
+    });
+
+    // ── Inventory handlers ──
+    this.messageHandler.on(ServerMessageType.INVENTORY_LIST, (payload: InventoryListPayload) => {
+      this.inventoryStore.handleInventoryList(payload);
+    });
+    this.messageHandler.on(ServerMessageType.ITEM_ADD, (payload: ItemAddPayload) => {
+      this.inventoryStore.handleItemAdd(payload);
+    });
+    this.messageHandler.on(ServerMessageType.ITEM_REMOVE, (payload: ItemRemovePayload) => {
+      this.inventoryStore.handleItemRemove(payload);
+    });
+    this.messageHandler.on(ServerMessageType.ITEM_QUANTITY, (payload: ItemQuantityPayload) => {
+      this.inventoryStore.handleItemQuantity(payload);
+    });
+    this.messageHandler.on(ServerMessageType.ITEM_MOVE, (payload: ItemMovePayload) => {
+      this.inventoryStore.handleItemMove(payload);
+    });
+    this.messageHandler.on(ServerMessageType.ITEM_WEIGHT, (payload: InventoryWeightPayload) => {
+      this.inventoryStore.handleWeightUpdate(payload);
     });
 
     this.messageHandler.on(ServerMessageType.MAP_DATA, (payload) => {
@@ -253,6 +283,13 @@ export class GameClient {
     this.messageHandler.on(ServerMessageType.ACTOR_REMOVE, (payload: ActorRemovePayload) => {
       log.debug("ACTOR_REMOVE:", payload.id);
       this.battlefield?.removeWorldActor(payload.id);
+    });
+
+    this.messageHandler.on(ServerMessageType.ACTOR_UPDATE, (payload: ActorUpdatePayload) => {
+      log.debug("ACTOR_UPDATE:", payload.id, "look:", payload.look);
+      if (payload.look != null) {
+        this.battlefield?.updateActorLook(payload.id, payload.look);
+      }
     });
 
     this.messageHandler.on(
@@ -386,6 +423,40 @@ export class GameClient {
 
   getAudioManager(): AudioManager {
     return this.audioManager;
+  }
+
+  getInventory(): InventoryStore {
+    return this.inventoryStore;
+  }
+
+  moveItem(uid: number, position: number, quantity?: number): void {
+    this.connection.send(
+      encodeClientMessage(ClientMessageType.ITEM_MOVE, { uid, position, quantity })
+    );
+  }
+
+  useItem(uid: number): void {
+    this.connection.send(
+      encodeClientMessage(ClientMessageType.ITEM_USE, { uid })
+    );
+  }
+
+  dropItem(uid: number, quantity: number): void {
+    this.connection.send(
+      encodeClientMessage(ClientMessageType.ITEM_DROP, { uid, quantity })
+    );
+  }
+
+  destroyItem(uid: number, quantity: number): void {
+    this.connection.send(
+      encodeClientMessage(ClientMessageType.ITEM_DESTROY, { uid, quantity })
+    );
+  }
+
+  debugGiveItem(templateId: number, quantity = 1): void {
+    this.connection.send(
+      encodeClientMessage(ClientMessageType.DEBUG_GIVE_ITEM, { templateId, quantity })
+    );
   }
 
   debugGiveCapital(amount: number): void {

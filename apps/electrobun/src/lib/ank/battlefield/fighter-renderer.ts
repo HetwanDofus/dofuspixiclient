@@ -82,6 +82,8 @@ interface ActiveFighter {
   spriteLoading: boolean;
   /** Queued animation request while spriteLoading is true. */
   pendingAnim: { baseAnim: string; direction: number } | null;
+  /** Player look string for composed atlas loading */
+  look: string;
 }
 
 /**
@@ -239,6 +241,7 @@ export class FighterRenderer {
       moving: movementState.moving,
       spriteLoading: false,
       pendingAnim: null,
+      look: data.look,
     };
 
     this.fighters.set(data.id, fighter);
@@ -246,10 +249,10 @@ export class FighterRenderer {
     // Try to apply sprite synchronously from cache first (avoids flicker on map change)
     if (gfxId > 0) {
       const suffix = getDirectionSuffix(data.direction);
-      const cached = this.spriteLoader.getAnimationSync(gfxId, `static${suffix}`);
+      const cached = this.spriteLoader.getAnimationSync(gfxId, `static${suffix}`, data.look);
 
       // Kick off preloading ALL common animations (static/walk/run × all directions)
-      const preloadDone = this.preloadCommonAnimations(gfxId);
+      const preloadDone = this.preloadCommonAnimations(gfxId, data.look);
 
       if (cached) {
         // Sprite already in cache — apply immediately, no flicker
@@ -276,12 +279,12 @@ export class FighterRenderer {
    * Loads static + walk + run for ALL direction suffixes.
    * Returns a promise that resolves when all preloads complete.
    */
-  private preloadCommonAnimations(gfxId: number): Promise<void> {
+  private preloadCommonAnimations(gfxId: number, look?: string): Promise<void> {
     const promises: Promise<unknown>[] = [];
     for (const s of ["S", "R", "F", "L", "B"]) {
-      promises.push(this.spriteLoader.loadAnimation(gfxId, `static${s}`));
-      promises.push(this.spriteLoader.loadAnimation(gfxId, `walk${s}`));
-      promises.push(this.spriteLoader.loadAnimation(gfxId, `run${s}`));
+      promises.push(this.spriteLoader.loadAnimation(gfxId, `static${s}`, look));
+      promises.push(this.spriteLoader.loadAnimation(gfxId, `walk${s}`, look));
+      promises.push(this.spriteLoader.loadAnimation(gfxId, `run${s}`, look));
     }
     return Promise.allSettled(promises).then(() => {});
   }
@@ -306,7 +309,8 @@ export class FighterRenderer {
     const result = await this.spriteLoader.loadAnimationWithFallback(
       fighter.gfxId,
       baseAnim,
-      direction
+      direction,
+      fighter.look
     );
 
     fighter.spriteLoading = false;
@@ -356,7 +360,7 @@ export class FighterRenderer {
     // Create or update sprite
     if (!fighter.sprite) {
       const sprite = new Sprite(animation.textures[0]);
-      sprite.anchor.set(0, 1);
+      sprite.anchor.set(0, 0);
       sprite.scale.x = flipped ? -1 : 1;
       sprite.x = flipped ? -animation.offsetX : animation.offsetX;
       sprite.y = animation.offsetY;
@@ -371,7 +375,7 @@ export class FighterRenderer {
     }
 
     // Update name position above sprite
-    this.updateNamePosition(fighter, animation);
+    this.updateNamePosition(fighter);
   }
 
   /**
@@ -393,7 +397,7 @@ export class FighterRenderer {
     }
 
     // Check if cached
-    const cached = this.spriteLoader.getAnimationSync(fighter.gfxId, animName);
+    const cached = this.spriteLoader.getAnimationSync(fighter.gfxId, animName, fighter.look);
 
     if (cached) {
       this.applyAnimation(fighter, cached, animName);
@@ -845,7 +849,7 @@ export class FighterRenderer {
         const animName = fighter.currentAnimName;
         // Force cache miss so applyAnimation accepts the new data
         fighter.currentAnimName = "";
-        this.spriteLoader.loadAnimation(fighter.gfxId, animName).then((anim) => {
+        this.spriteLoader.loadAnimation(fighter.gfxId, animName, fighter.look).then((anim) => {
           if (anim && this.fighters.has(fighter.id)) {
             this.applyAnimation(fighter, anim, animName);
           }
@@ -892,15 +896,13 @@ export class FighterRenderer {
 
   /**
    * Update the name label Y position above the sprite.
+   * Uses a fixed offset matching the original Dofus client (DEFAULT_SPRITE_HEIGHT = 50).
+   * This prevents jiggle when switching between animations with different frame heights.
    */
-  private updateNamePosition(
-    f: ActiveFighter,
-    animation: CharacterAnimation,
-  ): void {
+  private updateNamePosition(f: ActiveFighter): void {
+    const SPRITE_HEIGHT = 50;
     const margin = 5;
-    // Top of sprite is at offsetY - frameHeight, place name center above it
-    const spriteTop = animation.offsetY - animation.frameHeight;
-    f.nameText.y = spriteTop - margin - f.nameText.height / 2;
+    f.nameText.y = -SPRITE_HEIGHT - margin - f.nameText.height / 2;
   }
 
   /**

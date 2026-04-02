@@ -25,6 +25,252 @@ import {
   saveImageRegistry,
 } from "./lib/image-exporter.ts";
 import { parseSvgFiles } from "./lib/parser.ts";
+import type { AnimationMeta, PartMeta } from "./lib/generator.ts";
+
+// ---------------------------------------------------------------------------
+// Sprite config — per-sprite overrides (frame limits, hair behavior, etc.)
+// ---------------------------------------------------------------------------
+
+interface HairToggleConfig {
+  sourceFrame: number;
+  compareFrame: number;
+  cssClass: string;
+  triggerSlot: number;
+}
+
+interface SpriteOverride {
+  staticFrameLimit?: number;
+  hairToggle?: HairToggleConfig;
+}
+
+interface AccBounds {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+interface SpriteConfig {
+  defaults?: { staticFrameLimit?: number };
+  accessoryBounds?: Record<string, AccBounds>;
+  sprites?: Record<string, SpriteOverride>;
+}
+
+/**
+ * Apply hair toggle to parsed frames.
+ *
+ * Compares frame 0 (long hair) with frame 1 (short hair) definitions.
+ * Finds the definition that differs most (the hair).
+ * Injects frame 0's hair definition into ALL other frames as an extra
+ * use element wrapped in class="hair-long", so it can be CSS-toggled.
+ */
+function applyHairToggle(
+  frames: import("./types.ts").ParsedFrame[],
+  config: HairToggleConfig
+): void {
+  if (frames.length < 2) return;
+
+  const frame0 = frames[config.sourceFrame];
+  const frame1 = frames[config.compareFrame];
+  if (!frame0 || !frame1) return;
+
+  // Build def maps: id → normalizedContent
+  const defs0 = new Map<string, import("./types.ts").Definition>();
+  for (const d of frame0.definitions) defs0.set(d.originalId, d);
+  const defs1 = new Map<string, import("./types.ts").Definition>();
+  for (const d of frame1.definitions) defs1.set(d.originalId, d);
+
+  // Find the definition with the biggest content size difference
+  let hairDefId: string | null = null;
+  let hairDefMaxDiff = 0;
+  for (const [id, def0] of defs0) {
+    const def1 = defs1.get(id);
+    if (!def1) continue;
+    if (def0.normalizedContent === def1.normalizedContent) continue;
+    const diff = def0.normalizedContent.length - def1.normalizedContent.length;
+    if (diff > hairDefMaxDiff) {
+      hairDefMaxDiff = diff;
+      hairDefId = id;
+    }
+  }
+
+  if (!hairDefId || hairDefMaxDiff < 50) return; // No significant hair difference
+
+  // Find which useElement in frame 0 references this def (directly or via parent)
+  const hairDef0 = defs0.get(hairDefId)!;
+  let hairUseIdx = -1;
+  for (let i = 0; i < frame0.useElements.length; i++) {
+    const href = frame0.useElements[i].originalHref.replace(/^#/, "");
+    if (refsContain(href, hairDefId, defs0)) {
+      hairUseIdx = i;
+      break;
+    }
+  }
+
+  if (hairUseIdx < 0) return;
+
+  const hairUse = frame0.useElements[hairUseIdx];
+
+  // Create a modified copy of the hair definition with a unique ID
+  const hairLongId = `${hairDefId}_hairlong`;
+  const hairLongDef: import("./types.ts").Definition = {
+    ...hairDef0,
+    originalId: hairLongId,
+    // Rewrite the normalizedContent to use the new ID
+    normalizedContent: hairDef0.normalizedContent,
+  };
+
+  // Create a use element that references the hair-long def, with same transform
+  // but wrapped conceptually — the generator will emit it, and we mark it with
+  // a special attribute that the generator can detect
+  const hairLongUse: import("./types.ts").UseElement = {
+    ...hairUse,
+    originalHref: `#${hairLongId}`,
+    attributes: { ...hairUse.attributes, class: config.cssClass },
+  };
+
+  // Inject into all frames except sourceFrame:
+  // - Add the long-hair definition
+  // - Add the use element (at the same z-position as the original hair)
+  for (let fi = 0; fi < frames.length; fi++) {
+    if (fi === config.sourceFrame) continue;
+
+    // Add the hair-long definition to this frame
+    frames[fi].definitions.push(hairLongDef);
+
+    // Insert the hair-long use element at the same position
+    const insertIdx = Math.min(hairUseIdx, frames[fi].useElements.length);
+    frames[fi].useElements.splice(insertIdx, 0, hairLongUse);
+  }
+}
+
+/** Check if defId's tree contains targetId */
+function refsContain(
+  defId: string,
+  targetId: string,
+  defs: Map<string, import("./types.ts").Definition>,
+  visited = new Set<string>()
+): boolean {
+  if (defId === targetId) return true;
+  if (visited.has(defId)) return false;
+  visited.add(defId);
+  const def = defs.get(defId);
+  if (!def) return false;
+  for (const ref of def.nestedRefs) {
+    if (refsContain(ref, targetId, defs, visited)) return true;
+  }
+  return false;
+}
+
+let spriteConfig: SpriteConfig = {};
+
+function loadSpriteConfig(): SpriteConfig {
+  const configPath = path.join(import.meta.dir, "..", "sprite-config.json");
+  try {
+    if (fs.existsSync(configPath)) {
+      return JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    }
+  } catch { /* ignore */ }
+  return {};
+}
+
+/**
+ * Apply sprite config to animation groups:
+ * - Limit static animations to N frames (default: 1)
+ */
+function applyFrameLimits(groups: AnimationGroup[], spriteId: string): void {
+  const defaultLimit = spriteConfig.defaults?.staticFrameLimit;
+  const spriteOverride = (spriteConfig.sprites as Record<string, { staticFrameLimit?: number }> | undefined)?.[spriteId];
+  const limit = spriteOverride?.staticFrameLimit ?? defaultLimit;
+  if (!limit) return;
+
+  for (const group of groups) {
+    if (group.name.startsWith("static") && group.files.length > limit) {
+      group.files = group.files.slice(0, limit);
+    }
+  }
+}
+
+interface SpriteMetadataJson {
+  gfxId: number;
+  colorZones: Record<string, string[]>;
+  colorMapping: Record<string, number>;
+  animations: Record<string, Array<{
+    accessories: Array<{ slot: number; depth: number; x: number; y: number; matrix?: number[] }>;
+    parts?: PartMeta[];
+  }>>;
+}
+
+/**
+ * Load sprite metadata and build AnimationMeta for the generator.
+ */
+function loadAnimationMeta(
+  outputDir: string,
+  animName: string
+): AnimationMeta | undefined {
+  const metaPath = path.join(outputDir, "metadata.json");
+  if (!fs.existsSync(metaPath)) return undefined;
+
+  try {
+    const meta: SpriteMetadataJson = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+    const animFrames = meta.animations[animName];
+    if (!animFrames?.[0]?.parts) return undefined;
+
+    // Check if any frame has accessories
+    const hasAccessories = animFrames.some((f) =>
+      f.parts?.some((p) => p.accessory !== undefined)
+    );
+    if (!hasAccessories) return undefined;
+
+    const parts: PartMeta[][] = animFrames.map((f) => f.parts ?? []);
+
+    // Build accessory attachment lookup: "animName_frameIdx_slot" → attachment info
+    const attachments = new Map<string, Array<{ slot: number; x: number; y: number; depth: number; matrix?: number[] }>>();
+    for (let fi = 0; fi < animFrames.length; fi++) {
+      for (const acc of animFrames[fi].accessories) {
+        const key = `${animName}_${fi}_${acc.slot}`;
+        const existing = attachments.get(key) ?? [];
+        existing.push(acc);
+        attachments.set(key, existing);
+      }
+    }
+
+    // Compute padding from actual attachment positions + scaled accessory bounds.
+    // For each attachment point, compute the worst-case overflow considering:
+    // - The attachment position (tx, ty) in character space
+    // - The accessory max bounds for that slot type (from config)
+    // - The scale from the attachment matrix
+    const accBounds = spriteConfig.accessoryBounds;
+    let padLeft = 0, padTop = 0, padRight = 0, padBottom = 0;
+    if (accBounds) {
+      for (const frame of animFrames) {
+        for (const acc of frame.accessories) {
+          const slotBounds = accBounds[String(acc.slot)];
+          if (!slotBounds) continue;
+          // Extract scale from matrix
+          const mat = acc.matrix;
+          const scale = mat ? Math.max(Math.abs(mat[0]), Math.abs(mat[3])) : 1;
+          // Accessory extent from attachment point (scaled)
+          const accLeft = acc.x + slotBounds.left * scale;
+          const accTop = acc.y + slotBounds.top * scale;
+          const accRight = acc.x + slotBounds.right * scale;
+          const accBottom = acc.y + slotBounds.bottom * scale;
+          // Track the most extreme extents across all frames
+          padLeft = Math.min(padLeft, accLeft);
+          padTop = Math.min(padTop, accTop);
+          padRight = Math.max(padRight, accRight);
+          padBottom = Math.max(padBottom, accBottom);
+        }
+      }
+    }
+    // Pass raw extents — the generator compares against the actual viewBox
+    const padding = { left: padLeft, top: padTop, right: padRight, bottom: padBottom };
+
+    return { parts, accessoryAttachments: attachments, padding };
+  } catch {
+    return undefined;
+  }
+}
 
 const logger = pino({
   name: "svg-spritesheet",
@@ -102,7 +348,9 @@ async function compileAnimation(
   opts: OptimizationOptions,
   singleAnimation: boolean = false,
   imageRegistry?: ImageRegistry,
-  maxPageDimension?: number
+  maxPageDimension?: number,
+  animMeta?: AnimationMeta,
+  hairToggle?: HairToggleConfig
 ): Promise<{
   manifest: AtlasManifest;
   outputSize: number;
@@ -124,6 +372,36 @@ async function compileAnimation(
     return null;
   }
 
+  // Apply hair toggle if configured for this sprite
+  if (hairToggle) {
+    applyHairToggle(frames, hairToggle);
+  }
+
+  // Mark accessory use elements BEFORE dedup so the generator can emit placeholders
+  if (animMeta) {
+    for (const frame of frames) {
+      const frameParts = animMeta.parts[frame.frameIndex];
+      if (!frameParts) continue;
+      for (let j = 0; j < frame.useElements.length && j < frameParts.length; j++) {
+        const part = frameParts[j];
+        if (part.accessory !== undefined) {
+          const att = animMeta.accessoryAttachments.get(
+            `${frame.animationName}_${frame.frameIndex}_${part.accessory}`
+          );
+          const attInfo = att?.[0];
+          // Mark this use element as an accessory placeholder
+          frame.useElements[j].attributes["data-acc-slot"] = String(part.accessory);
+          frame.useElements[j].attributes["data-tx"] = String(attInfo?.x ?? 0);
+          frame.useElements[j].attributes["data-ty"] = String(attInfo?.y ?? 0);
+          frame.useElements[j].attributes["data-depth"] = String(part.depth);
+          if (attInfo?.matrix) {
+            frame.useElements[j].attributes["data-matrix"] = attInfo.matrix.join(",");
+          }
+        }
+      }
+    }
+  }
+
   const dedup = deduplicateDefinitions(frames, opts, imageRegistry);
   const sprites = processFrames(frames, dedup);
 
@@ -135,16 +413,19 @@ async function compileAnimation(
     sprites,
     opts,
     imageRegistry,
-    maxPageDimension
+    maxPageDimension,
+    animMeta
   );
 
-  // Run SVGO on each output SVG file
+  // Run SVGO on each output SVG file (skip if placeholders present — SVGO strips them)
   let finalSize = 0;
   for (const svgPath of result.svgFiles) {
-    try {
-      await runSvgo(svgPath, svgoConfigPath);
-    } catch {
-      // SVGO failure is non-fatal
+    if (!animMeta) {
+      try {
+        await runSvgo(svgPath, svgoConfigPath);
+      } catch {
+        // SVGO failure is non-fatal
+      }
     }
     finalSize += fs.statSync(svgPath).size;
   }
@@ -209,33 +490,21 @@ async function generateCombinedManifest(
   singleAnimation: boolean = false,
   tileClassification: TileClassificationEntry | null = null
 ): Promise<CombinedManifest> {
+  // Slim manifest: only animation names (frame data is in per-animation atlas.json)
   const animations: CombinedManifest["animations"] = {};
 
   for (const [animName, { manifest }] of manifests) {
-    const isMultiPage = manifest.pages && manifest.pages.length > 1;
-    const entry: CombinedManifest["animations"][string] = {
+    animations[animName] = {
       file: singleAnimation ? "atlas.svg" : `${animName}/atlas.svg`,
       width: manifest.width,
       height: manifest.height,
       offsetX: manifest.offsetX,
       offsetY: manifest.offsetY,
       fps: manifest.fps,
-      frames: manifest.frames,
-      frameOrder: manifest.frameOrder,
-      duplicates: manifest.duplicates ?? {},
-      elementDedup: manifest.elementDedup,
-      baseFrame: manifest.baseFrame,
-      baseZOrder: manifest.baseZOrder,
+      frames: [],
+      frameOrder: [],
+      duplicates: {},
     };
-    if (isMultiPage) {
-      // Prefix page filenames with animation subdir when not single-animation
-      entry.pages = manifest.pages!.map((p) => ({
-        file: singleAnimation ? p.file : `${animName}/${p.file}`,
-        width: p.width,
-        height: p.height,
-      }));
-    }
-    animations[animName] = entry;
   }
 
   const combined: CombinedManifest = {
@@ -243,6 +512,15 @@ async function generateCombinedManifest(
     spriteId,
     animations,
   };
+
+  // Embed hair toggle info from sprite config (for client-side hat detection)
+  const spriteOverrides = spriteConfig.sprites?.[spriteId];
+  if (spriteOverrides?.hairToggle) {
+    (combined as unknown as Record<string, unknown>).hairToggle = {
+      cssClass: spriteOverrides.hairToggle.cssClass,
+      triggerSlot: spriteOverrides.hairToggle.triggerSlot,
+    };
+  }
 
   // Embed tile classification if available
   if (tileClassification) {
@@ -288,6 +566,9 @@ async function compileSprite(
     const totalInputSize = await calculateInputSize(svgFiles);
     const groups = groupByAnimation(svgFiles);
 
+    // Apply sprite-specific frame limits (e.g., static animations → 1 frame)
+    applyFrameLimits(groups, spriteId);
+
     fs.mkdirSync(outputDir, { recursive: true });
 
     const opts: OptimizationOptions = {
@@ -308,17 +589,21 @@ async function compileSprite(
     for (let i = 0; i < groups.length; i += parallel) {
       const batch = groups.slice(i, i + parallel);
       const results = await Promise.all(
-        batch.map((group) =>
-          compileAnimation(
+        batch.map((group) => {
+          const animMeta = loadAnimationMeta(outputDir, group.name);
+          const spriteOverrides = spriteConfig.sprites?.[spriteId];
+          return compileAnimation(
             group,
             outputDir,
             svgoConfigPath,
             opts,
             singleAnimation,
             imageRegistry,
-            maxPageDimension
-          )
-        )
+            maxPageDimension,
+            animMeta,
+            spriteOverrides?.hairToggle
+          );
+        })
       );
 
       for (let j = 0; j < batch.length; j++) {
@@ -405,6 +690,9 @@ interface CompileOptions {
 
 async function compileAll(options: CompileOptions): Promise<void> {
   const { inputBase, outputBase, svgoConfig, parallel, exportImages, webBasePath, tileClassifications: tileClassPath, tileType, maxPageDimension } = options;
+
+  // Load sprite config (frame limits, hair behavior, etc.)
+  spriteConfig = loadSpriteConfig();
 
   logger.info("=== SVG Sprite Compiler ===");
   logger.info(`Input: ${inputBase}`);

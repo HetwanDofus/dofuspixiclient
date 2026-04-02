@@ -1,0 +1,12 @@
+#!/usr/bin/env php
+<?php
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use App\Command\ExtractItemsCommand;
+use Symfony\Component\Console\Application;
+
+$application = new Application('Item Icon Extractor', '1.0.0');
+$application->addCommand(new ExtractItemsCommand());
+$application->setDefaultCommand('items:extract', true);
+$application->run();

@@ -34,6 +34,27 @@ const SVG_HEADER = `<?xml version="1.0" encoding="UTF-8"?>`;
 const SVG_NS = "http://www.w3.org/2000/svg";
 const XLINK_NS = "http://www.w3.org/1999/xlink";
 
+/**
+ * Per-frame body part metadata for placeholder insertion.
+ * Matches the `parts` array from ExtractSpriteMetadataCommand output.
+ */
+export interface PartMeta {
+  depth: number;
+  accessory?: number; // slot number (1-4)
+  colorZone?: number; // zone number (1-3)
+}
+
+/**
+ * Animation metadata for placeholder insertion.
+ * Maps animation name → array of frame metadata.
+ */
+export interface AnimationMeta {
+  parts: PartMeta[][];  // [frameIndex][partIndex]
+  accessoryAttachments: Map<string, Array<{ slot: number; x: number; y: number; depth: number; matrix?: number[] }>>;
+  /** Extra padding (left, top, right, bottom) needed for accessories in this animation */
+  padding?: { left: number; top: number; right: number; bottom: number };
+}
+
 const DEFAULT_OPTIMIZATION: OptimizationOptions = {
   shortIds: false,
   minify: false,
@@ -433,7 +454,8 @@ function generateAtlasSvg(
   options: Partial<OptimizationOptions> = {},
   svgOutputDir?: string,
   imageRegistry?: ImageRegistry,
-  maxPageDimension?: number
+  maxPageDimension?: number,
+  animMeta?: AnimationMeta
 ): AtlasGeneratorResult {
   const opts = { ...DEFAULT_OPTIMIZATION, ...options };
   const uniqueSprites = sprites.filter((s) => !s.duplicateOf);
@@ -506,15 +528,50 @@ function generateAtlasSvg(
 
   // Parse viewBox once (shared by all frames in an animation)
   const vbParts = firstSprite ? firstSprite.viewBox.split(/\s+/).map(Number) : [0, 0, 100, 100];
-  const vbMinX = vbParts[0] || 0;
-  const vbMinY = vbParts[1] || 0;
-  const vbWidth = vbParts[2] || 100;
-  const vbHeight = vbParts[3] || 100;
+  let vbMinX = vbParts[0] || 0;
+  let vbMinY = vbParts[1] || 0;
+  let vbWidth = vbParts[2] || 100;
+  let vbHeight = vbParts[3] || 100;
 
-  // Get positioning offset from first frame
+  // Get positioning offset from first frame.
+  // The positioningOffset is the mainTransform translation that maps the Flash
+  // registration point (character feet at origin) into SVG space. Negating both
+  // X and Y gives us the offset to place the sprite so that its registration
+  // point aligns with the container's (0,0) — matching how Flash MovieClips work.
+  // The renderer uses anchor(0,0) with these offsets directly.
   const firstFrame = frames[0];
-  const positioningOffsetX = firstFrame ? -firstFrame.positioningOffset.x : 0;
-  const positioningOffsetY = firstFrame ? -firstFrame.positioningOffset.y : 0;
+  let positioningOffsetX = firstFrame ? -firstFrame.positioningOffset.x : 0;
+  let positioningOffsetY = firstFrame ? -firstFrame.positioningOffset.y : 0;
+
+  // Compute accessory padding: expand viewBox to fit accessories.
+  // Only expand the viewBox bounds — do NOT change positioningOffset.
+  // The positioning offset defines where the character's registration point is,
+  // which doesn't change with padding. The expanded viewBox just makes
+  // the frame larger so accessories aren't clipped.
+  // Store original viewBox for frame offset computation (before padding)
+  const origVbMinX = vbMinX;
+  const origVbMinY = vbMinY;
+  let accPadLeft = 0, accPadTop = 0;
+  if (animMeta?.padding) {
+    const ext = animMeta.padding;
+    const overflowLeft = Math.max(0, -ext.left - vbMinX);
+    const overflowTop = Math.max(0, -ext.top - vbMinY);
+    const overflowRight = Math.max(0, ext.right - (vbMinX + vbWidth));
+    const overflowBottom = Math.max(0, ext.bottom - (vbMinY + vbHeight));
+
+    if (overflowLeft > 0 || overflowTop > 0 || overflowRight > 0 || overflowBottom > 0) {
+      vbMinX -= overflowLeft;
+      vbMinY -= overflowTop;
+      vbWidth += overflowLeft + overflowRight;
+      vbHeight += overflowTop + overflowBottom;
+      accPadLeft = overflowLeft;
+      accPadTop = overflowTop;
+      // Adjust positioning offsets: padding shifts the registration point
+      // within the expanded frame by (padLeft, padTop) pixels.
+      positioningOffsetX -= accPadLeft;
+      positioningOffsetY -= accPadTop;
+    }
+  }
 
   // --- Build pack rectangles ---
   const packRects: PackRect[] = [];
@@ -631,6 +688,10 @@ function generateAtlasSvg(
     lines.push(
       `<svg xmlns="${SVG_NS}" xmlns:xlink="${XLINK_NS}" width="${pageWidth}" height="${pageHeight}" viewBox="0 0 ${pageWidth} ${pageHeight}">`
     );
+    // Color style placeholder for runtime injection
+    if (animMeta) {
+      lines.push(`<style>/* __COLOR_STYLE__ */</style>`);
+    }
     lines.push("  <defs>");
     lines.push(...buildDefsLines());
 
@@ -704,7 +765,7 @@ function generateAtlasSvg(
           id: sprite.id,
           x: packed.x, y: packed.y,
           width: packed.width, height: packed.height,
-          offsetX: dim.minX, offsetY: dim.minY,
+          offsetX: origVbMinX, offsetY: origVbMinY,
         });
 
         const deltaElements: string[] = [];
@@ -733,17 +794,47 @@ function generateAtlasSvg(
           id: sprite.id,
           x: packed.x, y: packed.y,
           width: packed.width, height: packed.height,
-          offsetX: dim.minX, offsetY: dim.minY,
+          offsetX: origVbMinX, offsetY: origVbMinY,
         });
 
         const translateX = packed.x - dim.minX;
         const translateY = packed.y - dim.minY;
         const elements: string[] = [];
+
+        // Collect accessory placeholders from the original use elements
+        // (these get dropped by element dedup since they have unresolved refs)
+        const accPlaceholders: Array<{ index: number; html: string }> = [];
+        for (let j = 0; j < sprite.useElements.length; j++) {
+          const accSlot = sprite.useElements[j].attributes["data-acc-slot"];
+          if (accSlot !== undefined) {
+            const attrs = sprite.useElements[j].attributes;
+            accPlaceholders.push({
+              index: j,
+              html: `<rect width="0" height="0" data-acc-slot="${accSlot}" data-tx="${attrs["data-tx"] ?? "0"}" data-ty="${attrs["data-ty"] ?? "0"}" data-depth="${attrs["data-depth"] ?? "0"}"${attrs["data-matrix"] ? ` data-matrix="${attrs["data-matrix"]}"` : ""}/>`,
+            });
+          }
+        }
+
+        // Build the element list: interleave dedup-rendered elements with acc placeholders
         const frameRefs = elemDedup.frameElements.get(sprite.id);
+        let accIdx = 0; // next placeholder to insert
+        let useIdx = 0; // tracks position in original useElements
         if (frameRefs) {
           for (let j = 0; j < frameRefs.length; j++) {
+            // Insert any acc placeholders that come before the current dedup element
+            while (accIdx < accPlaceholders.length && accPlaceholders[accIdx].index <= useIdx) {
+              elements.push(accPlaceholders[accIdx].html);
+              accIdx++;
+              useIdx++;
+            }
             const rendered = renderElementRef(frameRefs[j], elemDedup, sprite, j);
             if (rendered) elements.push(rendered);
+            useIdx++;
+          }
+          // Insert remaining acc placeholders at the end
+          while (accIdx < accPlaceholders.length) {
+            elements.push(accPlaceholders[accIdx].html);
+            accIdx++;
           }
         } else {
           for (const use of sprite.useElements.filter(hasValidReference)) {
@@ -898,7 +989,8 @@ export async function writeAtlasOutput(
   sprites: ProcessedSprite[],
   options: Partial<OptimizationOptions> = {},
   imageRegistry?: ImageRegistry,
-  maxPageDimension?: number
+  maxPageDimension?: number,
+  animMeta?: AnimationMeta
 ): Promise<{ atlasSize: number; manifest: AtlasManifest; svgFiles: string[] }> {
   fs.mkdirSync(outputDir, { recursive: true });
 
@@ -909,7 +1001,8 @@ export async function writeAtlasOutput(
     options,
     outputDir,
     imageRegistry,
-    maxPageDimension
+    maxPageDimension,
+    animMeta
   );
 
   const svgFiles: string[] = [];
@@ -920,6 +1013,10 @@ export async function writeAtlasOutput(
     svgFiles.push(pagePath);
     totalSize += page.svg.length;
   }
+
+  // Write per-animation atlas.json
+  const atlasJsonPath = path.join(outputDir, "atlas.json");
+  await Bun.write(atlasJsonPath, JSON.stringify(manifest));
 
   return {
     atlasSize: totalSize,

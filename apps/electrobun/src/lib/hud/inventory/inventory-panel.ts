@@ -13,8 +13,11 @@ import {
   isDirectionFlipped,
 } from "@/ank/battlefield/character-sprite";
 import { Direction } from "@/ecs/components";
+import type { InventoryStore } from "@/game/inventory-store";
 import { i18n } from "@/i18n";
 import { inventoryLabels as L } from "@/i18n/hud.messages";
+import type { InventoryItem } from "@/network/protocol";
+import { EquipmentPosition } from "@/network/protocol";
 import { loadSvg } from "@/render/load-svg";
 
 import { BasePanel } from "../core/base-panel";
@@ -45,25 +48,27 @@ const PREV_W = 222;
 const PREV_H = 197;
 const PREV_GAP = 10; // gap between preview right edge and inventory left edge
 
-// ── Equipment slots (stage coords) ──
-const SLOTS: Array<{ name: string; x: number; y: number; s: number }> = [
-  { name: "dofus1", x: 270, y: 67, s: 25 },
-  { name: "dofus2", x: 270, y: 94, s: 25 },
-  { name: "dofus3", x: 270, y: 121, s: 25 },
-  { name: "dofus4", x: 270, y: 148, s: 25 },
-  { name: "dofus5", x: 270, y: 175, s: 25 },
-  { name: "dofus6", x: 270, y: 202, s: 25 },
-  { name: "shield", x: 320, y: 67, s: 40 },
-  { name: "ring_l", x: 324, y: 118, s: 30 },
-  { name: "hat", x: 388, y: 78, s: 30 },
-  { name: "amulet", x: 383, y: 116, s: 40 },
-  { name: "boots", x: 383, y: 177, s: 40 },
-  { name: "ring_r", x: 456, y: 118, s: 30 },
-  { name: "weapon", x: 450, y: 67, s: 40 },
-  { name: "belt", x: 516, y: 67, s: 35 },
-  { name: "cape", x: 516, y: 108, s: 35 },
-  { name: "pet", x: 516, y: 149, s: 35 },
-  { name: "mount", x: 516, y: 190, s: 35 },
+// ── Equipment slots — FLA PlaceObject2 positions from core.swf UI_Inventory (id 652) ──
+// Server position = _ctrN suffix = EquipmentPosition ordinal - 1
+// Inventory.as line 508: this["_ctr" + item.position]
+const SLOTS: Array<{ name: string; x: number; y: number; s: number; pos: number }> = [
+  { name: "amulet",  x: 388, y: 62,  s: 30, pos: 0 },  // _ctr0
+  { name: "weapon",  x: 450, y: 46,  s: 40, pos: 1 },  // _ctr1
+  { name: "ring_l",  x: 324, y: 102, s: 30, pos: 2 },  // _ctr2
+  { name: "ring_r",  x: 383, y: 95,  s: 40, pos: 3 },  // _ctr3
+  { name: "belt",    x: 456, y: 102, s: 30, pos: 4 },  // _ctr4
+  { name: "boots",   x: 383, y: 156, s: 40, pos: 5 },  // _ctr5
+  { name: "hat",     x: 516, y: 49,  s: 35, pos: 6 },  // _ctr6
+  { name: "cape",    x: 516, y: 90,  s: 35, pos: 7 },  // _ctr7
+  { name: "pet",     x: 516, y: 130, s: 35, pos: 8 },  // _ctr8
+  { name: "dofus1",  x: 270, y: 54,  s: 25, pos: 9 },  // _ctr9
+  { name: "dofus2",  x: 270, y: 81,  s: 25, pos: 10 }, // _ctr10
+  { name: "dofus3",  x: 270, y: 108, s: 25, pos: 11 }, // _ctr11
+  { name: "dofus4",  x: 270, y: 135, s: 25, pos: 12 }, // _ctr12
+  { name: "dofus5",  x: 270, y: 162, s: 25, pos: 13 }, // _ctr13
+  { name: "dofus6",  x: 270, y: 189, s: 25, pos: 14 }, // _ctr14
+  { name: "shield",  x: 320, y: 46,  s: 40, pos: 15 }, // _ctr15
+  { name: "mount",   x: 516, y: 171, s: 35, pos: 16 }, // _ctr16
 ];
 
 // ── Filter buttons (stage coords from FLA Symbol 1076) ──
@@ -102,7 +107,7 @@ const PREVIEW_DIRECTION = Direction.SOUTH;
 
 export class InventoryPanel extends BasePanel {
   private silhouetteSprite: Sprite | null = null;
-  private slotContainers: Array<{ c: Container; sz: number }> = [];
+  private slotContainers: Array<{ c: Container; sz: number; pos: number }> = [];
   private gridCellSprites: Sprite[] = [];
   private filterIcons: Sprite[] = [];
   private filterBtns: ThreeSliceSprite[] = [];
@@ -111,6 +116,21 @@ export class InventoryPanel extends BasePanel {
   private toggleDownTextures: import("../core/three-slice").ThreeSliceTextures | null = null;
   private searchIconSprite: Sprite | null = null;
   private loadGen = 0;
+
+  /** Data binding */
+  private store: InventoryStore | null = null;
+  private storeUnsub: (() => void) | null = null;
+  private kamasText: Text | null = null;
+  private podBar: { graphics: Graphics; redraw: (pct: number) => void } | null = null;
+  private podText: Text | null = null;
+  /** Item indicator sprites overlaid on equipment slots (indexed by SLOTS index) */
+  private slotItemSprites: Array<{ bg: Graphics; icon: Sprite; label: Text } | null> = [];
+  /** Item indicator sprites overlaid on grid cells */
+  private gridItemSprites: Array<{ bg: Graphics; icon: Sprite; label: Text } | null> = [];
+  /** Scroll offset for the grid (number of rows scrolled) */
+  private gridScrollOffset = 0;
+  /** Cache of loaded item icon textures by "type/gfxId" */
+  private iconTextureCache = new Map<string, Texture | null>();
 
   /** Character gfxId for the preview sprite */
   private charGfxId = 0;
@@ -408,7 +428,7 @@ export class InventoryPanel extends BasePanel {
 
     // Slots
     for (const slot of SLOTS) {
-      this.drawSlot(this.sx(slot.x), this.sy(slot.y), this.p(slot.s));
+      this.drawSlot(this.sx(slot.x), this.sy(slot.y), this.p(slot.s), slot.pos);
     }
 
     // Kamas
@@ -427,6 +447,7 @@ export class InventoryPanel extends BasePanel {
     kamasVal.x = this.sx(320);
     kamasVal.y = this.sy(220);
     this.container.addChild(kamasVal);
+    this.kamasText = kamasVal;
 
     // Pods
     const podsLbl = new Text({
@@ -445,6 +466,17 @@ export class InventoryPanel extends BasePanel {
     );
     podBar.redraw(0);
     this.container.addChild(podBar.graphics);
+    this.podBar = podBar;
+
+    const podVal = new Text({
+      text: "0/1000",
+      style: regularText(this.f(7), COLORS.TEXT_WHITE),
+    });
+    podVal.anchor.set(0.5, 0);
+    podVal.x = this.sx(470);
+    podVal.y = this.sy(234);
+    this.container.addChild(podVal);
+    this.podText = podVal;
 
     // X button
     const xCx = this.sx(535);
@@ -628,13 +660,13 @@ export class InventoryPanel extends BasePanel {
   }
 
   /** Equipment slot — container filled by NineSliceSprite once textures load */
-  private drawSlot(x: number, y: number, sz: number): void {
+  private drawSlot(x: number, y: number, sz: number, pos: number): void {
     const c = new Container();
     c.x = x;
     c.y = y;
     c.eventMode = "static";
     c.cursor = "pointer";
-    this.slotContainers.push({ c, sz });
+    this.slotContainers.push({ c, sz, pos });
     this.container.addChild(c);
   }
 
@@ -838,8 +870,216 @@ export class InventoryPanel extends BasePanel {
     }
   }
 
+  // ── Data binding ──
+
+  /** Bind the panel to an InventoryStore — will refresh whenever items change */
+  bindStore(store: InventoryStore): void {
+    this.storeUnsub?.();
+    this.store = store;
+    this.storeUnsub = store.onChange(() => this.refreshFromStore());
+    this.refreshFromStore();
+  }
+
+  /** Re-render all data-driven elements from the current store state */
+  private refreshFromStore(): void {
+    if (!this.store) return;
+
+    // Kamas
+    if (this.kamasText) {
+      this.kamasText.text = this.store.kamas.toLocaleString();
+    }
+
+    // Weight / pods
+    const weight = this.store.weight;
+    if (this.podBar) {
+      const pct = weight.max > 0 ? weight.current / weight.max : 0;
+      this.podBar.redraw(pct);
+    }
+    if (this.podText) {
+      this.podText.text = `${weight.current}/${weight.max}`;
+    }
+
+    // Equipment slots
+    this.refreshEquipmentSlots();
+
+    // Grid items
+    this.refreshGrid();
+  }
+
+  /** Update equipment slot indicators */
+  private refreshEquipmentSlots(): void {
+    if (!this.store) return;
+
+    while (this.slotItemSprites.length < this.slotContainers.length) {
+      this.slotItemSprites.push(null);
+    }
+
+    for (let i = 0; i < this.slotContainers.length; i++) {
+      const { c, sz, pos } = this.slotContainers[i];
+      const item = this.store.getEquippedAt(pos);
+
+      if (item) {
+        if (!this.slotItemSprites[i]) {
+          const pad = 2;
+          const innerSz = sz - pad * 2;
+
+          const bg = new Graphics();
+          bg.roundRect(pad, pad, innerSz, innerSz, 3);
+          bg.fill({ color: 0x8b7355, alpha: 0.7 });
+          c.addChild(bg);
+
+          const icon = new Sprite();
+          icon.x = pad;
+          icon.y = pad;
+          icon.width = innerSz;
+          icon.height = innerSz;
+          c.addChild(icon);
+
+          const label = new Text({
+            text: "",
+            style: boldText(this.f(6), 0xffffff),
+          });
+          label.anchor.set(1, 1);
+          label.x = sz - pad;
+          label.y = sz - pad;
+          c.addChild(label);
+
+          this.slotItemSprites[i] = { bg, icon, label };
+        }
+
+        const spr = this.slotItemSprites[i]!;
+        spr.bg.visible = true;
+        spr.icon.visible = true;
+        spr.label.visible = item.quantity > 1;
+        spr.label.text = item.quantity > 1 ? `×${item.quantity}` : "";
+        this.loadItemIcon(item, spr.icon, sz - 4);
+      } else {
+        const spr = this.slotItemSprites[i];
+        if (spr) {
+          spr.bg.visible = false;
+          spr.icon.visible = false;
+          spr.label.visible = false;
+        }
+      }
+    }
+  }
+
+  /** Update grid cell items based on filter + scroll */
+  private refreshGrid(): void {
+    if (!this.store) return;
+
+    const bagItems = this.getFilteredBagItems();
+    const gridCols = 4;
+    const gridRows = 9;
+    const totalVisible = gridCols * gridRows;
+    const startIdx = this.gridScrollOffset * gridCols;
+
+    while (this.gridItemSprites.length < this.gridCellSprites.length) {
+      this.gridItemSprites.push(null);
+    }
+
+    for (let i = 0; i < totalVisible && i < this.gridCellSprites.length; i++) {
+      const itemIdx = startIdx + i;
+      const item = itemIdx < bagItems.length ? bagItems[itemIdx] : null;
+      const cellSpr = this.gridCellSprites[i];
+
+      if (item) {
+        if (!this.gridItemSprites[i]) {
+          const sz = cellSpr.width;
+
+          const bg = new Graphics();
+          bg.roundRect(0, 0, sz, sz, 2);
+          bg.fill({ color: 0x8b7355, alpha: 0.8 });
+          bg.x = cellSpr.x;
+          bg.y = cellSpr.y;
+          this.container.addChild(bg);
+
+          const icon = new Sprite();
+          icon.x = cellSpr.x + 1;
+          icon.y = cellSpr.y + 1;
+          icon.width = sz - 2;
+          icon.height = sz - 2;
+          this.container.addChild(icon);
+
+          const label = new Text({
+            text: "",
+            style: boldText(this.f(6), 0xffffff),
+          });
+          label.anchor.set(1, 1);
+          label.x = cellSpr.x + sz - 1;
+          label.y = cellSpr.y + sz - 1;
+          this.container.addChild(label);
+
+          this.gridItemSprites[i] = { bg, icon, label };
+        }
+
+        const spr = this.gridItemSprites[i]!;
+        const sz = cellSpr.width;
+        spr.bg.visible = true;
+        spr.icon.visible = true;
+        spr.label.visible = item.quantity > 1;
+        spr.label.text = item.quantity > 1 ? `×${item.quantity}` : "";
+        this.loadItemIcon(item, spr.icon, sz - 2);
+      } else {
+        const spr = this.gridItemSprites[i];
+        if (spr) {
+          spr.bg.visible = false;
+          spr.icon.visible = false;
+          spr.label.visible = false;
+        }
+      }
+    }
+  }
+
+  /** Load an item icon SVG into a sprite, using cache */
+  private async loadItemIcon(item: InventoryItem, sprite: Sprite, maxSz: number): Promise<void> {
+    const cacheKey = `${item.type}/${item.gfxId}`;
+
+    // Check cache
+    if (this.iconTextureCache.has(cacheKey)) {
+      const cached = this.iconTextureCache.get(cacheKey);
+      if (cached) {
+        sprite.texture = cached;
+        this.fitSpriteInBox(sprite, maxSz);
+      }
+      return;
+    }
+
+    // Mark as loading
+    this.iconTextureCache.set(cacheKey, null);
+
+    try {
+      const res = this.zoom * (window.devicePixelRatio || 1);
+      const alias = `item-icon:${cacheKey}:${res}`;
+      const tex = await loadSvg(`/assets/items/${item.type}/${item.gfxId}.svg`, res, alias);
+      this.iconTextureCache.set(cacheKey, tex);
+      sprite.texture = tex;
+      this.fitSpriteInBox(sprite, maxSz);
+    } catch {
+      // Icon not available — leave blank
+    }
+  }
+
+  /** Fit a sprite within a square box preserving aspect ratio */
+  private fitSpriteInBox(sprite: Sprite, maxSz: number): void {
+    const tex = sprite.texture;
+    if (!tex || tex.width === 0 || tex.height === 0) return;
+    const scale = Math.min(maxSz / tex.width, maxSz / tex.height);
+    sprite.width = tex.width * scale;
+    sprite.height = tex.height * scale;
+  }
+
+  /** Get bag items filtered by current filter selection */
+  private getFilteredBagItems(): InventoryItem[] {
+    if (!this.store) return [];
+    return this.store.getBagItems();
+    // TODO: filter by category based on this.filterSelected
+  }
+
   override destroy(): void {
     this.loadGen++;
+    this.storeUnsub?.();
+    this.store = null;
     this.stopFrameAnimation();
     this.charSprite = null;
     this.charTextures = [];

@@ -9,9 +9,31 @@ const GFX_POOL = [
   10, 11, 20, 21, 30, 31, 40, 41, 50, 51, 60, 61, 70, 71, 80, 81, 90, 91, 100,
   101, 110, 111,
 ];
-const ACTOR_COUNT = 500;
+const ACTOR_COUNT = 200;
 const MOVE_INTERVAL_MIN = 1500;
 const MOVE_INTERVAL_MAX = 4000;
+
+// Accessory pools for random look generation (type_gfxId format)
+const HAT_POOL = ["16_10","16_3","16_4","16_11","16_12","16_102","16_103","16_104","16_105","16_106","16_107","16_108","16_109","16_110","16_111","16_112","16_113","16_114","16_115","16_116","16_117","16_118","16_119","16_120","16_121","16_122","16_123","16_124","16_125","16_126","16_127"];
+const CAPE_POOL = ["17_5","17_10","17_17","17_19","17_21","17_88","17_1","17_2","17_3","17_4","17_6","17_7","17_8","17_9","17_11","17_12","17_13","17_14","17_15","17_16"];
+const SHIELD_POOL = ["82_10","82_30","82_37","82_39","82_1","82_2","82_3","82_4","82_5","82_6","82_7","82_8","82_9","82_11","82_12","82_13","82_14","82_15"];
+
+function randomColor(): number {
+  return Math.floor(Math.random() * 0xFFFFFF);
+}
+
+function buildRandomLook(gfxId: number): string {
+  const c1 = randomColor();
+  const c2 = randomColor();
+  const c3 = randomColor();
+  // 70% chance to have each accessory
+  const weapon = "";
+  const hat = Math.random() < 0.7 ? randomItem(HAT_POOL) : "";
+  const cape = Math.random() < 0.7 ? randomItem(CAPE_POOL) : "";
+  const pet = "";
+  const shield = Math.random() < 0.7 ? randomItem(SHIELD_POOL) : "";
+  return `${gfxId}|${c1}|${c2}|${c3}|${weapon},${hat},${cape},${pet},${shield}`;
+}
 
 function randomItem<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -65,6 +87,7 @@ export class StressTest {
       const cellId = randomItem(this.walkableCells);
       const gfxId = randomItem(GFX_POOL);
       const direction = randomInt(0, 7);
+      const look = buildRandomLook(gfxId);
 
       this.renderer.addFighter({
         id,
@@ -72,7 +95,7 @@ export class StressTest {
         team: i % 2,
         cellId,
         direction,
-        look: `${gfxId}`,
+        look,
         hp: 100,
         maxHp: 100,
         isPlayer: false,
