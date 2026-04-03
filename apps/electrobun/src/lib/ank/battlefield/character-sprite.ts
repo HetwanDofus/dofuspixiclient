@@ -165,9 +165,34 @@ export class CharacterSpriteLoader {
   /** Pending accessory .dofasset loads */
   private pendingAccessoryLoads = new Map<string, Promise<number | null>>();
 
-  /** Enable Vello rendering for characters */
   /** Max GPU texture dimension — set from Vello init */
   private _maxTextureSize = 8192;
+
+  /** Throttle strip rendering: max N per frame, yield between batches */
+  private static _stripQueue: (() => void)[] = [];
+  private static _stripActive = 0;
+  private static readonly STRIPS_PER_FRAME = 10;
+  private static _stripThrottle(): Promise<void> {
+    if (CharacterSpriteLoader._stripActive < CharacterSpriteLoader.STRIPS_PER_FRAME) {
+      CharacterSpriteLoader._stripActive++;
+      // Schedule reset at end of current microtask batch
+      if (CharacterSpriteLoader._stripActive === 1) {
+        requestAnimationFrame(() => { CharacterSpriteLoader._stripActive = 0; CharacterSpriteLoader._drainStripQueue(); });
+      }
+      return Promise.resolve();
+    }
+    return new Promise(resolve => {
+      CharacterSpriteLoader._stripQueue.push(resolve);
+    });
+  }
+  private static _drainStripQueue(): void {
+    const batch = CharacterSpriteLoader._stripQueue.splice(0, CharacterSpriteLoader.STRIPS_PER_FRAME);
+    if (batch.length > 0) {
+      CharacterSpriteLoader._stripActive = batch.length;
+      for (const resolve of batch) resolve();
+      requestAnimationFrame(() => { CharacterSpriteLoader._stripActive = 0; CharacterSpriteLoader._drainStripQueue(); });
+    }
+  }
 
   setVelloRenderer(vello: VelloRenderer, pixiRenderer: Renderer, maxTextureSize?: number): void {
     this._vello = vello;
@@ -473,30 +498,52 @@ export class CharacterSpriteLoader {
               ? await this.loadAccessories(parsed.accessories)
               : undefined;
 
-          // Per-frame shared cache: each unique (sprite, anim, frame, colors, acc) gets one slot.
-          // Multiple characters with same look share slots. After warmup: 0 renders → 60fps.
-          const atlas = this._atlas;
-          const assetId = velloAssetId;
-          const anim = animName;
-          const c = colors;
-          const acc = accInfo;
+          // Render ALL frames as a strip texture. Throttle to avoid frame drops
+          // when many characters load simultaneously (stress test).
+          await CharacterSpriteLoader._stripThrottle();
+          const colorsArg = colors ? [colors[0], colors[1], colors[2]] : undefined;
+          const stripResult = this._vello.renderAnimationStrip(
+            velloAssetId, animName, this.getResolution(), colorsArg, accInfo,
+          ) as {
+            texture: GPUTexture; textureId: number;
+            width: number; height: number;
+            frameWidth: number; frameHeight: number;
+            frameCount: number;
+          } | null;
 
-          if (gfxId === 10) { // Log only for your character sprite
-            console.log(`[DEBUG-ACC] gfxId=${gfxId} anim=${animName} assetId=${assetId} colors=${JSON.stringify(c)} acc=${JSON.stringify(acc)}`);
-          }
-          const firstFrame = atlas.getFrame(assetId, anim, 0, c, acc);
-          if (firstFrame) {
-            const animation: CharacterAnimation & { _trimX: number; _trimY: number } = {
-              textures: [firstFrame],
-              frameCount: animInfo.frameCount,
+          if (stripResult) {
+            const res = this.getResolution();
+            const stripSource = new ExternalSource({
+              resource: stripResult.texture,
+              renderer: this._pixiRenderer!,
+              width: stripResult.width,
+              height: stripResult.height,
+              label: `strip-${gfxId}-${animName}`,
+            });
+            stripSource.alphaMode = "no-premultiply-alpha";
+            stripSource.format = "rgba8unorm";
+            stripSource.resolution = res;
+            stripSource.autoGarbageCollect = false;
+
+            const fw = stripResult.frameWidth / res;
+            const fh = stripResult.frameHeight / res;
+            const frameTextures: Texture[] = [];
+            for (let i = 0; i < stripResult.frameCount; i++) {
+              frameTextures.push(new Texture({
+                source: stripSource,
+                frame: new Rectangle(i * fw, 0, fw, fh),
+              }));
+            }
+
+            const animation: CharacterAnimation = {
+              textures: frameTextures,
+              frameCount: stripResult.frameCount,
               fps: animInfo.fps || 25,
               offsetX: animInfo.offsetX + animInfo.trimX,
               offsetY: animInfo.offsetY + animInfo.trimY,
               frameWidth: animInfo.frameWidth,
               frameHeight: animInfo.frameHeight,
-              resolveFrame(index: number): Texture | null {
-                return atlas.getFrame(assetId, anim, index, c, acc);
-              },
+              // No resolveFrame needed — all frames are pre-rendered sub-textures
             };
 
             const cacheKey = look ? `${gfxId}:${animName}:${look}` : `${gfxId}:${animName}`;
@@ -549,7 +596,8 @@ export class CharacterSpriteLoader {
           this.loadedAssets.add(alias);
           pageTextures = [texture];
         }
-      } catch {
+      } catch (e) {
+        console.error("[CharacterSprite] SVG load failed for", animName, e);
         return null;
       }
 

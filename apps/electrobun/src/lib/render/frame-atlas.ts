@@ -7,7 +7,6 @@
  */
 import { ExternalSource, Rectangle, Texture, type Renderer } from "pixi.js";
 import type { VelloRenderer } from "vello-wasm";
-import { getVelloGpu } from "./vello-loader";
 
 interface FrameSlot {
   index: number;
@@ -62,7 +61,6 @@ export class FrameAtlas {
 
   init(): boolean {
     console.log(`[FrameAtlas] ${this.atlasW}x${this.atlasH} atlas, slot=${this.slotW}, ${this.maxSlots} slots, res=${this.resolution}`);
-    (globalThis as any).__frameAtlas = this;
     let result: { texture: GPUTexture; textureId: number } | null;
     try {
       result = this.vello.createAtlas(this.atlasW, this.atlasH) as typeof result;
@@ -184,7 +182,6 @@ export class FrameAtlas {
 
   tick(): void {
     this.currentTick++;
-    this.captureAtlas();
     this.lastRenders = this.rendersThisTick;
     this.lastQueueMs = this.queueMsThisTick;
     this.lastFlushMs = this.flushMsThisTick;
@@ -206,122 +203,6 @@ export class FrameAtlas {
       lastFlushMs: this.lastFlushMs,
       lastHits: this.lastHits,
     };
-  }
-
-  /** Debug: capture atlas snapshots every N ticks. Call from console:
-   *  window.__frameAtlas.startCapture(10)  — capture every 10 ticks, up to 10 images */
-  private _captureInterval = 0;
-  private _captureCount = 0;
-  private _captureMax = 10;
-
-  /** Debug: render a single frame to a downloadable PNG.
-   *  Call: __frameAtlas.debugFrame(assetId, "walkR", 0, [0xff0000,0x00ff00,0x0000ff], [accId,slotId,...]) */
-  debugFrame(assetId: number, anim: string, frame: number, colors?: number[], accInfo?: number[]): void {
-    const result = this.vello.renderFrame(assetId, anim, frame, this.resolution, colors, accInfo) as
-      { texture: GPUTexture; textureId: number; width: number; height: number } | null;
-    if (!result) { console.error("renderFrame returned null"); return; }
-
-    console.log(`[debugFrame] asset=${assetId} anim=${anim} frame=${frame} size=${result.width}x${result.height} acc=${accInfo?.length ?? 0}`);
-
-    const gpuDevice = getVelloGpu()?.device;
-    if (!gpuDevice) { console.error("No GPU device"); return; }
-
-    const w = result.width, h = result.height;
-    const bytesPerRow = Math.ceil(w * 4 / 256) * 256;
-    const buf = gpuDevice.createBuffer({ size: bytesPerRow * h, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
-    const enc = gpuDevice.createCommandEncoder();
-    enc.copyTextureToBuffer(
-      { texture: result.texture }, { buffer: buf, bytesPerRow, rowsPerImage: h }, { width: w, height: h },
-    );
-    gpuDevice.queue.submit([enc.finish()]);
-
-    buf.mapAsync(GPUMapMode.READ).then(() => {
-      const data = new Uint8Array(buf.getMappedRange());
-      const pixels = new Uint8Array(w * h * 4);
-      for (let y = 0; y < h; y++) pixels.set(data.subarray(y * bytesPerRow, y * bytesPerRow + w * 4), y * w * 4);
-      buf.unmap(); buf.destroy();
-
-      const canvas = document.createElement("canvas");
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext("2d")!;
-      ctx.putImageData(new ImageData(new Uint8ClampedArray(pixels.buffer), w, h), 0, 0);
-      canvas.toBlob((blob) => {
-        const url = URL.createObjectURL(blob!);
-        const a = document.createElement("a"); a.href = url;
-        a.download = `debug_${assetId}_${anim}_${frame}.png`; a.click();
-        URL.revokeObjectURL(url);
-        console.log(`[debugFrame] saved ${w}x${h}`);
-      });
-    });
-
-    this.vello.freeTexture(result.textureId);
-  }
-
-  startCapture(everyNTicks = 10, maxImages = 10): void {
-    this._captureInterval = everyNTicks;
-    this._captureCount = 0;
-    this._captureMax = maxImages;
-    console.log(`[FrameAtlas] Will capture ${maxImages} snapshots every ${everyNTicks} ticks`);
-  }
-
-  private async captureAtlas(): Promise<void> {
-    if (!this._captureInterval || this._captureCount >= this._captureMax) return;
-    if (this.currentTick % this._captureInterval !== 0) return;
-
-    try {
-      const gpuTex = this.atlasSource!.resource as GPUTexture;
-      const gpuDevice = getVelloGpu()?.device;
-      if (!gpuDevice) { console.error("[FrameAtlas] No GPU device"); this._captureInterval = 0; return; }
-      // Only capture top-left 2048x2048 for manageable size
-      const capW = Math.min(this.atlasW, 2048);
-      const capH = Math.min(this.atlasH, 2048);
-      const bytesPerRow = Math.ceil(capW * 4 / 256) * 256; // align to 256
-
-      const buf = gpuDevice.createBuffer({
-        size: bytesPerRow * capH,
-        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-      });
-
-      const enc = gpuDevice.createCommandEncoder();
-      enc.copyTextureToBuffer(
-        { texture: gpuTex, origin: { x: 0, y: 0, z: 0 } },
-        { buffer: buf, bytesPerRow, rowsPerImage: capH },
-        { width: capW, height: capH },
-      );
-      gpuDevice.queue.submit([enc.finish()]);
-
-      await buf.mapAsync(GPUMapMode.READ);
-      const data = new Uint8Array(buf.getMappedRange());
-
-      // Copy to tight layout (remove row padding)
-      const pixels = new Uint8Array(capW * capH * 4);
-      for (let y = 0; y < capH; y++) {
-        pixels.set(data.subarray(y * bytesPerRow, y * bytesPerRow + capW * 4), y * capW * 4);
-      }
-      buf.unmap();
-      buf.destroy();
-
-      // Draw to canvas and download
-      const canvas = document.createElement("canvas");
-      canvas.width = capW;
-      canvas.height = capH;
-      const ctx = canvas.getContext("2d")!;
-      const imgData = new ImageData(new Uint8ClampedArray(pixels.buffer), capW, capH);
-      ctx.putImageData(imgData, 0, 0);
-
-      const blob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b!), "image/png"));
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `atlas_tick${this.currentTick}_${this._captureCount}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
-      this._captureCount++;
-      console.log(`[FrameAtlas] Captured ${this._captureCount}/${this._captureMax} (${capW}x${capH})`);
-    } catch (e) {
-      console.error("[FrameAtlas] Capture failed:", e);
-      this._captureInterval = 0;
-    }
   }
 
   clear(): void {
