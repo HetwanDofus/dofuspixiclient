@@ -483,7 +483,6 @@ export class CharacterSpriteLoader {
 
           const firstFrame = atlas.getFrame(assetId, anim, 0, c, acc);
           if (firstFrame) {
-            console.log(`[DEBUG doLoadAnimation] gfxId=${gfxId} anim=${animName} offsetX=${animInfo.offsetX} offsetY=${animInfo.offsetY} trimX=${animInfo.trimX} trimY=${animInfo.trimY} frameW=${animInfo.frameWidth} frameH=${animInfo.frameHeight} texW=${firstFrame.width} texH=${firstFrame.height} acc=${acc?.length ?? 0}`);
             const animation: CharacterAnimation & { _trimX: number; _trimY: number } = {
               textures: [firstFrame],
               frameCount: animInfo.frameCount,
