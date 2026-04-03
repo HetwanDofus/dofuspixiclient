@@ -1,6 +1,7 @@
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("Audio");
+const SOUNDS_ENABLED = false;
 const MUSIC_BASE_PATH = "/assets/sound/musics/";
 const FADE_DURATION_MS = 4000;
 
@@ -30,6 +31,7 @@ export class AudioManager {
   }
 
   init(): Promise<void> {
+    if (!SOUNDS_ENABLED) return Promise.resolve();
     if (this.initPromise) return this.initPromise;
     this.initPromise = fetch("/assets/data/music-data.json")
       .then((resp) => resp.json())

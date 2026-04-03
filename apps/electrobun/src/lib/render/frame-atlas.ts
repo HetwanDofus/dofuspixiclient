@@ -174,6 +174,10 @@ export class FrameAtlas {
     }
     if (!oldestKey) return -1;
     const slot = this.frameCache.get(oldestKey)!;
+    // Invalidate the old Pixi Texture so any sprite still holding it
+    // shows transparent instead of the wrong character's content.
+    slot.pixiTexture.frame = new Rectangle(0, 0, 0, 0);
+    slot.pixiTexture.update();
     this.frameCache.delete(oldestKey);
     return slot.index;
   }
@@ -209,6 +213,49 @@ export class FrameAtlas {
   private _captureInterval = 0;
   private _captureCount = 0;
   private _captureMax = 10;
+
+  /** Debug: render a single frame to a downloadable PNG.
+   *  Call: __frameAtlas.debugFrame(assetId, "walkR", 0, [0xff0000,0x00ff00,0x0000ff], [accId,slotId,...]) */
+  debugFrame(assetId: number, anim: string, frame: number, colors?: number[], accInfo?: number[]): void {
+    const result = this.vello.renderFrame(assetId, anim, frame, this.resolution, colors, accInfo) as
+      { texture: GPUTexture; textureId: number; width: number; height: number } | null;
+    if (!result) { console.error("renderFrame returned null"); return; }
+
+    console.log(`[debugFrame] asset=${assetId} anim=${anim} frame=${frame} size=${result.width}x${result.height} acc=${accInfo?.length ?? 0}`);
+
+    const gpuDevice = getVelloGpu()?.device;
+    if (!gpuDevice) { console.error("No GPU device"); return; }
+
+    const w = result.width, h = result.height;
+    const bytesPerRow = Math.ceil(w * 4 / 256) * 256;
+    const buf = gpuDevice.createBuffer({ size: bytesPerRow * h, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+    const enc = gpuDevice.createCommandEncoder();
+    enc.copyTextureToBuffer(
+      { texture: result.texture }, { buffer: buf, bytesPerRow, rowsPerImage: h }, { width: w, height: h },
+    );
+    gpuDevice.queue.submit([enc.finish()]);
+
+    buf.mapAsync(GPUMapMode.READ).then(() => {
+      const data = new Uint8Array(buf.getMappedRange());
+      const pixels = new Uint8Array(w * h * 4);
+      for (let y = 0; y < h; y++) pixels.set(data.subarray(y * bytesPerRow, y * bytesPerRow + w * 4), y * w * 4);
+      buf.unmap(); buf.destroy();
+
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d")!;
+      ctx.putImageData(new ImageData(new Uint8ClampedArray(pixels.buffer), w, h), 0, 0);
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob!);
+        const a = document.createElement("a"); a.href = url;
+        a.download = `debug_${assetId}_${anim}_${frame}.png`; a.click();
+        URL.revokeObjectURL(url);
+        console.log(`[debugFrame] saved ${w}x${h}`);
+      });
+    });
+
+    this.vello.freeTexture(result.textureId);
+  }
 
   startCapture(everyNTicks = 10, maxImages = 10): void {
     this._captureInterval = everyNTicks;

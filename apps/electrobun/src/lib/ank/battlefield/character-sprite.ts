@@ -481,6 +481,9 @@ export class CharacterSpriteLoader {
           const c = colors;
           const acc = accInfo;
 
+          if (gfxId === 10) { // Log only for your character sprite
+            console.log(`[DEBUG-ACC] gfxId=${gfxId} anim=${animName} assetId=${assetId} colors=${JSON.stringify(c)} acc=${JSON.stringify(acc)}`);
+          }
           const firstFrame = atlas.getFrame(assetId, anim, 0, c, acc);
           if (firstFrame) {
             const animation: CharacterAnimation & { _trimX: number; _trimY: number } = {
