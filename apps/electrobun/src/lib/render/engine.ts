@@ -28,6 +28,8 @@ export interface EngineConfig {
   onResizeStart?: () => void;
   onResizeEnd?: (width: number, height: number) => void;
   resizeDebounceMs?: number;
+  /** External GPU device (from Vello WASM) for zero-copy texture sharing. */
+  gpu?: { adapter: GPUAdapter; device: GPUDevice };
 }
 
 export class Engine {
@@ -49,6 +51,9 @@ export class Engine {
   private lastFpsUpdate = Date.now();
   private lastFrameTimeMs = 0;
   private lastDrawCalls = 0;
+  private fpsOverlay: HTMLDivElement | null = null;
+  /** Optional extra debug info appended to FPS overlay each second */
+  debugInfo: (() => string) | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private lastContainerSize = { width: 0, height: 0 };
   private resizeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -62,6 +67,7 @@ export class Engine {
       preferWebGPU: config.preferWebGPU ?? true,
       antialias: true,
       resizeDebounceMs: config.resizeDebounceMs ?? 300,
+      gpu: config.gpu,
       onResize: config.onResize,
       onResizeStart: config.onResizeStart,
       onResizeEnd: config.onResizeEnd,
@@ -85,7 +91,7 @@ export class Engine {
       height: this.container.clientHeight || GAME_HEIGHT,
     };
 
-    await this.app.init({
+    const initOptions: Record<string, unknown> = {
       width,
       height,
       backgroundColor: this.config.backgroundColor,
@@ -98,8 +104,17 @@ export class Engine {
       layout: {
         enableDebug: false,
         throttle: 0,
-      } as never,
-    });
+      },
+    };
+
+    // If an external GPU device is provided (from Vello WASM), share it with Pixi.js.
+    // This enables zero-copy GPU texture sharing between Vello and Pixi.js.
+    if (this.config.gpu) {
+      initOptions.gpu = this.config.gpu;
+      initOptions.preference = "webgpu";
+    }
+
+    await this.app.init(initOptions as Parameters<Application["init"]>[0]);
 
     if (this.app.canvas && this.container) {
       this.container.appendChild(this.app.canvas);
@@ -112,6 +127,12 @@ export class Engine {
 
     this.setupResizeHandling();
     this.app.ticker.add(() => this.updateFps());
+
+    // FPS overlay
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;top:0;left:0;padding:4px 8px;background:rgba(0,0,0,0.7);color:#0f0;font:bold 14px monospace;z-index:999999;pointer-events:none";
+    document.body.appendChild(overlay);
+    this.fpsOverlay = overlay;
   }
 
   private calculateCanvasSize(): CanvasSize {
@@ -199,6 +220,11 @@ export class Engine {
       this.fps = this.frameCount;
       this.frameCount = 0;
       this.lastFpsUpdate = now;
+      if (this.fpsOverlay) {
+        let text = `${this.fps} FPS`;
+        if (this.debugInfo) try { text += `  ${this.debugInfo()}`; } catch {}
+        this.fpsOverlay.textContent = text;
+      }
     }
   }
 
@@ -227,6 +253,11 @@ export class Engine {
     }
 
     return false;
+  }
+
+  /** Set GPU handles from Vello WASM (call before init) */
+  setGpu(gpu: { adapter: GPUAdapter; device: GPUDevice }): void {
+    this.config.gpu = gpu;
   }
 
   getApp(): Application {

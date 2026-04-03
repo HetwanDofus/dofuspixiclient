@@ -481,6 +481,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src/lib"),
+      "vello-wasm": resolve(__dirname, "../../../dofus-vello-custom-format/packages/vello-wasm/pkg"),
     },
   },
   build: {
@@ -491,10 +492,18 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    fs: {
+      // Allow serving files from the vello-wasm pkg directory (outside project root)
+      allow: [
+        resolve(__dirname, ".."),
+        resolve(__dirname, "../../../dofus-vello-custom-format/packages/vello-wasm/pkg"),
+      ],
+    },
   },
   optimizeDeps: {
-    exclude: ["brotli-dec-wasm"],
+    exclude: ["brotli-dec-wasm", "vello-wasm"],
   },
+  assetsInclude: ["**/*.wasm", "**/*.dofasset"],
   worker: {
     format: "es",
   },

@@ -1,4 +1,4 @@
-import { Rectangle, type Renderer, Texture } from "pixi.js";
+import { ExternalSource, Rectangle, type Renderer, Texture } from "pixi.js";
 
 import type { FrameInfo, TileBehavior, TileManifest } from "@/types";
 import { createLogger } from "@/utils/logger";
@@ -9,6 +9,8 @@ import { AtlasCache, type AtlasManifest, type CachedTileData, type SpritesheetMa
 const log = createLogger("AtlasLoader");
 import { loadSvg } from "./load-svg";
 import { registerSvgStrokeLoader } from "./svg-stroke-loader";
+import type { VelloFrameResult } from "./vello-loader";
+import type { VelloRenderer } from "vello-wasm";
 
 // Register the custom SVG loader on module load
 registerSvgStrokeLoader();
@@ -22,10 +24,30 @@ export class AtlasLoader {
   private pendingBaseTextureLoads = new Map<string, Promise<Texture[] | null>>();
   private basePath: string;
   private currentZoom = 1;
+  private renderer: Renderer;
+  /** Vello asset IDs loaded into the WASM renderer, keyed by tileKey */
+  private velloAssetIds = new Map<string, number>();
+  /** Pending .dofasset loads for deduplication */
+  private pendingDofassetLoads = new Map<string, Promise<boolean>>();
+  /** Track Vello texture IDs for cleanup */
+  private velloTextureIds = new Map<string, number>();
 
-  constructor(_renderer: Renderer, basePath = "/assets/spritesheets") {
+  constructor(renderer: Renderer, basePath = "/assets/spritesheets") {
+    this.renderer = renderer;
     this.basePath = basePath;
     this.cache = new AtlasCache();
+  }
+
+  private _vello: VelloRenderer | null = null;
+
+  /** Set the Vello renderer (call after vello init, before prefetch) */
+  setVelloRenderer(vello: VelloRenderer): void {
+    this._vello = vello;
+  }
+
+  /** Check if Vello WASM renderer is available */
+  private get vello(): VelloRenderer | null {
+    return this._vello;
   }
 
   /**
@@ -213,6 +235,96 @@ export class AtlasLoader {
     }
   }
 
+  /**
+   * Load a .dofasset binary into the Vello WASM renderer.
+   * Returns true if successfully loaded (or already loaded).
+   */
+  private async loadDofasset(tileKey: string): Promise<boolean> {
+    if (this.velloAssetIds.has(tileKey)) return true;
+    if (this.pendingDofassetLoads.has(tileKey)) {
+      return this.pendingDofassetLoads.get(tileKey)!;
+    }
+
+    const promise = this.doLoadDofasset(tileKey);
+    this.pendingDofassetLoads.set(tileKey, promise);
+    try {
+      return await promise;
+    } finally {
+      this.pendingDofassetLoads.delete(tileKey);
+    }
+  }
+
+  private nextVelloAssetId = 1;
+
+  private async doLoadDofasset(tileKey: string): Promise<boolean> {
+    const vello = this.vello;
+    if (!vello) return false;
+
+    const [type, idStr] = tileKey.split("_");
+    const url = `${this.basePath}/tiles/${type}/${idStr}.dofasset`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return false;
+      const data = new Uint8Array(await res.arrayBuffer());
+      // Use a unique auto-incrementing ID to avoid conflicts between ground/objects
+      const id = this.nextVelloAssetId++;
+      vello.loadAsset(id, data);
+      this.velloAssetIds.set(tileKey, id);
+      return true;
+    } catch (e) {
+      log.warn(`Failed to load dofasset for ${tileKey}:`, e);
+      return false;
+    }
+  }
+
+  /**
+   * Render a frame via Vello and wrap the GPUTexture as a Pixi.js Texture.
+   */
+  private renderVelloFrame(
+    tileKey: string,
+    frameIndex: number,
+  ): Texture | null {
+    const vello = this.vello;
+    const assetId = this.velloAssetIds.get(tileKey);
+    if (!vello || assetId === undefined) return null;
+
+    // Match SVG rasterization scale: devicePixelRatio * zoom for crisp HiDPI at any zoom.
+    const renderResolution = Math.max(window.devicePixelRatio, 1.1) * this.currentZoom;
+    const result = vello.renderFrame(assetId, "tile", frameIndex, renderResolution);
+    if (!result) return null;
+
+    const { texture: gpuTexture, textureId, width, height } = result as VelloFrameResult;
+
+    // Track the Vello texture ID for cleanup
+    const zoomKey = this.getEffectiveZoomKey();
+    const cacheKey = `${tileKey}:${zoomKey}:${frameIndex}`;
+    this.velloTextureIds.set(cacheKey, textureId);
+
+    // Wrap GPUTexture in Pixi.js ExternalSource (zero-copy)
+    const source = new ExternalSource({
+      resource: gpuTexture,
+      renderer: this.renderer,
+      width,
+      height,
+      label: `vello:${tileKey}:${frameIndex}`,
+    });
+
+    // Vello's fine.wgsl un-premultiplies alpha before writing (straight alpha output).
+    // Use "no-premultiply-alpha" since the data is straight alpha and Pixi.js's
+    // WebGPU batch shader handles premultiplication via blend state.
+    source.alphaMode = "no-premultiply-alpha";
+    // Match the actual GPU texture format.
+    source.format = "rgba8unorm";
+    // Prevent Pixi.js TextureGCSystem from destroying the GPUTexture while
+    // GPU commands may still reference it. We manage lifecycle ourselves.
+    source.autoGarbageCollect = false;
+    // Tell Pixi.js the texture is at higher resolution so it displays at
+    // the correct CSS size (renderResolution px per atlas coordinate unit).
+    source.resolution = renderResolution;
+
+    return new Texture({ source });
+  }
+
   async loadTileManifest(tileKey: string): Promise<TileManifest | null> {
     if (this.cache.hasTileManifest(tileKey)) {
       return this.cache.getTileManifest(tileKey)!;
@@ -318,68 +430,52 @@ export class AtlasLoader {
 
     // Check LRU cache first
     const cachedTexture = this.cache.getFromFrameCache(cacheKey);
+    if (cachedTexture) return cachedTexture;
 
-    if (cachedTexture) {
-      return cachedTexture;
+    // Vello path: render frame directly via GPU (zero-copy)
+    if (this.vello && this.velloAssetIds.has(tileKey)) {
+      const texture = this.renderVelloFrame(tileKey, frameIndex);
+      if (texture) {
+        this.cache.addToFrameCache(cacheKey, texture);
+        return texture;
+      }
     }
 
+    // SVG fallback path
     const data = await this.loadTileData(tileKey);
-
-    if (!data) {
-      return null;
-    }
+    if (!data) return null;
 
     const baseTextures = await this.loadBaseTextures(tileKey, scale);
-
-    if (!baseTextures || baseTextures.length === 0) {
-      return null;
-    }
+    if (!baseTextures || baseTextures.length === 0) return null;
 
     const { atlas } = data;
     const frame = atlas.frames[frameIndex];
+    if (!frame) return null;
 
-    if (!frame) {
-      return null;
-    }
-
-    // Select the correct page texture
     const pageIndex = frame.page ?? 0;
     const baseTexture = baseTextures[pageIndex];
     if (!baseTexture?.source) return null;
 
-    // Get page dimensions for scale calculation
     const pageInfo = atlas.pages?.[pageIndex];
     const pageWidth = pageInfo?.width ?? atlas.width;
-
-    // Get source dimensions - these match atlas.json at 1x
     const sourceWidth = baseTexture.source.width;
     const sourceHeight = baseTexture.source.height;
     const actualScale = sourceWidth / pageWidth;
 
-    // Scale frame coordinates to pixel space
     const frameX = Math.round(frame.x * actualScale);
     const frameY = Math.round(frame.y * actualScale);
     let frameW = Math.round(frame.width * actualScale);
     let frameH = Math.round(frame.height * actualScale);
 
-    // Clamp to texture bounds
-    if (frameX + frameW > sourceWidth) {
-      frameW = Math.floor(sourceWidth - frameX);
-    }
-    if (frameY + frameH > sourceHeight) {
-      frameH = Math.floor(sourceHeight - frameY);
-    }
-
-    if (frameW <= 0 || frameH <= 0) {
-      return null;
-    }
+    if (frameX + frameW > sourceWidth) frameW = Math.floor(sourceWidth - frameX);
+    if (frameY + frameH > sourceHeight) frameH = Math.floor(sourceHeight - frameY);
+    if (frameW <= 0 || frameH <= 0) return null;
 
     const texture = new Texture({
       source: baseTexture.source,
       frame: new Rectangle(frameX, frameY, frameW, frameH),
     });
 
-    // Add to LRU cache
     this.cache.addToFrameCache(cacheKey, texture);
     return texture;
   }
@@ -457,41 +553,34 @@ export class AtlasLoader {
 
     // Check LRU cache first
     const cachedTexture = this.cache.getFromFrameCache(cacheKey);
+    if (cachedTexture) return cachedTexture;
 
-    if (cachedTexture) {
-      return cachedTexture;
+    // Vello path: render frame directly via GPU (zero-copy, synchronous)
+    if (this.vello && this.velloAssetIds.has(tileKey)) {
+      const texture = this.renderVelloFrame(tileKey, frameIndex);
+      if (texture) {
+        this.cache.addToFrameCache(cacheKey, texture);
+        return texture;
+      }
     }
 
-    // Get from sync caches (populated by prefetchTiles)
+    // SVG fallback path
     const data = this.cache.getTileData(tileKey);
-
-    if (!data) {
-      return null;
-    }
+    if (!data) return null;
 
     const baseTextures = data.baseTextures.get(zoomKey);
-
-    if (!baseTextures || baseTextures.length === 0) {
-      return null;
-    }
+    if (!baseTextures || baseTextures.length === 0) return null;
 
     const { atlas } = data;
     const frame = atlas.frames[frameIndex];
+    if (!frame) return null;
 
-    if (!frame) {
-      return null;
-    }
-
-    // Select the correct page texture
     const pageIndex = frame.page ?? 0;
     const baseTexture = baseTextures[pageIndex];
     if (!baseTexture?.source) return null;
 
-    // Get page dimensions for scale calculation
     const pageInfo = atlas.pages?.[pageIndex];
     const pageWidth = pageInfo?.width ?? atlas.width;
-
-    // Scale frame coordinates to pixel space
     const sourceWidth = baseTexture.source.width;
     const sourceHeight = baseTexture.source.height;
     const actualScale = sourceWidth / pageWidth;
@@ -501,25 +590,15 @@ export class AtlasLoader {
     let frameW = Math.round(frame.width * actualScale);
     let frameH = Math.round(frame.height * actualScale);
 
-    // Clamp to texture bounds
-    if (frameX + frameW > sourceWidth) {
-      frameW = Math.floor(sourceWidth - frameX);
-    }
-
-    if (frameY + frameH > sourceHeight) {
-      frameH = Math.floor(sourceHeight - frameY);
-    }
-
-    if (frameW <= 0 || frameH <= 0) {
-      return null;
-    }
+    if (frameX + frameW > sourceWidth) frameW = Math.floor(sourceWidth - frameX);
+    if (frameY + frameH > sourceHeight) frameH = Math.floor(sourceHeight - frameY);
+    if (frameW <= 0 || frameH <= 0) return null;
 
     const texture = new Texture({
       source: baseTexture.source,
       frame: new Rectangle(frameX, frameY, frameW, frameH),
     });
 
-    // Add to LRU cache
     this.cache.addToFrameCache(cacheKey, texture);
     return texture;
   }
@@ -534,6 +613,13 @@ export class AtlasLoader {
 
     const cachedTexture = this.cache.getFromFrameCache(cacheKey);
     if (cachedTexture) return cachedTexture;
+
+    // With Vello, base frames are composited automatically by build_frame_scene.
+    // The renderFrame call already includes the base frame, so this method
+    // should not be called separately. Return null to skip separate base rendering.
+    if (this.vello && this.velloAssetIds.has(tileKey)) {
+      return null;
+    }
 
     const data = this.cache.getTileData(tileKey);
     if (!data) return null;
@@ -607,14 +693,22 @@ export class AtlasLoader {
     const progress = getLoadProgress();
     const total = tileKeys.length;
     let loaded = 0;
+    const useVello = !!this.vello;
 
-    // Each tile loads its own JSON then immediately loads its SVG — all tiles in parallel.
-    // This eliminates the waterfall where ALL JSON had to finish before ANY SVG could start.
     await Promise.all(
       tileKeys.map(async (key) => {
+        // Always load manifest (needed for offsets, behavior, frame info)
         await this.loadTileData(key);
-        await this.loadBaseTextures(key, scale);
         this.getTileManifestSync(key);
+
+        if (useVello) {
+          // Vello path: load .dofasset binary (small, fast)
+          await this.loadDofasset(key);
+        } else {
+          // SVG path: load and rasterize atlas SVG
+          await this.loadBaseTextures(key, scale);
+        }
+
         loaded++;
         progress.report("map-tiles", loaded, total);
       })

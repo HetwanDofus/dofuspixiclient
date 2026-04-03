@@ -1,7 +1,11 @@
-import { Assets, Rectangle, Sprite, Texture } from "pixi.js";
+import { Assets, ExternalSource, Rectangle, type Renderer, Sprite, Texture } from "pixi.js";
 
 import { Direction } from "@/ecs/components";
 import { loadSvg } from "@/render/load-svg";
+import type { VelloRenderer } from "vello-wasm";
+import type { VelloFrameResult } from "@/render/vello-loader";
+import { FrameAtlas } from "@/render/frame-atlas";
+import { parseLook } from "./look-parser";
 
 /**
  * Atlas JSON format for character sprite animations.
@@ -46,6 +50,14 @@ export interface CharacterAnimation {
   frameWidth: number;
   /** Height of a single frame */
   frameHeight: number;
+  /** Real frame count (for atlas mode where textures.length=1 but animation has many frames) */
+  frameCount?: number;
+  /** Lazily render frame N on first access (Vello only). Returns the real texture. */
+  resolveFrame?: (index: number) => Texture | null;
+  /** Zone colors [color1, color2, color3] for GPU HSL replacement (Vello shared textures). */
+  zoneColors?: number[];
+  /** Per-frame zone mask textures (parallel to textures[], same frame rects). */
+  zoneMaskTextures?: Texture[];
 }
 
 /**
@@ -134,6 +146,48 @@ export class CharacterSpriteLoader {
   private pendingManifests = new Map<number, Promise<Set<string> | null>>();
   /** Current zoom level for SVG rasterization */
   private currentZoom = 1;
+  /** Vello WASM renderer (null = SVG fallback) */
+  private _vello: VelloRenderer | null = null;
+  /** Pixi.js renderer for ExternalSource */
+  private _pixiRenderer: Renderer | null = null;
+  /** Dynamic atlas — all character frames packed into ONE GPU texture */
+  private _atlas: FrameAtlas | null = null;
+  /** Vello asset IDs loaded, keyed by gfxId */
+  private velloAssetIds = new Map<number, number>();
+  /** Pending .dofasset loads */
+  private pendingDofassetLoads = new Map<number, Promise<boolean>>();
+  /** Auto-incrementing Vello asset ID */
+  private nextVelloAssetId = 100000; // high range to avoid tile ID conflicts
+  /** Track Vello texture IDs for cleanup */
+  private velloTextureIds: number[] = [];
+  /** Loaded accessory .dofasset asset IDs, keyed by "type:gfxId" → vello asset ID (or -1 if failed) */
+  private accessoryAssetIds = new Map<string, number>();
+  /** Pending accessory .dofasset loads */
+  private pendingAccessoryLoads = new Map<string, Promise<number | null>>();
+
+  /** Enable Vello rendering for characters */
+  /** Max GPU texture dimension — set from Vello init */
+  private _maxTextureSize = 8192;
+
+  setVelloRenderer(vello: VelloRenderer, pixiRenderer: Renderer, maxTextureSize?: number): void {
+    this._vello = vello;
+    this._pixiRenderer = pixiRenderer;
+    if (maxTextureSize) this._maxTextureSize = maxTextureSize;
+    const resolution = this.getResolution();
+    this._atlas = new FrameAtlas(vello, pixiRenderer, resolution, this._maxTextureSize);
+    const ok = this._atlas.init();
+    if (!ok) {
+      console.error("[CharacterSprite] FrameAtlas.init() FAILED — falling back to SVG");
+      this._atlas = null;
+    } else {
+      console.log(`[CharacterSprite] FrameAtlas ready (resolution=${resolution.toFixed(2)})`);
+    }
+  }
+
+  /** Get the frame atlas (for tick advancement from the render loop) */
+  getAtlas(): FrameAtlas | null {
+    return this._atlas;
+  }
 
   /**
    * Set zoom level. Clears the animation cache so new loads rasterize at the
@@ -146,6 +200,12 @@ export class CharacterSpriteLoader {
     this.currentZoom = zoom;
     this.cache.clear();
     this.pending.clear();
+    // Recreate atlas at new resolution — cached frames are stale
+    if (this._vello && this._pixiRenderer) {
+      const resolution = this.getResolution();
+      this._atlas = new FrameAtlas(this._vello, this._pixiRenderer, resolution, this._maxTextureSize);
+      this._atlas.init();
+    }
     // Bust the Assets alias cache so re-fetches produce new textures at the
     // new resolution.  We do NOT call Assets.unload (which destroys the
     // TextureSource) because existing sprites still reference those textures
@@ -154,8 +214,10 @@ export class CharacterSpriteLoader {
   }
 
   private getResolution(): number {
-    const dpr = window.devicePixelRatio ?? 1;
-    return Math.max(2, Math.ceil(this.currentZoom * dpr));
+    // Cap at 2 — higher values balloon slot size (1024px at res=3) leaving too few
+    // atlas slots (64) for smooth animation caching. 2x is sharp enough for ~100px SVG sprites.
+    // Zoom > 1 is handled separately: zoom=2 at dpr=2 → res=2 (same), sprites scale via Pixi.
+    return 2;
   }
 
   /**
@@ -255,11 +317,195 @@ export class CharacterSpriteLoader {
     }
   }
 
+  /** Load .dofasset for a sprite into Vello */
+  private async loadDofasset(gfxId: number): Promise<boolean> {
+    if (this.velloAssetIds.has(gfxId)) return true;
+    if (this.pendingDofassetLoads.has(gfxId)) return this.pendingDofassetLoads.get(gfxId)!;
+
+    const promise = (async () => {
+      try {
+        const res = await fetch(`${SPRITES_BASE_PATH}/${gfxId}.dofasset`);
+        if (!res.ok) return false;
+        const data = new Uint8Array(await res.arrayBuffer());
+        const id = this.nextVelloAssetId++;
+        this._vello!.loadAsset(id, data);
+        this.velloAssetIds.set(gfxId, id);
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+
+    this.pendingDofassetLoads.set(gfxId, promise);
+    try { return await promise; } finally { this.pendingDofassetLoads.delete(gfxId); }
+  }
+
+  /**
+   * Load an accessory .dofasset into Vello. Returns the Vello asset ID.
+   * Accessories are compiled from /accessories/{type}_{gfxId}/ SVG frames
+   * and stored as acc_{type}_{gfxId}.dofasset in the sprites directory.
+   * Their animations are named by direction suffix (R, L, F, B, S).
+   */
+  private async loadAccessoryAsset(
+    type: number,
+    gfxId: number,
+  ): Promise<number | null> {
+    if (!this._vello || gfxId === 0) return null;
+
+    const key = `${type}:${gfxId}`;
+    const cached = this.accessoryAssetIds.get(key);
+    if (cached !== undefined) return cached === -1 ? null : cached;
+
+    const pending = this.pendingAccessoryLoads.get(key);
+    if (pending) return pending;
+
+    const promise = (async (): Promise<number | null> => {
+      try {
+        // Load accessory-specific .dofasset (compiled from /accessories/{type}_{gfxId}/)
+        const res = await fetch(`${SPRITES_BASE_PATH}/acc_${type}_${gfxId}.dofasset`);
+        if (!res.ok) {
+          this.accessoryAssetIds.set(key, -1); // Cache failure
+          return null;
+        }
+        const data = new Uint8Array(await res.arrayBuffer());
+        const id = this.nextVelloAssetId++;
+        const ok = this._vello!.loadAsset(id, data);
+        if (!ok) {
+          this.accessoryAssetIds.set(key, -1); // Cache failure
+          return null;
+        }
+        this.accessoryAssetIds.set(key, id);
+        return id;
+      } catch {
+        this.accessoryAssetIds.set(key, -1); // Cache failure
+        return null;
+      }
+    })();
+
+    this.pendingAccessoryLoads.set(key, promise);
+    try { return await promise; } finally { this.pendingAccessoryLoads.delete(key); }
+  }
+
+  /**
+   * Load all accessories from a parsed look and return flat acc_info array
+   * for the WASM renderFrame API: [asset_id, slot_id, asset_id, slot_id, ...]
+   */
+  private async loadAccessories(
+    accessories: import("./look-parser").AccessoryInfo[],
+  ): Promise<number[] | undefined> {
+    const accInfo: number[] = [];
+    const promises = accessories.map(async (acc, index) => {
+      if (acc.gfxId === 0) return;
+      const assetId = await this.loadAccessoryAsset(acc.type, acc.gfxId);
+      if (assetId != null) {
+        // slot_id = array index (0-4), matching .dofasset AccessorySlot.slotId (0-indexed)
+        accInfo.push(assetId, index);
+      }
+    });
+    await Promise.all(promises);
+    return accInfo.length > 0 ? accInfo : undefined;
+  }
+
+  /** Render a character frame via Vello */
+  private renderVelloFrame(
+    velloAssetId: number,
+    animName: string,
+    frameIndex: number,
+    colors?: [number, number, number] | null,
+  ): Texture | null {
+    if (!this._vello || !this._pixiRenderer) return null;
+
+    const renderResolution = Math.max(window.devicePixelRatio, 1.1) * this.currentZoom;
+    const colorsArg = colors ? [colors[0], colors[1], colors[2]] : undefined;
+    const result = this._vello.renderFrame(velloAssetId, animName, frameIndex, renderResolution, colorsArg);
+    if (!result) return null;
+
+    const { texture: gpuTexture, textureId, width, height } = result as VelloFrameResult;
+    this.velloTextureIds.push(textureId);
+
+    const source = new ExternalSource({
+      resource: gpuTexture,
+      renderer: this._pixiRenderer,
+      width,
+      height,
+      label: `vello:char:${velloAssetId}:${animName}:${frameIndex}`,
+    });
+    source.alphaMode = "no-premultiply-alpha";
+    source.format = "rgba8unorm";
+    source.resolution = renderResolution;
+    source.autoGarbageCollect = false;
+
+    return new Texture({ source });
+  }
+
   private async doLoadAnimation(
     gfxId: number,
     animName: string,
     look?: string
   ): Promise<CharacterAnimation | null> {
+    // Vello path: per-frame caching in shared atlas texture.
+    // Each unique visual state (sprite+anim+frame+colors+acc) gets one slot.
+    // Multiple characters share slots → after warmup, zero Vello renders.
+    if (this._vello && this._pixiRenderer && this._atlas) {
+      const parsed = look ? parseLook(look) : null;
+      const loaded = await this.loadDofasset(gfxId);
+      if (loaded) {
+        const velloAssetId = this.velloAssetIds.get(gfxId)!;
+        const animInfo = this._vello.getAnimationInfo(velloAssetId, animName) as {
+          fps: number; frameCount: number;
+          offsetX: number; offsetY: number;
+          trimX: number; trimY: number;
+          frameWidth: number; frameHeight: number;
+        } | null;
+        if (animInfo && animInfo.frameCount > 0) {
+          const colors: [number, number, number] | null = parsed &&
+            (parsed.color1 >= 0 || parsed.color2 >= 0 || parsed.color3 >= 0)
+            ? [
+                parsed.color1 >= 0 ? parsed.color1 : 0,
+                parsed.color2 >= 0 ? parsed.color2 : 0,
+                parsed.color3 >= 0 ? parsed.color3 : 0,
+              ]
+            : null;
+
+          // Load accessories from parsed look data
+          const accInfo: number[] | undefined =
+            parsed?.accessories.length
+              ? await this.loadAccessories(parsed.accessories)
+              : undefined;
+
+          // Per-frame shared cache: each unique (sprite, anim, frame, colors, acc) gets one slot.
+          // Multiple characters with same look share slots. After warmup: 0 renders → 60fps.
+          const atlas = this._atlas;
+          const assetId = velloAssetId;
+          const anim = animName;
+          const c = colors;
+          const acc = accInfo;
+
+          const firstFrame = atlas.getFrame(assetId, anim, 0, c, acc);
+          if (firstFrame) {
+            const animation: CharacterAnimation & { _trimX: number; _trimY: number } = {
+              textures: [firstFrame],
+              frameCount: animInfo.frameCount,
+              fps: animInfo.fps || 25,
+              offsetX: animInfo.offsetX + animInfo.trimX,
+              offsetY: animInfo.offsetY + animInfo.trimY,
+              frameWidth: animInfo.frameWidth,
+              frameHeight: animInfo.frameHeight,
+              resolveFrame(index: number): Texture | null {
+                return atlas.getFrame(assetId, anim, index, c, acc);
+              },
+            };
+
+            const cacheKey = look ? `${gfxId}:${animName}:${look}` : `${gfxId}:${animName}`;
+            this.cache.set(cacheKey, animation);
+            return animation;
+          }
+        }
+      }
+      // Fall through to SVG if Vello fails
+    }
+
+    // SVG path (fallback)
     const atlasPath = `${SPRITES_BASE_PATH}/${gfxId}/${animName}/atlas.json`;
 
     try {
@@ -267,10 +513,9 @@ export class CharacterSpriteLoader {
       if (!res.ok) return null;
       const atlas: SpriteAtlas = await res.json();
 
-      // Load SVG(s) at zoom-aware resolution for crisp rendering
+      // SVG rendering path
       const resolution = this.getResolution();
       const baseSvgPath = `${SPRITES_BASE_PATH}/${gfxId}/${animName}`;
-      // Include look in alias so different looks get different textures
       const lookSuffix = look ? `:${look}` : "";
 
       let pageTextures: Texture[];
@@ -307,19 +552,16 @@ export class CharacterSpriteLoader {
 
       if (pageTextures.length === 0 || !pageTextures[0]?.source) return null;
 
-      // Build frame lookup: frameId → frame data
       const frameLookup = new Map<string, (typeof atlas.frames)[0]>();
       for (const frame of atlas.frames) {
         frameLookup.set(frame.id, frame);
       }
 
-      // Pre-compute actual scale per page
       const pageScales: number[] = pageTextures.map((tex, i) => {
         const pageWidth = atlas.pages?.[i]?.width ?? atlas.width;
         return tex.source.width / pageWidth;
       });
 
-      // Build texture array following frameOrder with duplicate resolution
       const textures: Texture[] = [];
       for (const frameId of atlas.frameOrder) {
         const resolvedId = atlas.duplicates[frameId] ?? frameId;
@@ -348,8 +590,6 @@ export class CharacterSpriteLoader {
       if (textures.length === 0) return null;
 
       const firstFrame = atlas.frames[0];
-      // Account for frame trim offset: the atlas-level offset is relative to SVG origin,
-      // but the frame texture starts at (frame.offsetX, frame.offsetY) in SVG space.
       const trimX = firstFrame?.offsetX ?? 0;
       const trimY = firstFrame?.offsetY ?? 0;
       const animation: CharacterAnimation = {
@@ -389,6 +629,8 @@ export class CharacterSpriteLoader {
     this.cache.clear();
     this.pending.clear();
     this.manifestCache.clear();
+    this._atlas?.clear();
+    this.accessoryAssetIds.clear();
 
     for (const alias of this.loadedAssets) {
       Assets.unload(alias);

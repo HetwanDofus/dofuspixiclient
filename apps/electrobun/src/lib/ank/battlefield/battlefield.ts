@@ -261,6 +261,19 @@ export class Battlefield {
 
   async init(): Promise<void> {
     await loadTheme("classic");
+
+    // Initialize Vello WASM renderer if WebGPU is available.
+    // This creates a shared GPUDevice that both Vello and Pixi.js will use,
+    // enabling zero-copy GPU texture sharing.
+    try {
+      const { initVello } = await import("@/render/vello-loader");
+      const { gpu } = await initVello();
+      this.engine.setGpu(gpu);
+      log.info("Vello WASM renderer initialized (zero-copy GPU sharing)");
+    } catch (e) {
+      log.warn("Vello WASM not available, falling back to SVG rendering:", e);
+    }
+
     await this.engine.init();
     this.app = this.engine.getApp();
 
@@ -286,6 +299,33 @@ export class Battlefield {
       this.app.renderer,
       "/assets/spritesheets"
     );
+
+    // Connect Vello renderer to atlas loader for zero-copy tile rendering
+    try {
+      const { getVelloRenderer, getMaxTextureSize } = await import("@/render/vello-loader");
+      const vello = getVelloRenderer();
+      if (vello) {
+        this.atlasLoader.setVelloRenderer(vello);
+        this.characterSpriteLoader.setVelloRenderer(vello, this.app.renderer, getMaxTextureSize());
+        log.info("Atlas loader + character sprites using Vello WASM renderer");
+
+        // Wire up atlas debug info to FPS overlay (use lazy getter since atlas/renderer may not exist yet)
+        const spriteLoader = this.characterSpriteLoader;
+        const self = this;
+        this.engine.debugInfo = () => {
+          const atlas = spriteLoader.getAtlas();
+          if (!atlas) return "no atlas";
+          const s = atlas.stats;
+          const war = self.worldActorRenderer;
+          const updMs = war ? war.lastUpdateMs.toFixed(1) : "?";
+          const n = war ? war.getFighterIds().length : 0;
+          return `${n}act upd:${updMs}ms | sl:${s.slots}/${s.maxSlots} r:${s.lastRenders} q:${s.lastQueueMs.toFixed(1)}ms fl:${s.lastFlushMs.toFixed(1)}ms h:${s.lastHits}`;
+        };
+      }
+    } catch {
+      // Vello not available — falling back to SVG rendering
+    }
+
     this.adjacentMapCache = new AdjacentMapCache(this.atlasLoader);
 
     const baseZoom = this.engine.getBaseZoom();

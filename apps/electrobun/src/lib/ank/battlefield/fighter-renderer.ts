@@ -176,7 +176,6 @@ export class FighterRenderer {
     // Name background (semi-transparent black rounded rect)
     const nameBg = new Graphics();
     nameBg.visible = false;
-    fighterContainer.addChild(nameBg);
 
     // Name text (white, hidden by default — shown on hover)
     const nameStyle = new TextStyle({
@@ -192,12 +191,10 @@ export class FighterRenderer {
     nameText.anchor.set(0.5, 0.5);
     nameText.y = -50;
     nameText.visible = false;
-    fighterContainer.addChild(nameText);
 
     // HP bar (hidden for world actors in roleplay mode)
     const hpBar = new Graphics();
     hpBar.visible = false;
-    fighterContainer.addChild(hpBar);
 
     // Position at cell
     const pos = this.getCellPos(data.cellId);
@@ -279,14 +276,22 @@ export class FighterRenderer {
    * Loads static + walk + run for ALL direction suffixes.
    * Returns a promise that resolves when all preloads complete.
    */
-  private preloadCommonAnimations(gfxId: number, look?: string): Promise<void> {
-    const promises: Promise<unknown>[] = [];
-    for (const s of ["S", "R", "F", "L", "B"]) {
-      promises.push(this.spriteLoader.loadAnimation(gfxId, `static${s}`, look));
-      promises.push(this.spriteLoader.loadAnimation(gfxId, `walk${s}`, look));
-      promises.push(this.spriteLoader.loadAnimation(gfxId, `run${s}`, look));
+  private async preloadCommonAnimations(gfxId: number, look?: string): Promise<void> {
+    // Only preload the current direction's static animation.
+    // Walk/run animations are loaded on demand when the actor starts moving.
+    // This reduces initial load from 15 strip renders to 1 per actor.
+    // For non-stress scenarios (few actors), preload everything.
+    const actorCount = this.fighters.size;
+    if (actorCount > 30) {
+      // Stress mode: minimal preload
+      return;
     }
-    return Promise.allSettled(promises).then(() => {});
+    // Normal gameplay: preload all directions sequentially
+    for (const s of ["S", "R", "F", "L", "B"]) {
+      await this.spriteLoader.loadAnimation(gfxId, `static${s}`, look);
+      await this.spriteLoader.loadAnimation(gfxId, `walk${s}`, look);
+      await this.spriteLoader.loadAnimation(gfxId, `run${s}`, look);
+    }
   }
 
   /**
@@ -373,6 +378,8 @@ export class FighterRenderer {
       fighter.sprite.x = flipped ? -animation.offsetX : animation.offsetX;
       fighter.sprite.y = animation.offsetY;
     }
+
+    fighter.sprite.filters = [];
 
     // Update name position above sprite
     this.updateNamePosition(fighter);
@@ -612,12 +619,35 @@ export class FighterRenderer {
    * Update animation tick — handles movement interpolation and sprite frame animation.
    * Movement matches original basicMove: deltaPx = speed * min(deltaMs, 125).
    */
+  /** Last update() duration in ms — exposed for debug overlay */
+  lastUpdateMs = 0;
+
+  // --- Performance diagnostics ---
+  private _prevFrameStart = 0;
+  private _perfFrameTimes: number[] = [];
+  private _perfUpdateTimes: number[] = [];
+  private _perfAnimTimes: number[] = [];
+  private _perfFlushTimes: number[] = [];
+  private _perfLogTimer = 0;
+
   private update(): void {
+    const _t0 = performance.now();
+
+    // Track frame-to-frame time (total frame cost including Pixi.js render + GPU)
+    if (this._prevFrameStart > 0) {
+      this._perfFrameTimes.push(_t0 - this._prevFrameStart);
+    }
+    this._prevFrameStart = _t0;
+
+    // Advance atlas tick (resets per-tick render budget)
+    this.spriteLoader.getAtlas()?.tick();
+
     const deltaMs = Ticker.shared.deltaMS;
     const deltaS = deltaMs / 1000;
     const clampedMs = getClampedDeltaMs(deltaMs);
     let anyMoved = false;
 
+    const _tAnim0 = performance.now();
     for (const fighter of this.fighters.values()) {
       // Animate sprite frames
       this.updateSpriteAnimation(fighter, deltaS);
@@ -686,9 +716,48 @@ export class FighterRenderer {
         fighter.moveDistance -= deltaPx;
       }
     }
+    const _tAnimEnd = performance.now();
+    this._perfAnimTimes.push(_tAnimEnd - _tAnim0);
+
+    // Flush all batched atlas renders in ONE Vello dispatch + ONE copy
+    const _tFlush0 = performance.now();
+    this.spriteLoader.getAtlas()?.flush();
+    this._perfFlushTimes.push(performance.now() - _tFlush0);
 
     if (anyMoved) {
       this.pickingSystem?.markDirty();
+    }
+    this.lastUpdateMs = performance.now() - _t0;
+    this._perfUpdateTimes.push(this.lastUpdateMs);
+
+    // Log performance every ~1 second
+    this._perfLogTimer += deltaMs;
+    if (this._perfLogTimer >= 1000 && this._perfFrameTimes.length > 0) {
+      this._perfLogTimer = 0;
+      const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+      const frameMs = avg(this._perfFrameTimes);
+      const updateMs = avg(this._perfUpdateTimes);
+      const animMs = avg(this._perfAnimTimes);
+      const flushMs = avg(this._perfFlushTimes);
+      const pixiMs = frameMs - updateMs; // time NOT in our update = Pixi.js render + GPU + browser
+      const atlas = this.spriteLoader.getAtlas();
+      const s = atlas?.stats;
+      const n = this.fighters.size;
+      console.log(
+        `[PERF] ${(1000 / frameMs).toFixed(0)}fps ` +
+        `frame:${frameMs.toFixed(1)}ms ` +
+        `upd:${updateMs.toFixed(1)}ms ` +
+        `(anim+move:${animMs.toFixed(1)}ms flush:${flushMs.toFixed(1)}ms) ` +
+        `pixi+gpu:${pixiMs.toFixed(1)}ms ` +
+        `| ${n}fighters ` +
+        (s ? `slots:${s.slots}/${s.maxSlots} r:${s.lastRenders} ` +
+             `q:${s.lastQueueMs.toFixed(1)}ms fl:${s.lastFlushMs.toFixed(1)}ms ` +
+             `h:${s.lastHits}` : 'no atlas')
+      );
+      this._perfFrameTimes = [];
+      this._perfUpdateTimes = [];
+      this._perfAnimTimes = [];
+      this._perfFlushTimes = [];
     }
   }
 
@@ -699,16 +768,26 @@ export class FighterRenderer {
     if (!fighter.sprite || !fighter.currentAnimData) return;
 
     const anim = fighter.currentAnimData;
+    // Use frameCount if available (atlas mode: textures.length=1 but real frame count is higher)
+    const realFrameCount = anim.frameCount ?? anim.textures.length;
     const frameState = {
       frameIndex: fighter.frameIndex,
       frameTimer: fighter.frameTimer,
     };
 
-    updateFrameAnimation(frameState, deltaS, anim.textures.length, anim.fps);
+    updateFrameAnimation(frameState, deltaS, realFrameCount, anim.fps);
 
     fighter.frameIndex = frameState.frameIndex;
     fighter.frameTimer = frameState.frameTimer;
-    fighter.sprite.texture = anim.textures[fighter.frameIndex];
+    if (anim.resolveFrame) {
+      const tex = anim.resolveFrame(fighter.frameIndex);
+      if (tex) {
+        fighter.sprite.texture = tex;
+      }
+    } else {
+      fighter.sprite.texture = anim.textures[fighter.frameIndex % anim.textures.length];
+    }
+
   }
 
   /**
@@ -868,9 +947,11 @@ export class FighterRenderer {
   showName(id: number): void {
     const f = this.fighters.get(id);
     if (!f) return;
-    f.nameText.visible = true;
     this.updateNameBg(f);
+    if (!f.nameBg.parent) f.container.addChild(f.nameBg);
     f.nameBg.visible = true;
+    if (!f.nameText.parent) f.container.addChild(f.nameText);
+    f.nameText.visible = true;
   }
 
   /**
@@ -880,7 +961,9 @@ export class FighterRenderer {
     const f = this.fighters.get(id);
     if (!f) return;
     f.nameText.visible = false;
+    if (f.nameText.parent) f.container.removeChild(f.nameText);
     f.nameBg.visible = false;
+    if (f.nameBg.parent) f.container.removeChild(f.nameBg);
   }
 
   /**
