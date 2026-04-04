@@ -134,53 +134,51 @@ export class PickingSystem {
     const device = (this.renderer as any).gpu?.device as GPUDevice | undefined;
 
     if (!gpuTexture || !device || typeof gpuTexture.width !== 'number') {
-      // Not a WebGPU texture — mark as failed, use AABB fallback forever
       this.failedSources.add(sourceUid);
       this.pendingExtractions.delete(sourceUid);
       return;
     }
 
-    const w = gpuTexture.width;
-    const h = gpuTexture.height;
-    // WebGPU requires bytesPerRow to be aligned to 256
-    const bytesPerRow = Math.ceil(w * 4 / 256) * 256;
-    const bufferSize = bytesPerRow * h;
+    try {
+      const w = gpuTexture.width;
+      const h = gpuTexture.height;
+      const bytesPerRow = Math.ceil(w * 4 / 256) * 256;
+      const bufferSize = bytesPerRow * h;
 
-    const stagingBuffer = device.createBuffer({
-      size: bufferSize,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-    });
+      const stagingBuffer = device.createBuffer({
+        size: bufferSize,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+      });
 
-    const encoder = device.createCommandEncoder();
-    encoder.copyTextureToBuffer(
-      { texture: gpuTexture },
-      { buffer: stagingBuffer, bytesPerRow, rowsPerImage: h },
-      { width: w, height: h },
-    );
-    device.queue.submit([encoder.finish()]);
+      const encoder = device.createCommandEncoder();
+      encoder.copyTextureToBuffer(
+        { texture: gpuTexture },
+        { buffer: stagingBuffer, bytesPerRow, rowsPerImage: h },
+        { width: w, height: h },
+      );
+      device.queue.submit([encoder.finish()]);
 
-    stagingBuffer.mapAsync(GPUMapMode.READ).then(() => {
-      const mapped = new Uint8Array(stagingBuffer.getMappedRange());
-
-      // Extract alpha channel, accounting for bytesPerRow padding
-      const alphaData = new Uint8Array(w * h);
-      for (let row = 0; row < h; row++) {
-        const rowOffset = row * bytesPerRow;
-        for (let col = 0; col < w; col++) {
-          alphaData[row * w + col] = mapped[rowOffset + col * 4 + 3];
+      stagingBuffer.mapAsync(GPUMapMode.READ).then(() => {
+        const mapped = new Uint8Array(stagingBuffer.getMappedRange());
+        const alphaData = new Uint8Array(w * h);
+        for (let row = 0; row < h; row++) {
+          const rowOffset = row * bytesPerRow;
+          for (let col = 0; col < w; col++) {
+            alphaData[row * w + col] = mapped[rowOffset + col * 4 + 3];
+          }
         }
-      }
-
-      stagingBuffer.unmap();
-      stagingBuffer.destroy();
-
-      this.alphaMaps.set(sourceUid, { data: alphaData, width: w, height: h });
+        stagingBuffer.unmap();
+        stagingBuffer.destroy();
+        this.alphaMaps.set(sourceUid, { data: alphaData, width: w, height: h });
+        this.pendingExtractions.delete(sourceUid);
+      }).catch(() => {
+        stagingBuffer.destroy();
+        this.pendingExtractions.delete(sourceUid);
+      });
+    } catch {
+      // GPU texture was destroyed (e.g., zoom changed) — skip, will retry with new texture
       this.pendingExtractions.delete(sourceUid);
-    }).catch(() => {
-      stagingBuffer.destroy();
-      this.failedSources.add(sourceUid);
-      this.pendingExtractions.delete(sourceUid);
-    });
+    }
   }
 
   getPickableObjects(): PickableObject[] {

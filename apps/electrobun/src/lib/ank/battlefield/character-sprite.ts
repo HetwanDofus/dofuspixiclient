@@ -239,10 +239,10 @@ export class CharacterSpriteLoader {
   }
 
   private getResolution(): number {
-    // Cap at 2 — higher values balloon slot size (1024px at res=3) leaving too few
-    // atlas slots (64) for smooth animation caching. 2x is sharp enough for ~100px SVG sprites.
-    // Zoom > 1 is handled separately: zoom=2 at dpr=2 → res=2 (same), sprites scale via Pixi.
-    return 2;
+    // Render at zoom * devicePixelRatio for crisp sprites at any zoom level.
+    // Frames are arranged in a 2D grid to stay within GPU texture limits.
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    return Math.max(1, this.currentZoom * dpr);
   }
 
   /**
@@ -508,7 +508,7 @@ export class CharacterSpriteLoader {
             texture: GPUTexture; textureId: number;
             width: number; height: number;
             frameWidth: number; frameHeight: number;
-            frameCount: number;
+            frameCount: number; gridCols?: number;
             boundsOffsetX?: number; boundsOffsetY?: number;
           } | null;
 
@@ -528,11 +528,14 @@ export class CharacterSpriteLoader {
 
             const fw = stripResult.frameWidth / res;
             const fh = stripResult.frameHeight / res;
+            const cols = stripResult.gridCols || stripResult.frameCount;
             const frameTextures: Texture[] = [];
             for (let i = 0; i < stripResult.frameCount; i++) {
+              const col = i % cols;
+              const row = Math.floor(i / cols);
               frameTextures.push(new Texture({
                 source: stripSource,
-                frame: new Rectangle(i * fw, 0, fw, fh),
+                frame: new Rectangle(col * fw, row * fh, fw, fh),
               }));
             }
 
