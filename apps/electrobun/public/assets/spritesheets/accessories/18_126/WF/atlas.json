@@ -1,0 +1,49 @@
+{
+    "symbol": "18_126",
+    "direction": "WF",
+    "width": 22.5,
+    "height": 36.6,
+    "frames": [
+        {
+            "id": "frame_0",
+            "file": "frame_0.svg",
+            "width": 22.5,
+            "height": 36.55,
+            "offsetX": -10.65,
+            "offsetY": -34.35
+        },
+        {
+            "id": "frame_1",
+            "file": "frame_1.svg",
+            "width": 22.5,
+            "height": 36.55,
+            "offsetX": -10.65,
+            "offsetY": -34.35
+        },
+        {
+            "id": "frame_2",
+            "file": "frame_2.svg",
+            "width": 22.5,
+            "height": 36.55,
+            "offsetX": -10.65,
+            "offsetY": -34.35
+        },
+        {
+            "id": "frame_3",
+            "file": "frame_3.svg",
+            "width": 22.5,
+            "height": 36.55,
+            "offsetX": -10.65,
+            "offsetY": -34.35
+        },
+        {
+            "id": "frame_4",
+            "file": "frame_4.svg",
+            "width": 22.5,
+            "height": 36.55,
+            "offsetX": -10.65,
+            "offsetY": -34.35
+        }
+    ],
+    "fps": 12
+}

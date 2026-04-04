@@ -404,6 +404,7 @@ export class Battlefield {
     );
     this.ecsTickerCallback = () => {
       this.gameWorld.execute();
+      this.interactionHandler?.tick();
     };
 
     Ticker.shared.add(this.ecsTickerCallback);
@@ -1202,10 +1203,10 @@ export class Battlefield {
       return false;
     }
 
-    if (!this.worldActorRenderer || !this.currentMapData) return false;
+    if (!this.currentMapData) return false;
 
     this.stressTest = new StressTest(
-      this.worldActorRenderer,
+      this,
       this.currentMapData.width,
       this.currentMapData.height,
       this.currentMapData.cells

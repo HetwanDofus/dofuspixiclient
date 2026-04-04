@@ -509,6 +509,7 @@ export class CharacterSpriteLoader {
             width: number; height: number;
             frameWidth: number; frameHeight: number;
             frameCount: number;
+            boundsOffsetX?: number; boundsOffsetY?: number;
           } | null;
 
           if (stripResult) {
@@ -535,15 +536,20 @@ export class CharacterSpriteLoader {
               }));
             }
 
+            // boundsOffset shifts the content to accommodate accessories extending
+            // beyond the character bounds (e.g., tall hats). Subtract from the
+            // sprite offset so the character's registration point stays correct.
+            const bOffX = (stripResult.boundsOffsetX ?? 0) / res;
+            const bOffY = (stripResult.boundsOffsetY ?? 0) / res;
+
             const animation: CharacterAnimation = {
               textures: frameTextures,
               frameCount: stripResult.frameCount,
               fps: animInfo.fps || 25,
-              offsetX: animInfo.offsetX + animInfo.trimX,
-              offsetY: animInfo.offsetY + animInfo.trimY,
+              offsetX: animInfo.offsetX + animInfo.trimX - bOffX,
+              offsetY: animInfo.offsetY + animInfo.trimY - bOffY,
               frameWidth: animInfo.frameWidth,
               frameHeight: animInfo.frameHeight,
-              // No resolveFrame needed — all frames are pre-rendered sub-textures
             };
 
             const cacheKey = look ? `${gfxId}:${animName}:${look}` : `${gfxId}:${animName}`;

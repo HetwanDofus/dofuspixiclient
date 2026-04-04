@@ -39,6 +39,9 @@ export class InteractionHandler {
 
   private hoveredObject: PickResult | null = null;
   private _enabled = true;
+  private lastScreenX = -1;
+  private lastScreenY = -1;
+  private mouseInCanvas = false;
 
   private onZoomChange?: (zoom: number, index: number) => void;
   private onPan?: (dx: number, dy: number) => void;
@@ -59,6 +62,11 @@ export class InteractionHandler {
 
   init(): void {
     this.canvas.addEventListener("wheel", (e) => this.handleWheel(e));
+    this.canvas.addEventListener("pointerenter", () => { this.mouseInCanvas = true; });
+    this.canvas.addEventListener("pointerleave", () => {
+      this.mouseInCanvas = false;
+      this.updateHover(null);
+    });
   }
 
   setBaseZoom(zoom: number): void {
@@ -100,6 +108,9 @@ export class InteractionHandler {
   }
 
   handlePointerMove(e: FederatedPointerEvent): void {
+    this.lastScreenX = e.global.x;
+    this.lastScreenY = e.global.y;
+
     if (!this.isDragging) {
       const pickResult = this.pickingSystem.pick(
         e.global.x,
@@ -107,31 +118,7 @@ export class InteractionHandler {
         this.mapContainer,
         false
       );
-
-      const prevHovered = this.hoveredObject;
-      this.hoveredObject = pickResult;
-
-      if (prevHovered?.object.id !== pickResult?.object.id) {
-        if (prevHovered) {
-          prevHovered.object.sprite.filters = null;
-        }
-
-        if (pickResult) {
-          const sprite = pickResult.object.sprite;
-
-          // Apply ColorMatrixFilter exactly like the old MapRendererEngine
-          const colorMatrix = new ColorMatrixFilter();
-          colorMatrix.matrix = [
-            0.6, 0, 0, 0, 0.3, 0, 0.6, 0, 0, 0.3, 0, 0, 0.6, 0, 0.3, 0, 0, 0, 1,
-            0,
-          ];
-          colorMatrix.resolution = window.devicePixelRatio;
-          sprite.filters = [colorMatrix];
-        }
-
-        this.canvas.style.cursor = pickResult ? "pointer" : "default";
-        this.onObjectHover?.(pickResult);
-      }
+      this.updateHover(pickResult);
       return;
     }
 
@@ -280,6 +267,47 @@ export class InteractionHandler {
 
     this.mapContainer.x = x;
     this.mapContainer.y = y;
+  }
+
+  /**
+   * Called every frame to re-evaluate hover at the last mouse position.
+   * Detects actors passing under a static mouse without requiring mouse movement.
+   */
+  tick(): void {
+    if (!this.mouseInCanvas || this.isDragging || this.lastScreenX < 0) return;
+
+    const pickResult = this.pickingSystem.pick(
+      this.lastScreenX,
+      this.lastScreenY,
+      this.mapContainer,
+      false
+    );
+    this.updateHover(pickResult);
+  }
+
+  private updateHover(pickResult: PickResult | null): void {
+    const prevHovered = this.hoveredObject;
+    this.hoveredObject = pickResult;
+
+    if (prevHovered?.object.id !== pickResult?.object.id) {
+      if (prevHovered) {
+        prevHovered.object.sprite.filters = null;
+      }
+
+      if (pickResult) {
+        const sprite = pickResult.object.sprite;
+        const colorMatrix = new ColorMatrixFilter();
+        colorMatrix.matrix = [
+          0.6, 0, 0, 0, 0.3, 0, 0.6, 0, 0, 0.3, 0, 0, 0.6, 0, 0.3, 0, 0, 0, 1,
+          0,
+        ];
+        colorMatrix.resolution = window.devicePixelRatio;
+        sprite.filters = [colorMatrix];
+      }
+
+      this.canvas.style.cursor = pickResult ? "pointer" : "default";
+      this.onObjectHover?.(pickResult);
+    }
   }
 
   getHoveredObject(): PickResult | null {

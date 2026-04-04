@@ -465,8 +465,6 @@ export class FighterRenderer {
       fighter.sprite.y = animation.offsetY;
     }
 
-    fighter.sprite.filters = [];
-
     // Update name position above sprite
     this.updateNamePosition(fighter);
   }
@@ -599,6 +597,7 @@ export class FighterRenderer {
       fighter.moving = true;
       fighter.animation = useRun ? FighterAnimation.RUN : FighterAnimation.WALK;
       fighter.moveResolve = resolve;
+      this.pickingSystem?.markDirty();
 
       // Start the first segment
       this.startMoveSegment(fighter);
@@ -644,6 +643,8 @@ export class FighterRenderer {
    * Computes pixel distance, direction vector, and speed for the current segment.
    */
   private startMoveSegment(fighter: ActiveFighter): void {
+    const prevCellId = fighter.cellId;
+
     const movementState = {
       path: fighter.path,
       pathIndex: fighter.pathIndex,
@@ -667,6 +668,15 @@ export class FighterRenderer {
     fighter.moveCosRot = movementState.moveCosRot;
     fighter.moveSinRot = movementState.moveSinRot;
     fighter.movePixelSpeed = movementState.movePixelSpeed;
+
+    // Depth rule from original Dofus (mc/Sprite.as moveToCell):
+    // If moving to a higher cellId (forward/south), set depth immediately.
+    // If moving to a lower cellId (backward/north), keep current depth until arrival.
+    // This ensures the sprite always has the HIGHER of origin/destination depth during movement.
+    const nextCellId = fighter.path[fighter.pathIndex + 1];
+    if (nextCellId !== undefined && nextCellId > prevCellId) {
+      fighter.container.zIndex = this.calculateZIndex(nextCellId);
+    }
 
     // Switch animation for this segment's direction
     const baseAnim = fighter.useRun ? "run" : "walk";
@@ -816,6 +826,7 @@ export class FighterRenderer {
         fighter.moveDistance = 0;
         fighter.moving = false;
         fighter.animation = FighterAnimation.IDLE;
+        this.pickingSystem?.markDirty();
 
         this.switchAnimation(fighter, "static", fighter.direction);
 
@@ -826,11 +837,17 @@ export class FighterRenderer {
         }
       } else if (result.nextCell !== undefined) {
         // Segment complete — snap to destination cell and start next
+        const prevCellId = fighter.cellId;
         const toPos = this.getCellPos(result.nextCell);
         fighter.container.x = toPos.x;
         fighter.container.y = toPos.y;
         fighter.cellId = result.nextCell;
-        fighter.container.zIndex = this.calculateZIndex(result.nextCell);
+        // Only update depth here if we moved backward (lower cellId) —
+        // forward moves already set depth at segment start (original Dofus logic)
+        if (result.nextCell <= prevCellId) {
+          fighter.container.zIndex = this.calculateZIndex(result.nextCell);
+        }
+        this.pickingSystem?.markDirty();
 
         // Start next segment
         this.startMoveSegment(fighter);
@@ -850,9 +867,8 @@ export class FighterRenderer {
     this.spriteLoader.getAtlas()?.flush();
     this._perfFlushTimes.push(performance.now() - _tFlush0);
 
-    if (anyMoved) {
-      this.pickingSystem?.markDirty();
-    }
+    // Don't mark picking dirty every tick — it triggers an expensive full rebuild.
+    // Picking is marked dirty on movement start/end and fighter add/remove instead.
     this.lastUpdateMs = performance.now() - _t0;
     this._perfUpdateTimes.push(this.lastUpdateMs);
 

@@ -1,0 +1,41 @@
+{
+    "symbol": "17_275",
+    "direction": "RL",
+    "width": 61.1,
+    "height": 62.1,
+    "frames": [
+        {
+            "id": "frame_0",
+            "file": "frame_0.svg",
+            "width": 61.1,
+            "height": 62.1,
+            "offsetX": -29.55,
+            "offsetY": -25.8
+        },
+        {
+            "id": "frame_1",
+            "file": "frame_1.svg",
+            "width": 61.1,
+            "height": 62.1,
+            "offsetX": -29.55,
+            "offsetY": -25.8
+        },
+        {
+            "id": "frame_2",
+            "file": "frame_2.svg",
+            "width": 61.1,
+            "height": 62.1,
+            "offsetX": -29.55,
+            "offsetY": -25.8
+        },
+        {
+            "id": "frame_3",
+            "file": "frame_3.svg",
+            "width": 61.1,
+            "height": 62.1,
+            "offsetX": -29.55,
+            "offsetY": -25.8
+        }
+    ],
+    "fps": 12
+}

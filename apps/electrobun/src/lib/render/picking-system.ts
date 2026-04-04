@@ -1,347 +1,186 @@
-import { Container, RenderTexture, Sprite, type Renderer } from 'pixi.js';
+import { Container, Sprite, Texture, type Renderer, type TextureSource } from 'pixi.js';
 import type { PickableObject, PickResult } from '@/types';
-import { PickingIdFilter } from './picking-id-filter';
 
+/**
+ * CPU-based pixel-perfect picking system.
+ *
+ * Instead of rendering a GPU picking texture every frame, this system:
+ * 1. AABB-checks all pickable sprites against the query point (O(n), microseconds)
+ * 2. For candidates, samples pixel alpha from a cached alpha map of the texture
+ * 3. Returns the topmost (highest zIndex) non-transparent hit
+ *
+ * Alpha maps are extracted once per unique TextureSource and cached forever.
+ * Total per-pick cost: ~300 AABB comparisons + 0-3 alpha lookups = <0.1ms.
+ */
 export class PickingSystem {
   private renderer: Renderer;
-  private pickingTexture: RenderTexture | null = null;
-  private pickingContainer: Container | null = null;
   private pickableObjects: Map<number, PickableObject> = new Map();
-  private idToPickingSprites: Map<number, Sprite> = new Map();
-  private colorToId: Map<string, number> = new Map();
 
-  private lastPickTime = 0;
-  private minPickInterval: number;
-  private textureWidth = 0;
-  private textureHeight = 0;
+  /** Cached alpha maps keyed by TextureSource.uid. Extracted once, used forever. */
+  private alphaMaps: Map<number, { data: Uint8Array; width: number; height: number }> = new Map();
 
-  private cachedPixels: Uint8Array | null = null;
-  private cachedPickPosition = { x: -1, y: -1 };
-  private cachedPickResult: PickResult | null = null;
+  /** Pending alpha extractions to avoid duplicate work */
+  private pendingExtractions: Set<number> = new Set();
 
-  /**
-   * Dirty flag - when true, picking texture needs to be rebuilt
-   * This prevents expensive GPU operations when scene hasn't changed
-   */
-  private isDirty = true;
+  /** Sources that failed extraction — skip them forever (use AABB fallback) */
+  private failedSources: Set<number> = new Set();
 
-  /**
-   * Track the world container transform to detect camera/view changes
-   */
-  private lastWorldTransform = { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 };
-
-  constructor(renderer: Renderer, minPickInterval = 16) {
+  constructor(renderer: Renderer, _minPickInterval = 16) {
     this.renderer = renderer;
-    this.minPickInterval = minPickInterval;
   }
 
-  initializeTexture(width: number, height: number): void {
-    if (this.pickingTexture && this.textureWidth === width && this.textureHeight === height) {
-      return;
-    }
-
-    if (this.pickingTexture) {
-      this.pickingTexture.destroy(true);
-    }
-
-    this.pickingTexture = RenderTexture.create({
-      width,
-      height,
-      resolution: 1,
-    });
-
-    this.textureWidth = width;
-    this.textureHeight = height;
-    this.cachedPixels = null;
+  initializeTexture(_width: number, _height: number): void {
+    // No-op: CPU picking doesn't need a render texture
   }
 
   registerObject(object: PickableObject): void {
     this.pickableObjects.set(object.id, object);
-    this.isDirty = true;
   }
 
   unregisterObject(id: number): void {
     this.pickableObjects.delete(id);
-
-    const sprite = this.idToPickingSprites.get(id);
-
-    if (sprite) {
-      sprite.destroy();
-      this.idToPickingSprites.delete(id);
-    }
-
-    this.isDirty = true;
   }
 
   clear(): void {
     this.pickableObjects.clear();
-
-    for (const sprite of this.idToPickingSprites.values()) {
-      sprite.destroy();
-    }
-
-    this.idToPickingSprites.clear();
-    this.isDirty = true;
-    this.cachedPixels = null;
-  }
-
-  private rebuildPickingTexture(worldContainer: Container): void {
-    if (!this.pickingTexture) {
-      return;
-    }
-
-    if (!this.pickingContainer) {
-      this.pickingContainer = new Container();
-    } else {
-      this.pickingContainer.removeChildren();
-    }
-
-    for (const sprite of this.idToPickingSprites.values()) {
-      sprite.destroy();
-    }
-
-    this.idToPickingSprites.clear();
-    this.colorToId.clear();
-
-    for (const [id, object] of this.pickableObjects) {
-      const sprite = object.sprite;
-
-      if (!sprite.visible || sprite.alpha === 0) {
-        continue;
-      }
-
-      const r = id & 0xFF;
-      const g = (id >> 8) & 0xFF;
-      const b = (id >> 16) & 0xFF;
-
-      const colorKey = `${r},${g},${b}`;
-      this.colorToId.set(colorKey, id);
-
-      const pickingSprite = new Sprite(sprite.texture);
-
-      pickingSprite.anchor.copyFrom(sprite.anchor);
-      pickingSprite.pivot.copyFrom(sprite.pivot);
-      if (object.parentContainer) {
-        const global = object.parentContainer.toGlobal({ x: sprite.x, y: sprite.y });
-        const local = worldContainer.toLocal(global);
-        pickingSprite.position.set(local.x, local.y);
-      } else {
-        pickingSprite.position.copyFrom(sprite.position);
-      }
-      pickingSprite.scale.copyFrom(sprite.scale);
-      pickingSprite.rotation = sprite.rotation;
-      pickingSprite.skew.copyFrom(sprite.skew);
-      pickingSprite.zIndex = sprite.zIndex || 0;
-
-      const pickingFilter = new PickingIdFilter(r, g, b);
-      pickingSprite.filters = [pickingFilter];
-      pickingSprite.blendMode = 'normal';
-
-      this.idToPickingSprites.set(id, pickingSprite);
-      this.pickingContainer.addChild(pickingSprite);
-    }
-
-    this.pickingContainer.sortableChildren = true;
-
-    this.pickingContainer.position.copyFrom(worldContainer.position);
-    this.pickingContainer.scale.copyFrom(worldContainer.scale);
-    this.pickingContainer.rotation = worldContainer.rotation;
-
-    this.renderer.render({
-      container: this.pickingContainer,
-      target: this.pickingTexture,
-      clear: true,
-      clearColor: [0, 0, 0, 0],
-    });
-
-    const extractResult = this.renderer.extract.pixels(this.pickingTexture);
-    const extractedPixels = (extractResult as { pixels: Uint8ClampedArray })?.pixels || extractResult;
-
-    const extractedWidth = (extractResult as { width: number })?.width || this.textureWidth;
-    const extractedHeight = (extractResult as { height: number })?.height || this.textureHeight;
-
-    if (extractedWidth !== this.textureWidth || extractedHeight !== this.textureHeight) {
-      this.textureWidth = extractedWidth;
-      this.textureHeight = extractedHeight;
-    }
-
-    if (extractedPixels instanceof Uint8ClampedArray) {
-      this.cachedPixels = extractedPixels as unknown as Uint8Array;
-    } else if (extractedPixels) {
-      this.cachedPixels = new Uint8Array(extractedPixels as ArrayLike<number>);
-    } else {
-      this.cachedPixels = null;
-    }
-
-    this.colorToId.clear();
-
-    for (const id of this.pickableObjects.keys()) {
-      const r = id & 0xFF;
-      const g = (id >> 8) & 0xFF;
-      const b = (id >> 16) & 0xFF;
-      const colorKey = `${r},${g},${b}`;
-      this.colorToId.set(colorKey, id);
-    }
-  }
-
-  pick(x: number, y: number, worldContainer: Container, forceUpdate = false): PickResult | null {
-    const now = performance.now();
-
-    if (!forceUpdate && (now - this.lastPickTime) < this.minPickInterval) {
-      if (this.cachedPickPosition.x === x && this.cachedPickPosition.y === y) {
-        return this.cachedPickResult;
-      }
-      return this.cachedPickResult;
-    }
-
-    this.lastPickTime = now;
-    this.cachedPickPosition = { x, y };
-
-    return this.pixelPerfectPick(x, y, worldContainer);
-  }
-
-  private pixelPerfectPick(x: number, y: number, worldContainer: Container): PickResult | null {
-    if (!this.pickingTexture) {
-      this.cachedPickResult = null;
-      return null;
-    }
-
-    // Check if world container transform has changed
-    const transformChanged = this.hasWorldTransformChanged(worldContainer);
-
-    // Only rebuild if dirty or transform changed
-    if (this.isDirty || transformChanged || !this.cachedPixels) {
-      this.rebuildPickingTexture(worldContainer);
-      this.isDirty = false;
-      this.updateWorldTransform(worldContainer);
-    }
-
-    if (!this.cachedPixels) {
-      this.cachedPickResult = null;
-      return null;
-    }
-
-    const pixels = this.cachedPixels;
-
-    const px = Math.floor(x);
-    const py = Math.floor(y);
-
-    if (px < 0 || px >= this.textureWidth || py < 0 || py >= this.textureHeight) {
-      this.cachedPickResult = null;
-      return null;
-    }
-
-    const offset = (py * this.textureWidth + px) * 4;
-
-    const r = pixels[offset];
-    const g = pixels[offset + 1];
-    const b = pixels[offset + 2];
-    const a = pixels[offset + 3];
-
-    if (a === 0) {
-      this.cachedPickResult = null;
-      return null;
-    }
-
-    let pickedId = r | (g << 8) | (b << 16);
-
-    if (pickedId === 0 && a > 0) {
-      pickedId = this.searchNeighborhood(px, py, pixels);
-    }
-
-    if (!pickedId) {
-      this.cachedPickResult = null;
-      return null;
-    }
-
-    const object = this.pickableObjects.get(pickedId);
-
-    if (!object) {
-      this.cachedPickResult = null;
-      return null;
-    }
-
-    this.cachedPickResult = { object, x, y };
-    return this.cachedPickResult;
-  }
-
-  private searchNeighborhood(px: number, py: number, pixels: Uint8Array): number {
-    const maxRadius = 4;
-
-    for (let radius = 1; radius <= maxRadius; radius++) {
-      for (let dy = -radius; dy <= radius; dy++) {
-        for (let dx = -radius; dx <= radius; dx++) {
-          if (dx === 0 && dy === 0) {
-            continue;
-          }
-
-          const nx = px + dx;
-          const ny = py + dy;
-
-          if (nx < 0 || nx >= this.textureWidth || ny < 0 || ny >= this.textureHeight) {
-            continue;
-          }
-
-          const nOffset = (ny * this.textureWidth + nx) * 4;
-          const nr = pixels[nOffset];
-          const ng = pixels[nOffset + 1];
-          const nb = pixels[nOffset + 2];
-          const na = pixels[nOffset + 3];
-
-          if (na === 0) {
-            continue;
-          }
-
-          if (nr === 0 && ng === 0 && nb === 0) {
-            continue;
-          }
-
-          const neighborId = nr | (ng << 8) | (nb << 16);
-
-          if (neighborId && this.pickableObjects.has(neighborId)) {
-            return neighborId;
-          }
-        }
-      }
-    }
-
-    return 0;
-  }
-
-  /**
-   * Check if the world container transform has changed since last rebuild
-   */
-  private hasWorldTransformChanged(worldContainer: Container): boolean {
-    const transform = this.lastWorldTransform;
-    const pos = worldContainer.position;
-    const scale = worldContainer.scale;
-
-    return (
-      transform.x !== pos.x ||
-      transform.y !== pos.y ||
-      transform.scaleX !== scale.x ||
-      transform.scaleY !== scale.y ||
-      transform.rotation !== worldContainer.rotation
-    );
-  }
-
-  /**
-   * Update the cached world transform values
-   */
-  private updateWorldTransform(worldContainer: Container): void {
-    const pos = worldContainer.position;
-    const scale = worldContainer.scale;
-
-    this.lastWorldTransform.x = pos.x;
-    this.lastWorldTransform.y = pos.y;
-    this.lastWorldTransform.scaleX = scale.x;
-    this.lastWorldTransform.scaleY = scale.y;
-    this.lastWorldTransform.rotation = worldContainer.rotation;
   }
 
   markDirty(): void {
-    this.isDirty = true;
-    this.cachedPixels = null;
+    // No-op: CPU picking doesn't cache scene state
+  }
+
+  /**
+   * Pick the topmost sprite at screen coordinates (x, y).
+   * Pure CPU — no GPU work. Safe to call every frame.
+   */
+  pick(screenX: number, screenY: number, _worldContainer: Container, _forceUpdate = false): PickResult | null {
+    let bestResult: PickResult | null = null;
+    let bestZIndex = -Infinity;
+
+    for (const [, obj] of this.pickableObjects) {
+      const sprite = obj.sprite;
+      const container = obj.parentContainer;
+      if (!sprite.visible || !sprite.texture || !sprite.parent) continue;
+
+      const localPoint = sprite.toLocal({ x: screenX, y: screenY });
+
+      const texW = sprite.texture.frame.width;
+      const texH = sprite.texture.frame.height;
+
+      if (localPoint.x < 0 || localPoint.x >= texW || localPoint.y < 0 || localPoint.y >= texH) continue;
+
+      const z = (container?.zIndex ?? sprite.parent?.zIndex) || 0;
+      if (z < bestZIndex) continue;
+
+      const uvX = localPoint.x / texW;
+      const uvY = localPoint.y / texH;
+
+      if (this.checkAlpha(sprite.texture, uvX, uvY)) {
+        bestResult = { object: obj, x: screenX, y: screenY };
+        bestZIndex = z;
+      }
+    }
+
+    return bestResult;
+  }
+
+  /**
+   * Check if the pixel at (uvX, uvY) within the texture frame is non-transparent.
+   * Uses a cached alpha map extracted once per TextureSource.
+   */
+  private checkAlpha(texture: Texture, uvX: number, uvY: number): boolean {
+    const source = texture.source;
+    const sourceUid = source.uid;
+
+    // If extraction previously failed for this source, fall back to AABB
+    if (this.failedSources.has(sourceUid)) return true;
+
+    let alphaMap = this.alphaMaps.get(sourceUid);
+    if (!alphaMap) {
+      // Trigger async extraction (one-time cost per TextureSource)
+      this.extractAlphaMapAsync(source);
+      // No alpha data yet — reject to avoid false positives
+      return false;
+    }
+
+    // Map UV to pixel position within the texture frame.
+    // frame.x/y/width/height are in CSS pixels; alpha map is in actual pixels.
+    const res = source.resolution || 1;
+    const frame = texture.frame;
+    const px = Math.floor((frame.x + uvX * frame.width) * res);
+    const py = Math.floor((frame.y + uvY * frame.height) * res);
+
+    if (px < 0 || px >= alphaMap.width || py < 0 || py >= alphaMap.height) return false;
+
+    const idx = py * alphaMap.width + px;
+    return alphaMap.data[idx] > 10; // Small threshold to handle anti-aliasing
+  }
+
+  /**
+   * Asynchronously extract and cache the alpha channel from a TextureSource via WebGPU.
+   * Uses copyTextureToBuffer + mapAsync to read pixels from the GPU without blocking.
+   * Done once per source — subsequent picks use the cached alpha map.
+   */
+  private extractAlphaMapAsync(source: TextureSource): void {
+    const sourceUid = source.uid;
+
+    // Already cached, pending, or failed
+    if (this.alphaMaps.has(sourceUid) || this.pendingExtractions.has(sourceUid) || this.failedSources.has(sourceUid)) return;
+    this.pendingExtractions.add(sourceUid);
+
+    // Get the underlying GPUTexture from the source's resource
+    const gpuTexture = (source as any).resource as GPUTexture | undefined;
+    // Get the WebGPU device from the Pixi renderer
+    const device = (this.renderer as any).gpu?.device as GPUDevice | undefined;
+
+    if (!gpuTexture || !device || typeof gpuTexture.width !== 'number') {
+      // Not a WebGPU texture — mark as failed, use AABB fallback forever
+      this.failedSources.add(sourceUid);
+      this.pendingExtractions.delete(sourceUid);
+      return;
+    }
+
+    const w = gpuTexture.width;
+    const h = gpuTexture.height;
+    // WebGPU requires bytesPerRow to be aligned to 256
+    const bytesPerRow = Math.ceil(w * 4 / 256) * 256;
+    const bufferSize = bytesPerRow * h;
+
+    const stagingBuffer = device.createBuffer({
+      size: bufferSize,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+
+    const encoder = device.createCommandEncoder();
+    encoder.copyTextureToBuffer(
+      { texture: gpuTexture },
+      { buffer: stagingBuffer, bytesPerRow, rowsPerImage: h },
+      { width: w, height: h },
+    );
+    device.queue.submit([encoder.finish()]);
+
+    stagingBuffer.mapAsync(GPUMapMode.READ).then(() => {
+      const mapped = new Uint8Array(stagingBuffer.getMappedRange());
+
+      // Extract alpha channel, accounting for bytesPerRow padding
+      const alphaData = new Uint8Array(w * h);
+      for (let row = 0; row < h; row++) {
+        const rowOffset = row * bytesPerRow;
+        for (let col = 0; col < w; col++) {
+          alphaData[row * w + col] = mapped[rowOffset + col * 4 + 3];
+        }
+      }
+
+      stagingBuffer.unmap();
+      stagingBuffer.destroy();
+
+      this.alphaMaps.set(sourceUid, { data: alphaData, width: w, height: h });
+      this.pendingExtractions.delete(sourceUid);
+    }).catch(() => {
+      stagingBuffer.destroy();
+      this.failedSources.add(sourceUid);
+      this.pendingExtractions.delete(sourceUid);
+    });
   }
 
   getPickableObjects(): PickableObject[] {
@@ -352,31 +191,18 @@ export class PickingSystem {
     return this.pickableObjects.get(id);
   }
 
-  getPickingTexture(): RenderTexture | null {
-    return this.pickingTexture;
+  getPickingTexture(): null {
+    return null;
   }
 
-  getPickingContainer(): Container | null {
-    return this.pickingContainer;
+  getPickingContainer(): null {
+    return null;
   }
 
   destroy(): void {
-    if (this.pickingTexture) {
-      this.pickingTexture.destroy(true);
-      this.pickingTexture = null;
-    }
-
-    if (this.pickingContainer) {
-      this.pickingContainer.destroy({ children: true });
-      this.pickingContainer = null;
-    }
-
-    for (const sprite of this.idToPickingSprites.values()) {
-      sprite.destroy();
-    }
-
-    this.idToPickingSprites.clear();
     this.pickableObjects.clear();
-    this.cachedPixels = null;
+    this.alphaMaps.clear();
+    this.pendingExtractions.clear();
+    this.failedSources.clear();
   }
 }
