@@ -28,7 +28,7 @@ import {
 import { requireAuthenticated } from "../ws/guards.ts";
 import { createLogger } from "../utils/logger.ts";
 import { sendInventoryList } from "./inventory.ts";
-import { buildLookString } from "../game/inventory.ts";
+import { buildLookString, getLinkedChildren } from "../game/inventory.ts";
 import { sendCharacterStats } from "./stats.ts";
 
 const log = createLogger("Auth");
@@ -147,13 +147,15 @@ export async function handleCharacterSelect(
   const look = await buildLookString(
     character.gfx, character.color1, character.color2, character.color3, character.id
   );
+  const linkedChildren = await getLinkedChildren(character.id);
   mapInstance.addActor(
     session,
     character.id,
     character.name,
     character.cell_id,
     character.direction,
-    look
+    look,
+    linkedChildren
   );
 
   // Send all actors (including self) to the joining player

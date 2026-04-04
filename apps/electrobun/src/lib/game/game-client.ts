@@ -192,6 +192,9 @@ export class GameClient {
         );
         log.debug(`Pathfinding built: ${walkableIds.length} walkable cells`);
 
+        // Pass pathfinding to battlefield for pet movement
+        this.battlefield?.setPathfinding(this.pathfinding);
+
         const triggerCellIds = mapData.triggerCellIds ?? [];
         if (triggerCellIds.length > 0) {
           log.debug(`Trigger cells (${triggerCellIds.length}): ${triggerCellIds.join(", ")}`);
@@ -242,6 +245,7 @@ export class GameClient {
             direction: actor.direction,
             look: actor.look ?? "",
             isCurrentPlayer,
+            linkedChildren: actor.linkedChildren,
           });
           spritePromises.push(promise);
 
@@ -277,6 +281,7 @@ export class GameClient {
         direction: payload.direction,
         look: payload.look ?? "",
         isCurrentPlayer: payload.id === this.currentCharacter?.id,
+        linkedChildren: payload.linkedChildren,
       });
     });
 

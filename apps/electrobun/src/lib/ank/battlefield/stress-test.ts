@@ -7,7 +7,7 @@ import { DofusPathfinding } from "./dofus-pathfinding";
 const log = createLogger("StressTest");
 
 const GFX_POOL = [10, 11, 20, 21, 30, 31, 40, 41, 50, 51, 60, 61, 70, 71, 80, 81, 90, 91, 100, 101, 110, 111, 120,121];
-const ACTOR_COUNT = 500;
+const ACTOR_COUNT = 300;
 const MOVE_INTERVAL_MIN = 1500;
 const MOVE_INTERVAL_MAX = 4000;
 

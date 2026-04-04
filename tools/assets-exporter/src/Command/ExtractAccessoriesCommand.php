@@ -29,7 +29,7 @@ class ExtractAccessoriesCommand extends Command
 {
     private const ACCESSORIES_PATH = __DIR__ . '/../../../../assets/sources/clips/sprites/accessories';
 
-    /** Direction label → start frame index */
+    /** Direction label → fallback start frame index (used when SWF has no labels) */
     private const DIRECTIONS = [
         'R' => 0,
         'L' => 3,
@@ -37,6 +37,9 @@ class ExtractAccessoriesCommand extends Command
         'B' => 9,
         'S' => 12,
     ];
+
+    /** All valid direction labels to extract (includes RR/RL for capes/backpacks, W-prefixed for pet walk anims) */
+    private const VALID_DIRECTIONS = ['R', 'L', 'F', 'B', 'S', 'RR', 'RL', 'WR', 'WL', 'WF', 'WB', 'WS'];
 
     private string $outputBase;
 
@@ -168,8 +171,8 @@ class ExtractAccessoriesCommand extends Command
         $directions = !empty($labelMap) ? $labelMap : self::DIRECTIONS;
 
         foreach ($directions as $dirLabel => $startFrame) {
-            // Only process our known direction labels
-            if (!isset(self::DIRECTIONS[$dirLabel])) {
+            // Only process known direction labels (includes RR/RL for capes/backpacks)
+            if (!in_array($dirLabel, self::VALID_DIRECTIONS, true)) {
                 continue;
             }
 

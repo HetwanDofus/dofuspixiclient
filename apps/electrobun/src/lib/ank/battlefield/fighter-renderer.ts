@@ -9,6 +9,8 @@ import {
 } from "@/constants/battlefield";
 import { FighterTeam } from "@/ecs/components";
 import type { PickingSystem } from "@/render/picking-system";
+import { getDirOffsets } from "@dofus/grid";
+import type { DofusPathfinding } from "./dofus-pathfinding";
 
 import {
   FighterAnimation,
@@ -46,6 +48,7 @@ export interface FighterSpriteData {
   hp: number;
   maxHp: number;
   isPlayer: boolean;
+  linkedChildren?: Array<{ gfxId: number; childIndex: number }>;
 }
 
 /**
@@ -84,6 +87,9 @@ interface ActiveFighter {
   pendingAnim: { baseAnim: string; direction: number } | null;
   /** Player look string for composed atlas loading */
   look: string;
+  linkedParentId?: number;
+  linkedChildren: number[];
+  childIndex?: number;
 }
 
 /**
@@ -95,6 +101,7 @@ export interface FighterRendererConfig {
   cellDataMap?: Map<number, CellData>;
   pickingSystem?: PickingSystem | null;
   spriteLoader?: CharacterSpriteLoader;
+  pathfinding?: DofusPathfinding | null;
 }
 
 /**
@@ -124,6 +131,7 @@ export class FighterRenderer {
   private pickingSystem: PickingSystem | null;
   private spriteLoader: CharacterSpriteLoader;
   private ghostView = false;
+  private pathfinding: DofusPathfinding | null;
 
   constructor(parentContainer: Container, config: FighterRendererConfig = {}) {
     this.mapWidth = config.mapWidth ?? DEFAULT_MAP_WIDTH;
@@ -131,6 +139,7 @@ export class FighterRenderer {
     this.cellDataMap = config.cellDataMap ?? new Map();
     this.pickingSystem = config.pickingSystem ?? null;
     this.spriteLoader = config.spriteLoader ?? getCharacterSpriteLoader();
+    this.pathfinding = config.pathfinding ?? null;
 
     // Add fighters directly to the parent container (typically objectLayer2)
     // so they interleave with Object2 tiles by zIndex
@@ -150,6 +159,26 @@ export class FighterRenderer {
       this.groundLevel,
       this.cellDataMap
     );
+  }
+
+  /**
+   * Compute the cell where a linked child (pet) should stand relative to parent.
+   * childIndex 0 = behind parent.
+   */
+  private getAroundCellNum(
+    parentCellId: number,
+    parentDirection: number,
+    childIndex: number
+  ): number {
+    if (!this.pathfinding) return parentCellId;
+    const dirOffsets = getDirOffsets(this.mapWidth);
+    const INDEX_TO_DIR = [2, 6, 4, 0, 3, 5, 1, 7];
+    const baseDir = INDEX_TO_DIR[childIndex % 8];
+    const finalDir = (baseDir + parentDirection) % 8;
+    const targetCell = parentCellId + dirOffsets[finalDir];
+    const neighbors = this.pathfinding.getNeighbors(parentCellId);
+    if (neighbors.includes(targetCell)) return targetCell;
+    return parentCellId;
   }
 
   /**
@@ -239,9 +268,51 @@ export class FighterRenderer {
       spriteLoading: false,
       pendingAnim: null,
       look: data.look,
+      linkedChildren: [],
     };
 
     this.fighters.set(data.id, fighter);
+
+    // Add linked children (e.g., pets)
+    if (data.linkedChildren && data.linkedChildren.length > 0) {
+      const childPromises: Promise<void>[] = [];
+      for (const child of data.linkedChildren) {
+        const childId = data.id * 1000 + child.childIndex;
+        const childCellId = this.getAroundCellNum(
+          data.cellId,
+          data.direction,
+          child.childIndex
+        );
+        const childLook = `${child.gfxId}`;
+
+        const childPromise = this.addFighter({
+          id: childId,
+          name: "", // Linked children don't show names
+          team: data.team,
+          cellId: childCellId,
+          direction: data.direction,
+          look: childLook,
+          hp: 100,
+          maxHp: 100,
+          isPlayer: false,
+        });
+
+        const childFighter = this.fighters.get(childId);
+        if (childFighter) {
+          childFighter.linkedParentId = data.id;
+          childFighter.childIndex = child.childIndex;
+          fighter.linkedChildren.push(childId);
+        }
+
+        childPromises.push(childPromise);
+      }
+
+      const basePromise = gfxId > 0
+        ? this.loadFighterSpriteForParent(fighter, "static", data.direction)
+        : Promise.resolve();
+
+      return Promise.all([basePromise, ...childPromises]).then(() => {});
+    }
 
     // Try to apply sprite synchronously from cache first (avoids flicker on map change)
     if (gfxId > 0) {
@@ -269,6 +340,21 @@ export class FighterRenderer {
 
     fighterContainer.visible = true;
     return Promise.resolve();
+  }
+
+  /**
+   * Load sprite for a parent fighter (used when adding children).
+   */
+  private loadFighterSpriteForParent(
+    fighter: ActiveFighter,
+    baseAnim: string,
+    direction: number
+  ): Promise<void> {
+    return this.loadFighterSprite(fighter, baseAnim, direction).then(() => {
+      if (this.fighters.has(fighter.id)) {
+        fighter.container.visible = true;
+      }
+    });
   }
 
   /**
@@ -437,6 +523,12 @@ export class FighterRenderer {
     }
 
     log.debug(`removeFighter ${id}`);
+
+    // Remove all linked children first
+    for (const childId of fighter.linkedChildren) {
+      this.removeFighter(childId);
+    }
+
     this.container.removeChild(fighter.container);
     fighter.container.destroy({ children: true });
     this.fighters.delete(id);
@@ -510,7 +602,41 @@ export class FighterRenderer {
 
       // Start the first segment
       this.startMoveSegment(fighter);
+
+      // Schedule movement of linked children with a delay
+      if (fighter.linkedChildren.length > 0) {
+        const finalCell = path[path.length - 1];
+        const delay = 200; // 200ms delay for pets to follow
+        setTimeout(() => {
+          for (const childId of fighter.linkedChildren) {
+            this.moveLinkedChild(childId, finalCell, fighter.direction);
+          }
+        }, delay);
+      }
     });
+  }
+
+  /**
+   * Move a linked child (pet) from current cell to target cell.
+   */
+  private moveLinkedChild(
+    childId: number,
+    parentFinalCell: number,
+    parentFinalDirection: number
+  ): void {
+    const child = this.fighters.get(childId);
+    if (!child || !this.pathfinding) return;
+
+    const targetCell = this.getAroundCellNum(
+      parentFinalCell,
+      parentFinalDirection,
+      child.childIndex ?? 0
+    );
+
+    const path = this.pathfinding.findPath(child.cellId, targetCell);
+    if (path && path.length > 1) {
+      void this.moveFighter(childId, path);
+    }
   }
 
   /**

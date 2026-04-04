@@ -250,6 +250,19 @@ export async function calculateWeight(
 const ACCESSORY_SLOTS = [1, 6, 7, 8, 15]; // weapon, hat, cape, pet, shield
 
 /**
+ * Get linked child sprites for a character (ghouls, companions, special event followers).
+ * Standard pets (type 18) are rendered as accessories on the character, NOT as linked children.
+ * Linked children are separate sprites that follow the player with their own pathfinding.
+ */
+export async function getLinkedChildren(_characterId: number): Promise<Array<{ gfxId: number; childIndex: number }> | undefined> {
+  // Standard pets (type 18) are handled via the accessory system (slot 3 in look string).
+  // Linked children are only used for special following sprites (ghouls, companions, etc.)
+  // which would be stored differently (e.g., a separate "followers" table or quest state).
+  // For now, return undefined — implement when special follower system is needed.
+  return undefined;
+}
+
+/**
  * Build the accessories portion of the look string from equipped items.
  * Returns comma-separated "type_gfxId" entries (one per slot, empty string if no item).
  */

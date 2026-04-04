@@ -5,7 +5,7 @@ import {
   getCharacterById,
   updateCharacterPosition,
 } from "../game/character.ts";
-import { buildLookString } from "../game/inventory.ts";
+import { buildLookString, getLinkedChildren } from "../game/inventory.ts";
 import {
   cleanupEmptyMap,
   getMapInstance,
@@ -162,13 +162,15 @@ export async function changeMap(
 
   // Join new map instance — add self first so we appear in the actors list
   const newInstance = getOrCreateMapInstance(newMapId);
+  const linkedChildren = character ? await getLinkedChildren(character.id) : undefined;
   newInstance.addActor(
     session,
     session.characterId,
     session.characterName,
     newCellId,
     session.direction,
-    look
+    look,
+    linkedChildren
   );
 
   // Send all actors (including self) to the joining player

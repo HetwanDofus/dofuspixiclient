@@ -123,6 +123,11 @@ export interface ChatMessagePayload {
   content: string;
 }
 
+export interface LinkedChild {
+  gfxId: number;
+  childIndex: number;
+}
+
 export interface ActorAddPayload {
   id: number;
   type: number;
@@ -130,6 +135,7 @@ export interface ActorAddPayload {
   direction: number;
   name?: string;
   look?: string;
+  linkedChildren?: LinkedChild[];
 }
 
 export interface ActorMovePayload {

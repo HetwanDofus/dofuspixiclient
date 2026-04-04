@@ -32,6 +32,9 @@ const templates = [
   // ── Shield ──
   { id: 8541, name: "Bouclier du Bouftou", type: 82, super_type: 11, level: 5, weight: 10, gfx_id: 10, equip_positions: "[15]", effects: '[{"id":125,"min":5,"max":10}]', item_set_id: 0, two_handed: false, usable: false, stackable: false, description: "Bouclier en cuir" },
 
+  // ── Pet ──
+  { id: 10000, name: "Petit Chacha Blanc", type: 18, super_type: 9, level: 1, weight: 5, gfx_id: 8004, equip_positions: "[8]", effects: '[{"id":125,"min":10,"max":20}]', item_set_id: 0, two_handed: false, usable: false, stackable: false, description: "Un petit Chacha blanc" },
+
   // ── Consumables ──
   { id: 548, name: "Pain d'Amakna", type: 33, super_type: 12, level: 1, weight: 1, gfx_id: 10, equip_positions: "[]", effects: '[{"id":108,"min":20,"max":30}]', item_set_id: 0, two_handed: false, usable: true, stackable: true, description: "Restaure des points de vie" },
   { id: 468, name: "Petite Potion de Vie", type: 12, super_type: 12, level: 1, weight: 1, gfx_id: 1, equip_positions: "[]", effects: '[{"id":108,"min":50,"max":50}]', item_set_id: 0, two_handed: false, usable: true, stackable: true, description: "Restaure 50 points de vie" },

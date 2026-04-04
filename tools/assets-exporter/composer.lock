@@ -4,11 +4,11 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8bda4f3667193a108cb5638f698f3d4c",
+    "content-hash": "dc3630fba8d5383195cd2bf724cecf5f",
     "packages": [
         {
             "name": "arakne/swf",
-            "version": "v0.5.3",
+            "version": "dev-master",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Arakne/ArakneSwf.git",
@@ -30,6 +30,7 @@
                 "phpunit/phpunit": "~10.5",
                 "sapientpro/image-comparator": "^1.2"
             },
+            "default-branch": true,
             "bin": [
                 "bin/swf-extract"
             ],
@@ -57,7 +58,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Arakne/ArakneSwf/issues",
-                "source": "https://github.com/Arakne/ArakneSwf/tree/v0.5.3"
+                "source": "https://github.com/Arakne/ArakneSwf/tree/master"
             },
             "time": "2026-01-25T18:45:28+00:00"
         },
@@ -897,7 +898,9 @@
     "packages-dev": [],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "arakne/swf": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {},

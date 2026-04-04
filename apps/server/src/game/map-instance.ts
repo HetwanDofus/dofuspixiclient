@@ -14,6 +14,7 @@ interface MapActor {
   name: string;
   look: string;
   session: ClientSession;
+  linkedChildren?: Array<{ gfxId: number; childIndex: number }>;
 }
 
 export class MapInstance {
@@ -34,7 +35,8 @@ export class MapInstance {
     name: string,
     cellId: number,
     direction: number,
-    look: string
+    look: string,
+    linkedChildren?: Array<{ gfxId: number; childIndex: number }>
   ): void {
     this.actors.set(characterId, {
       id: characterId,
@@ -44,6 +46,7 @@ export class MapInstance {
       name,
       look,
       session,
+      linkedChildren,
     });
 
     // Subscribe to map topic
@@ -57,6 +60,7 @@ export class MapInstance {
       direction,
       name,
       look,
+      linkedChildren,
     };
     const msg = encodeServerMessage(ServerMessageType.ACTOR_ADD, addPayload);
     session.ws.publish(this.topic, msg);
@@ -100,6 +104,7 @@ export class MapInstance {
         direction: actor.direction,
         name: actor.name,
         look: actor.look,
+        linkedChildren: actor.linkedChildren,
       });
     }
     return result;

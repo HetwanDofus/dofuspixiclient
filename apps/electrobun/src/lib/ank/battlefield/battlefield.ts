@@ -22,6 +22,7 @@ import { Engine } from "@/render/engine";
 import { PickingSystem } from "@/render/picking-system";
 import { RendererRegistry } from "@/render/renderer-registry";
 import { loadTheme } from "@/themes";
+import { DofusPathfinding } from "./dofus-pathfinding";
 
 import {
   CellHighlighter,
@@ -73,6 +74,7 @@ export interface WorldActorData {
   direction: number;
   look: string;
   isCurrentPlayer: boolean;
+  linkedChildren?: Array<{ gfxId: number; childIndex: number }>;
 }
 
 export interface BattlefieldConfig {
@@ -112,6 +114,7 @@ export class Battlefield {
   // World actors (roleplay mode)
   private worldActorContainer: Container | null = null;
   private worldActorRenderer: FighterRenderer | null = null;
+  private pathfinding: DofusPathfinding | null = null;
 
   // Debug overlay
   private debugOverlay: DebugOverlay | null = null;
@@ -617,6 +620,10 @@ export class Battlefield {
     // Reserved for future use
   }
 
+  setPathfinding(pathfinding: DofusPathfinding | null): void {
+    this.pathfinding = pathfinding;
+  }
+
   // ============================================================================
   // World Actor Methods (Roleplay Mode)
   // ============================================================================
@@ -653,6 +660,7 @@ export class Battlefield {
       cellDataMap: this.cellDataMap,
       spriteLoader: this.characterSpriteLoader,
       pickingSystem: this.pickingSystem,
+      pathfinding: this.pathfinding,
     });
 
     this.rendererRegistry.register("world-actor-renderer", (e) =>
@@ -679,6 +687,7 @@ export class Battlefield {
       hp: 100,
       maxHp: 100,
       isPlayer: data.isCurrentPlayer,
+      linkedChildren: data.linkedChildren,
     }) ?? Promise.resolve());
 
     this.registerFighterForPicking(data.id, this.worldActorRenderer!);
