@@ -296,10 +296,14 @@ export class InteractionHandler {
 
       if (pickResult) {
         const sprite = pickResult.object.sprite;
+        // Exact Dofus 1.29 hover highlight: Color.setTransform({ra:60, rb:102, ...})
+        // output = input * 0.6 + 102/255 (≈0.4) per channel
         const colorMatrix = new ColorMatrixFilter();
         colorMatrix.matrix = [
-          0.6, 0, 0, 0, 0.3, 0, 0.6, 0, 0, 0.3, 0, 0, 0.6, 0, 0.3, 0, 0, 0, 1,
-          0,
+          0.6, 0, 0, 0, 0.4,
+          0, 0.6, 0, 0, 0.4,
+          0, 0, 0.6, 0, 0.4,
+          0, 0, 0, 1, 0,
         ];
         colorMatrix.resolution = window.devicePixelRatio;
         sprite.filters = [colorMatrix];

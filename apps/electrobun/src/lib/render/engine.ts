@@ -95,10 +95,10 @@ export class Engine {
       width,
       height,
       backgroundColor: this.config.backgroundColor,
-      resolution: window.devicePixelRatio || 1,
+      resolution: 1,
       autoDensity: true,
       antialias: true,
-      roundPixels: false,
+      roundPixels: true,
       preferWebGLVersion: 1,
       preference: this.config.preferWebGPU ? "webgpu" : "webgl",
       layout: {
@@ -138,14 +138,16 @@ export class Engine {
   private calculateCanvasSize(): CanvasSize {
     const containerWidth = this.container.clientWidth || GAME_WIDTH;
     const containerHeight = this.container.clientHeight || GAME_HEIGHT;
-    const zoom = Math.min(
+    const rawZoom = Math.min(
       containerWidth / DISPLAY_WIDTH,
       containerHeight / FULL_HEIGHT
     );
+    // Snap zoom to integer to match Godot's pixel-perfect scaling
+    const zoom = Math.max(1, Math.floor(rawZoom));
 
     return {
-      width: Math.round(DISPLAY_WIDTH * zoom),
-      height: Math.round(FULL_HEIGHT * zoom),
+      width: DISPLAY_WIDTH * zoom,
+      height: FULL_HEIGHT * zoom,
       zoom,
     };
   }

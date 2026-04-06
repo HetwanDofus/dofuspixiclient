@@ -289,7 +289,7 @@ export class AtlasLoader {
     if (!vello || assetId === undefined) return null;
 
     // Match SVG rasterization scale: devicePixelRatio * zoom for crisp HiDPI at any zoom.
-    const renderResolution = Math.max(window.devicePixelRatio, 1.1) * this.currentZoom;
+    const renderResolution = Math.max(window.devicePixelRatio, 1) * this.currentZoom;
     const result = vello.renderFrame(assetId, "tile", frameIndex, renderResolution);
     if (!result) return null;
 
@@ -313,6 +313,7 @@ export class AtlasLoader {
     // Use "no-premultiply-alpha" since the data is straight alpha and Pixi.js's
     // WebGPU batch shader handles premultiplication via blend state.
     source.alphaMode = "no-premultiply-alpha";
+    source.scaleMode = "nearest";
     // Match the actual GPU texture format.
     source.format = "rgba8unorm";
     // Prevent Pixi.js TextureGCSystem from destroying the GPUTexture while

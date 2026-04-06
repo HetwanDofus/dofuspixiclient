@@ -53,12 +53,12 @@ export class MapTransition {
   private activeAnimations: (() => void)[] = [];
 
   // Tuning
-  private readonly MAX_BLUR = 10;
-  private readonly PAN_BLUR = 6;
-  private readonly BLUR_UP_MS = 400;
-  private readonly MIN_COVER_MS = 300;
-  private readonly REVEAL_MS = 400;
-  private readonly PAN_MS = 500;
+  private readonly MAX_BLUR = 8;
+  private readonly PAN_BLUR = 4;
+  private readonly BLUR_UP_MS = 150;
+  private readonly MIN_COVER_MS = 100;
+  private readonly REVEAL_MS = 200;
+  private readonly PAN_MS = 250;
 
   constructor(app: Application, mapContainer: Container, baseFilters: Filter[] = []) {
     this.app = app;

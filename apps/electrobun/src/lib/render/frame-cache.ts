@@ -114,6 +114,7 @@ export class FrameCache {
       label: `fc:${velloAssetId}:${animName}:${frameIndex}`,
     });
     source.alphaMode = "no-premultiply-alpha";
+    source.scaleMode = "nearest";
     source.format = "rgba8unorm";
     source.resolution = resolution;
     source.autoGarbageCollect = false;

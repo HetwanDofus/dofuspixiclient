@@ -206,9 +206,9 @@ export class FighterRenderer {
     const nameBg = new Graphics();
     nameBg.visible = false;
 
-    // Name text (white, hidden by default — shown on hover)
+    // Dofus source: TextFormat("Verdana", 10, 0xFFFFFF, true) with embedFonts=true
     const nameStyle = new TextStyle({
-      fontFamily: "Arial",
+      fontFamily: "DofusVerdana, Verdana, sans-serif",
       fontSize: 10,
       fontWeight: "bold",
       fill: 0xffffff,
@@ -216,7 +216,7 @@ export class FighterRenderer {
     });
 
     const nameText = new Text({ text: data.name, style: nameStyle });
-    nameText.resolution = 2;
+    nameText.resolution = 4;
     nameText.anchor.set(0.5, 0.5);
     nameText.y = -50;
     nameText.visible = false;
@@ -1125,22 +1125,25 @@ export class FighterRenderer {
    * This prevents jiggle when switching between animations with different frame heights.
    */
   private updateNamePosition(f: ActiveFighter): void {
-    const SPRITE_HEIGHT = 50;
-    const margin = 5;
-    f.nameText.y = -SPRITE_HEIGHT - margin - f.nameText.height / 2;
+    const TOP_Y = -50;
+    const bgH = 12 + 4 * 2;
+    f.nameText.y = TOP_Y - bgH / 2;
   }
 
   /**
    * Redraw the name background to fit the current text.
+   * Dofus: bg width = textWidth + WIDTH_SPACER*2(8), height = textHeight + HEIGHT_SPACER*2(8)
+   * drawRoundRect at (-width/2, 0, width, height, 3) with color 0, alpha 70%
    */
   private updateNameBg(f: ActiveFighter): void {
-    const padX = 6;
-    const padY = 3;
-    const w = f.nameText.width + padX * 2;
-    const h = f.nameText.height + padY * 2;
+    const WIDTH_SPACER = 4;
+    const HEIGHT_SPACER = 4;
+    const FLASH_TEXT_HEIGHT = 12;
+    const w = Math.ceil(f.nameText.width) + WIDTH_SPACER * 2;
+    const h = FLASH_TEXT_HEIGHT + HEIGHT_SPACER * 2;
     f.nameBg.clear();
-    f.nameBg.roundRect(-w / 2, f.nameText.y - h / 2, w, h, 4);
-    f.nameBg.fill({ color: 0x000000, alpha: 0.5 });
+    f.nameBg.roundRect(-w / 2, f.nameText.y - h / 2, w, h, 3);
+    f.nameBg.fill({ color: 0x000000, alpha: 0.7 });
   }
 
   /**
