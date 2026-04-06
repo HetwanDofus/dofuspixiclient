@@ -1,5 +1,4 @@
-# Spritesheet generation workflow
-# Extracts tiles/sprites from SWF sources and generates optimized SVG spritesheets
+# Dofus Web Client
 
 set shell := ["bash", "-cu"]
 
@@ -20,11 +19,70 @@ tile_classifications := root + "/assets/tile-classifications.json"
 tiles_rasters := root + "/assets/spritesheets/rasters/tiles"
 sprites_rasters := root + "/assets/spritesheets/rasters/sprites"
 
+db_user := env_var_or_default("PG_USER", "dofus")
+db_pass := env_var_or_default("PG_PASSWORD", "dofus")
+db_name := env_var_or_default("PG_DATABASE", "dofus")
+db_host := env_var_or_default("PG_HOST", "localhost")
+db_port := env_var_or_default("PG_PORT", "5432")
+
 # Maximum parallelism for svg-spritesheet (use all available cores)
 parallel := `sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 16`
 
-# Default recipe: run full pipeline
-default: tiles-spritesheet
+# Show available commands
+default:
+    @just --list
+
+# =============================================================================
+# Setup & Development
+# =============================================================================
+
+# Full setup: install deps, create DB, run migrations, build WASM
+setup: install db wasm
+    @echo "Setup complete."
+
+# Install all JS/TS dependencies
+install:
+    bun install
+
+# Create database and run migrations
+db: db-create db-migrate
+
+# Create PostgreSQL database and user
+db-create:
+    @echo "Creating database..."
+    @psql -h {{db_host}} -p {{db_port}} -U postgres -tc "SELECT 1 FROM pg_roles WHERE rolname='{{db_user}}'" | grep -q 1 || \
+        psql -h {{db_host}} -p {{db_port}} -U postgres -c "CREATE ROLE {{db_user}} WITH LOGIN PASSWORD '{{db_pass}}';"
+    @psql -h {{db_host}} -p {{db_port}} -U postgres -tc "SELECT 1 FROM pg_database WHERE datname='{{db_name}}'" | grep -q 1 || \
+        psql -h {{db_host}} -p {{db_port}} -U postgres -c "CREATE DATABASE {{db_name}} OWNER {{db_user}};"
+    @echo "Database ready."
+
+# Run database migrations
+db-migrate:
+    cd apps/server && bun run migrate
+
+# Build the Vello WASM renderer
+wasm:
+    cd ../dofus-vello-custom-format/packages/vello-wasm && wasm-pack build --target web --release
+
+# Start the game server (dev mode with watch)
+server:
+    cd apps/server && bun run dev
+
+# Start the client (Electrobun dev mode)
+client:
+    cd apps/electrobun && bun run dev
+
+# Start client with HMR
+client-hmr:
+    cd apps/electrobun && bun run dev:hmr
+
+# Build everything for production
+build:
+    bun run build
+
+# =============================================================================
+# Asset Pipeline
+# =============================================================================
 
 # Full pipeline: extract tiles then generate spritesheets
 tiles-spritesheet: extract-tiles generate-tile-spritesheets
