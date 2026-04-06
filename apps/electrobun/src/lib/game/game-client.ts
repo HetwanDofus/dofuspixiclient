@@ -246,6 +246,7 @@ export class GameClient {
             look: actor.look ?? "",
             isCurrentPlayer,
             linkedChildren: actor.linkedChildren,
+            mount: actor.mount,
           });
           spritePromises.push(promise);
 
@@ -282,6 +283,7 @@ export class GameClient {
         look: payload.look ?? "",
         isCurrentPlayer: payload.id === this.currentCharacter?.id,
         linkedChildren: payload.linkedChildren,
+        mount: payload.mount,
       });
     });
 

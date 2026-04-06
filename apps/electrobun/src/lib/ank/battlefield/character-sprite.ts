@@ -1,10 +1,18 @@
-import { Assets, ExternalSource, Rectangle, type Renderer, Sprite, Texture } from "pixi.js";
-
-import { Direction } from "@/ecs/components";
-import { loadSvg } from "@/render/load-svg";
 import type { VelloRenderer } from "vello-wasm";
+import {
+  Assets,
+  ExternalSource,
+  Rectangle,
+  type Renderer,
+  Sprite,
+  Texture,
+} from "pixi.js";
+
 import type { VelloFrameResult } from "@/render/vello-loader";
+import { Direction } from "@/ecs/components";
 import { FrameAtlas } from "@/render/frame-atlas";
+import { loadSvg } from "@/render/load-svg";
+
 import { parseLook } from "./look-parser";
 
 /**
@@ -106,6 +114,9 @@ const SUFFIX_FALLBACKS: Record<string, string[]> = {
 };
 
 const SPRITES_BASE_PATH = "/assets/spritesheets/sprites";
+const CHEVAUCHORS_BASE_PATH = "/assets/spritesheets/chevauchors";
+/** Offset added to chevauchor gfxIds to avoid collision with regular sprite IDs */
+const CHEVAUCHOR_ID_OFFSET = 1_000_000;
 
 /**
  * Get the animation name for a given base animation and direction.
@@ -173,39 +184,64 @@ export class CharacterSpriteLoader {
   private static _stripActive = 0;
   private static readonly STRIPS_PER_FRAME = 10;
   private static _stripThrottle(): Promise<void> {
-    if (CharacterSpriteLoader._stripActive < CharacterSpriteLoader.STRIPS_PER_FRAME) {
+    if (
+      CharacterSpriteLoader._stripActive <
+      CharacterSpriteLoader.STRIPS_PER_FRAME
+    ) {
       CharacterSpriteLoader._stripActive++;
       // Schedule reset at end of current microtask batch
       if (CharacterSpriteLoader._stripActive === 1) {
-        requestAnimationFrame(() => { CharacterSpriteLoader._stripActive = 0; CharacterSpriteLoader._drainStripQueue(); });
+        requestAnimationFrame(() => {
+          CharacterSpriteLoader._stripActive = 0;
+          CharacterSpriteLoader._drainStripQueue();
+        });
       }
       return Promise.resolve();
     }
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       CharacterSpriteLoader._stripQueue.push(resolve);
     });
   }
   private static _drainStripQueue(): void {
-    const batch = CharacterSpriteLoader._stripQueue.splice(0, CharacterSpriteLoader.STRIPS_PER_FRAME);
+    const batch = CharacterSpriteLoader._stripQueue.splice(
+      0,
+      CharacterSpriteLoader.STRIPS_PER_FRAME
+    );
     if (batch.length > 0) {
       CharacterSpriteLoader._stripActive = batch.length;
       for (const resolve of batch) resolve();
-      requestAnimationFrame(() => { CharacterSpriteLoader._stripActive = 0; CharacterSpriteLoader._drainStripQueue(); });
+      requestAnimationFrame(() => {
+        CharacterSpriteLoader._stripActive = 0;
+        CharacterSpriteLoader._drainStripQueue();
+      });
     }
   }
 
-  setVelloRenderer(vello: VelloRenderer, pixiRenderer: Renderer, maxTextureSize?: number): void {
+  setVelloRenderer(
+    vello: VelloRenderer,
+    pixiRenderer: Renderer,
+    maxTextureSize?: number
+  ): void {
     this._vello = vello;
     this._pixiRenderer = pixiRenderer;
     if (maxTextureSize) this._maxTextureSize = maxTextureSize;
     const resolution = this.getResolution();
-    this._atlas = new FrameAtlas(vello, pixiRenderer, resolution, this._maxTextureSize);
+    this._atlas = new FrameAtlas(
+      vello,
+      pixiRenderer,
+      resolution,
+      this._maxTextureSize
+    );
     const ok = this._atlas.init();
     if (!ok) {
-      console.error("[CharacterSprite] FrameAtlas.init() FAILED — falling back to SVG");
+      console.error(
+        "[CharacterSprite] FrameAtlas.init() FAILED — falling back to SVG"
+      );
       this._atlas = null;
     } else {
-      console.log(`[CharacterSprite] FrameAtlas ready (resolution=${resolution.toFixed(2)})`);
+      console.log(
+        `[CharacterSprite] FrameAtlas ready (resolution=${resolution.toFixed(2)})`
+      );
     }
   }
 
@@ -228,7 +264,12 @@ export class CharacterSpriteLoader {
     // Recreate atlas at new resolution — cached frames are stale
     if (this._vello && this._pixiRenderer) {
       const resolution = this.getResolution();
-      this._atlas = new FrameAtlas(this._vello, this._pixiRenderer, resolution, this._maxTextureSize);
+      this._atlas = new FrameAtlas(
+        this._vello,
+        this._pixiRenderer,
+        resolution,
+        this._maxTextureSize
+      );
       this._atlas.init();
     }
     // Bust the Assets alias cache so re-fetches produce new textures at the
@@ -241,7 +282,8 @@ export class CharacterSpriteLoader {
   private getResolution(): number {
     // Render at zoom * devicePixelRatio for crisp sprites at any zoom level.
     // Frames are arranged in a 2D grid to stay within GPU texture limits.
-    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    const dpr =
+      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
     return Math.max(1, this.currentZoom * dpr);
   }
 
@@ -304,7 +346,11 @@ export class CharacterSpriteLoader {
   /**
    * Get cached animation synchronously. Returns null if not loaded.
    */
-  getAnimationSync(gfxId: number, animName: string, look?: string): CharacterAnimation | null {
+  getAnimationSync(
+    gfxId: number,
+    animName: string,
+    look?: string
+  ): CharacterAnimation | null {
     const key = look ? `${gfxId}:${animName}:${look}` : `${gfxId}:${animName}`;
     return this.cache.get(key) ?? null;
   }
@@ -345,11 +391,16 @@ export class CharacterSpriteLoader {
   /** Load .dofasset for a sprite into Vello */
   private async loadDofasset(gfxId: number): Promise<boolean> {
     if (this.velloAssetIds.has(gfxId)) return true;
-    if (this.pendingDofassetLoads.has(gfxId)) return this.pendingDofassetLoads.get(gfxId)!;
+    if (this.pendingDofassetLoads.has(gfxId))
+      return this.pendingDofassetLoads.get(gfxId)!;
+
+    const isChevauchor = gfxId >= CHEVAUCHOR_ID_OFFSET;
+    const realId = isChevauchor ? gfxId - CHEVAUCHOR_ID_OFFSET : gfxId;
+    const basePath = isChevauchor ? CHEVAUCHORS_BASE_PATH : SPRITES_BASE_PATH;
 
     const promise = (async () => {
       try {
-        const res = await fetch(`${SPRITES_BASE_PATH}/${gfxId}.dofasset`);
+        const res = await fetch(`${basePath}/${realId}.dofasset`);
         if (!res.ok) return false;
         const data = new Uint8Array(await res.arrayBuffer());
         const id = this.nextVelloAssetId++;
@@ -362,7 +413,11 @@ export class CharacterSpriteLoader {
     })();
 
     this.pendingDofassetLoads.set(gfxId, promise);
-    try { return await promise; } finally { this.pendingDofassetLoads.delete(gfxId); }
+    try {
+      return await promise;
+    } finally {
+      this.pendingDofassetLoads.delete(gfxId);
+    }
   }
 
   /**
@@ -373,7 +428,7 @@ export class CharacterSpriteLoader {
    */
   private async loadAccessoryAsset(
     type: number,
-    gfxId: number,
+    gfxId: number
   ): Promise<number | null> {
     if (!this._vello || gfxId === 0) return null;
 
@@ -387,7 +442,9 @@ export class CharacterSpriteLoader {
     const promise = (async (): Promise<number | null> => {
       try {
         // Load accessory-specific .dofasset (compiled from /accessories/{type}_{gfxId}/)
-        const res = await fetch(`${SPRITES_BASE_PATH}/acc_${type}_${gfxId}.dofasset`);
+        const res = await fetch(
+          `${SPRITES_BASE_PATH}/acc_${type}_${gfxId}.dofasset`
+        );
         if (!res.ok) {
           this.accessoryAssetIds.set(key, -1); // Cache failure
           return null;
@@ -408,7 +465,11 @@ export class CharacterSpriteLoader {
     })();
 
     this.pendingAccessoryLoads.set(key, promise);
-    try { return await promise; } finally { this.pendingAccessoryLoads.delete(key); }
+    try {
+      return await promise;
+    } finally {
+      this.pendingAccessoryLoads.delete(key);
+    }
   }
 
   /**
@@ -416,7 +477,7 @@ export class CharacterSpriteLoader {
    * for the WASM renderFrame API: [asset_id, slot_id, asset_id, slot_id, ...]
    */
   private async loadAccessories(
-    accessories: import("./look-parser").AccessoryInfo[],
+    accessories: import("./look-parser").AccessoryInfo[]
   ): Promise<number[] | undefined> {
     const accInfo: number[] = [];
     const promises = accessories.map(async (acc, index) => {
@@ -429,38 +490,6 @@ export class CharacterSpriteLoader {
     });
     await Promise.all(promises);
     return accInfo.length > 0 ? accInfo : undefined;
-  }
-
-  /** Render a character frame via Vello */
-  private renderVelloFrame(
-    velloAssetId: number,
-    animName: string,
-    frameIndex: number,
-    colors?: [number, number, number] | null,
-  ): Texture | null {
-    if (!this._vello || !this._pixiRenderer) return null;
-
-    const renderResolution = Math.max(window.devicePixelRatio, 1.1) * this.currentZoom;
-    const colorsArg = colors ? [colors[0], colors[1], colors[2]] : undefined;
-    const result = this._vello.renderFrame(velloAssetId, animName, frameIndex, renderResolution, colorsArg);
-    if (!result) return null;
-
-    const { texture: gpuTexture, textureId, width, height } = result as VelloFrameResult;
-    this.velloTextureIds.push(textureId);
-
-    const source = new ExternalSource({
-      resource: gpuTexture,
-      renderer: this._pixiRenderer,
-      width,
-      height,
-      label: `vello:char:${velloAssetId}:${animName}:${frameIndex}`,
-    });
-    source.alphaMode = "no-premultiply-alpha";
-    source.format = "rgba8unorm";
-    source.resolution = renderResolution;
-    source.autoGarbageCollect = false;
-
-    return new Texture({ source });
   }
 
   private async doLoadAnimation(
@@ -476,40 +505,60 @@ export class CharacterSpriteLoader {
       const loaded = await this.loadDofasset(gfxId);
       if (loaded) {
         const velloAssetId = this.velloAssetIds.get(gfxId)!;
-        const animInfo = this._vello.getAnimationInfo(velloAssetId, animName) as {
-          fps: number; frameCount: number;
-          offsetX: number; offsetY: number;
-          trimX: number; trimY: number;
-          frameWidth: number; frameHeight: number;
+        const animInfo = this._vello.getAnimationInfo(
+          velloAssetId,
+          animName
+        ) as {
+          fps: number;
+          frameCount: number;
+          offsetX: number;
+          offsetY: number;
+          trimX: number;
+          trimY: number;
+          frameWidth: number;
+          frameHeight: number;
         } | null;
         if (animInfo && animInfo.frameCount > 0) {
-          const colors: [number, number, number] | null = parsed &&
+          const colors: [number, number, number] | null =
+            parsed &&
             (parsed.color1 >= 0 || parsed.color2 >= 0 || parsed.color3 >= 0)
-            ? [
-                parsed.color1 >= 0 ? parsed.color1 : 0,
-                parsed.color2 >= 0 ? parsed.color2 : 0,
-                parsed.color3 >= 0 ? parsed.color3 : 0,
-              ]
-            : null;
+              ? [
+                  parsed.color1 >= 0 ? parsed.color1 : 0,
+                  parsed.color2 >= 0 ? parsed.color2 : 0,
+                  parsed.color3 >= 0 ? parsed.color3 : 0,
+                ]
+              : null;
 
           // Load accessories from parsed look data
-          const accInfo: number[] | undefined =
-            parsed?.accessories.length
-              ? await this.loadAccessories(parsed.accessories)
-              : undefined;
+          const accInfo: number[] | undefined = parsed?.accessories.length
+            ? await this.loadAccessories(parsed.accessories)
+            : undefined;
 
           // Render ALL frames as a strip texture. Throttle to avoid frame drops
           // when many characters load simultaneously (stress test).
           await CharacterSpriteLoader._stripThrottle();
-          const colorsArg = colors ? [colors[0], colors[1], colors[2]] : undefined;
+          const colorsArg = colors
+            ? [colors[0], colors[1], colors[2]]
+            : undefined;
           const stripResult = this._vello.renderAnimationStrip(
-            velloAssetId, animName, this.getResolution(), colorsArg, accInfo,
+            velloAssetId,
+            animName,
+            this.getResolution(),
+            colorsArg,
+            accInfo
           ) as {
-            texture: GPUTexture; textureId: number;
-            width: number; height: number;
-            frameWidth: number; frameHeight: number;
-            frameCount: number; gridCols?: number;
-            boundsOffsetX?: number; boundsOffsetY?: number;
+            texture: GPUTexture;
+            textureId: number;
+            width: number;
+            height: number;
+            frameWidth: number;
+            frameHeight: number;
+            frameCount: number;
+            gridCols?: number;
+            boundsOffsetX?: number;
+            boundsOffsetY?: number;
+            anchorX?: number;
+            anchorY?: number;
           } | null;
 
           if (stripResult) {
@@ -533,29 +582,41 @@ export class CharacterSpriteLoader {
             for (let i = 0; i < stripResult.frameCount; i++) {
               const col = i % cols;
               const row = Math.floor(i / cols);
-              frameTextures.push(new Texture({
-                source: stripSource,
-                frame: new Rectangle(col * fw, row * fh, fw, fh),
-              }));
+              frameTextures.push(
+                new Texture({
+                  source: stripSource,
+                  frame: new Rectangle(col * fw, row * fh, fw, fh),
+                })
+              );
             }
 
-            // boundsOffset shifts the content to accommodate accessories extending
-            // beyond the character bounds (e.g., tall hats). Subtract from the
-            // sprite offset so the character's registration point stays correct.
-            const bOffX = (stripResult.boundsOffsetX ?? 0) / res;
-            const bOffY = (stripResult.boundsOffsetY ?? 0) / res;
+            // Use the strip's pre-computed anchor when available (tight bounds).
+            // Falls back to the old offset computation for compatibility.
+            let offX: number;
+            let offY: number;
+            if (stripResult.anchorX != null && stripResult.anchorY != null) {
+              offX = -(stripResult.anchorX / res);
+              offY = -(stripResult.anchorY / res);
+            } else {
+              const bOffX = (stripResult.boundsOffsetX ?? 0) / res;
+              const bOffY = (stripResult.boundsOffsetY ?? 0) / res;
+              offX = animInfo.offsetX + animInfo.trimX - bOffX;
+              offY = animInfo.offsetY + animInfo.trimY - bOffY;
+            }
 
             const animation: CharacterAnimation = {
               textures: frameTextures,
               frameCount: stripResult.frameCount,
               fps: animInfo.fps || 25,
-              offsetX: animInfo.offsetX + animInfo.trimX - bOffX,
-              offsetY: animInfo.offsetY + animInfo.trimY - bOffY,
+              offsetX: offX,
+              offsetY: offY,
               frameWidth: animInfo.frameWidth,
               frameHeight: animInfo.frameHeight,
             };
 
-            const cacheKey = look ? `${gfxId}:${animName}:${look}` : `${gfxId}:${animName}`;
+            const cacheKey = look
+              ? `${gfxId}:${animName}:${look}`
+              : `${gfxId}:${animName}`;
             this.cache.set(cacheKey, animation);
             return animation;
           }
@@ -588,7 +649,7 @@ export class CharacterSpriteLoader {
                 `${baseSvgPath}/${page.file}`,
                 resolution,
                 alias,
-                look,
+                look
               );
               this.loadedAssets.add(alias);
               return texture;
@@ -600,7 +661,7 @@ export class CharacterSpriteLoader {
             `${baseSvgPath}/atlas.svg`,
             resolution,
             alias,
-            look,
+            look
           );
           this.loadedAssets.add(alias);
           pageTextures = [texture];
@@ -661,7 +722,9 @@ export class CharacterSpriteLoader {
         frameHeight: firstFrame?.height ?? 0,
       };
 
-      const key = look ? `${gfxId}:${animName}:${look}` : `${gfxId}:${animName}`;
+      const key = look
+        ? `${gfxId}:${animName}:${look}`
+        : `${gfxId}:${animName}`;
       this.cache.set(key, animation);
       return animation;
     } catch {

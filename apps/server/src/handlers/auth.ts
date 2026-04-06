@@ -30,6 +30,8 @@ import { createLogger } from "../utils/logger.ts";
 import { sendInventoryList } from "./inventory.ts";
 import { buildLookString, getLinkedChildren } from "../game/inventory.ts";
 import { sendCharacterStats } from "./stats.ts";
+import { getMountModel } from "../data/mount-data.ts";
+import type { MountData } from "../protocol/types.ts";
 
 const log = createLogger("Auth");
 
@@ -144,10 +146,37 @@ export async function handleCharacterSelect(
 
   // Join map instance — add self first so we appear in the actors list
   const mapInstance = getOrCreateMapInstance(character.map_id);
-  const look = await buildLookString(
+  let look = await buildLookString(
     character.gfx, character.color1, character.color2, character.color3, character.id
   );
   const linkedChildren = await getLinkedChildren(character.id);
+
+  // Build mount data if character is mounted
+  let mountData: MountData | undefined;
+  if (character.mount_model_id != null) {
+    const model = getMountModel(character.mount_model_id);
+    if (model) {
+      // Chevauchor GFX = class * 10 + sex (player riding sprite)
+      const chevauchorGfxId = character.class * 10 + character.sex;
+      // Mount colors: -1 means inherit from player
+      const mc1 = model.color1 === -1 ? character.color1 : model.color1;
+      const mc2 = model.color2 === -1 ? character.color2 : model.color2;
+      const mc3 = model.color3 === -1 ? character.color3 : model.color3;
+      mountData = {
+        modelId: character.mount_model_id,
+        chevauchorGfxId,
+        color1: mc1,
+        color2: mc2,
+        color3: mc3,
+      };
+      // Override look gfxId to the mount creature sprite (e.g., 7002)
+      // The client will render _Front/_Back layers for the rider
+      const accPart = look.split("|").slice(4).join("|");
+      look = `${model.gfxId}|${mc1}|${mc2}|${mc3}${accPart ? "|" + accPart : ""}`;
+      log.info(`Character ${character.name} is mounted (model=${character.mount_model_id}, mountGfx=${model.gfxId}, chevauchor=${chevauchorGfxId})`);
+    }
+  }
+
   mapInstance.addActor(
     session,
     character.id,
@@ -155,7 +184,8 @@ export async function handleCharacterSelect(
     character.cell_id,
     character.direction,
     look,
-    linkedChildren
+    linkedChildren,
+    mountData
   );
 
   // Send all actors (including self) to the joining player

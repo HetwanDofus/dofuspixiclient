@@ -1,5 +1,6 @@
 export {
   type ActorAddPayload,
+  type MountData,
   type ActorMovePayload,
   type ActorRemovePayload,
   type AdjacentMapEntry,

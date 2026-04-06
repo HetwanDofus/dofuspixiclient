@@ -6,6 +6,7 @@ export {
 } from "./codec.ts";
 export {
   type ActorAddPayload,
+  type MountData,
   type ActorMovePayload,
   type ActorRemovePayload,
   type ActorUpdatePayload,

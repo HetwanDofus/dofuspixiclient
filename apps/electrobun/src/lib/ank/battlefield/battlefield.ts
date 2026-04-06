@@ -75,6 +75,7 @@ export interface WorldActorData {
   look: string;
   isCurrentPlayer: boolean;
   linkedChildren?: Array<{ gfxId: number; childIndex: number }>;
+  mount?: import("@dofus/protocol").MountData;
 }
 
 export interface BattlefieldConfig {
@@ -689,6 +690,7 @@ export class Battlefield {
       maxHp: 100,
       isPlayer: data.isCurrentPlayer,
       linkedChildren: data.linkedChildren,
+      mount: data.mount,
     }) ?? Promise.resolve());
 
     this.registerFighterForPicking(data.id, this.worldActorRenderer!);

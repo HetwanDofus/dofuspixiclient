@@ -142,8 +142,8 @@ export class Engine {
       containerWidth / DISPLAY_WIDTH,
       containerHeight / FULL_HEIGHT
     );
-    // Snap zoom to integer to match Godot's pixel-perfect scaling
-    const zoom = Math.max(1, Math.floor(rawZoom));
+    // Snap zoom to even numbers (2, 4, 6...) to keep pixel ratios clean
+    const zoom = Math.max(2, Math.floor(rawZoom / 2) * 2);
 
     return {
       width: DISPLAY_WIDTH * zoom,

@@ -3,6 +3,7 @@ import { encodeServerMessage } from "../protocol/codec.ts";
 import {
   type ActorAddPayload,
   type ActorRemovePayload,
+  type MountData,
   ServerMessageType,
 } from "../protocol/types.ts";
 
@@ -15,6 +16,7 @@ interface MapActor {
   look: string;
   session: ClientSession;
   linkedChildren?: Array<{ gfxId: number; childIndex: number }>;
+  mount?: MountData;
 }
 
 export class MapInstance {
@@ -36,7 +38,8 @@ export class MapInstance {
     cellId: number,
     direction: number,
     look: string,
-    linkedChildren?: Array<{ gfxId: number; childIndex: number }>
+    linkedChildren?: Array<{ gfxId: number; childIndex: number }>,
+    mount?: MountData
   ): void {
     this.actors.set(characterId, {
       id: characterId,
@@ -47,6 +50,7 @@ export class MapInstance {
       look,
       session,
       linkedChildren,
+      mount,
     });
 
     // Subscribe to map topic
@@ -61,6 +65,7 @@ export class MapInstance {
       name,
       look,
       linkedChildren,
+      mount,
     };
     const msg = encodeServerMessage(ServerMessageType.ACTOR_ADD, addPayload);
     session.ws.publish(this.topic, msg);
@@ -105,6 +110,7 @@ export class MapInstance {
         name: actor.name,
         look: actor.look,
         linkedChildren: actor.linkedChildren,
+        mount: actor.mount,
       });
     }
     return result;

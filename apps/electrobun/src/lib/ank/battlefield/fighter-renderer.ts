@@ -1,31 +1,20 @@
 import { Container, Graphics, Sprite, Text, TextStyle, Ticker } from "pixi.js";
+
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("FighterRenderer");
 
+import { getDirOffsets } from "@dofus/grid";
+
+import type { PickingSystem } from "@/render/picking-system";
 import {
   DEFAULT_GROUND_LEVEL,
   DEFAULT_MAP_WIDTH,
 } from "@/constants/battlefield";
 import { FighterTeam } from "@/ecs/components";
-import type { PickingSystem } from "@/render/picking-system";
-import { getDirOffsets } from "@dofus/grid";
-import type { DofusPathfinding } from "./dofus-pathfinding";
 
-import {
-  FighterAnimation,
-  type FighterAnimationValue,
-  advanceMovement,
-  getAnimationBaseFromType,
-  getClampedDeltaMs,
-  getMovementOffset,
-  getCellPositionWithSlope,
-  initFrameState,
-  initMovementState,
-  shouldUseRun,
-  startMovementSegment,
-  updateFrameAnimation,
-} from "./fighter-animation";
+import type { CellData } from "./datacenter/cell";
+import type { DofusPathfinding } from "./dofus-pathfinding";
 import {
   type CharacterAnimation,
   type CharacterSpriteLoader,
@@ -33,7 +22,20 @@ import {
   getDirectionSuffix,
   isDirectionFlipped,
 } from "./character-sprite";
-import type { CellData } from "./datacenter/cell";
+import {
+  advanceMovement,
+  FighterAnimation,
+  type FighterAnimationValue,
+  getAnimationBaseFromType,
+  getCellPositionWithSlope,
+  getClampedDeltaMs,
+  getMovementOffset,
+  initFrameState,
+  initMovementState,
+  shouldUseRun,
+  startMovementSegment,
+  updateFrameAnimation,
+} from "./fighter-animation";
 
 /**
  * Fighter sprite data.
@@ -49,6 +51,7 @@ export interface FighterSpriteData {
   maxHp: number;
   isPlayer: boolean;
   linkedChildren?: Array<{ gfxId: number; childIndex: number }>;
+  mount?: import("@dofus/protocol").MountData;
 }
 
 /**
@@ -80,6 +83,8 @@ interface ActiveFighter {
   moveSinRot: number;
   movePixelSpeed: number;
   useRun: boolean;
+  /** Whether this fighter is mounted (uses mount speed). */
+  isMounting: boolean;
   moving: boolean;
   moveResolve?: () => void;
   spriteLoading: boolean;
@@ -90,6 +95,13 @@ interface ActiveFighter {
   linkedParentId?: number;
   linkedChildren: number[];
   childIndex?: number;
+  /** Mount data when mounted */
+  mount?: import("@dofus/protocol").MountData;
+  /** Mount layers: mount _Front/_Back split + chevauchor (rider) in between */
+  mountFrontSprite?: Sprite;
+  mountFrontAnim?: CharacterAnimation;
+  chevauchorSprite?: Sprite;
+  chevauchorAnim?: CharacterAnimation;
 }
 
 /**
@@ -264,11 +276,13 @@ export class FighterRenderer {
       moveSinRot: movementState.moveSinRot,
       movePixelSpeed: movementState.movePixelSpeed,
       useRun: movementState.useRun,
+      isMounting: !!data.mount,
       moving: movementState.moving,
       spriteLoading: false,
       pendingAnim: null,
       look: data.look,
       linkedChildren: [],
+      mount: data.mount,
     };
 
     this.fighters.set(data.id, fighter);
@@ -307,9 +321,10 @@ export class FighterRenderer {
         childPromises.push(childPromise);
       }
 
-      const basePromise = gfxId > 0
-        ? this.loadFighterSpriteForParent(fighter, "static", data.direction)
-        : Promise.resolve();
+      const basePromise =
+        gfxId > 0
+          ? this.loadFighterSpriteForParent(fighter, "static", data.direction)
+          : Promise.resolve();
 
       return Promise.all([basePromise, ...childPromises]).then(() => {});
     }
@@ -317,10 +332,18 @@ export class FighterRenderer {
     // Try to apply sprite synchronously from cache first (avoids flicker on map change)
     if (gfxId > 0) {
       const suffix = getDirectionSuffix(data.direction);
-      const cached = this.spriteLoader.getAnimationSync(gfxId, `static${suffix}`, data.look);
+      const cached = this.spriteLoader.getAnimationSync(
+        gfxId,
+        `static${suffix}`,
+        data.look
+      );
 
       // Kick off preloading ALL common animations (static/walk/run × all directions)
-      const preloadDone = this.preloadCommonAnimations(gfxId, data.look);
+      const preloadDone = this.preloadCommonAnimations(
+        gfxId,
+        data.look,
+        data.mount
+      );
 
       if (cached) {
         // Sprite already in cache — apply immediately, no flicker
@@ -331,11 +354,13 @@ export class FighterRenderer {
       }
 
       // Not in cache — load initial static, then show, then wait for all preloads
-      return this.loadFighterSprite(fighter, "static", data.direction).then(() => {
-        fighterContainer.visible = true;
-        if (!this.fighters.has(data.id)) return;
-        return preloadDone;
-      });
+      return this.loadFighterSprite(fighter, "static", data.direction).then(
+        () => {
+          fighterContainer.visible = true;
+          if (!this.fighters.has(data.id)) return;
+          return preloadDone;
+        }
+      );
     }
 
     fighterContainer.visible = true;
@@ -362,21 +387,29 @@ export class FighterRenderer {
    * Loads static + walk + run for ALL direction suffixes.
    * Returns a promise that resolves when all preloads complete.
    */
-  private async preloadCommonAnimations(gfxId: number, look?: string): Promise<void> {
-    // Only preload the current direction's static animation.
-    // Walk/run animations are loaded on demand when the actor starts moving.
-    // This reduces initial load from 15 strip renders to 1 per actor.
-    // For non-stress scenarios (few actors), preload everything.
+  private async preloadCommonAnimations(
+    gfxId: number,
+    look?: string,
+    mount?: import("@dofus/protocol").MountData
+  ): Promise<void> {
     const actorCount = this.fighters.size;
     if (actorCount > 30) {
-      // Stress mode: minimal preload
       return;
     }
-    // Normal gameplay: preload all directions sequentially
     for (const s of ["S", "R", "F", "L", "B"]) {
       await this.spriteLoader.loadAnimation(gfxId, `static${s}`, look);
       await this.spriteLoader.loadAnimation(gfxId, `walk${s}`, look);
       await this.spriteLoader.loadAnimation(gfxId, `run${s}`, look);
+      if (mount) {
+        await this.spriteLoader.loadAnimation(gfxId, `static${s}_Front`, look);
+        await this.spriteLoader.loadAnimation(gfxId, `static${s}_Back`, look);
+        await this.spriteLoader.loadAnimation(gfxId, `walk${s}_Front`, look);
+        await this.spriteLoader.loadAnimation(gfxId, `walk${s}_Back`, look);
+        // Chevauchor (rider) sprites
+        const chevGfxId = 1_000_000 + mount.chevauchorGfxId;
+        await this.spriteLoader.loadAnimation(chevGfxId, `static${s}`);
+        await this.spriteLoader.loadAnimation(chevGfxId, `walk${s}`);
+      }
     }
   }
 
@@ -465,8 +498,177 @@ export class FighterRenderer {
       fighter.sprite.y = animation.offsetY;
     }
 
+    // Load and apply rider _Front/_Back layers for mounted fighters
+    if (fighter.isMounting) {
+      this.applyMountLayers(fighter, animName, flipped);
+    }
+
     // Update name position above sprite
     this.updateNamePosition(fighter);
+  }
+
+  /**
+   * Apply mount layers for mounted fighters.
+   *
+   * Mount sprite (7002) has _Front/_Back that split the mount creature:
+   *   zIndex -1: {anim}_Back  (mount saddle/tail — behind rider)
+   *   zIndex  0: chevauchor   (rider from chevauchors/{id}.dofasset)
+   *   zIndex  1: {anim}_Front (mount head/neck — in front of rider)
+   *
+   * The main sprite (fighter.sprite) is repurposed as _Back.
+   */
+  private applyMountLayers(
+    fighter: ActiveFighter,
+    animName: string,
+    flipped: boolean
+  ): void {
+    const setLayer = (
+      s: Sprite,
+      a: CharacterAnimation,
+      f: boolean,
+      extraY = 0
+    ) => {
+      s.texture = a.textures[0];
+      s.scale.x = f ? -1 : 1;
+      s.x = f ? -a.offsetX : a.offsetX;
+      s.y = a.offsetY + extraY;
+    };
+
+    const loadAndApply = (
+      animN: string,
+      gfxId: number,
+      look: string | undefined,
+      zIdx: number,
+      setSpriteRef: (s: Sprite) => void,
+      setAnimRef: (a: CharacterAnimation | null) => void,
+      getSprite: () => Sprite | undefined,
+      extraY = 0
+    ) => {
+      // Hide sprite immediately — will show again if anim loads successfully
+      const existing = getSprite();
+      if (existing) existing.visible = false;
+
+      const cached = this.spriteLoader.getAnimationSync(gfxId, animN, look);
+      if (cached) {
+        setAnimRef(cached);
+        let s = getSprite();
+        if (!s) {
+          s = new Sprite(cached.textures[0]);
+          s.anchor.set(0, 0);
+          s.zIndex = zIdx;
+          fighter.container.addChild(s);
+          setSpriteRef(s);
+        }
+        s.visible = true;
+        setLayer(s, cached, flipped, extraY);
+      } else {
+        this.spriteLoader.loadAnimation(gfxId, animN, look).then((anim) => {
+          if (
+            !this.fighters.has(fighter.id) ||
+            fighter.currentAnimName !== animName
+          )
+            return;
+          if (!anim) {
+            setAnimRef(null);
+            return;
+          }
+          setAnimRef(anim);
+          let s = getSprite();
+          if (!s) {
+            s = new Sprite(anim.textures[0]);
+            s.anchor.set(0, 0);
+            s.zIndex = zIdx;
+            fighter.container.addChild(s);
+            setSpriteRef(s);
+          }
+          s.visible = true;
+          setLayer(s, anim, isDirectionFlipped(fighter.direction), extraY);
+        });
+      }
+    };
+
+    // Repurpose main sprite as _Back (always behind rider).
+    // Hide immediately to avoid showing the full mount while _Back loads
+    // (the full mount includes parts that overlap with _Front).
+    fighter.sprite!.zIndex = -1;
+    fighter.sprite!.visible = false;
+    const backAnimName = `${animName}_Back`;
+    const backAnim = this.spriteLoader.getAnimationSync(
+      fighter.gfxId,
+      backAnimName,
+      fighter.look
+    );
+    if (backAnim) {
+      fighter.currentAnimData = backAnim;
+      fighter.sprite!.visible = true;
+      setLayer(fighter.sprite!, backAnim, flipped);
+    } else {
+      this.spriteLoader
+        .loadAnimation(fighter.gfxId, backAnimName, fighter.look)
+        .then((anim) => {
+          if (
+            !this.fighters.has(fighter.id) ||
+            fighter.currentAnimName !== animName
+          )
+            return;
+          if (anim) {
+            fighter.currentAnimData = anim;
+            fighter.sprite!.visible = true;
+            setLayer(
+              fighter.sprite!,
+              anim,
+              isDirectionFlipped(fighter.direction)
+            );
+          }
+        });
+    }
+
+    // Mount _Front (always in front of rider)
+    loadAndApply(
+      `${animName}_Front`,
+      fighter.gfxId,
+      fighter.look,
+      1,
+      (s) => {
+        fighter.mountFrontSprite = s;
+      },
+      (a) => {
+        fighter.mountFrontAnim = a;
+      },
+      () => fighter.mountFrontSprite
+    );
+
+    // Chevauchor / rider (zIndex 0) — from chevauchors/ dofassets
+    // Use CHEVAUCHOR_ID_OFFSET to distinguish from regular sprites.
+    // Chevauchor only has static animations — use static + direction suffix.
+    // The rider is positioned via _mcChevauchorPos anchor from the mount SVG
+    // (a zero-size element whose transform gives the saddle position).
+    // Typical anchor Y: ~-23 to -25 SVG units above registration point.
+    if (fighter.mount) {
+      const chevGfxId = 1_000_000 + fighter.mount.chevauchorGfxId;
+      const suffix = animName.replace(
+        /^(static|walk|run|anim\d+|hit|die|bonus|appear)/,
+        ""
+      );
+      const chevAnimName = `static${suffix}`;
+      // TODO: extract per-animation anchor from SVG zero-size elements.
+      // For now use approximate offset from _mcChevauchorPos data.
+      const chevAnchorY = -24;
+      loadAndApply(
+        chevAnimName,
+        chevGfxId,
+        undefined,
+        0,
+        (s) => {
+          fighter.chevauchorSprite = s;
+        },
+        (a) => {
+          fighter.chevauchorAnim = a;
+        },
+        () => fighter.chevauchorSprite,
+        chevAnchorY
+      );
+    }
   }
 
   /**
@@ -488,7 +690,11 @@ export class FighterRenderer {
     }
 
     // Check if cached
-    const cached = this.spriteLoader.getAnimationSync(fighter.gfxId, animName, fighter.look);
+    const cached = this.spriteLoader.getAnimationSync(
+      fighter.gfxId,
+      animName,
+      fighter.look
+    );
 
     if (cached) {
       this.applyAnimation(fighter, cached, animName);
@@ -508,6 +714,19 @@ export class FighterRenderer {
     fighter.sprite.x = flipped
       ? -fighter.currentAnimData.offsetX
       : fighter.currentAnimData.offsetX;
+    // Flip mount layers (z-order stays the same)
+    if (fighter.mountFrontSprite && fighter.mountFrontAnim) {
+      fighter.mountFrontSprite.scale.x = flipped ? -1 : 1;
+      fighter.mountFrontSprite.x = flipped
+        ? -fighter.mountFrontAnim.offsetX
+        : fighter.mountFrontAnim.offsetX;
+    }
+    if (fighter.chevauchorSprite && fighter.chevauchorAnim) {
+      fighter.chevauchorSprite.scale.x = flipped ? -1 : 1;
+      fighter.chevauchorSprite.x = flipped
+        ? -fighter.chevauchorAnim.offsetX
+        : fighter.chevauchorAnim.offsetX;
+    }
   }
 
   /**
@@ -589,8 +808,8 @@ export class FighterRenderer {
         return;
       }
 
-      // Choose walk or run based on path length
-      const useRun = shouldUseRun(path.length);
+      // Mounted fighters always walk (at mount speed); others choose walk/run by path length
+      const useRun = fighter.isMounting ? false : shouldUseRun(path.length);
       fighter.path = path;
       fighter.pathIndex = 0;
       fighter.useRun = useRun;
@@ -653,6 +872,7 @@ export class FighterRenderer {
       moveSinRot: fighter.moveSinRot,
       movePixelSpeed: fighter.movePixelSpeed,
       useRun: fighter.useRun,
+      isMounting: fighter.isMounting,
       moving: fighter.moving,
     };
 
@@ -804,6 +1024,7 @@ export class FighterRenderer {
         moveSinRot: fighter.moveSinRot,
         movePixelSpeed: fighter.movePixelSpeed,
         useRun: fighter.useRun,
+        isMounting: fighter.isMounting,
         moving: fighter.moving,
       };
 
@@ -876,7 +1097,8 @@ export class FighterRenderer {
     this._perfLogTimer += deltaMs;
     if (this._perfLogTimer >= 1000 && this._perfFrameTimes.length > 0) {
       this._perfLogTimer = 0;
-      const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+      const avg = (arr: number[]) =>
+        arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
       const frameMs = avg(this._perfFrameTimes);
       const updateMs = avg(this._perfUpdateTimes);
       const animMs = avg(this._perfAnimTimes);
@@ -887,14 +1109,16 @@ export class FighterRenderer {
       const n = this.fighters.size;
       console.log(
         `[PERF] ${(1000 / frameMs).toFixed(0)}fps ` +
-        `frame:${frameMs.toFixed(1)}ms ` +
-        `upd:${updateMs.toFixed(1)}ms ` +
-        `(anim+move:${animMs.toFixed(1)}ms flush:${flushMs.toFixed(1)}ms) ` +
-        `pixi+gpu:${pixiMs.toFixed(1)}ms ` +
-        `| ${n}fighters ` +
-        (s ? `slots:${s.slots}/${s.maxSlots} r:${s.lastRenders} ` +
-             `q:${s.lastQueueMs.toFixed(1)}ms fl:${s.lastFlushMs.toFixed(1)}ms ` +
-             `h:${s.lastHits}` : 'no atlas')
+          `frame:${frameMs.toFixed(1)}ms ` +
+          `upd:${updateMs.toFixed(1)}ms ` +
+          `(anim+move:${animMs.toFixed(1)}ms flush:${flushMs.toFixed(1)}ms) ` +
+          `pixi+gpu:${pixiMs.toFixed(1)}ms ` +
+          `| ${n}fighters ` +
+          (s
+            ? `slots:${s.slots}/${s.maxSlots} r:${s.lastRenders} ` +
+              `q:${s.lastQueueMs.toFixed(1)}ms fl:${s.lastFlushMs.toFixed(1)}ms ` +
+              `h:${s.lastHits}`
+            : "no atlas")
       );
       this._perfFrameTimes = [];
       this._perfUpdateTimes = [];
@@ -927,9 +1151,23 @@ export class FighterRenderer {
         fighter.sprite.texture = tex;
       }
     } else {
-      fighter.sprite.texture = anim.textures[fighter.frameIndex % anim.textures.length];
+      fighter.sprite.texture =
+        anim.textures[fighter.frameIndex % anim.textures.length];
     }
 
+    // Sync mount layers to same frame index
+    if (fighter.mountFrontSprite?.visible && fighter.mountFrontAnim) {
+      const fa = fighter.mountFrontAnim;
+      const count = fa.frameCount ?? fa.textures.length;
+      fighter.mountFrontSprite.texture =
+        fa.textures[fighter.frameIndex % count];
+    }
+    if (fighter.chevauchorSprite?.visible && fighter.chevauchorAnim) {
+      const ca = fighter.chevauchorAnim;
+      const count = ca.frameCount ?? ca.textures.length;
+      fighter.chevauchorSprite.texture =
+        ca.textures[fighter.frameIndex % count];
+    }
   }
 
   /**
@@ -1070,11 +1308,13 @@ export class FighterRenderer {
         const animName = fighter.currentAnimName;
         // Force cache miss so applyAnimation accepts the new data
         fighter.currentAnimName = "";
-        this.spriteLoader.loadAnimation(fighter.gfxId, animName, fighter.look).then((anim) => {
-          if (anim && this.fighters.has(fighter.id)) {
-            this.applyAnimation(fighter, anim, animName);
-          }
-        });
+        this.spriteLoader
+          .loadAnimation(fighter.gfxId, animName, fighter.look)
+          .then((anim) => {
+            if (anim && this.fighters.has(fighter.id)) {
+              this.applyAnimation(fighter, anim, animName);
+            }
+          });
       }
     }
   }
@@ -1112,7 +1352,7 @@ export class FighterRenderer {
    * Get fighter sprite and container for picking registration.
    */
   getFighterPickingData(
-    id: number,
+    id: number
   ): { sprite: Sprite; container: Container } | null {
     const f = this.fighters.get(id);
     if (!f?.sprite) return null;

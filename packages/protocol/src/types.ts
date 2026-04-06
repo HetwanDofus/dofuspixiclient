@@ -128,6 +128,17 @@ export interface LinkedChild {
   childIndex: number;
 }
 
+export interface MountData {
+  /** Mount model ID (references lang data for sprite mapping) */
+  modelId: number;
+  /** Mount creature GFX ID (chevauchor sprite in clips/sprites/chevauchor/) */
+  chevauchorGfxId: number;
+  /** Mount-specific colors (independent from player colors) */
+  color1?: number;
+  color2?: number;
+  color3?: number;
+}
+
 export interface ActorAddPayload {
   id: number;
   type: number;
@@ -136,6 +147,8 @@ export interface ActorAddPayload {
   name?: string;
   look?: string;
   linkedChildren?: LinkedChild[];
+  /** Mount data — when present, the actor is mounted (look gfxId is already the mounted sprite) */
+  mount?: MountData;
 }
 
 export interface ActorMovePayload {

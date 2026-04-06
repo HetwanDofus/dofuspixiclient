@@ -31,7 +31,8 @@ class ExtractSpriteCommand extends Command
             ->setDescription('Extract sprites from SWF files as SVG')
             ->addOption('output', 'o', InputOption::VALUE_REQUIRED, 'Output directory', __DIR__ . '/../../../../assets/rasters/sprites')
             ->addOption('clean', null, InputOption::VALUE_NONE, 'Clean output directory before extraction')
-            ->addOption('manifest-only', null, InputOption::VALUE_NONE, 'Only generate manifests without extracting SVGs');
+            ->addOption('manifest-only', null, InputOption::VALUE_NONE, 'Only generate manifests without extracting SVGs')
+            ->addOption('input', 'i', InputOption::VALUE_REQUIRED, 'Custom input directory (default: clips/sprites)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -39,6 +40,7 @@ class ExtractSpriteCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $this->outputBase = $input->getOption('output');
         $manifestOnly = $input->getOption('manifest-only');
+        $inputDir = $input->getOption('input') ?: self::SPRITES_PATH;
 
         $io->title('Sprite Extractor (SVG)');
 
@@ -57,7 +59,7 @@ class ExtractSpriteCommand extends Command
 
             // Extract sprites (manifest only mode)
             $io->section('Building Manifests');
-            $spriteFiles = glob(self::SPRITES_PATH . '/*.swf');
+            $spriteFiles = glob($inputDir . '/*.swf');
 
             foreach ($spriteFiles as $swfFile) {
                 $stats = $this->extractSprites($swfFile, $io, true);
@@ -81,7 +83,7 @@ class ExtractSpriteCommand extends Command
 
             // Extract sprites
             $io->section('Extracting Sprites');
-            $spriteFiles = glob(self::SPRITES_PATH . '/*.swf');
+            $spriteFiles = glob($inputDir . '/*.swf');
 
             // Check if pcntl is available for parallel processing
             $useParallel = function_exists('pcntl_fork') && count($spriteFiles) > 1;
@@ -420,7 +422,7 @@ class ExtractSpriteCommand extends Command
     private function exportSvgFrames(int $spriteId, string $animationName, DrawableInterface $timeline, int $startFrame, int $endFrame, bool $manifestOnly = false): array
     {
         $frames = [];
-        $safeAnimName = preg_replace('/[^a-zA-Z0-9_-]/', '-', $animationName);
+        $safeAnimName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $animationName);
         $spriteDir = sprintf('%s/svg/%d', $this->outputBase, $spriteId);
 
         if (!$manifestOnly) {
@@ -429,7 +431,7 @@ class ExtractSpriteCommand extends Command
 
         for ($i = $startFrame; $i <= $endFrame; $i++) {
             $frameIndex = $i - $startFrame;
-            $frameFilename = sprintf('%s-%d.svg', $safeAnimName, $frameIndex);
+            $frameFilename = sprintf('%s_%d.svg', $safeAnimName, $frameIndex);
 
             if ($manifestOnly) {
                 // In manifest-only mode, just build the frame list without generating files

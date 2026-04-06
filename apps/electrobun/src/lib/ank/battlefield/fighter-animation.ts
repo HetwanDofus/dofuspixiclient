@@ -39,6 +39,7 @@ export const ANIM_TO_SPRITE_BASE: Record<string, string> = {
  */
 const WALK_SPEEDS = [0.07, 0.06, 0.06, 0.06, 0.07, 0.06, 0.06, 0.06];
 const RUN_SPEEDS = [0.17, 0.15, 0.15, 0.15, 0.17, 0.15, 0.15, 0.15];
+const MOUNT_SPEEDS = [0.23, 0.20, 0.20, 0.20, 0.23, 0.20, 0.20, 0.20];
 
 /** Maximum frame delta in ms — matches original's cap in basicMove. */
 const MAX_FRAME_MS = 125;
@@ -72,6 +73,8 @@ export interface FighterMovementState {
   movePixelSpeed: number;
   /** Whether the current movement uses run speed. */
   useRun: boolean;
+  /** Whether the fighter is mounted (uses MOUNT_SPEEDS). */
+  isMounting: boolean;
   moving: boolean;
   moveResolve?: () => void;
 }
@@ -108,6 +111,7 @@ export function initMovementState(): FighterMovementState {
     moveSinRot: 0,
     movePixelSpeed: 0,
     useRun: false,
+    isMounting: false,
     moving: false,
     moveResolve: undefined,
   };
@@ -179,10 +183,12 @@ export function startMovementSegment(
   movement.moveCosRot = Math.cos(angle);
   movement.moveSinRot = Math.sin(angle);
 
-  // Speed in px/ms (matches original WALK_SPEEDS / RUN_SPEEDS indexed by direction)
-  movement.movePixelSpeed = movement.useRun
-    ? RUN_SPEEDS[dir]
-    : WALK_SPEEDS[dir];
+  // Speed in px/ms (matches original WALK_SPEEDS / RUN_SPEEDS / MOUNT_SPEEDS indexed by direction)
+  movement.movePixelSpeed = movement.isMounting
+    ? MOUNT_SPEEDS[dir]
+    : movement.useRun
+      ? RUN_SPEEDS[dir]
+      : WALK_SPEEDS[dir];
 
   return dir;
 }

@@ -6,6 +6,8 @@ import {
   updateCharacterPosition,
 } from "../game/character.ts";
 import { buildLookString, getLinkedChildren } from "../game/inventory.ts";
+import { getMountModel } from "../data/mount-data.ts";
+import type { MountData } from "../protocol/types.ts";
 import {
   cleanupEmptyMap,
   getMapInstance,
@@ -156,9 +158,28 @@ export async function changeMap(
 
   // Get character look (including accessories)
   const character = await getCharacterById(session.characterId);
-  const look = character
+  let look = character
     ? await buildLookString(character.gfx, character.color1, character.color2, character.color3, character.id)
     : "";
+
+  // Build mount data if character is mounted
+  let mountData: MountData | undefined;
+  if (character?.mount_model_id != null) {
+    const model = getMountModel(character.mount_model_id);
+    if (model) {
+      const chevauchorGfxId = character.class * 10 + character.sex;
+      const mc1 = model.color1 === -1 ? character.color1 : model.color1;
+      const mc2 = model.color2 === -1 ? character.color2 : model.color2;
+      const mc3 = model.color3 === -1 ? character.color3 : model.color3;
+      mountData = {
+        modelId: character.mount_model_id,
+        chevauchorGfxId,
+        color1: mc1, color2: mc2, color3: mc3,
+      };
+      const accPart = look.split("|").slice(4).join("|");
+      look = `${model.gfxId}|${mc1}|${mc2}|${mc3}${accPart ? "|" + accPart : ""}`;
+    }
+  }
 
   // Join new map instance — add self first so we appear in the actors list
   const newInstance = getOrCreateMapInstance(newMapId);
@@ -170,7 +191,8 @@ export async function changeMap(
     newCellId,
     session.direction,
     look,
-    linkedChildren
+    linkedChildren,
+    mountData
   );
 
   // Send all actors (including self) to the joining player

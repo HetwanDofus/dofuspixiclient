@@ -6,7 +6,9 @@
     },
     "require": {
         "symfony/console": "^8.0",
-        "arakne/swf": "^0.5.0"
+        "arakne/swf": "^0.5.3"
     },
-    "bin": ["bin/swf-search"]
+    "bin": [
+        "bin/swf-search"
+    ]
 }

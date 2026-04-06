@@ -68,6 +68,7 @@ export interface CharactersTable {
   discernment: number;
   range: number;
   summon_limit: number;
+  mount_model_id: number | null;
 }
 
 export interface ScriptedCellsTable {
