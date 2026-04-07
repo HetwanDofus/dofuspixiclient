@@ -1,7 +1,7 @@
 import { Container, Graphics, Sprite, Text, Texture } from "pixi.js";
 
-import { getAssetPath } from "@/themes";
 import { loadSvg } from "@/render/load-svg";
+import { getAssetPath } from "@/themes";
 
 import { boldText, COLORS, METRICS } from "./theme";
 
@@ -102,18 +102,22 @@ export function createCloseButton(onClick: () => void, zoom = 1): Container {
   c.addChild(downSprite);
 
   // Load SVG textures from theme
-  const res = zoom * (globalThis.devicePixelRatio || 1);
+  const res = zoom * 1;
   const basePath = getAssetPath("common");
-  loadSvg(`${basePath}/close-up.svg`, res).then((tex) => {
-    upSprite.texture = tex;
-    upSprite.width = CLOSE_SIZE;
-    upSprite.height = CLOSE_SIZE;
-  }).catch(() => {});
-  loadSvg(`${basePath}/close-down.svg`, res).then((tex) => {
-    downSprite.texture = tex;
-    downSprite.width = CLOSE_SIZE;
-    downSprite.height = CLOSE_SIZE;
-  }).catch(() => {});
+  loadSvg(`${basePath}/close-up.svg`, res)
+    .then((tex) => {
+      upSprite.texture = tex;
+      upSprite.width = CLOSE_SIZE;
+      upSprite.height = CLOSE_SIZE;
+    })
+    .catch(() => {});
+  loadSvg(`${basePath}/close-down.svg`, res)
+    .then((tex) => {
+      downSprite.texture = tex;
+      downSprite.width = CLOSE_SIZE;
+      downSprite.height = CLOSE_SIZE;
+    })
+    .catch(() => {});
 
   c.on("pointerdown", () => {
     upSprite.visible = false;

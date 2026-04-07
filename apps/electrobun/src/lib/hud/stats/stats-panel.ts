@@ -10,7 +10,6 @@ import { loadSvg } from "@/render/load-svg";
 import { getAssetPath } from "@/themes";
 import { STAT_IDS } from "@/types/stats";
 
-import { BasePanel } from "../core/base-panel";
 import {
   boldText,
   COLORS,
@@ -21,6 +20,7 @@ import {
   regularText,
   showTooltip,
 } from "../core";
+import { BasePanel } from "../core/base-panel";
 import { getBoostCost } from "./boost-costs";
 import { StatRow } from "./stat-row";
 
@@ -164,7 +164,12 @@ export class StatsPanel extends BasePanel {
     this.container.addChild(energyLabel);
     this.withTooltip(energyLabel, i18n._(TOOLTIPS.energy));
 
-    this.energyBar = createProgressBar(barX, this.p(53) + (ROW_H - BAR_H) / 2, barW, BAR_H);
+    this.energyBar = createProgressBar(
+      barX,
+      this.p(53) + (ROW_H - BAR_H) / 2,
+      barW,
+      BAR_H
+    );
     this.container.addChild(this.energyBar.graphics);
     this.withDynamicTooltip(this.energyBar.graphics, () => this.energyTip);
 
@@ -179,7 +184,12 @@ export class StatsPanel extends BasePanel {
     this.container.addChild(xpLabel);
     this.withTooltip(xpLabel, i18n._(TOOLTIPS.xp));
 
-    this.xpBar = createProgressBar(barX, this.p(73) + (ROW_H - BAR_H) / 2, barW, BAR_H);
+    this.xpBar = createProgressBar(
+      barX,
+      this.p(73) + (ROW_H - BAR_H) / 2,
+      barW,
+      BAR_H
+    );
     this.container.addChild(this.xpBar.graphics);
     this.withDynamicTooltip(this.xpBar.graphics, () => this.xpTip);
 
@@ -478,7 +488,7 @@ export class StatsPanel extends BasePanel {
 
   private async loadIcons(): Promise<void> {
     const gen = ++this.loadGeneration;
-    const res = this.zoom * (window.devicePixelRatio || 1);
+    const res = this.zoom * 1;
     const entries: Array<{ spr: Sprite; path: string }> = [];
     for (const [spr] of this.iconSizes) {
       entries.push({ spr, path: `${ICON()}/${spr.label}` });

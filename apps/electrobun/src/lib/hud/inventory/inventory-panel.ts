@@ -8,15 +8,15 @@ import {
   Ticker,
 } from "pixi.js";
 
+import type { InventoryStore } from "@/game/inventory-store";
+import type { InventoryItem } from "@/network/protocol";
 import {
   getDirectionSuffix,
   isDirectionFlipped,
 } from "@/ank/battlefield/character-sprite";
 import { Direction } from "@/ecs/components";
-import type { InventoryStore } from "@/game/inventory-store";
 import { i18n } from "@/i18n";
 import { inventoryLabels as L } from "@/i18n/hud.messages";
-import type { InventoryItem } from "@/network/protocol";
 import { EquipmentPosition } from "@/network/protocol";
 import { loadSvg } from "@/render/load-svg";
 
@@ -51,24 +51,30 @@ const PREV_GAP = 10; // gap between preview right edge and inventory left edge
 // ── Equipment slots — FLA PlaceObject2 positions from core.swf UI_Inventory (id 652) ──
 // Server position = _ctrN suffix = EquipmentPosition ordinal - 1
 // Inventory.as line 508: this["_ctr" + item.position]
-const SLOTS: Array<{ name: string; x: number; y: number; s: number; pos: number }> = [
-  { name: "amulet",  x: 388, y: 62,  s: 30, pos: 0 },  // _ctr0
-  { name: "weapon",  x: 450, y: 46,  s: 40, pos: 1 },  // _ctr1
-  { name: "ring_l",  x: 324, y: 102, s: 30, pos: 2 },  // _ctr2
-  { name: "ring_r",  x: 383, y: 95,  s: 40, pos: 3 },  // _ctr3
-  { name: "belt",    x: 456, y: 102, s: 30, pos: 4 },  // _ctr4
-  { name: "boots",   x: 383, y: 156, s: 40, pos: 5 },  // _ctr5
-  { name: "hat",     x: 516, y: 49,  s: 35, pos: 6 },  // _ctr6
-  { name: "cape",    x: 516, y: 90,  s: 35, pos: 7 },  // _ctr7
-  { name: "pet",     x: 516, y: 130, s: 35, pos: 8 },  // _ctr8
-  { name: "dofus1",  x: 270, y: 54,  s: 25, pos: 9 },  // _ctr9
-  { name: "dofus2",  x: 270, y: 81,  s: 25, pos: 10 }, // _ctr10
-  { name: "dofus3",  x: 270, y: 108, s: 25, pos: 11 }, // _ctr11
-  { name: "dofus4",  x: 270, y: 135, s: 25, pos: 12 }, // _ctr12
-  { name: "dofus5",  x: 270, y: 162, s: 25, pos: 13 }, // _ctr13
-  { name: "dofus6",  x: 270, y: 189, s: 25, pos: 14 }, // _ctr14
-  { name: "shield",  x: 320, y: 46,  s: 40, pos: 15 }, // _ctr15
-  { name: "mount",   x: 516, y: 171, s: 35, pos: 16 }, // _ctr16
+const SLOTS: Array<{
+  name: string;
+  x: number;
+  y: number;
+  s: number;
+  pos: number;
+}> = [
+  { name: "amulet", x: 388, y: 62, s: 30, pos: 0 }, // _ctr0
+  { name: "weapon", x: 450, y: 46, s: 40, pos: 1 }, // _ctr1
+  { name: "ring_l", x: 324, y: 102, s: 30, pos: 2 }, // _ctr2
+  { name: "ring_r", x: 383, y: 95, s: 40, pos: 3 }, // _ctr3
+  { name: "belt", x: 456, y: 102, s: 30, pos: 4 }, // _ctr4
+  { name: "boots", x: 383, y: 156, s: 40, pos: 5 }, // _ctr5
+  { name: "hat", x: 516, y: 49, s: 35, pos: 6 }, // _ctr6
+  { name: "cape", x: 516, y: 90, s: 35, pos: 7 }, // _ctr7
+  { name: "pet", x: 516, y: 130, s: 35, pos: 8 }, // _ctr8
+  { name: "dofus1", x: 270, y: 54, s: 25, pos: 9 }, // _ctr9
+  { name: "dofus2", x: 270, y: 81, s: 25, pos: 10 }, // _ctr10
+  { name: "dofus3", x: 270, y: 108, s: 25, pos: 11 }, // _ctr11
+  { name: "dofus4", x: 270, y: 135, s: 25, pos: 12 }, // _ctr12
+  { name: "dofus5", x: 270, y: 162, s: 25, pos: 13 }, // _ctr13
+  { name: "dofus6", x: 270, y: 189, s: 25, pos: 14 }, // _ctr14
+  { name: "shield", x: 320, y: 46, s: 40, pos: 15 }, // _ctr15
+  { name: "mount", x: 516, y: 171, s: 35, pos: 16 }, // _ctr16
 ];
 
 // ── Filter buttons (stage coords from FLA Symbol 1076) ──
@@ -112,8 +118,12 @@ export class InventoryPanel extends BasePanel {
   private filterIcons: Sprite[] = [];
   private filterBtns: ThreeSliceSprite[] = [];
   private filterSelected = 0;
-  private toggleUpTextures: import("../core/three-slice").ThreeSliceTextures | null = null;
-  private toggleDownTextures: import("../core/three-slice").ThreeSliceTextures | null = null;
+  private toggleUpTextures:
+    | import("../core/three-slice").ThreeSliceTextures
+    | null = null;
+  private toggleDownTextures:
+    | import("../core/three-slice").ThreeSliceTextures
+    | null = null;
   private searchIconSprite: Sprite | null = null;
   private loadGen = 0;
 
@@ -121,12 +131,21 @@ export class InventoryPanel extends BasePanel {
   private store: InventoryStore | null = null;
   private storeUnsub: (() => void) | null = null;
   private kamasText: Text | null = null;
-  private podBar: { graphics: Graphics; redraw: (pct: number) => void } | null = null;
+  private podBar: { graphics: Graphics; redraw: (pct: number) => void } | null =
+    null;
   private podText: Text | null = null;
   /** Item indicator sprites overlaid on equipment slots (indexed by SLOTS index) */
-  private slotItemSprites: Array<{ bg: Graphics; icon: Sprite; label: Text } | null> = [];
+  private slotItemSprites: Array<{
+    bg: Graphics;
+    icon: Sprite;
+    label: Text;
+  } | null> = [];
   /** Item indicator sprites overlaid on grid cells */
-  private gridItemSprites: Array<{ bg: Graphics; icon: Sprite; label: Text } | null> = [];
+  private gridItemSprites: Array<{
+    bg: Graphics;
+    icon: Sprite;
+    label: Text;
+  } | null> = [];
   /** Scroll offset for the grid (number of rows scrolled) */
   private gridScrollOffset = 0;
   /** Cache of loaded item icon textures by "type/gfxId" */
@@ -253,7 +272,7 @@ export class InventoryPanel extends BasePanel {
 
   private async loadCharacterPreview(gfxId: number): Promise<void> {
     const gen = this.loadGen;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = 1;
     // Original Dofus SpriteViewer: zoom=250 → 2.5× base sprite size.
     // Rasterize the SVG at this target size so we display 1:1 — no upscaling.
     const previewScale = 2.5;
@@ -325,7 +344,7 @@ export class InventoryPanel extends BasePanel {
         new Texture({
           source: baseTex.source,
           frame: new Rectangle(fx, fy, fw, fh),
-        }),
+        })
       );
     }
     if (textures.length === 0) return;
@@ -536,11 +555,23 @@ export class InventoryPanel extends BasePanel {
     const filterBg = new Graphics();
     filterBg.moveTo(filterBgX + filterBgR, filterBgY);
     filterBg.lineTo(filterBgX + filterBgW - filterBgR, filterBgY);
-    filterBg.arcTo(filterBgX + filterBgW, filterBgY, filterBgX + filterBgW, filterBgY + filterBgR, filterBgR);
+    filterBg.arcTo(
+      filterBgX + filterBgW,
+      filterBgY,
+      filterBgX + filterBgW,
+      filterBgY + filterBgR,
+      filterBgR
+    );
     filterBg.lineTo(filterBgX + filterBgW, filterBgY + filterBgH);
     filterBg.lineTo(filterBgX, filterBgY + filterBgH);
     filterBg.lineTo(filterBgX, filterBgY + filterBgR);
-    filterBg.arcTo(filterBgX, filterBgY, filterBgX + filterBgR, filterBgY, filterBgR);
+    filterBg.arcTo(
+      filterBgX,
+      filterBgY,
+      filterBgX + filterBgR,
+      filterBgY,
+      filterBgR
+    );
     filterBg.fill({ color: 0x514a3c });
     this.container.addChild(filterBg);
 
@@ -683,7 +714,7 @@ export class InventoryPanel extends BasePanel {
 
   private async loadAssets(): Promise<void> {
     const gen = ++this.loadGen;
-    const res = this.zoom * (window.devicePixelRatio || 1);
+    const res = this.zoom * 1;
 
     const loadSvgTex = async (path: string, alias: string) => {
       const tex = await loadSvg(path, res, `${alias}:${res}:${gen}`);
@@ -693,15 +724,21 @@ export class InventoryPanel extends BasePanel {
 
     try {
       // Load SVGs + webp textures in parallel
-      const [silTex, slotFillTex, slotHlTex, gridTex, searchIconTex, ...filterTexes] =
-        await Promise.all([
-          loadSvgTex(`${ASSET_BASE}/character-silhouette.svg`, "inv-sil"),
-          loadSvgTex(`${ASSET_BASE}/equip-slot-fill.svg`, "inv-slot-fill"),
-          loadSvgTex(`${ASSET_BASE}/equip-slot-highlight.svg`, "inv-slot-hl"),
-          loadSvgTex(`${ASSET_BASE}/grid-cell-bg.svg`, "inv-grid"),
-          loadSvgTex(`${ASSET_BASE}/icon-search.svg`, "inv-search-icon"),
-          ...FILTER_ICON_PATHS.map((p, i) => loadSvgTex(p, `inv-filter-${i}`)),
-        ]);
+      const [
+        silTex,
+        slotFillTex,
+        slotHlTex,
+        gridTex,
+        searchIconTex,
+        ...filterTexes
+      ] = await Promise.all([
+        loadSvgTex(`${ASSET_BASE}/character-silhouette.svg`, "inv-sil"),
+        loadSvgTex(`${ASSET_BASE}/equip-slot-fill.svg`, "inv-slot-fill"),
+        loadSvgTex(`${ASSET_BASE}/equip-slot-highlight.svg`, "inv-slot-hl"),
+        loadSvgTex(`${ASSET_BASE}/grid-cell-bg.svg`, "inv-grid"),
+        loadSvgTex(`${ASSET_BASE}/icon-search.svg`, "inv-search-icon"),
+        ...FILTER_ICON_PATHS.map((p, i) => loadSvgTex(p, `inv-filter-${i}`)),
+      ]);
 
       if (gen !== this.loadGen) return;
 
@@ -761,8 +798,13 @@ export class InventoryPanel extends BasePanel {
       const commonBase = "/themes/classic/assets/common";
 
       const [upTextures, downTextures] = await Promise.all([
-        ThreeSliceSprite.loadTextures(`${commonBase}/btn-toggle-up`, res).catch(() => null),
-        ThreeSliceSprite.loadTextures(`${commonBase}/btn-toggle-down`, res).catch(() => null),
+        ThreeSliceSprite.loadTextures(`${commonBase}/btn-toggle-up`, res).catch(
+          () => null
+        ),
+        ThreeSliceSprite.loadTextures(
+          `${commonBase}/btn-toggle-down`,
+          res
+        ).catch(() => null),
       ]);
       if (gen !== this.loadGen) return;
       this.toggleUpTextures = upTextures;
@@ -826,7 +868,11 @@ export class InventoryPanel extends BasePanel {
       // Apply filter icons — fit within icon box, preserving aspect ratio
       const iconPad = this.p(2);
       const iconSz = btnW - iconPad * 2;
-      for (let i = 0; i < filterTexes.length && i < this.filterIcons.length; i++) {
+      for (
+        let i = 0;
+        i < filterTexes.length && i < this.filterIcons.length;
+        i++
+      ) {
         const tex = filterTexes[i];
         if (tex) {
           const spr = this.filterIcons[i];
@@ -1032,7 +1078,11 @@ export class InventoryPanel extends BasePanel {
   }
 
   /** Load an item icon SVG into a sprite, using cache */
-  private async loadItemIcon(item: InventoryItem, sprite: Sprite, maxSz: number): Promise<void> {
+  private async loadItemIcon(
+    item: InventoryItem,
+    sprite: Sprite,
+    maxSz: number
+  ): Promise<void> {
     const cacheKey = `${item.type}/${item.gfxId}`;
 
     // Check cache
@@ -1049,9 +1099,13 @@ export class InventoryPanel extends BasePanel {
     this.iconTextureCache.set(cacheKey, null);
 
     try {
-      const res = this.zoom * (window.devicePixelRatio || 1);
+      const res = this.zoom * 1;
       const alias = `item-icon:${cacheKey}:${res}`;
-      const tex = await loadSvg(`/assets/items/${item.type}/${item.gfxId}.svg`, res, alias);
+      const tex = await loadSvg(
+        `/assets/items/${item.type}/${item.gfxId}.svg`,
+        res,
+        alias
+      );
       this.iconTextureCache.set(cacheKey, tex);
       sprite.texture = tex;
       this.fitSpriteInBox(sprite, maxSz);

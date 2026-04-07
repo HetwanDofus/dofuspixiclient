@@ -137,7 +137,7 @@ export class StatRow {
 
   private async loadIcon(path: string): Promise<void> {
     try {
-      const res = this.zoom * (window.devicePixelRatio || 1);
+      const res = this.zoom * 1;
       const tex = await Assets.load({ src: path, data: { resolution: res } });
 
       if (tex) {

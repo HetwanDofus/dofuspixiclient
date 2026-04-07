@@ -22,7 +22,7 @@ export abstract class BasePanel {
     baseW: number,
     baseH: number,
     title: string,
-    label: string,
+    label: string
   ) {
     this.zoom = zoom;
     this.baseW = baseW;
@@ -146,18 +146,22 @@ export abstract class BasePanel {
     closeBtn.addChild(closeDown);
 
     // Load close button SVGs
-    const res = this.zoom * (globalThis.devicePixelRatio || 1);
+    const res = this.zoom * 1;
     const commonPath = getAssetPath("common");
-    loadSvg(`${commonPath}/close-up.svg`, res).then((tex) => {
-      closeUp.texture = tex;
-      closeUp.width = closeSize;
-      closeUp.height = closeSize;
-    }).catch(() => {});
-    loadSvg(`${commonPath}/close-down.svg`, res).then((tex) => {
-      closeDown.texture = tex;
-      closeDown.width = closeSize;
-      closeDown.height = closeSize;
-    }).catch(() => {});
+    loadSvg(`${commonPath}/close-up.svg`, res)
+      .then((tex) => {
+        closeUp.texture = tex;
+        closeUp.width = closeSize;
+        closeUp.height = closeSize;
+      })
+      .catch(() => {});
+    loadSvg(`${commonPath}/close-down.svg`, res)
+      .then((tex) => {
+        closeDown.texture = tex;
+        closeDown.width = closeSize;
+        closeDown.height = closeSize;
+      })
+      .catch(() => {});
 
     closeBtn.x = W - border - closeSize - this.p(3);
     closeBtn.y = border + (titleH - closeSize) / 2;

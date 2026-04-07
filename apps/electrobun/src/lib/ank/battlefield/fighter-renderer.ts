@@ -1285,7 +1285,7 @@ export class FighterRenderer {
     // which is already scaled to the zoom level.
 
     // Update text resolution so names render crisply at the current zoom
-    const res = Math.max(2, Math.ceil(event.zoom * window.devicePixelRatio));
+    const res = Math.max(2, Math.ceil(event.zoom * 1));
     for (const fighter of this.fighters.values()) {
       fighter.nameText.resolution = res;
     }

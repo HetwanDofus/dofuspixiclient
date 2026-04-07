@@ -3,14 +3,21 @@ import { ExternalSource, Rectangle, type Renderer, Texture } from "pixi.js";
 import type { FrameInfo, TileBehavior, TileManifest } from "@/types";
 import { createLogger } from "@/utils/logger";
 
+import {
+  AtlasCache,
+  type AtlasManifest,
+  type CachedTileData,
+  type SpritesheetManifest,
+} from "./atlas-cache";
 import { getLoadProgress } from "./load-progress";
-import { AtlasCache, type AtlasManifest, type CachedTileData, type SpritesheetManifest } from "./atlas-cache";
 
 const log = createLogger("AtlasLoader");
+
+import type { VelloRenderer } from "vello-wasm";
+
+import type { VelloFrameResult } from "./vello-loader";
 import { loadSvg } from "./load-svg";
 import { registerSvgStrokeLoader } from "./svg-stroke-loader";
-import type { VelloFrameResult } from "./vello-loader";
-import type { VelloRenderer } from "vello-wasm";
 
 // Register the custom SVG loader on module load
 registerSvgStrokeLoader();
@@ -21,7 +28,10 @@ export class AtlasLoader {
     string,
     Promise<CachedTileData | null>
   >();
-  private pendingBaseTextureLoads = new Map<string, Promise<Texture[] | null>>();
+  private pendingBaseTextureLoads = new Map<
+    string,
+    Promise<Texture[] | null>
+  >();
   private basePath: string;
   private currentZoom = 1;
   private renderer: Renderer;
@@ -64,7 +74,6 @@ export class AtlasLoader {
   getZoom(): number {
     return this.currentZoom;
   }
-
 
   /**
    * Load tile data (manifest + atlas) for a tile
@@ -185,7 +194,7 @@ export class AtlasLoader {
     // WebGPU max texture size (conservative - most GPUs support 8192, some 16384)
     const MAX_TEXTURE_SIZE = 8192;
     const [type, idStr] = tileKey.split("_");
-    const rawScale = Math.max(window.devicePixelRatio, 1.1) * this.currentZoom;
+    const rawScale = 1 * this.currentZoom;
 
     const pages = data.atlas.pages;
 
@@ -203,7 +212,7 @@ export class AtlasLoader {
             const texture = await loadSvg(
               `${this.basePath}/tiles/${type}/${idStr}/${page.file}`,
               effectiveScale,
-              alias,
+              alias
             );
             this.cache.registerAssetAlias(alias);
             return texture;
@@ -214,14 +223,15 @@ export class AtlasLoader {
         const atlasWidth = data.atlas.width;
         const atlasHeight = data.atlas.height;
         const maxDimension = Math.max(atlasWidth, atlasHeight);
-        const maxSafeScale = maxDimension > 0 ? MAX_TEXTURE_SIZE / maxDimension : 10;
+        const maxSafeScale =
+          maxDimension > 0 ? MAX_TEXTURE_SIZE / maxDimension : 10;
         const effectiveScale = Math.min(rawScale, maxSafeScale);
         const cacheAlias = `${tileKey}:svg:${effectiveScale}`;
 
         const texture = await loadSvg(
           `${this.basePath}/tiles/${type}/${idStr}/atlas.svg`,
           effectiveScale,
-          cacheAlias,
+          cacheAlias
         );
         this.cache.registerAssetAlias(cacheAlias);
         textures = [texture];
@@ -282,18 +292,28 @@ export class AtlasLoader {
    */
   private renderVelloFrame(
     tileKey: string,
-    frameIndex: number,
+    frameIndex: number
   ): Texture | null {
     const vello = this.vello;
     const assetId = this.velloAssetIds.get(tileKey);
     if (!vello || assetId === undefined) return null;
 
     // Match SVG rasterization scale: devicePixelRatio * zoom for crisp HiDPI at any zoom.
-    const renderResolution = Math.max(window.devicePixelRatio, 1) * this.currentZoom;
-    const result = vello.renderFrame(assetId, "tile", frameIndex, renderResolution);
+    const renderResolution = 1 * this.currentZoom;
+    const result = vello.renderFrame(
+      assetId,
+      "tile",
+      frameIndex,
+      renderResolution
+    );
     if (!result) return null;
 
-    const { texture: gpuTexture, textureId, width, height } = result as VelloFrameResult;
+    const {
+      texture: gpuTexture,
+      textureId,
+      width,
+      height,
+    } = result as VelloFrameResult;
 
     // Track the Vello texture ID for cleanup
     const zoomKey = this.getEffectiveZoomKey();
@@ -468,8 +488,10 @@ export class AtlasLoader {
     let frameW = Math.round(frame.width * actualScale);
     let frameH = Math.round(frame.height * actualScale);
 
-    if (frameX + frameW > sourceWidth) frameW = Math.floor(sourceWidth - frameX);
-    if (frameY + frameH > sourceHeight) frameH = Math.floor(sourceHeight - frameY);
+    if (frameX + frameW > sourceWidth)
+      frameW = Math.floor(sourceWidth - frameX);
+    if (frameY + frameH > sourceHeight)
+      frameH = Math.floor(sourceHeight - frameY);
     if (frameW <= 0 || frameH <= 0) return null;
 
     const texture = new Texture({
@@ -591,8 +613,10 @@ export class AtlasLoader {
     let frameW = Math.round(frame.width * actualScale);
     let frameH = Math.round(frame.height * actualScale);
 
-    if (frameX + frameW > sourceWidth) frameW = Math.floor(sourceWidth - frameX);
-    if (frameY + frameH > sourceHeight) frameH = Math.floor(sourceHeight - frameY);
+    if (frameX + frameW > sourceWidth)
+      frameW = Math.floor(sourceWidth - frameX);
+    if (frameY + frameH > sourceHeight)
+      frameH = Math.floor(sourceHeight - frameY);
     if (frameW <= 0 || frameH <= 0) return null;
 
     const texture = new Texture({
@@ -648,8 +672,10 @@ export class AtlasLoader {
     let frameW = Math.round(bf.width * actualScale);
     let frameH = Math.round(bf.height * actualScale);
 
-    if (frameX + frameW > sourceWidth) frameW = Math.floor(sourceWidth - frameX);
-    if (frameY + frameH > sourceHeight) frameH = Math.floor(sourceHeight - frameY);
+    if (frameX + frameW > sourceWidth)
+      frameW = Math.floor(sourceWidth - frameX);
+    if (frameY + frameH > sourceHeight)
+      frameH = Math.floor(sourceHeight - frameY);
     if (frameW <= 0 || frameH <= 0) return null;
 
     const texture = new Texture({

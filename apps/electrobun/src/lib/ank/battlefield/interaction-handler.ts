@@ -62,7 +62,9 @@ export class InteractionHandler {
 
   init(): void {
     this.canvas.addEventListener("wheel", (e) => this.handleWheel(e));
-    this.canvas.addEventListener("pointerenter", () => { this.mouseInCanvas = true; });
+    this.canvas.addEventListener("pointerenter", () => {
+      this.mouseInCanvas = true;
+    });
     this.canvas.addEventListener("pointerleave", () => {
       this.mouseInCanvas = false;
       this.updateHover(null);
@@ -300,12 +302,10 @@ export class InteractionHandler {
         // output = input * 0.6 + 102/255 (≈0.4) per channel
         const colorMatrix = new ColorMatrixFilter();
         colorMatrix.matrix = [
-          0.6, 0, 0, 0, 0.4,
-          0, 0.6, 0, 0, 0.4,
-          0, 0, 0.6, 0, 0.4,
-          0, 0, 0, 1, 0,
+          0.6, 0, 0, 0, 0.4, 0, 0.6, 0, 0, 0.4, 0, 0, 0.6, 0, 0.4, 0, 0, 0, 1,
+          0,
         ];
-        colorMatrix.resolution = window.devicePixelRatio;
+        colorMatrix.resolution = 1;
         sprite.filters = [colorMatrix];
       }
 

@@ -282,8 +282,7 @@ export class CharacterSpriteLoader {
   private getResolution(): number {
     // Render at zoom * devicePixelRatio for crisp sprites at any zoom level.
     // Frames are arranged in a 2D grid to stay within GPU texture limits.
-    const dpr =
-      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    const dpr = typeof window !== "undefined" ? 1 : 1;
     return Math.max(1, this.currentZoom * dpr);
   }
 

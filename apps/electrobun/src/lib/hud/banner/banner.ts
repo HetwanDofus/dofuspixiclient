@@ -1,6 +1,5 @@
 import type { Application } from "pixi.js";
 import { Assets, Container, Graphics, Sprite, Texture } from "pixi.js";
-import { createLogger } from "@/utils/logger";
 
 import type {
   BannerManifest,
@@ -12,6 +11,7 @@ import { getLoadProgress } from "@/render/load-progress";
 import { loadSvg } from "@/render/load-svg";
 import { getColors, getLayout } from "@/themes";
 import { BANNER_ASSETS_PATH, ICON_BUTTON_CONFIGS } from "@/types/banner";
+import { createLogger } from "@/utils/logger";
 
 import {
   type ChatIconTextures,
@@ -345,7 +345,7 @@ export class Banner {
   }
 
   private getTargetIconResolution(): number {
-    const raw = Math.max(window.devicePixelRatio, 1.1) * this.currentZoom;
+    const raw = Math.max(1, 1) * this.currentZoom;
     return Math.round(raw * 100) / 100;
   }
 
@@ -800,7 +800,9 @@ export class Banner {
 
     const mapId = this.minimapRenderer.getMapIdAtPoint(globalX, globalY);
     if (mapId !== null) {
-      createLogger("Banner").debug(`Minimap double-click teleport to map ${mapId}`);
+      createLogger("Banner").debug(
+        `Minimap double-click teleport to map ${mapId}`
+      );
       this.onMinimapTeleport?.(mapId);
     }
   }

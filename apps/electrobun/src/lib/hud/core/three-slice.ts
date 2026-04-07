@@ -76,7 +76,6 @@ export class ThreeSliceSprite extends Container {
     this.middleSprite.y = 0;
     this.middleSprite.width = this.targetW - leftW - rightW;
     this.middleSprite.height = this.targetH;
-
   }
 
   /** Resize to new dimensions and re-arrange. */
@@ -97,7 +96,7 @@ export class ThreeSliceSprite extends Container {
     basePath: string,
     resolution?: number
   ): Promise<ThreeSliceTextures> {
-    const res = resolution ?? (globalThis.devicePixelRatio || 1);
+    const res = resolution ?? 1;
     const [left, middle, right] = await Promise.all([
       loadSvg(`${basePath}/left.svg`, res),
       loadSvg(`${basePath}/middle.svg`, res),
@@ -113,7 +112,7 @@ export class ThreeSliceSprite extends Container {
     h: number,
     resolution?: number
   ): Promise<ThreeSliceSprite> {
-    const res = resolution ?? (globalThis.devicePixelRatio || 1);
+    const res = resolution ?? 1;
     const [left, middle, right] = await Promise.all([
       loadSvg(`${basePath}/left.svg`, res),
       loadSvg(`${basePath}/middle.svg`, res),
