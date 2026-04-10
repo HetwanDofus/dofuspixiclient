@@ -1,0 +1,368 @@
+{
+    "version": "1.0",
+    "generated": "2026-04-09T12:54:02+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "889": {
+            "id": 889,
+            "exportName": "UI_Banner",
+            "type": "sprite",
+            "width": 803.3,
+            "height": 508.1,
+            "offsetX": -58,
+            "offsetY": 364.1,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "889.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1332": {
+            "id": 1332,
+            "exportName": "UI_BannerStatsIcon",
+            "type": "sprite",
+            "width": 32.45,
+            "height": 32.2,
+            "offsetX": -16,
+            "offsetY": -16.2,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1332.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1334": {
+            "id": 1334,
+            "exportName": "UI_BannerSpellIcon",
+            "type": "sprite",
+            "width": 32,
+            "height": 32,
+            "offsetX": -16,
+            "offsetY": -16,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1334.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1337": {
+            "id": 1337,
+            "exportName": "UI_BannerPvpIcon",
+            "type": "sprite",
+            "width": 32,
+            "height": 33,
+            "offsetX": -16,
+            "offsetY": -17,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1337.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1339": {
+            "id": 1339,
+            "exportName": "UI_BannerMountIcon",
+            "type": "sprite",
+            "width": 32,
+            "height": 32,
+            "offsetX": -16,
+            "offsetY": -16,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1339.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1340": {
+            "id": 1340,
+            "exportName": "UI_BannerMapIcon",
+            "type": "sprite",
+            "width": 32,
+            "height": 32,
+            "offsetX": -16,
+            "offsetY": -16,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1340.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1342": {
+            "id": 1342,
+            "exportName": "UI_BannerInventoryIcon",
+            "type": "sprite",
+            "width": 32,
+            "height": 32,
+            "offsetX": -16,
+            "offsetY": -16,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1342.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1344": {
+            "id": 1344,
+            "exportName": "UI_BannerGuildIcon",
+            "type": "sprite",
+            "width": 32,
+            "height": 32,
+            "offsetX": -16,
+            "offsetY": -16,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1344.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1346": {
+            "id": 1346,
+            "exportName": "UI_BannerFriendsIcon",
+            "type": "sprite",
+            "width": 32,
+            "height": 32,
+            "offsetX": -16,
+            "offsetY": -16,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1346.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1347": {
+            "id": 1347,
+            "exportName": "UI_BannerContainerHighLight",
+            "type": "sprite",
+            "width": 25,
+            "height": 25,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1347.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1348": {
+            "id": 1348,
+            "exportName": "UI_BannerContainerBorder",
+            "type": "sprite",
+            "width": 25,
+            "height": 25,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1348.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1349": {
+            "id": 1349,
+            "exportName": "UI_BannerContainerBackground",
+            "type": "sprite",
+            "width": 25,
+            "height": 25,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1349.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1352": {
+            "id": 1352,
+            "exportName": "UI_BannerCompassNoArrow",
+            "type": "sprite",
+            "width": 100,
+            "height": 100,
+            "offsetX": -50,
+            "offsetY": -50,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1352.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1353": {
+            "id": 1353,
+            "exportName": "UI_BannerCompassBack",
+            "type": "sprite",
+            "width": 100,
+            "height": 100,
+            "offsetX": -50,
+            "offsetY": -50,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1353.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1354": {
+            "id": 1354,
+            "exportName": "UI_BannerCompassArrow",
+            "type": "sprite",
+            "width": 100,
+            "height": 100,
+            "offsetX": -50,
+            "offsetY": -50,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1354.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1355": {
+            "id": 1355,
+            "exportName": "UI_BannerClockBack",
+            "type": "sprite",
+            "width": 100,
+            "height": 100,
+            "offsetX": -50,
+            "offsetY": -50,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1355.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1356": {
+            "id": 1356,
+            "exportName": "UI_BannerClockArrowMinutes",
+            "type": "sprite",
+            "width": 100,
+            "height": 100,
+            "offsetX": -50,
+            "offsetY": -50,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1356.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1357": {
+            "id": 1357,
+            "exportName": "UI_BannerClockArrowHours",
+            "type": "sprite",
+            "width": 100,
+            "height": 100,
+            "offsetX": -50,
+            "offsetY": -50,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1357.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1359": {
+            "id": 1359,
+            "exportName": "UI_BannerChatCommandAll",
+            "type": "sprite",
+            "width": 13,
+            "height": 13,
+            "offsetX": -1.5,
+            "offsetY": -1.35,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1359.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1361": {
+            "id": 1361,
+            "exportName": "UI_BannerBookIcon",
+            "type": "sprite",
+            "width": 32,
+            "height": 32.8,
+            "offsetX": -16,
+            "offsetY": -16.8,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1361.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}

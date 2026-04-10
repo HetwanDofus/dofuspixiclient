@@ -10,13 +10,10 @@ import {
 } from "pixi.js";
 
 import type { InteractiveObjectData, PickResult, RenderStats } from "@/types";
-import { ZaapContextMenu } from "@/ank/gapi/controls";
+import { showContextMenu, hideContextMenu } from "@/stores/context-menu-store";
 import { DISPLAY_HEIGHT } from "@/constants/battlefield";
 import { pushInteractionEvent } from "@/ecs/systems/interaction-dispatch-system";
 import { type GameWorld, getGameWorld } from "@/ecs/world";
-import type { InventoryPanel } from "@/hud/inventory";
-import type { StatsPanel } from "@/hud/stats";
-import type { WorldMapPanel } from "@/hud/worldmap";
 import { AtlasLoader } from "@/render/atlas-loader";
 import { Engine } from "@/render/engine";
 import { PickingSystem } from "@/render/picking-system";
@@ -43,7 +40,6 @@ import {
   type FighterSpriteData,
 } from "./fighter-renderer";
 import { GridOverlay } from "./grid-overlay";
-import { HudManager } from "./hud-manager";
 import { InteractionHandler } from "./interaction-handler";
 import { MapHandler } from "./map-handler";
 import { AdjacentMapCache } from "./adjacent-map-cache";
@@ -99,7 +95,6 @@ export class Battlefield {
   private pickingSystem: PickingSystem | null = null;
   private characterSpriteLoader: CharacterSpriteLoader;
 
-  private hudManager: HudManager | null = null;
   private combatUI: CombatUI | null = null;
 
   private currentMapData: MapData | null = null;
@@ -110,7 +105,7 @@ export class Battlefield {
   private interactiveObjectsData = new Map<number, InteractiveObjectData>();
   private pickableIdToGfxId = new Map<number, number>();
   private nextPickableId = 1;
-  private currentContextMenu: ZaapContextMenu | null = null;
+  private pickableIdToFighterId = new Map<number, number>();
 
   // World actors (roleplay mode)
   private worldActorContainer: Container | null = null;
@@ -332,24 +327,6 @@ export class Battlefield {
 
     this.adjacentMapCache = new AdjacentMapCache(this.atlasLoader);
 
-    const baseZoom = this.engine.getBaseZoom();
-    this.hudManager = new HudManager(
-      this.app,
-      baseZoom,
-      DISPLAY_HEIGHT,
-      null
-    );
-    await this.hudManager.init();
-    this.hudManager.setOnMinimapTeleport((mapId) => {
-      this.onMinimapTeleportCallback?.(mapId);
-    });
-    this.hudManager.setOnBoostStat((statId) => {
-      this.onBoostStatCallback?.(statId);
-    });
-    this.hudManager.setOnSitToggle(() => {
-      this.onSitToggleCallback?.();
-    });
-
     this.app.stage.eventMode = "static";
     this.mapContainer.eventMode = "static";
 
@@ -365,17 +342,10 @@ export class Battlefield {
     this.interactionHandler.init();
     this.interactionHandler.setBaseZoom(this.engine.getBaseZoom());
 
-    // Now update HudManager with the interaction handler for world map toggle
-    if (this.hudManager) {
-      this.hudManager.setInteractionHandler(this.interactionHandler);
-    }
-
     this.app.stage.on("pointerdown", (e) => {
-      if (this.isPointOverUI(e.global.x, e.global.y)) return;
       this.interactionHandler?.handlePointerDown(e);
     });
     this.app.stage.on("pointermove", (e) => {
-      if (this.isPointOverUI(e.global.x, e.global.y)) return;
       this.interactionHandler?.handlePointerMove(e);
     });
     this.app.stage.on("pointerup", () =>
@@ -411,7 +381,6 @@ export class Battlefield {
     Ticker.shared.add(this.ecsTickerCallback);
 
     // Register renderers
-    this.rendererRegistry.register("banner", (e) => this.hudManager?.onBannerResize(e));
     this.rendererRegistry.register("debug-overlay", (e) =>
       this.debugOverlay!.onResize(e)
     );
@@ -419,11 +388,6 @@ export class Battlefield {
       this.gridOverlay!.onResize(e)
     );
     // Panels are rebuilt + repositioned together in updatePanelPositions()
-  }
-
-  /** Resolves when banner assets are fully loaded and drawn. */
-  async waitForBannerLoaded(): Promise<void> {
-    await this.hudManager?.waitForBannerLoaded();
   }
 
   /**
@@ -494,13 +458,6 @@ export class Battlefield {
       zoom,
       this.getViewport()
     );
-  }
-
-  /**
-   * Load a map from already-parsed MapData (e.g., from server MAP_DATA).
-   */
-  updateMinimapPosition(mapId: number): void {
-    this.hudManager?.updateMinimapPosition(mapId);
   }
 
   async loadMapFromData(mapData: MapData, direction?: TransitionDirection): Promise<void> {
@@ -713,6 +670,7 @@ export class Battlefield {
       this.pickingSystem?.unregisterObject(pickableId);
       this.interactiveCallbacks.delete(pickableId);
       this.fighterIdToPickableId.delete(id);
+      this.pickableIdToFighterId.delete(pickableId);
     }
 
     this.worldActorRenderer?.removeFighter(id);
@@ -802,6 +760,7 @@ export class Battlefield {
       onClick: null,
     });
     this.fighterIdToPickableId.set(fighterId, pickableId);
+    this.pickableIdToFighterId.set(pickableId, fighterId);
   }
 
   /**
@@ -923,9 +882,7 @@ export class Battlefield {
   }
 
   private handleObjectClick(result: PickResult): void {
-    if (this.currentContextMenu?.isOpen()) {
-      this.currentContextMenu.hide();
-    }
+    hideContextMenu();
 
     // Direct callbacks (temporary bridge for fighters)
     const cb = this.interactiveCallbacks.get(result.object.id);
@@ -938,6 +895,14 @@ export class Battlefield {
       type: "click",
       pickableId: result.object.id,
     });
+
+    // Check if it's a player/actor click
+    const fighterId = this.pickableIdToFighterId.get(result.object.id);
+    if (fighterId !== undefined) {
+      const name = this.worldActorRenderer?.getFighterName(fighterId) ?? "Player";
+      this.showPlayerContextMenu(name, result.x, result.y);
+      return;
+    }
 
     // Fallback for non-ECS interactive tiles (zaap etc.)
     const gfxId = this.pickableIdToGfxId.get(result.object.id);
@@ -995,13 +960,6 @@ export class Battlefield {
     }
   }
 
-  /**
-   * Check if a screen point falls over an open UI panel.
-   */
-  private isPointOverUI(x: number, y: number): boolean {
-    return this.hudManager?.isPointOverUI(x, y) ?? false;
-  }
-
   setOnCellClick(callback: (cellId: number) => void): void {
     this.onCellClickCallback = callback;
   }
@@ -1018,20 +976,16 @@ export class Battlefield {
     this.onSitToggleCallback = callback;
   }
 
+  getApp(): Application | null {
+    return this.app;
+  }
+
+  getBaseZoom(): number {
+    return this.engine.getBaseZoom();
+  }
+
   setWorldActorAnimation(id: number, animation: FighterAnimationValue): void {
     this.worldActorRenderer?.setAnimation(id, animation);
-  }
-
-  getStatsPanel(): StatsPanel | null {
-    return this.hudManager?.getStatsPanel() ?? null;
-  }
-
-  getInventoryPanel(): InventoryPanel | null {
-    return this.hudManager?.getInventoryPanel() ?? null;
-  }
-
-  getWorldMapPanel(): WorldMapPanel | null {
-    return this.hudManager?.getWorldMapPanel() ?? null;
   }
 
   private isZaap(pickableId: number): boolean {
@@ -1045,20 +999,36 @@ export class Battlefield {
     return objInfo?.type === 3;
   }
 
-  private showZaapContextMenu(x: number, y: number): void {
-    if (this.currentContextMenu) {
-      this.currentContextMenu.destroy();
-    }
-
-    const onUse = () => {
-      log.debug("Zaap: Use action triggered");
+  private pixiToPageCoords(pixiX: number, pixiY: number): { x: number; y: number } {
+    const canvas = this.app?.canvas;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const resolution = this.app?.renderer.resolution ?? 1;
+    return {
+      x: rect.left + pixiX / resolution,
+      y: rect.top + pixiY / resolution,
     };
+  }
 
-    this.currentContextMenu = new ZaapContextMenu(onUse);
+  private showZaapContextMenu(screenX: number, screenY: number): void {
+    const { x, y } = this.pixiToPageCoords(screenX, screenY);
+    showContextMenu(
+      "Zaap",
+      [{ label: "Use", onClick: () => log.debug("Zaap: Use action triggered") }],
+      x, y
+    );
+  }
 
-    if (this.app?.stage) {
-      this.currentContextMenu.show(x, y, this.app.stage);
-    }
+  private showPlayerContextMenu(name: string, screenX: number, screenY: number): void {
+    const { x, y } = this.pixiToPageCoords(screenX, screenY);
+    showContextMenu(
+      name,
+      [
+        { label: "Slap", onClick: () => log.debug(`Slap: ${name}`) },
+        { label: "Organize my shop", onClick: () => log.debug(`Shop: ${name}`) },
+      ],
+      x, y
+    );
   }
 
   handleWheel(_e: WheelEvent): void {
@@ -1112,10 +1082,7 @@ export class Battlefield {
     }
     this.pendingZoom = null;
 
-    if (this.currentContextMenu) {
-      this.currentContextMenu.destroy();
-      this.currentContextMenu = null;
-    }
+    hideContextMenu();
 
     // Clean up ECS ticker
     if (this.ecsTickerCallback) {
@@ -1128,9 +1095,6 @@ export class Battlefield {
 
     this.combatUI?.destroy();
     this.combatUI = null;
-
-    this.hudManager?.destroy();
-    this.hudManager = null;
 
     // Clean up renderer registry
     this.rendererRegistry.clear();

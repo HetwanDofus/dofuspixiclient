@@ -1,0 +1,44 @@
+{
+    "version": "1.0",
+    "generated": "2026-04-09T14:00:13+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "1619": {
+            "id": 1619,
+            "exportName": "ButtonTabUp",
+            "type": "sprite",
+            "width": 10,
+            "height": 20,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1619.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1623": {
+            "id": 1623,
+            "exportName": "ButtonTabDown",
+            "type": "sprite",
+            "width": 10,
+            "height": 20,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1623.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}

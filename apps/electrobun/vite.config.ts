@@ -2,8 +2,9 @@ import { readFile, readFileSync, existsSync } from "node:fs";
 import { resolve, join } from "node:path";
 
 import type { Plugin } from "vite";
+import tailwindcss from "@tailwindcss/vite";
 import { lingui } from "@lingui/vite-plugin";
-import { svelte } from "@sveltejs/vite-plugin-svelte";
+import react from "@vitejs/plugin-react";
 import compression from "compression";
 import { defineConfig } from "vite";
 import babel from "vite-plugin-babel";
@@ -458,6 +459,7 @@ function svgCompositionPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [
+    tailwindcss(),
     svgCompositionPlugin(),
     svgResolutionPlugin(),
     compressionPlugin(),
@@ -473,7 +475,16 @@ export default defineConfig({
       },
       filter: /\.messages\.ts$/,
     }) as never,
-    svelte(),
+    react({
+      babel: {
+        plugins: [
+          "@lingui/babel-plugin-lingui-macro",
+        ],
+      },
+      // Exclude ECS files that use TypeScript decorators + declare fields
+      // — they don't contain JSX and would break Babel's class transform
+      exclude: [/\/ecs\//, /\.messages\.ts$/],
+    }),
     lingui(),
   ],
   root: "src/mainview",

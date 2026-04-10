@@ -1,6 +1,28 @@
-import type { Theme, ThemeColors, ThemeMetrics, ThemeLayout, ThemeFonts } from './types';
+import type { Theme, ThemeColors, ThemeMetrics, ThemeFonts } from './types';
+
+export type { Theme, ThemeColors, ThemeColorTokens, ThemeMetrics, ThemeFonts, ThemeComponents } from './types';
+export type { IconProps, BannerIconKey, BannerUtilityIconKey, ThemeBannerIcons, ThemeBannerUtilityIcons } from './types';
+export { ThemeProvider, useTheme, useThemeComponents, useThemeColors } from './ThemeProvider';
 
 let activeTheme: Theme | null = null;
+
+/**
+ * Set the active theme directly from a TS module.
+ * Called by ThemeProvider on mount. Replaces the old fetch-based loadTheme().
+ */
+export function setTheme(theme: Theme): void {
+  activeTheme = theme;
+}
+
+/**
+ * @deprecated Use setTheme() via ThemeProvider instead. Kept for backward compatibility.
+ */
+export async function loadTheme(name: string): Promise<void> {
+  const response = await fetch(`/themes/${name}/theme.json`);
+  const raw = await response.json();
+  const parsed = parseColors(raw) as Theme;
+  activeTheme = parsed;
+}
 
 function parseColors(obj: unknown): unknown {
   if (typeof obj === 'string' && /^0x[0-9a-fA-F]+$/.test(obj)) {
@@ -19,16 +41,9 @@ function parseColors(obj: unknown): unknown {
   return obj;
 }
 
-export async function loadTheme(name: string): Promise<void> {
-  const response = await fetch(`/themes/${name}/theme.json`);
-  const raw = await response.json();
-  const parsed = parseColors(raw) as Theme;
-  activeTheme = parsed;
-}
-
 function ensureLoaded(): Theme {
   if (!activeTheme) {
-    throw new Error('Theme not loaded. Call loadTheme() before accessing theme.');
+    throw new Error('Theme not loaded. Call setTheme() or wrap with ThemeProvider before accessing theme.');
   }
   return activeTheme;
 }
@@ -43,10 +58,6 @@ export function getColors(): ThemeColors {
 
 export function getMetrics(): ThemeMetrics {
   return ensureLoaded().metrics;
-}
-
-export function getLayout(): ThemeLayout {
-  return ensureLoaded().layout;
 }
 
 export function getFonts(): ThemeFonts {

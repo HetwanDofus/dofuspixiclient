@@ -27,7 +27,7 @@ export {
 
 export const DISPLAY_WIDTH = 742;
 export const DISPLAY_HEIGHT = 432;
-export const BANNER_HEIGHT = 125;
+export const BANNER_HEIGHT = 124;
 export const FULL_HEIGHT = DISPLAY_HEIGHT + BANNER_HEIGHT;
 export const GAME_WIDTH = 1049;
 export const GAME_HEIGHT = 786;

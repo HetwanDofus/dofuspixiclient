@@ -1,60 +1,4 @@
-import type { Container, Graphics, Sprite, Texture } from 'pixi.js';
-import { getAssetPath, getColors, getLayout } from '@/themes';
-
-export interface AssetEntry {
-  file: string;
-  width: number;
-  height: number;
-  offsetX: number;
-  offsetY: number;
-}
-
-export interface BannerManifest {
-  version: string;
-  scale: number;
-  iconScale: number;
-  icons: Record<string, AssetEntry>;
-  container: Record<string, AssetEntry>;
-  compass: Record<string, AssetEntry>;
-  clock: Record<string, AssetEntry>;
-  chat: Record<string, AssetEntry>;
-}
-
-export interface IconButton {
-  container: Container;
-  button: Sprite;
-  icon: Sprite;
-  isPressed: boolean;
-}
-
-export interface IconButtonWithOffset extends IconButton {
-  baseOffsetX: number;
-  baseOffsetY: number;
-  currentZoom: number;
-  buttonUpTexture: Texture;
-  buttonDownTexture: Texture;
-}
-
-export interface ShortcutCell {
-  container: Container;
-  background: Sprite;
-  border: Sprite;
-  highlight: Sprite;
-}
-
-export interface ChatButton {
-  container: Container;
-  icon: Sprite;
-  hoverIcon?: Sprite;
-  isPressed: boolean;
-}
-
-export interface ChatFilter {
-  container: Container;
-  background: Graphics;
-  checkmark: Graphics;
-  isActive: boolean;
-}
+import { getAssetPath, getColors } from '@/themes';
 
 export interface IconConfig {
   key: string;
@@ -72,15 +16,6 @@ export function getBannerAssetsPath(): string {
 }
 
 export const BANNER_ASSETS_PATH = '/themes/classic/assets/banner';
-
-export function getIconButtonConfigs(): IconConfig[] {
-  const buttons = getLayout().banner.iconButtons;
-  return buttons.map((b) => ({
-    key: b.key,
-    path: b.key,
-    x: b.x,
-  }));
-}
 
 export const ICON_BUTTON_CONFIGS: IconConfig[] = [
   { key: 'stats', path: 'stats', x: 476 - 415 },

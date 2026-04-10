@@ -1,6 +1,7 @@
 import { match } from "ts-pattern";
 import type { Battlefield } from "@/ank/battlefield";
 import { FighterAnimation } from "@/ank/battlefield/fighter-animation";
+import { characterStore, hudStore } from "@/stores";
 import { createLogger } from "@/utils/logger";
 import {
   loadMapDataFromServer,
@@ -135,15 +136,20 @@ export class GameClient {
       this.currentMapId = payload.mapId;
       this.currentCellId = payload.cellId;
       log.info("Character selected:", payload.name, "on map", payload.mapId, "cell", payload.cellId);
-      this.battlefield?.getStatsPanel()?.setCharacterName(payload.name);
-      this.battlefield?.getInventoryPanel()?.setCharacterGfx(payload.gfx);
-      this.battlefield?.getInventoryPanel()?.bindStore(this.inventoryStore);
+      characterStore.setState({ name: payload.name, classId: payload.class, level: payload.level });
       this.battlefield?.setDebugPlayerId(payload.id);
     });
 
     this.messageHandler.on(ServerMessageType.CHARACTER_STATS, (payload: CharacterStatsPayload) => {
       this.currentStats = payload as CharacterStats;
-      this.battlefield?.getStatsPanel()?.updateStats(this.currentStats);
+      characterStore.setState({
+        stats: this.currentStats,
+        level: this.currentStats.level,
+        hp: { current: this.currentStats.hp, max: this.currentStats.maxHp },
+        energy: { current: this.currentStats.energy, max: this.currentStats.maxEnergy },
+        xp: { current: this.currentStats.xp, min: this.currentStats.xpLow, max: this.currentStats.xpHigh },
+        kamas: this.currentStats.kama,
+      });
     });
 
     // ── Inventory handlers ──
@@ -209,7 +215,7 @@ export class GameClient {
           }
 
           this.mapLoadPromise = this.battlefield.loadMapFromData(mapData, direction);
-          this.battlefield.updateMinimapPosition(serverPayload.mapId);
+          hudStore.setState({ minimapMapId: serverPayload.mapId });
         }
       } catch (err) {
         log.error("Failed to decompress map data:", err);
@@ -333,7 +339,7 @@ export class GameClient {
     this.battlefield.setOnSitToggle(() => this.toggleSit());
 
     if (this.currentStats) {
-      this.battlefield.getStatsPanel()?.updateStats(this.currentStats);
+      characterStore.setState({ stats: this.currentStats });
     }
   }
 
@@ -383,7 +389,7 @@ export class GameClient {
 
   selectCharacter(characterId: number, classId?: number): void {
     if (classId != null) {
-      this.battlefield?.getStatsPanel()?.setClassId(classId);
+      characterStore.setState({ classId: classId ?? 0 });
     }
     this.connection.send(
       encodeClientMessage(ClientMessageType.CHARACTER_SELECT, { characterId })

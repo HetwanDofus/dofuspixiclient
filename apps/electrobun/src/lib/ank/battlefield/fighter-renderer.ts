@@ -1359,6 +1359,10 @@ export class FighterRenderer {
     return { sprite: f.sprite, container: f.container };
   }
 
+  getFighterName(id: number): string | null {
+    return this.fighters.get(id)?.nameText.text ?? null;
+  }
+
   /**
    * Update the name label Y position above the sprite.
    * Uses a fixed offset matching the original Dofus client (DEFAULT_SPRITE_HEIGHT = 50).

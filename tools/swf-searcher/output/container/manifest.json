@@ -1,0 +1,62 @@
+{
+    "version": "1.0",
+    "generated": "2026-04-09T13:30:57+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "1347": {
+            "id": 1347,
+            "exportName": "UI_BannerContainerHighLight",
+            "type": "sprite",
+            "width": 25,
+            "height": 25,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1347.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1348": {
+            "id": 1348,
+            "exportName": "UI_BannerContainerBorder",
+            "type": "sprite",
+            "width": 25,
+            "height": 25,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1348.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "1349": {
+            "id": 1349,
+            "exportName": "UI_BannerContainerBackground",
+            "type": "sprite",
+            "width": 25,
+            "height": 25,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "1349.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}

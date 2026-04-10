@@ -1,0 +1,102 @@
+{
+    "version": "1.0",
+    "generated": "2026-04-09T07:15:27+00:00",
+    "format": "svg",
+    "scale": 1,
+    "characters": {
+        "37": {
+            "id": 37,
+            "exportName": "ButtonToggleDown",
+            "type": "sprite",
+            "width": 38,
+            "height": 18,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "37.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "41": {
+            "id": 41,
+            "exportName": "ButtonToggleUp",
+            "type": "sprite",
+            "width": 38,
+            "height": 18,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "41.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "46": {
+            "id": 46,
+            "exportName": "Button",
+            "type": "sprite",
+            "width": 147,
+            "height": 80.5,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "46_0.svg"
+                },
+                {
+                    "index": 1,
+                    "file": "46_1.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 2
+        },
+        "290": {
+            "id": 290,
+            "exportName": "ButtonComboBoxDown",
+            "type": "sprite",
+            "width": 40,
+            "height": 20,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "290.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        },
+        "294": {
+            "id": 294,
+            "exportName": "ButtonComboBoxUp",
+            "type": "sprite",
+            "width": 40,
+            "height": 20,
+            "offsetX": 0,
+            "offsetY": 0,
+            "scale": 1,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "294.svg"
+                }
+            ],
+            "fps": 20,
+            "frameCount": 1
+        }
+    }
+}

@@ -85,6 +85,7 @@ export class Engine {
     this.baseZoom = zoom;
     this.currentZoomIndex = 0;
     this.currentZoom = this.baseZoom * ZOOM_LEVELS[this.currentZoomIndex];
+    this.publishResolutionFactor(zoom);
 
     this.lastContainerSize = {
       width: this.container.clientWidth || GAME_WIDTH,
@@ -142,14 +143,24 @@ export class Engine {
       containerWidth / DISPLAY_WIDTH,
       containerHeight / FULL_HEIGHT
     );
-    // Snap zoom to even numbers (2, 4, 6...) to keep pixel ratios clean
-    const zoom = Math.max(2, Math.floor(rawZoom / 2) * 2);
+    // Snap to 0.02 step ("pair" float: zoom * 100 is always even). Floor: 0.02.
+    const zoom = Math.max(0.02, Math.round(rawZoom * 50) / 50);
 
     return {
-      width: DISPLAY_WIDTH * zoom,
-      height: FULL_HEIGHT * zoom,
+      width: Math.round(DISPLAY_WIDTH * zoom),
+      height: Math.round(FULL_HEIGHT * zoom),
       zoom,
     };
+  }
+
+  /** Publish the current base zoom to CSS so React UI (MainBanner etc.) scales in lockstep. */
+  private publishResolutionFactor(zoom: number): void {
+    if (typeof document !== "undefined") {
+      document.documentElement.style.setProperty(
+        "--resolution-factor",
+        String(zoom)
+      );
+    }
   }
 
   private setupResizeHandling(): void {
@@ -178,6 +189,7 @@ export class Engine {
     const { width, height, zoom } = this.calculateCanvasSize();
     this.baseZoom = zoom;
     this.currentZoom = this.baseZoom * ZOOM_LEVELS[this.currentZoomIndex];
+    this.publishResolutionFactor(zoom);
 
     this.app.renderer.resize(width, height);
     this.app.stage.layout = {
