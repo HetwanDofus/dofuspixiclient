@@ -1,0 +1,3 @@
+[submodule "packages/dofus1-registry"]
+	path = packages/dofus1-registry
+	url = https://github.com/HetwanDofus/dofus1-registry.git
