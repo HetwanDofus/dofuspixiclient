@@ -1,0 +1,480 @@
+syntax = "proto3";
+
+package dofus;
+
+option go_package = "dofus/proto";
+
+import "common.proto";
+
+// ============================================================================
+// ACCOUNT PROTOCOL (A prefix) - Authentication, character management, servers
+// ============================================================================
+
+// --- Server -> Client ---
+
+// HC - Connection key provided at handshake
+message HandshakeConnectionKey {
+  string connection_key = 1;
+}
+
+// HT - Telemetry request
+message HandshakeTelemetry {
+  string hex_data = 1;
+}
+
+// HG - Game server hello
+message HandshakeGameServer {
+  string extra_data = 1;
+}
+
+// HS - Character switch ticket
+message HandshakeCharacterSwitch {
+  string ticket_data = 1;
+}
+
+// Al - Login response
+message AccountLoginResponse {
+  bool   success = 1;
+  bool   is_authorized = 2;     // When success: sExtraData[0] == "1"
+  string error_code = 3;        // When error: single char code
+  // Error-specific fields (populated based on error_code)
+  string required_version = 4;  // error_code "v": version string
+  repeated string kick_reasons = 5;  // error_code "k": split by |
+  string kick_title = 6;
+  string kick_message = 7;
+  string kick_custom_info = 8;
+}
+
+// Ac - Community ID
+message AccountCommunity {
+  int32 community_id = 1;
+}
+
+// Ad - Dofus username
+message AccountDofusPseudo {
+  string pseudo = 1;
+}
+
+// AL - Characters list
+message AccountCharactersList {
+  bool   success = 1;
+  int32  subscriber_time = 2;    // >0 means subscriber
+  int32  character_count = 3;    // Server-side max characters
+  repeated CharacterListEntry characters = 4;
+  bool   is_migration = 5;      // True when response to AM
+}
+
+message CharacterListEntry {
+  string id = 1;
+  string name = 2;
+  int32  level = 3;
+  int32  gfx_id = 4;
+  int32  color1 = 5;           // -1 = default
+  int32  color2 = 6;
+  int32  color3 = 7;
+  string accessories = 8;      // Comma-separated accessory data
+  bool   is_merchant = 9;
+  int32  server_id = 10;
+  bool   is_dead = 11;
+  int32  death_count = 12;
+  int32  level_max = 13;
+}
+
+// Ax - Servers list
+message AccountServersList {
+  bool   success = 1;
+  int32  remaining_time = 2;    // Subscriber remaining time
+  repeated ServerEntry servers = 3;
+}
+
+message ServerEntry {
+  int32 server_id = 1;
+  int32 character_count = 2;
+  int32 state = 3;             // 0=offline, 1=online, 2=saving
+  int32 completion = 4;        // Population level
+  bool  is_selectable = 5;
+}
+
+// AA - Character add response
+message AccountCharacterAdd {
+  bool   success = 1;
+  string error_code = 2;  // s=subscription, f=full, a=name exists, n=bad name
+}
+
+// AT - Ticket response
+message AccountTicketResponse {
+  bool   success = 1;
+  int32  key_id = 2;          // Hex digit (0-15), -1 = error
+  string key_data = 3;
+}
+
+// AX / AY - Select server response
+message AccountSelectServer {
+  bool   success = 1;
+  bool   use_ip_encoding = 2; // AX=true (binary IP), AY=false (text IP)
+  string ip = 3;              // Decoded IP address
+  int32  port = 4;            // Decoded port
+  string ticket = 5;          // Connection ticket for game server
+  string error_code = 6;      // d=down, f=full(non-member), F=full, s=shop, r=restricted
+}
+
+// AZ - Select server minimal
+message AccountSelectServerMinimal {
+  int32 server_id = 1;
+}
+
+// AS - Character selected
+message AccountCharacterSelected {
+  bool   success = 1;
+  int32  character_id = 2;
+  string character_name = 3;
+  int32  level = 4;
+  string guild_name = 5;
+  int32  sex = 6;              // 0=male, 1=female
+  int32  gfx_id = 7;
+  int32  color1 = 8;
+  int32  color2 = 9;
+  int32  color3 = 10;
+  string items = 11;           // Equipped items data
+}
+
+// As - Character stats (the big one)
+message AccountStats {
+  // XP
+  int64 xp = 1;
+  int64 xp_low = 2;           // XP for current level
+  int64 xp_high = 3;          // XP for next level
+
+  int64 kama = 4;
+  int32 bonus_points = 5;      // Stat points available
+  int32 bonus_points_spell = 6; // Spell points available
+
+  // Alignment
+  AlignmentInfo alignment = 7;
+
+  // Life
+  int32 lp = 8;
+  int32 lp_max = 9;
+
+  // Energy
+  int32 energy = 10;
+  int32 energy_max = 11;
+
+  // Base stats
+  int32 initiative = 12;
+  int32 discernment = 13;      // Prospection
+
+  // All 42 stat entries (indices 9-50 in original protocol)
+  StatEntry ap = 14;           // Action Points
+  StatEntry mp = 15;           // Movement Points
+  StatEntry strength = 16;
+  StatEntry vitality = 17;
+  StatEntry wisdom = 18;
+  StatEntry chance = 19;
+  StatEntry agility = 20;
+  StatEntry intelligence = 21;
+  StatEntry range = 22;
+  StatEntry max_summons = 23;
+  StatEntry damage_physical = 24;
+  StatEntry damage_magic = 25;
+  StatEntry damage_percent = 26;
+  StatEntry critical_hit = 27;
+  StatEntry heals = 28;
+  StatEntry damage_traps = 29;
+  StatEntry damage_traps_percent = 30;
+  StatEntry reflect_damage = 31;
+
+  // Resistances
+  StatEntry resist_neutral = 32;
+  StatEntry resist_neutral_percent = 33;
+  StatEntry resist_earth = 34;
+  StatEntry resist_earth_percent = 35;
+  StatEntry resist_water = 36;
+  StatEntry resist_water_percent = 37;
+  StatEntry resist_air = 38;
+  StatEntry resist_air_percent = 39;
+  StatEntry resist_fire = 40;
+  StatEntry resist_fire_percent = 41;
+
+  // Dodge
+  StatEntry dodge_ap = 42;
+  StatEntry dodge_mp = 43;
+
+  // Additional stats
+  StatEntry damage_neutral = 44;
+  StatEntry damage_earth = 45;
+  StatEntry damage_water = 46;
+  StatEntry damage_air = 47;
+  StatEntry damage_fire = 48;
+
+  // Misc
+  StatEntry ap_loss_resist = 49;
+  StatEntry mp_loss_resist = 50;
+
+  // Power
+  StatEntry power = 51;
+
+  // Push/pull damage
+  StatEntry push_damage = 52;
+  StatEntry push_damage_resist = 53;
+  StatEntry critical_damage = 54;
+  StatEntry critical_resist = 55;
+
+  // Showed level (optional, field 52 in original)
+  int32 showed_level = 56;
+}
+
+// AN - New level
+message AccountNewLevel {
+  int32 new_level = 1;
+}
+
+// AR - Restrictions change
+message AccountRestrictions {
+  int32 restrictions = 1;  // Bitmask, originally base-36 encoded
+}
+
+// AH - Game server hosts
+message AccountHosts {
+  repeated HostEntry hosts = 1;
+}
+
+message HostEntry {
+  int32 server_id = 1;
+  int32 type_num = 2;
+  int32 port = 3;
+  bool  required = 4;
+}
+
+// Ar - Rescue response
+message AccountRescue {
+  bool success = 1;
+}
+
+// Ag - Gifts list
+message AccountGiftsList {
+  repeated GiftEntry gifts = 1;
+}
+
+message GiftEntry {
+  int32  gift_type = 1;
+  int32  gift_id = 2;
+  string title = 3;        // URL-decoded
+  string description = 4;  // URL-decoded
+  string gfx_url = 5;      // URL-decoded
+  int64  date = 6;          // Unix timestamp, -1 if no date
+  repeated string items = 7; // Item entries separated by ;
+}
+
+// AG - Gift stored
+message AccountGiftStored {
+  bool success = 1;
+}
+
+// Aq - Queue position (simple)
+message AccountQueue {
+  int32 position = 1;
+}
+
+// Af - New queue (detailed)
+message AccountNewQueue {
+  int32 position = 1;
+  int32 total_subscribers = 2;
+  int32 total_non_subscribers = 3;
+  bool  is_subscriber = 4;
+  int32 queue_id = 5;
+}
+
+// AV - Regional version
+message AccountRegionalVersion {
+  int32 version = 1;
+}
+
+// AP - Generated character name
+message AccountCharacterNameGenerated {
+  bool   success = 1;
+  string name = 2;          // Generated name when success
+  string error_code = 3;    // "1"=error, "2"=cannot generate
+}
+
+// AK - Encryption key
+message AccountKey {
+  int32  key_id = 1;    // 0-15 (hex digit)
+  string key_data = 2;
+}
+
+// AQ - Secret question
+message AccountSecretQuestion {
+  string question = 1;
+}
+
+// AD - Character delete
+message AccountCharacterDelete {
+  bool success = 1;
+}
+
+// AM - Character migration
+message AccountCharacterMigration {
+  enum MigrationType {
+    MIGRATION_TYPE_UNSPECIFIED = 0;
+    ASK_CONFIRM = 1;    // AM?
+    DATA = 2;           // AM (same as AL format)
+    DELETE = 3;          // AM-
+  }
+  MigrationType type = 1;
+  int32  character_id = 2;
+  string character_name = 3;
+  AccountCharactersList characters_list = 4; // When type=DATA
+}
+
+// AF - Friend server list
+message AccountFriendServerList {
+  repeated FriendServerEntry servers = 1;
+}
+
+message FriendServerEntry {
+  int32 server_id = 1;
+  int32 character_count = 2;
+}
+
+// AE - Edit player appearance
+message AccountEditPlayer {
+  bool edit_name = 1;
+  bool edit_colors = 2;
+  bool edit_mimibiote = 3;
+  bool forced = 4;
+}
+
+// Am - MiniClip info
+message AccountMiniClipInfo {
+  // No fields - just sets first_connection_from_miniclip = true
+}
+
+// ============================================================================
+// CLIENT -> SERVER ACCOUNT MESSAGES
+// ============================================================================
+
+// Client sends AT<ticket>
+message AccountSendTicket {
+  string ticket = 1;
+}
+
+// Client sends Ai<identity>
+message AccountSendIdentity {
+  string identity = 1;
+}
+
+// Client sends AV (request regional version)
+message AccountRequestRegionalVersion {}
+
+// Client sends Ap<port>
+message AccountSendPort {
+  int32 port = 1;
+}
+
+// Client sends Ac<communityId>
+message AccountSetCommunity {
+  int32 community_id = 1;
+}
+
+// Client sends Ad<pseudo>
+message AccountSetDofusPseudo {
+  string pseudo = 1;
+}
+
+// Client sends AL or ALf
+message AccountGetCharactersList {
+  bool forced = 1;  // ALf vs AL
+}
+
+// Client sends Ax
+message AccountGetServersList {}
+
+// Client sends AX<serverId>
+message AccountSelectServerRequest {
+  int32 server_id = 1;
+}
+
+// Client sends AS<charId>
+message AccountSelectCharacter {
+  int32 character_id = 1;
+}
+
+// Client sends AA<name>|<class>|<sex>|<c1>|<c2>|<c3>
+message AccountCreateCharacter {
+  string name = 1;
+  int32  class_id = 2;
+  int32  sex = 3;          // 0=male, 1=female
+  int32  color1 = 4;
+  int32  color2 = 5;
+  int32  color3 = 6;
+}
+
+// Client sends AD<charId>|<secretAnswer>
+message AccountDeleteCharacter {
+  int32  character_id = 1;
+  string secret_answer = 2;
+}
+
+// Client sends AR<charId>
+message AccountResetCharacter {
+  int32 character_id = 1;
+}
+
+// Client sends AB<bonusId>|<quantity>
+message AccountUseBoost {
+  int32 stat_id = 1;
+  int32 quantity = 2;
+}
+
+// Client sends Ar<ticket> or Ar<ticket>|<fightStatus>
+message AccountRescueRequest {
+  string ticket = 1;
+  int32  fight_status = 2;
+}
+
+// Client sends Ag<language>
+message AccountGetGifts {
+  string language = 1;
+}
+
+// Client sends AG<giftId>|<charId>
+message AccountAttributeGift {
+  int32 gift_id = 1;
+  int32 character_id = 2;
+}
+
+// Client sends Af
+message AccountGetQueuePosition {}
+
+// Client sends AP
+message AccountGetRandomName {}
+
+// Client sends Ak<keyId>
+message AccountUseKey {
+  int32 key_id = 1;
+}
+
+// Client sends AEn<name>
+message AccountEditName {
+  string name = 1;
+}
+
+// Client sends AEc<c1>|<c2>|<c3>
+message AccountEditColors {
+  int32 color1 = 1;
+  int32 color2 = 2;
+  int32 color3 = 3;
+}
+
+// Client sends AF<nickname>
+message AccountSearchFriend {
+  string nickname = 1;
+}
+
+// Client sends AM?<charId>;<name> or AM<charId>;<name> or AM-<charId>
+message AccountMigrationRequest {
+  AccountCharacterMigration.MigrationType type = 1;
+  int32  character_id = 2;
+  string character_name = 3;
+}

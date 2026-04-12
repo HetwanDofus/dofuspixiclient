@@ -12,10 +12,11 @@ import {
   MainBannerIconButton,
   MainBannerMorePanel,
   MainBannerRightPanel,
-  MainBannerTurnButton,
 } from "@/components/ui/main-banner";
 import { togglePanel, toggleWorldMap } from "@/stores";
 import { characterStore } from "@/stores/character-store";
+
+import { Minimap } from "../minimap/Minimap";
 
 const ICON_BUTTONS = [
   { icon: "stats", panel: "stats" },
@@ -41,7 +42,7 @@ export function BannerReact() {
     if (panel === "map") {
       toggleWorldMap();
     } else {
-      togglePanel(panel as any);
+      togglePanel(panel as never);
     }
   };
 
@@ -51,7 +52,9 @@ export function BannerReact() {
         <MainBannerChat />
         <MainBannerChatInput placeholder="Chat here..." />
 
-        <MainBannerCircle />
+        <MainBannerCircle>
+          <Minimap />
+        </MainBannerCircle>
 
         <MainBannerHeart hp={hp} max={maxHp} />
 
@@ -79,8 +82,8 @@ export function BannerReact() {
 
         <MainBannerGrid
           tabs={[
-            { value: "spells", label: "Spells" },
-            { value: "items", label: "Itm." },
+            { value: "spells", label: "Sorts" },
+            { value: "items", label: "Obj." },
           ]}
         >
           {Array.from({ length: 14 }, (_, i) => (

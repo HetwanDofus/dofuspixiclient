@@ -1,0 +1,312 @@
+syntax = "proto3";
+
+package dofus;
+
+option go_package = "dofus/proto";
+
+import "common.proto";
+
+// ============================================================================
+// HOUSES PROTOCOL (h prefix)
+// ============================================================================
+
+// --- Server -> Client ---
+
+// hP - House properties
+message HouseProperties {
+  int32  house_template_id = 1;
+  string owner_name = 2;
+  int64  price = 3;
+  string guild_name = 4;
+  GuildEmblem guild_emblem = 5;
+  bool   is_hunt_target_inside = 6;
+  bool   is_locked = 7;
+}
+
+// hX - Locked house
+message HouseLocked {
+  string raw_data = 1;
+}
+
+// hC - House create
+message HouseCreate {
+  bool   success = 1;
+  string raw_data = 2;
+}
+
+// hS - House sell
+message HouseSell {
+  bool   success = 1;
+  string raw_data = 2;
+}
+
+// hB - House buy
+message HouseBuy {
+  bool   success = 1;
+  int32  map_id = 2;
+  int32  instance_id = 3;
+  int64  price = 4;
+  string error_code = 5;  // C = reason
+}
+
+// hV - House leave
+message HouseLeave {}
+
+// hG - House guild infos
+message HouseGuildInfos {
+  int32  map_id = 1;
+  int32  instance_id = 2;
+  string guild_name = 3;
+  GuildEmblem guild_emblem = 4;
+  int64  guild_rights = 5;
+}
+
+// hI - House informations
+message HouseInformations {
+  int32 map_id = 1;
+  int32 instance_id = 2;
+  bool  is_for_sale = 3;
+  bool  is_locked = 4;
+  bool  is_shared = 5;
+}
+
+// ============================================================================
+// STORAGES PROTOCOL (s prefix)
+// ============================================================================
+
+// sI - Storage informations
+message StorageInformations {
+  string raw_data = 1;
+}
+
+// sX - Storage locked
+message StorageLocked {
+  string raw_data = 1;
+}
+
+// ============================================================================
+// WAYPOINTS PROTOCOL (W prefix)
+// ============================================================================
+
+// WC - Waypoints create (zaap menu)
+message WaypointsCreate {
+  int32 max_waypoint_level = 1;
+  repeated WaypointEntry waypoints = 2;
+}
+
+message WaypointEntry {
+  int32 map_id = 1;
+  int32 level = 2;
+}
+
+// WV - Waypoints leave
+message WaypointsLeave {}
+
+// WU - Waypoint use error
+message WaypointsUseError {}
+
+// Wc - Subway create (zaapi menu)
+message SubwayCreate {
+  repeated SubwayEntry subways = 1;
+}
+
+message SubwayEntry {
+  int32 map_id = 1;
+}
+
+// Wv - Subway leave
+message SubwayLeave {}
+
+// Wu - Subway use error
+message SubwayUseError {}
+
+// Wp - Prism create
+message PrismCreate {
+  string raw_data = 1;
+}
+
+// Ww - Prism leave
+message PrismLeave {}
+
+// ============================================================================
+// CONQUEST PROTOCOL (C prefix)
+// ============================================================================
+
+// CIJ - Prism infos (join)
+message ConquestPrismInfosJoin {
+  int32 status = 1;           // 0=ok, -1/-2/-3=errors
+  int32 timer = 2;
+  int32 max_timer = 3;
+  int32 max_team_positions = 4;
+}
+
+// CIV - Prism infos (leave)
+message ConquestPrismInfosLeave {
+  string raw_data = 1;
+}
+
+// CB - Conquest bonus
+message ConquestBonus {
+  // XP, drop, harvest bonuses
+  int32 xp_bonus = 1;
+  int32 drop_bonus = 2;
+  int32 harvest_bonus = 3;
+  // Rank multipliers
+  int32 rank_xp = 4;
+  int32 rank_drop = 5;
+  int32 rank_harvest = 6;
+  // Malus
+  int32 malus_xp = 7;
+  int32 malus_drop = 8;
+  int32 malus_harvest = 9;
+}
+
+// CA - Prism attacked
+message ConquestPrismAttacked {
+  int32 map_id = 1;
+  int32 x = 2;
+  int32 y = 3;
+}
+
+// CS - Prism survived
+message ConquestPrismSurvived {
+  int32 map_id = 1;
+  int32 x = 2;
+  int32 y = 3;
+}
+
+// CD - Prism dead
+message ConquestPrismDead {
+  int32 map_id = 1;
+  int32 x = 2;
+  int32 y = 3;
+}
+
+// CP - Prism fight add player
+message ConquestFightAddPlayer {
+  enum Operation {
+    OPERATION_UNSPECIFIED = 0;
+    ADD = 1;
+    REMOVE = 2;
+  }
+  Operation operation = 1;
+  int32 main_player_id = 2;   // Base-36 decoded
+  repeated ConquestFightParticipant players = 3;
+}
+
+message ConquestFightParticipant {
+  int32  id = 1;        // Base-36 decoded
+  string name = 2;
+  int32  gfx_id = 3;
+  int32  level = 4;
+  int32  color1 = 5;    // Base-36 decoded
+  int32  color2 = 6;
+  int32  color3 = 7;
+  bool   is_reservist = 8;
+}
+
+// Cp - Prism fight add enemy
+message ConquestFightAddEnemy {
+  ConquestFightAddPlayer.Operation operation = 1;
+  int32 main_player_id = 2;
+  repeated ConquestFightEnemy enemies = 3;
+}
+
+message ConquestFightEnemy {
+  int32  id = 1;       // Base-36 decoded
+  string name = 2;
+  int32  level = 3;
+}
+
+// CW - World data
+message ConquestWorldData {
+  repeated ConquestArea areas = 1;
+  repeated ConquestVillage villages = 2;
+}
+
+message ConquestArea {
+  int32 area_id = 1;
+  int32 alignment = 2;
+  bool  is_contested = 3;
+  int32 nb_zones = 4;
+  bool  has_village = 5;
+}
+
+message ConquestVillage {
+  int32 village_id = 1;
+  int32 alignment = 2;
+  bool  is_contested = 3;
+  bool  unknown_flag = 4;
+}
+
+// Cb - Conquest balance
+message ConquestBalance {
+  int32 balance1 = 1;
+  int32 balance2 = 2;
+}
+
+// aM - Area alignment changed
+message ConquestAreaAlignment {
+  int32 area_id = 1;
+  int32 alignment_id = 2;  // -1 = prism removed
+}
+
+// ============================================================================
+// SUBAREAS PROTOCOL (a prefix)
+// ============================================================================
+
+// al - Subarea list
+message SubareaList {
+  bool success = 1;
+  repeated SubareaEntry subareas = 2;
+}
+
+message SubareaEntry {
+  int32 subarea_id = 1;
+  int32 alignment_id = 2;
+}
+
+// am - Alignment modification
+message SubareaAlignmentModification {
+  int32 subarea_id = 1;
+  int32 alignment_id = 2;
+  bool  unknown_flag = 3;
+}
+
+// ============================================================================
+// CLIENT -> SERVER WORLD MESSAGES
+// ============================================================================
+
+// --- Houses ---
+message HouseKickRequest {
+  int32 id = 1;
+}
+message HouseLeaveRequest {}
+message HouseSellRequest {
+  int64 price = 1;
+}
+message HouseBuyRequest {
+  int64 price = 1;
+}
+message HouseShareRequest {
+  bool   share = 1;   // + or -
+  int64  rights = 2;  // Optional guild rights
+}
+
+// --- Waypoints ---
+message WaypointUseRequest {
+  int32 waypoint_id = 1;
+}
+message WaypointLeaveRequest {}
+message SubwayUseRequest {
+  int32 map_id = 1;
+}
+message SubwayLeaveRequest {}
+
+// --- Conquest ---
+message ConquestGetBonusRequest {}
+message ConquestPrismInfosJoinRequest {}
+message ConquestPrismInfosLeaveRequest {}
+message ConquestWorldJoinRequest {}
+message ConquestWorldLeaveRequest {}
+message ConquestBalanceRequest {}

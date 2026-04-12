@@ -1,0 +1,305 @@
+syntax = "proto3";
+
+package dofus;
+
+option go_package = "dofus/proto";
+
+import "common.proto";
+
+// ============================================================================
+// CHAT / BASICS PROTOCOL (B/c prefix)
+// ============================================================================
+
+// --- Server -> Client ---
+
+// cM - Chat message received
+message ChatMessage {
+  bool        success = 1;
+  ChatChannel channel = 2;
+  string      sender_id = 3;
+  string      sender_name = 4;
+  string      message = 5;
+  string      items_data = 6;   // Inline item data (! separated)
+  // For event messages
+  int32       event_id = 7;
+  int32       event_type = 8;
+}
+
+// cs - Server message
+message ChatServerMessage {
+  string raw_data = 1;
+}
+
+// cS - Smiley used
+message ChatSmiley {
+  string sprite_id = 1;
+  int32  smiley_id = 2;
+}
+
+// cC - Channel subscription update
+message ChatSubscribeChannel {
+  bool   subscribe = 1;   // + = subscribe, - = unsubscribe
+  string channels = 2;    // Channel symbols
+}
+
+// BM - Popup message (server broadcast)
+message BasicsPopupMessage {
+  string message = 1;
+}
+
+// BT - Reference time
+message BasicsReferenceTime {
+  int64 timestamp = 1;
+}
+
+// BD - Server date
+message BasicsDate {
+  int32 year = 1;
+  int32 month = 2;
+  int32 day = 3;
+}
+
+// BW - Who is response
+message BasicsWhoIs {
+  bool   success = 1;
+  string name = 2;
+  int32  state = 3;        // 1=solo, 2=multi
+  string character_name = 4;
+  int32  area_id = 5;
+}
+
+// BP - Subscriber restriction
+message BasicsSubscriberRestriction {
+  bool  enabled = 1;    // + or -
+  int32 dialog_id = 2;
+}
+
+// BC - File check request (server -> client)
+message BasicsFileCheck {
+  int32  check_id = 1;
+  string filename = 2;
+}
+
+// Bp - Ping acknowledgement
+message BasicsPing {
+  string raw_data = 1;
+}
+
+// BA - Admin command response
+message BasicsAdminResponse {
+  enum ResponseType {
+    RESPONSE_UNSPECIFIED = 0;
+    LISTING = 1;     // BAl
+    SUCCESS = 2;     // BAT
+    LINE = 3;        // BAL
+    PROMPT = 4;      // BAP
+    CLEAR = 5;       // BAC
+    ERROR = 6;       // BAE
+    INTERFACE_OPEN = 7;  // BAIO
+    INTERFACE_CLOSE = 8; // BAIC
+  }
+  ResponseType type = 1;
+  string commands = 2;     // For LISTING
+  string output = 3;       // For SUCCESS
+  int32  line_num = 4;     // For LINE
+  int32  line_type = 5;    // For LINE
+  string text = 6;         // For LINE/PROMPT
+  int64  rights = 7;       // For INTERFACE_OPEN
+}
+
+// Br - Report infos response
+message BasicsReportInfos {
+  string raw_data = 1;
+}
+
+// ============================================================================
+// INFOS PROTOCOL (I prefix)
+// ============================================================================
+
+// IM - Info map messages
+message InfoMaps {
+  string raw_data = 1;
+}
+
+// IC - Compass direction
+message InfoCompass {
+  string raw_data = 1;
+}
+
+// IH - Highlight coordinates
+message InfoCoordinatesHighlight {
+  string raw_data = 1;
+}
+
+// Im - Info message
+message InfoMessage {
+  string message = 1;
+}
+
+// IQ - Quantity prompt
+message InfoQuantity {
+  string raw_data = 1;
+}
+
+// IO - Object info
+message InfoObject {
+  string raw_data = 1;
+}
+
+// IL - Life restore timer
+message InfoLifeRestoreTimer {
+  bool  started = 1;   // ILS = start, ILF = finish
+  string raw_data = 2;
+}
+
+// ============================================================================
+// DIALOG PROTOCOL (D prefix)
+// ============================================================================
+
+// DA - Custom action
+message DialogCustomAction {
+  string raw_data = 1;
+}
+
+// DC - Dialog create
+message DialogCreate {
+  bool   success = 1;
+  string raw_data = 2;
+}
+
+// DQ - Dialog question
+message DialogQuestion {
+  string raw_data = 1;
+}
+
+// DV - Dialog leave
+message DialogLeave {}
+
+// DP - Dialog pause
+message DialogPause {}
+
+// ============================================================================
+// SERVER MESSAGES (k/M)
+// ============================================================================
+
+// k - Server disconnect notification
+message ServerDisconnect {}
+
+// M - Server message
+message ServerMessage {
+  string message_type = 1;
+  string data = 2;
+}
+
+// p/q/r - Ping/Pong
+message PingPong {
+  enum PingType {
+    PING_TYPE_UNSPECIFIED = 0;
+    PONG = 1;        // p
+    QUICK_PONG = 2;  // q
+    RPONG = 3;       // r (server requests rpong<data>)
+  }
+  PingType type = 1;
+  string   data = 2;
+}
+
+// ============================================================================
+// CLIENT -> SERVER CHAT/BASICS MESSAGES
+// ============================================================================
+
+// Client sends BM<dest>|<message>|<itemsData>
+message ChatSendMessage {
+  string destination = 1;    // Channel symbol or player name
+  string message = 2;
+  string items_data = 3;     // itemID!effectData! format
+}
+
+// Client sends BR<charId>|<message>|<messageId>|<reason>
+message ChatReportMessage {
+  string character_id = 1;
+  string message = 2;
+  string message_id = 3;
+  int32  reason = 4;
+}
+
+// Client sends BS<smileyId>
+message ChatUseSmiley {
+  int32 smiley_id = 1;
+}
+
+// Client sends cC[+/-]<channel>
+message ChatSubscribeChannelRequest {
+  bool   subscribe = 1;
+  string channel = 2;  // Channel symbol
+}
+
+// Client sends BA<command>
+message BasicsAdminCommand {
+  string command = 1;
+}
+
+// Client sends BaM<x>,<y>
+message BasicsAdminMove {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+// Client sends BaK<playerName>|<tempo>|<message>
+message BasicsAdminKick {
+  string player_name = 1;
+  int32  tempo = 2;
+  string message = 3;
+}
+
+// Client sends BW<name>
+message BasicsWhoIsRequest {
+  string name = 1;
+}
+
+// Client sends BD
+message BasicsGetDateRequest {}
+
+// Client sends BQ<cellNum>
+message BasicsKickRequest {
+  int32 cell_num = 1;
+}
+
+// Client sends BYA
+message BasicsSetAway {}
+
+// Client sends BYI
+message BasicsSetInvisible {}
+
+// Client sends BC<checkId>;<fileSize>
+message BasicsFileCheckAnswer {
+  int32 check_id = 1;
+  int32 file_size = 2;
+}
+
+// Client sends BK<sanctionId>|<wordId>
+message BasicsSanction {
+  int32 sanction_id = 1;
+  int32 word_id = 2;
+}
+
+// Client sends Bp<ping>|<packetCount>|<bufferSize>
+message BasicsSendPing {
+  int32 avg_ping = 1;
+  int32 packet_count = 2;
+  int32 buffer_size = 3;
+}
+
+// Client sends Br<step>|<targets>|<allAccounts>
+message BasicsReportInfosRequest {
+  int32  step = 1;
+  string targets = 2;
+  bool   all_accounts = 3;
+}
+
+// Client sends DA<action>
+message DialogCustomActionRequest {
+  string action = 1;
+}
+
+// Client sends DV
+message DialogLeaveRequest {}

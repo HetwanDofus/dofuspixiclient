@@ -7,6 +7,19 @@
     "require": {
         "arakne/swf": "^0.5.3",
         "yosymfony/toml": "^1.0",
-        "symfony/console": "^8.0"
+        "symfony/console": "^8.0",
+        "cweagans/composer-patches": "^2.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "cweagans/composer-patches": true
+        }
+    },
+    "extra": {
+        "patches": {
+            "arakne/swf": {
+                "Preserve sub-pixel stroke width (Flash-twip semantics)": "patches/preserve-sub-pixel-stroke-width.patch"
+            }
+        }
     }
 }

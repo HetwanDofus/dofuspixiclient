@@ -1,0 +1,698 @@
+syntax = "proto3";
+
+package dofus;
+
+option go_package = "dofus/proto";
+
+import "common.proto";
+
+// ============================================================================
+// GAME PROTOCOL (G prefix) - Map, movement, combat, turns, actions
+// ============================================================================
+
+// --- Server -> Client ---
+
+// GC - Game create
+message GameCreate {
+  bool  success = 1;
+  int32 state = 2;  // Game type: 1=solo, etc.
+}
+
+// GJ - Game join (enter fight)
+message GameJoin {
+  int32 state = 1;           // Game state type
+  bool  has_cancel = 2;      // Can cancel fight
+  bool  has_challenge = 3;   // Fight has challenge
+  bool  is_spectator = 4;    // Joined as spectator
+  int32 timer_ms = 5;        // Placement timer in milliseconds
+  int32 fight_type = 6;      // FightType enum value
+}
+
+// GP - Placement positions
+message GamePositionStart {
+  repeated int32 team1_cells = 1;  // Available cells for team 1 (base64 decoded)
+  repeated int32 team2_cells = 2;  // Available cells for team 2
+  int32 current_team = 3;         // Player's team: 0 or 1
+}
+
+// GR - Player ready state
+message GameReady {
+  bool   is_ready = 1;
+  string sprite_id = 2;
+}
+
+// GS - Fight starts
+message GameStartToPlay {}
+
+// GE - Game end / fight results
+message GameEnd {
+  string raw_data = 1;  // Complex end-of-fight data
+  // Parsed fight results
+  int32 duration_ms = 2;
+  int32 winner_team = 3;   // 0 or 1
+  repeated FightResult results = 4;
+}
+
+message FightResult {
+  string sprite_id = 1;
+  string name = 2;
+  int32  level = 3;
+  bool   is_dead = 4;
+  int32  team = 5;
+  // Rewards
+  int64  xp_won = 6;
+  int64  xp_guild = 7;
+  int64  xp_mount = 8;
+  int64  kama_won = 9;
+  repeated FightItemDrop items_won = 10;
+  // PvP specific
+  int32  pvp_rating_change = 11;
+  int32  honor_won = 12;
+  int32  disgrace_won = 13;
+}
+
+message FightItemDrop {
+  int32 item_id = 1;
+  int32 quantity = 2;
+}
+
+// GM - Sprite movement / spawn / despawn
+message GameMovement {
+  repeated SpriteMovementEntry entries = 1;
+}
+
+message SpriteMovementEntry {
+  enum Operation {
+    OPERATION_UNSPECIFIED = 0;
+    ADD = 1;      // + prefix
+    REMOVE = 2;   // - prefix
+    UPDATE = 3;   // ~ prefix (remove + re-add, used for summons)
+  }
+
+  Operation  operation = 1;
+  SpriteType sprite_type = 2;
+  string     sprite_id = 3;
+  int32      cell_id = 4;       // -1 = current cell
+  int32      direction = 5;     // 0-7
+
+  // Appearance
+  int32  gfx_id = 6;
+  int32  scale_x = 7;          // Percentage (100 = normal)
+  int32  scale_y = 8;
+
+  CharacterColors colors = 9;
+  repeated Accessory accessories = 10;
+
+  // Character-specific
+  string name = 11;
+  string title = 12;
+  int32  level = 13;
+  int32  sex = 14;
+  string guild_name = 15;
+  GuildEmblem guild_emblem = 16;
+  AlignmentInfo alignment = 17;
+
+  // Monster-specific
+  int32 name_id = 18;          // Monster template ID
+  int32 power_level = 19;     // 0-8 (boss indicator)
+
+  // Monster group
+  repeated MonsterGroupMember monsters = 20;
+
+  // NPC-specific
+  int32 npc_id = 21;
+
+  // Fight-specific fields (only in combat)
+  int32 lp = 22;
+  int32 lp_max = 23;
+  int32 ap = 24;
+  int32 mp = 25;
+  int32 team = 26;
+  repeated int32 resistances = 27; // [neutral, earth, fire, water, air, dodge_ap, dodge_mp]
+
+  // Mount data
+  MountDisplay mount = 28;
+
+  // Tax collector
+  string tax_owner_name = 29;
+  int32  tax_guild_id = 30;
+
+  // Merchant flag
+  bool is_merchant = 31;
+
+  // TTG collection
+  bool has_ttg_collection = 32;
+
+  // Speed modifier
+  int32 speed_moderator = 33;
+
+  // Summoned flag
+  bool is_summoned = 34;
+
+  // Movement path (cell IDs for walking animation)
+  repeated int32 path_cells = 35;
+
+  // Restrictions
+  int32 restrictions = 36;
+
+  // Aura / visual effects
+  int32 aura_id = 37;
+  int32 emote_id = 38;
+  int32 emote_timer = 39;
+}
+
+message MonsterGroupMember {
+  int32 template_id = 1;
+  int32 level = 2;
+  int32 gfx_id = 3;
+  int32 color1 = 4;
+  int32 color2 = 5;
+  int32 color3 = 6;
+}
+
+message MountDisplay {
+  int32 model_id = 1;
+  int32 gfx_id = 2;
+  int32 color1 = 3;
+  int32 color2 = 4;
+  int32 color3 = 5;
+  bool  use_custom_color = 6;
+}
+
+// GDM - Map data
+message GameMapData {
+  int32  map_id = 1;
+  string map_date = 2;    // Map version/date
+  string map_key = 3;     // Decryption key
+}
+
+// GDK - Map loaded confirmation
+message GameMapLoaded {}
+
+// GDC - Cell data update
+message GameCellData {
+  string raw_data = 1;  // Cell update data
+}
+
+// GDZ - Zone data
+message GameZoneData {
+  string raw_data = 1;
+}
+
+// GDO - Cell object
+message GameCellObject {
+  string raw_data = 1;
+}
+
+// GDF - Frame object 2
+message GameFrameObject2 {
+  string raw_data = 1;
+}
+
+// GDE - Frame object external
+message GameFrameObjectExternal {
+  string raw_data = 1;
+}
+
+// GAS - Actions start
+message GameActionsStart {
+  string sprite_id = 1;
+}
+
+// GAF - Actions finish
+message GameActionsFinish {
+  int32  action_result_id = 1;
+  string sprite_id = 2;
+}
+
+// GA - Game action (core combat/world action)
+message GameAction {
+  int32  sequence_id = 1;     // Action ID for ACK
+  int32  action_type = 2;     // See GameActionType enum
+  string sprite_id = 3;       // Caster (empty = self)
+  string raw_params = 4;      // Raw parameter string for passthrough
+
+  // Parsed action data (populated based on action_type)
+  oneof action_data {
+    ActionMovement           movement = 10;
+    ActionMapChange          map_change = 11;
+    ActionSpritePosition     sprite_position = 12;
+    ActionSpriteSlide        sprite_slide = 13;
+    ActionDirectionChange    direction_change = 14;
+    ActionCarry              carry = 15;
+    ActionThrow              throw_carried = 16;
+    ActionUncarry            uncarry = 17;
+    ActionDamage             damage = 18;
+    ActionAPChange           ap_change = 19;
+    ActionMPChange           mp_change = 20;
+    ActionDeath              death = 21;
+    ActionReduceDamage       reduce_damage = 22;
+    ActionReturnSpell        return_spell = 23;
+    ActionReturnDamage       return_damage = 24;
+    ActionStealGold          steal_gold = 25;
+    ActionRemoveEffects      remove_effects = 26;
+    ActionSummon             summon = 27;
+    ActionSpellLaunch        spell_launch = 28;
+    ActionCriticalHit        critical_hit = 29;
+    ActionCriticalMiss       critical_miss = 30;
+    ActionCloseCombat        close_combat = 31;
+    ActionStateChange        state_change = 32;
+    ActionEffectApply        effect_apply = 33;
+    ActionObjectFrameChange  object_frame_change = 34;
+    ActionVisualEffect       visual_effect = 35;
+    ActionChallenge          challenge = 36;
+    ActionInvisibility       invisibility = 37;
+    ActionGlyph              glyph = 38;
+    ActionCinematic          cinematic = 39;
+  }
+}
+
+// Action type enum matching original protocol
+enum GameActionType {
+  ACTION_NONE = 0;
+  ACTION_MOVEMENT = 1;
+  ACTION_MAP_CHANGE = 2;
+  ACTION_SPRITE_POSITION = 4;
+  ACTION_SPRITE_SLIDE = 5;
+  ACTION_EMOTE = 10;
+  ACTION_DIRECTION_CHANGE = 11;
+  ACTION_CARRY = 50;
+  ACTION_THROW = 51;
+  ACTION_UNCARRY = 52;
+  ACTION_MP_CHANGE_78 = 78;
+  ACTION_DAMAGE = 100;
+  ACTION_AP_CHANGE = 101;
+  ACTION_AP_SPENT = 102;
+  ACTION_DEATH = 103;
+  ACTION_HIT_ANIM = 104;
+  ACTION_REDUCE_DAMAGE = 105;
+  ACTION_RETURN_SPELL = 106;
+  ACTION_RETURN_DAMAGE = 107;
+  ACTION_DAMAGE_108 = 108;
+  ACTION_DAMAGE_110 = 110;
+  ACTION_AP_CHANGE_111 = 111;
+  ACTION_AP_CHANGE_120 = 120;
+  ACTION_MP_CHANGE_127 = 127;
+  ACTION_MP_CHANGE_128 = 128;
+  ACTION_MP_CHANGE_129 = 129;
+  ACTION_STEAL_GOLD = 130;
+  ACTION_REMOVE_ALL_EFFECTS = 132;
+  ACTION_PASS_TURN = 140;
+  ACTION_RESUMMON = 145;
+  ACTION_SUMMON = 147;
+  ACTION_GLYPH_EFFECT = 149;
+  ACTION_INVISIBILITY = 150;
+  ACTION_INVISIBLE_OBSTACLE = 151;
+  ACTION_REDUCE_DAMAGE_164 = 164;
+  ACTION_RETURN_AP = 166;
+  ACTION_AP_CHANGE_168 = 168;
+  ACTION_MP_CHANGE_169 = 169;
+  ACTION_SUMMON_180 = 180;
+  ACTION_SUMMON_181 = 181;
+  ACTION_MOVEMENT_185 = 185;
+  ACTION_OBJECT_FRAME_CHANGE = 200;
+  ACTION_VISUAL_EFFECT_CENTER = 208;
+  ACTION_VISUAL_EFFECT_SPRITE = 228;
+  ACTION_SPELL_LAUNCH = 300;
+  ACTION_CRITICAL_HIT = 301;
+  ACTION_CRITICAL_MISS = 302;
+  ACTION_CLOSE_COMBAT = 303;
+  ACTION_MARRIAGE_ASK = 617;
+  ACTION_MARRIAGE_ACCEPT = 618;
+  ACTION_MARRIAGE_REFUSE = 619;
+  ACTION_CINEMATIC = 857;
+  ACTION_CHALLENGE_PROPOSAL = 900;
+  ACTION_CHALLENGE_ACCEPT = 901;
+  ACTION_CHALLENGE_REFUSE = 902;
+  ACTION_CHALLENGE_JOIN_ERROR = 903;
+  ACTION_ATTACKED = 905;
+  ACTION_ATTACK_ANNOUNCE = 906;
+  ACTION_ATTACK_TAX_COLLECTOR = 909;
+  ACTION_ATTACK_MUTANT = 910;
+  ACTION_ATTACK_PRISM = 912;
+  ACTION_STATE_CHANGE = 950;
+  ACTION_JOIN_SPECTATOR = 976;
+  ACTION_EFFECT_APPLY = 998;
+  ACTION_CONSOLE_COMMAND = 999;
+  ACTION_REMOVE_EFFECT_BY_TYPE = 2011;
+  ACTION_MOVEMENT_2144 = 2144;
+  ACTION_MOVEMENT_2145 = 2145;
+}
+
+// --- Action data sub-messages ---
+
+message ActionMovement {
+  repeated int32 path_cells = 1;  // Compressed cell path
+}
+
+message ActionMapChange {
+  string raw_data = 1;
+}
+
+message ActionSpritePosition {
+  string sprite_id = 1;
+  int32  cell_id = 2;
+}
+
+message ActionSpriteSlide {
+  string sprite_id = 1;
+  int32  from_cell = 2;
+  int32  to_cell = 3;
+}
+
+message ActionDirectionChange {
+  string sprite_id = 1;
+  int32  direction = 2;  // 0-7
+}
+
+message ActionCarry {
+  string carried_sprite_id = 1;
+}
+
+message ActionThrow {
+  int32 cell_id = 1;
+}
+
+message ActionUncarry {
+  string sprite_id = 1;
+  int32  cell_id = 2;
+}
+
+message ActionDamage {
+  string sprite_id = 1;
+  int32  amount = 2;
+  int32  element = 3;  // Element enum
+}
+
+message ActionAPChange {
+  string sprite_id = 1;
+  int32  delta = 2;       // Can be negative
+  int32  used = 3;        // Amount used (for AP spent)
+}
+
+message ActionMPChange {
+  string sprite_id = 1;
+  int32  delta = 2;
+}
+
+message ActionDeath {
+  string sprite_id = 1;
+}
+
+message ActionReduceDamage {
+  string sprite_id = 1;
+  int32  amount = 2;
+}
+
+message ActionReturnSpell {
+  string sprite_id = 1;
+  bool   success = 2;
+}
+
+message ActionReturnDamage {
+  string sprite_id = 1;
+  int32  amount = 2;
+}
+
+message ActionStealGold {
+  string sprite_id = 1;
+  int32  amount = 2;
+}
+
+message ActionRemoveEffects {
+  string target_id = 1;
+}
+
+message ActionSummon {
+  SpriteMovementEntry sprite_data = 1;  // Full sprite data for summoned entity
+  int32               cell_id = 2;
+}
+
+message ActionSpellLaunch {
+  int32  spell_id = 1;
+  int32  cell_id = 2;
+  int32  element_id = 3;
+  int32  param3 = 4;
+  int32  param4 = 5;
+  string animation = 6;
+  int32  custom_sprite = 7;    // -1 = default
+  bool   front_of_sprite = 8;
+}
+
+message ActionCriticalHit {
+  string raw_data = 1;
+}
+
+message ActionCriticalMiss {
+  string raw_data = 1;
+}
+
+message ActionCloseCombat {
+  string raw_data = 1;
+}
+
+message ActionStateChange {
+  string sprite_id = 1;
+  int32  state_id = 2;
+  bool   active = 3;      // true=add state, false=remove state
+}
+
+message ActionEffectApply {
+  string raw_data = 1;
+}
+
+message ActionObjectFrameChange {
+  int32 object_id = 1;
+  int32 frame = 2;
+}
+
+message ActionVisualEffect {
+  int32  cell_id = 1;
+  int32  spell_id = 2;
+  int32  spell_level = 3;
+  int32  anim_id = 4;
+  int32  level = 5;
+  bool   centered = 6;     // true=208 (cell center), false=228 (sprite)
+}
+
+message ActionChallenge {
+  int32  challenge_id = 1;
+  string sprite_id = 2;
+  int32  action_subtype = 3; // 900=proposal, 901=accept, 902=refuse, 903=error
+}
+
+message ActionInvisibility {
+  string sprite_id = 1;
+  int32  turns = 2;
+  int32  visibility = 3;
+}
+
+message ActionGlyph {
+  string sprite_id = 1;
+  int32  cell_id = 2;
+  int32  param1 = 3;
+  int32  param2 = 4;
+  int32  param3 = 5;
+  int32  param4 = 6;
+  int32  param5 = 7;
+}
+
+message ActionCinematic {
+  string file = 1;
+  string background = 2;
+  string banner = 3;
+  string npc = 4;
+  int32  frame_to_start = 5;
+  bool   can_cancel = 6;
+  string monster = 7;
+}
+
+// --- Turn messages ---
+
+// GTS - Turn start
+message GameTurnStart {
+  string sprite_id = 1;
+  int32  time_ms = 2;          // Turn time in milliseconds
+  int32  table_turn_num = 3;   // Turn number in sequence
+  bool   passive_turn = 4;     // Spells don't refresh
+}
+
+// GTF - Turn finish
+message GameTurnFinish {
+  string sprite_id = 1;
+}
+
+// GTL - Turn list (turn order)
+message GameTurnList {
+  repeated string sprite_ids = 1;
+}
+
+// GTM - Turn middle state update
+message GameTurnMiddle {
+  repeated TurnMiddleEntry entries = 1;
+}
+
+message TurnMiddleEntry {
+  string sprite_id = 1;
+  bool   is_dead = 2;
+  int32  lp = 3;
+  int32  ap = 4;
+  int32  mp = 5;
+  int32  cell_num = 6;   // -1 = no change (NaN in original)
+  int32  lp_max = 7;
+}
+
+// GTR - Turn ready request
+message GameTurnReady {
+  string sprite_id = 1;
+}
+
+// GX - Extra clip
+message GameExtraClip {
+  string raw_data = 1;
+}
+
+// Go - Fight option
+message GameFightOption {
+  string raw_data = 1;
+}
+
+// GO - Game over
+message GameOver {}
+
+// Gf - Flag set
+message GameFlag {
+  string sprite_id = 1;
+  int32  cell_id = 2;
+}
+
+// GIC - Players coordinates
+message GamePlayersCoordinates {
+  string raw_data = 1;
+}
+
+// GIE - Effect on map
+message GameEffect {
+  string raw_data = 1;
+}
+
+// GIe - Clear all effects
+message GameClearAllEffects {
+  string raw_data = 1;
+}
+
+// GIP - PvP info
+message GamePvpInfo {
+  string raw_data = 1;
+}
+
+// GIh - Hunt infos
+message GameHuntInfos {
+  string raw_data = 1;
+}
+
+// Gc - Challenge info
+message GameChallenge {
+  string raw_data = 1;
+}
+
+// Gt - Team info
+message GameTeam {
+  string raw_data = 1;
+}
+
+// GV - Leave game
+message GameLeave {
+  string raw_data = 1;
+}
+
+// Gd - Fight challenge update
+message GameFightChallengeUpdate {
+  enum UpdateType {
+    UPDATE_UNSPECIFIED = 0;
+    COMPLETED = 1;    // GdK
+    FAILED = 2;       // GdO
+  }
+  UpdateType type = 1;
+  string raw_data = 2;
+}
+
+// ============================================================================
+// CLIENT -> SERVER GAME MESSAGES
+// ============================================================================
+
+// Client sends GC<type>
+message GameCreateRequest {
+  int32 type = 1;  // 1=solo
+}
+
+// Client sends GQ or GQ<spriteId>
+message GameLeaveRequest {
+  string sprite_id = 1;  // Empty = leave own fight
+}
+
+// Client sends Gp<cellNum>
+message GameSetPosition {
+  int32 cell_num = 1;
+}
+
+// Client sends GR<0/1>
+message GameSetReady {
+  bool ready = 1;
+}
+
+// Client sends GD or GD<mapId>
+message GameGetMapData {
+  int32 map_id = 1;  // 0 = current map
+}
+
+// Client sends GI, Gi, or GІ
+message GameGetExtraInfo {
+  bool include_machine_state = 1;
+  bool real_machine = 2;
+}
+
+// Client sends Gt
+message GameTurnEnd {}
+
+// Client sends GT or GT<spriteId>
+message GameTurnOk {
+  string sprite_id = 1;
+}
+
+// Client sends GP+, GP-, GP*
+message GamePvpMode {
+  enum Mode {
+    MODE_UNSPECIFIED = 0;
+    ENABLE = 1;   // GP+
+    DISABLE = 2;  // GP-
+    ASK_DISABLE = 3;  // GP*
+  }
+  Mode mode = 1;
+}
+
+// Client sends GF
+message GameFreeSoul {}
+
+// Client sends Gf<cellId>
+message GameSetFlag {
+  int32 cell_id = 1;
+}
+
+// Client sends Gdi<challengeId>
+message GameShowFightChallenge {
+  int32 challenge_id = 1;
+}
+
+// Client sends GA<actionType>;<params...>
+message GameActionRequest {
+  int32  action_type = 1;
+  string params = 2;  // Semicolon-separated parameters
+}
+
+// Client sends GKK<actionId> (ACK) or GKE<actionId>|<params> (cancel)
+message GameActionAck {
+  bool   is_ack = 1;       // true = GKK, false = GKE
+  int32  action_id = 2;
+  string cancel_params = 3; // Only for GKE
+}

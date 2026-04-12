@@ -197,7 +197,9 @@ export default function MapRenderer({ onReady, onProgress }: MapRendererProps) {
   useEffect(() => {
     const parent = containerRef.current;
     if (!parent || !pixiApp) return;
-    const canvas = parent.querySelector("canvas");
+    // Only target the main game canvas (direct child) — not nested canvases
+    // like the Minimap inside the banner, which would collapse canvasRect.
+    const canvas = parent.querySelector<HTMLCanvasElement>(":scope > canvas");
     if (!canvas) return;
 
     function sync() {
@@ -262,12 +264,12 @@ export default function MapRenderer({ onReady, onProgress }: MapRendererProps) {
         .map-renderer {
           flex: 1;
           position: relative;
-          background: #1a1a1a;
+          background: #000;
           overflow: hidden;
           width: 100%;
           height: 100%;
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           justify-content: center;
         }
         .map-renderer canvas {

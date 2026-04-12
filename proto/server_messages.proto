@@ -1,0 +1,358 @@
+syntax = "proto3";
+
+package dofus;
+
+option go_package = "dofus/proto";
+
+import "account.proto";
+import "game.proto";
+import "exchange.proto";
+import "items.proto";
+import "spells.proto";
+import "social.proto";
+import "chat.proto";
+import "world.proto";
+import "misc.proto";
+import "mount.proto";
+
+// ============================================================================
+// SERVER -> CLIENT MESSAGE WRAPPER
+// All server-originated messages are wrapped in this envelope.
+// ============================================================================
+
+message DofusMessage {
+  // Original 2-char (or longer) message identifier, e.g. "GJ", "As", "ER1"
+  string message_id = 1;
+
+  oneof payload {
+    // --- Connection / Handshake (H) ---
+    HandshakeConnectionKey       handshake_connection_key       = 10;  // HC
+    HandshakeTelemetry           handshake_telemetry            = 11;  // HT
+    HandshakeGameServer          handshake_game_server          = 12;  // HG
+    HandshakeCharacterSwitch     handshake_character_switch     = 13;  // HS
+
+    // --- Account (A) ---
+    AccountLoginResponse         account_login                  = 20;  // Al
+    AccountCommunity             account_community              = 21;  // Ac
+    AccountDofusPseudo           account_dofus_pseudo           = 22;  // Ad
+    AccountCharactersList        account_characters_list        = 23;  // AL
+    AccountServersList           account_servers_list           = 24;  // Ax
+    AccountCharacterAdd          account_character_add          = 25;  // AA
+    AccountTicketResponse        account_ticket_response        = 26;  // AT
+    AccountSelectServer          account_select_server          = 27;  // AX
+    AccountSelectServerMinimal   account_select_server_minimal  = 28;  // AZ
+    AccountCharacterSelected     account_character_selected     = 29;  // AS
+    AccountStats                 account_stats                  = 30;  // As
+    AccountNewLevel              account_new_level              = 31;  // AN
+    AccountRestrictions          account_restrictions           = 32;  // AR
+    AccountHosts                 account_hosts                  = 33;  // AH
+    AccountRescue                account_rescue                 = 34;  // Ar
+    AccountGiftsList             account_gifts_list             = 35;  // Ag
+    AccountGiftStored            account_gift_stored            = 36;  // AG
+    AccountQueue                 account_queue                  = 37;  // Aq
+    AccountNewQueue              account_new_queue              = 38;  // Af
+    AccountRegionalVersion       account_regional_version       = 39;  // AV
+    AccountCharacterNameGenerated account_name_generated        = 40;  // AP
+    AccountKey                   account_key                    = 41;  // AK
+    AccountSecretQuestion        account_secret_question        = 42;  // AQ
+    AccountCharacterDelete       account_character_delete       = 43;  // AD
+    AccountCharacterMigration    account_character_migration    = 44;  // AM
+    AccountFriendServerList      account_friend_server_list     = 45;  // AF
+    AccountEditPlayer            account_edit_player            = 46;  // AE
+    AccountMiniClipInfo          account_miniclip_info          = 47;  // Am
+
+    // --- Game (G) ---
+    GameCreate                   game_create                    = 100; // GC
+    GameJoin                     game_join                      = 101; // GJ
+    GamePositionStart            game_position_start            = 102; // GP
+    GameReady                    game_ready                     = 103; // GR
+    GameStartToPlay              game_start_to_play             = 104; // GS
+    GameEnd                      game_end                       = 105; // GE
+    GameMovement                 game_movement                  = 106; // GM
+    GameMapData                  game_map_data                  = 107; // GDM
+    GameMapLoaded                game_map_loaded                = 108; // GDK
+    GameCellData                 game_cell_data                 = 109; // GDC
+    GameZoneData                 game_zone_data                 = 110; // GDZ
+    GameCellObject               game_cell_object               = 111; // GDO
+    GameFrameObject2             game_frame_object2             = 112; // GDF
+    GameFrameObjectExternal      game_frame_object_external     = 113; // GDE
+    GameActionsStart             game_actions_start             = 114; // GAS
+    GameActionsFinish            game_actions_finish            = 115; // GAF
+    GameAction                   game_action                    = 116; // GA
+    GameTurnStart                game_turn_start                = 117; // GTS
+    GameTurnFinish               game_turn_finish               = 118; // GTF
+    GameTurnList                 game_turn_list                 = 119; // GTL
+    GameTurnMiddle               game_turn_middle               = 120; // GTM
+    GameTurnReady                game_turn_ready                = 121; // GTR
+    GameExtraClip                game_extra_clip                = 122; // GX
+    GameFightOption              game_fight_option              = 123; // Go
+    GameOver                     game_over                      = 124; // GO
+    GameFlag                     game_flag                      = 125; // Gf
+    GamePlayersCoordinates       game_players_coordinates       = 126; // GIC
+    GameEffect                   game_effect                    = 127; // GIE
+    GameClearAllEffects          game_clear_all_effects         = 128; // GIe
+    GamePvpInfo                  game_pvp_info                  = 129; // GIP
+    GameHuntInfos                game_hunt_infos                = 130; // GIh
+    GameChallenge                game_challenge                 = 131; // Gc
+    GameTeam                     game_team                      = 132; // Gt
+    GameLeave                    game_leave                     = 133; // GV
+    GameFightChallengeUpdate     game_fight_challenge_update    = 134; // Gd
+
+    // --- Chat (c/B) ---
+    ChatMessage                  chat_message                   = 200; // cM
+    ChatServerMessage            chat_server_message            = 201; // cs
+    ChatSmiley                   chat_smiley                    = 202; // cS
+    ChatSubscribeChannel         chat_subscribe_channel         = 203; // cC
+
+    // --- Basics (B) ---
+    BasicsPopupMessage           basics_popup_message           = 210; // BM
+    BasicsReferenceTime          basics_reference_time          = 211; // BT
+    BasicsDate                   basics_date                    = 212; // BD
+    BasicsWhoIs                  basics_who_is                  = 213; // BW
+    BasicsSubscriberRestriction  basics_subscriber_restriction  = 214; // BP
+    BasicsFileCheck              basics_file_check              = 215; // BC
+    BasicsPing                   basics_ping                    = 216; // Bp
+    BasicsAdminResponse          basics_admin_response          = 217; // BA
+    BasicsReportInfos            basics_report_infos            = 218; // Br
+
+    // --- Spells (S) ---
+    SpellList                    spell_list                     = 300; // SL
+    SpellChangeOption            spell_change_option            = 301; // SLo
+    SpellUpgrade                 spell_upgrade                  = 302; // SU
+    SpellBoost                   spell_boost                    = 303; // SB
+    SpellForget                  spell_forget                   = 304; // SF
+    SpellMove                    spell_move                     = 305; // SM
+    SpellRemove                  spell_remove                   = 306; // SR
+    SpellCooldown                spell_cooldown                 = 307; // SC
+
+    // --- Items (O) ---
+    ItemAccessories              item_accessories               = 400; // Oa
+    ItemDrop                     item_drop                      = 401; // OD
+    ItemAdd                      item_add                       = 402; // OA
+    ItemChange                   item_change                    = 403; // OC
+    ItemRemove                   item_remove                    = 404; // OR
+    ItemQuantity                 item_quantity                  = 405; // OQ
+    ItemMovement                 item_movement                  = 406; // OM
+    ItemTool                     item_tool                      = 407; // OT
+    ItemWeight                   item_weight                    = 408; // Ow
+    ItemSet                      item_set                       = 409; // OS
+    ItemUseCondition             item_use_condition             = 410; // OK
+    ItemFound                    item_found                     = 411; // OF
+    ItemDeletion                 item_deletion                  = 412; // Od
+
+    // --- Inventory Shortcuts (Or) ---
+    InventoryShortcutAdd         inventory_shortcut_add         = 420; // OrA
+    InventoryShortcutRemove      inventory_shortcut_remove      = 421; // OrR
+
+    // --- Exchange (E) ---
+    ExchangeRequest              exchange_request               = 500; // ER
+    ExchangeCreate               exchange_create                = 501; // EC
+    ExchangeCraft                exchange_craft                 = 502; // Ec
+    ExchangeReady                exchange_ready                 = 503; // EK
+    ExchangeLeave                exchange_leave                 = 504; // EV
+    ExchangeLocalMovement        exchange_local_movement        = 505; // EM
+    ExchangeDistantMovement      exchange_distant_movement      = 506; // Em
+    ExchangeCoopMovement         exchange_coop_movement         = 507; // Er
+    ExchangePayMovement          exchange_pay_movement          = 508; // Ep
+    ExchangeStorageMovement      exchange_storage_movement      = 509; // Es
+    ExchangePlayerShopMovement   exchange_player_shop_movement  = 510; // Ei
+    ExchangePublicMode           exchange_public_mode           = 511; // EW
+    ExchangeMountStorage         exchange_mount_storage         = 512; // Ee
+    ExchangeMountPark            exchange_mount_park            = 513; // Ef
+    ExchangeMountPods            exchange_mount_pods            = 514; // Ew
+    ExchangeList                 exchange_list                  = 515; // EL
+    ExchangeSell                 exchange_sell                  = 516; // ES
+    ExchangeBuy                  exchange_buy                   = 517; // EB
+    ExchangeAskOffline           exchange_ask_offline           = 518; // Eq
+    ExchangeBigStoreTypeItems    exchange_bigstore_type_items   = 519; // EHL
+    ExchangeBigStoreMovement     exchange_bigstore_movement     = 520; // EHM
+    ExchangeBigStoreItemList     exchange_bigstore_item_list    = 521; // EHl
+    ExchangeBigStoreItemMovement exchange_bigstore_item_mov     = 522; // EHm
+    ExchangeBigStoreMiddlePrice  exchange_bigstore_middle_price = 523; // EHP
+    ExchangeBigStoreSearch       exchange_bigstore_search       = 524; // EHS
+    ExchangeCrafterList          exchange_crafter_list          = 525; // EJ
+    ExchangeCraftLoop            exchange_craft_loop            = 526; // EA
+    ExchangeCraftLoopEnd         exchange_craft_loop_end        = 527; // Ea
+
+    // --- Friends (F) ---
+    FriendsList                  friends_list                   = 600; // FL
+    FriendAdd                    friend_add                     = 601; // FA
+    FriendRemove                 friend_remove                  = 602; // FD
+    FriendSpouse                 friend_spouse                  = 603; // FS
+    FriendNotifyChange           friend_notify_change           = 604; // FO
+
+    // --- Enemies (i) ---
+    EnemiesList                  enemies_list                   = 610; // iL
+    EnemyAdd                     enemy_add                      = 611; // iA
+    EnemyRemove                  enemy_remove                   = 612; // iD
+
+    // --- Guild (g) ---
+    GuildNew                     guild_new                      = 700; // gn
+    GuildCreate                  guild_create                   = 701; // gC
+    GuildStats                   guild_stats                    = 702; // gS
+    GuildInfosGeneral            guild_infos_general            = 703; // gIG
+    GuildInfosMembers            guild_infos_members            = 704; // gIM
+    GuildInfosBoosts             guild_infos_boosts             = 705; // gIB
+    GuildInfosMountPark          guild_infos_mount_park         = 706; // gIF
+    GuildInfosTaxCollectors      guild_infos_tax_collectors     = 707; // gIT
+    GuildInfosTaxPlayers         guild_infos_tax_players        = 708; // gITP
+    GuildInfosTaxAttackers       guild_infos_tax_attackers      = 709; // gITp
+    GuildInfosHouses             guild_infos_houses             = 710; // gIH
+    GuildInfosGuildInfo          guild_infos_guild_info         = 711; // gII
+    GuildJoin                    guild_join                     = 712; // gJ
+    GuildLeave                   guild_leave                    = 713; // gV
+    GuildBan                     guild_ban                      = 714; // gK
+    GuildHireTaxCollector        guild_hire_tax_collector       = 715; // gH
+    GuildTaxCollectorAttacked    guild_tax_attacked             = 716; // gA
+    GuildTaxCollectorInfo        guild_tax_info                 = 717; // gT
+    GuildUserInterface           guild_user_interface           = 718; // gU
+    GuildRankNameChange          guild_rank_name_change         = 719; // gRE
+
+    // --- Party (P) ---
+    PartyInvite                  party_invite                   = 800; // PI
+    PartyLeader                  party_leader                   = 801; // PL
+    PartyRefuse                  party_refuse                   = 802; // PR
+    PartyAccept                  party_accept                   = 803; // PA
+    PartyCreate                  party_create                   = 804; // PC
+    PartyLeave                   party_leave                    = 805; // PV
+    PartyUpdate                  party_update                   = 806; // PU
+    PartyMovement                party_movement                 = 807; // PM
+
+    // --- Waypoints (W) ---
+    WaypointsCreate              waypoints_create               = 900; // WC
+    WaypointsLeave               waypoints_leave                = 901; // WV
+    WaypointsUseError            waypoints_use_error            = 902; // WU
+    SubwayCreate                 subway_create                  = 903; // Wc
+    SubwayLeave                  subway_leave                   = 904; // Wv
+    SubwayUseError               subway_use_error               = 905; // Wu
+    PrismCreate                  prism_create                   = 906; // Wp
+    PrismLeave                   prism_leave                    = 907; // Ww
+
+    // --- Houses (h) ---
+    HouseProperties              house_properties               = 1000; // hP
+    HouseLocked                  house_locked                   = 1001; // hX
+    HouseCreate                  house_create                   = 1002; // hC
+    HouseSell                    house_sell                     = 1003; // hS
+    HouseBuy                     house_buy                      = 1004; // hB
+    HouseLeave                   house_leave                    = 1005; // hV
+    HouseGuildInfos              house_guild_infos              = 1006; // hG
+    HouseInformations            house_informations             = 1007; // hI
+
+    // --- Storages (s) ---
+    StorageInformations          storage_informations           = 1010; // sI
+    StorageLocked                storage_locked                 = 1011; // sX
+
+    // --- Emotes (e) ---
+    EmoteUse                     emote_use                      = 1100; // eU
+    EmoteList                    emote_list                     = 1101; // eL
+    EmoteAdd                     emote_add                      = 1102; // eA
+    EmoteRemove                  emote_remove                   = 1103; // eR
+    EmoteDirection               emote_direction                = 1104; // eD
+
+    // --- Documents (d) ---
+    DocumentCreate               document_create                = 1200; // dC
+    DocumentLeave                document_leave                 = 1201; // dV
+
+    // --- Survey (z) ---
+    SurveyInfo                   survey_info                    = 1300; // zi
+    SurveyNotify                 survey_notify                  = 1301; // zn
+
+    // --- Conquest (C) ---
+    ConquestPrismInfosJoin       conquest_prism_infos_join      = 1400; // CIJ
+    ConquestPrismInfosLeave      conquest_prism_infos_leave     = 1401; // CIV
+    ConquestBonus                conquest_bonus                 = 1402; // CB
+    ConquestPrismAttacked        conquest_prism_attacked        = 1403; // CA
+    ConquestPrismSurvived        conquest_prism_survived        = 1404; // CS
+    ConquestPrismDead            conquest_prism_dead            = 1405; // CD
+    ConquestFightAddPlayer       conquest_fight_add_player      = 1406; // CP
+    ConquestFightAddEnemy        conquest_fight_add_enemy       = 1407; // Cp
+    ConquestWorldData            conquest_world_data            = 1408; // CW
+    ConquestBalance              conquest_balance               = 1409; // Cb
+    ConquestAreaAlignment        conquest_area_alignment        = 1410; // aM
+
+    // --- Subareas (a) ---
+    SubareaList                  subarea_list                   = 1500; // al
+    SubareaAlignmentModification subarea_alignment_mod          = 1501; // am
+
+    // --- Evenemential (Y) ---
+    WorldUniqueDropsStates       world_unique_drops_states      = 1600; // YD
+    DiceRollResult               dice_roll_result               = 1601; // Yd
+    TemporisPacket               temporis_packet                = 1602; // YT
+
+    // --- Specialization (Z) ---
+    SpecializationSet            specialization_set             = 1700; // ZS
+    SpecializationChange         specialization_change          = 1701; // ZC
+
+    // --- Fights (f) ---
+    FightsAutoSelect             fights_auto_select             = 1800; // fA
+    FightsCount                  fights_count                   = 1801; // fC
+    FightsList                   fights_list                    = 1802; // fL
+    FightsDetails                fights_details                 = 1803; // fD
+
+    // --- Tutorial (T) ---
+    TutorialCreate               tutorial_create                = 1900; // TC
+    TutorialShowTip              tutorial_show_tip              = 1901; // TT
+    TutorialGameBegin            tutorial_game_begin            = 1902; // TB
+    TutorialQuit                 tutorial_quit                  = 1903; // Tq
+
+    // --- Quests (Q) ---
+    QuestList                    quest_list                     = 2000; // QL
+    QuestStep                    quest_step                     = 2001; // QS
+
+    // --- TTG / Card Game (t) ---
+    TtgList                      ttg_list                       = 2100; // ts
+    TtgDates                     ttg_dates                      = 2101; // td
+    TtgAdd                       ttg_add                        = 2102; // ta
+    TtgRecyclerLoots             ttg_recycler_loots             = 2103; // tr
+    TtgCreate                    ttg_create                     = 2104; // to
+    TtgLeave                     ttg_leave                      = 2105; // tc
+    TtgOpenCollection            ttg_open_collection            = 2106; // ti
+
+    // --- Jobs (J) ---
+    JobSkills                    job_skills                     = 2200; // JS
+    JobXP                        job_xp                         = 2201; // JX
+    JobLevel                     job_level                      = 2202; // JN
+    JobRemove                    job_remove                     = 2203; // JR
+    JobOptions                   job_options                    = 2204; // JO
+
+    // --- Key (K) ---
+    KeyCreate                    key_create                     = 2300; // KC
+    KeyResponse                  key_response                   = 2301; // KK
+    KeyLeave                     key_leave                      = 2302; // KV
+
+    // --- Rapid Stuff (X) ---
+    RapidStuffCache              rapid_stuff_cache              = 2400; // xC
+
+    // --- Mod Report (m) ---
+    ModReportCreation            mod_report_creation            = 2500; // mC
+    ModReportInfos               mod_report_infos               = 2501; // mI
+    ModReportCasesList           mod_report_cases_list          = 2502; // mL
+
+    // --- Infos (I) ---
+    InfoMaps                     info_maps                      = 2600; // IM
+    InfoCompass                  info_compass                   = 2601; // IC
+    InfoCoordinatesHighlight     info_coordinates_highlight     = 2602; // IH
+    InfoMessage                  info_message                   = 2603; // Im
+    InfoQuantity                 info_quantity                  = 2604; // IQ
+    InfoObject                   info_object                    = 2605; // IO
+    InfoLifeRestoreTimer         info_life_restore_timer        = 2606; // IL
+
+    // --- Dialog (D) ---
+    DialogCustomAction           dialog_custom_action           = 2700; // DA
+    DialogCreate                 dialog_create                  = 2701; // DC
+    DialogQuestion               dialog_question                = 2702; // DQ
+    DialogLeave                  dialog_leave                   = 2703; // DV
+    DialogPause                  dialog_pause                   = 2704; // DP
+
+    // --- Server (k/M) ---
+    ServerDisconnect             server_disconnect              = 2800; // k
+    ServerMessage                server_message                 = 2801; // M
+
+    // --- Ping/Pong ---
+    PingPong                     ping_pong                      = 2900; // p/q/r
+
+    // --- Mount (R) ---
+    MountDataResponse            mount_data                     = 3000; // Re
+    MountUpdateResponse          mount_update                   = 3001; // Rp
+  }
+}

@@ -552,9 +552,12 @@ export function buildCanonicalDefinitions(
         }
       }
 
-      // Rebuild with canonical references using frame-local mapping
+      // Rebuild with canonical references using frame-local mapping.
+      // IMPORTANT: use `originalContent`, not `normalizedContent`. The latter
+      // has aggressive numeric rounding (for hashing) that would destroy
+      // gradientTransform precision in the output atlas.
       const rebuiltContent = rebuildDefinitionContent(
-        def.normalizedContent,
+        def.originalContent,
         frameMapping,
         canonicalDef.id,
         rebuildOptions

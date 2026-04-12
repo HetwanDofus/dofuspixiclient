@@ -1,0 +1,27 @@
+Preserve the original sub-pixel stroke width when subpixelStrokeWidth=false.
+
+The upstream library clamps any stroke-width below 1 to 1 and tags the path
+with vector-effect="non-scaling-stroke". That loses the original Flash twip
+width — which our downstream renderer needs to apply the Flash-twip rule
+`effective_width = max(width, 1 / resolution)`.
+
+With this patch the vector-effect tag is still added (so the renderer still
+recognizes the stroke as non-scaling), but the stored width stays at its
+original float value (e.g. 0.05 for a Flash hairline).
+
+--- a/src/Extractor/Drawer/Svg/SvgBuilder.php
++++ b/src/Extractor/Drawer/Svg/SvgBuilder.php
+@@ -121,8 +121,12 @@
+         if ($path->style->lineWidth > 0) {
+             $width = $path->style->lineWidth / 20;
+
+             if (!$this->subpixelStrokeWidth && $width < 1) {
+-                $width = 1;
++                // Preserve the original sub-pixel width (Flash stores strokes in twips).
++                // The downstream renderer honors vector-effect="non-scaling-stroke" with
++                // Flash-twip semantics: effective_width = max(width, 1 / resolution), so a
++                // hairline always renders as at least 1 screen pixel but grows when zoomed
++                // in enough that the stored width itself exceeds one screen pixel.
+                 $pathElement->addAttribute('vector-effect', 'non-scaling-stroke');
+             }
+

@@ -1,0 +1,189 @@
+syntax = "proto3";
+
+package dofus;
+
+option go_package = "dofus/proto";
+
+import "common.proto";
+
+// ============================================================================
+// ITEMS / INVENTORY PROTOCOL (O prefix)
+// ============================================================================
+
+// --- Server -> Client ---
+
+// Oa - Accessories update for a sprite
+message ItemAccessories {
+  string sprite_id = 1;
+  repeated Accessory accessories = 2;
+}
+
+// OD - Drop item response
+message ItemDrop {
+  bool success = 1;
+  string raw_data = 2;
+}
+
+// OA - Add items (inventory receive)
+// Items are separated by *, each prefixed with type char: O=item, G=gold
+message ItemAdd {
+  bool success = 1;
+  repeated ItemData items = 2;
+  int64 kama_received = 3;   // When type is G
+}
+
+// OC - Item change (stats change, quantity, etc.)
+message ItemChange {
+  bool success = 1;
+  repeated ItemData items = 2;
+}
+
+// OR - Remove item from inventory
+message ItemRemove {
+  int32 item_unic_id = 1;
+}
+
+// OQ - Quantity update
+message ItemQuantity {
+  int32 item_unic_id = 1;
+  int32 new_quantity = 2;
+}
+
+// OM - Item movement (equip/unequip)
+message ItemMovement {
+  string raw_data = 1;
+}
+
+// OT - Tool update (job tool equipped)
+message ItemTool {
+  string raw_data = 1;
+}
+
+// Ow - Weight (pods) update
+message ItemWeight {
+  int32 current_weight = 1;
+  int32 max_weight = 2;
+}
+
+// OS - Item set bonus update
+message ItemSet {
+  // Set ID and list of active items in the set
+  int32 set_id = 1;
+  repeated int32 item_ids = 2;
+  repeated ItemEffect set_effects = 3;
+}
+
+// OK - Item use condition response
+message ItemUseCondition {
+  string raw_data = 1;
+}
+
+// OF - Item found (loot notification)
+message ItemFound {
+  string raw_data = 1;
+}
+
+// Od - Item deletion confirmation
+message ItemDeletion {
+  int32 item_unic_id = 1;
+}
+
+// --- Inventory Shortcuts ---
+
+// OrA - Shortcut added
+message InventoryShortcutAdd {
+  int32 position = 1;     // Hotbar slot
+  int32 object_id = 2;    // Item template ID
+}
+
+// OrR - Shortcut removed
+message InventoryShortcutRemove {
+  int32 position = 1;
+}
+
+// ============================================================================
+// CLIENT -> SERVER ITEMS MESSAGES
+// ============================================================================
+
+// Client sends OM<itemId>|<position>|<quantity>
+message ItemMoveRequest {
+  int32 item_unic_id = 1;
+  int32 position = 2;       // Equipment slot (-1 = unequip to inventory)
+  int32 quantity = 3;        // Optional, for stackable items
+}
+
+// Client sends OD<itemId>|<quantity>
+message ItemDropRequest {
+  int32 item_unic_id = 1;
+  int32 quantity = 2;
+}
+
+// Client sends OU<itemId><spriteId><cellNum>|<quantity>
+message ItemUseRequest {
+  int32  item_unic_id = 1;
+  string sprite_id = 2;     // Optional target sprite
+  int32  cell_num = 3;      // Optional target cell
+  int32  quantity = 4;
+}
+
+// Client sends Ou<itemId>  (use item on self, lowercase variant)
+message ItemUseSelfRequest {
+  int32 item_unic_id = 1;
+}
+
+// Client sends Od<itemId>|<quantity>
+message ItemDestroyRequest {
+  int32 item_unic_id = 1;
+  int32 quantity = 2;
+}
+
+// Client sends Ox<itemId>|<position>
+message ItemDissociateRequest {
+  int32 item_unic_id = 1;
+  int32 position = 2;
+}
+
+// Client sends Os<itemId>|<position>|<skinId>
+message ItemSetSkinRequest {
+  int32 item_unic_id = 1;
+  int32 position = 2;
+  int32 skin_id = 3;
+}
+
+// Client sends Of<itemId>|<position>|<feededItemId>
+message ItemFeedRequest {
+  int32 item_unic_id = 1;
+  int32 position = 2;
+  int32 feeded_item_unic_id = 3;
+}
+
+// Client sends Ol<itemId>,<lock>,<days>
+message ItemLockRequest {
+  int32 item_unic_id = 1;
+  bool  lock = 2;
+  int32 days = 3;            // Optional lock duration
+}
+
+// Client sends OR<itemId>
+message ItemReinitializeRequest {
+  int32 item_unic_id = 1;
+}
+
+// --- Inventory Shortcut Client Messages ---
+
+// Client sends OrA<position>;<objectId>
+message InventoryShortcutAddRequest {
+  int32 position = 1;
+  int32 object_id = 2;
+}
+
+// Client sends OrM<oldPos>;<newPos>
+message InventoryShortcutMoveRequest {
+  int32 old_position = 1;
+  int32 new_position = 2;
+}
+
+// Client sends OrR<position>
+message InventoryShortcutRemoveRequest {
+  int32 position = 1;
+}

@@ -1,0 +1,343 @@
+syntax = "proto3";
+
+package dofus;
+
+option go_package = "dofus/proto";
+
+// ============================================================================
+// EXCHANGE PROTOCOL (E prefix) - Trading, crafting, shops, big store
+// ============================================================================
+
+// --- Server -> Client ---
+
+// ER - Exchange request response
+message ExchangeRequest {
+  bool   success = 1;
+  string player_id = 2;
+  string npc_id = 3;
+  int32  exchange_type = 4;   // ExchangeType enum
+}
+
+// EC - Exchange create (craft)
+message ExchangeCreate {
+  bool   success = 1;
+  string raw_data = 2;
+}
+
+// Ec - Craft result
+message ExchangeCraft {
+  bool   success = 1;
+  string raw_data = 2;
+}
+
+// EK - Exchange ready
+message ExchangeReady {
+  bool   is_ready = 1;       // charAt(0) == "1"
+  string distant_player_id = 2; // substr(1)
+}
+
+// EV - Exchange leave
+message ExchangeLeave {
+  bool success = 1;
+}
+
+// EM - Local movement in exchange
+message ExchangeLocalMovement {
+  bool   success = 1;
+  oneof movement {
+    ExchangeItemMovement item = 2;
+    ExchangeKamaMovement kama = 3;
+  }
+}
+
+// Em - Distant player movement in exchange
+message ExchangeDistantMovement {
+  bool   success = 1;
+  oneof movement {
+    ExchangeItemMovement item = 2;
+    ExchangeKamaMovement kama = 3;
+  }
+}
+
+// Er - Cooperative craft movement
+message ExchangeCoopMovement {
+  bool   success = 1;
+  oneof movement {
+    ExchangeItemMovement item = 2;
+    ExchangeKamaMovement kama = 3;
+  }
+}
+
+// Ep - Pay movement
+message ExchangePayMovement {
+  bool   success = 1;
+  oneof movement {
+    ExchangeItemMovement item = 2;
+    ExchangeKamaMovement kama = 3;
+  }
+}
+
+// Es - Storage movement
+message ExchangeStorageMovement {
+  bool   success = 1;
+  oneof movement {
+    ExchangeItemMovement item = 2;
+    ExchangeKamaMovement kama = 3;
+  }
+}
+
+// Ei - Player shop movement
+message ExchangePlayerShopMovement {
+  bool   success = 1;
+  oneof movement {
+    ExchangeItemMovement item = 2;
+    ExchangeKamaMovement kama = 3;
+  }
+}
+
+// Shared item movement sub-message
+message ExchangeItemMovement {
+  bool   add = 1;           // true = +, false = -
+  int32  item_id = 2;       // Template ID
+  int32  quantity = 3;
+  int32  unic_id = 4;       // Unique instance ID (hex decoded)
+  string effects_raw = 5;   // Compressed effects string
+  int32  price = 6;         // Price (for shop items)
+}
+
+// Shared kama movement
+message ExchangeKamaMovement {
+  int64 quantity = 1;
+}
+
+// EW - Public mode
+message ExchangePublicMode {
+  string raw_data = 1;
+}
+
+// Ee - Mount storage
+message ExchangeMountStorage {
+  string raw_data = 1;
+}
+
+// Ef - Mount park exchange
+message ExchangeMountPark {
+  string raw_data = 1;
+}
+
+// Ew - Mount pods
+message ExchangeMountPods {
+  string raw_data = 1;
+}
+
+// EL - Exchange list (crafting recipe list / replay)
+message ExchangeList {
+  string raw_data = 1;
+}
+
+// ES - Sell response
+message ExchangeSell {
+  bool success = 1;
+}
+
+// EB - Buy response
+message ExchangeBuy {
+  bool success = 1;
+}
+
+// Eq - Ask offline exchange
+message ExchangeAskOffline {
+  int32 time_remaining = 1;
+  int64 kd_value = 2;
+  int32 quantity = 3;
+}
+
+// --- Big Store messages ---
+
+// EHL - Big store type items list
+message ExchangeBigStoreTypeItems {
+  string raw_data = 1;
+}
+
+// EHM - Big store type items movement
+message ExchangeBigStoreMovement {
+  string raw_data = 1;
+}
+
+// EHl - Big store item list (specific item)
+message ExchangeBigStoreItemList {
+  string raw_data = 1;
+}
+
+// EHm - Big store items movement
+message ExchangeBigStoreItemMovement {
+  string raw_data = 1;
+}
+
+// EHP - Big store middle price
+message ExchangeBigStoreMiddlePrice {
+  int32 item_id = 1;
+  int64 average_price = 2;
+}
+
+// EHS - Big store search result
+message ExchangeBigStoreSearch {
+  string raw_data = 1;
+}
+
+// EJ - Crafter list
+message ExchangeCrafterList {
+  string raw_data = 1;
+}
+
+// EA - Craft loop
+message ExchangeCraftLoop {
+  string raw_data = 1;
+}
+
+// Ea - Craft loop end
+message ExchangeCraftLoopEnd {
+  string raw_data = 1;
+}
+
+// ============================================================================
+// CLIENT -> SERVER EXCHANGE MESSAGES
+// ============================================================================
+
+// Client sends ER<type>|<id>|<cellNum>
+message ExchangeRequestSend {
+  int32  exchange_type = 1;
+  string target_id = 2;    // NPC ID or player ID
+  int32  cell_num = 3;     // Optional cell number
+}
+
+// Client sends EA
+message ExchangeAccept {}
+
+// Client sends EK
+message ExchangeSetReady {}
+
+// Client sends EMO[+/-]<itemId>|<quantity>|<price>
+message ExchangeMoveItem {
+  bool  add = 1;            // true = +, false = -
+  int32 item_id = 2;
+  int32 quantity = 3;
+  int64 price = 4;          // Optional (for shop/store)
+}
+
+// Client sends EMG<quantity>
+message ExchangeMoveKama {
+  int64 quantity = 1;
+}
+
+// Client sends EP<garbage>O[+/-]<itemId>|<qty>|<price>
+message ExchangeMovePayItem {
+  bool  add = 1;
+  int32 item_id = 2;
+  int32 quantity = 3;
+  int64 price = 4;
+}
+
+// Client sends EP<garbage>G<quantity>
+message ExchangeMovePayKama {
+  int64 quantity = 1;
+}
+
+// Client sends ES<itemId>|<quantity>
+message ExchangeSellRequest {
+  int32 item_id = 1;
+  int32 quantity = 2;
+}
+
+// Client sends EB<itemId>|<quantity>
+message ExchangeBuyRequest {
+  int32 item_id = 1;
+  int32 quantity = 2;
+}
+
+// Client sends EV
+message ExchangeLeaveRequest {}
+
+// Client sends Eq
+message ExchangeAskOfflineRequest {}
+
+// Client sends EQ
+message ExchangeOfflineRequest {}
+
+// Client sends Es<npcId>
+message ExchangeShopRequest {
+  int32 npc_id = 1;
+}
+
+// Client sends EW[+/-]
+message ExchangeSetPublicMode {
+  bool enabled = 1;
+}
+
+// Client sends EHT<typeId>
+message ExchangeBigStoreTypeRequest {
+  int32 type_id = 1;
+}
+
+// Client sends EHl<unicId>
+message ExchangeBigStoreItemListRequest {
+  int32 unic_id = 1;
+}
+
+// Client sends EHM<monsters>
+message ExchangeBigStoreSoulListRequest {
+  string monsters = 1;
+}
+
+// Client sends EHB<itemId>|<qtyIndex>|<price>
+message ExchangeBigStoreBuyRequest {
+  int32 item_id = 1;
+  int32 quantity_index = 2;
+  int64 price = 3;
+}
+
+// Client sends EHS<type>|<unicId>
+message ExchangeBigStoreSearchRequest {
+  int32 type = 1;
+  int32 unic_id = 2;
+}
+
+// Client sends EJF<jobId>
+message ExchangeGetCrafterRequest {
+  int32 job_id = 1;
+}
+
+// Client sends EL
+message ExchangeReplayCraft {}
+
+// Client sends EMR<count>
+message ExchangeRepeatCraft {
+  int32 count = 1;
+}
+
+// Client sends EMr
+message ExchangeStopRepeatCraft {}
+
+// Client sends EHP<itemId>
+message ExchangeGetMiddlePrice {
+  int32 item_id = 1;
+}
+
+// --- Mount storage operations ---
+
+// Client sends Erp, Erg, Erc, ErC, Efp, Efg, Eff, Erf<mountId>
+message ExchangeMountOperation {
+  enum MountOp {
+    MOUNT_OP_UNSPECIFIED = 0;
+    RIDE_TO_PARK = 1;       // Erp
+    RIDE_TO_STABLE = 2;     // Erg
+    RIDE_TO_CERTIFICATE = 3; // Erc
+    CERTIFICATE_TO_RIDE = 4; // ErC
+    PARK_TO_STABLE = 5;     // Efp (free park)
+    STABLE_TO_PARK = 6;     // Efg (free stable)
+    FREE_PARK_FREE = 7;     // Eff
+    FREE_TO_RIDE = 8;       // Erf
+  }
+  MountOp operation = 1;
+  int32   mount_id = 2;
+}

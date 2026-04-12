@@ -44,7 +44,20 @@ export interface Definition {
   originalId: string;
   contentHash: string;
   canonicalId?: string;
+  /**
+   * Aggressively normalized content used only for content hashing during dedup.
+   * Numbers are rounded here to tolerate float noise when merging equivalent defs.
+   * Do NOT write this to the output — use `originalContent` instead.
+   */
   normalizedContent: string;
+  /**
+   * The full-precision content of the definition (IDs still present).
+   * This is what must be used when rebuilding the atlas output so that
+   * gradientTransform matrices and path coordinates retain their original
+   * precision. Rebuild steps (strip nested ids, rewrite refs, add canonical
+   * id) operate on this string.
+   */
+  originalContent: string;
   tagName: string;
   size: number;
   nestedRefs: string[];

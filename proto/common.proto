@@ -1,0 +1,198 @@
+syntax = "proto3";
+
+package dofus;
+
+option go_package = "dofus/proto";
+
+// ============================================================================
+// COMMON TYPES - Shared across the entire Dofus 1.29 protocol
+// ============================================================================
+// The DofusMessage (server->client) wrapper is in server_messages.proto
+// The ClientMessage (client->server) wrapper is in client_messages.proto
+
+// ============================================================================
+// COMMON SUB-MESSAGES
+// ============================================================================
+
+// Generic success/error wrapper used by many responses
+message ResultResponse {
+  bool success = 1;
+  string error_code = 2;  // Single-char error code from original protocol
+  string error_data = 3;  // Additional error information
+}
+
+// Stat entry: base, items, debuffs, boosts, additional
+message StatEntry {
+  int32 base = 1;
+  int32 items = 2;
+  int32 debuffs = 3;
+  int32 boosts = 4;
+  int32 additional = 5;  // Optional 5th field
+}
+
+// Alignment info block
+message AlignmentInfo {
+  int32 alignment = 1;      // 0=neutral, 1=bontarian, 2=brakmarian, 3=mercenary
+  int32 grade = 2;
+  int32 rank = 3;
+  int32 rank_value = 4;
+  int32 disgrace = 5;
+  bool  enabled = 6;
+  // Fake alignment (when using alignment change items)
+  int32 fake_alignment = 7;
+}
+
+// RGB color triplet (hex-encoded in original protocol)
+message CharacterColors {
+  int32 color1 = 1;  // -1 = default
+  int32 color2 = 2;
+  int32 color3 = 3;
+}
+
+// Item effect entry (hex-encoded in original: effectID#p1#p2#p3#p4)
+message ItemEffect {
+  int32  effect_type = 1;
+  int32  param1 = 2;
+  int32  param2 = 3;
+  int32  param3 = 4;
+  string param4 = 5;       // String param (dice notation, text, etc.)
+}
+
+// Full item data (parsed from ~-separated hex format)
+message ItemData {
+  int32           item_id = 1;      // Template ID (hex in original)
+  int32           unic_id = 2;      // Unique instance ID (hex in original)
+  int32           quantity = 3;     // Stack size (hex in original)
+  int32           position = 4;    // Equipment slot (-1 = inventory)
+  repeated ItemEffect effects = 5;
+  string          effects_raw = 6;  // Raw compressed effects string for passthrough
+}
+
+// Spell data (parsed from ~-separated format)
+message SpellData {
+  int32 spell_id = 1;
+  int32 level = 2;
+  int32 position = 3;  // Hotbar position (encoded via base64 compression)
+}
+
+// Guild emblem
+message GuildEmblem {
+  int32 back_id = 1;
+  int32 back_color = 2;
+  int32 symbol_id = 3;
+  int32 symbol_color = 4;
+}
+
+// Accessory entry for character appearance
+message Accessory {
+  int32 item_id = 1;      // Item template ID (hex in original)
+  int32 skin_id = 2;      // Alternate skin (optional)
+  int32 ordinal = 3;      // Slot ordinal
+}
+
+// Character restrictions bitmask (base-36 encoded in original)
+enum RestrictionFlag {
+  RESTRICTION_NONE = 0;
+  CANNOT_ASSAULT = 1;          // bit 0
+  CANNOT_CHALLENGE = 2;        // bit 1
+  CANNOT_EXCHANGE = 4;         // bit 2
+  CANNOT_ATTACK = 8;           // bit 3
+  FORCE_WALK = 16;             // bit 4
+  IS_SLOW = 32;                // bit 5
+  CANNOT_CREATURE_MODE = 64;   // bit 6
+  IS_TOMB = 128;               // bit 7
+  ADMIN_SONIC_SPEED = 256;     // bit 8
+}
+
+// Exchange types
+enum ExchangeType {
+  EXCHANGE_SHOP = 0;
+  EXCHANGE_PLAYER = 1;
+  EXCHANGE_NPC_SHOP = 2;
+  EXCHANGE_CRAFT_PLAYER = 3;
+  EXCHANGE_CRAFT_CLIENT = 4;
+  EXCHANGE_PLAYER_SHOP = 5;
+  EXCHANGE_STORAGE = 6;
+  EXCHANGE_SHOP_MODIFIER = 7;
+  EXCHANGE_TAX_COLLECTOR = 8;
+  EXCHANGE_SECURE_STORAGE = 9;
+  EXCHANGE_BIGSTORE_SELL = 10;
+  EXCHANGE_BIGSTORE_BUY = 11;
+  EXCHANGE_SECURE_CRAFT_CLIENT = 12;
+  EXCHANGE_SECURE_CRAFT_ARTISAN = 13;
+  EXCHANGE_MOUNT_PARK = 14;
+  EXCHANGE_NPC_RESURECTION = 15;
+  EXCHANGE_NPC_RESURECTION_PET = 16;
+  EXCHANGE_MOUNT_CERTIFICATE = 17;
+  EXCHANGE_RUNE_TRADE = 18;
+}
+
+// Fight types
+enum FightType {
+  FIGHT_TYPE_UNSPECIFIED = 0;
+  FIGHT_TYPE_CHALLENGE = 1;
+  FIGHT_TYPE_AGGRESSION = 2;
+  FIGHT_TYPE_PVP = 3;
+  FIGHT_TYPE_MIXED_PVM_PVP = 4;
+  FIGHT_TYPE_TAX_COLLECTOR = 5;
+  FIGHT_TYPE_PRISM = 6;
+}
+
+// Character class/breed IDs
+enum CharacterClass {
+  CLASS_UNSPECIFIED = 0;
+  CLASS_FECA = 1;
+  CLASS_OSAMODAS = 2;
+  CLASS_ENUTROF = 3;
+  CLASS_SRAM = 4;
+  CLASS_XELOR = 5;
+  CLASS_ECAFLIP = 6;
+  CLASS_ENIRIPSA = 7;
+  CLASS_IOP = 8;
+  CLASS_CRA = 9;
+  CLASS_SADIDA = 10;
+  CLASS_SACRIEUR = 11;
+  CLASS_PANDAWA = 12;
+}
+
+// Sprite types in movement messages
+enum SpriteType {
+  SPRITE_TYPE_UNSPECIFIED = 0;
+  SPRITE_TYPE_CHARACTER = 1;       // -1 in original
+  SPRITE_TYPE_MONSTER = 2;         // -2
+  SPRITE_TYPE_MONSTER_GROUP = 3;   // -3
+  SPRITE_TYPE_NPC = 4;             // -4
+  SPRITE_TYPE_OFFLINE_CHAR = 5;    // -5
+  SPRITE_TYPE_TAX_COLLECTOR = 6;   // -6
+  SPRITE_TYPE_MUTANT = 7;          // -7/-8
+  SPRITE_TYPE_PARK_MOUNT = 9;      // -9
+  SPRITE_TYPE_PRISM = 10;          // -10
+}
+
+// Chat channel types
+enum ChatChannel {
+  CHAT_CHANNEL_UNSPECIFIED = 0;
+  CHAT_CHANNEL_GENERAL = 1;       // *
+  CHAT_CHANNEL_TEAM = 2;          // #
+  CHAT_CHANNEL_GUILD = 3;         // $
+  CHAT_CHANNEL_ALIGNMENT = 4;     // %
+  CHAT_CHANNEL_RECRUITMENT = 5;   // ?
+  CHAT_CHANNEL_TRADE = 6;         // :
+  CHAT_CHANNEL_PVP = 7;           // !
+  CHAT_CHANNEL_ADVICE = 8;        // i
+  CHAT_CHANNEL_DATING = 9;        // ^
+  CHAT_CHANNEL_EVENT = 10;        // e
+  CHAT_CHANNEL_WHISPER_FROM = 11; // F
+  CHAT_CHANNEL_WHISPER_TO = 12;   // T
+  CHAT_CHANNEL_ADMIN = 13;        // @
+}
+
+// Element types for damage/effects
+enum Element {
+  ELEMENT_UNSPECIFIED = 0;
+  ELEMENT_NEUTRAL = 1;
+  ELEMENT_EARTH = 2;
+  ELEMENT_FIRE = 3;
+  ELEMENT_WATER = 4;
+  ELEMENT_AIR = 5;
+}

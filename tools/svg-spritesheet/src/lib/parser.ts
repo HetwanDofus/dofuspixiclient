@@ -469,6 +469,11 @@ function extractDefinition(
 
   const tagName = element.prop("tagName")?.toLowerCase() ?? "";
   const outerHTML = $.html(element);
+  // Full-precision content used for the final atlas output. IDs are stripped
+  // later in rebuildDefinitionContent, so we keep them here.
+  const originalContent = outerHTML;
+  // Aggressively normalized (rounded) version used only for content hashing
+  // during dedup. Never written to the atlas — `originalContent` is.
   const normalizedContent = normalizeDefinitionContent(outerHTML);
 
   // Check for base64 image content
@@ -503,6 +508,7 @@ function extractDefinition(
     originalId: id,
     contentHash: "", // Will be computed during deduplication
     normalizedContent,
+    originalContent,
     tagName,
     size: normalizedContent.length,
     nestedRefs,

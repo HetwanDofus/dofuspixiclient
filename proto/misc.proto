@@ -1,0 +1,471 @@
+syntax = "proto3";
+
+package dofus;
+
+option go_package = "dofus/proto";
+
+// ============================================================================
+// EMOTES PROTOCOL (e prefix)
+// ============================================================================
+
+// eU - Emote use response
+message EmoteUse {
+  bool   success = 1;
+  string sprite_id = 2;
+  int32  emote_id = 3;
+  int32  duration = 4;
+}
+
+// eL - Emote list (bitmask format)
+message EmoteList {
+  int32 emotes_mask1 = 1;  // First 32-bit mask
+  int32 emotes_mask2 = 2;  // Second 32-bit mask
+  // Convenience: expanded list of available emote IDs
+  repeated int32 emote_ids = 3;
+}
+
+// eA - Emote added
+message EmoteAdd {
+  int32 emote_id = 1;
+  bool  is_new = 2;
+}
+
+// eR - Emote removed
+message EmoteRemove {
+  int32 emote_id = 1;
+}
+
+// eD - Direction changed
+message EmoteDirection {
+  string sprite_id = 1;
+  int32  direction = 2;   // 0-7
+}
+
+// ============================================================================
+// DOCUMENTS PROTOCOL (d prefix)
+// ============================================================================
+
+// dC - Document create
+message DocumentCreate {
+  bool   success = 1;
+  string document_id = 2;
+}
+
+// dV - Document leave
+message DocumentLeave {}
+
+// ============================================================================
+// SURVEY PROTOCOL (z prefix)
+// ============================================================================
+
+// zi - Survey info
+message SurveyInfo {
+  int32  survey_id = 1;
+  string title = 2;
+  string description = 3;
+  repeated SurveyQuestion questions = 4;
+}
+
+message SurveyQuestion {
+  int32          question_id = 1;
+  int32          question_type = 2;
+  string         text = 3;
+  repeated string answers = 4;     // Available choices
+  int32          selected = 5;     // Previously selected answer
+}
+
+// zn - Survey notification
+message SurveyNotify {
+  bool show = 1;  // 1=show, 0=hide
+}
+
+// ============================================================================
+// EVENEMENTIAL PROTOCOL (Y prefix)
+// ============================================================================
+
+// YD - World unique drops states
+message WorldUniqueDropsStates {
+  repeated UniqueDropState drops = 1;
+}
+
+message UniqueDropState {
+  int32 drop_id = 1;
+  bool  available = 2;
+}
+
+// Yd - Dice roll result
+message DiceRollResult {
+  bool   success = 1;
+  string error_key = 2;      // When error
+  // Success fields
+  string sender_id = 3;
+  string sender_name = 4;
+  repeated int32 results = 5;
+  string channel = 6;
+}
+
+// YT - Temporis packet
+message TemporisPacket {
+  string raw_data = 1;
+}
+
+// ============================================================================
+// SPECIALIZATION PROTOCOL (Z prefix)
+// ============================================================================
+
+// ZS - Set specialization
+message SpecializationSet {
+  int32 specialization_id = 1;  // 0 = none
+}
+
+// ZC - Change specialization
+message SpecializationChange {
+  int32 specialization_id = 1;
+}
+
+// ============================================================================
+// FIGHTS PROTOCOL (f prefix) - Fight listing (not in-fight combat)
+// ============================================================================
+
+// fA - Fights auto-select
+message FightsAutoSelect {
+  string raw_data = 1;
+}
+
+// fC - Fight count
+message FightsCount {
+  int32 count = 1;  // Can be negative for delta
+}
+
+// fL - Fights list
+message FightsList {
+  repeated FightListEntry fights = 1;
+}
+
+message FightListEntry {
+  int32     fight_id = 1;
+  int64     timestamp = 2;
+  FightTeamSummary team1 = 3;
+  FightTeamSummary team2 = 4;
+}
+
+message FightTeamSummary {
+  int32 player_count = 1;
+  int32 total_level = 2;
+  int32 avg_level = 3;
+}
+
+// fD - Fight details
+message FightsDetails {
+  int32 fight_id = 1;
+  repeated FightDetailMember team1_members = 2;
+  repeated FightDetailMember team2_members = 3;
+}
+
+message FightDetailMember {
+  string character_data = 1;
+  int32  level = 2;
+  string unique_id = 3;
+}
+
+// ============================================================================
+// TUTORIAL PROTOCOL (T prefix)
+// ============================================================================
+
+// TC - Tutorial create
+message TutorialCreate {
+  int32 tutorial_id = 1;
+  int32 map_id = 2;
+}
+
+// TT - Show tip
+message TutorialShowTip {
+  int32 tip_id = 1;
+}
+
+// TB - Game begin
+message TutorialGameBegin {}
+
+// Tq - Quit tutorial
+message TutorialQuit {}
+
+// ============================================================================
+// QUESTS PROTOCOL (Q prefix)
+// ============================================================================
+
+// QL - Quest list
+message QuestList {
+  bool success = 1;
+  repeated QuestEntry quests = 2;
+}
+
+message QuestEntry {
+  int32 quest_id = 1;
+  bool  is_active = 2;
+  int32 step = 3;
+  bool  can_abandon = 4;
+  bool  can_repeat = 5;
+}
+
+// QS - Quest step info
+message QuestStep {
+  int32 quest_id = 1;
+  bool  is_active = 2;
+  bool  is_abandoned = 3;
+  int32 step_id = 4;
+  repeated QuestObjective objectives = 5;
+  repeated QuestReward rewards = 6;
+  string reward_giver = 7;
+  string dialogue = 8;
+}
+
+message QuestObjective {
+  int32 objective_id = 1;
+  bool  completed = 2;
+}
+
+message QuestReward {
+  string raw_data = 1;
+}
+
+// ============================================================================
+// TTG / CARD GAME PROTOCOL (t prefix)
+// ============================================================================
+
+// ts - TTG list
+message TtgList {
+  string raw_data = 1;
+}
+
+// td - TTG dates
+message TtgDates {
+  string raw_data = 1;
+}
+
+// ta - TTG add
+message TtgAdd {
+  string raw_data = 1;
+}
+
+// tr - Cards recycler loots
+message TtgRecyclerLoots {
+  repeated TtgLoot loots = 1;
+}
+
+message TtgLoot {
+  int32 item_id = 1;
+  int32 quantity = 2;
+}
+
+// to - TTG create
+message TtgCreate {
+  bool   success = 1;
+  string raw_data = 2;
+}
+
+// tc - TTG leave
+message TtgLeave {
+  bool success = 1;
+}
+
+// ti - Open my collection
+message TtgOpenCollection {}
+
+// ============================================================================
+// JOBS PROTOCOL (J prefix)
+// ============================================================================
+
+// JS - Job skills
+message JobSkills {
+  bool success = 1;
+  repeated JobEntry jobs = 2;
+}
+
+message JobEntry {
+  int32 job_id = 1;
+  repeated JobSkillEntry skills = 2;
+}
+
+message JobSkillEntry {
+  int32 skill_id = 1;
+  int32 level = 2;
+  int32 min_slots = 3;
+  int32 max_slots = 4;
+  string params = 5;
+}
+
+// JX - Job XP
+message JobXP {
+  bool success = 1;
+  repeated JobXPEntry entries = 2;
+}
+
+message JobXPEntry {
+  int32 job_id = 1;
+  int32 level = 2;
+  int64 xp_min = 3;
+  int64 xp_current = 4;
+  int64 xp_max = 5;
+}
+
+// JN - Job level up
+message JobLevel {
+  int32 job_id = 1;
+  int32 new_level = 2;
+}
+
+// JR - Job remove
+message JobRemove {
+  string raw_data = 1;
+}
+
+// JO - Job options
+message JobOptions {
+  int32 job_index = 1;
+  int32 option1 = 2;
+  int32 option2 = 3;
+}
+
+// ============================================================================
+// KEY PROTOCOL (K prefix)
+// ============================================================================
+
+// KC - Key dialog create
+message KeyCreate {
+  bool   success = 1;
+  int32  change_type = 2;
+  int32  slots_count = 3;
+  int32  lock_type = 4;
+}
+
+// KK - Key response
+message KeyResponse {
+  bool success = 1;
+}
+
+// KV - Key leave
+message KeyLeave {}
+
+// ============================================================================
+// RAPID STUFF PROTOCOL (X prefix)
+// ============================================================================
+
+// xC - Rapid stuff cache
+message RapidStuffCache {
+  string raw_data = 1;
+}
+
+// ============================================================================
+// MOD REPORT PROTOCOL (m prefix)
+// ============================================================================
+
+// mC - Mod report creation
+message ModReportCreation {
+  bool   success = 1;
+  string raw_data = 2;
+}
+
+// mI - Mod report infos
+message ModReportInfos {
+  string raw_data = 1;
+}
+
+// mL - Mod report cases list
+message ModReportCasesList {
+  string raw_data = 1;
+}
+
+// ============================================================================
+// CLIENT -> SERVER MISC MESSAGES
+// ============================================================================
+
+// --- Emotes ---
+message EmoteUseRequest {
+  int32 emote_id = 1;
+}
+message EmoteSetDirection {
+  int32 direction = 1;
+}
+
+// --- Tutorial ---
+message TutorialEndRequest {
+  int32 action_list_id = 1;
+  int32 cell_num = 2;        // Optional
+  int32 direction = 3;       // Optional
+}
+
+// --- Quests ---
+message QuestGetListRequest {}
+message QuestGetStepRequest {
+  int32 quest_id = 1;
+}
+
+// --- TTG ---
+message TtgLeaveRequest {}
+message TtgGetDatesRequest {
+  string target_id = 1;
+}
+message TtgShowCollectionRequest {
+  string target_name = 1;
+}
+message TtgRecycleCardsRequest {
+  repeated TtgRecycleEntry entries = 1;
+}
+message TtgRecycleEntry {
+  int32 item_id = 1;
+  int32 quantity = 2;
+}
+message TtgUpgradeCardRequest {
+  int32 card_generic_id = 1;
+}
+
+// --- Jobs ---
+message JobChangeOptionsRequest {
+  int32  job_id = 1;
+  string params = 2;
+  int32  min_slots = 3;
+}
+
+// --- Key ---
+message KeySendRequest {
+  int32  key_type = 1;
+  string key_code = 2;
+}
+message KeyLeaveRequest {}
+
+// --- Mod Report ---
+message ModReportCreateRequest {
+  string character_id = 1;
+  int32  category_id = 2;
+  bool   link_chat = 3;
+  string note = 4;
+}
+message ModReportChangeStateMultiple {
+  string raw_data = 1;
+}
+message ModReportChangeStateSingle {
+  string raw_data = 1;
+}
+message ModReportDestroyRequest {}
+
+// --- Dice ---
+message DiceRollRequest {
+  int32  dice_count = 1;
+  int32  dice_max_value = 2;
+  string channel = 3;
+}
+
+// --- Fights ---
+message FightBlockSpectatorsRequest {}
+message FightBlockJoinExceptPartyRequest {}
+message FightBlockJoinRequest {}
+message FightNeedHelpRequest {}
+message FightGetListRequest {}
+message FightGetDetailsRequest {
+  int32 fight_id = 1;
+}
+
+// --- Survey ---
+message SurveySaveRequest {
+  string data = 1;
+}

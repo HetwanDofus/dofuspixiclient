@@ -143,12 +143,12 @@ export class Engine {
       containerWidth / DISPLAY_WIDTH,
       containerHeight / FULL_HEIGHT
     );
-    // Snap to 0.02 step ("pair" float: zoom * 100 is always even). Floor: 0.02.
-    const zoom = Math.max(0.02, Math.round(rawZoom * 50) / 50);
+    // Use raw zoom so the canvas fills the container with zero gaps.
+    const zoom = Math.max(0.02, rawZoom);
 
     return {
-      width: Math.round(DISPLAY_WIDTH * zoom),
-      height: Math.round(FULL_HEIGHT * zoom),
+      width: Math.min(Math.round(DISPLAY_WIDTH * zoom), containerWidth),
+      height: Math.min(Math.round(FULL_HEIGHT * zoom), containerHeight),
       zoom,
     };
   }

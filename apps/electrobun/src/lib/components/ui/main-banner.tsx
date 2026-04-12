@@ -12,6 +12,14 @@ import { match } from "ts-pattern";
 
 import AchievementIcon from "./icons/banner/achievement";
 import { ButtonBgDown, ButtonBgUp } from "./icons/banner/button-bg";
+import {
+  ButtonChatDown,
+  ButtonChatUp,
+  ButtonEmoteDown,
+  ButtonEmoteUp,
+  ButtonSitDown,
+  ButtonSitUp,
+} from "./icons/banner/chat-header-buttons";
 import EventIcon from "./icons/banner/event";
 import FriendsIcon from "./icons/banner/friends";
 import GuildIcon from "./icons/banner/guild";
@@ -28,6 +36,7 @@ import SpellsIcon from "./icons/banner/spells";
 import StatsIcon from "./icons/banner/stats";
 import TitleIcon from "./icons/banner/title";
 import { TurnButtonDown, TurnButtonUp } from "./icons/banner/turn-button";
+import { Scrollbar } from "./scrollbar";
 
 const BANNER_ICONS = {
   stats: StatsIcon,
@@ -54,12 +63,28 @@ import { Tabs } from "@base-ui/react/tabs";
 import { cn } from "@/lib/utils";
 
 type BannerMode = "normal" | "fight";
-const MainBannerContext = createContext<{ mode: BannerMode }>({
+interface MainBannerContextValue {
+  mode: BannerMode;
+  circleExpanded: boolean;
+  setCircleExpanded: (expanded: boolean) => void;
+}
+
+const MainBannerContext = createContext<MainBannerContextValue>({
   mode: "normal",
+  circleExpanded: false,
+  setCircleExpanded: () => {},
 });
 
 function useBannerMode() {
   return useContext(MainBannerContext).mode;
+}
+
+function useCircleExpanded() {
+  return useContext(MainBannerContext).circleExpanded;
+}
+
+function useSetCircleExpanded() {
+  return useContext(MainBannerContext).setCircleExpanded;
 }
 
 const bannerVariants = cva("relative select-none", {
@@ -78,13 +103,21 @@ interface MainBannerProps extends VariantProps<typeof bannerVariants> {
 }
 
 function MainBanner({ mode = "normal", className, children }: MainBannerProps) {
+  const [circleExpanded, setCircleExpanded] = useState(false);
+
   return (
-    <MainBannerContext.Provider value={{ mode: mode ?? "normal" }}>
+    <MainBannerContext.Provider
+      value={{
+        mode: mode ?? "normal",
+        circleExpanded,
+        setCircleExpanded,
+      }}
+    >
       <div
         className={cn(
           bannerVariants({ mode }),
           "w-[calc(742px*var(--resolution-factor))]",
-          "h-[calc(124.985px*var(--resolution-factor))]",
+          "h-[calc(123.95px*var(--resolution-factor))]",
           className,
         )}
       >
@@ -93,7 +126,7 @@ function MainBanner({ mode = "normal", className, children }: MainBannerProps) {
             "absolute bg-main-banner-bg",
             "top-0",
             "w-[calc(742px*var(--resolution-factor))]",
-            "h-[calc(124.985px*var(--resolution-factor))]",
+            "h-[calc(123.95px*var(--resolution-factor))]",
           )}
         />
         <div
@@ -111,12 +144,251 @@ function MainBanner({ mode = "normal", className, children }: MainBannerProps) {
             "left-0",
             "top-[calc(104px*var(--resolution-factor))]",
             "w-[calc(415px*var(--resolution-factor))]",
-            "h-[calc(21px*var(--resolution-factor))]",
+            "h-[calc(19.95px*var(--resolution-factor))]",
           )}
         />
         {children}
       </div>
     </MainBannerContext.Provider>
+  );
+}
+
+function MainBannerChatScrollBar({ expanded = false }: { expanded?: boolean }) {
+  return (
+    <Scrollbar
+      axis="vertical"
+      className={cn(
+        "absolute",
+        "left-[calc(3px*var(--resolution-factor))]",
+        "top-[calc(20px*var(--resolution-factor))]",
+        expanded
+          ? "h-[calc(430px*var(--resolution-factor))]"
+          : "h-[calc(80px*var(--resolution-factor))]",
+      )}
+    />
+  );
+}
+
+const CHAT_FILTERS = [
+  { label: "General", colorClassName: "bg-[#009900]" },
+  { label: "Team", colorClassName: "bg-[#000000]" },
+  { label: "Party", colorClassName: "bg-[#0066ff]" },
+  { label: "Guild", colorClassName: "bg-[#663399]" },
+  { label: "Alignment", colorClassName: "bg-[#ff8400]" },
+  { label: "Trade", colorClassName: "bg-[#737373]" },
+  { label: "Recruitment", colorClassName: "bg-[#663300]" },
+  { label: "Event", colorClassName: "bg-[#a301da]" },
+] as const;
+
+function ChatFilterCheckbox({
+  colorClassName,
+  label,
+  defaultChecked = true,
+  onChange,
+}: {
+  colorClassName: string;
+  label: string;
+  defaultChecked?: boolean;
+  onChange?: (checked: boolean) => void;
+}) {
+  const [checked, setChecked] = useState(defaultChecked);
+  const id = useId();
+
+  return (
+    <label
+      htmlFor={id}
+      className={cn(
+        "relative inline-block cursor-pointer",
+        "w-[calc(12px*var(--resolution-factor))]",
+        "h-[calc(12px*var(--resolution-factor))]",
+      )}
+    >
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        aria-label={label}
+        onChange={(e) => {
+          setChecked(e.target.checked);
+          onChange?.(e.target.checked);
+        }}
+        className="sr-only"
+      />
+      <div
+        className={cn(
+          "absolute inset-0",
+          "border-[calc(1px*var(--resolution-factor))] border-[#d5cfaa]",
+          colorClassName,
+        )}
+      />
+      {checked && (
+        <svg
+          viewBox="0 0 7.1 6.95"
+          className={cn(
+            "absolute",
+            "left-[calc(2.5px*var(--resolution-factor))]",
+            "top-[calc(2.5px*var(--resolution-factor))]",
+            "w-[calc(7.1px*var(--resolution-factor))]",
+            "h-[calc(6.95px*var(--resolution-factor))]",
+          )}
+          fill="#ffffff"
+          role="img"
+        >
+          <title>Checked</title>
+          <path d="M7.1 2.35L6.9 2.75L2.9 6.75L2.5 6.95L2.3 6.9L2.25 6.9L0.15 4.75L0 4.4L0.05 2.5Q0.05 1.95 0.6 1.95L1 2.15L2.6 3.95L6.05 0.25Q6.35 0 6.5 0Q7.1 0 7.1 0.6L7.1 2.35" />
+        </svg>
+      )}
+    </label>
+  );
+}
+
+function MainBannerChatFilters() {
+  return (
+    <div
+      className={cn(
+        "absolute flex",
+        "left-[calc(237.95px*var(--resolution-factor))]",
+        "top-[calc(10px*var(--resolution-factor))]",
+        "gap-[calc(2px*var(--resolution-factor))]",
+      )}
+    >
+      {CHAT_FILTERS.map(({ label, colorClassName }) => (
+        <ChatFilterCheckbox
+          key={label}
+          label={label}
+          colorClassName={colorClassName}
+        />
+      ))}
+    </div>
+  );
+}
+
+const SMILEY_COUNT = 5 * 3;
+const EMOTE_COUNT = 12 * 3;
+
+function MainBannerChatEmotePopup() {
+  return (
+    <div
+      role="dialog"
+      aria-label="Emotes and smileys"
+      className={cn(
+        "absolute z-30",
+        "left-[calc(19px*var(--resolution-factor))]",
+        "top-[calc(-67px*var(--resolution-factor))]",
+        "w-[calc(353px*var(--resolution-factor))]",
+        "h-[calc(67px*var(--resolution-factor))]",
+      )}
+    >
+      <div
+        className={cn(
+          "absolute left-0 top-0 bg-white/70",
+          "w-[calc(353px*var(--resolution-factor))]",
+          "h-[calc(1px*var(--resolution-factor))]",
+        )}
+      />
+      <div
+        className={cn(
+          "absolute left-0 bg-white/70",
+          "top-[calc(1px*var(--resolution-factor))]",
+          "w-[calc(1px*var(--resolution-factor))]",
+          "h-[calc(66px*var(--resolution-factor))]",
+        )}
+      />
+      <div
+        className={cn(
+          "absolute bg-white/70",
+          "left-[calc(352px*var(--resolution-factor))]",
+          "top-[calc(1px*var(--resolution-factor))]",
+          "w-[calc(1px*var(--resolution-factor))]",
+          "h-[calc(66px*var(--resolution-factor))]",
+        )}
+      />
+      <div
+        className={cn(
+          "absolute bg-[#d5cfaa]/50",
+          "left-[calc(1px*var(--resolution-factor))]",
+          "top-[calc(1px*var(--resolution-factor))]",
+          "w-[calc(351px*var(--resolution-factor))]",
+          "h-[calc(66px*var(--resolution-factor))]",
+        )}
+      />
+      <div
+        className={cn(
+          "absolute grid grid-cols-5 grid-rows-3",
+          "left-[calc(4px*var(--resolution-factor))]",
+          "top-[calc(4px*var(--resolution-factor))]",
+          "w-[calc(100px*var(--resolution-factor))]",
+          "h-[calc(60px*var(--resolution-factor))]",
+        )}
+      >
+        {Array.from({ length: SMILEY_COUNT }, (_, i) => (
+          <button
+            type="button"
+            // biome-ignore lint/suspicious/noArrayIndexKey: static list
+            key={`smiley-${i}`}
+            aria-label={`Smiley ${i + 1}`}
+            className={cn(
+              "cursor-pointer border-none bg-transparent p-0",
+              "hover:bg-white/40",
+            )}
+          />
+        ))}
+      </div>
+      <div
+        className={cn(
+          "absolute bg-white/50",
+          "left-[calc(106px*var(--resolution-factor))]",
+          "top-[calc(6px*var(--resolution-factor))]",
+          "w-[calc(1px*var(--resolution-factor))]",
+          "h-[calc(56px*var(--resolution-factor))]",
+        )}
+      />
+      <div
+        className={cn(
+          "absolute grid grid-cols-12 grid-rows-3",
+          "left-[calc(109px*var(--resolution-factor))]",
+          "top-[calc(4px*var(--resolution-factor))]",
+          "w-[calc(240px*var(--resolution-factor))]",
+          "h-[calc(60px*var(--resolution-factor))]",
+        )}
+      >
+        {Array.from({ length: EMOTE_COUNT }, (_, i) => (
+          <button
+            type="button"
+            // biome-ignore lint/suspicious/noArrayIndexKey: static list
+            key={`emote-${i}`}
+            aria-label={`Emote ${i + 1}`}
+            className={cn(
+              "cursor-pointer border-none bg-transparent p-0",
+              "hover:bg-white/40",
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MainBannerChatHeaderButton({
+  className,
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "absolute cursor-pointer border-none bg-transparent p-0",
+        "top-[calc(0.1px*var(--resolution-factor))]",
+        "h-[calc(14px*var(--resolution-factor))]",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -127,18 +399,96 @@ function MainBannerChat({
   className?: string;
   children?: ReactNode;
 }) {
+  const [emoteOpen, setEmoteOpen] = useState(false);
+  const [chatExpanded, setChatExpanded] = useState(false);
+
   return (
     <div
       className={cn(
-        "absolute overflow-hidden",
+        "absolute",
         "left-[calc(0.5px*var(--resolution-factor))]",
-        "top-[calc(1px*var(--resolution-factor))]",
         "w-[calc(412px*var(--resolution-factor))]",
-        "h-[calc(103px*var(--resolution-factor))]",
+        chatExpanded
+          ? [
+              "top-[calc(-349px*var(--resolution-factor))]",
+              "h-[calc(453px*var(--resolution-factor))]",
+            ]
+          : "h-[calc(103px*var(--resolution-factor))]",
         className,
       )}
     >
-      {children}
+      <div
+        className={cn(
+          "absolute left-0 top-0 bottom-0 bg-white",
+          "w-[calc(420px*var(--resolution-factor))]",
+          "rounded-tr-[calc(10px*var(--resolution-factor))]",
+        )}
+      />
+      <div
+        className={cn(
+          "absolute left-0 bottom-0 bg-[#8c8568]",
+          "top-[calc(6px*var(--resolution-factor))]",
+          "w-[calc(415px*var(--resolution-factor))]",
+          "rounded-tr-[calc(10px*var(--resolution-factor))]",
+        )}
+      />
+      <div
+        className={cn(
+          "absolute left-0 right-0 bottom-0 bg-[#d5cfaa]",
+          "top-[calc(16px*var(--resolution-factor))]",
+          "rounded-tr-[calc(10px*var(--resolution-factor))]",
+        )}
+      />
+      <MainBannerChatHeaderButton
+        className="left-0 w-[calc(17px*var(--resolution-factor))]"
+        onClick={() => setChatExpanded((e) => !e)}
+        aria-label={chatExpanded ? "Collapse chat" : "Expand chat"}
+        aria-pressed={chatExpanded}
+      >
+        {chatExpanded ? (
+          <ButtonChatDown className="absolute inset-0 w-full h-full" />
+        ) : (
+          <ButtonChatUp className="absolute inset-0 w-full h-full" />
+        )}
+      </MainBannerChatHeaderButton>
+      <MainBannerChatHeaderButton
+        className="left-[calc(19px*var(--resolution-factor))] w-[calc(20px*var(--resolution-factor))]"
+        onClick={() => setEmoteOpen((o) => !o)}
+        aria-label="Open emotes"
+        aria-pressed={emoteOpen}
+      >
+        {emoteOpen ? (
+          <ButtonEmoteDown className="absolute inset-0 w-full h-full" />
+        ) : (
+          <ButtonEmoteUp className="absolute inset-0 w-full h-full" />
+        )}
+      </MainBannerChatHeaderButton>
+      <MainBannerChatHeaderButton
+        className="group/chatbtn-3 left-[calc(41px*var(--resolution-factor))] w-[calc(20px*var(--resolution-factor))]"
+        aria-label="Sit down"
+      >
+        <ButtonSitUp className="absolute inset-0 w-full h-full group-active/chatbtn-3:hidden" />
+        <ButtonSitDown className="absolute inset-0 w-full h-full hidden group-active/chatbtn-3:block" />
+      </MainBannerChatHeaderButton>
+      {emoteOpen && <MainBannerChatEmotePopup />}
+      <MainBannerChatFilters />
+      <MainBannerChatScrollBar expanded={chatExpanded} />
+      <div
+        className={cn(
+          "absolute overflow-hidden",
+          "left-[calc(20px*var(--resolution-factor))]",
+          "top-[calc(20px*var(--resolution-factor))]",
+          "w-[calc(330px*var(--resolution-factor))]",
+          chatExpanded
+            ? "h-[calc(430px*var(--resolution-factor))]"
+            : "h-[calc(80px*var(--resolution-factor))]",
+          "font-[Verdana,sans-serif] text-black",
+          "text-[calc(10px*var(--resolution-factor))]",
+          "leading-[calc(12px*var(--resolution-factor))]",
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -164,30 +514,68 @@ function MainBannerChatInput({
   );
 }
 
+type MainBannerCircleChildren =
+  | ReactNode
+  | ((state: { isExpanded: boolean }) => ReactNode);
+
+function circleRingArc(percent: number, cx: number, cy: number, r1: number, r2: number) {
+  if (percent <= 0) return "";
+  if (percent >= 1) {
+    return [
+      `M${cx},${cy - r2}`,
+      `A${r2},${r2} 0 1 1 ${cx - 0.001},${cy - r2}`,
+      `L${cx - 0.001},${cy - r1}`,
+      `A${r1},${r1} 0 1 0 ${cx},${cy - r1}`,
+      "Z",
+    ].join(" ");
+  }
+  const a = percent * 2 * Math.PI;
+  const large = percent > 0.5 ? 1 : 0;
+  const ex2 = cx + r2 * Math.sin(a);
+  const ey2 = cy - r2 * Math.cos(a);
+  const ex1 = cx + r1 * Math.sin(a);
+  const ey1 = cy - r1 * Math.cos(a);
+  return [
+    `M${cx},${cy - r2}`,
+    `A${r2},${r2} 0 ${large} 1 ${ex2},${ey2}`,
+    `L${ex1},${ey1}`,
+    `A${r1},${r1} 0 ${large} 0 ${cx},${cy - r1}`,
+    "Z",
+  ].join(" ");
+}
+
 function MainBannerCircle({
   className,
   children,
+  fill = 0,
+  fillColor = "#ff6600",
 }: {
   className?: string;
-  children?: ReactNode;
+  children?: MainBannerCircleChildren;
+  fill?: number;
+  fillColor?: string;
 }) {
   const mode = useBannerMode();
-  const [expanded, setExpanded] = useState(false);
+  const expanded = useCircleExpanded();
+  const setExpanded = useSetCircleExpanded();
   const isExpanded = mode === "normal" && expanded;
+  const maskId = useId();
+  const hasChildren = children !== undefined && children !== null;
+  const renderedChildren =
+    typeof children === "function" ? children({ isExpanded }) : children;
 
   return (
     <div
       role="none"
       className={cn(
-        "absolute z-10",
+        "absolute z-10 pointer-events-none",
+        "[clip-path:inset(-9999px_-9999px_calc((119px_-_117.95px)*var(--resolution-factor))_-9999px)]",
         "left-[calc(358px*var(--resolution-factor))]",
         "top-[calc(6px*var(--resolution-factor))]",
         "w-[calc(119px*var(--resolution-factor))]",
         "h-[calc(119px*var(--resolution-factor))]",
         className,
       )}
-      onMouseEnter={() => setExpanded(true)}
-      onMouseLeave={() => setExpanded(false)}
     >
       <div
         className={cn(
@@ -211,42 +599,33 @@ function MainBannerCircle({
       />
       <div
         className={cn(
-          "absolute rounded-full bg-main-banner-circle-border",
+          "absolute rounded-full box-border border-main-banner-circle-border",
           "left-0 top-0",
           "w-[calc(119px*var(--resolution-factor))]",
           "h-[calc(119px*var(--resolution-factor))]",
+          "border-[calc(4px*var(--resolution-factor))]",
         )}
       />
       <div
         className={cn(
-          "absolute rounded-full bg-main-banner-circle-bg",
+          "absolute rounded-full box-border border-main-banner-circle-bg",
           "left-[calc(4px*var(--resolution-factor))]",
           "top-[calc(4px*var(--resolution-factor))]",
           "w-[calc(111px*var(--resolution-factor))]",
           "h-[calc(111px*var(--resolution-factor))]",
+          "border-[calc(15.5px*var(--resolution-factor))]",
         )}
       />
       <div
         className={cn(
-          "absolute rounded-full bg-main-banner-circle-border",
+          "absolute rounded-full box-border border-main-banner-circle-border",
           "left-[calc(19.5px*var(--resolution-factor))]",
           "top-[calc(19.5px*var(--resolution-factor))]",
           "w-[calc(80px*var(--resolution-factor))]",
           "h-[calc(80px*var(--resolution-factor))]",
+          "border-[calc(3px*var(--resolution-factor))]",
         )}
       />
-      <div
-        className={cn(
-          "absolute rounded-full bg-main-banner-circle-viewport overflow-hidden transition-transform",
-          "left-[calc(22.5px*var(--resolution-factor))]",
-          "top-[calc(22.5px*var(--resolution-factor))]",
-          "w-[calc(74px*var(--resolution-factor))]",
-          "h-[calc(74px*var(--resolution-factor))]",
-          isExpanded && "scale-125",
-        )}
-      >
-        {children}
-      </div>
       <svg
         className={cn(
           "absolute pointer-events-none",
@@ -260,23 +639,48 @@ function MainBannerCircle({
         role="presentation"
         imageRendering="optimizeQuality"
       >
-        <line
-          x1="0.5"
-          y1="56.5"
-          x2="112.5"
-          y2="56.5"
-          stroke="white"
-          strokeWidth="1"
-        />
-        <line
-          x1="56.5"
-          y1="0.5"
-          x2="56.5"
-          y2="112.5"
-          stroke="white"
-          strokeWidth="1"
-        />
+        <defs>
+          <mask id={maskId}>
+            <circle cx="56.5" cy="56.5" r="55.5" fill="white" />
+            <circle cx="56.5" cy="56.5" r="40" fill="black" />
+          </mask>
+        </defs>
+        {fill > 0 && (
+          <path
+            d={circleRingArc(fill, 56.5, 56.5, 39, 56)}
+            fill={fillColor}
+            mask={`url(#${maskId})`}
+          />
+        )}
+        <g mask={`url(#${maskId})`} stroke="white" strokeWidth="1">
+          <line x1="0.5" y1="56.5" x2="112.5" y2="56.5" />
+          <line x1="56.5" y1="0.5" x2="56.5" y2="112.5" />
+          <line x1="16.9" y1="16.9" x2="96.1" y2="96.1" />
+          <line x1="16.9" y1="96.1" x2="96.1" y2="16.9" />
+        </g>
       </svg>
+      <div
+        className={cn(
+          "absolute rounded-full overflow-hidden",
+          !hasChildren && "bg-main-banner-circle-viewport",
+          "left-0 top-0",
+          "w-[calc(119px*var(--resolution-factor))]",
+          "h-[calc(119px*var(--resolution-factor))]",
+          isExpanded
+            ? "[clip-path:circle(calc(55.5px*var(--resolution-factor)))] [transition:clip-path_150ms_ease-out]"
+            : "[clip-path:circle(calc(37px*var(--resolution-factor)))] [transition:clip-path_150ms_ease-out_400ms]",
+        )}
+      >
+        {renderedChildren}
+      </div>
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-auto [clip-path:circle(calc(37px*var(--resolution-factor)))] bg-transparent border-none p-0 cursor-default"
+        onMouseEnter={() => setExpanded(true)}
+        onMouseLeave={() => setExpanded(false)}
+      />
     </div>
   );
 }
@@ -300,6 +704,9 @@ function MainBannerHeart({
   children?: ReactNode;
 }) {
   const clipId = useId();
+  const mode = useBannerMode();
+  const circleExpanded = useCircleExpanded();
+  const shiftUp = mode === "normal" && circleExpanded;
   const [displayState, setDisplayState] = useState<HeartDisplayState>("value");
   const fillY = 19.55 - (hp / max) * 39.1;
 
@@ -320,6 +727,8 @@ function MainBannerHeart({
         "top-[calc(-4.5px*var(--resolution-factor))]",
         "w-[calc(43.6px*var(--resolution-factor))]",
         "h-[calc(39.1px*var(--resolution-factor))]",
+        "translate-y-0 [transition:translate_300ms_ease-out_400ms]",
+        shiftUp && "-translate-y-[calc(30px*var(--resolution-factor))] [transition:translate_150ms_ease-out]",
         className,
       )}
       onClick={toggleDisplay}
@@ -527,18 +936,18 @@ function MainBannerMorePanel({
         <div
           className={cn(
             "absolute z-20 bottom-full",
-            "left-[calc(703px*var(--resolution-factor))]",
+            "left-[calc(704px*var(--resolution-factor))]",
             className,
           )}
         >
           <div
             className={cn(
               "relative bg-main-banner-bg",
-              "border-x-[3px] border-t-[3px] border-main-banner-circle-border border-b-0",
+              "border-x-[calc(2px*var(--resolution-factor))] border-t-[calc(2px*var(--resolution-factor))] border-main-banner-circle-border border-b-0",
               "rounded-t-[calc(10px*var(--resolution-factor))]",
               "flex flex-col items-center",
-              "gap-[calc(4px*var(--resolution-factor))]",
-              "px-[calc(5px*var(--resolution-factor))]",
+              "gap-[calc(2px*var(--resolution-factor))]",
+              "px-[calc(3px*var(--resolution-factor))]",
               "pt-[calc(12px*var(--resolution-factor))]",
               "pb-[calc(2px*var(--resolution-factor))]",
             )}
@@ -632,13 +1041,13 @@ function MainBannerGridTab({
     <Tabs.Tab
       className={cn(
         "cursor-pointer p-0 m-0 border-none",
-        "w-[calc(16px*var(--resolution-factor))]",
-        "h-[calc(31.5px*var(--resolution-factor))]",
-        "text-[calc(9px*var(--resolution-factor))]",
+        "w-[calc(15px*var(--resolution-factor))]",
+        "h-[calc(32px*var(--resolution-factor))]",
+        "text-[calc(10px*var(--resolution-factor))]",
         "font-[Verdana,sans-serif]",
         "[writing-mode:vertical-rl] [text-orientation:mixed]",
-        "bg-[linear-gradient(to_right,#514A3C_70%,#3d3729)] text-white font-normal",
-        "data-active:bg-[linear-gradient(to_right,#B4AC8D_70%,#9a9378)] data-active:text-[#514A3C] data-active:font-bold",
+        "bg-[#514A3C] text-white font-normal",
+        "aria-selected:w-[calc(16px*var(--resolution-factor))] aria-selected:pr-[calc(1px*var(--resolution-factor))] aria-selected:bg-[linear-gradient(to_right,#B4AC8D_70%,#9a9378)] aria-selected:text-[#514A3C] aria-selected:font-bold",
         className,
       )}
       {...props}
@@ -663,21 +1072,19 @@ function MainBannerGrid({
     <Tabs.Root
       defaultValue={defaultValue ?? tabs?.[0]?.value}
       className={cn(
-        "absolute flex items-start",
-        "left-[calc(479.5px*var(--resolution-factor))]",
+        "absolute",
+        "left-[calc(464.1px*var(--resolution-factor))]",
         "top-[calc(41px*var(--resolution-factor))]",
-        "w-[calc(245px*var(--resolution-factor))]",
+        "w-[calc(252px*var(--resolution-factor))]",
         "h-[calc(88px*var(--resolution-factor))]",
-        "pl-[calc(38.6px*var(--resolution-factor))]",
-        "pt-[calc(8px*var(--resolution-factor))]",
-        "gap-[calc(3px*var(--resolution-factor))]",
         className,
       )}
     >
       <div
         className={cn(
-          "grid grid-cols-[repeat(7,auto)]",
-          "mt-[calc(5px*var(--resolution-factor))]",
+          "absolute grid grid-cols-[repeat(7,auto)]",
+          "left-[calc(54px*var(--resolution-factor))]",
+          "top-[calc(13px*var(--resolution-factor))]",
           "gap-x-[calc(3px*var(--resolution-factor))]",
           "gap-y-[calc(4px*var(--resolution-factor))]",
         )}
@@ -685,7 +1092,13 @@ function MainBannerGrid({
         {children}
       </div>
       {tabs && (
-        <Tabs.List className="flex flex-col gap-[calc(1px*var(--resolution-factor))]">
+        <Tabs.List
+          className={cn(
+            "absolute flex flex-col",
+            "left-full",
+            "top-[calc(8.1px*var(--resolution-factor))]",
+          )}
+        >
           {tabs.map(({ value, label }) => (
             <MainBannerGridTab key={value} value={value}>
               {label}
@@ -733,12 +1146,12 @@ export {
   MainBannerChatInput,
   MainBannerCircle,
   MainBannerFightControls,
+  MainBannerGrid,
+  MainBannerGridSlot,
+  MainBannerGridTab,
   MainBannerHeart,
   MainBannerIconButton,
   MainBannerMorePanel,
   MainBannerRightPanel,
-  MainBannerGrid,
-  MainBannerGridSlot,
-  MainBannerGridTab,
   MainBannerTurnButton,
 };

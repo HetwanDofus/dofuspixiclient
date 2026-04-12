@@ -1,0 +1,17 @@
+{
+    "_hash": "7b1dd5b18bf23723ba4490a4c8515fe8378671496e74ea8854cb034594af8342",
+    "patches": {
+        "arakne/swf": [
+            {
+                "package": "arakne/swf",
+                "description": "Preserve sub-pixel stroke width (Flash-twip semantics)",
+                "url": "patches/preserve-sub-pixel-stroke-width.patch",
+                "sha256": "63227be8d056dafbec05f9feed201248a948efa1a8f86fe50ac43e7bcecea43f",
+                "depth": 1,
+                "extra": {
+                    "provenance": "root"
+                }
+            }
+        ]
+    }
+}

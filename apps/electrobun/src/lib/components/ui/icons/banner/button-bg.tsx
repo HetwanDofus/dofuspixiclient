@@ -5,18 +5,19 @@ export function ButtonBgUp({ className }: { className?: string }) {
   return (
     <svg
       className={className}
-      viewBox="0 0 26 26"
+      viewBox="0 0 24 24"
+      overflow="visible"
       fill="none"
       shapeRendering="geometricPrecision"
       imageRendering="optimizeQuality"
     >
       <title>Button</title>
-      <circle cx="13" cy="13" r="13" fill="#b14f00" />
-      <circle cx="13" cy="13" r="12" fill={`url(#${id})`} />
+      <circle cx="12" cy="12" r="12" fill="#b14f00" />
+      <circle cx="12" cy="12" r="11" fill={`url(#${id})`} />
       <defs>
         <radialGradient
           id={id}
-          gradientTransform="matrix(0.012, 0, 0, 0.012, 9, 7.9)"
+          gradientTransform="matrix(0.012, 0, 0, 0.012, 8, 6.9)"
           gradientUnits="userSpaceOnUse"
           cx="0"
           cy="0"
@@ -35,18 +36,19 @@ export function ButtonBgDown({ className }: { className?: string }) {
   return (
     <svg
       className={className}
-      viewBox="0 0 26 26"
+      viewBox="0 0 24 24"
+      overflow="visible"
       fill="none"
       shapeRendering="geometricPrecision"
       imageRendering="optimizeQuality"
     >
       <title>Button pressed</title>
-      <circle cx="13" cy="13" r="13" fill="#b14f00" />
-      <circle cx="13" cy="13" r="12" fill={`url(#${id})`} />
+      <circle cx="12" cy="12" r="12" fill="#b14f00" />
+      <circle cx="12" cy="12" r="11" fill={`url(#${id})`} />
       <defs>
         <radialGradient
           id={id}
-          gradientTransform="matrix(-0.012, 0, 0, -0.012, 17, 18.1)"
+          gradientTransform="matrix(-0.012, 0, 0, -0.012, 16, 17.1)"
           gradientUnits="userSpaceOnUse"
           cx="0"
           cy="0"

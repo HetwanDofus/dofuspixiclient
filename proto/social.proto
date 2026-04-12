@@ -1,0 +1,476 @@
+syntax = "proto3";
+
+package dofus;
+
+option go_package = "dofus/proto";
+
+import "common.proto";
+
+// ============================================================================
+// FRIENDS PROTOCOL (F prefix)
+// ============================================================================
+
+// --- Server -> Client ---
+
+// FL - Friends list
+message FriendsList {
+  bool success = 1;
+  repeated FriendEntry friends = 2;
+}
+
+message FriendEntry {
+  enum OnlineState {
+    DISCONNECTED = 0;
+    IN_SOLO = 1;    // "1"
+    IN_MULTI = 2;   // "2"
+    UNKNOWN = 3;    // "?"
+  }
+  string      account = 1;
+  OnlineState state = 2;
+  string      name = 3;
+  int32       level = 4;       // -1 if "?" (unknown)
+  int32       alignment = 5;
+  string      guild_name = 6;
+  int32       sex = 7;
+  int32       gfx_id = 8;
+  bool        has_ttg_collection = 9;
+  string      id = 10;
+}
+
+// FO - Notify online state change
+message FriendNotifyChange {
+  bool enabled = 1;  // + = enabled, - = disabled
+}
+
+// FA - Add friend response
+message FriendAdd {
+  bool   success = 1;
+  string raw_data = 2;
+}
+
+// FD - Remove friend response
+message FriendRemove {
+  bool   success = 1;
+  string raw_data = 2;
+}
+
+// FS - Spouse info
+message FriendSpouse {
+  string name = 1;
+  int32  gfx_id = 2;
+  int32  color1 = 3;
+  int32  color2 = 4;
+  int32  color3 = 5;
+  int32  map_id = 6;       // 0 or -1 = offline
+  int32  level = 7;
+  bool   is_in_fight = 8;
+  bool   is_follow = 9;
+  string id = 10;
+  int32  sex = 11;
+}
+
+// ============================================================================
+// ENEMIES PROTOCOL (i prefix)
+// ============================================================================
+
+// iL - Enemies list
+message EnemiesList {
+  bool success = 1;
+  repeated EnemyEntry enemies = 2;
+}
+
+message EnemyEntry {
+  string account = 1;
+  FriendEntry.OnlineState state = 2;
+  string name = 3;
+  int32  level = 4;
+  int32  alignment = 5;
+  string guild_name = 6;
+  int32  sex = 7;
+  int32  gfx_id = 8;
+  string id = 9;
+}
+
+// iA - Add enemy response
+message EnemyAdd {
+  bool   success = 1;
+  string raw_data = 2;
+}
+
+// iD - Remove enemy response
+message EnemyRemove {
+  bool   success = 1;
+  string raw_data = 2;
+}
+
+// ============================================================================
+// GUILD PROTOCOL (g prefix)
+// ============================================================================
+
+// gn - Guild new (prompt to create)
+message GuildNew {}
+
+// gC - Guild create response
+message GuildCreate {
+  bool   success = 1;
+  string raw_data = 2;
+}
+
+// gS - Guild stats
+message GuildStats {
+  string guild_name = 1;
+  int64  xp = 2;           // Base-36 decoded
+  int32  level = 3;        // Base-36 decoded
+  int32  max_level = 4;    // Base-36 decoded
+  int64  bank = 5;         // Base-36 decoded (kamas in bank)
+  int32  nb_members = 6;   // Base-36 decoded
+}
+
+// gIG - Guild general infos
+message GuildInfosGeneral {
+  bool   creatable = 1;
+  int64  creation_date = 2;   // Timestamp
+  int64  last_connexion = 3;  // Timestamp
+  int32  guild_level = 4;
+  int32  guild_max_level = 5;
+  int32  reserved1 = 6;
+  string reserved2 = 7;
+  string note = 8;
+}
+
+// gIM - Guild members
+message GuildInfosMembers {
+  enum Operation {
+    OPERATION_UNSPECIFIED = 0;
+    ADD = 1;     // +
+    REMOVE = 2;  // -
+  }
+  Operation operation = 1;
+  repeated GuildMember members = 2;
+}
+
+message GuildMember {
+  string id = 1;
+  string name = 2;
+  int32  level = 3;
+  int32  gfx_id = 4;
+  int32  rank = 5;
+  int64  win_xp = 6;
+  int32  percent_xp = 7;
+  int64  rights = 8;
+  int32  state = 9;           // Online state
+  int32  alignment = 10;
+  int64  last_connection = 11;
+  bool   has_ttg_collection = 12;
+  int32  color1 = 13;
+  int32  color2 = 14;
+  int32  color3 = 15;
+  string accessories = 16;
+}
+
+// gIB - Guild boosts info
+message GuildInfosBoosts {
+  int32 nb_str = 1;
+  int32 nb_int = 2;
+  int32 nb_agi = 3;
+  int32 nb_luck = 4;
+  int32 nb_vita = 5;
+  int32 nb_wis = 6;
+  int32 nb_power = 7;
+  repeated GuildSpellBoost spells = 8;
+}
+
+message GuildSpellBoost {
+  int32 spell_id = 1;
+  int32 level = 2;
+}
+
+// gIF - Guild mount park
+message GuildInfosMountPark {
+  int32 max_mounts = 1;
+  repeated GuildMountParkEntry parks = 2;
+}
+
+message GuildMountParkEntry {
+  int32 instance_id = 1;
+  int32 subarea_id = 2;
+  int32 x = 3;
+  int32 y = 4;
+  repeated GuildParkMount mounts = 5;
+}
+
+message GuildParkMount {
+  int32  mount_id = 1;
+  string mount_name = 2;
+  string owner_name = 3;
+  int32  sex = 4;
+}
+
+// gIT - Guild tax collectors
+message GuildInfosTaxCollectors {
+  enum Operation {
+    OPERATION_UNSPECIFIED = 0;
+    ADD = 1;     // +
+    REMOVE = 2;  // -
+  }
+  Operation operation = 1;
+  int32 tax_count = 2;
+  int32 tax_count_max = 3;
+  int64 hire_cost = 4;
+  repeated GuildTaxCollector collectors = 5;
+}
+
+message GuildTaxCollector {
+  int32  id = 1;           // Base-36 decoded
+  string name = 2;
+  int32  map_id = 3;       // Base-36 decoded
+  int32  state = 4;
+  int32  timer = 5;
+  int32  max_timer = 6;
+  int32  player_count = 7;
+  string caller_name = 8;
+  int64  start_date = 9;
+  string last_harvester = 10;
+  int64  last_harvest_date = 11;
+  int64  next_harvest_date = 12;
+  string my_id = 13;
+  CharacterColors colors = 14;
+}
+
+// gITP - Tax collector players
+message GuildInfosTaxPlayers {
+  enum Operation {
+    OPERATION_UNSPECIFIED = 0;
+    ADD = 1;
+    REMOVE = 2;
+  }
+  Operation operation = 1;
+  int32 tax_collector_id = 2;  // Base-36 decoded
+  repeated TaxCollectorPlayer players = 3;
+}
+
+message TaxCollectorPlayer {
+  int32  id = 1;          // Base-36 decoded
+  string name = 2;
+  int32  gfx_id = 3;
+  int32  level = 4;
+  int32  color1 = 5;      // Base-36 decoded
+  int32  color2 = 6;
+  int32  color3 = 7;
+  bool   is_priority = 8;
+}
+
+// gITp - Tax collector attackers (same structure)
+message GuildInfosTaxAttackers {
+  GuildInfosTaxPlayers.Operation operation = 1;
+  int32 tax_collector_id = 2;
+  repeated TaxCollectorPlayer attackers = 3;
+}
+
+// gIH - Guild houses
+message GuildInfosHouses {
+  string raw_data = 1;
+}
+
+// gII - General guild info
+message GuildInfosGuildInfo {
+  string raw_data = 1;
+}
+
+// gJ - Guild join requests/responses
+message GuildJoin {
+  enum JoinType {
+    JOIN_UNSPECIFIED = 0;
+    REQUEST = 1;     // gJR
+    ACCEPT = 2;      // gJr
+    REFUSE = 3;      // gJK
+    CANCEL = 4;      // gJC
+    ERROR = 5;       // gJE
+  }
+  JoinType type = 1;
+  string raw_data = 2;
+}
+
+// gV - Guild leave
+message GuildLeave {}
+
+// gK - Guild ban
+message GuildBan {
+  bool   success = 1;
+  string raw_data = 2;
+}
+
+// gH - Hire tax collector
+message GuildHireTaxCollector {
+  bool   success = 1;
+  string raw_data = 2;
+}
+
+// gA - Tax collector attacked notification
+message GuildTaxCollectorAttacked {
+  string raw_data = 1;
+}
+
+// gT - Tax collector info
+message GuildTaxCollectorInfo {
+  string raw_data = 1;
+}
+
+// gU - Guild user interface open
+message GuildUserInterface {
+  string raw_data = 1;
+}
+
+// gRE - Rank name change
+message GuildRankNameChange {
+  string raw_data = 1;
+}
+
+// ============================================================================
+// PARTY PROTOCOL (P prefix)
+// ============================================================================
+
+// PI - Party invite
+message PartyInvite {
+  bool   success = 1;
+  string inviter_name = 2;
+  string target_name = 3;
+}
+
+// PL - Party leader
+message PartyLeader {
+  string leader_id = 1;
+}
+
+// PR - Party refuse
+message PartyRefuse {
+  string raw_data = 1;
+}
+
+// PA - Party accept
+message PartyAccept {
+  string raw_data = 1;
+}
+
+// PC - Party create
+message PartyCreate {
+  bool   success = 1;
+  string raw_data = 2;
+}
+
+// PV - Party leave
+message PartyLeave {
+  string raw_data = 1;
+}
+
+// PU - Party update
+message PartyUpdate {
+  string raw_data = 1;
+}
+
+// PM - Party movement (add/remove/update members)
+message PartyMovement {
+  enum Operation {
+    OPERATION_UNSPECIFIED = 0;
+    ADD = 1;     // +
+    REMOVE = 2;  // -
+    UPDATE = 3;  // ~
+  }
+  Operation operation = 1;
+  repeated PartyMember members = 2;
+}
+
+message PartyMember {
+  string sprite_id = 1;
+  string name = 2;
+  int32  gfx_id = 3;
+  int32  color1 = 4;
+  int32  color2 = 5;
+  int32  color3 = 6;
+  string accessories = 7;
+  int32  life_percent = 8;
+  int32  level = 9;
+  int32  initiative = 10;
+  int32  prospection = 11;
+  int32  side = 12;         // Alignment side
+}
+
+// ============================================================================
+// CLIENT -> SERVER SOCIAL MESSAGES
+// ============================================================================
+
+// --- Friends ---
+message FriendAddRequest {
+  string name = 1;
+}
+message FriendRemoveRequest {
+  string name = 1;
+}
+message FriendGetListRequest {}
+message FriendJoinRequest {
+  string name = 1;
+}
+message FriendCompassRequest {
+  bool enabled = 1;  // + or -
+}
+
+// --- Enemies ---
+message EnemyAddRequest {
+  string name = 1;
+}
+message EnemyRemoveRequest {
+  string name = 1;
+}
+message EnemyGetListRequest {}
+
+// --- Guild ---
+// Client sends gC<backId>|<backColor>|<symbolId>|<symbolColor>|<name>
+message GuildCreateRequest {
+  int32  back_id = 1;
+  int32  back_color = 2;
+  int32  symbol_id = 3;
+  int32  symbol_color = 4;
+  string name = 5;
+}
+message GuildLeaveRequest {}
+message GuildGetInfosRequest {
+  string info_type = 1; // G, M, B, F, T, H, I
+}
+message GuildBanRequest {
+  string member_id = 1;
+}
+message GuildHireTaxCollectorRequest {}
+message GuildSetMemberRightsRequest {
+  string member_id = 1;
+  int64  rights = 2;
+}
+message GuildSetMemberXPRequest {
+  string member_id = 1;
+  int32  percent = 2;
+}
+message GuildSetRankNameRequest {
+  int32  rank = 1;
+  string name = 2;
+}
+message GuildBoostRequest {
+  int32 boost_type = 1;  // Stat ID or spell ID
+}
+
+// --- Party ---
+message PartyInviteRequest {
+  string name = 1;
+}
+message PartyAcceptRequest {}
+message PartyRefuseRequest {}
+message PartyLeaveRequest {
+  string sprite_id = 1;  // Optional, empty = self
+}
+message PartyFollowRequest {
+  bool   enabled = 1;
+  string sprite_id = 2;
+}
+message PartyFollowAllRequest {
+  bool   enabled = 1;
+  string sprite_id = 2;
+}
+message PartyWhereRequest {}

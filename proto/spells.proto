@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package dofus;
+
+option go_package = "dofus/proto";
+
+import "common.proto";
+
+// ============================================================================
+// SPELLS PROTOCOL (S prefix)
+// ============================================================================
+
+// --- Server -> Client ---
+
+// SL - Spell list
+message SpellList {
+  repeated SpellData spells = 1;
+}
+
+// SLo - Change spell option
+message SpellChangeOption {
+  bool can_use_see_all_spell = 1;  // + = true, - = false
+}
+
+// SU - Spell upgrade response
+message SpellUpgrade {
+  bool  success = 1;
+  int32 spell_id = 2;
+  int32 new_level = 3;
+}
+
+// SB - Spell boost
+message SpellBoost {
+  int32          spell_id = 1;
+  repeated int32 modifiers = 2;   // Modifier IDs (comma-separated in original)
+  int32          boost_value = 3;
+}
+
+// SF - Spell forget UI
+message SpellForget {
+  bool show_ui = 1;  // + = show, - = hide
+}
+
+// SM - Spell moved
+message SpellMove {
+  int32 old_position = 1;
+  int32 new_position = 2;
+}
+
+// SR - Spell removed
+message SpellRemove {
+  int32 position = 1;
+}
+
+// SC - Spell cooldown
+message SpellCooldown {
+  int32 spell_id = 1;
+  int32 remaining_turns = 2;
+}
+
+// ============================================================================
+// CLIENT -> SERVER SPELLS MESSAGES
+// ============================================================================
+
+// Client sends SU<spellId>
+message SpellUpgradeRequest {
+  int32 spell_id = 1;
+}
+
+// Client sends SF<spellId>
+message SpellForgetRequest {
+  int32 spell_id = 1;
+}
+
+// Client sends SM<spellId>|<newSlot>
+message SpellMoveRequest {
+  int32 spell_id = 1;
+  int32 new_slot = 2;
+}

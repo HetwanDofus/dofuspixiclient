@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+package dofus;
+
+option go_package = "dofus/proto";
+
+import "common.proto";
+
+// ============================================================================
+// MOUNT DATA - Used across exchange, guild, and game protocols
+// ============================================================================
+
+// Full mount data (from datacenter/Mount.as)
+message MountData {
+  int32  id = 1;               // Mount instance ID
+  int32  model_id = 2;         // Template model ID
+  int32  gfx_id = 3;           // Chevauchor graphics ID
+  string name = 4;
+  int32  pods = 5;             // Carrying capacity
+  int32  level = 6;
+  int32  maturity = 7;
+  int32  maturity_max = 8;
+  int32  sex = 9;              // 0=male, 1=female
+  bool   wild = 10;
+  bool   fecondable = 11;      // Can reproduce
+  int32  fecondation = 12;     // Pregnancy stage (days)
+  bool   new_born = 13;
+  bool   mountable = 14;       // Can be ridden
+
+  // Custom colors
+  int32  color1 = 15;
+  int32  color2 = 16;
+  int32  color3 = 17;
+  bool   use_custom_color = 18;
+
+  string owner_name = 19;
+
+  // Abilities & Effects
+  repeated int32 capacities = 20;
+  repeated ItemEffect effects = 21;
+  string effects_raw = 22;     // Compressed effects for passthrough
+
+  // XP
+  int64  xp = 23;
+  int64  xp_min = 24;
+  int64  xp_max = 25;
+
+  // Energy
+  int32  energy = 26;
+  int32  energy_max = 27;
+
+  // Serenity
+  int32  serenity = 28;
+  int32  serenity_max = 29;
+
+  // Stamina
+  int32  stamina = 30;
+  int32  stamina_max = 31;
+
+  // Love
+  int32  love = 32;
+  int32  love_max = 33;
+
+  // Ancestors
+  repeated MountAncestor ancestors = 34;
+}
+
+message MountAncestor {
+  int32 generation = 1;
+  int32 model_id = 2;
+  string name = 3;
+}
+
+// Mount riding state update (sent within GM movement messages)
+message MountRidingState {
+  int32  mount_model_id = 1;
+  int32  mount_gfx_id = 2;
+  int32  color1 = 3;
+  int32  color2 = 4;
+  int32  color3 = 5;
+  bool   use_custom_color = 6;
+  bool   is_riding = 7;
+}
+
+// Client sends Re (ride/dismount)
+message MountRideRequest {
+  // No fields - toggles riding state
+}
+
+// Client sends Rn<name>
+message MountRenameRequest {
+  string name = 1;
+}
+
+// Client sends Rp (castrate)
+message MountCastrateRequest {}
+
+// Client sends Rr (release to wild)
+message MountReleaseRequest {}
+
+// Client sends Rf<foodItemUnicId>
+message MountFeedRequest {
+  int32 food_item_unic_id = 1;
+}
+
+// Client sends Rs (get mount data)
+message MountGetDataRequest {}
+
+// Server sends Re<mountData> - Full mount data dump
+message MountDataResponse {
+  MountData mount = 1;
+}
+
+// Server sends Rp - Mount data update (after castration etc.)
+message MountUpdateResponse {
+  MountData mount = 1;
+}
