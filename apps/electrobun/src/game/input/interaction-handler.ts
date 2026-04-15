@@ -1,0 +1,330 @@
+import {
+  ColorMatrixFilter,
+  type Container,
+  type FederatedPointerEvent,
+} from "pixi.js";
+
+import type { PickingSystem } from "@/game/render/picking-system";
+import type { PickResult } from "@/game/types/picking";
+import {
+  DISPLAY_HEIGHT,
+  DISPLAY_WIDTH,
+  ZOOM_LEVELS,
+} from "@/game/constants/battlefield";
+
+export interface InteractionHandlerConfig {
+  mapContainer: Container;
+  pickingSystem: PickingSystem;
+  canvas: HTMLCanvasElement;
+  onZoomChange?: (zoom: number, index: number) => void;
+  onPan?: (dx: number, dy: number) => void;
+  onObjectClick?: (result: PickResult) => void;
+  onObjectHover?: (result: PickResult | null) => void;
+  onGroundClick?: (mapX: number, mapY: number) => void;
+}
+
+export class InteractionHandler {
+  private mapContainer: Container;
+  private pickingSystem: PickingSystem;
+  private canvas: HTMLCanvasElement;
+
+  private isDragging = false;
+  private dragDistance = 0;
+  private pointerDownPos = { x: 0, y: 0 };
+  private lastPointerPos = { x: 0, y: 0 };
+
+  private baseZoom = 1;
+  private currentZoom = 1;
+  private currentZoomIndex = 0;
+
+  private hoveredObject: PickResult | null = null;
+  private _enabled = true;
+  private lastScreenX = -1;
+  private lastScreenY = -1;
+  private mouseInCanvas = false;
+
+  private onZoomChange?: (zoom: number, index: number) => void;
+  private onPan?: (dx: number, dy: number) => void;
+  private onObjectClick?: (result: PickResult) => void;
+  private onObjectHover?: (result: PickResult | null) => void;
+  private onGroundClick?: (mapX: number, mapY: number) => void;
+
+  constructor(config: InteractionHandlerConfig) {
+    this.mapContainer = config.mapContainer;
+    this.pickingSystem = config.pickingSystem;
+    this.canvas = config.canvas;
+    this.onZoomChange = config.onZoomChange;
+    this.onPan = config.onPan;
+    this.onObjectClick = config.onObjectClick;
+    this.onObjectHover = config.onObjectHover;
+    this.onGroundClick = config.onGroundClick;
+  }
+
+  init(): void {
+    this.canvas.addEventListener("wheel", (e) => this.handleWheel(e));
+    this.canvas.addEventListener("pointerenter", () => {
+      this.mouseInCanvas = true;
+    });
+    this.canvas.addEventListener("pointerleave", () => {
+      this.mouseInCanvas = false;
+      this.updateHover(null);
+    });
+  }
+
+  setBaseZoom(zoom: number): void {
+    this.baseZoom = zoom;
+    this.currentZoom = this.baseZoom * ZOOM_LEVELS[this.currentZoomIndex];
+    this.mapContainer.scale.set(this.currentZoom);
+    this.clampCameraToBounds();
+  }
+
+  getZoom(): number {
+    return this.currentZoom;
+  }
+
+  getZoomIndex(): number {
+    return this.currentZoomIndex;
+  }
+
+  getBaseZoom(): number {
+    return this.baseZoom;
+  }
+
+  handlePointerDown(e: FederatedPointerEvent): void {
+    const pickResult = this.pickingSystem.pick(
+      e.global.x,
+      e.global.y,
+      this.mapContainer,
+      true
+    );
+
+    if (pickResult) {
+      this.onObjectClick?.(pickResult);
+      return;
+    }
+
+    this.isDragging = true;
+    this.dragDistance = 0;
+    this.pointerDownPos = { x: e.global.x, y: e.global.y };
+    this.lastPointerPos = { x: e.global.x, y: e.global.y };
+  }
+
+  handlePointerMove(e: FederatedPointerEvent): void {
+    this.lastScreenX = e.global.x;
+    this.lastScreenY = e.global.y;
+
+    if (!this.isDragging) {
+      const pickResult = this.pickingSystem.pick(
+        e.global.x,
+        e.global.y,
+        this.mapContainer,
+        false
+      );
+      this.updateHover(pickResult);
+      return;
+    }
+
+    const dx = e.global.x - this.lastPointerPos.x;
+    const dy = e.global.y - this.lastPointerPos.y;
+
+    this.dragDistance += Math.abs(dx) + Math.abs(dy);
+
+    this.mapContainer.x += dx;
+    this.mapContainer.y += dy;
+
+    this.lastPointerPos = { x: e.global.x, y: e.global.y };
+    this.clampCameraToBounds();
+    this.pickingSystem.markDirty();
+
+    this.onPan?.(dx, dy);
+  }
+
+  handlePointerUp(): void {
+    if (this.isDragging && this.dragDistance < 5) {
+      // Click detected (not a drag) — convert to map-local coordinates
+      const zoom = this.mapContainer.scale.x || 1;
+      const mapX = (this.pointerDownPos.x - this.mapContainer.x) / zoom;
+      const mapY = (this.pointerDownPos.y - this.mapContainer.y) / zoom;
+      this.onGroundClick?.(mapX, mapY);
+    }
+
+    this.isDragging = false;
+  }
+
+  set enabled(value: boolean) {
+    this._enabled = value;
+  }
+
+  private handleWheel(e: WheelEvent): void {
+    e.preventDefault();
+
+    if (!this._enabled) {
+      return;
+    }
+
+    const rect = this.canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const direction = e.deltaY < 0 ? 1 : -1;
+    this.stepZoom(direction, mouseX, mouseY);
+  }
+
+  private stepZoom(
+    direction: number,
+    anchorX?: number,
+    anchorY?: number
+  ): void {
+    const newIndex = Math.max(
+      0,
+      Math.min(ZOOM_LEVELS.length - 1, this.currentZoomIndex + direction)
+    );
+
+    if (newIndex === this.currentZoomIndex) {
+      return;
+    }
+
+    this.currentZoomIndex = newIndex;
+    this.pickingSystem.markDirty();
+
+    const newMultiplier = ZOOM_LEVELS[newIndex];
+    this.setZoom(newMultiplier, anchorX, anchorY);
+
+    this.onZoomChange?.(this.currentZoom, this.currentZoomIndex);
+  }
+
+  setZoom(multiplier: number, anchorX?: number, anchorY?: number): void {
+    const targetZoom = this.baseZoom * multiplier;
+
+    if (targetZoom === this.currentZoom) {
+      return;
+    }
+
+    const oldZoom = this.currentZoom || this.baseZoom;
+    const hasAnchor = anchorX !== undefined && anchorY !== undefined;
+
+    let localX = 0;
+    let localY = 0;
+    let screenX = 0;
+    let screenY = 0;
+
+    if (anchorX !== undefined && anchorY !== undefined) {
+      screenX = anchorX;
+      screenY = anchorY;
+      localX = (screenX - this.mapContainer.x) / oldZoom;
+      localY = (screenY - this.mapContainer.y) / oldZoom;
+    }
+
+    this.currentZoom = targetZoom;
+    this.mapContainer.scale.set(this.currentZoom);
+
+    if (hasAnchor) {
+      this.mapContainer.x = screenX - localX * this.currentZoom;
+      this.mapContainer.y = screenY - localY * this.currentZoom;
+    }
+
+    this.clampCameraToBounds();
+  }
+
+  setZoomIndex(index: number): void {
+    if (index < 0 || index >= ZOOM_LEVELS.length) {
+      return;
+    }
+
+    this.currentZoomIndex = index;
+    this.currentZoom = this.baseZoom * ZOOM_LEVELS[this.currentZoomIndex];
+    this.mapContainer.scale.set(this.currentZoom);
+    this.clampCameraToBounds();
+  }
+
+  setMapContainer(container: Container): void {
+    this.mapContainer = container;
+    this.mapContainer.scale.set(this.currentZoom);
+  }
+
+  private clampCameraToBounds(): void {
+    const viewportWidth = this.canvas.clientWidth;
+    const viewportHeight = this.canvas.clientHeight;
+    const zoom = this.mapContainer.scale.x || 1;
+
+    const mapWidth = DISPLAY_WIDTH * zoom;
+    const mapHeight = DISPLAY_HEIGHT * zoom;
+
+    let x = this.mapContainer.x;
+    let y = this.mapContainer.y;
+
+    const minX = Math.min(0, viewportWidth - mapWidth);
+    const maxX = 0;
+
+    if (x < minX) {
+      x = minX;
+    } else if (x > maxX) {
+      x = maxX;
+    }
+
+    const minY = Math.min(0, viewportHeight - mapHeight);
+    const maxY = 0;
+
+    if (y < minY) {
+      y = minY;
+    } else if (y > maxY) {
+      y = maxY;
+    }
+
+    this.mapContainer.x = x;
+    this.mapContainer.y = y;
+  }
+
+  /**
+   * Called every frame to re-evaluate hover at the last mouse position.
+   * Detects actors passing under a static mouse without requiring mouse movement.
+   */
+  tick(): void {
+    if (!this.mouseInCanvas || this.isDragging || this.lastScreenX < 0) {
+      return;
+    }
+
+    const pickResult = this.pickingSystem.pick(
+      this.lastScreenX,
+      this.lastScreenY,
+      this.mapContainer,
+      false
+    );
+    this.updateHover(pickResult);
+  }
+
+  private updateHover(pickResult: PickResult | null): void {
+    const prevHovered = this.hoveredObject;
+    this.hoveredObject = pickResult;
+
+    if (prevHovered?.object.id !== pickResult?.object.id) {
+      if (prevHovered) {
+        prevHovered.object.sprite.filters = null;
+      }
+
+      if (pickResult) {
+        const sprite = pickResult.object.sprite;
+        // Exact Dofus 1.29 hover highlight: Color.setTransform({ra:60, rb:102, ...})
+        // output = input * 0.6 + 102/255 (≈0.4) per channel
+        const colorMatrix = new ColorMatrixFilter();
+        colorMatrix.matrix = [
+          0.6, 0, 0, 0, 0.4, 0, 0.6, 0, 0, 0.4, 0, 0, 0.6, 0, 0.4, 0, 0, 0, 1,
+          0,
+        ];
+        colorMatrix.resolution = 1;
+        sprite.filters = [colorMatrix];
+      }
+
+      this.canvas.style.cursor = pickResult ? "pointer" : "default";
+      this.onObjectHover?.(pickResult);
+    }
+  }
+
+  getHoveredObject(): PickResult | null {
+    return this.hoveredObject;
+  }
+
+  destroy(): void {
+    this.canvas.removeEventListener("wheel", this.handleWheel);
+  }
+}

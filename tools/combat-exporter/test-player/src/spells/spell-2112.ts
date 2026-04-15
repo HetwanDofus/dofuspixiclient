@@ -1,64 +1,66 @@
 /**
- * Spell 2112 - Unknown
+ * Spell 2112 - Dodge (Eniripsa)
  *
- * A spell animation with randomized starting frame and sound effect.
+ * A single animation (anim1) played at the target position.
  *
  * Components:
- * - anim1: Main animation at target position
+ * - anim1: 96-frame composite animation at target position
  *
  * Original AS timing:
- * - Frame 1: Jumps to random frame between 1-15
- * - Frame 7: Plays sound "dodge_610"
- * - Frame 40: Animation stops
- * - Frame 94: Spell completes
+ * - DefineSprite_17/frame_1: gotoAndPlay(random(15) + 1) → jump to random frame 0-14
+ * - DefineSprite_17/frame_40: stop()
+ * - DefineSprite_19/frame_7: SOMA.playSound("dodge_610")
+ * - DefineSprite_19/frame_94: _parent.removeMovieClip() → animation ends
+ *
+ * The main timeline (DefineSprite_19) contains sprite_17 instances.
+ * The anim1 export is the composite of DefineSprite_19.
+ * Frame 7 → sound, frame 94 → complete (0-indexed: 6, 93).
  */
 
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const ANIM1_MANIFEST: SpriteManifest = {
-  width: 423,
-  height: 1672.8000000000002,
-  offsetX: -213.29999999999998,
-  offsetY: -1551.6000000000001,
+  width: 70.5,
+  height: 278.8,
+  offsetX: -35.55,
+  offsetY: -258.6,
 };
 
 export class Spell2112 extends BaseSpell {
   readonly spellId = 2112;
 
-  private mainAnim!: FrameAnimatedSprite;
+  protected setup(_context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
+    const anchor = calculateAnchor(ANIM1_MANIFEST);
 
-  protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Main animation at target position
-    const anim1Anchor = calculateAnchor(ANIM1_MANIFEST);
-    this.mainAnim = this.anims.add(new FrameAnimatedSprite({
+    // Random start frame: AS gotoAndPlay(random(15) + 1) = frames 1..15 (1-indexed)
+    // 0-indexed: 0..14
+    const startFrame = Math.floor(Math.random() * 15);
+
+    const anim = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('anim1'),
-      anchorX: anim1Anchor.x,
-      anchorY: anim1Anchor.y,
+      fps: 60,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
       scale: init.scale,
+      startFrame,
     }));
 
-    // Position at target
-    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
+    anim.sprite.position.set(init.targetX, init.targetY);
 
-    // AS: gotoAndPlay(random(15) + 1) - random frame between 1-15
-    // In 0-indexed: random frame between 0-14
-    const randomStartFrame = Math.floor(Math.random() * 15);
-    this.mainAnim.gotoFrame(randomStartFrame);
-    
-    // AS: frame 7 plays sound (0-indexed: frame 6)
-    this.mainAnim.onFrame(6, () => this.callbacks.playSound('dodge_610'));
-    
-    // AS: frame 94 calls _parent.removeMovieClip() - spell completes
-    // 0-indexed: frame 93
-    this.mainAnim.onFrame(93, () => this.complete());
-    
-    this.container.addChild(this.mainAnim.sprite);
+    // Frame 7 (0-indexed: 6) → play sound
+    anim.onFrame(6, () => this.callbacks.playSound('dodge_610'));
+
+    // Frame 94 (0-indexed: 93) → removeMovieClip → complete
+    anim.onFrame(93, () => this.signalHit());
+    anim.stopAt(95);
+
+    this.container.addChild(anim.sprite);
   }
 
   update(deltaTime: number): void {
@@ -67,5 +69,9 @@ export class Spell2112 extends BaseSpell {
     }
 
     this.anims.update(deltaTime);
+
+    if (this.anims.allComplete() || this.anims.allStopped()) {
+      this.complete();
+    }
   }
 }

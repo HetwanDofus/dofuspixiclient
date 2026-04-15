@@ -1,57 +1,55 @@
 /**
- * Spell 2105 - Pet Spell
+ * Spell 2105
  *
- * A pet-related spell animation with randomized visual elements.
+ * A composite animation spell with multiple sprite components.
  *
  * Components:
- * - anim1: Main composite animation with stop at frame 69
+ * - anim1 (sprite_10): Main animation at target position, signals hit at frame 9
+ *   stops at frame 69
  *
  * Original AS timing:
- * - Frame 1: Play "pet" sound
- * - Frame 10 (DefineSprite_10): Call this.end()
- * - Frame 70 (DefineSprite_10): Stop and remove parent
- * - Various sprites have randomized scale/rotation
+ * - Frame 1 (main): Play sound 'pet'
+ * - Frame 10 (DefineSprite_10): this.end() - signal hit
+ * - Frame 70 (DefineSprite_10): stop() + removeMovieClip() - animation ends
  */
 
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const ANIM1_MANIFEST: SpriteManifest = {
-  width: 1234.2,
-  height: 659.1,
-  offsetX: -619.8,
-  offsetY: -339.6,
+  width: 205.7,
+  height: 109.85,
+  offsetX: -103.3,
+  offsetY: -56.6,
 };
 
 export class Spell2105 extends BaseSpell {
   readonly spellId = 2105;
 
-  private mainAnim!: FrameAnimatedSprite;
+  protected setup(_context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
+    const anim1Textures = textures.getFrames('anim1');
+    const anchor = calculateAnchor(ANIM1_MANIFEST);
 
-  protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Main animation
-    this.mainAnim = this.anims.add(new FrameAnimatedSprite({
-      textures: textures.getFrames('anim1'),
-      ...calculateAnchor(ANIM1_MANIFEST),
+    const mainAnim = this.anims.add(new FrameAnimatedSprite({
+      textures: anim1Textures,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
       scale: init.scale,
     }));
-    
-    // Position at target (pet spells typically appear at target)
-    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
-    
-    // Set up animation callbacks
-    this.mainAnim
-      .stopAt(68) // AS frame 69 is 0-indexed 68
-      .onFrame(0, () => this.callbacks.playSound('pet')) // Frame 1 in AS
-      .onFrame(9, () => this.signalHit()); // Frame 10 in AS calls this.end()
-    
-    // Add to container
-    this.container.addChild(this.mainAnim.sprite);
+
+    mainAnim.sprite.position.set(init.targetX, init.targetY);
+
+    mainAnim
+      .onFrame(0, () => this.callbacks.playSound('pet'))
+      .onFrame(9, () => this.signalHit())
+      .stopAt(69);
+
+    this.container.addChild(mainAnim.sprite);
   }
 
   update(deltaTime: number): void {
@@ -59,11 +57,9 @@ export class Spell2105 extends BaseSpell {
       return;
     }
 
-    // Update all animations
     this.anims.update(deltaTime);
 
-    // Check completion
-    if (this.anims.allComplete()) {
+    if (this.anims.allStopped()) {
       this.complete();
     }
   }

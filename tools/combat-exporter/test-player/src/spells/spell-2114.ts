@@ -1,34 +1,42 @@
 /**
- * Spell 2114 - Unknown Spell
+ * Spell 2114
  *
- * A spell with rotating elements and randomized sub-animations.
+ * A composite animation spell with a single animated sprite at the target position.
  *
  * Components:
- * - anim1: Main animation that plays to frame 99 and fades at 98
- * - Rotating elements with speeds +2 and -1.3 degrees per frame
- * - Random sub-animation starting at frames 1-31, stopping at frame 55
+ * - anim1 (sprite): Composite animation at target position, 102 frames
  *
  * Original AS timing:
- * - Frame 1: Play sound fx_612.mp3
- * - Frame 76: Play sound fx_611.mp3
- * - Frame 100: Main animation stops
- * - Frame 138: Spell completes (removeMovieClip)
+ * - Frame 1 (DefineSprite_12): Play sound 'fx_612.mp3'
+ * - Frame 76 (DefineSprite_12): Play sound 'fx_611.mp3'
+ * - Frame 100 (DefineSprite_12): stop()
+ * - Frame 138 (main): removeMovieClip() - animation ends
+ *
+ * DefineSprite_9 sub-sprites rotate continuously:
+ *   PlaceObject2_4_2: _rotation += 2 per frame
+ *   PlaceObject2_8_10: _rotation -= 1.3 per frame
+ * (These rotations are baked into the composite anim1 frames)
+ *
+ * DefineSprite_11 sub-sprites: gotoAndPlay(random(31)+1) on frame 1, stop() at frame 55
+ * (Also baked into anim1 composite frames)
+ *
+ * The manifest stopFrame is 99 (0-indexed), matching frame_100 DoAction stop().
+ * Hit is signaled at frame 75 (0-indexed) matching fx_611.mp3 which plays at impact.
  */
 
-import { Texture } from 'pixi.js';
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const ANIM1_MANIFEST: SpriteManifest = {
-  width: 1506,
-  height: 771.3,
-  offsetX: -753,
-  offsetY: -312,
+  width: 251,
+  height: 128.55,
+  offsetX: -125.5,
+  offsetY: -52,
 };
 
 export class Spell2114 extends BaseSpell {
@@ -36,27 +44,28 @@ export class Spell2114 extends BaseSpell {
 
   private mainAnim!: FrameAnimatedSprite;
 
-  protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    const mainFrames = textures.getFrames('anim1');
+  protected setup(_context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
+    const anchor = calculateAnchor(ANIM1_MANIFEST);
 
-    this.mainAnim = this.anims.add(new FrameAnimatedSprite(
-      mainFrames,
-      60,
-      false,
-      0
-    ));
+    this.mainAnim = this.anims.add(new FrameAnimatedSprite({
+      textures: textures.getFrames('anim1'),
+      fps: 60,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
+      scale: init.scale,
+      stopFrame: 99,
+    }));
 
-    this.mainAnim.anchor.set(...calculateAnchor(ANIM1_MANIFEST));
-    this.mainAnim.scale.set(init.scale);
-    this.mainAnim.y = init.casterY;
-
-    this.container.addChild(this.mainAnim);
+    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
 
     this.mainAnim
       .onFrame(0, () => this.callbacks.playSound('fx_612.mp3'))
-      .onFrame(75, () => this.callbacks.playSound('fx_611.mp3'))
-      .onFrame(99, () => this.mainAnim.fadeOut(300))
-      .stopAt(99);
+      .onFrame(75, () => {
+        this.callbacks.playSound('fx_611.mp3');
+        this.signalHit();
+      });
+
+    this.container.addChild(this.mainAnim.sprite);
   }
 
   update(deltaTime: number): void {
@@ -66,7 +75,7 @@ export class Spell2114 extends BaseSpell {
 
     this.anims.update(deltaTime);
 
-    if (this.anims.allComplete()) {
+    if (this.anims.allStopped()) {
       this.complete();
     }
   }

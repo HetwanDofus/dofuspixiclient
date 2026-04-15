@@ -1,0 +1,182 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-03-17 15:16+0100\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: fr\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#: src/lib/i18n/hud.messages.ts:42
+msgid "+1 {name} : coûte {cost} point(s) de capital"
+msgstr "+1 {name} : coûte {cost} point(s) de capital"
+
+#: src/lib/hud/stats/stat-row.ts:92
+#~ msgid "+1 {name} : coûte {cost} point{0} de capital"
+#~ msgstr "+1 {name} : coûte {cost} point{0} de capital"
+
+#: src/lib/i18n/hud.messages.ts:35
+msgid "Agilité"
+msgstr "Agilité"
+
+#: src/lib/i18n/hud.messages.ts:16
+msgid "Agilité : augmente les dégâts d'air, l'esquive PA/PM et la fuite."
+msgstr "Agilité : augmente les dégâts d'air, l'esquive PA/PM et la fuite."
+
+#: src/lib/i18n/hud.messages.ts:36
+msgid "Capital"
+msgstr "Capital"
+
+#: src/lib/i18n/hud.messages.ts:29
+msgid "Caractéristiques"
+msgstr "Caractéristiques"
+
+#: src/lib/i18n/hud.messages.ts:46
+msgid "Carte du monde"
+msgstr "Carte du monde"
+
+#: src/lib/i18n/hud.messages.ts:34
+msgid "Chance"
+msgstr "Chance"
+
+#: src/lib/i18n/hud.messages.ts:15
+msgid "Chance : augmente les dégâts d'eau et la prospection."
+msgstr "Chance : augmente les dégâts d'eau et la prospection."
+
+#: src/lib/i18n/hud.messages.ts:22
+msgid "Energie"
+msgstr "Energie"
+
+#: src/lib/i18n/hud.messages.ts:40
+msgid "Énergie : {energy} / {maxEnergy}"
+msgstr "Énergie : {energy} / {maxEnergy}"
+
+#: src/lib/i18n/hud.messages.ts:23
+msgid "Expérience"
+msgstr "Expérience"
+
+#: src/lib/hud/stats/stats-panel.ts:405
+#~ msgid "Expérience : {0} / {xpRange} (niveau {level})"
+#~ msgstr "Expérience : {0} / {xpRange} (niveau {level})"
+
+#: src/lib/i18n/hud.messages.ts:41
+msgid "Expérience : {current} / {range} (niveau {level})"
+msgstr "Expérience : {current} / {range} (niveau {level})"
+
+#: src/lib/i18n/hud.messages.ts:32
+msgid "Force"
+msgstr "Force"
+
+#: src/lib/i18n/hud.messages.ts:13
+msgid "Force : augmente les dégâts de terre et le pods transportable."
+msgstr "Force : augmente les dégâts de terre et le pods transportable."
+
+#: src/lib/i18n/hud.messages.ts:51
+msgid "Forfeit"
+msgstr "Forfeit"
+
+#: src/lib/i18n/hud.messages.ts:27
+msgid "Initiative"
+msgstr "Initiative"
+
+#: src/lib/i18n/hud.messages.ts:9
+msgid "Initiative : détermine l'ordre de jeu en combat. Plus elle est élevée, plus vous jouez tôt."
+msgstr "Initiative : détermine l'ordre de jeu en combat. Plus elle est élevée, plus vous jouez tôt."
+
+#: src/lib/i18n/hud.messages.ts:33
+msgid "Intelligence"
+msgstr "Intelligence"
+
+#: src/lib/i18n/hud.messages.ts:14
+msgid "Intelligence : augmente les dégâts de feu et les soins."
+msgstr "Intelligence : augmente les dégâts de feu et les soins."
+
+#: src/lib/i18n/hud.messages.ts:37
+msgid "Mes métiers"
+msgstr "Mes métiers"
+
+#: src/lib/hud/stats/stats-panel.ts:110
+#~ msgid "Niveau {0}"
+#~ msgstr "Niveau {0}"
+
+#: src/lib/i18n/hud.messages.ts:39
+msgid "Niveau {level}"
+msgstr "Niveau {level}"
+
+#: src/lib/i18n/hud.messages.ts:50
+msgid "Pass"
+msgstr "Pass"
+
+#: src/lib/i18n/hud.messages.ts:18
+msgid "Plus de statistiques"
+msgstr "Plus de statistiques"
+
+#: src/lib/i18n/hud.messages.ts:7
+msgid "Points d'action : utilisés pour lancer des sorts et effectuer des actions en combat."
+msgstr "Points d'action : utilisés pour lancer des sorts et effectuer des actions en combat."
+
+#: src/lib/i18n/hud.messages.ts:25
+msgid "Points d'actions"
+msgstr "Points d'actions"
+
+#: src/lib/i18n/hud.messages.ts:4
+msgid "Points d'énergie : perdus en cas de mort. Régénérés en se déconnectant dans une zone de sauvegarde."
+msgstr "Points d'énergie : perdus en cas de mort. Régénérés en se déconnectant dans une zone de sauvegarde."
+
+#: src/lib/i18n/hud.messages.ts:5
+msgid "Points d'expérience : en gagnant suffisamment de points d'expérience, vous gagnez un niveau."
+msgstr "Points d'expérience : en gagnant suffisamment de points d'expérience, vous gagnez un niveau."
+
+#: src/lib/i18n/hud.messages.ts:17
+msgid "Points de capital : utilisez-les pour augmenter vos caractéristiques."
+msgstr "Points de capital : utilisez-les pour augmenter vos caractéristiques."
+
+#: src/lib/i18n/hud.messages.ts:26
+msgid "Points de mouvement"
+msgstr "Points de mouvement"
+
+#: src/lib/i18n/hud.messages.ts:8
+msgid "Points de mouvement : chaque case de déplacement en combat coûte 1 PM."
+msgstr "Points de mouvement : chaque case de déplacement en combat coûte 1 PM."
+
+#: src/lib/i18n/hud.messages.ts:24
+msgid "Points de vie"
+msgstr "Points de vie"
+
+#: src/lib/i18n/hud.messages.ts:6
+msgid "Points de vie : si vos points de vie tombent à 0 en combat, vous êtes vaincu."
+msgstr "Points de vie : si vos points de vie tombent à 0 en combat, vous êtes vaincu."
+
+#: src/lib/i18n/hud.messages.ts:28
+msgid "Prospection"
+msgstr "Prospection"
+
+#: src/lib/i18n/hud.messages.ts:10
+msgid "Prospection : augmente vos chances de trouver des objets sur les monstres vaincus."
+msgstr "Prospection : augmente vos chances de trouver des objets sur les monstres vaincus."
+
+#: src/lib/i18n/hud.messages.ts:31
+msgid "Sagesse"
+msgstr "Sagesse"
+
+#: src/lib/i18n/hud.messages.ts:12
+msgid "Sagesse : augmente les points d'expérience gagnés et la résistance aux pertes de PA/PM."
+msgstr "Sagesse : augmente les points d'expérience gagnés et la résistance aux pertes de PA/PM."
+
+#: src/lib/i18n/hud.messages.ts:38
+msgid "Spécialisations"
+msgstr "Spécialisations"
+
+#: src/lib/i18n/hud.messages.ts:30
+msgid "Vitalité"
+msgstr "Vitalité"
+
+#: src/lib/i18n/hud.messages.ts:11
+msgid "Vitalité : chaque point de vitalité augmente vos points de vie maximum de 1."
+msgstr "Vitalité : chaque point de vitalité augmente vos points de vie maximum de 1."

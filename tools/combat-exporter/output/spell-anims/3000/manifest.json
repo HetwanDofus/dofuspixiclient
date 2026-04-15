@@ -1,271 +1,995 @@
 {
     "id": 3000,
     "fps": 60,
-    "scale": 6,
+    "scale": 1,
     "mainTimelineScale": 1,
     "animations": [
         {
             "name": "sprite_4",
             "frameCount": 63,
-            "width": 469.79999999999995,
-            "height": 606,
-            "offsetX": -246.89999999999998,
-            "offsetY": -565.5,
+            "width": 78.3,
+            "height": 101,
+            "offsetX": -41.15,
+            "offsetY": -94.25,
             "stopFrame": 60,
             "fadingFrame": 59,
             "isComposite": true,
             "frames": [
                 {
                     "index": 0,
-                    "file": "sprite_4_0.webp"
+                    "file": "sprite_4_0.svg"
                 },
                 {
                     "index": 1,
-                    "file": "sprite_4_1.webp"
+                    "file": "sprite_4_1.svg"
                 },
                 {
                     "index": 2,
-                    "file": "sprite_4_2.webp"
+                    "file": "sprite_4_2.svg"
                 },
                 {
                     "index": 3,
-                    "file": "sprite_4_3.webp"
+                    "file": "sprite_4_3.svg"
                 },
                 {
                     "index": 4,
-                    "file": "sprite_4_4.webp"
+                    "file": "sprite_4_4.svg"
                 },
                 {
                     "index": 5,
-                    "file": "sprite_4_5.webp"
+                    "file": "sprite_4_5.svg"
                 },
                 {
                     "index": 6,
-                    "file": "sprite_4_6.webp"
+                    "file": "sprite_4_6.svg"
                 },
                 {
                     "index": 7,
-                    "file": "sprite_4_7.webp"
+                    "file": "sprite_4_7.svg"
                 },
                 {
                     "index": 8,
-                    "file": "sprite_4_8.webp"
+                    "file": "sprite_4_8.svg"
                 },
                 {
                     "index": 9,
-                    "file": "sprite_4_9.webp"
+                    "file": "sprite_4_9.svg"
                 },
                 {
                     "index": 10,
-                    "file": "sprite_4_10.webp"
+                    "file": "sprite_4_10.svg"
                 },
                 {
                     "index": 11,
-                    "file": "sprite_4_11.webp"
+                    "file": "sprite_4_11.svg"
                 },
                 {
                     "index": 12,
-                    "file": "sprite_4_12.webp"
+                    "file": "sprite_4_12.svg"
                 },
                 {
                     "index": 13,
-                    "file": "sprite_4_13.webp"
+                    "file": "sprite_4_13.svg"
                 },
                 {
                     "index": 14,
-                    "file": "sprite_4_14.webp"
+                    "file": "sprite_4_14.svg"
                 },
                 {
                     "index": 15,
-                    "file": "sprite_4_15.webp"
+                    "file": "sprite_4_15.svg"
                 },
                 {
                     "index": 16,
-                    "file": "sprite_4_16.webp"
+                    "file": "sprite_4_16.svg"
                 },
                 {
                     "index": 17,
-                    "file": "sprite_4_17.webp"
+                    "file": "sprite_4_17.svg"
                 },
                 {
                     "index": 18,
-                    "file": "sprite_4_18.webp"
+                    "file": "sprite_4_18.svg"
                 },
                 {
                     "index": 19,
-                    "file": "sprite_4_19.webp"
+                    "file": "sprite_4_19.svg"
                 },
                 {
                     "index": 20,
-                    "file": "sprite_4_20.webp"
+                    "file": "sprite_4_20.svg"
                 },
                 {
                     "index": 21,
-                    "file": "sprite_4_21.webp"
+                    "file": "sprite_4_21.svg"
                 },
                 {
                     "index": 22,
-                    "file": "sprite_4_22.webp"
+                    "file": "sprite_4_22.svg"
                 },
                 {
                     "index": 23,
-                    "file": "sprite_4_23.webp"
+                    "file": "sprite_4_23.svg"
                 },
                 {
                     "index": 24,
-                    "file": "sprite_4_24.webp"
+                    "file": "sprite_4_24.svg"
                 },
                 {
                     "index": 25,
-                    "file": "sprite_4_25.webp"
+                    "file": "sprite_4_25.svg"
                 },
                 {
                     "index": 26,
-                    "file": "sprite_4_26.webp"
+                    "file": "sprite_4_26.svg"
                 },
                 {
                     "index": 27,
-                    "file": "sprite_4_27.webp"
+                    "file": "sprite_4_27.svg"
                 },
                 {
                     "index": 28,
-                    "file": "sprite_4_28.webp"
+                    "file": "sprite_4_28.svg"
                 },
                 {
                     "index": 29,
-                    "file": "sprite_4_29.webp"
+                    "file": "sprite_4_29.svg"
                 },
                 {
                     "index": 30,
-                    "file": "sprite_4_30.webp"
+                    "file": "sprite_4_30.svg"
                 },
                 {
                     "index": 31,
-                    "file": "sprite_4_31.webp"
+                    "file": "sprite_4_31.svg"
                 },
                 {
                     "index": 32,
-                    "file": "sprite_4_32.webp"
+                    "file": "sprite_4_32.svg"
                 },
                 {
                     "index": 33,
-                    "file": "sprite_4_33.webp"
+                    "file": "sprite_4_33.svg"
                 },
                 {
                     "index": 34,
-                    "file": "sprite_4_34.webp"
+                    "file": "sprite_4_34.svg"
                 },
                 {
                     "index": 35,
-                    "file": "sprite_4_35.webp"
+                    "file": "sprite_4_35.svg"
                 },
                 {
                     "index": 36,
-                    "file": "sprite_4_36.webp"
+                    "file": "sprite_4_36.svg"
                 },
                 {
                     "index": 37,
-                    "file": "sprite_4_37.webp"
+                    "file": "sprite_4_37.svg"
                 },
                 {
                     "index": 38,
-                    "file": "sprite_4_38.webp"
+                    "file": "sprite_4_38.svg"
                 },
                 {
                     "index": 39,
-                    "file": "sprite_4_39.webp"
+                    "file": "sprite_4_39.svg"
                 },
                 {
                     "index": 40,
-                    "file": "sprite_4_40.webp"
+                    "file": "sprite_4_40.svg"
                 },
                 {
                     "index": 41,
-                    "file": "sprite_4_41.webp"
+                    "file": "sprite_4_41.svg"
                 },
                 {
                     "index": 42,
-                    "file": "sprite_4_42.webp"
+                    "file": "sprite_4_42.svg"
                 },
                 {
                     "index": 43,
-                    "file": "sprite_4_43.webp"
+                    "file": "sprite_4_43.svg"
                 },
                 {
                     "index": 44,
-                    "file": "sprite_4_44.webp"
+                    "file": "sprite_4_44.svg"
                 },
                 {
                     "index": 45,
-                    "file": "sprite_4_45.webp"
+                    "file": "sprite_4_45.svg"
                 },
                 {
                     "index": 46,
-                    "file": "sprite_4_46.webp"
+                    "file": "sprite_4_46.svg"
                 },
                 {
                     "index": 47,
-                    "file": "sprite_4_47.webp"
+                    "file": "sprite_4_47.svg"
                 },
                 {
                     "index": 48,
-                    "file": "sprite_4_48.webp"
+                    "file": "sprite_4_48.svg"
                 },
                 {
                     "index": 49,
-                    "file": "sprite_4_49.webp"
+                    "file": "sprite_4_49.svg"
                 },
                 {
                     "index": 50,
-                    "file": "sprite_4_50.webp"
+                    "file": "sprite_4_50.svg"
                 },
                 {
                     "index": 51,
-                    "file": "sprite_4_51.webp"
+                    "file": "sprite_4_51.svg"
                 },
                 {
                     "index": 52,
-                    "file": "sprite_4_52.webp"
+                    "file": "sprite_4_52.svg"
                 },
                 {
                     "index": 53,
-                    "file": "sprite_4_53.webp"
+                    "file": "sprite_4_53.svg"
                 },
                 {
                     "index": 54,
-                    "file": "sprite_4_54.webp"
+                    "file": "sprite_4_54.svg"
                 },
                 {
                     "index": 55,
-                    "file": "sprite_4_55.webp"
+                    "file": "sprite_4_55.svg"
                 },
                 {
                     "index": 56,
-                    "file": "sprite_4_56.webp"
+                    "file": "sprite_4_56.svg"
                 },
                 {
                     "index": 57,
-                    "file": "sprite_4_57.webp"
+                    "file": "sprite_4_57.svg"
                 },
                 {
                     "index": 58,
-                    "file": "sprite_4_58.webp"
+                    "file": "sprite_4_58.svg"
                 },
                 {
                     "index": 59,
-                    "file": "sprite_4_59.webp"
+                    "file": "sprite_4_59.svg"
                 },
                 {
                     "index": 60,
-                    "file": "sprite_4_60.webp"
+                    "file": "sprite_4_60.svg"
                 },
                 {
                     "index": 61,
-                    "file": "sprite_4_61.webp"
+                    "file": "sprite_4_61.svg"
                 },
                 {
                     "index": 62,
-                    "file": "sprite_4_62.webp"
+                    "file": "sprite_4_62.svg"
+                }
+            ]
+        },
+        {
+            "name": "sprite_12",
+            "frameCount": 33,
+            "width": 37.2,
+            "height": 66.85,
+            "offsetX": -11,
+            "offsetY": -62.55,
+            "stopFrame": 30,
+            "fadingFrame": 29,
+            "isComposite": false,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "sprite_12_0.svg"
+                },
+                {
+                    "index": 1,
+                    "file": "sprite_12_1.svg"
+                },
+                {
+                    "index": 2,
+                    "file": "sprite_12_2.svg"
+                },
+                {
+                    "index": 3,
+                    "file": "sprite_12_3.svg"
+                },
+                {
+                    "index": 4,
+                    "file": "sprite_12_4.svg"
+                },
+                {
+                    "index": 5,
+                    "file": "sprite_12_5.svg"
+                },
+                {
+                    "index": 6,
+                    "file": "sprite_12_6.svg"
+                },
+                {
+                    "index": 7,
+                    "file": "sprite_12_7.svg"
+                },
+                {
+                    "index": 8,
+                    "file": "sprite_12_8.svg"
+                },
+                {
+                    "index": 9,
+                    "file": "sprite_12_9.svg"
+                },
+                {
+                    "index": 10,
+                    "file": "sprite_12_10.svg"
+                },
+                {
+                    "index": 11,
+                    "file": "sprite_12_11.svg"
+                },
+                {
+                    "index": 12,
+                    "file": "sprite_12_12.svg"
+                },
+                {
+                    "index": 13,
+                    "file": "sprite_12_13.svg"
+                },
+                {
+                    "index": 14,
+                    "file": "sprite_12_14.svg"
+                },
+                {
+                    "index": 15,
+                    "file": "sprite_12_15.svg"
+                },
+                {
+                    "index": 16,
+                    "file": "sprite_12_16.svg"
+                },
+                {
+                    "index": 17,
+                    "file": "sprite_12_17.svg"
+                },
+                {
+                    "index": 18,
+                    "file": "sprite_12_18.svg"
+                },
+                {
+                    "index": 19,
+                    "file": "sprite_12_19.svg"
+                },
+                {
+                    "index": 20,
+                    "file": "sprite_12_20.svg"
+                },
+                {
+                    "index": 21,
+                    "file": "sprite_12_21.svg"
+                },
+                {
+                    "index": 22,
+                    "file": "sprite_12_22.svg"
+                },
+                {
+                    "index": 23,
+                    "file": "sprite_12_23.svg"
+                },
+                {
+                    "index": 24,
+                    "file": "sprite_12_24.svg"
+                },
+                {
+                    "index": 25,
+                    "file": "sprite_12_25.svg"
+                },
+                {
+                    "index": 26,
+                    "file": "sprite_12_26.svg"
+                },
+                {
+                    "index": 27,
+                    "file": "sprite_12_27.svg"
+                },
+                {
+                    "index": 28,
+                    "file": "sprite_12_28.svg"
+                },
+                {
+                    "index": 29,
+                    "file": "sprite_12_29.svg"
+                },
+                {
+                    "index": 30,
+                    "file": "sprite_12_30.svg"
+                },
+                {
+                    "index": 31,
+                    "file": "sprite_12_31.svg"
+                },
+                {
+                    "index": 32,
+                    "file": "sprite_12_32.svg"
+                }
+            ]
+        },
+        {
+            "name": "sprite_15",
+            "frameCount": 33,
+            "width": 102.25,
+            "height": 121.35,
+            "offsetX": -16.8,
+            "offsetY": -87.3,
+            "stopFrame": 30,
+            "fadingFrame": 29,
+            "isComposite": false,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "sprite_15_0.svg"
+                },
+                {
+                    "index": 1,
+                    "file": "sprite_15_1.svg"
+                },
+                {
+                    "index": 2,
+                    "file": "sprite_15_2.svg"
+                },
+                {
+                    "index": 3,
+                    "file": "sprite_15_3.svg"
+                },
+                {
+                    "index": 4,
+                    "file": "sprite_15_4.svg"
+                },
+                {
+                    "index": 5,
+                    "file": "sprite_15_5.svg"
+                },
+                {
+                    "index": 6,
+                    "file": "sprite_15_6.svg"
+                },
+                {
+                    "index": 7,
+                    "file": "sprite_15_7.svg"
+                },
+                {
+                    "index": 8,
+                    "file": "sprite_15_8.svg"
+                },
+                {
+                    "index": 9,
+                    "file": "sprite_15_9.svg"
+                },
+                {
+                    "index": 10,
+                    "file": "sprite_15_10.svg"
+                },
+                {
+                    "index": 11,
+                    "file": "sprite_15_11.svg"
+                },
+                {
+                    "index": 12,
+                    "file": "sprite_15_12.svg"
+                },
+                {
+                    "index": 13,
+                    "file": "sprite_15_13.svg"
+                },
+                {
+                    "index": 14,
+                    "file": "sprite_15_14.svg"
+                },
+                {
+                    "index": 15,
+                    "file": "sprite_15_15.svg"
+                },
+                {
+                    "index": 16,
+                    "file": "sprite_15_16.svg"
+                },
+                {
+                    "index": 17,
+                    "file": "sprite_15_17.svg"
+                },
+                {
+                    "index": 18,
+                    "file": "sprite_15_18.svg"
+                },
+                {
+                    "index": 19,
+                    "file": "sprite_15_19.svg"
+                },
+                {
+                    "index": 20,
+                    "file": "sprite_15_20.svg"
+                },
+                {
+                    "index": 21,
+                    "file": "sprite_15_21.svg"
+                },
+                {
+                    "index": 22,
+                    "file": "sprite_15_22.svg"
+                },
+                {
+                    "index": 23,
+                    "file": "sprite_15_23.svg"
+                },
+                {
+                    "index": 24,
+                    "file": "sprite_15_24.svg"
+                },
+                {
+                    "index": 25,
+                    "file": "sprite_15_25.svg"
+                },
+                {
+                    "index": 26,
+                    "file": "sprite_15_26.svg"
+                },
+                {
+                    "index": 27,
+                    "file": "sprite_15_27.svg"
+                },
+                {
+                    "index": 28,
+                    "file": "sprite_15_28.svg"
+                },
+                {
+                    "index": 29,
+                    "file": "sprite_15_29.svg"
+                },
+                {
+                    "index": 30,
+                    "file": "sprite_15_30.svg"
+                },
+                {
+                    "index": 31,
+                    "file": "sprite_15_31.svg"
+                },
+                {
+                    "index": 32,
+                    "file": "sprite_15_32.svg"
+                }
+            ]
+        },
+        {
+            "name": "sprite_26",
+            "frameCount": 42,
+            "width": 108.45,
+            "height": 18.75,
+            "offsetX": -110.35,
+            "offsetY": -18.3,
+            "stopFrame": 39,
+            "fadingFrame": 38,
+            "isComposite": false,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "sprite_26_0.svg"
+                },
+                {
+                    "index": 1,
+                    "file": "sprite_26_1.svg"
+                },
+                {
+                    "index": 2,
+                    "file": "sprite_26_2.svg"
+                },
+                {
+                    "index": 3,
+                    "file": "sprite_26_3.svg"
+                },
+                {
+                    "index": 4,
+                    "file": "sprite_26_4.svg"
+                },
+                {
+                    "index": 5,
+                    "file": "sprite_26_5.svg"
+                },
+                {
+                    "index": 6,
+                    "file": "sprite_26_6.svg"
+                },
+                {
+                    "index": 7,
+                    "file": "sprite_26_7.svg"
+                },
+                {
+                    "index": 8,
+                    "file": "sprite_26_8.svg"
+                },
+                {
+                    "index": 9,
+                    "file": "sprite_26_9.svg"
+                },
+                {
+                    "index": 10,
+                    "file": "sprite_26_10.svg"
+                },
+                {
+                    "index": 11,
+                    "file": "sprite_26_11.svg"
+                },
+                {
+                    "index": 12,
+                    "file": "sprite_26_12.svg"
+                },
+                {
+                    "index": 13,
+                    "file": "sprite_26_13.svg"
+                },
+                {
+                    "index": 14,
+                    "file": "sprite_26_14.svg"
+                },
+                {
+                    "index": 15,
+                    "file": "sprite_26_15.svg"
+                },
+                {
+                    "index": 16,
+                    "file": "sprite_26_16.svg"
+                },
+                {
+                    "index": 17,
+                    "file": "sprite_26_17.svg"
+                },
+                {
+                    "index": 18,
+                    "file": "sprite_26_18.svg"
+                },
+                {
+                    "index": 19,
+                    "file": "sprite_26_19.svg"
+                },
+                {
+                    "index": 20,
+                    "file": "sprite_26_20.svg"
+                },
+                {
+                    "index": 21,
+                    "file": "sprite_26_21.svg"
+                },
+                {
+                    "index": 22,
+                    "file": "sprite_26_22.svg"
+                },
+                {
+                    "index": 23,
+                    "file": "sprite_26_23.svg"
+                },
+                {
+                    "index": 24,
+                    "file": "sprite_26_24.svg"
+                },
+                {
+                    "index": 25,
+                    "file": "sprite_26_25.svg"
+                },
+                {
+                    "index": 26,
+                    "file": "sprite_26_26.svg"
+                },
+                {
+                    "index": 27,
+                    "file": "sprite_26_27.svg"
+                },
+                {
+                    "index": 28,
+                    "file": "sprite_26_28.svg"
+                },
+                {
+                    "index": 29,
+                    "file": "sprite_26_29.svg"
+                },
+                {
+                    "index": 30,
+                    "file": "sprite_26_30.svg"
+                },
+                {
+                    "index": 31,
+                    "file": "sprite_26_31.svg"
+                },
+                {
+                    "index": 32,
+                    "file": "sprite_26_32.svg"
+                },
+                {
+                    "index": 33,
+                    "file": "sprite_26_33.svg"
+                },
+                {
+                    "index": 34,
+                    "file": "sprite_26_34.svg"
+                },
+                {
+                    "index": 35,
+                    "file": "sprite_26_35.svg"
+                },
+                {
+                    "index": 36,
+                    "file": "sprite_26_36.svg"
+                },
+                {
+                    "index": 37,
+                    "file": "sprite_26_37.svg"
+                },
+                {
+                    "index": 38,
+                    "file": "sprite_26_38.svg"
+                },
+                {
+                    "index": 39,
+                    "file": "sprite_26_39.svg"
+                },
+                {
+                    "index": 40,
+                    "file": "sprite_26_40.svg"
+                },
+                {
+                    "index": 41,
+                    "file": "sprite_26_41.svg"
+                }
+            ]
+        },
+        {
+            "name": "sprite_29",
+            "frameCount": 60,
+            "width": 0,
+            "height": 0,
+            "offsetX": 0,
+            "offsetY": -17,
+            "stopFrame": 57,
+            "fadingFrame": 56,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "sprite_29_0.svg"
+                },
+                {
+                    "index": 1,
+                    "file": "sprite_29_1.svg"
+                },
+                {
+                    "index": 2,
+                    "file": "sprite_29_2.svg"
+                },
+                {
+                    "index": 3,
+                    "file": "sprite_29_3.svg"
+                },
+                {
+                    "index": 4,
+                    "file": "sprite_29_4.svg"
+                },
+                {
+                    "index": 5,
+                    "file": "sprite_29_5.svg"
+                },
+                {
+                    "index": 6,
+                    "file": "sprite_29_6.svg"
+                },
+                {
+                    "index": 7,
+                    "file": "sprite_29_7.svg"
+                },
+                {
+                    "index": 8,
+                    "file": "sprite_29_8.svg"
+                },
+                {
+                    "index": 9,
+                    "file": "sprite_29_9.svg"
+                },
+                {
+                    "index": 10,
+                    "file": "sprite_29_10.svg"
+                },
+                {
+                    "index": 11,
+                    "file": "sprite_29_11.svg"
+                },
+                {
+                    "index": 12,
+                    "file": "sprite_29_12.svg"
+                },
+                {
+                    "index": 13,
+                    "file": "sprite_29_13.svg"
+                },
+                {
+                    "index": 14,
+                    "file": "sprite_29_14.svg"
+                },
+                {
+                    "index": 15,
+                    "file": "sprite_29_15.svg"
+                },
+                {
+                    "index": 16,
+                    "file": "sprite_29_16.svg"
+                },
+                {
+                    "index": 17,
+                    "file": "sprite_29_17.svg"
+                },
+                {
+                    "index": 18,
+                    "file": "sprite_29_18.svg"
+                },
+                {
+                    "index": 19,
+                    "file": "sprite_29_19.svg"
+                },
+                {
+                    "index": 20,
+                    "file": "sprite_29_20.svg"
+                },
+                {
+                    "index": 21,
+                    "file": "sprite_29_21.svg"
+                },
+                {
+                    "index": 22,
+                    "file": "sprite_29_22.svg"
+                },
+                {
+                    "index": 23,
+                    "file": "sprite_29_23.svg"
+                },
+                {
+                    "index": 24,
+                    "file": "sprite_29_24.svg"
+                },
+                {
+                    "index": 25,
+                    "file": "sprite_29_25.svg"
+                },
+                {
+                    "index": 26,
+                    "file": "sprite_29_26.svg"
+                },
+                {
+                    "index": 27,
+                    "file": "sprite_29_27.svg"
+                },
+                {
+                    "index": 28,
+                    "file": "sprite_29_28.svg"
+                },
+                {
+                    "index": 29,
+                    "file": "sprite_29_29.svg"
+                },
+                {
+                    "index": 30,
+                    "file": "sprite_29_30.svg"
+                },
+                {
+                    "index": 31,
+                    "file": "sprite_29_31.svg"
+                },
+                {
+                    "index": 32,
+                    "file": "sprite_29_32.svg"
+                },
+                {
+                    "index": 33,
+                    "file": "sprite_29_33.svg"
+                },
+                {
+                    "index": 34,
+                    "file": "sprite_29_34.svg"
+                },
+                {
+                    "index": 35,
+                    "file": "sprite_29_35.svg"
+                },
+                {
+                    "index": 36,
+                    "file": "sprite_29_36.svg"
+                },
+                {
+                    "index": 37,
+                    "file": "sprite_29_37.svg"
+                },
+                {
+                    "index": 38,
+                    "file": "sprite_29_38.svg"
+                },
+                {
+                    "index": 39,
+                    "file": "sprite_29_39.svg"
+                },
+                {
+                    "index": 40,
+                    "file": "sprite_29_40.svg"
+                },
+                {
+                    "index": 41,
+                    "file": "sprite_29_41.svg"
+                },
+                {
+                    "index": 42,
+                    "file": "sprite_29_42.svg"
+                },
+                {
+                    "index": 43,
+                    "file": "sprite_29_43.svg"
+                },
+                {
+                    "index": 44,
+                    "file": "sprite_29_44.svg"
+                },
+                {
+                    "index": 45,
+                    "file": "sprite_29_45.svg"
+                },
+                {
+                    "index": 46,
+                    "file": "sprite_29_46.svg"
+                },
+                {
+                    "index": 47,
+                    "file": "sprite_29_47.svg"
+                },
+                {
+                    "index": 48,
+                    "file": "sprite_29_48.svg"
+                },
+                {
+                    "index": 49,
+                    "file": "sprite_29_49.svg"
+                },
+                {
+                    "index": 50,
+                    "file": "sprite_29_50.svg"
+                },
+                {
+                    "index": 51,
+                    "file": "sprite_29_51.svg"
+                },
+                {
+                    "index": 52,
+                    "file": "sprite_29_52.svg"
+                },
+                {
+                    "index": 53,
+                    "file": "sprite_29_53.svg"
+                },
+                {
+                    "index": 54,
+                    "file": "sprite_29_54.svg"
+                },
+                {
+                    "index": 55,
+                    "file": "sprite_29_55.svg"
+                },
+                {
+                    "index": 56,
+                    "file": "sprite_29_56.svg"
+                },
+                {
+                    "index": 57,
+                    "file": "sprite_29_57.svg"
+                },
+                {
+                    "index": 58,
+                    "file": "sprite_29_58.svg"
+                },
+                {
+                    "index": 59,
+                    "file": "sprite_29_59.svg"
                 }
             ]
         }
@@ -286,18 +1010,34 @@
     "requiresTypeScript": true,
     "librarySymbols": [
         {
+            "name": "part_f",
+            "characterId": 13,
+            "internalName": "sprite_13",
+            "frameCount": 1,
+            "width": 29.35,
+            "height": 27.6,
+            "offsetX": -4.5,
+            "offsetY": -18,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_part_f_0.svg"
+                }
+            ]
+        },
+        {
             "name": "part_w",
             "characterId": 5,
             "internalName": "sprite_5",
             "frameCount": 1,
-            "width": 298.5,
-            "height": 290.4,
-            "offsetX": -84,
-            "offsetY": -210.29999999999998,
+            "width": 49.75,
+            "height": 48.4,
+            "offsetX": -14,
+            "offsetY": -35.05,
             "frames": [
                 {
                     "index": 0,
-                    "file": "lib_part_w_0.webp"
+                    "file": "lib_part_w_0.svg"
                 }
             ]
         },
@@ -306,14 +1046,14 @@
             "characterId": 16,
             "internalName": "sprite_16",
             "frameCount": 1,
-            "width": 370.5,
-            "height": 363.6,
-            "offsetX": -97.80000000000001,
-            "offsetY": -155.7,
+            "width": 61.75,
+            "height": 60.6,
+            "offsetX": -16.3,
+            "offsetY": -25.95,
             "frames": [
                 {
                     "index": 0,
-                    "file": "lib_part_e_0.webp"
+                    "file": "lib_part_e_0.svg"
                 }
             ]
         },
@@ -322,14 +1062,14 @@
             "characterId": 27,
             "internalName": "sprite_27",
             "frameCount": 1,
-            "width": 193.20000000000002,
-            "height": 224.70000000000002,
-            "offsetX": -174,
-            "offsetY": -224.70000000000002,
+            "width": 32.2,
+            "height": 37.45,
+            "offsetX": -29,
+            "offsetY": -37.45,
             "frames": [
                 {
                     "index": 0,
-                    "file": "lib_part_a_0.webp"
+                    "file": "lib_part_a_0.svg"
                 }
             ]
         }

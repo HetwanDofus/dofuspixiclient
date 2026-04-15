@@ -25,9 +25,16 @@ message ChatMessage {
   int32       event_type = 8;
 }
 
-// cs - Server message
+// cs - Server message.
+// Legacy 1.29 wire: "cs<channel>|<senderID>|<senderName>|<body>" where
+// channel is a single char (e.g. '*' general, '%' guild, '#' party,
+// '$' private). Producer: pkg/chat/interfaces/register.go:253 senderAdapter.
+// The "muted" notice also reuses this message with senderID=0, sender_name="Server".
 message ChatServerMessage {
-  string raw_data = 1;
+  string channel = 1;       // single-char channel code
+  int64  sender_id = 2;     // 0 for server-generated notices
+  string sender_name = 3;
+  string body = 4;
 }
 
 // cS - Smiley used
@@ -80,10 +87,10 @@ message BasicsFileCheck {
   string filename = 2;
 }
 
-// Bp - Ping acknowledgement
-message BasicsPing {
-  string raw_data = 1;
-}
+// Bp - Ping acknowledgement.
+// Legacy 1.29: bare "Bp" server ack to client "Bp<avgPing>|<count>|<buf>".
+// No payload body.
+message BasicsPing {}
 
 // BA - Admin command response
 message BasicsAdminResponse {
@@ -107,28 +114,46 @@ message BasicsAdminResponse {
   int64  rights = 7;       // For INTERFACE_OPEN
 }
 
-// Br - Report infos response
+// Br - Report infos response (moderator reports UI).
+// Legacy 1.29: "Br<step>|<payload>" where step mirrors the request step
+// and payload is step-dependent JSON-ish data.
 message BasicsReportInfos {
-  string raw_data = 1;
+  int32  step = 1;
+  string payload = 2;
 }
 
 // ============================================================================
 // INFOS PROTOCOL (I prefix)
 // ============================================================================
 
-// IM - Info map messages
+// IM - Info map messages.
+// Legacy 1.29: "IM<messageId>[;<params>]" where messageId indexes a
+// localized info string and params are pipe/comma-joined arguments.
 message InfoMaps {
-  string raw_data = 1;
+  int32  message_id = 1;
+  repeated string params = 2;
 }
 
-// IC - Compass direction
+// IC - Compass direction.
+// StarLoco SocketManager.java:1813,1818 — "IC<x>|<y>" pointing the compass
+// to absolute map coordinates. :1823 emits "IC|" to clear the compass.
 message InfoCompass {
-  string raw_data = 1;
+  bool  clear = 1;   // true => hide compass (bare "IC|")
+  int32 x = 2;
+  int32 y = 3;
 }
 
-// IH - Highlight coordinates
+// IH - Highlight coordinates (phoenix revival list).
+// StarLoco Player.java:4824 — "IH<phoenixList>" pipe-separated
+// "<x>,<y>,<mapId>" triplets; Player.java:4843 — bare "IH" clears.
 message InfoCoordinatesHighlight {
-  string raw_data = 1;
+  repeated PhoenixPoint phoenixes = 1;
+}
+
+message PhoenixPoint {
+  int32 x = 1;
+  int32 y = 2;
+  int32 map_id = 3;
 }
 
 // Im - Info message
@@ -136,40 +161,57 @@ message InfoMessage {
   string message = 1;
 }
 
-// IQ - Quantity prompt
+// IQ - Quantity prompt (mount equip-quantity dialog).
+// StarLoco SocketManager.java:1323 — "IQ<actorID>|<quantity>".
 message InfoQuantity {
-  string raw_data = 1;
+  int64 actor_id = 1;
+  int32 quantity = 2;
 }
 
-// IO - Object info
+// IO - Object info (head icon "+"/"-" badge for job recipes).
+// StarLoco SocketManager.java:1495 — "IO<guid>|<str>" where str is a
+// freeform expression; JobAction.java:2461,2613 — "IO<playerId>|±<templateId>"
+// signaling a recipe-component pick-up/drop.
 message InfoObject {
-  string raw_data = 1;
+  int64  actor_id = 1;
+  string info = 2;   // e.g. "+1234" or "-1234"
 }
 
-// IL - Life restore timer
+// IL - Life restore timer.
+// StarLoco Player.java:1266,1919,1920,2372,2373,3401 — "ILS<rate>" starts
+// passive regen at `rate` HP/sec, "ILF<diff>" finishes with the HP delta
+// healed. Stalk.java:51 — "ILF0".
 message InfoLifeRestoreTimer {
-  bool  started = 1;   // ILS = start, ILF = finish
-  string raw_data = 2;
+  bool  started = 1;   // true => ILS (rate populated), false => ILF (delta populated)
+  int32 rate = 2;      // HP per tick when started
+  int32 delta = 3;     // HP restored when finished
 }
 
 // ============================================================================
 // DIALOG PROTOCOL (D prefix)
 // ============================================================================
 
-// DA - Custom action
+// DA - Custom action.
+// Legacy 1.29: "DA<actionId>[|<args>]" — custom dialog action echo.
 message DialogCustomAction {
-  string raw_data = 1;
+  int32  action_id = 1;
+  string args = 2;
 }
 
-// DC - Dialog create
+// DC - Dialog create (NPC dialog open).
+// Producer: pkg/npc/interfaces/register.go:102 — emits the NPC template id
+// as the sole body ("DC<npcId>").
 message DialogCreate {
-  bool   success = 1;
-  string raw_data = 2;
+  bool  success = 1;
+  int64 npc_id = 2;
 }
 
-// DQ - Dialog question
+// DQ - Dialog question.
+// StarLoco SocketManager.java:1074,1089 — "DQ<questionId>;<params>".
+// Producer: pkg/npc/interfaces/register.go:112 encodeQuestion builds this.
 message DialogQuestion {
-  string raw_data = 1;
+  int32           question_id = 1;
+  repeated string params = 2;
 }
 
 // DV - Dialog leave

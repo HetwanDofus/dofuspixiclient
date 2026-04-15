@@ -1,30 +1,33 @@
 /**
- * Spell 2108 - Unknown Name
+ * Spell 2108 - Grina
  *
- * A spell animation with a single composite sprite that has randomized internal elements.
+ * A composite animation spell with a single anim1 animation.
  *
  * Components:
- * - anim1: Main composite animation at caster position
+ * - anim1: Main animation at target position, 105 frames
  *
  * Original AS timing:
- * - Frame 1: Play sound "grina_701"
- * - Frame 103: Animation completes
- * - Various internal sprites have randomized start frames and rotations
+ * - Frame 1 (main): Play sound 'grina_701'
+ * - Frame 103 (DefineSprite_23): removeMovieClip() - animation ends
+ * - DefineSprite_13 loops at frame 52 back to frame 2
+ * - DefineSprite_21 instances start at random rotation
+ * - DefineSprite_22 instances start at random frames
+ * - DefineSprite_15 rotates +1.6 degrees per frame
  */
 
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const ANIM1_MANIFEST: SpriteManifest = {
-  width: 861,
-  height: 408.6,
-  offsetX: -386.1,
-  offsetY: -204.3,
+  width: 143.5,
+  height: 68.1,
+  offsetX: -64.35,
+  offsetY: -34.05,
 };
 
 export class Spell2108 extends BaseSpell {
@@ -33,24 +36,27 @@ export class Spell2108 extends BaseSpell {
   private mainAnim!: FrameAnimatedSprite;
 
   protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    const anim1Frames = textures.getFrames('anim1');
+    const anchor = calculateAnchor(ANIM1_MANIFEST);
 
     this.mainAnim = this.anims.add(new FrameAnimatedSprite({
-      frames: anim1Frames,
-      frameRate: 60,
-      loop: false,
-      autoStart: true,
+      textures: textures.getFrames('anim1'),
+      fps: 60,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
+      scale: init.scale,
     }));
 
-    this.mainAnim.scale.set(init.scale);
-    this.mainAnim.anchor.copyFrom(calculateAnchor(ANIM1_MANIFEST));
-    this.mainAnim.position.set(0, init.casterY);
+    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
 
-    this.container.addChild(this.mainAnim);
+    // Frame 1 (0-indexed: 0): Play sound
+    this.mainAnim.onFrame(0, () => this.callbacks.playSound('grina_701'));
 
-    this.mainAnim
-      .onFrame(0, () => this.callbacks.playSound('grina_701'))
-      .stopAt(104);
+    // Frame 103 (0-indexed: 102): DefineSprite_23 calls removeMovieClip -> signal hit and complete
+    this.mainAnim.onFrame(102, () => {
+      this.signalHit();
+    });
+
+    this.container.addChild(this.mainAnim.sprite);
   }
 
   update(deltaTime: number): void {

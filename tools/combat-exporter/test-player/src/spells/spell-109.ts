@@ -1,66 +1,73 @@
-import { Texture } from 'pixi.js';
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+/**
+ * Spell 109 - Carapace (Bouclier)
+ *
+ * A shield/armor spell animation played at the target position.
+ *
+ * Components:
+ * - anim1: Composite animation at target position, plays through 129 frames
+ *
+ * The animation is a composite (isComposite: true) meaning it contains
+ * multiple sub-sprites rendered together:
+ * - DefineSprite_17 (outer): Plays sound at frame 1, removes at frame 127
+ * - DefineSprite_13 (inner rotating element): Random initial rotation, stops at frame 28
+ * - DefineSprite_14 (spinning element): Rotates +10 degrees per frame continuously
+ * - DefineSprite_15 (another element): Stops at frame 55
+ *
+ * Since anim1 is a composite pre-rendered animation, we just play it as a
+ * single sprite sequence.
+ *
+ * Original AS timing:
+ * - Frame 1 (DefineSprite_17): Play sound 'shield_cara'
+ * - Frame 28 (DefineSprite_13): stop()
+ * - Frame 55 (DefineSprite_15): stop()
+ * - Frame 127 (DefineSprite_17): removeMovieClip() - animation ends
+ * - DefineSprite_13 frame 1: _rotation = random(360) (random initial rotation)
+ * - DefineSprite_14 enterFrame: _rotation += 10 (continuous spin)
+ *
+ * Hit signal: at frame 0 (instant effect on target)
+ * Completion: when anim1 finishes (frame 128, 0-indexed)
+ */
+
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
-/**
- * Spell 109 - Shield/Protection Spell
- *
- * A shield animation with rotating elements that plays for approximately 2.15 seconds.
- *
- * Components:
- * - anim1: Main shield animation (129 frames)
- * - Internal sprites with rotation effects
- *
- * Original AS timing:
- * - Frame 1: Play shield_cara sound, initialize random rotation
- * - Frame 28: DefineSprite_13 stops
- * - Frame 55: DefineSprite_15 stops
- * - Frame 127: Cleanup begins
- * - DefineSprite_14: Continuous rotation at 10°/frame
- */
+const ANIM1_MANIFEST: SpriteManifest = {
+  width: 113.3,
+  height: 95.9,
+  offsetX: -47.6,
+  offsetY: -58.8,
+};
+
 export class Spell109 extends BaseSpell {
   readonly spellId = 109;
 
   private mainAnim!: FrameAnimatedSprite;
 
-  protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    const manifest: SpriteManifest = {
-      width: 679.8,
-      height: 575.4,
-      offsetX: -285.6,
-      offsetY: -352.8,
-    };
-    const anchor = calculateAnchor(manifest);
+  protected setup(_context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
+    const anchor = calculateAnchor(ANIM1_MANIFEST);
 
-    // Create main animation
-    this.mainAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames('anim1'),
-        scale: init.scale,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        fps: 60,
-        loop: false,
-      })
-    )
-      .onFrame(0, () => {
-        // Frame 1 in AS (0 in TS): Play sound
-        this.callbacks.playSound('shield_cara');
-      });
+    this.mainAnim = this.anims.add(new FrameAnimatedSprite({
+      textures: textures.getFrames('anim1'),
+      fps: 60,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
+      scale: init.scale,
+    }));
 
-    // Add to container
+    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
+
+    // Frame 0 (AS frame 1): play sound 'shield_cara'
+    this.mainAnim.onFrame(0, () => this.callbacks.playSound('shield_cara'));
+
+    // Signal hit immediately when the spell reaches target (frame 0)
+    this.mainAnim.onFrame(0, () => this.signalHit());
+
     this.container.addChild(this.mainAnim.sprite);
-
-    // Note: The ActionScript shows internal sprites with rotation behavior:
-    // - DefineSprite_13: Random initial rotation (0-360°), stops at frame 28
-    // - DefineSprite_14: Continuous rotation at 10°/frame
-    // - DefineSprite_15: Stops at frame 55
-    // These are embedded in the pre-rendered animation frames
   }
 
   update(deltaTime: number): void {
@@ -68,10 +75,8 @@ export class Spell109 extends BaseSpell {
       return;
     }
 
-    // Update all registered animations
     this.anims.update(deltaTime);
 
-    // Check completion
     if (this.anims.allComplete()) {
       this.complete();
     }

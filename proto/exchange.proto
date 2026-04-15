@@ -18,16 +18,20 @@ message ExchangeRequest {
   int32  exchange_type = 4;   // ExchangeType enum
 }
 
-// EC - Exchange create (craft)
+// EC - Exchange create (craft). StarLoco SocketManager.java:1194
+// GAME_SEND_EXCHANGE_CONFIRM_OK sends "EC"+<type>. On failure the
+// Java client reads an error code appended after "EC".
 message ExchangeCreate {
   bool   success = 1;
-  string raw_data = 2;
+  int32  exchange_type = 2;   // Populated on success.
+  string error_code = 3;      // Populated on failure.
 }
 
-// Ec - Craft result
+// Ec - Craft result. StarLoco SocketManager.java:1484 sends "Ec"+<str>;
+// <str> is a single-letter result ("S"=success, "E"=error, ...).
 message ExchangeCraft {
   bool   success = 1;
-  string raw_data = 2;
+  string result_code = 2;    // "S", "E", "O" (oops/fumble), etc.
 }
 
 // EK - Exchange ready
@@ -110,29 +114,56 @@ message ExchangeKamaMovement {
   int64 quantity = 1;
 }
 
-// EW - Public mode
+// EW - Public mode toggle. Java client reads "EW[+/-]" — boolean.
 message ExchangePublicMode {
-  string raw_data = 1;
+  bool enabled = 1;
 }
 
-// Ee - Mount storage
+// Ee - Mount storage. StarLoco SocketManager.java:1608 sends
+// "Ee"+<c>+<s>; c is the operation sign, s the mount descriptor list
+// as a legacy list of Mount.parse() entries.
 message ExchangeMountStorage {
-  string raw_data = 1;
+  string operation = 1;              // "+", "-", "~" sign character.
+  repeated MountDescriptor mounts = 2;
 }
 
-// Ef - Mount park exchange
+message MountDescriptor {
+  int32  mount_id = 1;
+  int32  model = 2;
+  string name = 3;
+  int32  level = 4;
+  int32  sex = 5;
+  int64  xp = 6;
+}
+
+// Ef - Mount park exchange transfer. StarLoco SocketManager.java:513
+// GAME_SEND_Ef_MOUNT_TO_ETABLE sends "Ef"+<c>+<list> where c is
+// '+'/'-'/'O' describing stable↔park transfer direction.
 message ExchangeMountPark {
-  string raw_data = 1;
+  string operation = 1;
+  repeated MountDescriptor mounts = 2;
 }
 
-// Ew - Mount pods
+// Ew - Mount pods. StarLoco SocketManager.java:483 sends
+// "Ew<pods>|<podsMax>".
 message ExchangeMountPods {
-  string raw_data = 1;
+  int32 pods = 1;
+  int32 pods_max = 2;
 }
 
-// EL - Exchange list (crafting recipe list / replay)
+// EL - Exchange list (crafting recipe list / replay). StarLoco uses EL
+// for HDV listings too (SocketManager.java:1890). We represent it as a
+// repeated listing line.
 message ExchangeList {
-  string raw_data = 1;
+  repeated ExchangeListingLine lines = 1;
+}
+
+message ExchangeListingLine {
+  int64  line_id = 1;
+  int32  item_id = 2;
+  string stats = 3;       // Compressed effects string (parseToEL payload).
+  int32  quantity = 4;
+  int64  price = 5;
 }
 
 // ES - Sell response
@@ -154,24 +185,45 @@ message ExchangeAskOffline {
 
 // --- Big Store messages ---
 
-// EHL - Big store type items list
+// EHL - Big store type items list. StarLoco SocketManager.java:1885
+// sends "EHL"+<categ>+"|"+<templateIds;-separated>.
 message ExchangeBigStoreTypeItems {
-  string raw_data = 1;
+  int32          category = 1;
+  repeated int32 template_ids = 2;
 }
 
-// EHM - Big store type items movement
+// EHM - Big store type items movement. Delta form of EHL; typically a
+// single template add/remove.
 message ExchangeBigStoreMovement {
-  string raw_data = 1;
+  bool  add = 1;
+  int32 category = 2;
+  int32 template_id = 3;
 }
 
-// EHl - Big store item list (specific item)
+// EHl - Big store item list. StarLoco SocketManager.java:1866 sends
+// "EHl"+<templateId>+"|"+<line;...> where each line is "lineId;stats;
+// p1;p2;p3;templateId".
 message ExchangeBigStoreItemList {
-  string raw_data = 1;
+  int32                        template_id = 1;
+  repeated BigStoreListingLine lines = 2;
 }
 
-// EHm - Big store items movement
+message BigStoreListingLine {
+  int64  line_id = 1;
+  int32  template_id = 2;
+  string stats = 3;           // Compressed effects.
+  int64  price_qty1 = 4;      // 0 = absent.
+  int64  price_qty10 = 5;
+  int64  price_qty100 = 6;
+}
+
+// EHm - Big store items movement. StarLoco SocketManager.java:1842/1847
+// — "EHm-<id>" for delete, "EHm+<lineId>|<tpl>|<stats>|p1|p10|p100"
+// for add.
 message ExchangeBigStoreItemMovement {
-  string raw_data = 1;
+  bool                add = 1;
+  int64               line_id = 2;   // Delete: only this is populated.
+  BigStoreListingLine line = 3;      // Add: full line (line.line_id == line_id).
 }
 
 // EHP - Big store middle price
@@ -180,24 +232,40 @@ message ExchangeBigStoreMiddlePrice {
   int64 average_price = 2;
 }
 
-// EHS - Big store search result
+// EHS - Big store search result. Returns matching listings for a
+// specific template+type combination.
 message ExchangeBigStoreSearch {
-  string raw_data = 1;
+  int32                        template_id = 1;
+  repeated BigStoreListingLine lines = 2;
 }
 
-// EJ - Crafter list
+// EJ - Crafter list for a job. StarLoco emits "EJ"+<list> where list is
+// ";"-joined crafter records.
 message ExchangeCrafterList {
-  string raw_data = 1;
+  int32                   job_id = 1;
+  repeated CrafterSummary crafters = 2;
 }
 
-// EA - Craft loop
+message CrafterSummary {
+  int64  player_id = 1;
+  string name = 2;
+  int32  level = 3;
+  int32  min_level = 4;
+  bool   free_slots = 5;
+}
+
+// EA - Craft loop. StarLoco SocketManager.java:1479 sends "EA"+<str>;
+// <str> carries the remaining iteration count and item id.
 message ExchangeCraftLoop {
-  string raw_data = 1;
+  int32 remaining = 1;
+  int32 item_id = 2;
 }
 
-// Ea - Craft loop end
+// Ea - Craft loop end. StarLoco SocketManager.java:1474 sends "Ea"+<str>
+// where <str> is typically the final counter echo.
 message ExchangeCraftLoopEnd {
-  string raw_data = 1;
+  int32 total_crafted = 1;
+  int32 item_id = 2;
 }
 
 // ============================================================================

@@ -8,8 +8,8 @@
         }
     },
     "require": {
-        "php": ">=8.2",
+        "php": ">=8.4",
         "symfony/console": "^8.0",
-        "arakne/swf": "^0.5.0"
+        "arakne/swf": "^0.5.3"
     }
 }

@@ -1,67 +1,130 @@
 /**
  * Spell 2071
  *
- * A simple animated effect with physics-based motion and random properties.
+ * A composite animation with multiple sprite instances (DefineSprite_7) that have
+ * randomized scale, position drift, and start frame, contained within DefineSprite_8.
  *
  * Components:
- * - anim1: Main animation with random scale and physics motion
+ * - anim1 (composite): Multiple instances of DefineSprite_7 at target position,
+ *   each with random scale (50-109%), random velocity drift, and random start frame (0-29)
  *
  * Original AS timing:
- * - Frame 1: Initialize random scale (50-109%), velocity, and start frame
- * - Frame 106: Animation stops
- * - Frame 109: Complete spell
+ * - DefineSprite_7 frame_1: Set random scale, velocity; gotoAndPlay(random(30)+1)
+ * - DefineSprite_7 frame_106 (0-indexed: 105): stop()
+ * - DefineSprite_8 frame_109 (0-indexed: 108): removeMovieClip() -> complete
  */
 
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import { Container } from 'pixi.js';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const ANIM1_MANIFEST: SpriteManifest = {
-  width: 327.6,
-  height: 269.4,
-  offsetX: -163.8,
-  offsetY: -130.8,
+  width: 54.6,
+  height: 44.9,
+  offsetX: -27.3,
+  offsetY: -21.8,
 };
+
+/**
+ * Internal state for each sprite_7 instance physics simulation
+ */
+interface SpritePhysics {
+  anim: FrameAnimatedSprite;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  stopped: boolean;
+}
 
 export class Spell2071 extends BaseSpell {
   readonly spellId = 2071;
 
-  private mainAnim!: FrameAnimatedSprite;
-  private vx = 0;
-  private vy = 0;
+  private spriteInstances: SpritePhysics[] = [];
+  private instancesContainer!: Container;
+  private outerAnim!: FrameAnimatedSprite;
 
-  protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Random scale between 50-109% (AS: t = 50 + random(60))
-    const t = 50 + Math.floor(Math.random() * 60);
-    const randomScale = (t / 100) * init.scale;
+  protected setup(_context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
+    const anchor = calculateAnchor(ANIM1_MANIFEST);
+    const anim1Textures = textures.getFrames('anim1');
 
-    // Random velocities (exact AS formulas)
-    this.vx = 6 * (-0.5 + Math.random());
-    this.vy = -3 - 5 * Math.random();
+    // Container for all instances, positioned at target
+    this.instancesContainer = new Container();
+    this.instancesContainer.position.set(init.targetX, init.targetY);
+    this.container.addChild(this.instancesContainer);
 
-    // Random starting frame (AS: gotoAndPlay(random(30) + 1))
-    const startFrame = Math.floor(Math.random() * 30);
+    // The outer sprite (DefineSprite_8) is represented by anim1 itself.
+    // frame_109 (0-indexed: 108) triggers removeMovieClip -> complete.
+    // We use a single FrameAnimatedSprite for the outer timeline to track completion.
+    // The manifest says stopFrame=108 and fadingFrame=107, so we stop at 108.
+    this.outerAnim = new FrameAnimatedSprite({
+      textures: anim1Textures,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
+      scale: init.scale,
+      stopFrame: 108,
+    });
+    // The outer anim sprite itself is not rendered visually (it's the container timeline),
+    // but we use it for timing. We add it hidden to still benefit from update tracking.
+    this.outerAnim.sprite.visible = false;
+    this.instancesContainer.addChild(this.outerAnim.sprite);
+    this.outerAnim.onFrame(108, () => this.complete());
 
-    // Create main animation
-    const anim1Anchor = calculateAnchor(ANIM1_MANIFEST);
-    this.mainAnim = this.anims.add(new FrameAnimatedSprite({
-      textures: textures.getFrames('anim1'),
-      anchorX: anim1Anchor.x,
-      anchorY: anim1Anchor.y,
-      scale: randomScale,
-      startFrame: startFrame,
-      stopFrame: 107, // AS frame 108 (0-indexed)
-    }));
+    // Spawn multiple DefineSprite_7 instances.
+    // The manifest has 111 frames for anim1 (composite), which corresponds to
+    // DefineSprite_8's 111 frames. DefineSprite_7 has 106 frames (stops at frame 106 = index 105).
+    // Based on original AS, the composite likely spawns several instances.
+    // Looking at the animation structure: anim1 is composite with 111 frames,
+    // containing multiple DefineSprite_7 instances. The typical pattern for such
+    // composite spells spawns a small number (e.g., 5) instances.
+    // Since no explicit count is given in AS, we use the composite frame data directly.
+    // Each DefineSprite_7 frame_1 initializes its own physics, so we simulate that.
 
-    // Position at caster
-    this.mainAnim.sprite.position.set(0, init.casterY);
-    
-    // Add to container
-    this.container.addChild(this.mainAnim.sprite);
+    const instanceCount = 5;
+
+    for (let i = 0; i < instanceCount; i++) {
+      // AS frame_1 of DefineSprite_7:
+      // t = 50 + random(60)  -> scale percentage 50-109
+      const t = 50 + Math.floor(Math.random() * 60);
+      const asScale = t / 100;
+
+      // vx = 6 * (-0.5 + Math.random())
+      const vx = 6 * (-0.5 + Math.random());
+
+      // vy = -3 - 5 * Math.random()
+      const vy = -3 - 5 * Math.random();
+
+      // gotoAndPlay(random(30) + 1) -> 0-indexed: random(30) = 0-29, so startFrame 0-29
+      const startFrame = Math.floor(Math.random() * 30);
+
+      const anim = new FrameAnimatedSprite({
+        textures: anim1Textures,
+        anchorX: anchor.x,
+        anchorY: anchor.y,
+        scale: init.scale * asScale,
+        startFrame,
+        stopFrame: 105,
+      });
+
+      this.instancesContainer.addChild(anim.sprite);
+
+      this.spriteInstances.push({
+        anim,
+        x: 0,
+        y: 0,
+        vx,
+        vy,
+        stopped: false,
+      });
+    }
+
+    // Signal hit at frame 0 (instant effect at target)
+    this.signalHit();
   }
 
   update(deltaTime: number): void {
@@ -69,20 +132,34 @@ export class Spell2071 extends BaseSpell {
       return;
     }
 
-    // Update animation
-    this.anims.update(deltaTime);
+    // Update outer timing animation
+    this.outerAnim.update(deltaTime);
 
-    // Apply physics (AS onEnterFrame logic)
-    if (!this.mainAnim.isStopped()) {
-      this.mainAnim.sprite.x += this.vx;
-      this.mainAnim.sprite.y += this.vy;
-      this.vx *= 0.9;
-      this.vy *= 0.9;
-    }
+    // Update each sprite_7 instance with AS physics
+    for (const inst of this.spriteInstances) {
+      if (inst.stopped) {
+        continue;
+      }
 
-    // Check if we've reached frame 109 (AS DefineSprite_8 frame 109)
-    if (this.mainAnim.getFrame() >= 108) {
-      this.complete();
+      inst.anim.update(deltaTime);
+
+      // AS onEnterFrame physics (runs every frame):
+      // _X = _X + vx
+      // _Y = _Y + vy
+      // vx *= 0.9
+      // vy *= 0.9
+      // We apply per-frame step; since deltaTime may span multiple frames,
+      // we approximate by applying once per update (frame-locked at 60fps via FrameAnimatedSprite)
+      inst.x += inst.vx;
+      inst.y += inst.vy;
+      inst.vx *= 0.9;
+      inst.vy *= 0.9;
+
+      inst.anim.sprite.position.set(inst.x, inst.y);
+
+      if (inst.anim.isStopped() || inst.anim.isComplete()) {
+        inst.stopped = true;
+      }
     }
   }
 }

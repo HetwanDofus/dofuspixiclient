@@ -1,65 +1,65 @@
 {
     "id": 2052,
     "fps": 60,
-    "scale": 6,
+    "scale": 1,
     "mainTimelineScale": 0.411285400390625,
     "animations": [
         {
             "name": "anim1",
             "frameCount": 12,
-            "width": 42.3,
-            "height": 45.599999999999994,
-            "offsetX": -21,
-            "offsetY": -22.799999999999997,
+            "width": 7.05,
+            "height": 7.6,
+            "offsetX": -3.5,
+            "offsetY": -3.8,
             "isComposite": true,
             "frames": [
                 {
                     "index": 0,
-                    "file": "anim1_0.webp"
+                    "file": "anim1_0.svg"
                 },
                 {
                     "index": 1,
-                    "file": "anim1_1.webp"
+                    "file": "anim1_1.svg"
                 },
                 {
                     "index": 2,
-                    "file": "anim1_2.webp"
+                    "file": "anim1_2.svg"
                 },
                 {
                     "index": 3,
-                    "file": "anim1_3.webp"
+                    "file": "anim1_3.svg"
                 },
                 {
                     "index": 4,
-                    "file": "anim1_4.webp"
+                    "file": "anim1_4.svg"
                 },
                 {
                     "index": 5,
-                    "file": "anim1_5.webp"
+                    "file": "anim1_5.svg"
                 },
                 {
                     "index": 6,
-                    "file": "anim1_6.webp"
+                    "file": "anim1_6.svg"
                 },
                 {
                     "index": 7,
-                    "file": "anim1_7.webp"
+                    "file": "anim1_7.svg"
                 },
                 {
                     "index": 8,
-                    "file": "anim1_8.webp"
+                    "file": "anim1_8.svg"
                 },
                 {
                     "index": 9,
-                    "file": "anim1_9.webp"
+                    "file": "anim1_9.svg"
                 },
                 {
                     "index": 10,
-                    "file": "anim1_10.webp"
+                    "file": "anim1_10.svg"
                 },
                 {
                     "index": 11,
-                    "file": "anim1_11.webp"
+                    "file": "anim1_11.svg"
                 }
             ]
         }

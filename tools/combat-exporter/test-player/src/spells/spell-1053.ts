@@ -1,128 +1,257 @@
 /**
- * Spell 1053 - Sacrieur Spell
+ * Spell 1053 - Sacrieur (Blood/Sacrifice spell)
  *
- * A spell that creates a continuous stream of fading spire particles that move horizontally.
+ * A projectile spell that shoots a "move" sprite from caster to target,
+ * trailing "spire" particles, with a "shoot" impact animation at the target.
  *
  * Components:
- * - shoot: Main animation (81 frames) with sound trigger
- * - move: Looping animation that spawns spire particles
- * - spire particles: Shrinking, fading particles that move left
+ * - shoot (DefineSprite_12): Impact at target position, 81 frames, stops at frame 51
+ * - move (DefineSprite_15): Projectile looping frames 3-6, spawning 2 spires/frame
+ * - spire (lib_spire): Trail particles with AS physics
  *
  * Original AS timing:
- * - Frame 4: Sound plays (sacrieur_1053)
- * - Frame 52: Main animation removes itself
- * - Move animation loops frames 4-7, spawning 2 particles per frame
+ * - shoot frame 1: _rotation=0; this.end() → signal hit immediately
+ * - shoot frame 4: SOMA.playSound("sacrieur_1053")
+ * - shoot frame 52: _parent.removeMovieClip() → animation ends (stopAt 51)
+ * - move frame 1: setup onEnterFrame spawning 2 spires per frame; play()
+ * - move frame 7: gotoAndPlay(4) → loops 4-7 (0-indexed: 3-6)
+ * - spire load: va=1.5+random(5), _alpha=50+random(50), _xscale=200,
+ *               _yscale=80+random(40), v=1+2.5*Math.random()
+ * - spire enterFrame: _xscale*=0.97, _X-=(v*=0.9), _alpha-=va; die if _alpha<0
  */
 
-import { Texture } from 'pixi.js';
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import { Sprite, Container, Texture } from 'pixi.js';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
-  ASParticleSystem,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const SHOOT_MANIFEST: SpriteManifest = {
-  width: 904.5,
-  height: 1177.2,
-  offsetX: -432.3,
-  offsetY: -829.2,
+  width: 150.75,
+  height: 196.2,
+  offsetX: -72.05,
+  offsetY: -138.2,
 };
 
 const MOVE_MANIFEST: SpriteManifest = {
-  width: 293.4,
-  height: 116.4,
-  offsetX: -263.7,
-  offsetY: -53.7,
+  width: 48.9,
+  height: 19.4,
+  offsetX: -43.95,
+  offsetY: -8.95,
 };
+
+const SPIRE_MANIFEST: SpriteManifest = {
+  width: 22.4,
+  height: 8.4,
+  offsetX: -11.25,
+  offsetY: -4.2,
+};
+
+interface SpireParticle {
+  sprite: Sprite;
+  /** AS: va = 1.5 + random(5) — alpha decay per frame */
+  va: number;
+  /** AS: _alpha stored as 0-100 */
+  alpha: number;
+  /** AS: _xscale stored as percentage (starts at 200) */
+  xscale: number;
+  /** AS: _yscale stored as percentage (80+random(40)) — constant */
+  yscale: number;
+  /** AS: v = velocity, decays each frame by *0.9 */
+  v: number;
+  /** World X position */
+  x: number;
+  /** World Y position */
+  y: number;
+  /** Rotation in radians (same as move sprite's rotation when spawned) */
+  rotationRad: number;
+  alive: boolean;
+}
 
 export class Spell1053 extends BaseSpell {
   readonly spellId = 1053;
 
   private shootAnim!: FrameAnimatedSprite;
   private moveAnim!: FrameAnimatedSprite;
-  private particles!: ASParticleSystem;
-  private particleCounter = 0;
+  private spireContainer!: Container;
+  private spireParticles: SpireParticle[] = [];
+  private spireTextures: Texture[] = [];
+  /** Counter c used in AS for attaching movie clips */
+  private spireC = 1;
+  /** Whether the move sprite is actively spawning spires */
+  private moveSpawning = false;
+  private extractionScale = 1;
 
   protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Main shoot animation
+    this.extractionScale = init.scale;
+
+    // Container for spire particles (rendered below move sprite)
+    this.spireContainer = new Container();
+    this.container.addChild(this.spireContainer);
+
+    // Load spire textures from library symbol
+    this.spireTextures = textures.getFrames('lib_spire');
+
+    // --- shoot animation at target position ---
+    const shootAnchor = calculateAnchor(SHOOT_MANIFEST);
     this.shootAnim = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('shoot'),
-      ...calculateAnchor(SHOOT_MANIFEST),
+      fps: 60,
+      anchorX: shootAnchor.x,
+      anchorY: shootAnchor.y,
       scale: init.scale,
+      stopFrame: 51, // AS frame 52 = index 51
     }));
-    this.shootAnim.sprite.position.set(0, init.casterY);
-    this.shootAnim
-      .onFrame(3, () => this.callbacks.playSound('sacrieur_1053'))
-      .onFrame(51, () => {
-        // Frame 52 in AS (1-indexed) removes parent
-        this.shootAnim.sprite.visible = false;
-      });
+    this.shootAnim.sprite.position.set(init.targetX, init.targetY);
+
+    // AS frame 1 = index 0: _rotation = 0; this.end() → signal hit
+    this.shootAnim.onFrame(0, () => {
+      this.signalHit();
+    });
+
+    // AS frame 4 = index 3: SOMA.playSound("sacrieur_1053")
+    this.shootAnim.onFrame(3, () => {
+      this.callbacks.playSound('sacrieur_1053');
+    });
+
     this.container.addChild(this.shootAnim.sprite);
 
-    // Particle system for spire effects
-    const spireTexture = textures.getFrames('lib_spire')[0];
-    this.particles = new ASParticleSystem(spireTexture);
-    this.container.addChildAt(this.particles.container, 0);
-
-    // Move animation that spawns particles
+    // --- move animation (projectile) at caster, rotated toward target ---
+    const moveAnchor = calculateAnchor(MOVE_MANIFEST);
     this.moveAnim = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('move'),
-      ...calculateAnchor(MOVE_MANIFEST),
+      fps: 60,
+      anchorX: moveAnchor.x,
+      anchorY: moveAnchor.y,
       scale: init.scale,
+      loop: true,
     }));
     this.moveAnim.sprite.position.set(0, init.casterY);
-    this.moveAnim
-      .onFrame(0, () => this.spawnSpires())
-      .onFrame(1, () => this.spawnSpires())
-      .onFrame(2, () => this.spawnSpires())
-      .onFrame(3, () => this.spawnSpires())
-      .onFrame(4, () => this.spawnSpires())
-      .onFrame(5, () => this.spawnSpires())
-      .onFrame(6, () => {
-        this.spawnSpires();
-        // Frame 7 in AS: gotoAndPlay(4), which is frame 3 in 0-indexed
-        this.moveAnim.startFrame = 3;
-      });
-    this.container.addChild(this.moveAnim.sprite);
+    this.moveAnim.sprite.rotation = init.angleRad;
 
-    // Signal hit early in the animation (around sound trigger)
-    this.shootAnim.onFrame(3, () => this.signalHit());
+    // AS frame 1 = index 0: set up onEnterFrame spawning; play()
+    this.moveAnim.onFrame(0, () => {
+      this.moveSpawning = true;
+    });
+
+    // AS frame 7 = index 6: gotoAndPlay(4) → jump to index 3
+    this.moveAnim.onFrame(6, () => {
+      this.moveAnim.gotoFrame(3);
+    });
+
+    this.container.addChild(this.moveAnim.sprite);
   }
 
   private spawnSpires(): void {
-    // Spawn 2 particles per frame as in AS
-    for (let i = 0; i < 2; i++) {
-      this.particleCounter++;
-      
-      // AS formulas exactly as written
-      const va = 1.5 + Math.floor(Math.random() * 5);  // AS: va = 1.5 + random(5)
-      const initialAlpha = 50 + Math.floor(Math.random() * 50);  // AS: _alpha = 50 + random(50)
-      const yScale = 80 + Math.floor(Math.random() * 40);  // AS: _yscale = 80 + random(40)
-      const v = 1 + 2.5 * Math.random();  // AS: v = 1 + 2.5 * Math.random()
+    // AS: t = 1; while(t <= 2) { ... c++; t++; } → spawns exactly 2 spires
+    for (let t = 1; t <= 2; t++) {
+      this.spawnOneSpire();
+      this.spireC++;
+    }
+  }
 
-      // Spawn particle with exact physics from AS
-      this.particles.spawn({
-        x: this.moveAnim.sprite.x,
-        y: this.moveAnim.sprite.y,
-        vx: -v,  // Negative because AS does _X = _X - v
-        vy: 0,
-        accX: 0.9,  // AS: v *= 0.9 is equivalent to velocity decay
-        accY: 1,
-        vr: 0,
-        vrDecay: 1,
-        t: initialAlpha,  // Using t for alpha
-        vt: -va,  // Negative alpha velocity for fade out
-        vtDecay: 1,
-        scaleX: 2,  // AS: _xscale = 200 means 2x scale
-        scaleY: yScale / 100,  // Convert percentage to decimal
-        vScaleX: -0.03,  // AS: _xscale * 0.97 means -3% per frame
-        vScaleY: 0,
-        frame: this.particleCounter % 2,  // AS: gotoAndStop(1 + c % 2)
-        rotation: this.moveAnim.sprite.rotation,
-      });
+  private spawnOneSpire(): void {
+    if (this.spireTextures.length === 0) {
+      return;
+    }
+
+    // AS load:
+    // va = 1.5 + random(5) — random(5) returns 0..4
+    const va = 1.5 + Math.floor(Math.random() * 5);
+
+    // _alpha = 50 + random(50) — returns 50..99
+    const alphaAS = 50 + Math.floor(Math.random() * 50);
+
+    // _xscale = 200
+    const xscaleAS = 200;
+
+    // _yscale = 80 + random(40) — returns 80..119
+    const yscaleAS = 80 + Math.floor(Math.random() * 40);
+
+    // v = 1 + 2.5 * Math.random()
+    const v = 1 + 2.5 * Math.random();
+
+    // if (_parent.c % 2 == 0) gotoAndStop(2) else gotoAndStop(1)
+    // AS gotoAndStop(2) = frame index 1; gotoAndStop(1) = frame index 0
+    let frameIndex: number;
+    if (this.spireC % 2 === 0) {
+      frameIndex = 1;
+    } else {
+      frameIndex = 0;
+    }
+
+    const texture = this.spireTextures[Math.min(frameIndex, this.spireTextures.length - 1)] ?? Texture.EMPTY;
+    const spireAnchor = calculateAnchor(SPIRE_MANIFEST);
+
+    const sprite = new Sprite(texture);
+    sprite.anchor.set(spireAnchor.x, spireAnchor.y);
+
+    // Position at move sprite's current screen position
+    const moveSprite = this.moveAnim.sprite;
+    const wx = moveSprite.x;
+    const wy = moveSprite.y;
+    const rotRad = moveSprite.rotation;
+
+    sprite.position.set(wx, wy);
+    sprite.rotation = rotRad;
+    // Apply scales: xscale=200% → 2.0, yscale=e.g.90% → 0.9, multiplied by extraction scale
+    sprite.scale.set(
+      (xscaleAS / 100) * this.extractionScale,
+      (yscaleAS / 100) * this.extractionScale,
+    );
+    sprite.alpha = alphaAS / 100;
+
+    this.spireContainer.addChild(sprite);
+
+    this.spireParticles.push({
+      sprite,
+      va,
+      alpha: alphaAS,
+      xscale: xscaleAS,
+      yscale: yscaleAS,
+      v,
+      x: wx,
+      y: wy,
+      rotationRad: rotRad,
+      alive: true,
+    });
+  }
+
+  private updateSpireParticles(): void {
+    for (const p of this.spireParticles) {
+      if (!p.alive) {
+        continue;
+      }
+
+      // AS: _xscale = _xscale * 0.97
+      p.xscale = p.xscale * 0.97;
+
+      // AS: _X = _X - (v *= 0.9)
+      // The spire is placed in the same parent space as the move clip.
+      // Moving _X decreases X along the spire's local rotation direction.
+      p.v *= 0.9;
+      p.x -= p.v * Math.cos(p.rotationRad);
+      p.y -= p.v * Math.sin(p.rotationRad);
+
+      // AS: _alpha = _alpha - va
+      p.alpha -= p.va;
+
+      // Apply to sprite
+      p.sprite.scale.set(
+        (p.xscale / 100) * this.extractionScale,
+        (p.yscale / 100) * this.extractionScale,
+      );
+      p.sprite.position.set(p.x, p.y);
+      p.sprite.alpha = Math.max(0, p.alpha / 100);
+
+      // AS: if (_alpha < 0) _parent.removeMovieClip()
+      if (p.alpha < 0) {
+        p.alive = false;
+        p.sprite.visible = false;
+      }
     }
   }
 
@@ -132,16 +261,30 @@ export class Spell1053 extends BaseSpell {
     }
 
     this.anims.update(deltaTime);
-    this.particles.update();
 
-    // Complete when shoot animation is done and no more particles
-    if (this.shootAnim.isComplete() && !this.particles.hasAliveParticles()) {
-      this.complete();
+    // Spawn spires every frame while move is active
+    if (this.moveSpawning && !this.moveAnim.isComplete()) {
+      this.spawnSpires();
+    }
+
+    // Update spire particle physics
+    this.updateSpireParticles();
+
+    // Complete when shoot is stopped/done AND no alive spires remain
+    if (this.shootAnim.isStopped() || this.shootAnim.isComplete()) {
+      const hasAlive = this.spireParticles.some(p => p.alive);
+      if (!hasAlive) {
+        this.complete();
+      }
     }
   }
 
   destroy(): void {
-    this.particles.destroy();
+    for (const p of this.spireParticles) {
+      p.sprite.destroy();
+    }
+    this.spireParticles = [];
+    this.spireContainer.destroy({ children: false });
     super.destroy();
   }
 }

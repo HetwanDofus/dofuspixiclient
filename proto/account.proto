@@ -359,9 +359,12 @@ message AccountSendTicket {
   string ticket = 1;
 }
 
-// Client sends Ai<identity>
+// Login credentials. Username is plaintext; password is encrypted by
+// the client using the per-connection HC handshake key (Vigenere over
+// the legacy Dofus 1.29 HASH_TABLE). Server decrypts then bcrypt-verifies.
 message AccountSendIdentity {
-  string identity = 1;
+  string username = 1;
+  string encrypted_password = 2;
 }
 
 // Client sends AV (request regional version)

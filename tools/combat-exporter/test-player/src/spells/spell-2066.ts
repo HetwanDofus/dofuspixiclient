@@ -1,133 +1,221 @@
 /**
- * Spell 2066 - Bubble Projectile
+ * Spell 2066 - Boo
  *
- * Projectile spell with effects at both source and target positions,
- * creating bubble particles at impact.
+ * A spell with a rising "boo" effect at the caster and a beam/impact at the target
+ * with bubble particles.
  *
  * Components:
- * - sprite_4: Target cell effect bubble
- * - sprite_9: Source effect animation
- * - bulle: Bubble particles spawned at target
+ * - sprite_10 (DefineSprite_10): At caster position (cellFrom, y-25), plays sound "boo_up" on frame 1,
+ *   contains sprite_9 which is rotated by angle, stops at frame 45
+ * - sprite_11 (DefineSprite_11): At target position (cellTo, y-30), rotated by angle,
+ *   spawns 6 bubble particles at frame 70, signals hit at frame 70, ends at frame 133
+ * - sprite_4 (DefineSprite_4): Appears on main timeline, plays sound "jet_903" at frame 2,
+ *   stops at frame 51
  *
  * Original AS timing:
- * - Frame 1: Source effect starts with "boo_up" sound
- * - Frame 2: Main timeline plays "jet_903" sound
- * - Frame 46: Source effect stops
- * - Frame 70: Target effect spawns 6 bubbles and calls end()
- * - Frame 133: Target effect removes itself
+ * - Frame 1 (sprite_10): Play sound 'boo_up', position at cellFrom x, cellFrom.y - 25
+ * - Frame 1 (sprite_11): Position at cellTo, rotate by angle
+ * - Frame 2 (main): Play sound 'jet_903', stop
+ * - Frame 25 (sprite_9): stop()
+ * - Frame 46 (sprite_10): stop()
+ * - Frame 52 (sprite_4): stop()
+ * - Frame 70 (sprite_11): Spawn 6 bubbles, signal hit (this.end())
+ * - Frame 133 (sprite_11): removeMovieClip() - animation ends
  */
 
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import { Container } from 'pixi.js';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   ASParticleSystem,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
+
+const SPRITE_4_MANIFEST: SpriteManifest = {
+  width: 19.5,
+  height: 21.35,
+  offsetX: -11.55,
+  offsetY: -10.35,
+};
+
+const SPRITE_9_MANIFEST: SpriteManifest = {
+  width: 215.5,
+  height: 37.6,
+  offsetX: -47.1,
+  offsetY: -18.8,
+};
+
+const SPRITE_10_MANIFEST: SpriteManifest = {
+  width: 215.5,
+  height: 72.45,
+  offsetX: -48.1,
+  offsetY: -60,
+};
+
+const SPRITE_11_MANIFEST: SpriteManifest = {
+  width: 238.5,
+  height: 50.05,
+  offsetX: -236.15,
+  offsetY: -24.9,
+};
+
+const BULLE_MANIFEST: SpriteManifest = {
+  width: 28,
+  height: 30.65,
+  offsetX: -16.6,
+  offsetY: -14.85,
+};
 
 export class Spell2066 extends BaseSpell {
   readonly spellId = 2066;
 
-  private sourceAnim!: FrameAnimatedSprite;
-  private targetAnim!: FrameAnimatedSprite;
-  private targetBubble!: FrameAnimatedSprite;
-  private particles!: ASParticleSystem;
+  private sprite11Anim!: FrameAnimatedSprite;
+  private bubbleParticles!: ASParticleSystem;
+  private bubblesSpawned = false;
 
   protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    const manifests = textures.getManifests();
-    const sourceManifest = manifests['sprite_9'] as SpriteManifest;
-    const targetBubbleManifest = manifests['sprite_4'] as SpriteManifest;
-    const bubbleManifest = manifests['lib_bulle'] as SpriteManifest;
-
-    // Get bubble particle texture
-    const bubbleTexture = textures.getFrames('lib_bulle')[0];
-    this.particles = new ASParticleSystem(bubbleTexture);
-    this.container.addChild(this.particles.container);
-
-    // Source animation (DefineSprite_10 behavior)
-    this.sourceAnim = this.anims.add(new FrameAnimatedSprite({
-      textures: textures.getFrames('sprite_9'),
-      manifest: sourceManifest,
-      anchor: calculateAnchor(sourceManifest),
-      scale: init.scale,
-      x: 0,
-      y: -25 * init.scale, // AS: y = cellFrom.y - 25
-      stopAt: 45, // AS frame 46, TS frame 45
-      stopBehavior: 'stop',
-    }));
-
-    this.sourceAnim
-      .onFrame(0, () => {
-        // Frame 1: plays "boo_up" sound
-        this.callbacks.playSound('boo_up');
-      });
-
-    // Rotation element on source (frame 46 child clip)
-    this.sourceAnim.rotation = init.angleRad;
-
-    // Target bubble effect (sprite_4)
-    this.targetBubble = this.anims.add(new FrameAnimatedSprite({
+    // Main timeline: sprite_4 at caster position, sound "jet_903" at frame 2 (0-indexed: 1), stop at frame 52 (0-indexed: 51)
+    const sprite4Anchor = calculateAnchor(SPRITE_4_MANIFEST);
+    const sprite4Anim = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('sprite_4'),
-      manifest: targetBubbleManifest,
-      anchor: calculateAnchor(targetBubbleManifest),
+      anchorX: sprite4Anchor.x,
+      anchorY: sprite4Anchor.y,
       scale: init.scale,
-      x: init.targetX,
-      y: init.targetY - 30 * init.scale, // AS: y = cellTo.y - 30
-      stopAt: 51, // AS frame 52, TS frame 51
-      stopBehavior: 'stop',
     }));
+    sprite4Anim.sprite.position.set(0, init.casterY);
+    sprite4Anim
+      .stopAt(51)
+      .onFrame(1, () => this.callbacks.playSound('jet_903'));
+    this.container.addChild(sprite4Anim.sprite);
 
-    // Target effect starts later (DefineSprite_11 behavior)
-    this.targetAnim = this.anims.add(new FrameAnimatedSprite({
-      textures: [],  // Invisible container for timing
-      manifest: { frameCount: 133, width: 0, height: 0, offsetX: 0, offsetY: 0 },
-      anchor: { x: 0.5, y: 0.5 },
+    // sprite_10 (DefineSprite_10): positioned at cellFrom.x, cellFrom.y - 25
+    // In our coordinate system, container is at cellFrom, so x=0, y=-25
+    // Contains sprite_9 which is rotated by angle
+    // Plays sound "boo_up" at frame 1 (0-indexed: 0), stops at frame 46 (0-indexed: 45)
+    const sprite10Container = new Container();
+    sprite10Container.scale.set(init.scale);
+    // AS: _X = _parent.cellFrom.x; _Y = _parent.cellFrom.y - 25;
+    // Since our container is already at cellFrom, offset is (0, -25)
+    sprite10Container.position.set(0, -25);
+    this.container.addChild(sprite10Container);
+
+    const sprite10Anchor = calculateAnchor(SPRITE_10_MANIFEST);
+    const sprite10Anim = this.anims.add(new FrameAnimatedSprite({
+      textures: textures.getFrames('sprite_10'),
+      anchorX: sprite10Anchor.x,
+      anchorY: sprite10Anchor.y,
       scale: 1,
-      x: init.targetX,
-      y: init.targetY - 30 * init.scale,
-      stopAt: 132, // AS frame 133, TS frame 132
-      stopBehavior: 'stop',
     }));
+    sprite10Anim.sprite.position.set(0, 0);
+    sprite10Anim
+      .stopAt(45)
+      .onFrame(0, () => this.callbacks.playSound('boo_up'));
+    sprite10Container.addChild(sprite10Anim.sprite);
 
-    this.targetAnim.rotation = init.angleRad;
+    // sprite_9 inside sprite_10 (PlaceObject2_9_1): rotated by angle
+    // AS: onClipEvent(load) { _rotation = _parent._parent.angle; }
+    // sprite_9 stops at frame 25 (0-indexed: 24)
+    const sprite9Anchor = calculateAnchor(SPRITE_9_MANIFEST);
+    const sprite9Anim = this.anims.add(new FrameAnimatedSprite({
+      textures: textures.getFrames('sprite_9'),
+      anchorX: sprite9Anchor.x,
+      anchorY: sprite9Anchor.y,
+      scale: 1,
+    }));
+    sprite9Anim.sprite.rotation = init.angleRad;
+    sprite9Anim.sprite.position.set(0, 0);
+    sprite9Anim.stopAt(24);
+    sprite10Container.addChild(sprite9Anim.sprite);
 
-    this.targetAnim
-      .onFrame(69, () => {
-        // Frame 70: create 6 bubble particles
-        for (let i = 0; i < 6; i++) {
-          // AS bubble physics from DefineSprite_5_bulle
-          const rx = 0.7 + Math.random() * 0.15; // AS: 0.7 + random(15) / 100
-          const ry = 0.8 + Math.random() * 0.15; // AS: 0.8 + random(15) / 100
-          const vx = 20 + Math.random() * 25; // AS: 20 + random(25)
-          const vy = -15 + Math.random() * 30; // AS: -15 + random(30)
-          const alpha = 0.5 + Math.random() * 0.5; // AS: 50 + random(50)
-          const startFrame = Math.floor(Math.random() * 10); // AS: random(10) + 1
+    // sprite_11 (DefineSprite_11): positioned at cellTo, y-30, rotated by angle
+    // AS: _X = _parent.cellTo.x; _Y = _parent.cellTo.y - 30; _rotation = _parent.angle;
+    // In our coordinate system (relative to cellFrom):
+    //   x = cellTo.x - cellFrom.x = init.targetX
+    //   y = (cellTo.y - cellFrom.y) - 30
+    //   But init.targetY = (cellTo.y - cellFrom.y) + Y_OFFSET where Y_OFFSET = -50
+    //   So cellTo.y - cellFrom.y = init.targetY - Y_OFFSET = init.targetY + 50
+    //   y = (init.targetY + 50) - 30 = init.targetY + 20
+    const sprite11Anchor = calculateAnchor(SPRITE_11_MANIFEST);
+    this.sprite11Anim = this.anims.add(new FrameAnimatedSprite({
+      textures: textures.getFrames('sprite_11'),
+      anchorX: sprite11Anchor.x,
+      anchorY: sprite11Anchor.y,
+      scale: init.scale,
+    }));
+    this.sprite11Anim.sprite.position.set(init.targetX, init.targetY + 20);
+    this.sprite11Anim.sprite.rotation = init.angleRad;
+    this.sprite11Anim.onFrame(69, () => this.onSprite11Frame70(textures, init));
+    this.container.addChild(this.sprite11Anim.sprite);
 
-          // Random direction for horizontal velocity
-          const direction = Math.random() < 0.5 ? -1 : 1;
+    // Bubble particle system
+    const bulleTextures = textures.getFrames('lib_bulle');
+    const bulleTexture = bulleTextures[0];
+    this.bubbleParticles = new ASParticleSystem(bulleTexture);
+    this.bubbleParticles.container.position.set(init.targetX, init.targetY + 20);
+    this.bubbleParticles.container.rotation = init.angleRad;
+    this.bubbleParticles.container.scale.set(init.scale);
+    this.container.addChild(this.bubbleParticles.container);
+  }
 
-          this.particles.spawn({
-            x: init.targetX,
-            y: init.targetY - 30 * init.scale,
-            vx: vx * direction * init.scale,
-            vy: vy * init.scale,
-            scale: init.scale,
-            alpha: alpha,
-            friction: { x: rx, y: ry },
-            startFrame: startFrame,
-          });
-        }
-        
-        // AS: this.end()
-        this.signalHit();
-      });
+  private onSprite11Frame70(textures: SpellTextureProvider, init: SpellInitContext): void {
+    if (this.bubblesSpawned) {
+      return;
+    }
+    this.bubblesSpawned = true;
 
-    // Main timeline sound at frame 2
-    // Play this after a tiny delay to match AS frame timing
-    setTimeout(() => {
-      this.callbacks.playSound('jet_903');
-    }, 1000 / 60); // 1 frame at 60fps
+    // Signal hit (AS: this.end())
+    this.signalHit();
+
+    // AS: c = 1; while(c < 7) { this.attachMovie("bulle","bulle" + c, c); c++; }
+    // Spawns 6 bubbles (c=1,2,3,4,5,6)
+    // Each bubble's onEnterFrame uses physics from DefineSprite_5_bulle/frame_1/DoAction.as:
+    // rx = 0.7 + 0.15 * Math.random()
+    // ry = 0.8 + 0.15 * Math.random()
+    // vx = 20 + random(25)  -> 20 + Math.floor(Math.random() * 25)
+    // vy = -15 + random(30) -> -15 + Math.floor(Math.random() * 30)
+    // _alpha = random(50) + 50 -> Math.floor(Math.random() * 50) + 50
+    // Each bubble's inner sprite (sprite_4) starts at random(10)+1 (0-indexed: Math.floor(Math.random()*10))
+
+    // The bulle library symbol has width=28, height=30.65, offsetX=-16.6, offsetY=-14.85
+    const bulleAnchor = calculateAnchor({
+      width: 28,
+      height: 30.65,
+      offsetX: -16.6,
+      offsetY: -14.85,
+    });
+
+    const bulleTexture = textures.getFrames('lib_bulle')[0];
+    this.bubbleParticles.setTexture(bulleTexture);
+
+    this.bubbleParticles.spawnMany(6, () => {
+      const rx = 0.7 + 0.15 * Math.random();
+      const ry = 0.8 + 0.15 * Math.random();
+      const vx = 20 + Math.floor(Math.random() * 25);
+      const vy = -15 + Math.floor(Math.random() * 30);
+      const alpha = (Math.floor(Math.random() * 50) + 50) / 100;
+
+      return {
+        x: 0,
+        y: 0,
+        vx,
+        vy,
+        accX: rx,
+        accY: ry,
+        alpha,
+        t: 100,
+        vt: 0,
+      };
+    });
+
+    // Adjust bubble sprites for anchor
+    const sprites = this.bubbleParticles.container.children;
+    for (const child of sprites) {
+      if ('anchor' in child) {
+        (child as { anchor: { set: (x: number, y: number) => void } }).anchor.set(bulleAnchor.x, bulleAnchor.y);
+      }
+    }
   }
 
   update(deltaTime: number): void {
@@ -135,20 +223,17 @@ export class Spell2066 extends BaseSpell {
       return;
     }
 
-    // Update all animations
     this.anims.update(deltaTime);
+    this.bubbleParticles.update();
 
-    // Update particles
-    this.particles.update(deltaTime);
-
-    // Check completion: all animations complete and no alive particles
-    if (this.anims.allComplete() && !this.particles.hasAliveParticles()) {
+    // Spell ends when sprite_11 completes (frame 133 = 0-indexed 132, which is last frame)
+    if (this.sprite11Anim.isComplete()) {
       this.complete();
     }
   }
 
   destroy(): void {
-    this.particles.destroy();
+    this.bubbleParticles.destroy();
     super.destroy();
   }
 }

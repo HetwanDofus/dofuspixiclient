@@ -1,89 +1,141 @@
 /**
- * Spell 2019 - Herbe (Grass)
+ * Spell 2019 - Herbe
  *
- * Nature/grass-themed animation with randomized visual effects.
+ * A projectile spell with a shoot animation at caster position and a
+ * moving projectile (move animation) that travels toward the target.
  *
  * Components:
- * - move: Grass animation at target position with randomized properties
+ * - shoot (DefineSprite_15_shoot): At caster position, 108 frames total,
+ *   rotation reset to 0 at frame 4, ends at frame 106
+ * - move (DefineSprite_12): Projectile looping sprite, positioned at caster,
+ *   travels toward target with random start frame, alpha, and scale
  *
  * Original AS timing:
- * - Frame 1: Play "herbe" sound, randomized starting frame (1-30), randomized alpha (30-79), randomized scale
- * - Frame 1 (DefineSprite_8): 20% chance normal playback, 80% chance jump to frame 60
- * - Frame 4 (shoot): Reset rotation
- * - Frame 34: Stop (DefineSprite_8)
- * - Frame 97: Stop (DefineSprite_12)
- * - Frame 106: Remove parent and stop (shoot)
- * - Frame 295: Stop (DefineSprite_14)
+ * - Frame 1 (main): Play sound 'herbe'
+ * - DefineSprite_15_shoot frame_4: _rotation = 0
+ * - DefineSprite_15_shoot frame_106: _parent.removeMovieClip() / stop()
+ * - DefineSprite_12 frame_1: gotoAndPlay(random(30) + 1), random alpha/scale
+ * - DefineSprite_12 frame_97: stop()
+ * - DefineSprite_8 frame_1: if(random(5) != 1) gotoAndStop(60)
+ * - DefineSprite_8 frame_34: stop()
+ * - DefineSprite_14 frame_295: stop()
  */
 
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import { Container } from 'pixi.js';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
+
+const SHOOT_MANIFEST: SpriteManifest = {
+  width: 63.6,
+  height: 30.2,
+  offsetX: -31.8,
+  offsetY: -14.75,
+};
 
 const MOVE_MANIFEST: SpriteManifest = {
-  width: 93,
-  height: 31.8,
-  offsetX: -58.2,
-  offsetY: -16.2,
+  width: 15.5,
+  height: 5.3,
+  offsetX: -9.7,
+  offsetY: -2.7,
 };
 
 export class Spell2019 extends BaseSpell {
   readonly spellId = 2019;
 
+  private shootAnim!: FrameAnimatedSprite;
   private moveAnim!: FrameAnimatedSprite;
 
-  protected setup(_context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Play grass sound immediately (frame 0 in manifest = frame 1 in AS)
+  // Projectile movement state
+  private projectileActive = false;
+  private projectileX = 0;
+  private projectileY = 0;
+  private projectileVX = 0;
+  private projectileVY = 0;
+  private targetX2 = 0;
+  private targetY2 = 0;
+  private hitSignaledProjectile = false;
+
+  protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
+    // Play sound at frame 1 (index 0)
     this.callbacks.playSound('herbe');
 
-    // Random starting frame (AS: gotoAndPlay(random(30) + 1) -> 0-indexed: 0-29)
+    // --- Shoot animation (DefineSprite_15_shoot) at caster position ---
+    const shootAnchor = calculateAnchor(SHOOT_MANIFEST);
+    this.shootAnim = this.anims.add(new FrameAnimatedSprite({
+      textures: textures.getFrames('shoot'),
+      fps: 60,
+      anchorX: shootAnchor.x,
+      anchorY: shootAnchor.y,
+      scale: init.scale,
+    }));
+    this.shootAnim.sprite.position.set(0, init.casterY);
+    this.shootAnim.sprite.rotation = init.angleRad;
+
+    // frame_4 (AS 1-indexed) -> frame index 3: _rotation = 0
+    this.shootAnim.onFrame(3, () => {
+      this.shootAnim.sprite.rotation = 0;
+    });
+
+    // frame_106 (AS 1-indexed) -> frame index 105: end
+    this.shootAnim.stopAt(105);
+
+    this.container.addChild(this.shootAnim.sprite);
+
+    // --- Move animation (DefineSprite_12) - the projectile ---
+    // AS frame_1: gotoAndPlay(random(30) + 1) -> 0-indexed: Math.floor(Math.random() * 30) + 0 => start at random(30) (0-29)
+    // Actually: random(30) + 1 in AS means jump to frame random(30)+1 (1-indexed), so 0-indexed it's random(30)+0 = Math.floor(Math.random()*30)
     const startFrame = Math.floor(Math.random() * 30);
 
-    // Random alpha (AS: _alpha = 30 + random(50) -> 30-79)
+    // AS: _alpha = 30 + random(50) -> percentage (0-100)
     const alpha = (30 + Math.floor(Math.random() * 50)) / 100;
 
-    // Random scale (AS: t = 30 + random(120) -> 30-149)
+    // AS: t = 30 + random(120); _xscale = t; _yscale = t / 2
     const t = 30 + Math.floor(Math.random() * 120);
-    const scaleX = t / 100;
-    const scaleY = t / 200; // AS: _yscale = t / 2
+    const xScale = (t / 100) * init.scale;
+    const yScale = (t / 2 / 100) * init.scale;
 
-    // Create the grass animation
+    const moveAnchor = calculateAnchor(MOVE_MANIFEST);
     this.moveAnim = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('move'),
-      ...calculateAnchor(MOVE_MANIFEST),
-      scale: init.scale,
+      fps: 60,
+      anchorX: moveAnchor.x,
+      anchorY: moveAnchor.y,
       startFrame,
+      loop: true,
     }));
 
-    // Apply randomized properties
+    // Stop at frame 96 (AS frame_97, 0-indexed = 96)
+    this.moveAnim.stopAt(96);
+
     this.moveAnim.sprite.alpha = alpha;
-    this.moveAnim.sprite.scale.x *= scaleX;
-    this.moveAnim.sprite.scale.y *= scaleY;
+    this.moveAnim.sprite.scale.set(xScale, yScale);
+    this.moveAnim.sprite.rotation = init.angleRad;
 
-    // Position at target
-    this.moveAnim.sprite.position.set(init.targetX, init.targetY);
+    // Start projectile at caster position
+    this.projectileX = 0;
+    this.projectileY = init.casterY;
+    this.moveAnim.sprite.position.set(this.projectileX, this.projectileY);
 
-    // DefineSprite_8 behavior: 20% chance normal, 80% jump to frame 60
-    const randomChoice = Math.floor(Math.random() * 5);
-    if (randomChoice !== 1) {
-      // 80% chance: jump to frame 60 (0-indexed: 59)
-      // But our animation only has 4 frames, so this would stop it
-      this.moveAnim.stopAt(3);
-    } else {
-      // 20% chance: normal playback, stop at frame 34 (0-indexed: 33)
-      // But our animation only has 4 frames, so stop at last frame
-      this.moveAnim.stopAt(3);
-    }
+    // Target position
+    this.targetX2 = init.targetX;
+    this.targetY2 = init.targetY;
 
-    // The AS shows multiple stop points, but with only 4 frames, we stop at frame 3
-    // The longest running AS component is 295 frames, but we simulate the essence
+    // Calculate velocity: move toward target over ~30 frames at 60fps
+    const dx = this.targetX2 - this.projectileX;
+    const dy = this.targetY2 - this.projectileY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
 
-    // Signal hit somewhere in the middle of the animation
-    this.moveAnim.onFrame(2, () => this.signalHit());
+    // Speed based on distance - travel in about 20-40 frames
+    const speed = dist > 0 ? Math.max(5, dist / 25) : 5;
+    this.projectileVX = dist > 0 ? (dx / dist) * speed : 0;
+    this.projectileVY = dist > 0 ? (dy / dist) * speed : 0;
+
+    this.projectileActive = true;
 
     this.container.addChild(this.moveAnim.sprite);
   }
@@ -95,8 +147,31 @@ export class Spell2019 extends BaseSpell {
 
     this.anims.update(deltaTime);
 
-    if (this.anims.allStopped()) {
-      this.complete();
+    // Move the projectile toward target
+    if (this.projectileActive) {
+      const framesElapsed = deltaTime / (1000 / 60);
+
+      this.projectileX += this.projectileVX * framesElapsed;
+      this.projectileY += this.projectileVY * framesElapsed;
+      this.moveAnim.sprite.position.set(this.projectileX, this.projectileY);
+
+      // Check if projectile reached target
+      const dx = this.targetX2 - this.projectileX;
+      const dy = this.targetY2 - this.projectileY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (!this.hitSignaledProjectile && dist < Math.max(Math.abs(this.projectileVX), Math.abs(this.projectileVY)) * 2 + 5) {
+        this.hitSignaledProjectile = true;
+        this.projectileActive = false;
+        this.signalHit();
+        this.moveAnim.sprite.visible = false;
+      }
+    }
+
+    if (this.shootAnim.isStopped() || this.shootAnim.isComplete()) {
+      if (!this.projectileActive) {
+        this.complete();
+      }
     }
   }
 }

@@ -1,58 +1,69 @@
 /**
- * Spell 1051 - Sacrieur Spell
+ * Spell 1051 - Sacrieur spell
  *
- * A chaotic visual effect with randomized scaling and flickering.
+ * A single animated sprite effect at the target position.
+ * The sprite has randomized scale and alpha applied each frame (enterFrame).
  *
  * Components:
- * - sprite_6: Main animation at caster position with random scale
+ * - sprite_6: At target position, stops at frame 38 (AS frame 39)
  *
  * Original AS timing:
- * - Frame 1: Play sound, set random scale (20-100%)
- * - Frame 1: Flickering effect with random alpha/scale/rotation each frame
- * - Frame 39: Stop animation
- * - Frame 47: Complete and remove
+ * - Frame 1 (main): Play sound 'sacrieur_1051'
+ * - Frame 1 (enterFrame): randomize _alpha, _xscale, _yscale, _rotation each frame
+ * - Frame 39 (sprite_6): stop()
+ * - Frame 47 (main): removeMovieClip()
+ *
+ * Note: DefineSprite_7 contains sprite_6 instances with random start frames (random(20))
+ * and random scale (20 + random(80)). The main sprite (PlaceObject2_1_1) has per-frame
+ * randomized alpha (−20 + random(80)), scale (90−100%), and rotation.
  */
 
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const SPRITE_MANIFEST: SpriteManifest = {
-  width: 871.2,
-  height: 612,
-  offsetX: -47.4,
-  offsetY: -306.6,
+  width: 145.2,
+  height: 102,
+  offsetX: -7.9,
+  offsetY: -51.1,
 };
 
 export class Spell1051 extends BaseSpell {
   readonly spellId = 1051;
 
   private mainAnim!: FrameAnimatedSprite;
-  private flickerTimer = 0;
-  private flickerInterval = 1000 / 40; // 40 FPS for flicker effect
 
   protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Main animation with random scale from AS: t = 20 + random(80)
-    const randomScale = (20 + Math.floor(Math.random() * 80)) / 100;
-    
+    const anchor = calculateAnchor(SPRITE_MANIFEST);
+
     this.mainAnim = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('sprite_6'),
-      ...calculateAnchor(SPRITE_MANIFEST),
-      scale: init.scale * randomScale,
+      fps: 40,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
+      scale: init.scale,
     }));
-    
-    this.mainAnim.sprite.position.set(0, init.casterY);
-    
-    // Stop at frame 39 as per AS
+
+    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
+
+    // Frame 0 (AS frame 1): play sound
+    this.mainAnim.onFrame(0, () => {
+      this.callbacks.playSound('sacrieur_1051');
+    });
+
+    // Signal hit immediately when the effect starts (frame 0)
+    this.mainAnim.onFrame(0, () => {
+      this.signalHit();
+    });
+
+    // Stop at frame 38 (AS frame 39, 0-indexed = 38)
     this.mainAnim.stopAt(38);
-    
-    // Play sound at frame 1
-    this.mainAnim.onFrame(0, () => this.callbacks.playSound('sacrieur_1051'));
-    
+
     this.container.addChild(this.mainAnim.sprite);
   }
 
@@ -63,27 +74,22 @@ export class Spell1051 extends BaseSpell {
 
     this.anims.update(deltaTime);
 
-    // Flickering effect from AS onClipEvent(enterFrame)
-    this.flickerTimer += deltaTime;
-    if (this.flickerTimer >= this.flickerInterval) {
-      this.flickerTimer -= this.flickerInterval;
-      
-      // Random alpha: -20 to 60 -> normalized to 0 to 0.8
-      const alphaValue = (-20 + Math.floor(Math.random() * 81));
-      this.mainAnim.sprite.alpha = Math.max(0, alphaValue / 100);
-      
-      // Random scale: 90% to 100% of current scale
-      const scaleMultiplier = (90 + Math.floor(Math.random() * 11)) / 100;
-      const baseScale = this.mainAnim.sprite.scale.x / scaleMultiplier; // Get original scale
-      this.mainAnim.sprite.scale.set(baseScale * scaleMultiplier);
-      
-      // Random rotation: 0-360 degrees
+    // Per-frame randomization (AS onClipEvent(enterFrame) on PlaceObject2_1_1):
+    // _alpha = -20 + random(80)  → 0-indexed alpha range: -20 to 59 → clamp 0-1
+    // t = 10 * Math.random() + 90 → scale 90-100%
+    // _rotation = random(360)
+    if (!this.mainAnim.isStopped() && !this.mainAnim.isComplete()) {
+      const alpha = (-20 + Math.floor(Math.random() * 80)) / 100;
+      this.mainAnim.sprite.alpha = Math.max(0, Math.min(1, alpha));
+
+      const t = 10 * Math.random() + 90;
+      const baseScale = init_scale_ref(this.mainAnim);
+      this.mainAnim.sprite.scale.set(baseScale * (t / 100));
+
       this.mainAnim.sprite.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
     }
 
-    // Complete at frame 47 (total timeline duration)
-    // 47 frames at 40 FPS = 1175ms
-    if (this.mainAnim.isComplete() && this.mainAnim.elapsedTime >= 1175) {
+    if (this.anims.allStopped()) {
       this.complete();
     }
   }

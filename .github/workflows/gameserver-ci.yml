@@ -1,0 +1,56 @@
+name: Gameserver CI
+
+on:
+  push:
+    paths:
+      - apps/gameserver/**
+      - proto/**
+      - .github/workflows/gameserver-ci.yml
+  pull_request:
+    paths:
+      - apps/gameserver/**
+      - proto/**
+      - .github/workflows/gameserver-ci.yml
+
+concurrency:
+  group: ${{ github.ref }}-gameserver
+  cancel-in-progress: true
+
+jobs:
+  gameserver:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/gameserver/go.mod
+          cache: true
+          cache-dependency-path: apps/gameserver/go.sum
+
+      - name: Run go vet
+        working-directory: apps/gameserver
+        run: go vet ./...
+
+      - name: Run go build
+        working-directory: apps/gameserver
+        run: go build ./...
+
+      - name: Run go test
+        working-directory: apps/gameserver
+        run: go test -race ./...
+
+      - name: Set up buf
+        uses: bufbuild/buf-setup-action@v1
+
+      - name: Lint protobuf
+        run: buf lint --path proto
+
+      - name: Set up sqlc
+        uses: sqlc-dev/setup-sqlc@v4
+
+      - name: Run sqlc vet
+        working-directory: apps/gameserver
+        run: sqlc vet

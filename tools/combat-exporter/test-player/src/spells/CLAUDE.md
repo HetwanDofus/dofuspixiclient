@@ -188,6 +188,9 @@ if (this.impactAnim.isComplete() && !this.particles.hasAliveParticles()) {
 1. **Wrong frame indexing** - Always subtract 1 from AS frame numbers
 2. **Approximating formulas** - Copy math exactly, don't "simplify"
 3. **Missing randomization** - If AS uses `random()`, the TS must too
-4. **Wrong scale** - Always apply 1/6 scale to sprites
+4. **Wrong scale** - Always apply `init.scale` to sprites
 5. **Missing sounds** - Check all AS files for `SOMA.playSound()`
 6. **Wrong completion timing** - Wait for ALL animations AND particles to finish
+7. **NEVER use require()** - All imports must be top-level ES module imports. Use `import { Sprite, Container, Texture } from 'pixi.js'` at the top of the file. Never use `require('pixi.js')` or dynamic imports inside methods.
+8. **NEVER use inline type imports** like `import('pixi.js').Sprite` in interface/type definitions. Import the type at the top of the file instead.
+9. **NEVER access private members** of FrameAnimatedSprite (like `.currentFrame`). Use the public API only: `.sprite`, `.isComplete()`, `.isStopped()`, `.getFrame()`, `.update()`, `.onFrame()`, `.stopAt()`, `.addTo()`.

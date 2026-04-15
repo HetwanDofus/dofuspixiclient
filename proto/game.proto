@@ -45,12 +45,15 @@ message GameReady {
 message GameStartToPlay {}
 
 // GE - Game end / fight results
+// StarLoco ref: Fight.java:4286 (getGEBoufbawl) / Fight.java:4335 (getGE)
+// Wire: GE<durationMs>[;<starBonus>]|<initId>|<type>|(<teamMarker>;<id>;<name>;<level>;<gfx>;;<dead>;<xp>;<guild>;<mount>;<items>;<kama>;<rating>;|)*
 message GameEnd {
-  string raw_data = 1;  // Complex end-of-fight data
-  // Parsed fight results
-  int32 duration_ms = 2;
-  int32 winner_team = 3;   // 0 or 1
-  repeated FightResult results = 4;
+  int32 duration_ms = 1;
+  int32 winner_team = 2;         // 0 or 1
+  int32 init_id = 3;              // Initiator fighter ID (Fight.java:4291)
+  int32 fight_type = 4;           // FightType (challenge/pvm/pvp/agression/...)
+  int32 star_bonus = 5;           // PvM monster group star bonus (Fight.java:4353)
+  repeated FightResult results = 6;
 }
 
 message FightResult {
@@ -180,38 +183,112 @@ message MountDisplay {
 }
 
 // GDM - Map data
+//
+// The server decodes the StarLoco-format compressed cell payload
+// (CellsDataProvider.java RawCellsDataProvider, 10-chars-per-cell HASH_CELL
+// alphabet → 60-bit packed cell value) and ships per-cell typed fields
+// directly so the client never has to fetch the .swf-derived JSON over HTTP.
 message GameMapData {
   int32  map_id = 1;
   string map_date = 2;    // Map version/date
   string map_key = 3;     // Decryption key
+  int32  width = 4;
+  int32  height = 5;
+  int32  background = 6;  // Background image id (0 = none).
+  repeated MapCell cells = 7;
+}
+
+// MapCell mirrors the fields exposed by the TS CellData interface
+// (apps/electrobun/src/game/datacenter/cell.ts). Field names use proto
+// snake_case which protobuf-es renders as camelCase on the wire — these
+// must match CellData property names.
+message MapCell {
+  int32 id = 1;
+  bool  active = 2;
+  int32 ground = 3;
+  int32 layer1 = 4;
+  int32 layer2 = 5;
+  int32 ground_level = 6;
+  int32 ground_slope = 7;
+  bool  walkable = 8;
+  int32 movement = 9;
+  bool  line_of_sight = 10;
+  int32 layer_ground_rot = 11;
+  bool  layer_ground_flip = 12;
+  int32 layer_object1_rot = 13;
+  bool  layer_object1_flip = 14;
+  int32 layer_object2_rot = 15;
+  bool  layer_object2_flip = 16;
 }
 
 // GDK - Map loaded confirmation
 message GameMapLoaded {}
 
-// GDC - Cell data update
+// GDC - Cell data update (override cell visuals).
+// StarLoco ref: SocketManager.java:1332 / 1341 / 997
+// Wire: GDC(<cellId>;<cellData><hexMask>;<permanent>|...)*   or GDC<cellId> (clear, fight).
 message GameCellData {
-  string raw_data = 1;  // Cell update data
+  repeated CellDataEntry entries = 1;
+  int32 clear_cell_id = 2;  // fight-only: simple clear form (-1 = unused)
 }
 
-// GDZ - Zone data
+message CellDataEntry {
+  int32  cell_id = 1;
+  string cell_data = 2;     // encoded cell data (map encoding)
+  string override_mask_hex = 3;
+  bool   permanent = 4;
+}
+
+// GDZ - Zone data (glyph/trap zone highlight).
+// StarLoco ref: SocketManager.java:985 / Fight.java:3609
+// Wire: GDZ<suffix><cellId>;<size>;<color>    suffix = '+' add, '-' remove
 message GameZoneData {
-  string raw_data = 1;
+  enum Operation {
+    OPERATION_UNSPECIFIED = 0;
+    ADD = 1;    // '+'
+    REMOVE = 2; // '-'
+  }
+  Operation operation = 1;
+  int32     cell_id = 2;
+  int32     size = 3;
+  int32     color = 4;
 }
 
-// GDO - Cell object
+// GDO - Cell object (dropped/mounted item on the map).
+// StarLoco ref: SocketManager.java:528 (GDO+<str>) / 1638 (GDO<c><cell>;<itm>;<i>)
+// Wire: GDO<op><cellId>;<itemId>;<quantity>
 message GameCellObject {
-  string raw_data = 1;
+  enum Operation {
+    OPERATION_UNSPECIFIED = 0;
+    ADD = 1;    // '+'
+    REMOVE = 2; // '-'
+  }
+  Operation operation = 1;
+  int32     cell_id = 2;
+  int32     item_id = 3;
+  int32     quantity = 4;
 }
 
-// GDF - Frame object 2
+// GDF - Frame object 2 (interactive-object frame transitions).
+// StarLoco ref: SocketManager.java:1355 / 1360 / 1366
+// Wire: GDF(|<cellId>;<frame>;<interactive>)+
 message GameFrameObject2 {
-  string raw_data = 1;
+  repeated FrameObjectEntry entries = 1;
 }
 
-// GDE - Frame object external
+message FrameObjectEntry {
+  int32 cell_id = 1;
+  int32 frame = 2;
+  bool  interactive = 3;
+}
+
+// GDE - Frame object external (dinde/mount parked/etc).
+// StarLoco ref: SocketManager.java:534 (GDE|<str>)
+// Wire: GDE|<cellId>;<objectType>;<objectId>
 message GameFrameObjectExternal {
-  string raw_data = 1;
+  int32 cell_id = 1;
+  int32 object_type = 2;
+  int32 object_id = 3;
 }
 
 // GAS - Actions start
@@ -345,8 +422,11 @@ message ActionMovement {
   repeated int32 path_cells = 1;  // Compressed cell path
 }
 
+// ActionMapChange (GA;2;<spriteId>;<mode>)
+// StarLoco ref: Action.java:1280 ("2", playerId, "6"/"7"/...) — mode selects
+// teleport animation (6 = zaap, 7 = stone, etc.).
 message ActionMapChange {
-  string raw_data = 1;
+  int32 mode = 1;
 }
 
 message ActionSpritePosition {
@@ -439,16 +519,22 @@ message ActionSpellLaunch {
   bool   front_of_sprite = 8;
 }
 
+// ActionCriticalHit (GA;301;<casterId>;<spellIdOrZero>)
+// StarLoco ref: Fight.java:2559 / 2665 / 2737
 message ActionCriticalHit {
-  string raw_data = 1;
+  int32 spell_id = 1;   // 0 when raw "0" (close-combat CC)
 }
 
+// ActionCriticalMiss (GA;302;<casterId>;<spellId>)
+// StarLoco ref: Fight.java:2646 / 2721
 message ActionCriticalMiss {
-  string raw_data = 1;
+  int32 spell_id = 1;
 }
 
+// ActionCloseCombat (GA;303;<casterId>;<cellId>)
+// StarLoco ref: Fight.java:2556
 message ActionCloseCombat {
-  string raw_data = 1;
+  int32 target_cell = 1;
 }
 
 message ActionStateChange {
@@ -457,8 +543,15 @@ message ActionStateChange {
   bool   active = 3;      // true=add state, false=remove state
 }
 
+// ActionEffectApply (GA;998;<casterId>;<effectId>;<targetId>[;<extra>])
+// NOTE: StarLoco does not currently emit action 998; shape inferred from client
+// dispatch in swf reversing. Extra args are effect-specific and may be empty.
 message ActionEffectApply {
-  string raw_data = 1;
+  int32  effect_id = 1;
+  string target_sprite_id = 2;
+  int32  value = 3;      // primary numeric arg (damage/heal/...)
+  int32  duration = 4;   // in turns; 0 when instantaneous
+  repeated string extra_args = 5; // effect-specific trailing args
 }
 
 message ActionObjectFrameChange {
@@ -547,14 +640,20 @@ message GameTurnReady {
   string sprite_id = 1;
 }
 
-// GX - Extra clip
+// GX - Extra clip (NPC alternate animation).
+// StarLoco ref: SocketManager.java:1596 (GX<extra>|<npcId>) — extra=-1 => '-'.
 message GameExtraClip {
-  string raw_data = 1;
+  int32 npc_id = 1;
+  int32 extra_clip_id = 2;   // -1 = use default ('-' on the wire)
 }
 
-// Go - Fight option
+// Go - Fight option toggle (close fight, spectators, party, help, ...).
+// StarLoco ref: SocketManager.java:540 (Go<s><option><guid>)
+// s = '+'/'-' (set/clear), option is single-char code (H help, A allow spec,...)
 message GameFightOption {
-  string raw_data = 1;
+  bool   enabled = 1;   // true = '+', false = '-'
+  string option = 2;    // single-char option code
+  int32  leader_id = 3; // fight leader sprite id
 }
 
 // GO - Game over
@@ -566,55 +665,110 @@ message GameFlag {
   int32  cell_id = 2;
 }
 
-// GIC - Players coordinates
+// GIC - Players coordinates (fighter placement / position broadcast).
+// StarLoco ref: SocketManager.java:473 / 641 / 655
+// Wire: GIC|<id>;<cellId>;<placementDone>|...
 message GamePlayersCoordinates {
-  string raw_data = 1;
+  repeated PlayerCoordinate entries = 1;
 }
 
-// GIE - Effect on map
+message PlayerCoordinate {
+  string sprite_id = 1;
+  int32  cell_id = 2;
+  bool   placement_done = 3;
+}
+
+// GIE - Effect-on-fighter buff packet.
+// StarLoco ref: Fight.java:3617 sendBuffPacket
+// Wire: GIE<effectId>;<targetId>;<v1>;<v2>;<v3>;<v4>;<turns>;<spellId>
 message GameEffect {
-  string raw_data = 1;
+  int32  effect_id = 1;
+  string target_sprite_id = 2;
+  int32  value1 = 3;
+  int32  value2 = 4;
+  int32  value3 = 5;
+  int32  value4 = 6;
+  int32  turns = 7;
+  int32  spell_id = 8;
 }
 
-// GIe - Clear all effects
+// GIe - Clear all effects on a fighter.
+// StarLoco: not emitted directly; consumed by client buff manager.
 message GameClearAllEffects {
-  string raw_data = 1;
+  string target_sprite_id = 1;
 }
 
-// GIP - PvP info
+// GIP - PvP info counter.
+// StarLoco ref: SocketManager.java:1649 (GIP<n>)
 message GamePvpInfo {
-  string raw_data = 1;
+  int32 counter = 1;
 }
 
-// GIh - Hunt infos
+// GIh - Hunt infos.
+// StarLoco: not emitted in this codebase. Shape reserved for future hunt module.
 message GameHuntInfos {
-  string raw_data = 1;
+  int32  hunt_id = 1;
+  string payload = 2;  // opaque text payload; to be refined when hunt module lands
 }
 
-// Gc - Challenge info
+// Gc - Challenge / flag on map.
+// StarLoco ref: SocketManager.java:377 add (Gc+<a>;<b>|<a>;<cell>;<str>|<b>;<cell>;<str>)
+// and SocketManager.java:391 remove (Gc-<guid>).
 message GameChallenge {
-  string raw_data = 1;
+  enum Operation {
+    OPERATION_UNSPECIFIED = 0;
+    ADD = 1;    // '+'
+    REMOVE = 2; // '-'
+  }
+  Operation operation = 1;
+  int32     challenger_id = 2;  // guid1
+  int32     challenged_id = 3;  // guid2 (0 for REMOVE)
+  int32     challenger_cell = 4;
+  int32     challenged_cell = 5;
+  string    challenger_sprite = 6; // encoded appearance string
+  string    challenged_sprite = 7;
+  int32     challenge_flag = 8;    // arg1
 }
 
-// Gt - Team info
+// Gt - Team membership broadcast.
+// StarLoco ref: SocketManager.java:397 / 410 / 418
+// Wire: Gt<teamID>(|<op><id>;<name>;<level>)+  with op '+' or '-'.
 message GameTeam {
-  string raw_data = 1;
+  int32 team_id = 1;
+  repeated TeamMember members = 2;
 }
 
-// GV - Leave game
-message GameLeave {
-  string raw_data = 1;
+message TeamMember {
+  enum Operation {
+    OPERATION_UNSPECIFIED = 0;
+    ADD = 1;    // '+'
+    REMOVE = 2; // '-'
+  }
+  Operation operation = 1;
+  int32     sprite_id = 2;
+  string    name = 3;
+  int32     level = 4;
 }
 
-// Gd - Fight challenge update
+// GV - Leave game (fight left-spectate or leave notification).
+// StarLoco ref: SocketManager.java:732 (plain "GV").
+message GameLeave {}
+
+// Gd - Fight challenge update.
+// StarLoco ref: SocketManager.java:1992 (GAME_SEND_CHALLENGE_FIGHT, "Gd"+str)
+// where str varies: "K<id>" completed, "O<id>" failed, or target/value updates.
 message GameFightChallengeUpdate {
   enum UpdateType {
     UPDATE_UNSPECIFIED = 0;
     COMPLETED = 1;    // GdK
     FAILED = 2;       // GdO
+    TARGET = 3;       // GdT
+    VALUE = 4;        // GdV
   }
   UpdateType type = 1;
-  string raw_data = 2;
+  int32      challenge_id = 2;
+  int32      target_id = 3;   // only for TARGET
+  int32      value = 4;       // only for VALUE
 }
 
 // ============================================================================

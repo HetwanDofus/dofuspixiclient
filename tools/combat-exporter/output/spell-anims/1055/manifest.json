@@ -1,504 +1,623 @@
 {
     "id": 1055,
     "fps": 60,
-    "scale": 6,
+    "scale": 1,
     "mainTimelineScale": 1,
     "animations": [
         {
             "name": "sprite_2",
             "frameCount": 2,
-            "width": 75.9,
-            "height": 142.8,
-            "offsetX": -36.599999999999994,
-            "offsetY": -71.4,
+            "width": 12.65,
+            "height": 23.8,
+            "offsetX": -6.1,
+            "offsetY": -11.9,
             "isComposite": false,
             "frames": [
                 {
                     "index": 0,
-                    "file": "sprite_2_0.webp"
+                    "file": "sprite_2_0.svg"
                 },
                 {
                     "index": 1,
-                    "file": "sprite_2_1.webp"
+                    "file": "sprite_2_1.svg"
                 }
             ]
         },
         {
             "name": "sprite_8",
             "frameCount": 117,
-            "width": 310.79999999999995,
-            "height": 1244.1,
-            "offsetX": -164.7,
-            "offsetY": -1094.6999999999998,
+            "width": 51.8,
+            "height": 207.35,
+            "offsetX": -27.45,
+            "offsetY": -182.45,
             "isComposite": true,
             "frames": [
                 {
                     "index": 0,
-                    "file": "sprite_8_0.webp"
+                    "file": "sprite_8_0.svg"
                 },
                 {
                     "index": 1,
-                    "file": "sprite_8_1.webp"
+                    "file": "sprite_8_1.svg"
                 },
                 {
                     "index": 2,
-                    "file": "sprite_8_2.webp"
+                    "file": "sprite_8_2.svg"
                 },
                 {
                     "index": 3,
-                    "file": "sprite_8_3.webp"
+                    "file": "sprite_8_3.svg"
                 },
                 {
                     "index": 4,
-                    "file": "sprite_8_4.webp"
+                    "file": "sprite_8_4.svg"
                 },
                 {
                     "index": 5,
-                    "file": "sprite_8_5.webp"
+                    "file": "sprite_8_5.svg"
                 },
                 {
                     "index": 6,
-                    "file": "sprite_8_6.webp"
+                    "file": "sprite_8_6.svg"
                 },
                 {
                     "index": 7,
-                    "file": "sprite_8_7.webp"
+                    "file": "sprite_8_7.svg"
                 },
                 {
                     "index": 8,
-                    "file": "sprite_8_8.webp"
+                    "file": "sprite_8_8.svg"
                 },
                 {
                     "index": 9,
-                    "file": "sprite_8_9.webp"
+                    "file": "sprite_8_9.svg"
                 },
                 {
                     "index": 10,
-                    "file": "sprite_8_10.webp"
+                    "file": "sprite_8_10.svg"
                 },
                 {
                     "index": 11,
-                    "file": "sprite_8_11.webp"
+                    "file": "sprite_8_11.svg"
                 },
                 {
                     "index": 12,
-                    "file": "sprite_8_12.webp"
+                    "file": "sprite_8_12.svg"
                 },
                 {
                     "index": 13,
-                    "file": "sprite_8_13.webp"
+                    "file": "sprite_8_13.svg"
                 },
                 {
                     "index": 14,
-                    "file": "sprite_8_14.webp"
+                    "file": "sprite_8_14.svg"
                 },
                 {
                     "index": 15,
-                    "file": "sprite_8_15.webp"
+                    "file": "sprite_8_15.svg"
                 },
                 {
                     "index": 16,
-                    "file": "sprite_8_16.webp"
+                    "file": "sprite_8_16.svg"
                 },
                 {
                     "index": 17,
-                    "file": "sprite_8_17.webp"
+                    "file": "sprite_8_17.svg"
                 },
                 {
                     "index": 18,
-                    "file": "sprite_8_18.webp"
+                    "file": "sprite_8_18.svg"
                 },
                 {
                     "index": 19,
-                    "file": "sprite_8_19.webp"
+                    "file": "sprite_8_19.svg"
                 },
                 {
                     "index": 20,
-                    "file": "sprite_8_20.webp"
+                    "file": "sprite_8_20.svg"
                 },
                 {
                     "index": 21,
-                    "file": "sprite_8_21.webp"
+                    "file": "sprite_8_21.svg"
                 },
                 {
                     "index": 22,
-                    "file": "sprite_8_22.webp"
+                    "file": "sprite_8_22.svg"
                 },
                 {
                     "index": 23,
-                    "file": "sprite_8_23.webp"
+                    "file": "sprite_8_23.svg"
                 },
                 {
                     "index": 24,
-                    "file": "sprite_8_24.webp"
+                    "file": "sprite_8_24.svg"
                 },
                 {
                     "index": 25,
-                    "file": "sprite_8_25.webp"
+                    "file": "sprite_8_25.svg"
                 },
                 {
                     "index": 26,
-                    "file": "sprite_8_26.webp"
+                    "file": "sprite_8_26.svg"
                 },
                 {
                     "index": 27,
-                    "file": "sprite_8_27.webp"
+                    "file": "sprite_8_27.svg"
                 },
                 {
                     "index": 28,
-                    "file": "sprite_8_28.webp"
+                    "file": "sprite_8_28.svg"
                 },
                 {
                     "index": 29,
-                    "file": "sprite_8_29.webp"
+                    "file": "sprite_8_29.svg"
                 },
                 {
                     "index": 30,
-                    "file": "sprite_8_30.webp"
+                    "file": "sprite_8_30.svg"
                 },
                 {
                     "index": 31,
-                    "file": "sprite_8_31.webp"
+                    "file": "sprite_8_31.svg"
                 },
                 {
                     "index": 32,
-                    "file": "sprite_8_32.webp"
+                    "file": "sprite_8_32.svg"
                 },
                 {
                     "index": 33,
-                    "file": "sprite_8_33.webp"
+                    "file": "sprite_8_33.svg"
                 },
                 {
                     "index": 34,
-                    "file": "sprite_8_34.webp"
+                    "file": "sprite_8_34.svg"
                 },
                 {
                     "index": 35,
-                    "file": "sprite_8_35.webp"
+                    "file": "sprite_8_35.svg"
                 },
                 {
                     "index": 36,
-                    "file": "sprite_8_36.webp"
+                    "file": "sprite_8_36.svg"
                 },
                 {
                     "index": 37,
-                    "file": "sprite_8_37.webp"
+                    "file": "sprite_8_37.svg"
                 },
                 {
                     "index": 38,
-                    "file": "sprite_8_38.webp"
+                    "file": "sprite_8_38.svg"
                 },
                 {
                     "index": 39,
-                    "file": "sprite_8_39.webp"
+                    "file": "sprite_8_39.svg"
                 },
                 {
                     "index": 40,
-                    "file": "sprite_8_40.webp"
+                    "file": "sprite_8_40.svg"
                 },
                 {
                     "index": 41,
-                    "file": "sprite_8_41.webp"
+                    "file": "sprite_8_41.svg"
                 },
                 {
                     "index": 42,
-                    "file": "sprite_8_42.webp"
+                    "file": "sprite_8_42.svg"
                 },
                 {
                     "index": 43,
-                    "file": "sprite_8_43.webp"
+                    "file": "sprite_8_43.svg"
                 },
                 {
                     "index": 44,
-                    "file": "sprite_8_44.webp"
+                    "file": "sprite_8_44.svg"
                 },
                 {
                     "index": 45,
-                    "file": "sprite_8_45.webp"
+                    "file": "sprite_8_45.svg"
                 },
                 {
                     "index": 46,
-                    "file": "sprite_8_46.webp"
+                    "file": "sprite_8_46.svg"
                 },
                 {
                     "index": 47,
-                    "file": "sprite_8_47.webp"
+                    "file": "sprite_8_47.svg"
                 },
                 {
                     "index": 48,
-                    "file": "sprite_8_48.webp"
+                    "file": "sprite_8_48.svg"
                 },
                 {
                     "index": 49,
-                    "file": "sprite_8_49.webp"
+                    "file": "sprite_8_49.svg"
                 },
                 {
                     "index": 50,
-                    "file": "sprite_8_50.webp"
+                    "file": "sprite_8_50.svg"
                 },
                 {
                     "index": 51,
-                    "file": "sprite_8_51.webp"
+                    "file": "sprite_8_51.svg"
                 },
                 {
                     "index": 52,
-                    "file": "sprite_8_52.webp"
+                    "file": "sprite_8_52.svg"
                 },
                 {
                     "index": 53,
-                    "file": "sprite_8_53.webp"
+                    "file": "sprite_8_53.svg"
                 },
                 {
                     "index": 54,
-                    "file": "sprite_8_54.webp"
+                    "file": "sprite_8_54.svg"
                 },
                 {
                     "index": 55,
-                    "file": "sprite_8_55.webp"
+                    "file": "sprite_8_55.svg"
                 },
                 {
                     "index": 56,
-                    "file": "sprite_8_56.webp"
+                    "file": "sprite_8_56.svg"
                 },
                 {
                     "index": 57,
-                    "file": "sprite_8_57.webp"
+                    "file": "sprite_8_57.svg"
                 },
                 {
                     "index": 58,
-                    "file": "sprite_8_58.webp"
+                    "file": "sprite_8_58.svg"
                 },
                 {
                     "index": 59,
-                    "file": "sprite_8_59.webp"
+                    "file": "sprite_8_59.svg"
                 },
                 {
                     "index": 60,
-                    "file": "sprite_8_60.webp"
+                    "file": "sprite_8_60.svg"
                 },
                 {
                     "index": 61,
-                    "file": "sprite_8_61.webp"
+                    "file": "sprite_8_61.svg"
                 },
                 {
                     "index": 62,
-                    "file": "sprite_8_62.webp"
+                    "file": "sprite_8_62.svg"
                 },
                 {
                     "index": 63,
-                    "file": "sprite_8_63.webp"
+                    "file": "sprite_8_63.svg"
                 },
                 {
                     "index": 64,
-                    "file": "sprite_8_64.webp"
+                    "file": "sprite_8_64.svg"
                 },
                 {
                     "index": 65,
-                    "file": "sprite_8_65.webp"
+                    "file": "sprite_8_65.svg"
                 },
                 {
                     "index": 66,
-                    "file": "sprite_8_66.webp"
+                    "file": "sprite_8_66.svg"
                 },
                 {
                     "index": 67,
-                    "file": "sprite_8_67.webp"
+                    "file": "sprite_8_67.svg"
                 },
                 {
                     "index": 68,
-                    "file": "sprite_8_68.webp"
+                    "file": "sprite_8_68.svg"
                 },
                 {
                     "index": 69,
-                    "file": "sprite_8_69.webp"
+                    "file": "sprite_8_69.svg"
                 },
                 {
                     "index": 70,
-                    "file": "sprite_8_70.webp"
+                    "file": "sprite_8_70.svg"
                 },
                 {
                     "index": 71,
-                    "file": "sprite_8_71.webp"
+                    "file": "sprite_8_71.svg"
                 },
                 {
                     "index": 72,
-                    "file": "sprite_8_72.webp"
+                    "file": "sprite_8_72.svg"
                 },
                 {
                     "index": 73,
-                    "file": "sprite_8_73.webp"
+                    "file": "sprite_8_73.svg"
                 },
                 {
                     "index": 74,
-                    "file": "sprite_8_74.webp"
+                    "file": "sprite_8_74.svg"
                 },
                 {
                     "index": 75,
-                    "file": "sprite_8_75.webp"
+                    "file": "sprite_8_75.svg"
                 },
                 {
                     "index": 76,
-                    "file": "sprite_8_76.webp"
+                    "file": "sprite_8_76.svg"
                 },
                 {
                     "index": 77,
-                    "file": "sprite_8_77.webp"
+                    "file": "sprite_8_77.svg"
                 },
                 {
                     "index": 78,
-                    "file": "sprite_8_78.webp"
+                    "file": "sprite_8_78.svg"
                 },
                 {
                     "index": 79,
-                    "file": "sprite_8_79.webp"
+                    "file": "sprite_8_79.svg"
                 },
                 {
                     "index": 80,
-                    "file": "sprite_8_80.webp"
+                    "file": "sprite_8_80.svg"
                 },
                 {
                     "index": 81,
-                    "file": "sprite_8_81.webp"
+                    "file": "sprite_8_81.svg"
                 },
                 {
                     "index": 82,
-                    "file": "sprite_8_82.webp"
+                    "file": "sprite_8_82.svg"
                 },
                 {
                     "index": 83,
-                    "file": "sprite_8_83.webp"
+                    "file": "sprite_8_83.svg"
                 },
                 {
                     "index": 84,
-                    "file": "sprite_8_84.webp"
+                    "file": "sprite_8_84.svg"
                 },
                 {
                     "index": 85,
-                    "file": "sprite_8_85.webp"
+                    "file": "sprite_8_85.svg"
                 },
                 {
                     "index": 86,
-                    "file": "sprite_8_86.webp"
+                    "file": "sprite_8_86.svg"
                 },
                 {
                     "index": 87,
-                    "file": "sprite_8_87.webp"
+                    "file": "sprite_8_87.svg"
                 },
                 {
                     "index": 88,
-                    "file": "sprite_8_88.webp"
+                    "file": "sprite_8_88.svg"
                 },
                 {
                     "index": 89,
-                    "file": "sprite_8_89.webp"
+                    "file": "sprite_8_89.svg"
                 },
                 {
                     "index": 90,
-                    "file": "sprite_8_90.webp"
+                    "file": "sprite_8_90.svg"
                 },
                 {
                     "index": 91,
-                    "file": "sprite_8_91.webp"
+                    "file": "sprite_8_91.svg"
                 },
                 {
                     "index": 92,
-                    "file": "sprite_8_92.webp"
+                    "file": "sprite_8_92.svg"
                 },
                 {
                     "index": 93,
-                    "file": "sprite_8_93.webp"
+                    "file": "sprite_8_93.svg"
                 },
                 {
                     "index": 94,
-                    "file": "sprite_8_94.webp"
+                    "file": "sprite_8_94.svg"
                 },
                 {
                     "index": 95,
-                    "file": "sprite_8_95.webp"
+                    "file": "sprite_8_95.svg"
                 },
                 {
                     "index": 96,
-                    "file": "sprite_8_96.webp"
+                    "file": "sprite_8_96.svg"
                 },
                 {
                     "index": 97,
-                    "file": "sprite_8_97.webp"
+                    "file": "sprite_8_97.svg"
                 },
                 {
                     "index": 98,
-                    "file": "sprite_8_98.webp"
+                    "file": "sprite_8_98.svg"
                 },
                 {
                     "index": 99,
-                    "file": "sprite_8_99.webp"
+                    "file": "sprite_8_99.svg"
                 },
                 {
                     "index": 100,
-                    "file": "sprite_8_100.webp"
+                    "file": "sprite_8_100.svg"
                 },
                 {
                     "index": 101,
-                    "file": "sprite_8_101.webp"
+                    "file": "sprite_8_101.svg"
                 },
                 {
                     "index": 102,
-                    "file": "sprite_8_102.webp"
+                    "file": "sprite_8_102.svg"
                 },
                 {
                     "index": 103,
-                    "file": "sprite_8_103.webp"
+                    "file": "sprite_8_103.svg"
                 },
                 {
                     "index": 104,
-                    "file": "sprite_8_104.webp"
+                    "file": "sprite_8_104.svg"
                 },
                 {
                     "index": 105,
-                    "file": "sprite_8_105.webp"
+                    "file": "sprite_8_105.svg"
                 },
                 {
                     "index": 106,
-                    "file": "sprite_8_106.webp"
+                    "file": "sprite_8_106.svg"
                 },
                 {
                     "index": 107,
-                    "file": "sprite_8_107.webp"
+                    "file": "sprite_8_107.svg"
                 },
                 {
                     "index": 108,
-                    "file": "sprite_8_108.webp"
+                    "file": "sprite_8_108.svg"
                 },
                 {
                     "index": 109,
-                    "file": "sprite_8_109.webp"
+                    "file": "sprite_8_109.svg"
                 },
                 {
                     "index": 110,
-                    "file": "sprite_8_110.webp"
+                    "file": "sprite_8_110.svg"
                 },
                 {
                     "index": 111,
-                    "file": "sprite_8_111.webp"
+                    "file": "sprite_8_111.svg"
                 },
                 {
                     "index": 112,
-                    "file": "sprite_8_112.webp"
+                    "file": "sprite_8_112.svg"
                 },
                 {
                     "index": 113,
-                    "file": "sprite_8_113.webp"
+                    "file": "sprite_8_113.svg"
                 },
                 {
                     "index": 114,
-                    "file": "sprite_8_114.webp"
+                    "file": "sprite_8_114.svg"
                 },
                 {
                     "index": 115,
-                    "file": "sprite_8_115.webp"
+                    "file": "sprite_8_115.svg"
                 },
                 {
                     "index": 116,
-                    "file": "sprite_8_116.webp"
+                    "file": "sprite_8_116.svg"
+                }
+            ]
+        },
+        {
+            "name": "sprite_9",
+            "frameCount": 27,
+            "width": 0,
+            "height": 0,
+            "offsetX": 0,
+            "offsetY": 0,
+            "isComposite": false,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "sprite_9_0.svg"
+                },
+                {
+                    "index": 1,
+                    "file": "sprite_9_1.svg"
+                },
+                {
+                    "index": 2,
+                    "file": "sprite_9_2.svg"
+                },
+                {
+                    "index": 3,
+                    "file": "sprite_9_3.svg"
+                },
+                {
+                    "index": 4,
+                    "file": "sprite_9_4.svg"
+                },
+                {
+                    "index": 5,
+                    "file": "sprite_9_5.svg"
+                },
+                {
+                    "index": 6,
+                    "file": "sprite_9_6.svg"
+                },
+                {
+                    "index": 7,
+                    "file": "sprite_9_7.svg"
+                },
+                {
+                    "index": 8,
+                    "file": "sprite_9_8.svg"
+                },
+                {
+                    "index": 9,
+                    "file": "sprite_9_9.svg"
+                },
+                {
+                    "index": 10,
+                    "file": "sprite_9_10.svg"
+                },
+                {
+                    "index": 11,
+                    "file": "sprite_9_11.svg"
+                },
+                {
+                    "index": 12,
+                    "file": "sprite_9_12.svg"
+                },
+                {
+                    "index": 13,
+                    "file": "sprite_9_13.svg"
+                },
+                {
+                    "index": 14,
+                    "file": "sprite_9_14.svg"
+                },
+                {
+                    "index": 15,
+                    "file": "sprite_9_15.svg"
+                },
+                {
+                    "index": 16,
+                    "file": "sprite_9_16.svg"
+                },
+                {
+                    "index": 17,
+                    "file": "sprite_9_17.svg"
+                },
+                {
+                    "index": 18,
+                    "file": "sprite_9_18.svg"
+                },
+                {
+                    "index": 19,
+                    "file": "sprite_9_19.svg"
+                },
+                {
+                    "index": 20,
+                    "file": "sprite_9_20.svg"
+                },
+                {
+                    "index": 21,
+                    "file": "sprite_9_21.svg"
+                },
+                {
+                    "index": 22,
+                    "file": "sprite_9_22.svg"
+                },
+                {
+                    "index": 23,
+                    "file": "sprite_9_23.svg"
+                },
+                {
+                    "index": 24,
+                    "file": "sprite_9_24.svg"
+                },
+                {
+                    "index": 25,
+                    "file": "sprite_9_25.svg"
+                },
+                {
+                    "index": 26,
+                    "file": "sprite_9_26.svg"
                 }
             ]
         }
@@ -527,14 +646,14 @@
             "characterId": 3,
             "internalName": "sprite_3",
             "frameCount": 1,
-            "width": 75.9,
-            "height": 142.8,
-            "offsetX": -36.3,
-            "offsetY": -71.4,
+            "width": 12.65,
+            "height": 23.8,
+            "offsetX": -6.05,
+            "offsetY": -11.9,
             "frames": [
                 {
                     "index": 0,
-                    "file": "lib_spire_0.webp"
+                    "file": "lib_spire_0.svg"
                 }
             ]
         }

@@ -487,11 +487,11 @@ export default defineConfig({
     }),
     lingui(),
   ],
-  root: "src/mainview",
+  root: "src/window/mainview",
   publicDir: resolve(__dirname, "public"),
   resolve: {
     alias: {
-      "@": resolve(__dirname, "./src/lib"),
+      "@": resolve(__dirname, "./src"),
       "vello-wasm": resolve(__dirname, "../../../dofus-vello-custom-format/packages/vello-wasm/pkg"),
     },
   },
@@ -506,7 +506,7 @@ export default defineConfig({
     fs: {
       // Allow serving files from the vello-wasm pkg directory (outside project root)
       allow: [
-        resolve(__dirname, ".."),
+        resolve(__dirname, "../.."),
         resolve(__dirname, "../../../dofus-vello-custom-format/packages/vello-wasm/pkg"),
       ],
     },

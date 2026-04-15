@@ -1,0 +1,16 @@
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/dofus/gameserver/pkg/shared/proto
+plugins:
+  - remote: buf.build/bufbuild/es
+    out: packages/proto/gen
+    opt:
+      - target=ts
+      - import_extension=.js
+  - remote: buf.build/protocolbuffers/go
+    out: apps/gameserver/pkg/shared/proto
+    opt:
+      - paths=source_relative

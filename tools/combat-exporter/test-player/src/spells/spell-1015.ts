@@ -1,90 +1,128 @@
 /**
- * Spell 1015 - Fragmentation
+ * Spell 1015 - Flèche Punitive (Cra)
  *
- * A projectile spell that launches downward with random drift, spawning fragment trails.
+ * A projectile spell where an arrow/fragment travels from caster to target,
+ * leaving trailing fragments, then a sun/impact animation plays at the target.
  *
  * Components:
- * - Main projectile: Launches from 100px above caster, travels downward with drift
- * - Fragment trail: Spawned continuously along projectile path
- * - Ground impact: Created when projectile reaches ground level
+ * - gen (PlaceObject2_15): A "generator" object at caster position (Y - 100),
+ *   drives the projectile movement via enterFrame logic
+ * - frag (sprite_10): Fragment sprites spawned along the trajectory every 5 frames
+ * - sol (sprite_5): Sun/impact animation spawned at the final position
+ * - DefineSprite_21: Main container placed at cellTo, signals hit at frame 52,
+ *   removes at frame 124
  *
  * Original AS timing:
- * - Frame 2: Initialize projectile system
- * - Every frame: Spawn fragment, update projectile physics
- * - On impact: Create ground effect, signal hit at frame 52
+ * - Frame 2 (main): stop() — animation is driven by enterFrame
+ * - gen onClipEvent(load): Position at cellFrom.x, cellFrom.y - 100
+ * - gen onClipEvent(enterFrame): Move projectile, spawn frags every 5 frames,
+ *   spawn sol when reaching limy (cellFrom.y - 100 + 90 + random*20)
+ * - DefineSprite_21 frame_1: Position at cellTo
+ * - DefineSprite_21 frame_52: this.end() → signal hit
+ * - DefineSprite_21 frame_124: removeMovieClip() → complete
+ * - DefineSprite_5_sol frame_85: stop()
+ * - DefineSprite_10_frag frame_70: removeMovieClip()
  */
 
-import { Texture } from 'pixi.js';
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import { Container, Texture } from 'pixi.js';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
-  ASParticleSystem,
   calculateAnchor,
-  type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+  SPELL_CONSTANTS,
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
-const FRAG_MANIFEST: SpriteManifest = {
-  width: 4122.299999999999,
-  height: 269.70000000000005,
-  offsetX: -2077.2,
-  offsetY: -137.7,
-};
+interface FragInstance {
+  anim: FrameAnimatedSprite;
+  dead: boolean;
+}
 
 export class Spell1015 extends BaseSpell {
   readonly spellId = 1015;
 
-  private mainAnim!: FrameAnimatedSprite;
-  private projectileGen: any = null;
-  private fragments: FrameAnimatedSprite[] = [];
-  private groundImpact: FrameAnimatedSprite | null = null;
+  // Projectile state (replicating PlaceObject2_16_5 enterFrame)
+  private genX = 0;
+  private genY = 0;
+  private angle = 90;
+  private vr = 0;
+  private limy = 0;
+  private genDone = false;
+  private c = 0;
 
-  protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Main animation at target position
-    const anchor = calculateAnchor(FRAG_MANIFEST);
-    this.mainAnim = this.anims.add(new FrameAnimatedSprite({
-      textures: textures.getFrames('frag'),
-      anchorX: anchor.x,
-      anchorY: anchor.y,
-      scale: init.scale,
-    }));
-    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
-    this.mainAnim
-      .onFrame(51, () => this.signalHit())
-      .stopAt(123);
-    this.container.addChild(this.mainAnim.sprite);
+  // Fragment and sol instances
+  private frags: FragInstance[] = [];
+  private solAnim: FrameAnimatedSprite | null = null;
 
-    // Initialize projectile system
-    this.initProjectileSystem(context, textures, init);
-  }
+  // Container for all dynamic elements (positioned relative to cellFrom)
+  private worldContainer!: Container;
 
-  private initProjectileSystem(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Create projectile generator object (simulating AS ClipAction behavior)
-    this.projectileGen = {
-      x: 0,
-      y: -100, // Start 100px above source
-      angle: 90, // Start pointing down
-      BASE: 90,
-      LIM: 50,
-      angleRnd: Math.floor(Math.random() * 5) - 2.5, // -2.5 to 2.5
-      count: 0,
-      impactY: 90 + Math.floor(Math.random() * 20), // 90-110 below start
-      active: true
-    };
+  // Textures stored for spawning
+  private fragTextures: Texture[] = [];
+  private solTextures: Texture[] = [];
+  private fragAnchorX = 0.5;
+  private fragAnchorY = 0.5;
+  private solAnchorX = 0.5;
+  private solAnchorY = 0.5;
 
-    // Create visual element at projectile start position
-    const fragFrames = textures.getFrames('frag');
-    if (fragFrames.length > 0) {
-      const anchor = calculateAnchor(FRAG_MANIFEST);
-      const visualElement = new FrameAnimatedSprite({
-        textures: [fragFrames[0]],
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-      });
-      visualElement.sprite.position.set(0, -100);
-      this.container.addChild(visualElement.sprite);
-    }
+  // DefineSprite_21 timeline (signals hit at frame 52, completes at frame 124)
+  private sprite21FrameAccumulator = 0;
+  private sprite21Frame = 0;
+  private sprite21Done = false;
+
+  // Track if sol has been spawned
+  private solSpawned = false;
+
+  // Accumulated time for enterFrame simulation (runs at 60fps)
+  private enterFrameAccumulator = 0;
+  private readonly frameTime = 1000 / 60;
+
+  protected setup(_context: SpellContext, textures: SpellTextureProvider, _init: SpellInitContext): void {
+    // Store textures for later spawning
+    this.fragTextures = textures.getFrames('lib_frag');
+    this.solTextures = textures.getFrames('lib_sol');
+
+    const fragAnchor = calculateAnchor({
+      width: 687.05,
+      height: 44.95,
+      offsetX: -346.2,
+      offsetY: -22.95,
+    });
+    this.fragAnchorX = fragAnchor.x;
+    this.fragAnchorY = fragAnchor.y;
+
+    const solAnchor = calculateAnchor({
+      width: 132.05,
+      height: 90.3,
+      offsetX: -69.7,
+      offsetY: -82.45,
+    });
+    this.solAnchorX = solAnchor.x;
+    this.solAnchorY = solAnchor.y;
+
+    // In AS world space:
+    // gen starts at: (cellFrom.x, cellFrom.y - 100)
+    // In our local container space (origin = cellFrom):
+    // gen starts at: (0, -100)
+    // limy = genY + 90 + random*20 = -100 + 90 + random*20 = -10 + random*20
+    this.genX = 0;
+    this.genY = -100;
+    this.angle = 90; // BASE = 90
+    this.vr = (Math.random() - 0.5) * 5;
+    this.limy = this.genY + 90 + Math.random() * 20;
+    this.genDone = false;
+    this.c = 0;
+
+    // World container for frags and sol
+    this.worldContainer = new Container();
+    this.worldContainer.position.set(0, 0);
+    this.container.addChild(this.worldContainer);
+
+    // DefineSprite_21 timeline starts immediately
+    this.sprite21Frame = 0;
+    this.sprite21FrameAccumulator = 0;
+    this.sprite21Done = false;
+    this.solSpawned = false;
   }
 
   update(deltaTime: number): void {
@@ -92,101 +130,148 @@ export class Spell1015 extends BaseSpell {
       return;
     }
 
-    // Update all animations
-    this.anims.update(deltaTime);
-
-    // Update projectile system
-    if (this.projectileGen && this.projectileGen.active) {
-      this.updateProjectile(deltaTime);
+    // Process enterFrame logic at 60fps
+    this.enterFrameAccumulator += deltaTime;
+    while (this.enterFrameAccumulator >= this.frameTime) {
+      this.enterFrameAccumulator -= this.frameTime;
+      this.processEnterFrame();
     }
 
-    // Update fragments
-    for (let i = this.fragments.length - 1; i >= 0; i--) {
-      const frag = this.fragments[i];
-      frag.update(deltaTime);
-      if (frag.isComplete()) {
-        frag.destroy();
-        this.fragments.splice(i, 1);
+    // Update sprite_21 timeline (signals hit and completion)
+    if (!this.sprite21Done) {
+      this.sprite21FrameAccumulator += deltaTime;
+      while (this.sprite21FrameAccumulator >= this.frameTime && !this.sprite21Done) {
+        this.sprite21FrameAccumulator -= this.frameTime;
+        this.sprite21Frame++;
+
+        // AS frame_52 (0-indexed: 51) → this.end() → signal hit
+        if (this.sprite21Frame === 51) {
+          this.signalHit();
+        }
+
+        // AS frame_124 (0-indexed: 123) → removeMovieClip → complete
+        if (this.sprite21Frame === 123) {
+          this.sprite21Done = true;
+        }
       }
     }
 
-    // Update ground impact if exists
-    if (this.groundImpact) {
-      this.groundImpact.update(deltaTime);
+    // Update sol animation (managed via this.anims)
+    this.anims.update(deltaTime);
+
+    // Update frag instances manually (not in this.anims to avoid affecting allComplete())
+    for (const frag of this.frags) {
+      if (!frag.dead) {
+        frag.anim.update(deltaTime);
+        if (frag.anim.isStopped() || frag.anim.isComplete()) {
+          frag.dead = true;
+          frag.anim.destroy();
+        }
+      }
     }
 
-    // Check completion
-    if (this.mainAnim.isComplete() && 
-        this.fragments.length === 0 && 
-        (!this.groundImpact || this.groundImpact.isStopped())) {
+    // Check completion: sprite_21 done, sol stopped/complete, all frags dead
+    const solDone = this.solAnim === null || this.solAnim.isStopped() || this.solAnim.isComplete();
+    const allFragsDead = this.frags.every(f => f.dead);
+
+    if (this.sprite21Done && solDone && allFragsDead && this.solSpawned) {
       this.complete();
     }
   }
 
-  private updateProjectile(deltaTime: number): void {
-    const gen = this.projectileGen;
-    
-    gen.count++;
-
-    // Every 5 frames, recalculate angle variation
-    if (gen.count % 5 === 0) {
-      gen.angleRnd = Math.floor(Math.random() * 50) - 25; // -25 to 25
+  private processEnterFrame(): void {
+    if (this.genDone) {
+      return;
     }
 
-    // Update angle with constraints
-    gen.angle += gen.angleRnd;
-    if (gen.angle < gen.BASE - gen.LIM) {
-      gen.angle = gen.BASE - gen.LIM;
-    }
-    if (gen.angle > gen.BASE + gen.LIM) {
-      gen.angle = gen.BASE + gen.LIM;
-    }
+    // AS: if(_Y < limy) { ... } else { done = true; attachMovie sol }
+    if (this.genY < this.limy) {
+      // AS: if(c++ % 5 == 0) { vr = (Math.random() - 0.5) * 50; }
+      // c++ returns value before increment: first iteration c=0 → 0%5==0 → true, then c=1
+      if (this.c % 5 === 0) {
+        this.vr = (Math.random() - 0.5) * 50;
+      }
+      this.c++;
 
-    // Move projectile
-    const angleRad = (gen.angle * Math.PI) / 180;
-    gen.x += 7.67 * Math.cos(angleRad);
-    gen.y += 7.67 * Math.sin(angleRad);
+      // AS: angle = Math.max(BASE - LIM, Math.min(BASE + LIM, angle + vr))
+      // BASE = 90, LIM = 50
+      this.angle = Math.max(90 - 50, Math.min(90 + 50, this.angle + this.vr));
 
-    // Spawn fragment at current position
-    this.spawnFragment(gen.x, gen.y, gen.angle);
+      // AS: var rad = angle * DEG2RAD
+      const DEG2RAD = 0.017453292519943295;
+      const rad = this.angle * DEG2RAD;
 
-    // Check if reached ground
-    if (gen.y >= gen.impactY) {
-      gen.active = false;
-      this.createGroundImpact(gen.x, gen.y);
+      // AS: _X += VEL * cos(rad); _Y += VEL * sin(rad)  (VEL = 7.67)
+      this.genX = this.genX + 7.67 * Math.cos(rad);
+      this.genY = this.genY + 7.67 * Math.sin(rad);
+
+      // AS: rootMC.attachMovie("frag", "frag" + c, c, {_x:_X, _y:_Y})
+      this.spawnFrag(this.genX, this.genY, this.angle);
+    } else {
+      // AS: done = true; rootMC.attachMovie("sol", "solImpact", 1000, {_x:_X, _y:_Y})
+      this.genDone = true;
+      this.spawnSol(this.genX, this.genY);
     }
   }
 
-  private spawnFragment(x: number, y: number, angle: number): void {
-    // This would need texture provider access to work properly
-    // Stub implementation for now
-    return;
+  private spawnFrag(x: number, y: number, rotationDeg: number): void {
+    if (this.fragTextures.length === 0) {
+      return;
+    }
+
+    const anim = new FrameAnimatedSprite({
+      textures: this.fragTextures,
+      anchorX: this.fragAnchorX,
+      anchorY: this.fragAnchorY,
+      scale: 1,
+    });
+
+    // AS DefineSprite_10_frag frame_1: _X = gen._x, _Y = gen._y, _rotation = gen._rotation
+    anim.sprite.position.set(x, y);
+    anim.sprite.rotation = (rotationDeg * Math.PI) / 180;
+
+    // AS DefineSprite_10_frag frame_70: removeMovieClip(this)
+    // Stop at frame 69 (0-indexed), handled in update() via isStopped()
+    anim.stopAt(69);
+
+    this.worldContainer.addChild(anim.sprite);
+    this.frags.push({ anim, dead: false });
   }
 
-  private createGroundImpact(x: number, y: number): void {
-    // Ground impact would use 'sol' animation but it's not in manifest
-    // So we'll just mark the impact position
-    // In actual implementation with sol textures:
-    // this.groundImpact = new FrameAnimatedSprite({
-    //   textures: textures.getFrames('sol'),
-    //   ...calculateAnchor(SOL_MANIFEST),
-    //   scale: 1 / 6,
-    // });
-    // this.groundImpact.sprite.position.set(x, y);
-    // this.groundImpact.stopAt(84);
-    // this.container.addChild(this.groundImpact.sprite);
+  private spawnSol(x: number, y: number): void {
+    if (this.solTextures.length === 0 || this.solSpawned) {
+      return;
+    }
+
+    this.solSpawned = true;
+
+    const anim = this.anims.add(new FrameAnimatedSprite({
+      textures: this.solTextures,
+      anchorX: this.solAnchorX,
+      anchorY: this.solAnchorY,
+      scale: 1,
+    }));
+
+    // AS DefineSprite_5_sol frame_1: _X = gen._x, _Y = gen._y
+    anim.sprite.position.set(x, y);
+
+    // AS DefineSprite_5_sol frame_85: stop()
+    // 0-indexed: frame 84
+    anim.stopAt(84);
+
+    this.worldContainer.addChild(anim.sprite);
+    this.solAnim = anim;
   }
 
-  destroy(): void {
-    for (const frag of this.fragments) {
-      frag.destroy();
+  override destroy(): void {
+    // Clean up frag animations that are not in this.anims
+    for (const frag of this.frags) {
+      if (!frag.dead) {
+        frag.anim.destroy();
+      }
     }
-    this.fragments = [];
-    
-    if (this.groundImpact) {
-      this.groundImpact.destroy();
-    }
-    
+    this.frags = [];
+
     super.destroy();
   }
 }

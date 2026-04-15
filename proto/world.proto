@@ -23,21 +23,24 @@ message HouseProperties {
   bool   is_locked = 7;
 }
 
-// hX - Locked house
-message HouseLocked {
-  string raw_data = 1;
-}
+// hX - Locked house (wrong lock code entered).
+// Legacy 1.29: bare "hX" — no payload. Kept as empty-body message.
+message HouseLocked {}
 
-// hC - House create
+// hC - House create (open house management UI).
+// Legacy 1.29: "hC<houseId>" when opening the owner panel for a house.
 message HouseCreate {
-  bool   success = 1;
-  string raw_data = 2;
+  bool  success = 1;
+  int32 house_id = 2;
 }
 
-// hS - House sell
+// hS - House sell (UI confirmation on price change / share toggle).
+// Legacy 1.29: "hS<price>|<share>|<rights>" echoes the new state back.
 message HouseSell {
-  bool   success = 1;
-  string raw_data = 2;
+  bool  success = 1;
+  int64 price = 2;
+  bool  is_shared = 3;
+  int64 guild_rights = 4;
 }
 
 // hB - House buy
@@ -74,15 +77,16 @@ message HouseInformations {
 // STORAGES PROTOCOL (s prefix)
 // ============================================================================
 
-// sI - Storage informations
+// sI - Storage informations (bank/chest size + item count).
+// Legacy 1.29: "sI<totalSlots>|<usedSlots>" for the storage UI.
 message StorageInformations {
-  string raw_data = 1;
+  int32 total_slots = 1;
+  int32 used_slots = 2;
 }
 
-// sX - Storage locked
-message StorageLocked {
-  string raw_data = 1;
-}
+// sX - Storage locked (wrong code entered).
+// Legacy 1.29: bare "sX" — no payload.
+message StorageLocked {}
 
 // ============================================================================
 // WAYPOINTS PROTOCOL (W prefix)
@@ -120,9 +124,18 @@ message SubwayLeave {}
 // Wu - Subway use error
 message SubwayUseError {}
 
-// Wp - Prism create
+// Wp - Prism create (prism teleport menu).
+// StarLoco SocketManager.java:2060 — `"Wp" + perso.parsePrismesList()` where
+// the body is a pipe-separated list of "<mapId>,<subareaId>,<alignment>"
+// entries per allied prism the player can teleport to.
 message PrismCreate {
-  string raw_data = 1;
+  repeated PrismEntry prisms = 1;
+}
+
+message PrismEntry {
+  int32 map_id = 1;
+  int32 subarea_id = 2;
+  int32 alignment = 3;
 }
 
 // Ww - Prism leave
@@ -140,10 +153,11 @@ message ConquestPrismInfosJoin {
   int32 max_team_positions = 4;
 }
 
-// CIV - Prism infos (leave)
-message ConquestPrismInfosLeave {
-  string raw_data = 1;
-}
+// CIV - Prism infos (leave).
+// Legacy 1.29: bare "CIV" closes the defense panel; no payload.
+// Producer: apps/gameserver/pkg/conquest/interfaces/prism.go emits it
+// with no fields.
+message ConquestPrismInfosLeave {}
 
 // CB - Conquest bonus
 message ConquestBonus {

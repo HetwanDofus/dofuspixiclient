@@ -17,14 +17,12 @@ import "mount.proto";
 
 // ============================================================================
 // CLIENT -> SERVER MESSAGE WRAPPER
-// All client-originated messages are wrapped in this envelope.
-// The server uses message_id to route to the correct handler.
+// All client-originated messages are wrapped in this envelope. The server
+// routes on the oneof discriminator; each case's comment documents the
+// historical Dofus 1.29 wire id for cross-reference.
 // ============================================================================
 
 message ClientMessage {
-  // Original protocol message identifier (e.g. "GA300", "BM*", "ER1")
-  string message_id = 1;
-
   oneof payload {
     // --- Account (A) ---
     AccountSendTicket              account_send_ticket             = 10;  // AT
@@ -152,10 +150,14 @@ message ClientMessage {
     GuildGetInfosRequest           guild_get_infos                 = 702; // gI*
     GuildBanRequest                guild_ban                       = 703; // gK
     GuildHireTaxCollectorRequest   guild_hire_tax                  = 704; // gH
-    GuildSetMemberRightsRequest    guild_set_rights                = 705;
-    GuildSetMemberXPRequest        guild_set_xp                    = 706;
-    GuildSetRankNameRequest        guild_set_rank_name             = 707;
-    GuildBoostRequest              guild_boost                     = 708;
+    GuildSetMemberRightsRequest    guild_set_rights                = 705; // gP
+    GuildSetMemberXPRequest        guild_set_xp                    = 706; // gX
+    GuildSetRankNameRequest        guild_set_rank_name             = 707; // gRE
+    GuildBoostRequest              guild_boost                     = 708; // gB
+    GuildTaxAttackRequest          guild_tax_attack                = 709; // gT
+    GuildRemovePerceptorRequest    guild_remove_perceptor          = 710; // gF
+    GuildTeleportHouseRequest      guild_teleport_house            = 711; // gh
+    GuildTeleportPaddockRequest    guild_teleport_paddock          = 712; // gf
 
     // --- Party (P) ---
     PartyInviteRequest             party_invite                    = 800; // PI

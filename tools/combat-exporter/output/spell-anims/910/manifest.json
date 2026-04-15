@@ -1,353 +1,353 @@
 {
     "id": 910,
     "fps": 60,
-    "scale": 6,
+    "scale": 1,
     "mainTimelineScale": 1,
     "animations": [
         {
             "name": "shoot",
             "frameCount": 84,
-            "width": 1230.6,
-            "height": 800.6999999999999,
-            "offsetX": -615,
-            "offsetY": -431.09999999999997,
+            "width": 205.1,
+            "height": 133.45,
+            "offsetX": -102.5,
+            "offsetY": -71.85,
             "isComposite": false,
             "frames": [
                 {
                     "index": 0,
-                    "file": "shoot_0.webp"
+                    "file": "shoot_0.svg"
                 },
                 {
                     "index": 1,
-                    "file": "shoot_1.webp"
+                    "file": "shoot_1.svg"
                 },
                 {
                     "index": 2,
-                    "file": "shoot_2.webp"
+                    "file": "shoot_2.svg"
                 },
                 {
                     "index": 3,
-                    "file": "shoot_3.webp"
+                    "file": "shoot_3.svg"
                 },
                 {
                     "index": 4,
-                    "file": "shoot_4.webp"
+                    "file": "shoot_4.svg"
                 },
                 {
                     "index": 5,
-                    "file": "shoot_5.webp"
+                    "file": "shoot_5.svg"
                 },
                 {
                     "index": 6,
-                    "file": "shoot_6.webp"
+                    "file": "shoot_6.svg"
                 },
                 {
                     "index": 7,
-                    "file": "shoot_7.webp"
+                    "file": "shoot_7.svg"
                 },
                 {
                     "index": 8,
-                    "file": "shoot_8.webp"
+                    "file": "shoot_8.svg"
                 },
                 {
                     "index": 9,
-                    "file": "shoot_9.webp"
+                    "file": "shoot_9.svg"
                 },
                 {
                     "index": 10,
-                    "file": "shoot_10.webp"
+                    "file": "shoot_10.svg"
                 },
                 {
                     "index": 11,
-                    "file": "shoot_11.webp"
+                    "file": "shoot_11.svg"
                 },
                 {
                     "index": 12,
-                    "file": "shoot_12.webp"
+                    "file": "shoot_12.svg"
                 },
                 {
                     "index": 13,
-                    "file": "shoot_13.webp"
+                    "file": "shoot_13.svg"
                 },
                 {
                     "index": 14,
-                    "file": "shoot_14.webp"
+                    "file": "shoot_14.svg"
                 },
                 {
                     "index": 15,
-                    "file": "shoot_15.webp"
+                    "file": "shoot_15.svg"
                 },
                 {
                     "index": 16,
-                    "file": "shoot_16.webp"
+                    "file": "shoot_16.svg"
                 },
                 {
                     "index": 17,
-                    "file": "shoot_17.webp"
+                    "file": "shoot_17.svg"
                 },
                 {
                     "index": 18,
-                    "file": "shoot_18.webp"
+                    "file": "shoot_18.svg"
                 },
                 {
                     "index": 19,
-                    "file": "shoot_19.webp"
+                    "file": "shoot_19.svg"
                 },
                 {
                     "index": 20,
-                    "file": "shoot_20.webp"
+                    "file": "shoot_20.svg"
                 },
                 {
                     "index": 21,
-                    "file": "shoot_21.webp"
+                    "file": "shoot_21.svg"
                 },
                 {
                     "index": 22,
-                    "file": "shoot_22.webp"
+                    "file": "shoot_22.svg"
                 },
                 {
                     "index": 23,
-                    "file": "shoot_23.webp"
+                    "file": "shoot_23.svg"
                 },
                 {
                     "index": 24,
-                    "file": "shoot_24.webp"
+                    "file": "shoot_24.svg"
                 },
                 {
                     "index": 25,
-                    "file": "shoot_25.webp"
+                    "file": "shoot_25.svg"
                 },
                 {
                     "index": 26,
-                    "file": "shoot_26.webp"
+                    "file": "shoot_26.svg"
                 },
                 {
                     "index": 27,
-                    "file": "shoot_27.webp"
+                    "file": "shoot_27.svg"
                 },
                 {
                     "index": 28,
-                    "file": "shoot_28.webp"
+                    "file": "shoot_28.svg"
                 },
                 {
                     "index": 29,
-                    "file": "shoot_29.webp"
+                    "file": "shoot_29.svg"
                 },
                 {
                     "index": 30,
-                    "file": "shoot_30.webp"
+                    "file": "shoot_30.svg"
                 },
                 {
                     "index": 31,
-                    "file": "shoot_31.webp"
+                    "file": "shoot_31.svg"
                 },
                 {
                     "index": 32,
-                    "file": "shoot_32.webp"
+                    "file": "shoot_32.svg"
                 },
                 {
                     "index": 33,
-                    "file": "shoot_33.webp"
+                    "file": "shoot_33.svg"
                 },
                 {
                     "index": 34,
-                    "file": "shoot_34.webp"
+                    "file": "shoot_34.svg"
                 },
                 {
                     "index": 35,
-                    "file": "shoot_35.webp"
+                    "file": "shoot_35.svg"
                 },
                 {
                     "index": 36,
-                    "file": "shoot_36.webp"
+                    "file": "shoot_36.svg"
                 },
                 {
                     "index": 37,
-                    "file": "shoot_37.webp"
+                    "file": "shoot_37.svg"
                 },
                 {
                     "index": 38,
-                    "file": "shoot_38.webp"
+                    "file": "shoot_38.svg"
                 },
                 {
                     "index": 39,
-                    "file": "shoot_39.webp"
+                    "file": "shoot_39.svg"
                 },
                 {
                     "index": 40,
-                    "file": "shoot_40.webp"
+                    "file": "shoot_40.svg"
                 },
                 {
                     "index": 41,
-                    "file": "shoot_41.webp"
+                    "file": "shoot_41.svg"
                 },
                 {
                     "index": 42,
-                    "file": "shoot_42.webp"
+                    "file": "shoot_42.svg"
                 },
                 {
                     "index": 43,
-                    "file": "shoot_43.webp"
+                    "file": "shoot_43.svg"
                 },
                 {
                     "index": 44,
-                    "file": "shoot_44.webp"
+                    "file": "shoot_44.svg"
                 },
                 {
                     "index": 45,
-                    "file": "shoot_45.webp"
+                    "file": "shoot_45.svg"
                 },
                 {
                     "index": 46,
-                    "file": "shoot_46.webp"
+                    "file": "shoot_46.svg"
                 },
                 {
                     "index": 47,
-                    "file": "shoot_47.webp"
+                    "file": "shoot_47.svg"
                 },
                 {
                     "index": 48,
-                    "file": "shoot_48.webp"
+                    "file": "shoot_48.svg"
                 },
                 {
                     "index": 49,
-                    "file": "shoot_49.webp"
+                    "file": "shoot_49.svg"
                 },
                 {
                     "index": 50,
-                    "file": "shoot_50.webp"
+                    "file": "shoot_50.svg"
                 },
                 {
                     "index": 51,
-                    "file": "shoot_51.webp"
+                    "file": "shoot_51.svg"
                 },
                 {
                     "index": 52,
-                    "file": "shoot_52.webp"
+                    "file": "shoot_52.svg"
                 },
                 {
                     "index": 53,
-                    "file": "shoot_53.webp"
+                    "file": "shoot_53.svg"
                 },
                 {
                     "index": 54,
-                    "file": "shoot_54.webp"
+                    "file": "shoot_54.svg"
                 },
                 {
                     "index": 55,
-                    "file": "shoot_55.webp"
+                    "file": "shoot_55.svg"
                 },
                 {
                     "index": 56,
-                    "file": "shoot_56.webp"
+                    "file": "shoot_56.svg"
                 },
                 {
                     "index": 57,
-                    "file": "shoot_57.webp"
+                    "file": "shoot_57.svg"
                 },
                 {
                     "index": 58,
-                    "file": "shoot_58.webp"
+                    "file": "shoot_58.svg"
                 },
                 {
                     "index": 59,
-                    "file": "shoot_59.webp"
+                    "file": "shoot_59.svg"
                 },
                 {
                     "index": 60,
-                    "file": "shoot_60.webp"
+                    "file": "shoot_60.svg"
                 },
                 {
                     "index": 61,
-                    "file": "shoot_61.webp"
+                    "file": "shoot_61.svg"
                 },
                 {
                     "index": 62,
-                    "file": "shoot_62.webp"
+                    "file": "shoot_62.svg"
                 },
                 {
                     "index": 63,
-                    "file": "shoot_63.webp"
+                    "file": "shoot_63.svg"
                 },
                 {
                     "index": 64,
-                    "file": "shoot_64.webp"
+                    "file": "shoot_64.svg"
                 },
                 {
                     "index": 65,
-                    "file": "shoot_65.webp"
+                    "file": "shoot_65.svg"
                 },
                 {
                     "index": 66,
-                    "file": "shoot_66.webp"
+                    "file": "shoot_66.svg"
                 },
                 {
                     "index": 67,
-                    "file": "shoot_67.webp"
+                    "file": "shoot_67.svg"
                 },
                 {
                     "index": 68,
-                    "file": "shoot_68.webp"
+                    "file": "shoot_68.svg"
                 },
                 {
                     "index": 69,
-                    "file": "shoot_69.webp"
+                    "file": "shoot_69.svg"
                 },
                 {
                     "index": 70,
-                    "file": "shoot_70.webp"
+                    "file": "shoot_70.svg"
                 },
                 {
                     "index": 71,
-                    "file": "shoot_71.webp"
+                    "file": "shoot_71.svg"
                 },
                 {
                     "index": 72,
-                    "file": "shoot_72.webp"
+                    "file": "shoot_72.svg"
                 },
                 {
                     "index": 73,
-                    "file": "shoot_73.webp"
+                    "file": "shoot_73.svg"
                 },
                 {
                     "index": 74,
-                    "file": "shoot_74.webp"
+                    "file": "shoot_74.svg"
                 },
                 {
                     "index": 75,
-                    "file": "shoot_75.webp"
+                    "file": "shoot_75.svg"
                 },
                 {
                     "index": 76,
-                    "file": "shoot_76.webp"
+                    "file": "shoot_76.svg"
                 },
                 {
                     "index": 77,
-                    "file": "shoot_77.webp"
+                    "file": "shoot_77.svg"
                 },
                 {
                     "index": 78,
-                    "file": "shoot_78.webp"
+                    "file": "shoot_78.svg"
                 },
                 {
                     "index": 79,
-                    "file": "shoot_79.webp"
+                    "file": "shoot_79.svg"
                 },
                 {
                     "index": 80,
-                    "file": "shoot_80.webp"
+                    "file": "shoot_80.svg"
                 },
                 {
                     "index": 81,
-                    "file": "shoot_81.webp"
+                    "file": "shoot_81.svg"
                 },
                 {
                     "index": 82,
-                    "file": "shoot_82.webp"
+                    "file": "shoot_82.svg"
                 },
                 {
                     "index": 83,
-                    "file": "shoot_83.webp"
+                    "file": "shoot_83.svg"
                 }
             ]
         }

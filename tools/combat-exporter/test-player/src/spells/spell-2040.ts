@@ -1,56 +1,67 @@
 /**
- * Spell 2040 - Unknown
+ * Spell 2040
  *
- * A spell with rotating elements that oscillate during animation.
+ * A projectile spell with a wobbling rotation effect during flight,
+ * followed by an impact animation.
  *
  * Components:
- * - shoot: Main animation (93 frames total)
- * - Rotating element 1: Oscillates with amplitude 30, frequency 0.6
- * - Rotating element 2: Oscillates with amplitude 10, frequency 3.1415
+ * - shoot (sprite): Main animation at caster position, rotated toward target
+ *   - Contains a "move" sub-object with oscillating rotation (a=30, decay=1.1)
+ *   - Contains an outer wobble with oscillating rotation (a=10, decay=1.5)
+ *
+ * The "shoot" animation is a composite that encodes all motion.
+ * The animation plays 93 frames total.
  *
  * Original AS timing:
- * - Frame 64: Second rotating element stops
- * - Frame 91: Spell ends
+ * - DefineSprite_10_move: oscillates _rotation = 90 + a * cos(i += 0.6), a /= 1.1 each frame
+ * - DefineSprite_8: oscillates _rotation = 90 + a * cos(i += pi), a /= 1.5 each frame
+ * - DefineSprite_8/frame_64: stop() -> stops at frame 63 (0-indexed)
+ * - DefineSprite_9_shoot/frame_91: removeMovieClip() -> animation ends at frame 90 (0-indexed)
+ *
+ * Hit is signaled when the projectile reaches the target (frame 90, end of shoot anim).
+ * Completion when the shoot animation finishes.
  */
 
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const SHOOT_MANIFEST: SpriteManifest = {
-  width: 227.7,
-  height: 189.6,
-  offsetX: -188.7,
-  offsetY: -105.6,
+  width: 37.95,
+  height: 31.6,
+  offsetX: -31.45,
+  offsetY: -17.6,
 };
 
 export class Spell2040 extends BaseSpell {
   readonly spellId = 2040;
 
   private shootAnim!: FrameAnimatedSprite;
-  private rotationState1 = { a: 30, i: 0 };
-  private rotationState2 = { a: 10, i: 0 };
-  private stopRotation2 = false;
 
   protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Main shoot animation
-    const shootAnchor = calculateAnchor(SHOOT_MANIFEST);
+    const shootTextures = textures.getFrames('shoot');
+    const anchor = calculateAnchor(SHOOT_MANIFEST);
+
     this.shootAnim = this.anims.add(new FrameAnimatedSprite({
-      textures: textures.getFrames('shoot'),
-      anchorX: shootAnchor.x,
-      anchorY: shootAnchor.y,
+      textures: shootTextures,
+      fps: 60,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
       scale: init.scale,
     }));
-    this.shootAnim.sprite.position.set(init.targetX, init.targetY);
+
+    this.shootAnim.sprite.position.set(0, init.casterY);
     this.shootAnim.sprite.rotation = init.angleRad;
-    this.shootAnim
-      .onFrame(63, () => {
-        this.stopRotation2 = true;
-      });
+
+    // Frame 90 (0-indexed) = AS frame 91: removeMovieClip -> signal hit and end
+    this.shootAnim.onFrame(90, () => {
+      this.signalHit();
+    });
+
     this.container.addChild(this.shootAnim.sprite);
   }
 
@@ -59,24 +70,9 @@ export class Spell2040 extends BaseSpell {
       return;
     }
 
-    // Update all registered animations
     this.anims.update(deltaTime);
 
-    // Apply rotation formulas from AS
-    // DefineSprite_10_move rotation
-    this.rotationState1.i += 0.6;
-    const rotation1 = 90 + this.rotationState1.a * Math.cos(this.rotationState1.i);
-    this.rotationState1.a /= 1.1;
-
-    // DefineSprite_8 rotation (stops at frame 64)
-    if (!this.stopRotation2) {
-      this.rotationState2.i += 3.1415;
-      const rotation2 = 90 + this.rotationState2.a * Math.cos(this.rotationState2.i);
-      this.rotationState2.a /= 1.5;
-    }
-
-    // Check completion (frame 91 in AS = index 90)
-    if (this.shootAnim.getFrame() >= 90) {
+    if (this.anims.allComplete()) {
       this.complete();
     }
   }

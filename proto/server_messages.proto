@@ -21,8 +21,10 @@ import "mount.proto";
 // ============================================================================
 
 message DofusMessage {
-  // Original 2-char (or longer) message identifier, e.g. "GJ", "As", "ER1"
-  string message_id = 1;
+  // Server-to-client envelope. Message type is identified by the oneof
+  // discriminator below — each case's comment documents the historical
+  // Dofus 1.29 wire id for cross-reference. No separate message_id
+  // field: the protobuf tag (= N) is the canonical identifier.
 
   oneof payload {
     // --- Connection / Handshake (H) ---

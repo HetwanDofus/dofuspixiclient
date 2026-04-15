@@ -1,74 +1,111 @@
 /**
- * Spell 2045 - Unknown Name
+ * Spell 2045 - Pok
  *
- * A projectile spell that travels from caster to target over 45 frames.
+ * A projectile spell that moves from caster to target over 45 frames,
+ * then plays impact animation.
  *
  * Components:
- * - sprite_10: Main projectile animation that moves to target
- * - DefineSprite_3: Rotating element with random rotation speed
+ * - sprite_10: Projectile/impact animation at moving position
+ *   - Contains an inner rotating element (DefineSprite_3) with random rotation speed
  *
  * Original AS timing:
- * - Frame 1-45: Projectile moves from caster to target
- * - Frame 46: Play sound "pok" and signal hit
- * - Frame 88: Animation ends and cleanup
+ * - Frame 2 (main): stop() - main timeline stops
+ * - PlaceObject2_10_1 (onClipEvent load): Set position to cellFrom, calculate dx/dy for 45-frame travel
+ * - PlaceObject2_10_1 (onClipEvent enterFrame): Move for 45 frames toward cellTo
+ * - DefineSprite_3 (onClipEvent load): r = random(90)
+ * - DefineSprite_3 (onClipEvent enterFrame): _rotation += r (spins at random speed)
+ * - Frame 46 (sprite_10): Play sound 'pok' + signal hit (this.end())
+ * - Frame 88 (sprite_10): removeMovieClip() - animation ends
  */
 
-import { Texture } from 'pixi.js';
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const SPRITE_10_MANIFEST: SpriteManifest = {
-  width: 749.7,
-  height: 1110,
-  offsetX: -393.29999999999995,
-  offsetY: -945.5999999999999,
+  width: 124.95,
+  height: 185,
+  offsetX: -65.55,
+  offsetY: -157.6,
 };
 
 export class Spell2045 extends BaseSpell {
   readonly spellId = 2045;
 
-  private projectileAnim!: FrameAnimatedSprite;
-  private frameCount = 0;
+  private mainAnim!: FrameAnimatedSprite;
+
+  // Projectile movement state
+  private posX = 0;
+  private posY = 0;
   private dx = 0;
   private dy = 0;
-  private startX = 0;
-  private startY = 0;
+  private t = 0;
+
+  // Inner rotation state (DefineSprite_3)
+  private rotationR = 0;
+  private innerRotation = 0;
 
   protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Calculate movement deltas (exact AS formulas)
-    this.dx = init.targetX / 45;
-    this.dy = (init.targetY - 20) / 45;
-    this.startX = 0;
-    this.startY = init.casterY;
+    // AS: r = random(90) -> 0 to 89
+    this.rotationR = Math.floor(Math.random() * 90);
+    this.innerRotation = 0;
 
-    // Create main projectile animation
-    this.projectileAnim = this.anims.add(new FrameAnimatedSprite({
+    // AS onClipEvent(load):
+    // _X = _parent.cellFrom.x
+    // _Y = _parent.cellFrom.y
+    // dx = (- _parent.cellFrom.x + _parent.cellTo.x) / 45
+    // dy = (- _parent.cellFrom.y - 20 + _parent.cellTo.y) / 45
+    // t = 0
+    //
+    // We work in local container space (container is at cellFrom).
+    // cellFrom is origin (0, 0) in local space.
+    // cellTo relative to cellFrom:
+    const cellFromX = context?.cellFrom?.x ?? 0;
+    const cellFromY = context?.cellFrom?.y ?? 0;
+    const cellToX = context?.cellTo?.x ?? 0;
+    const cellToY = context?.cellTo?.y ?? 0;
+
+    this.posX = cellFromX;
+    this.posY = cellFromY;
+    this.dx = (-cellFromX + cellToX) / 45;
+    this.dy = (-cellFromY - 20 + cellToY) / 45;
+    this.t = 0;
+
+    // sprite_10 animation
+    const anchor = calculateAnchor(SPRITE_10_MANIFEST);
+    this.mainAnim = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('sprite_10'),
-      ...calculateAnchor(SPRITE_10_MANIFEST),
+      fps: 60,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
       scale: init.scale,
     }));
 
-    // Set initial position
-    this.projectileAnim.sprite.position.set(this.startX, this.startY);
+    // Frame 46 (0-indexed: 45): play sound + signal hit
+    this.mainAnim.onFrame(45, () => {
+      this.callbacks.playSound('pok');
+      this.signalHit();
+    });
 
-    // Set up frame callbacks
-    this.projectileAnim
-      .onFrame(45, () => {
-        this.callbacks.playSound('pok');
-        this.signalHit();
-      })
-      .stopAt(87);
+    // Frame 88 (0-indexed: 87): removeMovieClip -> complete
+    this.mainAnim.onFrame(87, () => {
+      this.complete();
+    });
 
-    // Note: DefineSprite_3 has rotating behavior but it's internal to the sprite
-    // The AS shows random rotation (r = random(90)) applied each frame
-    // This would be part of the sprite animation itself
+    // Initial position: start at cellFrom in world space.
+    // The container is positioned at cellFrom by the combat system,
+    // so we set the sprite at (0, 0) initially and update each frame.
+    this.mainAnim.sprite.position.set(0, 0);
+    this.container.addChild(this.mainAnim.sprite);
 
-    this.container.addChild(this.projectileAnim.sprite);
+    // Apply initial world position offset
+    // The container itself is at (cellFrom.x, cellFrom.y) in the stage,
+    // so sprite starts at local (0, 0) = cellFrom world position.
+    // We'll track world positions and convert to local each frame.
   }
 
   update(deltaTime: number): void {
@@ -76,20 +113,42 @@ export class Spell2045 extends BaseSpell {
       return;
     }
 
-    // Update animations
     this.anims.update(deltaTime);
 
-    // Move projectile for first 45 frames
-    if (this.frameCount < 45) {
-      this.startX += this.dx;
-      this.startY += this.dy;
-      this.projectileAnim.sprite.position.set(this.startX, this.startY);
+    // AS onClipEvent(enterFrame) for the projectile:
+    // if (t++ < 45) { _X += dx; _Y += dy; }
+    if (this.t < 45) {
+      this.posX += this.dx;
+      this.posY += this.dy;
+      this.t++;
     }
-    this.frameCount++;
 
-    // Check completion
-    if (this.anims.allComplete()) {
-      this.complete();
-    }
+    // AS onClipEvent(enterFrame) for the inner rotating element:
+    // _rotation = _rotation + r
+    this.innerRotation += this.rotationR;
+    // Apply rotation to the main sprite (the inner element is part of the composite)
+    this.mainAnim.sprite.rotation = (this.innerRotation * Math.PI) / 180;
+
+    // Convert world position to local container space.
+    // The container is at (0, 0) in the parent, and represents world origin
+    // (combat system places the container at cellFrom position, but we
+    // track absolute positions from AS, so we need to convert).
+    // Actually: container is at cellFrom in world space. Our posX/posY are world coords.
+    // Local = world - cellFrom... but we don't have direct access to cellFrom coords here.
+    // We store them from setup.
+    // Use the stored cellFrom as origin offset:
+    this.mainAnim.sprite.position.set(
+      this.posX - this._cellFromX,
+      this.posY - this._cellFromY,
+    );
+  }
+
+  private _cellFromX = 0;
+  private _cellFromY = 0;
+
+  init(context: SpellContext, callbacks: import('@dofus/spell-runtime').SpellCallbacks, textures: SpellTextureProvider): void {
+    this._cellFromX = context?.cellFrom?.x ?? 0;
+    this._cellFromY = context?.cellFrom?.y ?? 0;
+    super.init(context, callbacks, textures);
   }
 }

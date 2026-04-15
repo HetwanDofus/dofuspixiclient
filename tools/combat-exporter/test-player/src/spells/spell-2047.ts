@@ -1,62 +1,68 @@
 /**
- * Spell 2047 - Projectile with Decaying Wobble
+ * Spell 2047 - Move/Shoot
  *
- * A projectile spell with a distinctive oscillating rotation that dampens over time.
- * The projectile wobbles around a 90-degree base angle with decreasing amplitude.
+ * A projectile spell with a wobbling rotation effect.
  *
  * Components:
- * - shoot: Main projectile animation with oscillating rotation
+ * - shoot (sprite): At caster position, rotated toward target
+ *   - Has a wobbling rotation animation driven by: _rotation = 90 + a * Math.cos(i += 0.6); a /= 1.1
+ *   - Stops at frame 88 (AS frame 88 = index 87, but DoAction is at frame_88 which is index 87)
  *
  * Original AS timing:
- * - Frame 1-87: Projectile travels with decaying wobble motion
- * - Frame 88: Animation stops and removes itself
+ * - onClipEvent(load): a = 30; i = 0;
+ * - onClipEvent(enterFrame): _rotation = 90 + a * Math.cos(i += 0.6); a /= 1.1;
+ * - Frame 88 (DoAction): _parent.removeMovieClip(); stop();
+ *   (AS frame 88 = 0-indexed frame 87 → animation completes at frame 87)
  */
 
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
+
+const SHOOT_MANIFEST: SpriteManifest = {
+  width: 223.6,
+  height: 41.1,
+  offsetX: 1.55,
+  offsetY: -24.95,
+};
 
 export class Spell2047 extends BaseSpell {
   readonly spellId = 2047;
 
   private shootAnim!: FrameAnimatedSprite;
-  
-  // Movement parameters from AS
-  private a = 30;  // Amplitude
-  private i = 0;   // Counter for oscillation
 
-  protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    const manifest: SpriteManifest = {
-      width: 1341.6,
-      height: 246.60000000000002,
-      offsetX: 9.3,
-      offsetY: -149.7,
-    };
+  // Wobble state (from onClipEvent(load))
+  private wobbleA = 30;
+  private wobbleI = 0;
 
-    // Create the shoot animation
+  protected setup(_context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
+    const anchor = calculateAnchor(SHOOT_MANIFEST);
+
     this.shootAnim = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('shoot'),
-      anchorX: calculateAnchor(manifest.width, manifest.offsetX),
-      anchorY: calculateAnchor(manifest.height, manifest.offsetY),
-      startFrame: 0,
-      animationSpeed: 1,
+      fps: 60,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
+      scale: init.scale,
     }));
 
-    // Apply scale
-    this.shootAnim.scale.set(init.scale);
+    // Position at caster, rotated toward target
+    this.shootAnim.sprite.position.set(0, init.casterY);
 
-    // Position at caster
-    this.shootAnim.position.set(0, init.casterY);
+    // Initial rotation includes the angle toward target
+    // The wobble will be applied as an offset each frame
+    this.shootAnim.sprite.rotation = init.angleRad;
 
-    // Add to container
-    this.container.addChild(this.shootAnim);
+    // Signal hit when the shoot animation completes (frame 87, AS frame 88)
+    this.shootAnim.onFrame(87, () => {
+      this.signalHit();
+    });
 
-    // Stop at frame 88 (index 87) as per AS
-    this.shootAnim.stopAt(87);
+    this.container.addChild(this.shootAnim.sprite);
   }
 
   update(deltaTime: number): void {
@@ -64,20 +70,23 @@ export class Spell2047 extends BaseSpell {
       return;
     }
 
-    // Update all animations
     this.anims.update(deltaTime);
 
-    // Apply the oscillating rotation as per AS onEnterFrame
-    // _rotation = 90 + a * Math.cos(i += 0.6);
-    // a /= 1.1;
-    if (!this.shootAnim.isStopped()) {
-      this.shootAnim.rotation = (90 + this.a * Math.cos(this.i)) * (Math.PI / 180);
-      this.i += 0.6;
-      this.a /= 1.1;
-    }
+    // Apply wobble rotation each frame (from onClipEvent(enterFrame))
+    // AS: _rotation = 90 + a * Math.cos(i += 0.6); a /= 1.1;
+    // _rotation in Flash is in degrees relative to parent, but here we add it as an offset
+    // The base rotation is the angle toward target (angleRad), and wobble adds a rotation offset
+    this.wobbleI += 0.6;
+    const wobbleDeg = 90 + this.wobbleA * Math.cos(this.wobbleI);
+    this.wobbleA /= 1.1;
 
-    // Check if animation is complete
-    if (this.anims.allStopped()) {
+    // In Flash, _rotation replaces the rotation entirely (in degrees)
+    // The parent of the shoot clip has the angle, so the shoot clip's own rotation = wobbleDeg
+    // Convert to radians for PixiJS
+    this.shootAnim.sprite.rotation = (wobbleDeg * Math.PI) / 180;
+
+    // Check completion (frame 87 = AS frame 88 where stop() is called)
+    if (this.shootAnim.isComplete() || this.shootAnim.getFrame() >= 87) {
       this.complete();
     }
   }

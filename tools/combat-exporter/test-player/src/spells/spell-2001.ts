@@ -1,101 +1,127 @@
 /**
- * Spell 2001 - Unknown
+ * Spell 2001 - Wab
  *
- * A directional beam spell that creates a visual connection from caster to target,
- * followed by an impact explosion.
+ * A projectile beam spell that travels from caster to target, then shows an impact.
  *
  * Components:
- * - sprite_8: Simple animation (48 frames) at caster position
- * - sprite_10: Main beam/projectile that stretches from caster to target
- * - sprite_19: Impact animation at target position
+ * - sprite_10: Beam traveling from caster to target, positioned at caster with rotation
+ * - sprite_8: Part of the beam/trail effect, positioned at caster
+ * - sprite_19: Impact effect at target position
  *
  * Original AS timing:
- * - Frame 1: Play wab_explo sound
- * - Frame 7: Play vol sound and signal hit (in sprite_19)
- * - Frame 33: Impact animation ends
- * - Frame 46: sprite_8 stops
+ * - sprite_10 frame 1: Play sound 'wab_explo', position at caster, rotate toward target
+ * - sprite_19 frame 1: Position at target, copy rotation from beam
+ * - sprite_19 frame 7: Play sound 'vol', signal hit (this.end())
+ * - sprite_19 frame 33: stop() + removeMovieClip() - animation ends
+ * - sprite_8 frame 46: stop()
  */
 
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
-const SPRITE_8_MANIFEST: SpriteManifest = {
-  width: 1344.9,
-  height: 371.4,
+const BEAM_MANIFEST: SpriteManifest = {
+  width: 223.25,
+  height: 61.65,
+  offsetX: -0.4,
+  offsetY: -30.1,
+};
+
+const TRAIL_MANIFEST: SpriteManifest = {
+  width: 224.15,
+  height: 61.9,
   offsetX: 0,
-  offsetY: -183,
+  offsetY: -30.5,
 };
 
-const SPRITE_10_MANIFEST: SpriteManifest = {
-  width: 1339.5,
-  height: 369.9,
-  offsetX: -2.4,
-  offsetY: -180.6,
-};
-
-const SPRITE_19_MANIFEST: SpriteManifest = {
-  width: 714.9,
-  height: 383.4,
-  offsetX: -148.2,
-  offsetY: -198.9,
+const IMPACT_MANIFEST: SpriteManifest = {
+  width: 119.15,
+  height: 63.9,
+  offsetX: -24.7,
+  offsetY: -33.15,
 };
 
 export class Spell2001 extends BaseSpell {
   readonly spellId = 2001;
 
-  private sprite8!: FrameAnimatedSprite;
-  private sprite10!: FrameAnimatedSprite;
-  private sprite19!: FrameAnimatedSprite;
+  private beamAnim!: FrameAnimatedSprite;
+  private trailAnim!: FrameAnimatedSprite;
+  private impactAnim!: FrameAnimatedSprite;
 
   protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // sprite_8 - Simple animation at caster position
-    this.sprite8 = this.anims.add(new FrameAnimatedSprite({
-      textures: textures.getFrames('sprite_8'),
-      ...calculateAnchor(SPRITE_8_MANIFEST),
-      scale: init.scale,
-    }));
-    this.sprite8.sprite.position.set(0, init.casterY);
-    this.sprite8.stopAt(45);
-    this.container.addChild(this.sprite8.sprite);
+    // Calculate angle and distance from caster to target (AS uses y - 20 offset)
+    const x1 = context?.cellFrom?.x ?? 0;
+    const y1 = (context?.cellFrom?.y ?? 0) - 20;
+    const x2 = context?.cellTo?.x ?? 0;
+    const y2 = (context?.cellTo?.y ?? 0) - 20;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const rotation = Math.atan2(dy, dx);
+    const longueur = Math.sqrt(dx * dx + dy * dy);
 
-    // sprite_10 - Main beam/projectile from caster to target
-    this.sprite10 = this.anims.add(new FrameAnimatedSprite({
+    // sprite_10: Beam - positioned at cellFrom, rotated toward cellTo
+    // AS: _X = x1; _Y = y1; _rotation = atan2(dy,dx)*57.29...; longueur = sqrt(...)
+    // The beam width is set to longueur via _width = _parent.longueur on the inner clip
+    const beamAnchor = calculateAnchor(BEAM_MANIFEST);
+    this.beamAnim = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('sprite_10'),
-      ...calculateAnchor(SPRITE_10_MANIFEST),
+      anchorX: beamAnchor.x,
+      anchorY: beamAnchor.y,
       scale: init.scale,
     }));
-    this.sprite10.sprite.position.set(0, init.casterY);
-    this.sprite10.sprite.rotation = init.angleRad;
-    
-    // Scale width based on distance (AS: _width = _parent.longueur)
-    const dx = init.targetX;
-    const dy = init.targetY - init.casterY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    this.sprite10.sprite.scale.x *= distance / SPRITE_10_MANIFEST.width;
-    
-    this.sprite10.onFrame(0, () => this.callbacks.playSound('wab_explo'));
-    this.container.addChild(this.sprite10.sprite);
+    // Position relative to the container origin (which is at cellFrom)
+    this.beamAnim.sprite.position.set(0, -20);
+    this.beamAnim.sprite.rotation = rotation;
+    // Scale X to match longueur (width of beam = distance to target)
+    // The beam sprite's natural width is 223.25 at scale 1
+    // We need to stretch it to longueur pixels
+    const beamNaturalWidth = BEAM_MANIFEST.width;
+    const beamScaleX = (longueur / beamNaturalWidth) * init.scale;
+    this.beamAnim.sprite.scale.set(beamScaleX, init.scale);
+    this.beamAnim
+      .onFrame(0, () => this.callbacks.playSound('wab_explo'));
+    this.container.addChild(this.beamAnim.sprite);
 
-    // sprite_19 - Impact animation at target position
-    this.sprite19 = this.anims.add(new FrameAnimatedSprite({
-      textures: textures.getFrames('sprite_19'),
-      ...calculateAnchor(SPRITE_19_MANIFEST),
+    // sprite_8: Trail/additional beam effect at caster position
+    const trailAnchor = calculateAnchor(TRAIL_MANIFEST);
+    this.trailAnim = this.anims.add(new FrameAnimatedSprite({
+      textures: textures.getFrames('sprite_8'),
+      anchorX: trailAnchor.x,
+      anchorY: trailAnchor.y,
       scale: init.scale,
+      stopFrame: 45,
     }));
-    this.sprite19.sprite.position.set(init.targetX, init.targetY);
-    this.sprite19.sprite.rotation = init.angleRad;
-    this.sprite19
-      .stopAt(32)
-      .onFrame(6, () => {
-        this.callbacks.playSound('vol');
-        this.signalHit();
-      });
-    this.container.addChild(this.sprite19.sprite);
+    this.trailAnim.sprite.position.set(0, -20);
+    this.trailAnim.sprite.rotation = rotation;
+    this.container.addChild(this.trailAnim.sprite);
+
+    // sprite_19: Impact effect at target position
+    // AS: _X = _parent.cellTo.x; _Y = _parent.cellTo.y - 20; _rotation = _parent.clip1._rotation
+    const impactAnchor = calculateAnchor(IMPACT_MANIFEST);
+    this.impactAnim = this.anims.add(new FrameAnimatedSprite({
+      textures: textures.getFrames('sprite_19'),
+      anchorX: impactAnchor.x,
+      anchorY: impactAnchor.y,
+      scale: init.scale,
+      stopFrame: 32,
+    }));
+    this.impactAnim.sprite.position.set(init.targetX, init.targetY - 20 + 50);
+    // targetY already includes Y_OFFSET (-50), so we add back 50 and subtract 20
+    // Actually: targetY = (cellTo.y - cellFrom.y) + Y_OFFSET = dy_screen + (-50)
+    // We need position relative to container (which is at cellFrom)
+    // cellTo.y - 20 relative to container = (cellTo.y - cellFrom.y) - 20
+    // init.targetY = (cellTo.y - cellFrom.y) + SPELL_CONSTANTS.Y_OFFSET = (cellTo.y - cellFrom.y) - 50
+    // So cellTo.y - cellFrom.y - 20 = init.targetY + 50 - 20 = init.targetY + 30
+    this.impactAnim.sprite.position.set(init.targetX, init.targetY + 30);
+    this.impactAnim.sprite.rotation = rotation;
+    this.impactAnim
+      .onFrame(6, () => this.callbacks.playSound('vol'))
+      .onFrame(6, () => this.signalHit());
+    this.container.addChild(this.impactAnim.sprite);
   }
 
   update(deltaTime: number): void {
@@ -105,8 +131,7 @@ export class Spell2001 extends BaseSpell {
 
     this.anims.update(deltaTime);
 
-    // Complete when sprite_19 is done (it's the last to finish)
-    if (this.sprite19.isComplete()) {
+    if (this.impactAnim.isStopped() || this.impactAnim.isComplete()) {
       this.complete();
     }
   }

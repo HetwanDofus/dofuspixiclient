@@ -1,73 +1,83 @@
 /**
- * Spell 1003 - Licrounch
+ * Spell 1003 - Licrounch (Osamodas)
  *
- * A crunching bite attack with random visual variations and fade effects.
+ * A composite spell animation with two overlapping animations (anim1 and anim29).
+ * Each animation has a flicker/fade-in effect on an inner sprite (DefineSprite_6)
+ * that randomly becomes visible, and fades out starting at frame 133.
  *
  * Components:
- * - anim1: Main bite animation at caster position
- * - anim29: Secondary effect animation at caster position
+ * - anim1: Main composite animation at target position, stops at frame 168
+ * - anim29: Secondary composite animation at target position, stops at frame 168
  *
  * Original AS timing:
- * - Frame 1: Play sound "licrounch_1003" 
- * - Frame 133: Signal hit (this.end())
- * - Frame 133-169: Fade out (alpha -= 5 per frame)
- * - Frame 169: Stop animation
+ * - Frame 1 (main): Play sound 'licrounch_1003'
+ * - Frame 1 (DefineSprite_8): Play sound 'licrounch_1003'
+ * - Frame 133 (DefineSprite_8): Signal hit (this.end()), begin alpha fade (-5 per frame)
+ * - Frame 169 (DefineSprite_8): removeMovieClip() / stop() - animation ends
+ *
+ * Note: DefineSprite_5 uses gotoAndPlay(random(5)) for random start offset.
+ * The composite animations (anim1, anim29) already bake this composite behavior.
+ * The fade starting at frame 133 is replicated by fading the sprites' alpha
+ * from frame 132 onward at -5 per frame (AS: _parent._alpha -= 5).
  */
 
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const ANIM_MANIFEST: SpriteManifest = {
-  width: 789.3,
-  height: 355.5,
-  offsetX: -226.5,
-  offsetY: -218.7,
+  width: 131.55,
+  height: 59.25,
+  offsetX: -37.75,
+  offsetY: -36.45,
 };
 
 export class Spell1003 extends BaseSpell {
   readonly spellId = 1003;
 
-  private mainAnim!: FrameAnimatedSprite;
-  private secondaryAnim!: FrameAnimatedSprite;
-  private fadeStarted = false;
-  private currentAlpha = 1;
+  private anim1!: FrameAnimatedSprite;
+  private anim29!: FrameAnimatedSprite;
+  private anim1Fading = false;
+  private anim29Fading = false;
 
   protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Main animation (anim1) at caster position
-    this.mainAnim = this.anims.add(new FrameAnimatedSprite({
+    const anchor = calculateAnchor(ANIM_MANIFEST);
+
+    // anim1 - main composite animation at target position
+    this.anim1 = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('anim1'),
-      ...calculateAnchor(ANIM_MANIFEST),
+      anchorX: anchor.x,
+      anchorY: anchor.y,
       scale: init.scale,
     }));
-    this.mainAnim.sprite.position.set(0, init.casterY);
-    this.mainAnim
-      .stopAt(167)
+    this.anim1.sprite.position.set(init.targetX, init.targetY);
+    this.anim1
+      .stopAt(168)
       .onFrame(0, () => this.callbacks.playSound('licrounch_1003'))
       .onFrame(132, () => {
         this.signalHit();
-        this.fadeStarted = true;
+        this.anim1Fading = true;
       });
-    this.container.addChild(this.mainAnim.sprite);
+    this.container.addChild(this.anim1.sprite);
 
-    // Secondary animation (anim29) at caster position
-    this.secondaryAnim = this.anims.add(new FrameAnimatedSprite({
+    // anim29 - secondary composite animation at target position
+    this.anim29 = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('anim29'),
-      ...calculateAnchor(ANIM_MANIFEST),
+      anchorX: anchor.x,
+      anchorY: anchor.y,
       scale: init.scale,
     }));
-    this.secondaryAnim.sprite.position.set(0, init.casterY);
-    this.secondaryAnim.stopAt(167);
-    this.container.addChild(this.secondaryAnim.sprite);
-
-    // Random starting frame for variety (as per DefineSprite_5)
-    const randomFrame = Math.floor(Math.random() * 5);
-    this.mainAnim.gotoFrame(randomFrame);
-    this.secondaryAnim.gotoFrame(randomFrame);
+    this.anim29.sprite.position.set(init.targetX, init.targetY);
+    this.anim29
+      .stopAt(168)
+      .onFrame(132, () => {
+        this.anim29Fading = true;
+      });
+    this.container.addChild(this.anim29.sprite);
   }
 
   update(deltaTime: number): void {
@@ -75,21 +85,30 @@ export class Spell1003 extends BaseSpell {
       return;
     }
 
-    // Update all animations
     this.anims.update(deltaTime);
 
-    // Handle fade-out effect after hit
-    if (this.fadeStarted) {
-      this.currentAlpha -= 5 * (deltaTime / 1000) * 60; // 5 per frame at 60fps
-      if (this.currentAlpha < 0) {
-        this.currentAlpha = 0;
-      }
-      this.container.alpha = this.currentAlpha;
+    // Apply fade: AS frame_133 onClipEvent(enterFrame): _parent._alpha -= 5
+    // Each frame subtracts 5 from alpha (0-100 scale). In PixiJS alpha is 0-1.
+    // deltaTime is in ms, frame time is ~16.67ms at 60fps
+    // We approximate per-frame as per-update using deltaTime ratio
+    const frameRatio = deltaTime / (1000 / 60);
+    if (this.anim1Fading) {
+      this.anim1.sprite.alpha = Math.max(0, this.anim1.sprite.alpha - 0.05 * frameRatio);
+    }
+    if (this.anim29Fading) {
+      this.anim29.sprite.alpha = Math.max(0, this.anim29.sprite.alpha - 0.05 * frameRatio);
     }
 
-    // Check completion
-    if (this.anims.allComplete() && this.currentAlpha <= 0) {
-      this.complete();
+    // Complete when both animations have stopped (at frame 168)
+    // and alpha has faded out (or close to 0)
+    if (this.anims.allStopped()) {
+      // After stopping at frame 168, check if fade is done
+      if (this.anim1.sprite.alpha <= 0 && this.anim29.sprite.alpha <= 0) {
+        this.complete();
+      } else if (!this.anim1Fading && !this.anim29Fading) {
+        // Stopped but no fading initiated - complete anyway
+        this.complete();
+      }
     }
   }
 }

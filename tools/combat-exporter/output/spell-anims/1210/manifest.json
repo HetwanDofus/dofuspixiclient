@@ -1,1109 +1,1109 @@
 {
     "id": 1210,
     "fps": 60,
-    "scale": 6,
+    "scale": 1,
     "mainTimelineScale": 1,
     "animations": [
         {
             "name": "duplicate",
             "frameCount": 273,
-            "width": 809.6999999999999,
-            "height": 718.8,
-            "offsetX": -352.20000000000005,
-            "offsetY": -344.1,
+            "width": 134.95,
+            "height": 119.8,
+            "offsetX": -58.7,
+            "offsetY": -57.35,
             "isComposite": true,
             "frames": [
                 {
                     "index": 0,
-                    "file": "duplicate_0.webp"
+                    "file": "duplicate_0.svg"
                 },
                 {
                     "index": 1,
-                    "file": "duplicate_1.webp"
+                    "file": "duplicate_1.svg"
                 },
                 {
                     "index": 2,
-                    "file": "duplicate_2.webp"
+                    "file": "duplicate_2.svg"
                 },
                 {
                     "index": 3,
-                    "file": "duplicate_3.webp"
+                    "file": "duplicate_3.svg"
                 },
                 {
                     "index": 4,
-                    "file": "duplicate_4.webp"
+                    "file": "duplicate_4.svg"
                 },
                 {
                     "index": 5,
-                    "file": "duplicate_5.webp"
+                    "file": "duplicate_5.svg"
                 },
                 {
                     "index": 6,
-                    "file": "duplicate_6.webp"
+                    "file": "duplicate_6.svg"
                 },
                 {
                     "index": 7,
-                    "file": "duplicate_7.webp"
+                    "file": "duplicate_7.svg"
                 },
                 {
                     "index": 8,
-                    "file": "duplicate_8.webp"
+                    "file": "duplicate_8.svg"
                 },
                 {
                     "index": 9,
-                    "file": "duplicate_9.webp"
+                    "file": "duplicate_9.svg"
                 },
                 {
                     "index": 10,
-                    "file": "duplicate_10.webp"
+                    "file": "duplicate_10.svg"
                 },
                 {
                     "index": 11,
-                    "file": "duplicate_11.webp"
+                    "file": "duplicate_11.svg"
                 },
                 {
                     "index": 12,
-                    "file": "duplicate_12.webp"
+                    "file": "duplicate_12.svg"
                 },
                 {
                     "index": 13,
-                    "file": "duplicate_13.webp"
+                    "file": "duplicate_13.svg"
                 },
                 {
                     "index": 14,
-                    "file": "duplicate_14.webp"
+                    "file": "duplicate_14.svg"
                 },
                 {
                     "index": 15,
-                    "file": "duplicate_15.webp"
+                    "file": "duplicate_15.svg"
                 },
                 {
                     "index": 16,
-                    "file": "duplicate_16.webp"
+                    "file": "duplicate_16.svg"
                 },
                 {
                     "index": 17,
-                    "file": "duplicate_17.webp"
+                    "file": "duplicate_17.svg"
                 },
                 {
                     "index": 18,
-                    "file": "duplicate_18.webp"
+                    "file": "duplicate_18.svg"
                 },
                 {
                     "index": 19,
-                    "file": "duplicate_19.webp"
+                    "file": "duplicate_19.svg"
                 },
                 {
                     "index": 20,
-                    "file": "duplicate_20.webp"
+                    "file": "duplicate_20.svg"
                 },
                 {
                     "index": 21,
-                    "file": "duplicate_21.webp"
+                    "file": "duplicate_21.svg"
                 },
                 {
                     "index": 22,
-                    "file": "duplicate_22.webp"
+                    "file": "duplicate_22.svg"
                 },
                 {
                     "index": 23,
-                    "file": "duplicate_23.webp"
+                    "file": "duplicate_23.svg"
                 },
                 {
                     "index": 24,
-                    "file": "duplicate_24.webp"
+                    "file": "duplicate_24.svg"
                 },
                 {
                     "index": 25,
-                    "file": "duplicate_25.webp"
+                    "file": "duplicate_25.svg"
                 },
                 {
                     "index": 26,
-                    "file": "duplicate_26.webp"
+                    "file": "duplicate_26.svg"
                 },
                 {
                     "index": 27,
-                    "file": "duplicate_27.webp"
+                    "file": "duplicate_27.svg"
                 },
                 {
                     "index": 28,
-                    "file": "duplicate_28.webp"
+                    "file": "duplicate_28.svg"
                 },
                 {
                     "index": 29,
-                    "file": "duplicate_29.webp"
+                    "file": "duplicate_29.svg"
                 },
                 {
                     "index": 30,
-                    "file": "duplicate_30.webp"
+                    "file": "duplicate_30.svg"
                 },
                 {
                     "index": 31,
-                    "file": "duplicate_31.webp"
+                    "file": "duplicate_31.svg"
                 },
                 {
                     "index": 32,
-                    "file": "duplicate_32.webp"
+                    "file": "duplicate_32.svg"
                 },
                 {
                     "index": 33,
-                    "file": "duplicate_33.webp"
+                    "file": "duplicate_33.svg"
                 },
                 {
                     "index": 34,
-                    "file": "duplicate_34.webp"
+                    "file": "duplicate_34.svg"
                 },
                 {
                     "index": 35,
-                    "file": "duplicate_35.webp"
+                    "file": "duplicate_35.svg"
                 },
                 {
                     "index": 36,
-                    "file": "duplicate_36.webp"
+                    "file": "duplicate_36.svg"
                 },
                 {
                     "index": 37,
-                    "file": "duplicate_37.webp"
+                    "file": "duplicate_37.svg"
                 },
                 {
                     "index": 38,
-                    "file": "duplicate_38.webp"
+                    "file": "duplicate_38.svg"
                 },
                 {
                     "index": 39,
-                    "file": "duplicate_39.webp"
+                    "file": "duplicate_39.svg"
                 },
                 {
                     "index": 40,
-                    "file": "duplicate_40.webp"
+                    "file": "duplicate_40.svg"
                 },
                 {
                     "index": 41,
-                    "file": "duplicate_41.webp"
+                    "file": "duplicate_41.svg"
                 },
                 {
                     "index": 42,
-                    "file": "duplicate_42.webp"
+                    "file": "duplicate_42.svg"
                 },
                 {
                     "index": 43,
-                    "file": "duplicate_43.webp"
+                    "file": "duplicate_43.svg"
                 },
                 {
                     "index": 44,
-                    "file": "duplicate_44.webp"
+                    "file": "duplicate_44.svg"
                 },
                 {
                     "index": 45,
-                    "file": "duplicate_45.webp"
+                    "file": "duplicate_45.svg"
                 },
                 {
                     "index": 46,
-                    "file": "duplicate_46.webp"
+                    "file": "duplicate_46.svg"
                 },
                 {
                     "index": 47,
-                    "file": "duplicate_47.webp"
+                    "file": "duplicate_47.svg"
                 },
                 {
                     "index": 48,
-                    "file": "duplicate_48.webp"
+                    "file": "duplicate_48.svg"
                 },
                 {
                     "index": 49,
-                    "file": "duplicate_49.webp"
+                    "file": "duplicate_49.svg"
                 },
                 {
                     "index": 50,
-                    "file": "duplicate_50.webp"
+                    "file": "duplicate_50.svg"
                 },
                 {
                     "index": 51,
-                    "file": "duplicate_51.webp"
+                    "file": "duplicate_51.svg"
                 },
                 {
                     "index": 52,
-                    "file": "duplicate_52.webp"
+                    "file": "duplicate_52.svg"
                 },
                 {
                     "index": 53,
-                    "file": "duplicate_53.webp"
+                    "file": "duplicate_53.svg"
                 },
                 {
                     "index": 54,
-                    "file": "duplicate_54.webp"
+                    "file": "duplicate_54.svg"
                 },
                 {
                     "index": 55,
-                    "file": "duplicate_55.webp"
+                    "file": "duplicate_55.svg"
                 },
                 {
                     "index": 56,
-                    "file": "duplicate_56.webp"
+                    "file": "duplicate_56.svg"
                 },
                 {
                     "index": 57,
-                    "file": "duplicate_57.webp"
+                    "file": "duplicate_57.svg"
                 },
                 {
                     "index": 58,
-                    "file": "duplicate_58.webp"
+                    "file": "duplicate_58.svg"
                 },
                 {
                     "index": 59,
-                    "file": "duplicate_59.webp"
+                    "file": "duplicate_59.svg"
                 },
                 {
                     "index": 60,
-                    "file": "duplicate_60.webp"
+                    "file": "duplicate_60.svg"
                 },
                 {
                     "index": 61,
-                    "file": "duplicate_61.webp"
+                    "file": "duplicate_61.svg"
                 },
                 {
                     "index": 62,
-                    "file": "duplicate_62.webp"
+                    "file": "duplicate_62.svg"
                 },
                 {
                     "index": 63,
-                    "file": "duplicate_63.webp"
+                    "file": "duplicate_63.svg"
                 },
                 {
                     "index": 64,
-                    "file": "duplicate_64.webp"
+                    "file": "duplicate_64.svg"
                 },
                 {
                     "index": 65,
-                    "file": "duplicate_65.webp"
+                    "file": "duplicate_65.svg"
                 },
                 {
                     "index": 66,
-                    "file": "duplicate_66.webp"
+                    "file": "duplicate_66.svg"
                 },
                 {
                     "index": 67,
-                    "file": "duplicate_67.webp"
+                    "file": "duplicate_67.svg"
                 },
                 {
                     "index": 68,
-                    "file": "duplicate_68.webp"
+                    "file": "duplicate_68.svg"
                 },
                 {
                     "index": 69,
-                    "file": "duplicate_69.webp"
+                    "file": "duplicate_69.svg"
                 },
                 {
                     "index": 70,
-                    "file": "duplicate_70.webp"
+                    "file": "duplicate_70.svg"
                 },
                 {
                     "index": 71,
-                    "file": "duplicate_71.webp"
+                    "file": "duplicate_71.svg"
                 },
                 {
                     "index": 72,
-                    "file": "duplicate_72.webp"
+                    "file": "duplicate_72.svg"
                 },
                 {
                     "index": 73,
-                    "file": "duplicate_73.webp"
+                    "file": "duplicate_73.svg"
                 },
                 {
                     "index": 74,
-                    "file": "duplicate_74.webp"
+                    "file": "duplicate_74.svg"
                 },
                 {
                     "index": 75,
-                    "file": "duplicate_75.webp"
+                    "file": "duplicate_75.svg"
                 },
                 {
                     "index": 76,
-                    "file": "duplicate_76.webp"
+                    "file": "duplicate_76.svg"
                 },
                 {
                     "index": 77,
-                    "file": "duplicate_77.webp"
+                    "file": "duplicate_77.svg"
                 },
                 {
                     "index": 78,
-                    "file": "duplicate_78.webp"
+                    "file": "duplicate_78.svg"
                 },
                 {
                     "index": 79,
-                    "file": "duplicate_79.webp"
+                    "file": "duplicate_79.svg"
                 },
                 {
                     "index": 80,
-                    "file": "duplicate_80.webp"
+                    "file": "duplicate_80.svg"
                 },
                 {
                     "index": 81,
-                    "file": "duplicate_81.webp"
+                    "file": "duplicate_81.svg"
                 },
                 {
                     "index": 82,
-                    "file": "duplicate_82.webp"
+                    "file": "duplicate_82.svg"
                 },
                 {
                     "index": 83,
-                    "file": "duplicate_83.webp"
+                    "file": "duplicate_83.svg"
                 },
                 {
                     "index": 84,
-                    "file": "duplicate_84.webp"
+                    "file": "duplicate_84.svg"
                 },
                 {
                     "index": 85,
-                    "file": "duplicate_85.webp"
+                    "file": "duplicate_85.svg"
                 },
                 {
                     "index": 86,
-                    "file": "duplicate_86.webp"
+                    "file": "duplicate_86.svg"
                 },
                 {
                     "index": 87,
-                    "file": "duplicate_87.webp"
+                    "file": "duplicate_87.svg"
                 },
                 {
                     "index": 88,
-                    "file": "duplicate_88.webp"
+                    "file": "duplicate_88.svg"
                 },
                 {
                     "index": 89,
-                    "file": "duplicate_89.webp"
+                    "file": "duplicate_89.svg"
                 },
                 {
                     "index": 90,
-                    "file": "duplicate_90.webp"
+                    "file": "duplicate_90.svg"
                 },
                 {
                     "index": 91,
-                    "file": "duplicate_91.webp"
+                    "file": "duplicate_91.svg"
                 },
                 {
                     "index": 92,
-                    "file": "duplicate_92.webp"
+                    "file": "duplicate_92.svg"
                 },
                 {
                     "index": 93,
-                    "file": "duplicate_93.webp"
+                    "file": "duplicate_93.svg"
                 },
                 {
                     "index": 94,
-                    "file": "duplicate_94.webp"
+                    "file": "duplicate_94.svg"
                 },
                 {
                     "index": 95,
-                    "file": "duplicate_95.webp"
+                    "file": "duplicate_95.svg"
                 },
                 {
                     "index": 96,
-                    "file": "duplicate_96.webp"
+                    "file": "duplicate_96.svg"
                 },
                 {
                     "index": 97,
-                    "file": "duplicate_97.webp"
+                    "file": "duplicate_97.svg"
                 },
                 {
                     "index": 98,
-                    "file": "duplicate_98.webp"
+                    "file": "duplicate_98.svg"
                 },
                 {
                     "index": 99,
-                    "file": "duplicate_99.webp"
+                    "file": "duplicate_99.svg"
                 },
                 {
                     "index": 100,
-                    "file": "duplicate_100.webp"
+                    "file": "duplicate_100.svg"
                 },
                 {
                     "index": 101,
-                    "file": "duplicate_101.webp"
+                    "file": "duplicate_101.svg"
                 },
                 {
                     "index": 102,
-                    "file": "duplicate_102.webp"
+                    "file": "duplicate_102.svg"
                 },
                 {
                     "index": 103,
-                    "file": "duplicate_103.webp"
+                    "file": "duplicate_103.svg"
                 },
                 {
                     "index": 104,
-                    "file": "duplicate_104.webp"
+                    "file": "duplicate_104.svg"
                 },
                 {
                     "index": 105,
-                    "file": "duplicate_105.webp"
+                    "file": "duplicate_105.svg"
                 },
                 {
                     "index": 106,
-                    "file": "duplicate_106.webp"
+                    "file": "duplicate_106.svg"
                 },
                 {
                     "index": 107,
-                    "file": "duplicate_107.webp"
+                    "file": "duplicate_107.svg"
                 },
                 {
                     "index": 108,
-                    "file": "duplicate_108.webp"
+                    "file": "duplicate_108.svg"
                 },
                 {
                     "index": 109,
-                    "file": "duplicate_109.webp"
+                    "file": "duplicate_109.svg"
                 },
                 {
                     "index": 110,
-                    "file": "duplicate_110.webp"
+                    "file": "duplicate_110.svg"
                 },
                 {
                     "index": 111,
-                    "file": "duplicate_111.webp"
+                    "file": "duplicate_111.svg"
                 },
                 {
                     "index": 112,
-                    "file": "duplicate_112.webp"
+                    "file": "duplicate_112.svg"
                 },
                 {
                     "index": 113,
-                    "file": "duplicate_113.webp"
+                    "file": "duplicate_113.svg"
                 },
                 {
                     "index": 114,
-                    "file": "duplicate_114.webp"
+                    "file": "duplicate_114.svg"
                 },
                 {
                     "index": 115,
-                    "file": "duplicate_115.webp"
+                    "file": "duplicate_115.svg"
                 },
                 {
                     "index": 116,
-                    "file": "duplicate_116.webp"
+                    "file": "duplicate_116.svg"
                 },
                 {
                     "index": 117,
-                    "file": "duplicate_117.webp"
+                    "file": "duplicate_117.svg"
                 },
                 {
                     "index": 118,
-                    "file": "duplicate_118.webp"
+                    "file": "duplicate_118.svg"
                 },
                 {
                     "index": 119,
-                    "file": "duplicate_119.webp"
+                    "file": "duplicate_119.svg"
                 },
                 {
                     "index": 120,
-                    "file": "duplicate_120.webp"
+                    "file": "duplicate_120.svg"
                 },
                 {
                     "index": 121,
-                    "file": "duplicate_121.webp"
+                    "file": "duplicate_121.svg"
                 },
                 {
                     "index": 122,
-                    "file": "duplicate_122.webp"
+                    "file": "duplicate_122.svg"
                 },
                 {
                     "index": 123,
-                    "file": "duplicate_123.webp"
+                    "file": "duplicate_123.svg"
                 },
                 {
                     "index": 124,
-                    "file": "duplicate_124.webp"
+                    "file": "duplicate_124.svg"
                 },
                 {
                     "index": 125,
-                    "file": "duplicate_125.webp"
+                    "file": "duplicate_125.svg"
                 },
                 {
                     "index": 126,
-                    "file": "duplicate_126.webp"
+                    "file": "duplicate_126.svg"
                 },
                 {
                     "index": 127,
-                    "file": "duplicate_127.webp"
+                    "file": "duplicate_127.svg"
                 },
                 {
                     "index": 128,
-                    "file": "duplicate_128.webp"
+                    "file": "duplicate_128.svg"
                 },
                 {
                     "index": 129,
-                    "file": "duplicate_129.webp"
+                    "file": "duplicate_129.svg"
                 },
                 {
                     "index": 130,
-                    "file": "duplicate_130.webp"
+                    "file": "duplicate_130.svg"
                 },
                 {
                     "index": 131,
-                    "file": "duplicate_131.webp"
+                    "file": "duplicate_131.svg"
                 },
                 {
                     "index": 132,
-                    "file": "duplicate_132.webp"
+                    "file": "duplicate_132.svg"
                 },
                 {
                     "index": 133,
-                    "file": "duplicate_133.webp"
+                    "file": "duplicate_133.svg"
                 },
                 {
                     "index": 134,
-                    "file": "duplicate_134.webp"
+                    "file": "duplicate_134.svg"
                 },
                 {
                     "index": 135,
-                    "file": "duplicate_135.webp"
+                    "file": "duplicate_135.svg"
                 },
                 {
                     "index": 136,
-                    "file": "duplicate_136.webp"
+                    "file": "duplicate_136.svg"
                 },
                 {
                     "index": 137,
-                    "file": "duplicate_137.webp"
+                    "file": "duplicate_137.svg"
                 },
                 {
                     "index": 138,
-                    "file": "duplicate_138.webp"
+                    "file": "duplicate_138.svg"
                 },
                 {
                     "index": 139,
-                    "file": "duplicate_139.webp"
+                    "file": "duplicate_139.svg"
                 },
                 {
                     "index": 140,
-                    "file": "duplicate_140.webp"
+                    "file": "duplicate_140.svg"
                 },
                 {
                     "index": 141,
-                    "file": "duplicate_141.webp"
+                    "file": "duplicate_141.svg"
                 },
                 {
                     "index": 142,
-                    "file": "duplicate_142.webp"
+                    "file": "duplicate_142.svg"
                 },
                 {
                     "index": 143,
-                    "file": "duplicate_143.webp"
+                    "file": "duplicate_143.svg"
                 },
                 {
                     "index": 144,
-                    "file": "duplicate_144.webp"
+                    "file": "duplicate_144.svg"
                 },
                 {
                     "index": 145,
-                    "file": "duplicate_145.webp"
+                    "file": "duplicate_145.svg"
                 },
                 {
                     "index": 146,
-                    "file": "duplicate_146.webp"
+                    "file": "duplicate_146.svg"
                 },
                 {
                     "index": 147,
-                    "file": "duplicate_147.webp"
+                    "file": "duplicate_147.svg"
                 },
                 {
                     "index": 148,
-                    "file": "duplicate_148.webp"
+                    "file": "duplicate_148.svg"
                 },
                 {
                     "index": 149,
-                    "file": "duplicate_149.webp"
+                    "file": "duplicate_149.svg"
                 },
                 {
                     "index": 150,
-                    "file": "duplicate_150.webp"
+                    "file": "duplicate_150.svg"
                 },
                 {
                     "index": 151,
-                    "file": "duplicate_151.webp"
+                    "file": "duplicate_151.svg"
                 },
                 {
                     "index": 152,
-                    "file": "duplicate_152.webp"
+                    "file": "duplicate_152.svg"
                 },
                 {
                     "index": 153,
-                    "file": "duplicate_153.webp"
+                    "file": "duplicate_153.svg"
                 },
                 {
                     "index": 154,
-                    "file": "duplicate_154.webp"
+                    "file": "duplicate_154.svg"
                 },
                 {
                     "index": 155,
-                    "file": "duplicate_155.webp"
+                    "file": "duplicate_155.svg"
                 },
                 {
                     "index": 156,
-                    "file": "duplicate_156.webp"
+                    "file": "duplicate_156.svg"
                 },
                 {
                     "index": 157,
-                    "file": "duplicate_157.webp"
+                    "file": "duplicate_157.svg"
                 },
                 {
                     "index": 158,
-                    "file": "duplicate_158.webp"
+                    "file": "duplicate_158.svg"
                 },
                 {
                     "index": 159,
-                    "file": "duplicate_159.webp"
+                    "file": "duplicate_159.svg"
                 },
                 {
                     "index": 160,
-                    "file": "duplicate_160.webp"
+                    "file": "duplicate_160.svg"
                 },
                 {
                     "index": 161,
-                    "file": "duplicate_161.webp"
+                    "file": "duplicate_161.svg"
                 },
                 {
                     "index": 162,
-                    "file": "duplicate_162.webp"
+                    "file": "duplicate_162.svg"
                 },
                 {
                     "index": 163,
-                    "file": "duplicate_163.webp"
+                    "file": "duplicate_163.svg"
                 },
                 {
                     "index": 164,
-                    "file": "duplicate_164.webp"
+                    "file": "duplicate_164.svg"
                 },
                 {
                     "index": 165,
-                    "file": "duplicate_165.webp"
+                    "file": "duplicate_165.svg"
                 },
                 {
                     "index": 166,
-                    "file": "duplicate_166.webp"
+                    "file": "duplicate_166.svg"
                 },
                 {
                     "index": 167,
-                    "file": "duplicate_167.webp"
+                    "file": "duplicate_167.svg"
                 },
                 {
                     "index": 168,
-                    "file": "duplicate_168.webp"
+                    "file": "duplicate_168.svg"
                 },
                 {
                     "index": 169,
-                    "file": "duplicate_169.webp"
+                    "file": "duplicate_169.svg"
                 },
                 {
                     "index": 170,
-                    "file": "duplicate_170.webp"
+                    "file": "duplicate_170.svg"
                 },
                 {
                     "index": 171,
-                    "file": "duplicate_171.webp"
+                    "file": "duplicate_171.svg"
                 },
                 {
                     "index": 172,
-                    "file": "duplicate_172.webp"
+                    "file": "duplicate_172.svg"
                 },
                 {
                     "index": 173,
-                    "file": "duplicate_173.webp"
+                    "file": "duplicate_173.svg"
                 },
                 {
                     "index": 174,
-                    "file": "duplicate_174.webp"
+                    "file": "duplicate_174.svg"
                 },
                 {
                     "index": 175,
-                    "file": "duplicate_175.webp"
+                    "file": "duplicate_175.svg"
                 },
                 {
                     "index": 176,
-                    "file": "duplicate_176.webp"
+                    "file": "duplicate_176.svg"
                 },
                 {
                     "index": 177,
-                    "file": "duplicate_177.webp"
+                    "file": "duplicate_177.svg"
                 },
                 {
                     "index": 178,
-                    "file": "duplicate_178.webp"
+                    "file": "duplicate_178.svg"
                 },
                 {
                     "index": 179,
-                    "file": "duplicate_179.webp"
+                    "file": "duplicate_179.svg"
                 },
                 {
                     "index": 180,
-                    "file": "duplicate_180.webp"
+                    "file": "duplicate_180.svg"
                 },
                 {
                     "index": 181,
-                    "file": "duplicate_181.webp"
+                    "file": "duplicate_181.svg"
                 },
                 {
                     "index": 182,
-                    "file": "duplicate_182.webp"
+                    "file": "duplicate_182.svg"
                 },
                 {
                     "index": 183,
-                    "file": "duplicate_183.webp"
+                    "file": "duplicate_183.svg"
                 },
                 {
                     "index": 184,
-                    "file": "duplicate_184.webp"
+                    "file": "duplicate_184.svg"
                 },
                 {
                     "index": 185,
-                    "file": "duplicate_185.webp"
+                    "file": "duplicate_185.svg"
                 },
                 {
                     "index": 186,
-                    "file": "duplicate_186.webp"
+                    "file": "duplicate_186.svg"
                 },
                 {
                     "index": 187,
-                    "file": "duplicate_187.webp"
+                    "file": "duplicate_187.svg"
                 },
                 {
                     "index": 188,
-                    "file": "duplicate_188.webp"
+                    "file": "duplicate_188.svg"
                 },
                 {
                     "index": 189,
-                    "file": "duplicate_189.webp"
+                    "file": "duplicate_189.svg"
                 },
                 {
                     "index": 190,
-                    "file": "duplicate_190.webp"
+                    "file": "duplicate_190.svg"
                 },
                 {
                     "index": 191,
-                    "file": "duplicate_191.webp"
+                    "file": "duplicate_191.svg"
                 },
                 {
                     "index": 192,
-                    "file": "duplicate_192.webp"
+                    "file": "duplicate_192.svg"
                 },
                 {
                     "index": 193,
-                    "file": "duplicate_193.webp"
+                    "file": "duplicate_193.svg"
                 },
                 {
                     "index": 194,
-                    "file": "duplicate_194.webp"
+                    "file": "duplicate_194.svg"
                 },
                 {
                     "index": 195,
-                    "file": "duplicate_195.webp"
+                    "file": "duplicate_195.svg"
                 },
                 {
                     "index": 196,
-                    "file": "duplicate_196.webp"
+                    "file": "duplicate_196.svg"
                 },
                 {
                     "index": 197,
-                    "file": "duplicate_197.webp"
+                    "file": "duplicate_197.svg"
                 },
                 {
                     "index": 198,
-                    "file": "duplicate_198.webp"
+                    "file": "duplicate_198.svg"
                 },
                 {
                     "index": 199,
-                    "file": "duplicate_199.webp"
+                    "file": "duplicate_199.svg"
                 },
                 {
                     "index": 200,
-                    "file": "duplicate_200.webp"
+                    "file": "duplicate_200.svg"
                 },
                 {
                     "index": 201,
-                    "file": "duplicate_201.webp"
+                    "file": "duplicate_201.svg"
                 },
                 {
                     "index": 202,
-                    "file": "duplicate_202.webp"
+                    "file": "duplicate_202.svg"
                 },
                 {
                     "index": 203,
-                    "file": "duplicate_203.webp"
+                    "file": "duplicate_203.svg"
                 },
                 {
                     "index": 204,
-                    "file": "duplicate_204.webp"
+                    "file": "duplicate_204.svg"
                 },
                 {
                     "index": 205,
-                    "file": "duplicate_205.webp"
+                    "file": "duplicate_205.svg"
                 },
                 {
                     "index": 206,
-                    "file": "duplicate_206.webp"
+                    "file": "duplicate_206.svg"
                 },
                 {
                     "index": 207,
-                    "file": "duplicate_207.webp"
+                    "file": "duplicate_207.svg"
                 },
                 {
                     "index": 208,
-                    "file": "duplicate_208.webp"
+                    "file": "duplicate_208.svg"
                 },
                 {
                     "index": 209,
-                    "file": "duplicate_209.webp"
+                    "file": "duplicate_209.svg"
                 },
                 {
                     "index": 210,
-                    "file": "duplicate_210.webp"
+                    "file": "duplicate_210.svg"
                 },
                 {
                     "index": 211,
-                    "file": "duplicate_211.webp"
+                    "file": "duplicate_211.svg"
                 },
                 {
                     "index": 212,
-                    "file": "duplicate_212.webp"
+                    "file": "duplicate_212.svg"
                 },
                 {
                     "index": 213,
-                    "file": "duplicate_213.webp"
+                    "file": "duplicate_213.svg"
                 },
                 {
                     "index": 214,
-                    "file": "duplicate_214.webp"
+                    "file": "duplicate_214.svg"
                 },
                 {
                     "index": 215,
-                    "file": "duplicate_215.webp"
+                    "file": "duplicate_215.svg"
                 },
                 {
                     "index": 216,
-                    "file": "duplicate_216.webp"
+                    "file": "duplicate_216.svg"
                 },
                 {
                     "index": 217,
-                    "file": "duplicate_217.webp"
+                    "file": "duplicate_217.svg"
                 },
                 {
                     "index": 218,
-                    "file": "duplicate_218.webp"
+                    "file": "duplicate_218.svg"
                 },
                 {
                     "index": 219,
-                    "file": "duplicate_219.webp"
+                    "file": "duplicate_219.svg"
                 },
                 {
                     "index": 220,
-                    "file": "duplicate_220.webp"
+                    "file": "duplicate_220.svg"
                 },
                 {
                     "index": 221,
-                    "file": "duplicate_221.webp"
+                    "file": "duplicate_221.svg"
                 },
                 {
                     "index": 222,
-                    "file": "duplicate_222.webp"
+                    "file": "duplicate_222.svg"
                 },
                 {
                     "index": 223,
-                    "file": "duplicate_223.webp"
+                    "file": "duplicate_223.svg"
                 },
                 {
                     "index": 224,
-                    "file": "duplicate_224.webp"
+                    "file": "duplicate_224.svg"
                 },
                 {
                     "index": 225,
-                    "file": "duplicate_225.webp"
+                    "file": "duplicate_225.svg"
                 },
                 {
                     "index": 226,
-                    "file": "duplicate_226.webp"
+                    "file": "duplicate_226.svg"
                 },
                 {
                     "index": 227,
-                    "file": "duplicate_227.webp"
+                    "file": "duplicate_227.svg"
                 },
                 {
                     "index": 228,
-                    "file": "duplicate_228.webp"
+                    "file": "duplicate_228.svg"
                 },
                 {
                     "index": 229,
-                    "file": "duplicate_229.webp"
+                    "file": "duplicate_229.svg"
                 },
                 {
                     "index": 230,
-                    "file": "duplicate_230.webp"
+                    "file": "duplicate_230.svg"
                 },
                 {
                     "index": 231,
-                    "file": "duplicate_231.webp"
+                    "file": "duplicate_231.svg"
                 },
                 {
                     "index": 232,
-                    "file": "duplicate_232.webp"
+                    "file": "duplicate_232.svg"
                 },
                 {
                     "index": 233,
-                    "file": "duplicate_233.webp"
+                    "file": "duplicate_233.svg"
                 },
                 {
                     "index": 234,
-                    "file": "duplicate_234.webp"
+                    "file": "duplicate_234.svg"
                 },
                 {
                     "index": 235,
-                    "file": "duplicate_235.webp"
+                    "file": "duplicate_235.svg"
                 },
                 {
                     "index": 236,
-                    "file": "duplicate_236.webp"
+                    "file": "duplicate_236.svg"
                 },
                 {
                     "index": 237,
-                    "file": "duplicate_237.webp"
+                    "file": "duplicate_237.svg"
                 },
                 {
                     "index": 238,
-                    "file": "duplicate_238.webp"
+                    "file": "duplicate_238.svg"
                 },
                 {
                     "index": 239,
-                    "file": "duplicate_239.webp"
+                    "file": "duplicate_239.svg"
                 },
                 {
                     "index": 240,
-                    "file": "duplicate_240.webp"
+                    "file": "duplicate_240.svg"
                 },
                 {
                     "index": 241,
-                    "file": "duplicate_241.webp"
+                    "file": "duplicate_241.svg"
                 },
                 {
                     "index": 242,
-                    "file": "duplicate_242.webp"
+                    "file": "duplicate_242.svg"
                 },
                 {
                     "index": 243,
-                    "file": "duplicate_243.webp"
+                    "file": "duplicate_243.svg"
                 },
                 {
                     "index": 244,
-                    "file": "duplicate_244.webp"
+                    "file": "duplicate_244.svg"
                 },
                 {
                     "index": 245,
-                    "file": "duplicate_245.webp"
+                    "file": "duplicate_245.svg"
                 },
                 {
                     "index": 246,
-                    "file": "duplicate_246.webp"
+                    "file": "duplicate_246.svg"
                 },
                 {
                     "index": 247,
-                    "file": "duplicate_247.webp"
+                    "file": "duplicate_247.svg"
                 },
                 {
                     "index": 248,
-                    "file": "duplicate_248.webp"
+                    "file": "duplicate_248.svg"
                 },
                 {
                     "index": 249,
-                    "file": "duplicate_249.webp"
+                    "file": "duplicate_249.svg"
                 },
                 {
                     "index": 250,
-                    "file": "duplicate_250.webp"
+                    "file": "duplicate_250.svg"
                 },
                 {
                     "index": 251,
-                    "file": "duplicate_251.webp"
+                    "file": "duplicate_251.svg"
                 },
                 {
                     "index": 252,
-                    "file": "duplicate_252.webp"
+                    "file": "duplicate_252.svg"
                 },
                 {
                     "index": 253,
-                    "file": "duplicate_253.webp"
+                    "file": "duplicate_253.svg"
                 },
                 {
                     "index": 254,
-                    "file": "duplicate_254.webp"
+                    "file": "duplicate_254.svg"
                 },
                 {
                     "index": 255,
-                    "file": "duplicate_255.webp"
+                    "file": "duplicate_255.svg"
                 },
                 {
                     "index": 256,
-                    "file": "duplicate_256.webp"
+                    "file": "duplicate_256.svg"
                 },
                 {
                     "index": 257,
-                    "file": "duplicate_257.webp"
+                    "file": "duplicate_257.svg"
                 },
                 {
                     "index": 258,
-                    "file": "duplicate_258.webp"
+                    "file": "duplicate_258.svg"
                 },
                 {
                     "index": 259,
-                    "file": "duplicate_259.webp"
+                    "file": "duplicate_259.svg"
                 },
                 {
                     "index": 260,
-                    "file": "duplicate_260.webp"
+                    "file": "duplicate_260.svg"
                 },
                 {
                     "index": 261,
-                    "file": "duplicate_261.webp"
+                    "file": "duplicate_261.svg"
                 },
                 {
                     "index": 262,
-                    "file": "duplicate_262.webp"
+                    "file": "duplicate_262.svg"
                 },
                 {
                     "index": 263,
-                    "file": "duplicate_263.webp"
+                    "file": "duplicate_263.svg"
                 },
                 {
                     "index": 264,
-                    "file": "duplicate_264.webp"
+                    "file": "duplicate_264.svg"
                 },
                 {
                     "index": 265,
-                    "file": "duplicate_265.webp"
+                    "file": "duplicate_265.svg"
                 },
                 {
                     "index": 266,
-                    "file": "duplicate_266.webp"
+                    "file": "duplicate_266.svg"
                 },
                 {
                     "index": 267,
-                    "file": "duplicate_267.webp"
+                    "file": "duplicate_267.svg"
                 },
                 {
                     "index": 268,
-                    "file": "duplicate_268.webp"
+                    "file": "duplicate_268.svg"
                 },
                 {
                     "index": 269,
-                    "file": "duplicate_269.webp"
+                    "file": "duplicate_269.svg"
                 },
                 {
                     "index": 270,
-                    "file": "duplicate_270.webp"
+                    "file": "duplicate_270.svg"
                 },
                 {
                     "index": 271,
-                    "file": "duplicate_271.webp"
+                    "file": "duplicate_271.svg"
                 },
                 {
                     "index": 272,
-                    "file": "duplicate_272.webp"
+                    "file": "duplicate_272.svg"
                 }
             ]
         }

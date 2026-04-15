@@ -3,34 +3,43 @@
  *
  * Radial explosion effect with 32 randomized ray instances.
  *
- * Each ray:
- * - Starts at random frame (1-90)
- * - Has random scale (10-70%)
- * - Has random alpha (30-100%)
- * - Positioned using Flash transform matrix
+ * Each ray (DefineSprite_23):
+ * - Starts at random frame (random(90) + 2 → 0-indexed: random frame 1-90)
+ * - Has random scale t = 10 + random(60) → 10-69%
+ * - Has random alpha 30 + random(70) → 30-99%
+ * - Stops at frame 148 (0-indexed: 147)
  *
- * Timing:
- * - Frame 90: Play sound (first ray to reach it)
- * - Frame 99: Signal hit
- * - Frame 147: Stop
+ * Container (DefineSprite_24):
+ * - Frame 100 (0-indexed: 99): this.end() → signalHit
+ * - Frame 154 (0-indexed: 153): removeMovieClip / stop → complete
+ *
+ * Manifest: anim1 is the composite pre-rendered animation (156 frames, stopFrame 153)
+ * The sprite uses anim1 frames directly (composite render of all 32 rays).
+ *
+ * Original AS timing:
+ * - DefineSprite_23/frame_1: gotoAndPlay(random(90)+2), set t and _alpha
+ * - DefineSprite_23/frame_91: SOMA.playSound("crockette_1005")
+ * - DefineSprite_23/frame_148: stop()
+ * - DefineSprite_24/frame_100: this.end() → signal hit
+ * - DefineSprite_24/frame_154: _parent.removeMovieClip(); stop() → complete
  */
 
 import { Container } from 'pixi.js';
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   decomposeFlashTransform,
   type FlashTransform,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const RAY_MANIFEST: SpriteManifest = {
-  width: 796.2,
-  height: 215.4,
-  offsetX: -796.2,
-  offsetY: -123.9,
+  width: 266.6,
+  height: 268.05,
+  offsetX: -133.85,
+  offsetY: -162,
 };
 
 const RAY_TRANSFORMS: FlashTransform[] = [
@@ -74,27 +83,28 @@ export class Spell1005 extends BaseSpell {
   private raysContainer!: Container;
 
   protected setup(_context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    const rayTextures = textures.getFrames('sprite_23');
+    const rayTextures = textures.getFrames('anim1');
     const anchor = calculateAnchor(RAY_MANIFEST);
 
-    // Container for rays, scaled for extraction scale
+    // Container for all rays, positioned at target
     this.raysContainer = new Container();
     this.raysContainer.scale.set(init.scale);
     this.raysContainer.position.set(init.targetX, init.targetY);
     this.container.addChild(this.raysContainer);
 
-    // Track which ray starts latest (will be used for hit signal)
+    // Track which ray reaches frame 99 last (latest startFrame)
+    // so only one sound fires and hit is signaled correctly
     let latestStartFrame = -1;
     let latestRay: FrameAnimatedSprite | null = null;
 
     for (const transform of RAY_TRANSFORMS) {
-      // Random start frame (AS: gotoAndPlay(random(90) + 2) -> 0-indexed: 1-90)
+      // AS: gotoAndPlay(random(90) + 2) → 1-indexed frame 2-91 → 0-indexed 1-90
       const startFrame = Math.floor(Math.random() * 90) + 1;
 
-      // Random scale (AS: t = 10 + random(60) -> 10-70%)
-      const asScale = (10 + Math.floor(Math.random() * 60)) / 100;
+      // AS: t = 10 + random(60) → 10-69
+      const t = 10 + Math.floor(Math.random() * 60);
 
-      // Random alpha (AS: _alpha = 30 + random(70) -> 30-100%)
+      // AS: _alpha = 30 + random(70) → 30-99 (as percentage, convert to 0-1)
       const alpha = (30 + Math.floor(Math.random() * 70)) / 100;
 
       const anim = this.anims.add(new FrameAnimatedSprite({
@@ -104,26 +114,32 @@ export class Spell1005 extends BaseSpell {
         startFrame,
       }));
 
-      // Apply Flash transform
+      // Apply Flash transform from layout
       const decomposed = decomposeFlashTransform(transform);
+      // Apply the per-ray random scale (t as percentage) on top of transform scale
+      const asScale = t / 100;
       anim.sprite.position.set(decomposed.x, decomposed.y);
       anim.sprite.rotation = decomposed.rotation;
       anim.sprite.scale.set(decomposed.scaleX * asScale, decomposed.scaleY * asScale);
       anim.sprite.alpha = alpha;
 
-      anim
-        .stopAt(147)
-        .onFrame(90, () => this.callbacks.playSound('crockette_1005'));
+      // AS: frame_91 (0-indexed: 90): SOMA.playSound("crockette_1005")
+      anim.onFrame(90, () => this.callbacks.playSound('crockette_1005'));
+
+      // AS: frame_148 (0-indexed: 147): stop()
+      anim.stopAt(147);
 
       this.raysContainer.addChild(anim.sprite);
 
+      // Track the ray with the latest startFrame for hit signal
       if (startFrame > latestStartFrame) {
         latestStartFrame = startFrame;
         latestRay = anim;
       }
     }
 
-    // The ray that starts latest signals hit at frame 99
+    // AS: DefineSprite_24/frame_100 (0-indexed: 99): this.end() → signalHit
+    // Apply to the ray that starts latest (will reach frame 99 last)
     if (latestRay) {
       latestRay.onFrame(99, () => this.signalHit());
     }
@@ -136,6 +152,8 @@ export class Spell1005 extends BaseSpell {
 
     this.anims.update(deltaTime);
 
+    // AS: DefineSprite_24/frame_154 (0-indexed: 153): stop() → complete
+    // All rays stop at frame 147; when all are stopped, animation is done
     if (this.anims.allStopped()) {
       this.complete();
     }

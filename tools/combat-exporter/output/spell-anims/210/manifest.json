@@ -1,137 +1,137 @@
 {
     "id": 210,
     "fps": 60,
-    "scale": 6,
+    "scale": 1,
     "mainTimelineScale": 1,
     "animations": [
         {
             "name": "griffes",
             "frameCount": 30,
-            "width": 367.5,
-            "height": 230.70000000000002,
-            "offsetX": -145.8,
-            "offsetY": -129.60000000000002,
+            "width": 61.25,
+            "height": 38.45,
+            "offsetX": -24.3,
+            "offsetY": -21.6,
             "isComposite": true,
             "frames": [
                 {
                     "index": 0,
-                    "file": "griffes_0.webp"
+                    "file": "griffes_0.svg"
                 },
                 {
                     "index": 1,
-                    "file": "griffes_1.webp"
+                    "file": "griffes_1.svg"
                 },
                 {
                     "index": 2,
-                    "file": "griffes_2.webp"
+                    "file": "griffes_2.svg"
                 },
                 {
                     "index": 3,
-                    "file": "griffes_3.webp"
+                    "file": "griffes_3.svg"
                 },
                 {
                     "index": 4,
-                    "file": "griffes_4.webp"
+                    "file": "griffes_4.svg"
                 },
                 {
                     "index": 5,
-                    "file": "griffes_5.webp"
+                    "file": "griffes_5.svg"
                 },
                 {
                     "index": 6,
-                    "file": "griffes_6.webp"
+                    "file": "griffes_6.svg"
                 },
                 {
                     "index": 7,
-                    "file": "griffes_7.webp"
+                    "file": "griffes_7.svg"
                 },
                 {
                     "index": 8,
-                    "file": "griffes_8.webp"
+                    "file": "griffes_8.svg"
                 },
                 {
                     "index": 9,
-                    "file": "griffes_9.webp"
+                    "file": "griffes_9.svg"
                 },
                 {
                     "index": 10,
-                    "file": "griffes_10.webp"
+                    "file": "griffes_10.svg"
                 },
                 {
                     "index": 11,
-                    "file": "griffes_11.webp"
+                    "file": "griffes_11.svg"
                 },
                 {
                     "index": 12,
-                    "file": "griffes_12.webp"
+                    "file": "griffes_12.svg"
                 },
                 {
                     "index": 13,
-                    "file": "griffes_13.webp"
+                    "file": "griffes_13.svg"
                 },
                 {
                     "index": 14,
-                    "file": "griffes_14.webp"
+                    "file": "griffes_14.svg"
                 },
                 {
                     "index": 15,
-                    "file": "griffes_15.webp"
+                    "file": "griffes_15.svg"
                 },
                 {
                     "index": 16,
-                    "file": "griffes_16.webp"
+                    "file": "griffes_16.svg"
                 },
                 {
                     "index": 17,
-                    "file": "griffes_17.webp"
+                    "file": "griffes_17.svg"
                 },
                 {
                     "index": 18,
-                    "file": "griffes_18.webp"
+                    "file": "griffes_18.svg"
                 },
                 {
                     "index": 19,
-                    "file": "griffes_19.webp"
+                    "file": "griffes_19.svg"
                 },
                 {
                     "index": 20,
-                    "file": "griffes_20.webp"
+                    "file": "griffes_20.svg"
                 },
                 {
                     "index": 21,
-                    "file": "griffes_21.webp"
+                    "file": "griffes_21.svg"
                 },
                 {
                     "index": 22,
-                    "file": "griffes_22.webp"
+                    "file": "griffes_22.svg"
                 },
                 {
                     "index": 23,
-                    "file": "griffes_23.webp"
+                    "file": "griffes_23.svg"
                 },
                 {
                     "index": 24,
-                    "file": "griffes_24.webp"
+                    "file": "griffes_24.svg"
                 },
                 {
                     "index": 25,
-                    "file": "griffes_25.webp"
+                    "file": "griffes_25.svg"
                 },
                 {
                     "index": 26,
-                    "file": "griffes_26.webp"
+                    "file": "griffes_26.svg"
                 },
                 {
                     "index": 27,
-                    "file": "griffes_27.webp"
+                    "file": "griffes_27.svg"
                 },
                 {
                     "index": 28,
-                    "file": "griffes_28.webp"
+                    "file": "griffes_28.svg"
                 },
                 {
                     "index": 29,
-                    "file": "griffes_29.webp"
+                    "file": "griffes_29.svg"
                 }
             ]
         }
@@ -167,130 +167,130 @@
             "characterId": 4,
             "internalName": "sprite_4",
             "frameCount": 30,
-            "width": 367.5,
-            "height": 230.70000000000002,
-            "offsetX": -145.8,
-            "offsetY": -129.60000000000002,
+            "width": 61.25,
+            "height": 38.45,
+            "offsetX": -24.3,
+            "offsetY": -21.6,
             "frames": [
                 {
                     "index": 0,
-                    "file": "lib_griffes_0.webp"
+                    "file": "lib_griffes_0.svg"
                 },
                 {
                     "index": 1,
-                    "file": "lib_griffes_1.webp"
+                    "file": "lib_griffes_1.svg"
                 },
                 {
                     "index": 2,
-                    "file": "lib_griffes_2.webp"
+                    "file": "lib_griffes_2.svg"
                 },
                 {
                     "index": 3,
-                    "file": "lib_griffes_3.webp"
+                    "file": "lib_griffes_3.svg"
                 },
                 {
                     "index": 4,
-                    "file": "lib_griffes_4.webp"
+                    "file": "lib_griffes_4.svg"
                 },
                 {
                     "index": 5,
-                    "file": "lib_griffes_5.webp"
+                    "file": "lib_griffes_5.svg"
                 },
                 {
                     "index": 6,
-                    "file": "lib_griffes_6.webp"
+                    "file": "lib_griffes_6.svg"
                 },
                 {
                     "index": 7,
-                    "file": "lib_griffes_7.webp"
+                    "file": "lib_griffes_7.svg"
                 },
                 {
                     "index": 8,
-                    "file": "lib_griffes_8.webp"
+                    "file": "lib_griffes_8.svg"
                 },
                 {
                     "index": 9,
-                    "file": "lib_griffes_9.webp"
+                    "file": "lib_griffes_9.svg"
                 },
                 {
                     "index": 10,
-                    "file": "lib_griffes_10.webp"
+                    "file": "lib_griffes_10.svg"
                 },
                 {
                     "index": 11,
-                    "file": "lib_griffes_11.webp"
+                    "file": "lib_griffes_11.svg"
                 },
                 {
                     "index": 12,
-                    "file": "lib_griffes_12.webp"
+                    "file": "lib_griffes_12.svg"
                 },
                 {
                     "index": 13,
-                    "file": "lib_griffes_13.webp"
+                    "file": "lib_griffes_13.svg"
                 },
                 {
                     "index": 14,
-                    "file": "lib_griffes_14.webp"
+                    "file": "lib_griffes_14.svg"
                 },
                 {
                     "index": 15,
-                    "file": "lib_griffes_15.webp"
+                    "file": "lib_griffes_15.svg"
                 },
                 {
                     "index": 16,
-                    "file": "lib_griffes_16.webp"
+                    "file": "lib_griffes_16.svg"
                 },
                 {
                     "index": 17,
-                    "file": "lib_griffes_17.webp"
+                    "file": "lib_griffes_17.svg"
                 },
                 {
                     "index": 18,
-                    "file": "lib_griffes_18.webp"
+                    "file": "lib_griffes_18.svg"
                 },
                 {
                     "index": 19,
-                    "file": "lib_griffes_19.webp"
+                    "file": "lib_griffes_19.svg"
                 },
                 {
                     "index": 20,
-                    "file": "lib_griffes_20.webp"
+                    "file": "lib_griffes_20.svg"
                 },
                 {
                     "index": 21,
-                    "file": "lib_griffes_21.webp"
+                    "file": "lib_griffes_21.svg"
                 },
                 {
                     "index": 22,
-                    "file": "lib_griffes_22.webp"
+                    "file": "lib_griffes_22.svg"
                 },
                 {
                     "index": 23,
-                    "file": "lib_griffes_23.webp"
+                    "file": "lib_griffes_23.svg"
                 },
                 {
                     "index": 24,
-                    "file": "lib_griffes_24.webp"
+                    "file": "lib_griffes_24.svg"
                 },
                 {
                     "index": 25,
-                    "file": "lib_griffes_25.webp"
+                    "file": "lib_griffes_25.svg"
                 },
                 {
                     "index": 26,
-                    "file": "lib_griffes_26.webp"
+                    "file": "lib_griffes_26.svg"
                 },
                 {
                     "index": 27,
-                    "file": "lib_griffes_27.webp"
+                    "file": "lib_griffes_27.svg"
                 },
                 {
                     "index": 28,
-                    "file": "lib_griffes_28.webp"
+                    "file": "lib_griffes_28.svg"
                 },
                 {
                     "index": 29,
-                    "file": "lib_griffes_29.webp"
+                    "file": "lib_griffes_29.svg"
                 }
             ]
         }

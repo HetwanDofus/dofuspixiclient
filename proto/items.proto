@@ -18,10 +18,11 @@ message ItemAccessories {
   repeated Accessory accessories = 2;
 }
 
-// OD - Drop item response
+// OD - Drop item response.
+// StarLoco fork does not emit; legacy 1.29 clients expect "OD" as a simple
+// success/error ack (K/E suffix handled by the bool). No payload body.
 message ItemDrop {
   bool success = 1;
-  string raw_data = 2;
 }
 
 // OA - Add items (inventory receive)
@@ -51,12 +52,16 @@ message ItemQuantity {
 
 // OM - Item movement (equip/unequip)
 message ItemMovement {
-  string raw_data = 1;
+  int32 item_unic_id = 1;
+  int32 position = 2;
 }
 
-// OT - Tool update (job tool equipped)
+// OT - Tool update (job tool equipped).
+// StarLoco SocketManager.java:197-202 — `"OT"` when unequipped, `"OT" + id`
+// when a tool is equipped (id > 0 => has_tool=true, id==0 => has_tool=false).
 message ItemTool {
-  string raw_data = 1;
+  int32 tool_item_id = 1;   // 0 when no tool equipped
+  bool  has_tool = 2;
 }
 
 // Ow - Weight (pods) update
@@ -73,14 +78,20 @@ message ItemSet {
   repeated ItemEffect set_effects = 3;
 }
 
-// OK - Item use condition response
+// OK - Item use condition response.
+// Legacy 1.29: "OK<conditionExpr>" (pipe-separated condition tokens) shown
+// when the client tried to equip/use an item whose conditions aren't met.
+// Not emitted by StarLoco fork; kept typed for future use.
 message ItemUseCondition {
-  string raw_data = 1;
+  string condition_expression = 1;  // e.g. "PO>20&PX>10"
 }
 
-// OF - Item found (loot notification)
+// OF - Item found (loot notification).
+// Legacy 1.29: "OF<itemId>|<quantity>" announces an item picked up from a
+// monster loot. Not emitted by StarLoco fork; kept typed.
 message ItemFound {
-  string raw_data = 1;
+  int32 item_template_id = 1;
+  int32 quantity = 2;
 }
 
 // Od - Item deletion confirmation

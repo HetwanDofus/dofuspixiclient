@@ -6,7 +6,11 @@
 		"useIgnoreFile": false
 	},
 	"files": {
-		"ignoreUnknown": false
+		"ignoreUnknown": false,
+		"includes": [
+			"**",
+			"!**/apps/electrobun/src/game/spells/**"
+		]
 	},
 	"formatter": {
 		"enabled": true,
@@ -23,7 +27,16 @@
 				"useHookAtTopLevel": "error"
 			},
 			"suspicious": {
-				"noExplicitAny": "warn"
+				"noExplicitAny": "error",
+				"noUnknownAtRules": "off",
+				"noArrayIndexKey": "off"
+			},
+			"style": {
+				"noDefaultExport": "error",
+				"useImportType": "error",
+				"useNodejsImportProtocol": "error",
+				"useConst": "error",
+				"useBlockStatements": "error"
 			}
 		}
 	},

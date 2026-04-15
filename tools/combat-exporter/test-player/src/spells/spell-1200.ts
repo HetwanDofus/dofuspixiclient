@@ -1,42 +1,39 @@
 /**
- * Spell 1200 - Unknown Name
+ * Spell 1200 - Feca Shoot
  *
- * An explosion-type spell with particle effects.
+ * A shoot animation with a rotating projectile (move) and an explosion effect (shoot).
  *
  * Components:
- * - Shoot animation: Main explosion effect at caster position
- * - Move animation: Secondary movement effect
- * - Particles: Random explosion debris particles
+ * - shoot (sprite): At caster position, plays explosion sound at frame 1, ends at frame 130
+ * - move (sprite): Rotating projectile at caster position, stops at frame 25
  *
  * Original AS timing:
- * - Frame 1: Play "explosion" sound
- * - Frame 1-129: Particle physics simulation (DefineSprite_5)
- * - Frame 130: Remove movie clip
- * - Move animation stops at frame 25
+ * - Frame 1 (shoot): Play sound 'explosion'
+ * - Frame 130 (shoot): removeMovieClip() - animation ends
+ * - Frame 25 (move): stop()
+ * - move enterFrame: _rotation += 50 (continuous rotation)
  */
 
-import { Texture } from 'pixi.js';
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
-  ASParticleSystem,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const SHOOT_MANIFEST: SpriteManifest = {
-  width: 701.7,
-  height: 344.4,
-  offsetX: -335.1,
-  offsetY: -175.5,
+  width: 116.95,
+  height: 57.4,
+  offsetX: -55.85,
+  offsetY: -29.25,
 };
 
 const MOVE_MANIFEST: SpriteManifest = {
-  width: 175.5,
-  height: 349.5,
-  offsetX: -86.1,
-  offsetY: -317.70000000000005,
+  width: 29.25,
+  height: 58.25,
+  offsetX: -14.35,
+  offsetY: -52.95,
 };
 
 export class Spell1200 extends BaseSpell {
@@ -44,70 +41,38 @@ export class Spell1200 extends BaseSpell {
 
   private shootAnim!: FrameAnimatedSprite;
   private moveAnim!: FrameAnimatedSprite;
-  private particles!: ASParticleSystem;
+  private moveRotation = 0;
 
   protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Shoot animation at caster position
+    // shoot animation at caster position
+    const shootAnchor = calculateAnchor(SHOOT_MANIFEST);
     this.shootAnim = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('shoot'),
-      ...calculateAnchor(SHOOT_MANIFEST),
+      fps: 60,
+      anchorX: shootAnchor.x,
+      anchorY: shootAnchor.y,
       scale: init.scale,
     }));
     this.shootAnim.sprite.position.set(0, init.casterY);
-    this.shootAnim
-      .stopAt(131)
-      .onFrame(0, () => {
-        this.callbacks.playSound('explosion');
-        this.spawnParticles();
-      })
-      .onFrame(129, () => this.signalHit());
+    this.shootAnim.onFrame(0, () => this.callbacks.playSound('explosion'));
+    // Frame 130 (0-indexed: 129) -> removeMovieClip, but we stop at 131 (last frame index)
+    // The shoot animation has 132 frames (0-131). Frame 130 in AS (1-indexed) = frame 129 (0-indexed)
+    // removeMovieClip at frame 130 means we signal hit and complete there
+    this.shootAnim.onFrame(129, () => this.signalHit());
     this.container.addChild(this.shootAnim.sprite);
 
-    // Move animation
+    // move animation - rotating projectile at caster position
+    const moveAnchor = calculateAnchor(MOVE_MANIFEST);
     this.moveAnim = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('move'),
-      ...calculateAnchor(MOVE_MANIFEST),
+      fps: 60,
+      anchorX: moveAnchor.x,
+      anchorY: moveAnchor.y,
       scale: init.scale,
+      stopFrame: 24,
     }));
     this.moveAnim.sprite.position.set(0, init.casterY);
-    this.moveAnim.stopAt(26);
     this.container.addChild(this.moveAnim.sprite);
-
-    // Particle system - using a placeholder texture since AS doesn't specify which symbol
-    const particleTexture = textures.getTexture('particle') || Texture.WHITE;
-    this.particles = new ASParticleSystem(particleTexture);
-    this.particles.container.position.set(0, init.casterY);
-    this.container.addChild(this.particles.container);
-  }
-
-  private spawnParticles(): void {
-    // Based on DefineSprite_5 particle physics
-    const particleCount = 10; // AS doesn't specify count, using reasonable default
-
-    this.particles.spawnMany(particleCount, () => {
-      const vi = 4.8;
-      const vx = (-0.5 + Math.random()) * vi;
-      const vy = (-0.5 + Math.random()) * vi / 2;
-      const size = Math.floor(Math.random() * 80) + 40;
-      const vs = 10 + 10 * Math.random();
-      const va = 0.5 + Math.floor(Math.random() * 3.4);
-      const _alpha = 60 + Math.floor(Math.random() * 50);
-      const acc = 0.84 + 0.15 * Math.random();
-
-      return {
-        x: 0,
-        y: 0,
-        vx: vx,
-        vy: vy,
-        scale: size / 100,
-        alpha: _alpha / 100,
-        alphaDecay: va / 100,
-        scaleVelocity: vs / 100,
-        scaleDecay: 0.23,
-        accX: acc,
-        accY: acc,
-      };
-    });
   }
 
   update(deltaTime: number): void {
@@ -116,16 +81,15 @@ export class Spell1200 extends BaseSpell {
     }
 
     this.anims.update(deltaTime);
-    this.particles.update();
 
-    // Complete when shoot animation is done (frame 132)
+    // Replicate enterFrame rotation: _rotation += 50 per frame
+    // deltaTime is in ms, at 60fps each frame is ~16.67ms
+    const framesElapsed = deltaTime / (1000 / 60);
+    this.moveRotation += 50 * framesElapsed;
+    this.moveAnim.sprite.rotation = (this.moveRotation * Math.PI) / 180;
+
     if (this.shootAnim.isComplete()) {
       this.complete();
     }
-  }
-
-  destroy(): void {
-    this.particles.destroy();
-    super.destroy();
   }
 }

@@ -1,165 +1,213 @@
 /**
- * Spell 103 - Ronce
+ * Spell 103 - Ronce (Sadida)
  *
- * A thorny projectile spell that creates oscillating spikes.
+ * A thorn/vine spell that shoots a projectile from caster to target,
+ * then spawns an impact effect.
  *
  * Components:
- * - move sprite: Spawns "baton" particles that drift with decay
- * - shoot sprite: Spawns oscillating "baton2" spikes
- * - effet sprite: Impact animation at target
+ * - shoot (DefineSprite_9_shoot): Projectile animation at caster position,
+ *   contains baton2 instances (oscillating thorns), plays 106 frames then removes
+ * - move (DefineSprite_10_move): At caster, spawns baton instances then triggers
+ *   impact effet at frame 2
+ * - effet (DefineSprite_14_effet): Impact effect at target, plays 18 frames
+ *   (frame 16 = removeMovieClip)
  *
  * Original AS timing:
- * - Frame 1: Play "ronce" sound
- * - Frame 1: Spawn 2 + level * level * 0.7 particles
- * - Frame 2: Attach effect animation
- * - Frame 16: Effect animation ends
- * - Frame 106: Shoot animation ends, spell complete
+ * - Frame 1 (main): Play sound 'ronce'
+ * - Frame 1 (shoot): Attach baton2 instances (count = 2 + level*level*0.7)
+ * - Frame 1 (move): Attach baton instances (count = 2 + level*level*0.7)
+ * - Frame 2 (move): Attach effet, stop
+ * - Frame 16 (effet): removeMovieClip (ends)
+ * - Frame 106 (shoot): removeMovieClip (ends)
+ *
+ * Hit signal: when effet starts playing (attached at move frame 2)
+ * Complete: when both shoot and effet animations are done
  */
 
-import { Texture } from 'pixi.js';
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import { Container } from 'pixi.js';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
-  ASParticleSystem,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
-interface BatonParticle {
-  sprite: FrameAnimatedSprite;
-  v: number;
-  vy: number;
-}
+const BATON2_MANIFEST: SpriteManifest = {
+  width: 6.75,
+  height: 35.15,
+  offsetX: -3.2,
+  offsetY: -19.1,
+};
 
-interface Baton2Particle {
+const EFFET_MANIFEST: SpriteManifest = {
+  width: 100.8,
+  height: 100.85,
+  offsetX: -49.35,
+  offsetY: -50.45,
+};
+
+interface Baton2State {
   sprite: FrameAnimatedSprite;
   a: number;
   i: number;
   v2: number;
 }
 
-const EFFET_MANIFEST: SpriteManifest = {
-  width: 604.8,
-  height: 605.0999999999999,
-  offsetX: -296.1,
-  offsetY: -302.70000000000005,
-};
+interface BatonState {
+  sprite: FrameAnimatedSprite;
+  v: number;
+  vy: number;
+}
 
 export class Spell103 extends BaseSpell {
   readonly spellId = 103;
 
-  private moveSprite!: FrameAnimatedSprite;
-  private shootSprite!: FrameAnimatedSprite;
-  private effetAnim!: FrameAnimatedSprite;
-  private batonParticles: BatonParticle[] = [];
-  private baton2Particles: Baton2Particle[] = [];
+  private shootAnim!: FrameAnimatedSprite;
+  private effetAnim: FrameAnimatedSprite | null = null;
+  private baton2States: Baton2State[] = [];
+  private batonStates: BatonState[] = [];
+  private shootContainer!: Container;
+  private moveContainer!: Container;
+  private effetContainer!: Container;
+  private effetStarted = false;
   private level = 1;
+  private initScale = 1;
+  private initTargetX = 0;
+  private initTargetY = 0;
+  private moveAnim!: FrameAnimatedSprite;
 
   protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
     this.level = Math.max(1, Math.min(6, context?.level ?? 1));
+    this.initScale = init.scale;
+    this.initTargetX = init.targetX;
+    this.initTargetY = init.targetY;
 
-    // Play sound at frame 1 (0-indexed: frame 0)
-    this.callbacks.playSound('ronce');
+    // ── shoot container at caster position ──────────────────────────────────
+    this.shootContainer = new Container();
+    this.shootContainer.position.set(0, init.casterY);
+    this.shootContainer.scale.set(init.scale);
+    this.container.addChild(this.shootContainer);
 
-    // Move sprite - invisible container for baton particles
-    this.moveSprite = this.anims.add(new FrameAnimatedSprite({
-      textures: [Texture.EMPTY],
-      scale: init.scale,
-      stopFrame: 1,
+    // shoot sprite (108 frames, removeMovieClip at frame 106 → index 105)
+    this.shootAnim = this.anims.add(new FrameAnimatedSprite({
+      textures: textures.getFrames('shoot'),
+      fps: 60,
+      anchorX: 0.5,
+      anchorY: 0.5,
     }));
-    this.moveSprite.sprite.position.set(0, init.casterY);
-    this.moveSprite
-      .onFrame(0, () => this.spawnBatonParticles(textures, init))
-      .onFrame(1, () => this.attachEffet(textures, init));
-    this.container.addChild(this.moveSprite.sprite);
+    this.shootAnim.stopAt(105);
+    this.shootAnim.onFrame(0, () => this.callbacks.playSound('ronce'));
+    this.shootContainer.addChild(this.shootAnim.sprite);
 
-    // Shoot sprite - invisible container for baton2 particles
-    this.shootSprite = this.anims.add(new FrameAnimatedSprite({
-      textures: Array(106).fill(Texture.EMPTY),
-      scale: init.scale,
-    }));
-    this.shootSprite.sprite.position.set(0, init.casterY);
-    this.shootSprite.sprite.rotation = init.angleRad;
-    this.shootSprite.onFrame(0, () => this.spawnBaton2Particles(textures, init));
-    this.container.addChild(this.shootSprite.sprite);
-  }
+    // baton2 instances inside shoot (DefineSprite_9_shoot/frame_1/DoAction.as)
+    // count = 2 + f * f * 0.7 where f = level
+    const baton2Count = Math.floor(2 + this.level * this.level * 0.7);
+    const baton2Textures = textures.getFrames('lib_baton2');
+    const baton2Anchor = calculateAnchor(BATON2_MANIFEST);
 
-  private spawnBatonParticles(textures: SpellTextureProvider, init: SpellInitContext): void {
-    const batonFrames = textures.getFrames('lib_baton');
-    const count = Math.floor(2 + this.level * this.level * 0.7);
-
-    for (let c = 0; c < count; c++) {
-      const batonSprite = new FrameAnimatedSprite({
-        textures: batonFrames,
-        scale: init.scale,
-        anchorX: 0.5,
-        anchorY: 0.5,
+    for (let c = 0; c < baton2Count; c++) {
+      const baton2Anim = new FrameAnimatedSprite({
+        textures: baton2Textures,
+        fps: 60,
+        anchorX: baton2Anchor.x,
+        anchorY: baton2Anchor.y,
+        loop: true,
       });
 
-      // AS: v = 1.6 * (-0.5 + Math.random())
-      const v = 1.6 * (-0.5 + Math.random());
-      // AS: vy = 3 * (-0.5 + Math.random())
-      const vy = 3 * (-0.5 + Math.random());
-      // AS: t = 50 + 40 * (-0.5 + Math.random())
-      const t = 50 + 40 * (-0.5 + Math.random());
-
-      // AS: _yscale = t + 5; _xscale = t + 5
-      const scaleValue = (t + 5) / 100;
-      batonSprite.sprite.scale.set(scaleValue, scaleValue);
-
-      this.moveSprite.sprite.addChild(batonSprite.sprite);
-      this.batonParticles.push({ sprite: batonSprite, v, vy });
-    }
-  }
-
-  private spawnBaton2Particles(textures: SpellTextureProvider, init: SpellInitContext): void {
-    const baton2Frames = textures.getFrames('lib_baton2');
-    const count = Math.floor(2 + this.level * this.level * 0.7);
-
-    for (let c = 0; c < count; c++) {
-      const baton2Sprite = new FrameAnimatedSprite({
-        textures: baton2Frames,
-        scale: init.scale,
-        anchorX: 0.5,
-        anchorY: 0.5,
-      });
-
-      // AS baton2 frame 1: t = 100 - random(50)
+      // DefineSprite_7_baton2/frame_1/DoAction.as
+      // t = 100 - random(50)
       const t = 100 - Math.floor(Math.random() * 50);
-      const scaleValue = t / 100;
-      baton2Sprite.sprite.scale.set(scaleValue, scaleValue);
+      baton2Anim.sprite.scale.set(t / 100, t / 100);
+      // _X = 40 * (0.5 - Math.random())
+      baton2Anim.sprite.x = 40 * (0.5 - Math.random());
+      // _Y = 20 * (0.5 - Math.random())
+      baton2Anim.sprite.y = 20 * (0.5 - Math.random());
 
-      // AS: _X = 40 * (0.5 - Math.random())
-      baton2Sprite.sprite.x = 40 * (0.5 - Math.random());
-      // AS: _Y = 20 * (0.5 - Math.random())
-      baton2Sprite.sprite.y = 20 * (0.5 - Math.random());
-
-      // AS onLoad: a = 10 + random(20)
+      // DefineSprite_7_baton2/frame_1/PlaceObject2 onClipEvent(load)
+      // a = 10 + random(20)
       const a = 10 + Math.floor(Math.random() * 20);
-      // AS: i = 6 * Math.random()
+      // i = 6 * Math.random()
       const i = 6 * Math.random();
-      // AS: v2 = 1.05 + 0.5 * Math.random()
+      // v2 = 1.05 + 0.5 * Math.random()
       const v2 = 1.05 + 0.5 * Math.random();
 
-      this.shootSprite.sprite.addChild(baton2Sprite.sprite);
-      this.baton2Particles.push({ sprite: baton2Sprite, a, i, v2 });
+      this.baton2States.push({ sprite: baton2Anim, a, i, v2 });
+      this.shootContainer.addChild(baton2Anim.sprite);
     }
+
+    // ── move container at caster position ───────────────────────────────────
+    this.moveContainer = new Container();
+    this.moveContainer.position.set(0, init.casterY);
+    this.moveContainer.scale.set(init.scale);
+    this.container.addChild(this.moveContainer);
+
+    // move sprite (2 frames)
+    this.moveAnim = this.anims.add(new FrameAnimatedSprite({
+      textures: textures.getFrames('move'),
+      fps: 60,
+      anchorX: 0.5,
+      anchorY: 0.5,
+    }));
+    // frame 2 (index 1): attach effet, stop
+    this.moveAnim.onFrame(1, () => this.spawnEffet(textures));
+    this.moveAnim.stopAt(1);
+    this.moveContainer.addChild(this.moveAnim.sprite);
+
+    // baton instances inside move (DefineSprite_10_move/frame_1/DoAction.as)
+    // count = 2 + f * f * 0.7
+    const batonCount = Math.floor(2 + this.level * this.level * 0.7);
+    const batonTextures = textures.getFrames('lib_baton');
+
+    for (let c = 0; c < batonCount; c++) {
+      const batonAnim = new FrameAnimatedSprite({
+        textures: batonTextures,
+        fps: 60,
+        anchorX: 0.5,
+        anchorY: 0.5,
+        loop: true,
+      });
+
+      // DefineSprite_8_baton/frame_1/DoAction.as
+      // v = 1.6 * (-0.5 + Math.random())
+      const v = 1.6 * (-0.5 + Math.random());
+      // vy = 3 * (-0.5 + Math.random())
+      const vy = 3 * (-0.5 + Math.random());
+      // t = 50 + 40 * (-0.5 + Math.random())
+      const t = 50 + 40 * (-0.5 + Math.random());
+      batonAnim.sprite.scale.set((t + 5) / 100, (t + 5) / 100);
+
+      this.batonStates.push({ sprite: batonAnim, v, vy });
+      this.moveContainer.addChild(batonAnim.sprite);
+    }
+
+    // ── effet container at target position ──────────────────────────────────
+    this.effetContainer = new Container();
+    this.effetContainer.position.set(init.targetX, init.targetY);
+    this.effetContainer.scale.set(init.scale);
+    this.container.addChild(this.effetContainer);
   }
 
-  private attachEffet(textures: SpellTextureProvider, init: SpellInitContext): void {
-    // AS: _parent.attachMovie("effet","effet",100)
+  private spawnEffet(textures: SpellTextureProvider): void {
+    if (this.effetStarted) {
+      return;
+    }
+    this.effetStarted = true;
+
+    // Signal hit when effet appears
+    this.signalHit();
+
     const effetAnchor = calculateAnchor(EFFET_MANIFEST);
     this.effetAnim = this.anims.add(new FrameAnimatedSprite({
-      textures: textures.getFrames('effet'),
+      textures: textures.getFrames('lib_effet'),
+      fps: 60,
       anchorX: effetAnchor.x,
       anchorY: effetAnchor.y,
-      scale: init.scale,
-      stopFrame: 15,
     }));
-    this.effetAnim.sprite.position.set(init.targetX, init.targetY);
-    this.effetAnim.onFrame(15, () => this.signalHit());
-    this.container.addChild(this.effetAnim.sprite);
+
+    // frame 16 (index 15): removeMovieClip → stop at frame 15
+    this.effetAnim.stopAt(15);
+    this.effetContainer.addChild(this.effetAnim.sprite);
   }
 
   update(deltaTime: number): void {
@@ -167,37 +215,38 @@ export class Spell103 extends BaseSpell {
       return;
     }
 
-    // Update all registered animations
     this.anims.update(deltaTime);
 
-    // Update baton particles physics
-    for (const particle of this.batonParticles) {
-      // AS: _X = _X + v; _Y = _Y + vy
-      particle.sprite.sprite.x += particle.v;
-      particle.sprite.sprite.y += particle.vy;
-      // AS: v *= 0.95; vy *= 0.95
-      particle.v *= 0.95;
-      particle.vy *= 0.95;
+    // Update baton2 oscillation physics (onClipEvent enterFrame)
+    for (const state of this.baton2States) {
+      // _rotation = a * Math.sin(i++)
+      const rotDeg = state.a * Math.sin(state.i);
+      state.i += 1;
+      state.sprite.sprite.rotation = (rotDeg * Math.PI) / 180;
+      // a /= v2
+      state.a /= state.v2;
     }
 
-    // Update baton2 particles rotation
-    for (const particle of this.baton2Particles) {
-      // AS: _rotation = a * Math.sin(i++)
-      particle.sprite.sprite.rotation = (particle.a * Math.sin(particle.i) * Math.PI) / 180;
-      particle.i += 1;
-      // AS: a /= v2
-      particle.a /= particle.v2;
+    // Update baton drift physics (onEnterFrame)
+    for (const state of this.batonStates) {
+      // _X = _X + v
+      state.sprite.sprite.x += state.v;
+      // _Y = _Y + vy
+      state.sprite.sprite.y += state.vy;
+      // v *= 0.95
+      state.v *= 0.95;
+      // vy *= 0.95
+      state.vy *= 0.95;
     }
 
-    // Check completion - shoot animation reaches frame 106
-    if (this.shootSprite.getFrame() >= 105) {
+    // Check completion: shoot done AND (effet done or not yet started but move done)
+    const shootDone = this.shootAnim.isStopped() || this.shootAnim.isComplete();
+    const effetDone = this.effetAnim !== null
+      ? (this.effetAnim.isStopped() || this.effetAnim.isComplete())
+      : this.moveAnim.isStopped() || this.moveAnim.isComplete();
+
+    if (shootDone && effetDone) {
       this.complete();
     }
-  }
-
-  destroy(): void {
-    this.batonParticles = [];
-    this.baton2Particles = [];
-    super.destroy();
   }
 }

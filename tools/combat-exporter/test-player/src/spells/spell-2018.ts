@@ -1,43 +1,58 @@
 /**
- * Spell 2018 - Smoke Bomb
+ * Spell 2018
  *
- * Projectile that spawns smoke particles with gravity physics and ground collision.
+ * A projectile spell with smoke particle effects. The "shoot" animation
+ * travels from caster to target, spawning "fumee2" smoke particles along the way.
+ * Each smoke particle uses AS-style physics: gravity, rotation, alpha fade.
  *
  * Components:
- * - move: Main projectile animation
- * - fumee2: Smoke particles spawned at start, fall with gravity
+ * - shoot (sprite_1): Main projectile animation at caster position, plays 108 frames
+ * - fumee2 (lib_fumee2): Smoke particles spawned at frame 1 of shoot animation
  *
  * Original AS timing:
- * - Frame 1: Spawn 7 smoke particles
- * - Frame 106: Spell ends
- * - Smoke particles: 55 frames lifetime, ground collision triggers dissipation
+ * - Frame 1 (shoot): Spawn 7 fumee2 smoke particles with physics
+ * - Frame 106 (shoot): removeMovieClip / stop - animation ends
+ * - Frame 1 (fumee2): Initialize physics (t, vx, vy, vr), onEnterFrame handler
+ * - Frame 55 (fumee2): removeMovieClip
  */
 
-import { Container, Sprite, Texture } from 'pixi.js';
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import { Container, Texture } from 'pixi.js';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
+  ASParticleSystem,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const MOVE_MANIFEST: SpriteManifest = {
-  width: 93,
-  height: 31.8,
-  offsetX: -58.2,
-  offsetY: -16.2,
+  width: 15.5,
+  height: 5.3,
+  offsetX: -9.7,
+  offsetY: -2.7,
 };
 
-const SMOKE_MANIFEST: SpriteManifest = {
-  width: 21.6,
-  height: 21.6,
-  offsetX: -9.6,
-  offsetY: -12.3,
+const FUMEE2_MANIFEST: SpriteManifest = {
+  width: 3.6,
+  height: 3.6,
+  offsetX: -1.6,
+  offsetY: -2.05,
 };
 
-interface SmokeParticle {
-  sprite: FrameAnimatedSprite;
+/**
+ * Fumee2 smoke particle with full AS physics simulation.
+ *
+ * AS onEnterFrame logic:
+ * - If fin==1: fade alpha, scale up/down with vt
+ * - _X += vx; _Y += vy; _rotation += vr
+ * - If _Y > yi: land (stop vertical motion, play animation, fin=1)
+ * - vy += 0.5 (gravity)
+ */
+interface Fumee2Particle {
+  anim: FrameAnimatedSprite;
+  x: number;
+  y: number;
   vx: number;
   vy: number;
   vr: number;
@@ -46,81 +61,194 @@ interface SmokeParticle {
   yi: number;
   fin: number;
   a: number;
-  grounded: boolean;
+  alive: boolean;
 }
 
 export class Spell2018 extends BaseSpell {
   readonly spellId = 2018;
 
-  private moveAnim!: FrameAnimatedSprite;
-  private smokeParticles: SmokeParticle[] = [];
-  private smokeContainer!: Container;
-  private completionTimer = 0;
+  private shootAnim!: FrameAnimatedSprite;
+  private fumee2Container!: Container;
+  private fumee2Particles: Fumee2Particle[] = [];
+  private fumee2Textures: Texture[] = [];
+  private fumee2AnchorX = 0;
+  private fumee2AnchorY = 0;
+  private initScale = 1;
 
   protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Create smoke container
-    this.smokeContainer = new Container();
-    this.container.addChild(this.smokeContainer);
+    this.initScale = init.scale;
 
-    // Main projectile animation
-    this.moveAnim = this.anims.add(new FrameAnimatedSprite({
-      textures: textures.getFrames('move'),
-      ...calculateAnchor(MOVE_MANIFEST),
+    // Precompute anchor for fumee2
+    const fumee2Anchor = calculateAnchor(FUMEE2_MANIFEST);
+    this.fumee2AnchorX = fumee2Anchor.x;
+    this.fumee2AnchorY = fumee2Anchor.y;
+    this.fumee2Textures = textures.getFrames('lib_fumee2');
+
+    // Container for smoke particles (world space, not rotated)
+    this.fumee2Container = new Container();
+    this.fumee2Container.scale.set(init.scale);
+    this.container.addChild(this.fumee2Container);
+
+    // Shoot animation (the main projectile)
+    const shootTextures = textures.getFrames('shoot');
+    const moveAnchor = calculateAnchor(MOVE_MANIFEST);
+
+    this.shootAnim = this.anims.add(new FrameAnimatedSprite({
+      textures: shootTextures,
+      fps: 40,
+      anchorX: moveAnchor.x,
+      anchorY: moveAnchor.y,
       scale: init.scale,
     }));
-    this.moveAnim.sprite.position.set(0, init.casterY);
-    this.moveAnim.sprite.rotation = init.angleRad;
-    this.moveAnim
-      .loopBetween(0, 5)
-      .onFrame(0, () => this.spawnSmokes(textures, init));
-    this.container.addChild(this.moveAnim.sprite);
+
+    // Position at caster
+    this.shootAnim.sprite.position.set(0, init.casterY);
+    this.shootAnim.sprite.rotation = init.angleRad;
+
+    // Frame 1 (0-indexed: 0): spawn smoke particles
+    // Frame 106 (0-indexed: 105): animation ends
+    this.shootAnim
+      .onFrame(0, () => this.spawnFumee2Particles(init))
+      .onFrame(55, () => this.signalHit())
+      .stopAt(105);
+
+    this.container.addChild(this.shootAnim.sprite);
   }
 
-  private spawnSmokes(textures: SpellTextureProvider, init: SpellInitContext): void {
-    const smokeFrames = textures.getFrames('lib_fumee2');
-    
-    for (let c = 0; c < 7; c++) {
-      // Create smoke animation sprite
-      const smokeAnim = new FrameAnimatedSprite({
-        textures: smokeFrames,
-        ...calculateAnchor(SMOKE_MANIFEST),
-        scale: init.scale,
+  private spawnFumee2Particles(init: SpellInitContext): void {
+    // AS: _rotation = 0; xi = this._x; yi = this._y; c = 0;
+    // The shoot sprite is at (0, casterY) in container space.
+    // Particles are attached to _parent (world space), so use the shoot's position.
+    const spawnX = 0;
+    const spawnY = init.casterY / init.scale; // unscaled (fumee2Container is scaled)
+
+    let xi = spawnX;
+    // yi is used for landing threshold per particle
+    let p = 0;
+    while (p < 7) {
+      // AS: f._x = this._x; f._y = this._y;
+      const fx = spawnX;
+      const fy = spawnY;
+
+      // AS: f.vx = this._x - xi + 5 * (Math.random() - 0.5)
+      const vx = (spawnX - xi) + 5 * (Math.random() - 0.5);
+
+      // AS: f.vy = -5 * Math.random()
+      const vy_init = -5 * Math.random();
+
+      // fumee2 frame_1 DoAction:
+      // t = 50 * Math.random() + 50
+      const t = 50 * Math.random() + 50;
+      // vt = 2
+      const vt = 2;
+      // vy *= 2 (applied to the vy that was set by parent)
+      const vy = vy_init * 2;
+      // yi = _Y - 5 + 10 * Math.random()
+      const yi = fy - 5 + 10 * Math.random();
+      // vr = 30 * Math.random() - 0.5
+      const vr = 30 * Math.random() - 0.5;
+
+      // Create a FrameAnimatedSprite for fumee2, starting stopped (frame 1 has stop())
+      const anim = new FrameAnimatedSprite({
+        textures: this.fumee2Textures,
+        fps: 40,
+        anchorX: this.fumee2AnchorX,
+        anchorY: this.fumee2AnchorY,
+        // starts stopped at frame 0, will be manually driven until fin==1 then play()
       });
 
-      // AS: t = 50 * Math.random() + 50
-      const t = 50 * Math.random() + 50;
-      
-      // AS: vx = (Math.random() * 5 - 2.5)
-      const vx = Math.random() * 5 - 2.5;
-      
-      // AS: vy = -5 * Math.random()
-      const vy = -5 * Math.random();
-      
-      // AS: vr = Math.random() * 30 - 15
-      const vr = Math.random() * 30 - 15;
-      
-      // AS: yi = _Y - 5 + 10 * Math.random()
-      const yi = init.casterY - 5 + 10 * Math.random();
-
-      // Apply initial scale
-      smokeAnim.sprite.scale.set(t * init.scale / 100);
-      smokeAnim.sprite.position.set(0, init.casterY);
-
-      const particle: SmokeParticle = {
-        sprite: smokeAnim,
-        vx: vx,
-        vy: vy * 2, // AS: vy *= 2 in frame 1
-        vr: vr,
-        t: t,
-        vt: 1,
-        yi: yi,
+      // Frame 55 (0-indexed: 54): removeMovieClip - mark dead
+      const particle: Fumee2Particle = {
+        anim,
+        x: fx,
+        y: fy,
+        vx,
+        vy,
+        vr,
+        t,
+        vt,
+        yi,
         fin: 0,
         a: 0,
-        grounded: false
+        alive: true,
       };
 
-      this.smokeParticles.push(particle);
-      this.smokeContainer.addChild(smokeAnim.sprite);
+      anim.onFrame(54, () => {
+        particle.alive = false;
+        anim.sprite.visible = false;
+      });
+
+      // Apply initial scale (t is percentage: t/100 * scale)
+      anim.sprite.position.set(fx, fy);
+      anim.sprite.scale.set((t / 100), (t / 100));
+      anim.sprite.alpha = 1;
+
+      // Pause at frame 0 (AS: stop() in frame_1)
+      anim.pause();
+
+      this.fumee2Container.addChild(anim.sprite);
+      this.fumee2Particles.push(particle);
+
+      xi = spawnX;
+      p++;
+    }
+  }
+
+  private updateFumee2Particles(deltaTime: number): void {
+    for (const p of this.fumee2Particles) {
+      if (!p.alive) {
+        continue;
+      }
+
+      // AS onEnterFrame:
+      if (p.fin === 1) {
+        // _alpha = 150 - (a += 3.3)
+        p.a += 3.3;
+        const alpha = (150 - p.a) / 100;
+        p.anim.sprite.alpha = Math.max(0, alpha);
+
+        // _xscale = t * vt * 2; _yscale = t * vt
+        const sxPct = p.t * p.vt * 2;
+        const syPct = p.t * p.vt;
+        p.anim.sprite.scale.set(sxPct / 100, syPct / 100);
+
+        // vt -= (vt - 3) / 1.5
+        p.vt -= (p.vt - 3) / 1.5;
+
+        // Update animation (playing)
+        p.anim.update(deltaTime);
+      }
+
+      // _X += vx; _Y += vy
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // _rotation += vr (in degrees, convert for pixi)
+      p.anim.sprite.rotation += (p.vr * Math.PI) / 180;
+
+      // if (_Y > yi) -> land
+      if (p.y > p.yi) {
+        p.vy = 0;
+        p.y = p.yi;
+        p.anim.sprite.rotation = 0;
+        p.vr = 0;
+        p.vx = 0;
+        p.fin = 1;
+        // play() -> resume animation
+        p.anim.play();
+      }
+
+      // vy += 0.5 (gravity)
+      p.vy += 0.5;
+
+      // Apply position
+      p.anim.sprite.position.set(p.x, p.y);
+
+      // If alpha fully gone, mark dead
+      if (p.fin === 1 && p.a >= 150) {
+        p.alive = false;
+        p.anim.sprite.visible = false;
+      }
     }
   }
 
@@ -129,72 +257,22 @@ export class Spell2018 extends BaseSpell {
       return;
     }
 
-    // Update main animation
     this.anims.update(deltaTime);
+    this.updateFumee2Particles(deltaTime);
 
-    // Update smoke particles physics
-    for (const particle of this.smokeParticles) {
-      if (!particle.grounded) {
-        // AS: vy += 0.5 (gravity)
-        particle.vy += 0.5;
-        
-        // AS: _X += vx
-        particle.sprite.sprite.x += particle.vx;
-        
-        // AS: _Y += vy
-        particle.sprite.sprite.y += particle.vy;
-        
-        // AS: _rotation += vr
-        particle.sprite.sprite.rotation += (particle.vr * Math.PI / 180);
-        
-        // AS: if (_Y > yi) - ground collision
-        if (particle.sprite.sprite.y > particle.yi) {
-          particle.sprite.sprite.y = particle.yi;
-          particle.sprite.sprite.rotation = 0;
-          particle.grounded = true;
-          particle.fin = 1;
-          
-          // Start playing the animation when grounded
-          particle.sprite.play();
-        }
-      } else {
-        // Dissipation phase
-        // AS: _alpha = 150 - (a += 3.3)
-        particle.a += 3.3;
-        particle.sprite.sprite.alpha = Math.max(0, (150 - particle.a) / 255);
-        
-        // AS: vt += 0.1; if (vt > 3) vt = 3;
-        particle.vt += 0.1;
-        if (particle.vt > 3) {
-          particle.vt = 3;
-        }
-        
-        // AS: _xscale = t * vt * 2; _yscale = t * vt;
-        const baseScale = particle.t / 100;
-        particle.sprite.sprite.scale.x = baseScale * particle.vt * 2 * (1 / 6);
-        particle.sprite.sprite.scale.y = baseScale * particle.vt * (1 / 6);
-      }
+    const allParticlesDone = this.fumee2Particles.every(p => !p.alive);
 
-      // Update the smoke animation if playing
-      if (particle.grounded) {
-        particle.sprite.update(deltaTime);
-      }
-    }
-
-    // Check for completion after 106 frames (2.65 seconds at 40fps)
-    this.completionTimer += deltaTime;
-    if (this.completionTimer >= 2650) {
-      this.signalHit();
+    if (this.shootAnim.isStopped() && allParticlesDone) {
       this.complete();
     }
   }
 
   destroy(): void {
-    for (const particle of this.smokeParticles) {
-      particle.sprite.destroy();
+    for (const p of this.fumee2Particles) {
+      p.anim.destroy();
     }
-    this.smokeParticles = [];
-    this.smokeContainer.destroy();
+    this.fumee2Particles = [];
+    this.fumee2Container.destroy({ children: true });
     super.destroy();
   }
 }

@@ -22,7 +22,9 @@
     "packages": [
       "apps/*",
       "packages/*",
-      "services/*"
+      "services/*",
+      "tools/combat-exporter",
+      "tools/combat-exporter/test-player"
     ],
     "catalog": {
       "typescript": "^5.9.3",

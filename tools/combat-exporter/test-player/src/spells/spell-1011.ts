@@ -1,67 +1,70 @@
-import { Texture } from 'pixi.js';
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+/**
+ * Spell 1011 - Pet (Eniripsa)
+ *
+ * A composite animation with randomized scale and rotation instances.
+ *
+ * Components:
+ * - anim1 (composite): At target position, signals hit at frame 9, stops at frame 69
+ *
+ * Original AS timing:
+ * - Frame 1 (main): Play sound 'pet'
+ * - Frame 1 (DefineSprite_4): Set random scale (100-200%) and random rotation (0-359°)
+ * - Frame 10 (DefineSprite_10): this.end() → signal hit
+ * - Frame 19 (DefineSprite_4): stop()
+ * - Frame 46 (DefineSprite_7): stop()
+ * - Frame 64 (DefineSprite_9): stop()
+ * - Frame 70 (DefineSprite_10): stop() + removeMovieClip() → animation ends
+ */
+
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
-/**
- * Spell 1011 - Pet/Summon spell
- *
- * Simple animation with randomized scale and rotation on DefineSprite_4.
- *
- * Components:
- * - anim1: Main composite animation (72 frames)
- *
- * Original AS timing:
- * - Frame 1: Play "pet" sound
- * - DefineSprite_4 frame 1: Random scale 100-200%, random rotation 0-360
- * - DefineSprite_4 frame 19: Stop
- * - DefineSprite_7 frame 46: Stop  
- * - DefineSprite_9 frame 64: Stop
- * - DefineSprite_10 frame 10: Signal hit (this.end())
- * - DefineSprite_10 frame 70: Stop and remove parent
- */
+const ANIM1_MANIFEST: SpriteManifest = {
+  width: 205.7,
+  height: 109.85,
+  offsetX: -103.3,
+  offsetY: -56.6,
+};
+
 export class Spell1011 extends BaseSpell {
   readonly spellId = 1011;
 
   private mainAnim!: FrameAnimatedSprite;
 
-  protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Main animation manifest
-    const MAIN_MANIFEST: SpriteManifest = {
-      offsetX: -619.8,
-      offsetY: -339.6,
-      width: 1234.2,
-      height: 659.1,
-    };
+  protected setup(_context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
+    const anchor = calculateAnchor(ANIM1_MANIFEST);
 
-    // Create main animation
+    // AS DefineSprite_4/frame_1: t = 100 + random(100); _xscale = t; _yscale = t; _rotation = random(360);
+    const t = 100 + Math.floor(Math.random() * 100);
+    const asScale = t / 100;
+    const rotation = Math.floor(Math.random() * 360);
+
     this.mainAnim = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('anim1'),
-      ...calculateAnchor(MAIN_MANIFEST),
-      scale: init.scale,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
+      scale: init.scale * asScale,
     }));
 
-    // Position at caster
-    this.container.position.set(0, init.casterY);
+    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
+    this.mainAnim.sprite.rotation = (rotation * Math.PI) / 180;
 
-    // AS frame 1 - play sound
+    // Frame 0 (AS frame 1): play sound
     this.mainAnim.onFrame(0, () => this.callbacks.playSound('pet'));
 
-    // AS DefineSprite_10 frame 10 - signal hit
+    // Frame 9 (AS frame 10): this.end() → signal hit
     this.mainAnim.onFrame(9, () => this.signalHit());
 
-    // AS stops at frame 70 (DefineSprite_10), which corresponds to frame 69 in manifest
-    this.mainAnim.stopAt(68);
+    // Frame 69 (AS frame 70): stop() + removeMovieClip()
+    this.mainAnim.stopAt(69);
+    this.mainAnim.onFrame(69, () => this.complete());
 
-    // Add to container
     this.container.addChild(this.mainAnim.sprite);
-
-    // Start animation
-    this.mainAnim.play();
   }
 
   update(deltaTime: number): void {
@@ -69,11 +72,9 @@ export class Spell1011 extends BaseSpell {
       return;
     }
 
-    // Update all animations
     this.anims.update(deltaTime);
 
-    // Check completion
-    if (this.anims.allComplete()) {
+    if (this.anims.allStopped()) {
       this.complete();
     }
   }

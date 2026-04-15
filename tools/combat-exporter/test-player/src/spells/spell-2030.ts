@@ -1,114 +1,136 @@
 /**
- * Spell 2030 - Crockette
+ * Spell 2030 - Crockette (variant)
  *
- * A projectile spell with randomized smoke/cloud effects.
+ * A projectile spell with a "shoot" animation at caster and a looping "move"
+ * projectile that travels toward the target.
  *
  * Components:
- * - move: Main projectile animation
- * - DefineSprite_8: Random effect (1/5 chance to play, otherwise skip to end)
- * - DefineSprite_12: Randomized smoke/cloud with variable start, alpha, and scale
- * - DefineSprite_14: Long animation that stops at frame 295
- * - DefineSprite_15_shoot: Main spell container, removes at frame 106
+ * - shoot (DefineSprite_15_shoot): At caster position, rotated toward target.
+ *   Frame 4 resets rotation to 0. Ends at frame 106 (removeMovieClip).
+ * - move (DefineSprite_12): Multiple instances of a looping projectile.
+ *   Each starts at a random frame, with random alpha and scale.
+ *   Stops at frame 97.
+ * - DefineSprite_8: A sprite with 1-in-5 chance to show alternate frame.
+ *   Stops at frame 34 or 60.
+ * - DefineSprite_14: A long animation that stops at frame 295.
  *
  * Original AS timing:
- * - Frame 1: Play sound "crockette_206"
- * - Frame 4 (shoot): Set rotation to 0
- * - Frame 106 (shoot): Remove and stop
+ * - Frame 1 (main): Play sound 'crockette_206'
+ * - Frame 4 (shoot): _rotation = 0
+ * - Frame 106 (shoot): removeMovieClip / stop -> animation ends
+ * - Frame 1 (move): gotoAndPlay(random(30) + 1), random alpha/scale
+ * - Frame 97 (move): stop()
+ * - Frame 1 (DefineSprite_8): if random(5) != 1 gotoAndStop(60); else continues
+ * - Frame 34 (DefineSprite_8): stop()
  */
 
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
+
+const SHOOT_MANIFEST: SpriteManifest = {
+  width: 63.6,
+  height: 30.2,
+  offsetX: -31.8,
+  offsetY: -14.75,
+};
 
 const MOVE_MANIFEST: SpriteManifest = {
-  width: 93,
-  height: 31.799999999999997,
-  offsetX: -58.199999999999996,
-  offsetY: -16.200000000000003,
+  width: 15.5,
+  height: 5.3,
+  offsetX: -9.7,
+  offsetY: -2.7,
 };
+
+// Number of "move" projectile instances to spawn
+const MOVE_INSTANCE_COUNT = 8;
 
 export class Spell2030 extends BaseSpell {
   readonly spellId = 2030;
 
   private shootAnim!: FrameAnimatedSprite;
-  private sprite8!: FrameAnimatedSprite;
-  private sprite12!: FrameAnimatedSprite;
-  private sprite14!: FrameAnimatedSprite;
-  private moveAnim!: FrameAnimatedSprite;
+  private moveAnims: FrameAnimatedSprite[] = [];
 
   protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Main shoot animation (DefineSprite_15_shoot)
-    this.shootAnim = this.anims.add(new FrameAnimatedSprite({
-      textures: [], // Empty textures since this is just a container
-      frameCount: 106,
-    }));
-    this.shootAnim
-      .stopAt(105) // Frame 106 in AS (0-indexed: 105)
-      .onFrame(3, () => { // Frame 4 in AS (0-indexed: 3)
-        // AS: _rotation = 0
-        this.container.rotation = 0;
-      })
-      .onFrame(105, () => { // Frame 106 in AS
-        // AS: _parent.removeMovieClip()
-        this.complete();
-      });
-
-    // DefineSprite_8 - Random effect
-    this.sprite8 = this.anims.add(new FrameAnimatedSprite({
-      textures: [], // Empty textures
-      frameCount: 60,
-    }));
-    
-    // AS: if(random(5) != 1) { gotoAndStop(60); }
-    if (Math.floor(Math.random() * 5) !== 1) {
-      this.sprite8.stopAt(59); // Frame 60 in AS (0-indexed: 59)
-    } else {
-      this.sprite8.stopAt(33); // Frame 34 in AS (0-indexed: 33)
-    }
-
-    // DefineSprite_12 - Randomized smoke/cloud
-    this.sprite12 = this.anims.add(new FrameAnimatedSprite({
-      textures: [], // Empty textures
-      frameCount: 97,
-      // AS: gotoAndPlay(random(30) + 1)
-      startFrame: Math.floor(Math.random() * 30),
-    }));
-    this.sprite12.stopAt(96); // Frame 97 in AS (0-indexed: 96)
-    
-    // AS: _alpha = 30 + random(50)
-    const alpha = 30 + Math.floor(Math.random() * 50);
-    // AS: t = 30 + random(120)
-    const t = 30 + Math.floor(Math.random() * 120);
-    // AS: _xscale = t; _yscale = t / 2
-    this.sprite12.sprite.alpha = alpha / 100;
-    this.sprite12.sprite.scale.set(t / 100, t / 200);
-
-    // DefineSprite_14 - Long animation
-    this.sprite14 = this.anims.add(new FrameAnimatedSprite({
-      textures: [], // Empty textures
-      frameCount: 295,
-    }));
-    this.sprite14.stopAt(294); // Frame 295 in AS (0-indexed: 294)
-
-    // Move animation - the actual visible sprite
-    this.moveAnim = this.anims.add(new FrameAnimatedSprite({
-      textures: textures.getFrames('move'),
-      ...calculateAnchor(MOVE_MANIFEST),
-      scale: init.scale,
-    }));
-    this.moveAnim.sprite.position.set(init.targetX, init.targetY);
-    this.moveAnim.sprite.rotation = init.angleRad;
-    this.container.addChild(this.moveAnim.sprite);
-
-    // Play sound on frame 1 (0-indexed: 0)
+    // Play sound at frame 1 (0-indexed: 0)
     this.callbacks.playSound('crockette_206');
 
-    // Signal hit when the main animation completes
-    this.shootAnim.onFrame(105, () => this.signalHit());
+    // ---- Shoot animation (DefineSprite_15_shoot) ----
+    // Positioned at caster, rotated toward target
+    const shootTextures = textures.getFrames('shoot');
+    const shootAnchor = calculateAnchor(SHOOT_MANIFEST);
+
+    this.shootAnim = this.anims.add(new FrameAnimatedSprite({
+      textures: shootTextures,
+      anchorX: shootAnchor.x,
+      anchorY: shootAnchor.y,
+      scale: init.scale,
+    }));
+    this.shootAnim.sprite.position.set(0, init.casterY);
+    this.shootAnim.sprite.rotation = init.angleRad;
+
+    // Frame 4 (AS) -> index 3: _rotation = 0
+    this.shootAnim.onFrame(3, () => {
+      this.shootAnim.sprite.rotation = 0;
+    });
+
+    // Frame 106 (AS) -> index 105: removeMovieClip / stop
+    this.shootAnim.stopAt(105);
+
+    this.container.addChild(this.shootAnim.sprite);
+
+    // ---- Move projectile instances (DefineSprite_12) ----
+    // Each instance starts at a random frame with random alpha and scale
+    const moveTextures = textures.getFrames('move');
+    const moveAnchor = calculateAnchor(MOVE_MANIFEST);
+
+    for (let i = 0; i < MOVE_INSTANCE_COUNT; i++) {
+      // AS: gotoAndPlay(random(30) + 1) -> 0-indexed start frame: Math.floor(Math.random() * 30)
+      const startFrame = Math.floor(Math.random() * 30);
+
+      // AS: _alpha = 30 + random(50)
+      const alpha = (30 + Math.floor(Math.random() * 50)) / 100;
+
+      // AS: t = 30 + random(120); _xscale = t; _yscale = t / 2
+      const t = 30 + Math.floor(Math.random() * 120);
+      const scaleX = (t / 100) * init.scale;
+      const scaleY = (t / 2 / 100) * init.scale;
+
+      const anim = this.anims.add(new FrameAnimatedSprite({
+        textures: moveTextures,
+        anchorX: moveAnchor.x,
+        anchorY: moveAnchor.y,
+        startFrame,
+        loop: true,
+      }));
+
+      // Position along the path from caster to target with slight variation
+      const progress = (i + 1) / (MOVE_INSTANCE_COUNT + 1);
+      const px = init.targetX * progress;
+      const py = init.casterY + (init.targetY - init.casterY) * progress;
+
+      anim.sprite.position.set(px, py);
+      anim.sprite.rotation = init.angleRad;
+      anim.sprite.scale.set(scaleX, scaleY);
+      anim.sprite.alpha = alpha;
+
+      // AS frame 97 (0-indexed: 96): stop()
+      anim.stopAt(96);
+
+      // Signal hit when first move anim reaches stop frame
+      if (i === 0) {
+        anim.onFrame(96, () => {
+          this.signalHit();
+        });
+      }
+
+      this.container.addChild(anim.sprite);
+      this.moveAnims.push(anim);
+    }
   }
 
   update(deltaTime: number): void {
@@ -118,8 +140,7 @@ export class Spell2030 extends BaseSpell {
 
     this.anims.update(deltaTime);
 
-    // Complete when shoot animation finishes
-    if (this.shootAnim.isComplete()) {
+    if (this.shootAnim.isStopped() || this.shootAnim.isComplete()) {
       this.complete();
     }
   }

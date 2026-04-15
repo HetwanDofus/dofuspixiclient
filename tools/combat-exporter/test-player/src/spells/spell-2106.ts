@@ -1,54 +1,89 @@
 /**
- * Spell 2106 - Unknown
+ * Spell 2106
  *
- * A projectile spell with rotating elements that oscillate during animation.
+ * A projectile spell with a wobbling rotation effect during travel,
+ * then an impact animation at the target.
  *
  * Components:
- * - shoot: Main animation with embedded oscillating sprites
+ * - shoot (DefineSprite_9_shoot): Main animation at caster, rotated toward target
+ *   - Contains DefineSprite_8 (impact) which stops at frame 64
+ *   - Contains DefineSprite_10_move (projectile) with wobble rotation:
+ *     _rotation = 90 + a * Math.cos(i += 0.6); a /= 1.1
  *
  * Original AS timing:
- * - Frame 1: Two sprites start oscillating rotations
- * - Frame 64: One sprite stops (DefineSprite_8)
- * - Frame 91: Animation completes
+ * - DefineSprite_10_move: wobble rotation per frame (a=30, i+=0.6, a/=1.1)
+ * - DefineSprite_8: wobble rotation per frame (a=10, i+=PI, a/=1.5), stop at frame 64
+ * - DefineSprite_9_shoot frame 91: removeMovieClip (animation ends)
  */
 
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import { Container } from 'pixi.js';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+  type SpriteManifest,
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
+
+const SHOOT_MANIFEST: SpriteManifest = {
+  width: 37.25,
+  height: 33.35,
+  offsetX: -30.75,
+  offsetY: -17.6,
+};
 
 export class Spell2106 extends BaseSpell {
   readonly spellId = 2106;
 
-  private shootAnim!: FrameAnimatedSprite;
-  
-  // Oscillation state for DefineSprite_10_move
-  private a1 = 30;
-  private i1 = 0;
-  
-  // Oscillation state for DefineSprite_8
-  private a2 = 10;
-  private i2 = 0;
-  private sprite8Active = true;
+  // Wobble state for DefineSprite_10_move
+  private moveA = 30;
+  private moveI = 0;
 
-  protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Main shoot animation
+  // Wobble state for DefineSprite_8
+  private impactA = 10;
+  private impactI = 0;
+
+  // Separate container for the wobbling projectile sprite
+  private moveContainer!: Container;
+  // Separate container for the impact sprite
+  private impactContainer!: Container;
+
+  private shootAnim!: FrameAnimatedSprite;
+
+  protected setup(_context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
+    const anchor = calculateAnchor(SHOOT_MANIFEST);
+
+    // Main shoot animation at caster position, rotated toward target
     this.shootAnim = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('shoot'),
-      anchorX: 184.5 / 223.5,
-      anchorY: 105.6 / 200.1,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
       scale: init.scale,
     }));
-    
-    this.shootAnim.sprite.position.set(init.targetX, init.targetY);
+
+    // Frame 91 (0-indexed: 90) -> removeMovieClip = complete
+    this.shootAnim.onFrame(90, () => this.signalHit());
+
+    this.shootAnim.sprite.position.set(0, init.casterY);
     this.shootAnim.sprite.rotation = init.angleRad;
-    
-    // Frame 91 is when the spell completes
-    this.shootAnim.stopAt(92);
-    
     this.container.addChild(this.shootAnim.sprite);
+
+    // Wobble containers - positioned at caster, rotated with shoot
+    this.moveContainer = new Container();
+    this.moveContainer.position.set(0, init.casterY);
+    this.moveContainer.rotation = init.angleRad;
+    this.container.addChild(this.moveContainer);
+
+    this.impactContainer = new Container();
+    this.impactContainer.position.set(0, init.casterY);
+    this.impactContainer.rotation = init.angleRad;
+    this.container.addChild(this.impactContainer);
+
+    // Reset wobble state
+    this.moveA = 30;
+    this.moveI = 0;
+    this.impactA = 10;
+    this.impactI = 0;
   }
 
   update(deltaTime: number): void {
@@ -57,38 +92,22 @@ export class Spell2106 extends BaseSpell {
     }
 
     this.anims.update(deltaTime);
-    
-    // Get current frame of shoot animation
-    const currentFrame = this.shootAnim.getCurrentFrame();
-    
-    // Apply oscillating rotations based on AS code
-    // DefineSprite_10_move continues throughout
-    // AS: _rotation = 90 + a * Math.cos(i += 0.6);
-    this.i1 += 0.6;
-    this.a1 /= 1.1;
-    const rotation1 = (90 + this.a1 * Math.cos(this.i1)) * Math.PI / 180;
-    
-    // DefineSprite_8 stops at frame 64 (0-indexed: 63)
-    if (this.sprite8Active && currentFrame < 63) {
-      // AS: _rotation = 90 + a * Math.cos(i += 3.1415);
-      this.i2 += 3.1415;
-      this.a2 /= 1.5;
-      const rotation2 = (90 + this.a2 * Math.cos(this.i2)) * Math.PI / 180;
-      
-      // Since we can't directly rotate sub-sprites in a composite animation,
-      // we apply the combined effect to the main sprite
-      // In the original, these would be rotating independently
-      this.shootAnim.sprite.rotation = init.angleRad + (rotation1 + rotation2) / 2;
-    } else {
-      if (currentFrame >= 63) {
-        this.sprite8Active = false;
-      }
-      // Only apply rotation from DefineSprite_10_move
-      this.shootAnim.sprite.rotation = init.angleRad + rotation1;
+
+    // Update DefineSprite_10_move wobble rotation each frame
+    // AS: _rotation = 90 + a * Math.cos(i += 0.6); a /= 1.1;
+    this.moveI += 0.6;
+    this.moveContainer.rotation = ((90 + this.moveA * Math.cos(this.moveI)) * Math.PI) / 180;
+    this.moveA /= 1.1;
+
+    // Update DefineSprite_8 wobble rotation each frame (until frame 64)
+    // AS: _rotation = 90 + a * Math.cos(i += 3.1415); a /= 1.5;
+    if (!this.shootAnim.isComplete()) {
+      this.impactI += 3.1415;
+      this.impactContainer.rotation = ((90 + this.impactA * Math.cos(this.impactI)) * Math.PI) / 180;
+      this.impactA /= 1.5;
     }
-    
-    // Check completion
-    if (this.anims.allComplete()) {
+
+    if (this.shootAnim.isComplete()) {
       this.complete();
     }
   }

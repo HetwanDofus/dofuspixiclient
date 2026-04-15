@@ -1,0 +1,329 @@
+{
+    "id": 2044,
+    "fps": 40,
+    "scale": 1,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "duplic",
+            "frameCount": 36,
+            "width": 84.6,
+            "height": 68.9,
+            "offsetX": -21.1,
+            "offsetY": -45.65,
+            "isComposite": false,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "duplic_0.svg"
+                },
+                {
+                    "index": 1,
+                    "file": "duplic_1.svg"
+                },
+                {
+                    "index": 2,
+                    "file": "duplic_2.svg"
+                },
+                {
+                    "index": 3,
+                    "file": "duplic_3.svg"
+                },
+                {
+                    "index": 4,
+                    "file": "duplic_4.svg"
+                },
+                {
+                    "index": 5,
+                    "file": "duplic_5.svg"
+                },
+                {
+                    "index": 6,
+                    "file": "duplic_6.svg"
+                },
+                {
+                    "index": 7,
+                    "file": "duplic_7.svg"
+                },
+                {
+                    "index": 8,
+                    "file": "duplic_8.svg"
+                },
+                {
+                    "index": 9,
+                    "file": "duplic_9.svg"
+                },
+                {
+                    "index": 10,
+                    "file": "duplic_10.svg"
+                },
+                {
+                    "index": 11,
+                    "file": "duplic_11.svg"
+                },
+                {
+                    "index": 12,
+                    "file": "duplic_12.svg"
+                },
+                {
+                    "index": 13,
+                    "file": "duplic_13.svg"
+                },
+                {
+                    "index": 14,
+                    "file": "duplic_14.svg"
+                },
+                {
+                    "index": 15,
+                    "file": "duplic_15.svg"
+                },
+                {
+                    "index": 16,
+                    "file": "duplic_16.svg"
+                },
+                {
+                    "index": 17,
+                    "file": "duplic_17.svg"
+                },
+                {
+                    "index": 18,
+                    "file": "duplic_18.svg"
+                },
+                {
+                    "index": 19,
+                    "file": "duplic_19.svg"
+                },
+                {
+                    "index": 20,
+                    "file": "duplic_20.svg"
+                },
+                {
+                    "index": 21,
+                    "file": "duplic_21.svg"
+                },
+                {
+                    "index": 22,
+                    "file": "duplic_22.svg"
+                },
+                {
+                    "index": 23,
+                    "file": "duplic_23.svg"
+                },
+                {
+                    "index": 24,
+                    "file": "duplic_24.svg"
+                },
+                {
+                    "index": 25,
+                    "file": "duplic_25.svg"
+                },
+                {
+                    "index": 26,
+                    "file": "duplic_26.svg"
+                },
+                {
+                    "index": 27,
+                    "file": "duplic_27.svg"
+                },
+                {
+                    "index": 28,
+                    "file": "duplic_28.svg"
+                },
+                {
+                    "index": 29,
+                    "file": "duplic_29.svg"
+                },
+                {
+                    "index": 30,
+                    "file": "duplic_30.svg"
+                },
+                {
+                    "index": 31,
+                    "file": "duplic_31.svg"
+                },
+                {
+                    "index": 32,
+                    "file": "duplic_32.svg"
+                },
+                {
+                    "index": 33,
+                    "file": "duplic_33.svg"
+                },
+                {
+                    "index": 34,
+                    "file": "duplic_34.svg"
+                },
+                {
+                    "index": 35,
+                    "file": "duplic_35.svg"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_17_duplic/frame_34/DoAction.as",
+        "scripts/scripts/DefineSprite_17_duplic/frame_1/DoAction.as",
+        "scripts/scripts/frame_2/PlaceObject2_18_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/frame_2/PlaceObject2_18_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/frame_2/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "librarySymbols": [
+        {
+            "name": "duplic",
+            "characterId": 17,
+            "internalName": "sprite_17",
+            "frameCount": 36,
+            "width": 84.6,
+            "height": 68.9,
+            "offsetX": -21.1,
+            "offsetY": -45.65,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "lib_duplic_0.svg"
+                },
+                {
+                    "index": 1,
+                    "file": "lib_duplic_1.svg"
+                },
+                {
+                    "index": 2,
+                    "file": "lib_duplic_2.svg"
+                },
+                {
+                    "index": 3,
+                    "file": "lib_duplic_3.svg"
+                },
+                {
+                    "index": 4,
+                    "file": "lib_duplic_4.svg"
+                },
+                {
+                    "index": 5,
+                    "file": "lib_duplic_5.svg"
+                },
+                {
+                    "index": 6,
+                    "file": "lib_duplic_6.svg"
+                },
+                {
+                    "index": 7,
+                    "file": "lib_duplic_7.svg"
+                },
+                {
+                    "index": 8,
+                    "file": "lib_duplic_8.svg"
+                },
+                {
+                    "index": 9,
+                    "file": "lib_duplic_9.svg"
+                },
+                {
+                    "index": 10,
+                    "file": "lib_duplic_10.svg"
+                },
+                {
+                    "index": 11,
+                    "file": "lib_duplic_11.svg"
+                },
+                {
+                    "index": 12,
+                    "file": "lib_duplic_12.svg"
+                },
+                {
+                    "index": 13,
+                    "file": "lib_duplic_13.svg"
+                },
+                {
+                    "index": 14,
+                    "file": "lib_duplic_14.svg"
+                },
+                {
+                    "index": 15,
+                    "file": "lib_duplic_15.svg"
+                },
+                {
+                    "index": 16,
+                    "file": "lib_duplic_16.svg"
+                },
+                {
+                    "index": 17,
+                    "file": "lib_duplic_17.svg"
+                },
+                {
+                    "index": 18,
+                    "file": "lib_duplic_18.svg"
+                },
+                {
+                    "index": 19,
+                    "file": "lib_duplic_19.svg"
+                },
+                {
+                    "index": 20,
+                    "file": "lib_duplic_20.svg"
+                },
+                {
+                    "index": 21,
+                    "file": "lib_duplic_21.svg"
+                },
+                {
+                    "index": 22,
+                    "file": "lib_duplic_22.svg"
+                },
+                {
+                    "index": 23,
+                    "file": "lib_duplic_23.svg"
+                },
+                {
+                    "index": 24,
+                    "file": "lib_duplic_24.svg"
+                },
+                {
+                    "index": 25,
+                    "file": "lib_duplic_25.svg"
+                },
+                {
+                    "index": 26,
+                    "file": "lib_duplic_26.svg"
+                },
+                {
+                    "index": 27,
+                    "file": "lib_duplic_27.svg"
+                },
+                {
+                    "index": 28,
+                    "file": "lib_duplic_28.svg"
+                },
+                {
+                    "index": 29,
+                    "file": "lib_duplic_29.svg"
+                },
+                {
+                    "index": 30,
+                    "file": "lib_duplic_30.svg"
+                },
+                {
+                    "index": 31,
+                    "file": "lib_duplic_31.svg"
+                },
+                {
+                    "index": 32,
+                    "file": "lib_duplic_32.svg"
+                },
+                {
+                    "index": 33,
+                    "file": "lib_duplic_33.svg"
+                },
+                {
+                    "index": 34,
+                    "file": "lib_duplic_34.svg"
+                },
+                {
+                    "index": 35,
+                    "file": "lib_duplic_35.svg"
+                }
+            ]
+        }
+    ]
+}

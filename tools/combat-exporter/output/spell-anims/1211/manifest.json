@@ -1,0 +1,361 @@
+{
+    "id": 1211,
+    "fps": 60,
+    "scale": 1,
+    "mainTimelineScale": 1,
+    "animations": [
+        {
+            "name": "anim1",
+            "frameCount": 81,
+            "width": 87.9,
+            "height": 78.95,
+            "offsetX": -43.15,
+            "offsetY": -173.05,
+            "stopFrame": 78,
+            "fadingFrame": 77,
+            "isComposite": true,
+            "frames": [
+                {
+                    "index": 0,
+                    "file": "anim1_0.svg"
+                },
+                {
+                    "index": 1,
+                    "file": "anim1_1.svg"
+                },
+                {
+                    "index": 2,
+                    "file": "anim1_2.svg"
+                },
+                {
+                    "index": 3,
+                    "file": "anim1_3.svg"
+                },
+                {
+                    "index": 4,
+                    "file": "anim1_4.svg"
+                },
+                {
+                    "index": 5,
+                    "file": "anim1_5.svg"
+                },
+                {
+                    "index": 6,
+                    "file": "anim1_6.svg"
+                },
+                {
+                    "index": 7,
+                    "file": "anim1_7.svg"
+                },
+                {
+                    "index": 8,
+                    "file": "anim1_8.svg"
+                },
+                {
+                    "index": 9,
+                    "file": "anim1_9.svg"
+                },
+                {
+                    "index": 10,
+                    "file": "anim1_10.svg"
+                },
+                {
+                    "index": 11,
+                    "file": "anim1_11.svg"
+                },
+                {
+                    "index": 12,
+                    "file": "anim1_12.svg"
+                },
+                {
+                    "index": 13,
+                    "file": "anim1_13.svg"
+                },
+                {
+                    "index": 14,
+                    "file": "anim1_14.svg"
+                },
+                {
+                    "index": 15,
+                    "file": "anim1_15.svg"
+                },
+                {
+                    "index": 16,
+                    "file": "anim1_16.svg"
+                },
+                {
+                    "index": 17,
+                    "file": "anim1_17.svg"
+                },
+                {
+                    "index": 18,
+                    "file": "anim1_18.svg"
+                },
+                {
+                    "index": 19,
+                    "file": "anim1_19.svg"
+                },
+                {
+                    "index": 20,
+                    "file": "anim1_20.svg"
+                },
+                {
+                    "index": 21,
+                    "file": "anim1_21.svg"
+                },
+                {
+                    "index": 22,
+                    "file": "anim1_22.svg"
+                },
+                {
+                    "index": 23,
+                    "file": "anim1_23.svg"
+                },
+                {
+                    "index": 24,
+                    "file": "anim1_24.svg"
+                },
+                {
+                    "index": 25,
+                    "file": "anim1_25.svg"
+                },
+                {
+                    "index": 26,
+                    "file": "anim1_26.svg"
+                },
+                {
+                    "index": 27,
+                    "file": "anim1_27.svg"
+                },
+                {
+                    "index": 28,
+                    "file": "anim1_28.svg"
+                },
+                {
+                    "index": 29,
+                    "file": "anim1_29.svg"
+                },
+                {
+                    "index": 30,
+                    "file": "anim1_30.svg"
+                },
+                {
+                    "index": 31,
+                    "file": "anim1_31.svg"
+                },
+                {
+                    "index": 32,
+                    "file": "anim1_32.svg"
+                },
+                {
+                    "index": 33,
+                    "file": "anim1_33.svg"
+                },
+                {
+                    "index": 34,
+                    "file": "anim1_34.svg"
+                },
+                {
+                    "index": 35,
+                    "file": "anim1_35.svg"
+                },
+                {
+                    "index": 36,
+                    "file": "anim1_36.svg"
+                },
+                {
+                    "index": 37,
+                    "file": "anim1_37.svg"
+                },
+                {
+                    "index": 38,
+                    "file": "anim1_38.svg"
+                },
+                {
+                    "index": 39,
+                    "file": "anim1_39.svg"
+                },
+                {
+                    "index": 40,
+                    "file": "anim1_40.svg"
+                },
+                {
+                    "index": 41,
+                    "file": "anim1_41.svg"
+                },
+                {
+                    "index": 42,
+                    "file": "anim1_42.svg"
+                },
+                {
+                    "index": 43,
+                    "file": "anim1_43.svg"
+                },
+                {
+                    "index": 44,
+                    "file": "anim1_44.svg"
+                },
+                {
+                    "index": 45,
+                    "file": "anim1_45.svg"
+                },
+                {
+                    "index": 46,
+                    "file": "anim1_46.svg"
+                },
+                {
+                    "index": 47,
+                    "file": "anim1_47.svg"
+                },
+                {
+                    "index": 48,
+                    "file": "anim1_48.svg"
+                },
+                {
+                    "index": 49,
+                    "file": "anim1_49.svg"
+                },
+                {
+                    "index": 50,
+                    "file": "anim1_50.svg"
+                },
+                {
+                    "index": 51,
+                    "file": "anim1_51.svg"
+                },
+                {
+                    "index": 52,
+                    "file": "anim1_52.svg"
+                },
+                {
+                    "index": 53,
+                    "file": "anim1_53.svg"
+                },
+                {
+                    "index": 54,
+                    "file": "anim1_54.svg"
+                },
+                {
+                    "index": 55,
+                    "file": "anim1_55.svg"
+                },
+                {
+                    "index": 56,
+                    "file": "anim1_56.svg"
+                },
+                {
+                    "index": 57,
+                    "file": "anim1_57.svg"
+                },
+                {
+                    "index": 58,
+                    "file": "anim1_58.svg"
+                },
+                {
+                    "index": 59,
+                    "file": "anim1_59.svg"
+                },
+                {
+                    "index": 60,
+                    "file": "anim1_60.svg"
+                },
+                {
+                    "index": 61,
+                    "file": "anim1_61.svg"
+                },
+                {
+                    "index": 62,
+                    "file": "anim1_62.svg"
+                },
+                {
+                    "index": 63,
+                    "file": "anim1_63.svg"
+                },
+                {
+                    "index": 64,
+                    "file": "anim1_64.svg"
+                },
+                {
+                    "index": 65,
+                    "file": "anim1_65.svg"
+                },
+                {
+                    "index": 66,
+                    "file": "anim1_66.svg"
+                },
+                {
+                    "index": 67,
+                    "file": "anim1_67.svg"
+                },
+                {
+                    "index": 68,
+                    "file": "anim1_68.svg"
+                },
+                {
+                    "index": 69,
+                    "file": "anim1_69.svg"
+                },
+                {
+                    "index": 70,
+                    "file": "anim1_70.svg"
+                },
+                {
+                    "index": 71,
+                    "file": "anim1_71.svg"
+                },
+                {
+                    "index": 72,
+                    "file": "anim1_72.svg"
+                },
+                {
+                    "index": 73,
+                    "file": "anim1_73.svg"
+                },
+                {
+                    "index": 74,
+                    "file": "anim1_74.svg"
+                },
+                {
+                    "index": 75,
+                    "file": "anim1_75.svg"
+                },
+                {
+                    "index": 76,
+                    "file": "anim1_76.svg"
+                },
+                {
+                    "index": 77,
+                    "file": "anim1_77.svg"
+                },
+                {
+                    "index": 78,
+                    "file": "anim1_78.svg"
+                },
+                {
+                    "index": 79,
+                    "file": "anim1_79.svg"
+                },
+                {
+                    "index": 80,
+                    "file": "anim1_80.svg"
+                }
+            ]
+        }
+    ],
+    "scripts": [
+        "scripts/scripts/DefineSprite_28/frame_79/DoAction.as",
+        "scripts/scripts/DefineSprite_26/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_27/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_22/frame_1/DoAction.as",
+        "scripts/scripts/DefineSprite_25/frame_1/PlaceObject2_24_1/CLIPACTIONRECORD onClipEvent(load).as",
+        "scripts/scripts/DefineSprite_25/frame_1/PlaceObject2_24_1/CLIPACTIONRECORD onClipEvent(enterFrame).as",
+        "scripts/scripts/DefineSprite_25/frame_1/DoAction.as"
+    ],
+    "requiresTypeScript": true,
+    "sounds": [
+        {
+            "frame": 0,
+            "soundId": "impact_lourd"
+        }
+    ]
+}

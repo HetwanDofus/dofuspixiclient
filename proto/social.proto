@@ -42,16 +42,22 @@ message FriendNotifyChange {
   bool enabled = 1;  // + = enabled, - = disabled
 }
 
-// FA - Add friend response
+// FA - Add friend response. StarLoco SocketManager.java:1516 sends
+// "FA"+<code>. Codes seen in Account.java:311/337/340/395, GameClient
+// .java:3623/3632/3642/3649 — "Ey" (self), "Ef" (not found), "Ea"
+// (already), "K"+pseudo+payload (success with friend info string).
 message FriendAdd {
   bool   success = 1;
-  string raw_data = 2;
+  string error_code = 2;   // "Ey", "Ef", "Ea", etc. Empty on success.
+  string friend_info = 3;  // On success: <pseudo>+parseToFriendList() tail.
 }
 
-// FD - Remove friend response
+// FD - Remove friend response. StarLoco SocketManager.java:1521 sends
+// "FD"+<code>. GameClient.java:3665-3691,5479-5546 — "Ef" (not found)
+// or "K" (success).
 message FriendRemove {
   bool   success = 1;
-  string raw_data = 2;
+  string error_code = 2;
 }
 
 // FS - Spouse info
@@ -91,16 +97,20 @@ message EnemyEntry {
   string id = 9;
 }
 
-// iA - Add enemy response
+// iA - Add enemy response. StarLoco SocketManager.java:1742-1750.
+// Success variant "iAK<account>;2;<name>;<lvl>;<gfx>;<sex>;<align>.FL.".
+// Error variants: "iAEA." (already), etc.
 message EnemyAdd {
   bool   success = 1;
-  string raw_data = 2;
+  string error_code = 2;    // e.g. "EA" (already), empty on success.
+  string enemy_info = 3;    // Success only: legacy "K<account>;2;…" payload.
 }
 
-// iD - Remove enemy response
+// iD - Remove enemy response. StarLoco SocketManager.java:1757 sends
+// "iD"+<str> where <str> is a short status code.
 message EnemyRemove {
   bool   success = 1;
-  string raw_data = 2;
+  string error_code = 2;
 }
 
 // ============================================================================
@@ -110,10 +120,12 @@ message EnemyRemove {
 // gn - Guild new (prompt to create)
 message GuildNew {}
 
-// gC - Guild create response
+// gC - Guild create response. StarLoco SocketManager.java:1659 sends
+// "gC"+<code>. GameClient.java:4856-4938 — "Ea" (already in guild),
+// "Ean" (name invalid), "Eae" (emblem), "K" (success).
 message GuildCreate {
   bool   success = 1;
-  string raw_data = 2;
+  string error_code = 2;    // "Ea", "Ean", "Eae", "K", empty.
 }
 
 // gS - Guild stats
@@ -267,14 +279,30 @@ message GuildInfosTaxAttackers {
   repeated TaxCollectorPlayer attackers = 3;
 }
 
-// gIH - Guild houses
+// gIH - Guild houses. StarLoco SocketManager.java:1682 sends "gIH"+
+// <infos>; infos is a ';'-separated list of house records.
 message GuildInfosHouses {
-  string raw_data = 1;
+  repeated GuildHouseEntry houses = 1;
 }
 
-// gII - General guild info
+message GuildHouseEntry {
+  int64  house_id = 1;
+  int32  map_id = 2;
+  int32  x = 3;
+  int32  y = 4;
+  int32  price = 5;
+  string owner = 6;
+}
+
+// gII - General guild info. StarLoco SocketManager has no direct gII
+// helper — the Java client only reads it as a guild-level info blob.
+// Kept as a general_info string payload for forward compatibility.
 message GuildInfosGuildInfo {
-  string raw_data = 1;
+  int32 level = 1;
+  int64 xp = 2;
+  int64 xp_min = 3;
+  int64 xp_max = 4;
+  bool  has_ten_members = 5;
 }
 
 // gJ - Guild join requests/responses
@@ -288,42 +316,75 @@ message GuildJoin {
     ERROR = 5;       // gJE
   }
   JoinType type = 1;
-  string raw_data = 2;
+  // StarLoco SocketManager.java:1691 — "gJ"+<code>. GameClient.java:
+  // 5132-5189 lists all variants. "Eu" (no user), "Eo" (offline),
+  // "Ea" (already in guild), "Ed" (denied), "Ec" (close), "Ka…"
+  // (kick announcement), "Kj" (kick self), "R…" (request), "r<id>|…"
+  // (request relayed).
+  string error_code = 2;
+  // Payload for non-error types (REQUEST relays player id + name).
+  string inviter_id = 3;
+  string inviter_name = 4;
 }
 
 // gV - Guild leave
 message GuildLeave {}
 
-// gK - Guild ban
+// gK - Guild ban response. StarLoco SocketManager.java:1696 sends
+// "gK"+<code>. GameClient.java:5224-5302 — "Ea" (already), "Ed"
+// (denied), "K<name>" (success, announce leaver).
 message GuildBan {
   bool   success = 1;
-  string raw_data = 2;
+  string error_code = 2;       // "Ea", "Ed", "K", empty.
+  string banned_name = 3;      // Non-empty for "K<name>" success.
 }
 
-// gH - Hire tax collector
+// gH - Hire tax collector. StarLoco does not expose a GAME_SEND_gH
+// helper directly; the Java client reads it as a short status string.
 message GuildHireTaxCollector {
   bool   success = 1;
-  string raw_data = 2;
+  string error_code = 2;
 }
 
-// gA - Tax collector attacked notification
+// gA - Tax collector attacked notification. Contains collector location
+// and attackers list; StarLoco emits it ad-hoc via GAME_SEND_gT-style
+// composition.
 message GuildTaxCollectorAttacked {
-  string raw_data = 1;
+  int32  tax_collector_id = 1;
+  int32  map_id = 2;
+  int32  cell_id = 3;
 }
 
-// gT - Tax collector info
+// gT - Tax collector info. StarLoco SocketManager.java:1827 sends
+// "gT"+<str>. The str payload varies by caller — typically the
+// serialized collector descriptor.
 message GuildTaxCollectorInfo {
-  string raw_data = 1;
+  int32  tax_collector_id = 1;
+  string name = 2;
+  int32  map_id = 3;
+  int32  cell_id = 4;
+  int32  timer = 5;
+  int64  kamas = 6;
+  int64  experience = 7;
 }
 
-// gU - Guild user interface open
+// gU - Guild user interface. StarLoco SocketManager.java:1832/1837
+// — "gUT" opens guild-house UI, "gUF" opens paddock UI.
 message GuildUserInterface {
-  string raw_data = 1;
+  enum Target {
+    TARGET_UNSPECIFIED = 0;
+    HOUSE = 1;     // gUT
+    PADDOCK = 2;   // gUF
+  }
+  Target target = 1;
 }
 
-// gRE - Rank name change
+// gRE - Rank name change ack. Short status payload; concrete wire
+// format is a single success-flag echo in the Java client.
 message GuildRankNameChange {
-  string raw_data = 1;
+  bool   success = 1;
+  int32  rank = 2;
+  string name = 3;
 }
 
 // ============================================================================
@@ -342,30 +403,36 @@ message PartyLeader {
   string leader_id = 1;
 }
 
-// PR - Party refuse
-message PartyRefuse {
-  string raw_data = 1;
-}
+// PR - Party refuse. StarLoco SocketManager.java:1262 sends the bare
+// "PR" packet — no payload. Empty message preserves the wire shape.
+message PartyRefuse {}
 
-// PA - Party accept
+// PA - Party accept / snapshot. Legacy wire format is the tab-joined
+// "PM|id|name|lvl|0|1|mapID|cellID" per member string (see
+// SocketManager.java:1272 GAME_SEND_ALL_PM_ADD_PACKET). We represent
+// the snapshot with typed PartyMember entries.
 message PartyAccept {
-  string raw_data = 1;
+  repeated PartyMember members = 1;
 }
 
-// PC - Party create
+// PC - Party create. StarLoco SocketManager.java:1252 sends
+// "PCK"+<chief_name>.
 message PartyCreate {
   bool   success = 1;
-  string raw_data = 2;
+  string chief_name = 2;
 }
 
-// PV - Party leave
+// PV - Party leave. StarLoco SocketManager.java:1267 sends "PV"+<s>
+// where s is either the leaver's player id or an empty string for
+// "disband self".
 message PartyLeave {
-  string raw_data = 1;
+  int64 leaver_id = 1;  // 0 = self/disband.
 }
 
-// PU - Party update
+// PU - Party update. StarLoco has no dedicated PU helper; updates flow
+// through PM ~ frames. Kept as a typed member tick for forward use.
 message PartyUpdate {
-  string raw_data = 1;
+  PartyMember member = 1;
 }
 
 // PM - Party movement (add/remove/update members)
@@ -455,6 +522,22 @@ message GuildSetRankNameRequest {
 message GuildBoostRequest {
   int32 boost_type = 1;  // Stat ID or spell ID
 }
+
+// gT - Tax collector attack request
+message GuildTaxAttackRequest {
+  int32 tax_collector_id = 1;
+}
+
+// gF - Remove perceptor request
+message GuildRemovePerceptorRequest {
+  int32 tax_collector_id = 1;
+}
+
+// gh - Teleport to guild house request
+message GuildTeleportHouseRequest {}
+
+// gf - Teleport to guild paddock request
+message GuildTeleportPaddockRequest {}
 
 // --- Party ---
 message PartyInviteRequest {

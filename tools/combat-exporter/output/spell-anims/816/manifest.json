@@ -1,37 +1,37 @@
 {
     "id": 816,
     "fps": 60,
-    "scale": 6,
+    "scale": 1,
     "mainTimelineScale": 1,
     "animations": [
         {
             "name": "anim1",
             "frameCount": 5,
-            "width": 1645.5,
-            "height": 1599,
-            "offsetX": -856.8000000000001,
-            "offsetY": -858.9000000000001,
+            "width": 274.25,
+            "height": 266.5,
+            "offsetX": -142.8,
+            "offsetY": -143.15,
             "isComposite": true,
             "frames": [
                 {
                     "index": 0,
-                    "file": "anim1_0.webp"
+                    "file": "anim1_0.svg"
                 },
                 {
                     "index": 1,
-                    "file": "anim1_1.webp"
+                    "file": "anim1_1.svg"
                 },
                 {
                     "index": 2,
-                    "file": "anim1_2.webp"
+                    "file": "anim1_2.svg"
                 },
                 {
                     "index": 3,
-                    "file": "anim1_3.webp"
+                    "file": "anim1_3.svg"
                 },
                 {
                     "index": 4,
-                    "file": "anim1_4.webp"
+                    "file": "anim1_4.svg"
                 }
             ]
         }

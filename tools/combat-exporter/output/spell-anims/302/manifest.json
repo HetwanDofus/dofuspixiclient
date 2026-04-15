@@ -1,593 +1,593 @@
 {
     "id": 302,
     "fps": 60,
-    "scale": 6,
+    "scale": 1,
     "mainTimelineScale": 1,
     "animations": [
         {
             "name": "etoiles",
             "frameCount": 144,
-            "width": 392.70000000000005,
-            "height": 392.40000000000003,
-            "offsetX": -193.79999999999998,
-            "offsetY": -250.20000000000002,
+            "width": 65.45,
+            "height": 65.4,
+            "offsetX": -32.3,
+            "offsetY": -41.7,
             "isComposite": true,
             "frames": [
                 {
                     "index": 0,
-                    "file": "etoiles_0.webp"
+                    "file": "etoiles_0.svg"
                 },
                 {
                     "index": 1,
-                    "file": "etoiles_1.webp"
+                    "file": "etoiles_1.svg"
                 },
                 {
                     "index": 2,
-                    "file": "etoiles_2.webp"
+                    "file": "etoiles_2.svg"
                 },
                 {
                     "index": 3,
-                    "file": "etoiles_3.webp"
+                    "file": "etoiles_3.svg"
                 },
                 {
                     "index": 4,
-                    "file": "etoiles_4.webp"
+                    "file": "etoiles_4.svg"
                 },
                 {
                     "index": 5,
-                    "file": "etoiles_5.webp"
+                    "file": "etoiles_5.svg"
                 },
                 {
                     "index": 6,
-                    "file": "etoiles_6.webp"
+                    "file": "etoiles_6.svg"
                 },
                 {
                     "index": 7,
-                    "file": "etoiles_7.webp"
+                    "file": "etoiles_7.svg"
                 },
                 {
                     "index": 8,
-                    "file": "etoiles_8.webp"
+                    "file": "etoiles_8.svg"
                 },
                 {
                     "index": 9,
-                    "file": "etoiles_9.webp"
+                    "file": "etoiles_9.svg"
                 },
                 {
                     "index": 10,
-                    "file": "etoiles_10.webp"
+                    "file": "etoiles_10.svg"
                 },
                 {
                     "index": 11,
-                    "file": "etoiles_11.webp"
+                    "file": "etoiles_11.svg"
                 },
                 {
                     "index": 12,
-                    "file": "etoiles_12.webp"
+                    "file": "etoiles_12.svg"
                 },
                 {
                     "index": 13,
-                    "file": "etoiles_13.webp"
+                    "file": "etoiles_13.svg"
                 },
                 {
                     "index": 14,
-                    "file": "etoiles_14.webp"
+                    "file": "etoiles_14.svg"
                 },
                 {
                     "index": 15,
-                    "file": "etoiles_15.webp"
+                    "file": "etoiles_15.svg"
                 },
                 {
                     "index": 16,
-                    "file": "etoiles_16.webp"
+                    "file": "etoiles_16.svg"
                 },
                 {
                     "index": 17,
-                    "file": "etoiles_17.webp"
+                    "file": "etoiles_17.svg"
                 },
                 {
                     "index": 18,
-                    "file": "etoiles_18.webp"
+                    "file": "etoiles_18.svg"
                 },
                 {
                     "index": 19,
-                    "file": "etoiles_19.webp"
+                    "file": "etoiles_19.svg"
                 },
                 {
                     "index": 20,
-                    "file": "etoiles_20.webp"
+                    "file": "etoiles_20.svg"
                 },
                 {
                     "index": 21,
-                    "file": "etoiles_21.webp"
+                    "file": "etoiles_21.svg"
                 },
                 {
                     "index": 22,
-                    "file": "etoiles_22.webp"
+                    "file": "etoiles_22.svg"
                 },
                 {
                     "index": 23,
-                    "file": "etoiles_23.webp"
+                    "file": "etoiles_23.svg"
                 },
                 {
                     "index": 24,
-                    "file": "etoiles_24.webp"
+                    "file": "etoiles_24.svg"
                 },
                 {
                     "index": 25,
-                    "file": "etoiles_25.webp"
+                    "file": "etoiles_25.svg"
                 },
                 {
                     "index": 26,
-                    "file": "etoiles_26.webp"
+                    "file": "etoiles_26.svg"
                 },
                 {
                     "index": 27,
-                    "file": "etoiles_27.webp"
+                    "file": "etoiles_27.svg"
                 },
                 {
                     "index": 28,
-                    "file": "etoiles_28.webp"
+                    "file": "etoiles_28.svg"
                 },
                 {
                     "index": 29,
-                    "file": "etoiles_29.webp"
+                    "file": "etoiles_29.svg"
                 },
                 {
                     "index": 30,
-                    "file": "etoiles_30.webp"
+                    "file": "etoiles_30.svg"
                 },
                 {
                     "index": 31,
-                    "file": "etoiles_31.webp"
+                    "file": "etoiles_31.svg"
                 },
                 {
                     "index": 32,
-                    "file": "etoiles_32.webp"
+                    "file": "etoiles_32.svg"
                 },
                 {
                     "index": 33,
-                    "file": "etoiles_33.webp"
+                    "file": "etoiles_33.svg"
                 },
                 {
                     "index": 34,
-                    "file": "etoiles_34.webp"
+                    "file": "etoiles_34.svg"
                 },
                 {
                     "index": 35,
-                    "file": "etoiles_35.webp"
+                    "file": "etoiles_35.svg"
                 },
                 {
                     "index": 36,
-                    "file": "etoiles_36.webp"
+                    "file": "etoiles_36.svg"
                 },
                 {
                     "index": 37,
-                    "file": "etoiles_37.webp"
+                    "file": "etoiles_37.svg"
                 },
                 {
                     "index": 38,
-                    "file": "etoiles_38.webp"
+                    "file": "etoiles_38.svg"
                 },
                 {
                     "index": 39,
-                    "file": "etoiles_39.webp"
+                    "file": "etoiles_39.svg"
                 },
                 {
                     "index": 40,
-                    "file": "etoiles_40.webp"
+                    "file": "etoiles_40.svg"
                 },
                 {
                     "index": 41,
-                    "file": "etoiles_41.webp"
+                    "file": "etoiles_41.svg"
                 },
                 {
                     "index": 42,
-                    "file": "etoiles_42.webp"
+                    "file": "etoiles_42.svg"
                 },
                 {
                     "index": 43,
-                    "file": "etoiles_43.webp"
+                    "file": "etoiles_43.svg"
                 },
                 {
                     "index": 44,
-                    "file": "etoiles_44.webp"
+                    "file": "etoiles_44.svg"
                 },
                 {
                     "index": 45,
-                    "file": "etoiles_45.webp"
+                    "file": "etoiles_45.svg"
                 },
                 {
                     "index": 46,
-                    "file": "etoiles_46.webp"
+                    "file": "etoiles_46.svg"
                 },
                 {
                     "index": 47,
-                    "file": "etoiles_47.webp"
+                    "file": "etoiles_47.svg"
                 },
                 {
                     "index": 48,
-                    "file": "etoiles_48.webp"
+                    "file": "etoiles_48.svg"
                 },
                 {
                     "index": 49,
-                    "file": "etoiles_49.webp"
+                    "file": "etoiles_49.svg"
                 },
                 {
                     "index": 50,
-                    "file": "etoiles_50.webp"
+                    "file": "etoiles_50.svg"
                 },
                 {
                     "index": 51,
-                    "file": "etoiles_51.webp"
+                    "file": "etoiles_51.svg"
                 },
                 {
                     "index": 52,
-                    "file": "etoiles_52.webp"
+                    "file": "etoiles_52.svg"
                 },
                 {
                     "index": 53,
-                    "file": "etoiles_53.webp"
+                    "file": "etoiles_53.svg"
                 },
                 {
                     "index": 54,
-                    "file": "etoiles_54.webp"
+                    "file": "etoiles_54.svg"
                 },
                 {
                     "index": 55,
-                    "file": "etoiles_55.webp"
+                    "file": "etoiles_55.svg"
                 },
                 {
                     "index": 56,
-                    "file": "etoiles_56.webp"
+                    "file": "etoiles_56.svg"
                 },
                 {
                     "index": 57,
-                    "file": "etoiles_57.webp"
+                    "file": "etoiles_57.svg"
                 },
                 {
                     "index": 58,
-                    "file": "etoiles_58.webp"
+                    "file": "etoiles_58.svg"
                 },
                 {
                     "index": 59,
-                    "file": "etoiles_59.webp"
+                    "file": "etoiles_59.svg"
                 },
                 {
                     "index": 60,
-                    "file": "etoiles_60.webp"
+                    "file": "etoiles_60.svg"
                 },
                 {
                     "index": 61,
-                    "file": "etoiles_61.webp"
+                    "file": "etoiles_61.svg"
                 },
                 {
                     "index": 62,
-                    "file": "etoiles_62.webp"
+                    "file": "etoiles_62.svg"
                 },
                 {
                     "index": 63,
-                    "file": "etoiles_63.webp"
+                    "file": "etoiles_63.svg"
                 },
                 {
                     "index": 64,
-                    "file": "etoiles_64.webp"
+                    "file": "etoiles_64.svg"
                 },
                 {
                     "index": 65,
-                    "file": "etoiles_65.webp"
+                    "file": "etoiles_65.svg"
                 },
                 {
                     "index": 66,
-                    "file": "etoiles_66.webp"
+                    "file": "etoiles_66.svg"
                 },
                 {
                     "index": 67,
-                    "file": "etoiles_67.webp"
+                    "file": "etoiles_67.svg"
                 },
                 {
                     "index": 68,
-                    "file": "etoiles_68.webp"
+                    "file": "etoiles_68.svg"
                 },
                 {
                     "index": 69,
-                    "file": "etoiles_69.webp"
+                    "file": "etoiles_69.svg"
                 },
                 {
                     "index": 70,
-                    "file": "etoiles_70.webp"
+                    "file": "etoiles_70.svg"
                 },
                 {
                     "index": 71,
-                    "file": "etoiles_71.webp"
+                    "file": "etoiles_71.svg"
                 },
                 {
                     "index": 72,
-                    "file": "etoiles_72.webp"
+                    "file": "etoiles_72.svg"
                 },
                 {
                     "index": 73,
-                    "file": "etoiles_73.webp"
+                    "file": "etoiles_73.svg"
                 },
                 {
                     "index": 74,
-                    "file": "etoiles_74.webp"
+                    "file": "etoiles_74.svg"
                 },
                 {
                     "index": 75,
-                    "file": "etoiles_75.webp"
+                    "file": "etoiles_75.svg"
                 },
                 {
                     "index": 76,
-                    "file": "etoiles_76.webp"
+                    "file": "etoiles_76.svg"
                 },
                 {
                     "index": 77,
-                    "file": "etoiles_77.webp"
+                    "file": "etoiles_77.svg"
                 },
                 {
                     "index": 78,
-                    "file": "etoiles_78.webp"
+                    "file": "etoiles_78.svg"
                 },
                 {
                     "index": 79,
-                    "file": "etoiles_79.webp"
+                    "file": "etoiles_79.svg"
                 },
                 {
                     "index": 80,
-                    "file": "etoiles_80.webp"
+                    "file": "etoiles_80.svg"
                 },
                 {
                     "index": 81,
-                    "file": "etoiles_81.webp"
+                    "file": "etoiles_81.svg"
                 },
                 {
                     "index": 82,
-                    "file": "etoiles_82.webp"
+                    "file": "etoiles_82.svg"
                 },
                 {
                     "index": 83,
-                    "file": "etoiles_83.webp"
+                    "file": "etoiles_83.svg"
                 },
                 {
                     "index": 84,
-                    "file": "etoiles_84.webp"
+                    "file": "etoiles_84.svg"
                 },
                 {
                     "index": 85,
-                    "file": "etoiles_85.webp"
+                    "file": "etoiles_85.svg"
                 },
                 {
                     "index": 86,
-                    "file": "etoiles_86.webp"
+                    "file": "etoiles_86.svg"
                 },
                 {
                     "index": 87,
-                    "file": "etoiles_87.webp"
+                    "file": "etoiles_87.svg"
                 },
                 {
                     "index": 88,
-                    "file": "etoiles_88.webp"
+                    "file": "etoiles_88.svg"
                 },
                 {
                     "index": 89,
-                    "file": "etoiles_89.webp"
+                    "file": "etoiles_89.svg"
                 },
                 {
                     "index": 90,
-                    "file": "etoiles_90.webp"
+                    "file": "etoiles_90.svg"
                 },
                 {
                     "index": 91,
-                    "file": "etoiles_91.webp"
+                    "file": "etoiles_91.svg"
                 },
                 {
                     "index": 92,
-                    "file": "etoiles_92.webp"
+                    "file": "etoiles_92.svg"
                 },
                 {
                     "index": 93,
-                    "file": "etoiles_93.webp"
+                    "file": "etoiles_93.svg"
                 },
                 {
                     "index": 94,
-                    "file": "etoiles_94.webp"
+                    "file": "etoiles_94.svg"
                 },
                 {
                     "index": 95,
-                    "file": "etoiles_95.webp"
+                    "file": "etoiles_95.svg"
                 },
                 {
                     "index": 96,
-                    "file": "etoiles_96.webp"
+                    "file": "etoiles_96.svg"
                 },
                 {
                     "index": 97,
-                    "file": "etoiles_97.webp"
+                    "file": "etoiles_97.svg"
                 },
                 {
                     "index": 98,
-                    "file": "etoiles_98.webp"
+                    "file": "etoiles_98.svg"
                 },
                 {
                     "index": 99,
-                    "file": "etoiles_99.webp"
+                    "file": "etoiles_99.svg"
                 },
                 {
                     "index": 100,
-                    "file": "etoiles_100.webp"
+                    "file": "etoiles_100.svg"
                 },
                 {
                     "index": 101,
-                    "file": "etoiles_101.webp"
+                    "file": "etoiles_101.svg"
                 },
                 {
                     "index": 102,
-                    "file": "etoiles_102.webp"
+                    "file": "etoiles_102.svg"
                 },
                 {
                     "index": 103,
-                    "file": "etoiles_103.webp"
+                    "file": "etoiles_103.svg"
                 },
                 {
                     "index": 104,
-                    "file": "etoiles_104.webp"
+                    "file": "etoiles_104.svg"
                 },
                 {
                     "index": 105,
-                    "file": "etoiles_105.webp"
+                    "file": "etoiles_105.svg"
                 },
                 {
                     "index": 106,
-                    "file": "etoiles_106.webp"
+                    "file": "etoiles_106.svg"
                 },
                 {
                     "index": 107,
-                    "file": "etoiles_107.webp"
+                    "file": "etoiles_107.svg"
                 },
                 {
                     "index": 108,
-                    "file": "etoiles_108.webp"
+                    "file": "etoiles_108.svg"
                 },
                 {
                     "index": 109,
-                    "file": "etoiles_109.webp"
+                    "file": "etoiles_109.svg"
                 },
                 {
                     "index": 110,
-                    "file": "etoiles_110.webp"
+                    "file": "etoiles_110.svg"
                 },
                 {
                     "index": 111,
-                    "file": "etoiles_111.webp"
+                    "file": "etoiles_111.svg"
                 },
                 {
                     "index": 112,
-                    "file": "etoiles_112.webp"
+                    "file": "etoiles_112.svg"
                 },
                 {
                     "index": 113,
-                    "file": "etoiles_113.webp"
+                    "file": "etoiles_113.svg"
                 },
                 {
                     "index": 114,
-                    "file": "etoiles_114.webp"
+                    "file": "etoiles_114.svg"
                 },
                 {
                     "index": 115,
-                    "file": "etoiles_115.webp"
+                    "file": "etoiles_115.svg"
                 },
                 {
                     "index": 116,
-                    "file": "etoiles_116.webp"
+                    "file": "etoiles_116.svg"
                 },
                 {
                     "index": 117,
-                    "file": "etoiles_117.webp"
+                    "file": "etoiles_117.svg"
                 },
                 {
                     "index": 118,
-                    "file": "etoiles_118.webp"
+                    "file": "etoiles_118.svg"
                 },
                 {
                     "index": 119,
-                    "file": "etoiles_119.webp"
+                    "file": "etoiles_119.svg"
                 },
                 {
                     "index": 120,
-                    "file": "etoiles_120.webp"
+                    "file": "etoiles_120.svg"
                 },
                 {
                     "index": 121,
-                    "file": "etoiles_121.webp"
+                    "file": "etoiles_121.svg"
                 },
                 {
                     "index": 122,
-                    "file": "etoiles_122.webp"
+                    "file": "etoiles_122.svg"
                 },
                 {
                     "index": 123,
-                    "file": "etoiles_123.webp"
+                    "file": "etoiles_123.svg"
                 },
                 {
                     "index": 124,
-                    "file": "etoiles_124.webp"
+                    "file": "etoiles_124.svg"
                 },
                 {
                     "index": 125,
-                    "file": "etoiles_125.webp"
+                    "file": "etoiles_125.svg"
                 },
                 {
                     "index": 126,
-                    "file": "etoiles_126.webp"
+                    "file": "etoiles_126.svg"
                 },
                 {
                     "index": 127,
-                    "file": "etoiles_127.webp"
+                    "file": "etoiles_127.svg"
                 },
                 {
                     "index": 128,
-                    "file": "etoiles_128.webp"
+                    "file": "etoiles_128.svg"
                 },
                 {
                     "index": 129,
-                    "file": "etoiles_129.webp"
+                    "file": "etoiles_129.svg"
                 },
                 {
                     "index": 130,
-                    "file": "etoiles_130.webp"
+                    "file": "etoiles_130.svg"
                 },
                 {
                     "index": 131,
-                    "file": "etoiles_131.webp"
+                    "file": "etoiles_131.svg"
                 },
                 {
                     "index": 132,
-                    "file": "etoiles_132.webp"
+                    "file": "etoiles_132.svg"
                 },
                 {
                     "index": 133,
-                    "file": "etoiles_133.webp"
+                    "file": "etoiles_133.svg"
                 },
                 {
                     "index": 134,
-                    "file": "etoiles_134.webp"
+                    "file": "etoiles_134.svg"
                 },
                 {
                     "index": 135,
-                    "file": "etoiles_135.webp"
+                    "file": "etoiles_135.svg"
                 },
                 {
                     "index": 136,
-                    "file": "etoiles_136.webp"
+                    "file": "etoiles_136.svg"
                 },
                 {
                     "index": 137,
-                    "file": "etoiles_137.webp"
+                    "file": "etoiles_137.svg"
                 },
                 {
                     "index": 138,
-                    "file": "etoiles_138.webp"
+                    "file": "etoiles_138.svg"
                 },
                 {
                     "index": 139,
-                    "file": "etoiles_139.webp"
+                    "file": "etoiles_139.svg"
                 },
                 {
                     "index": 140,
-                    "file": "etoiles_140.webp"
+                    "file": "etoiles_140.svg"
                 },
                 {
                     "index": 141,
-                    "file": "etoiles_141.webp"
+                    "file": "etoiles_141.svg"
                 },
                 {
                     "index": 142,
-                    "file": "etoiles_142.webp"
+                    "file": "etoiles_142.svg"
                 },
                 {
                     "index": 143,
-                    "file": "etoiles_143.webp"
+                    "file": "etoiles_143.svg"
                 }
             ]
         }
@@ -617,586 +617,586 @@
             "characterId": 8,
             "internalName": "sprite_8",
             "frameCount": 144,
-            "width": 392.70000000000005,
-            "height": 392.40000000000003,
-            "offsetX": -193.79999999999998,
-            "offsetY": -250.20000000000002,
+            "width": 65.45,
+            "height": 65.4,
+            "offsetX": -32.3,
+            "offsetY": -41.7,
             "frames": [
                 {
                     "index": 0,
-                    "file": "lib_etoiles_0.webp"
+                    "file": "lib_etoiles_0.svg"
                 },
                 {
                     "index": 1,
-                    "file": "lib_etoiles_1.webp"
+                    "file": "lib_etoiles_1.svg"
                 },
                 {
                     "index": 2,
-                    "file": "lib_etoiles_2.webp"
+                    "file": "lib_etoiles_2.svg"
                 },
                 {
                     "index": 3,
-                    "file": "lib_etoiles_3.webp"
+                    "file": "lib_etoiles_3.svg"
                 },
                 {
                     "index": 4,
-                    "file": "lib_etoiles_4.webp"
+                    "file": "lib_etoiles_4.svg"
                 },
                 {
                     "index": 5,
-                    "file": "lib_etoiles_5.webp"
+                    "file": "lib_etoiles_5.svg"
                 },
                 {
                     "index": 6,
-                    "file": "lib_etoiles_6.webp"
+                    "file": "lib_etoiles_6.svg"
                 },
                 {
                     "index": 7,
-                    "file": "lib_etoiles_7.webp"
+                    "file": "lib_etoiles_7.svg"
                 },
                 {
                     "index": 8,
-                    "file": "lib_etoiles_8.webp"
+                    "file": "lib_etoiles_8.svg"
                 },
                 {
                     "index": 9,
-                    "file": "lib_etoiles_9.webp"
+                    "file": "lib_etoiles_9.svg"
                 },
                 {
                     "index": 10,
-                    "file": "lib_etoiles_10.webp"
+                    "file": "lib_etoiles_10.svg"
                 },
                 {
                     "index": 11,
-                    "file": "lib_etoiles_11.webp"
+                    "file": "lib_etoiles_11.svg"
                 },
                 {
                     "index": 12,
-                    "file": "lib_etoiles_12.webp"
+                    "file": "lib_etoiles_12.svg"
                 },
                 {
                     "index": 13,
-                    "file": "lib_etoiles_13.webp"
+                    "file": "lib_etoiles_13.svg"
                 },
                 {
                     "index": 14,
-                    "file": "lib_etoiles_14.webp"
+                    "file": "lib_etoiles_14.svg"
                 },
                 {
                     "index": 15,
-                    "file": "lib_etoiles_15.webp"
+                    "file": "lib_etoiles_15.svg"
                 },
                 {
                     "index": 16,
-                    "file": "lib_etoiles_16.webp"
+                    "file": "lib_etoiles_16.svg"
                 },
                 {
                     "index": 17,
-                    "file": "lib_etoiles_17.webp"
+                    "file": "lib_etoiles_17.svg"
                 },
                 {
                     "index": 18,
-                    "file": "lib_etoiles_18.webp"
+                    "file": "lib_etoiles_18.svg"
                 },
                 {
                     "index": 19,
-                    "file": "lib_etoiles_19.webp"
+                    "file": "lib_etoiles_19.svg"
                 },
                 {
                     "index": 20,
-                    "file": "lib_etoiles_20.webp"
+                    "file": "lib_etoiles_20.svg"
                 },
                 {
                     "index": 21,
-                    "file": "lib_etoiles_21.webp"
+                    "file": "lib_etoiles_21.svg"
                 },
                 {
                     "index": 22,
-                    "file": "lib_etoiles_22.webp"
+                    "file": "lib_etoiles_22.svg"
                 },
                 {
                     "index": 23,
-                    "file": "lib_etoiles_23.webp"
+                    "file": "lib_etoiles_23.svg"
                 },
                 {
                     "index": 24,
-                    "file": "lib_etoiles_24.webp"
+                    "file": "lib_etoiles_24.svg"
                 },
                 {
                     "index": 25,
-                    "file": "lib_etoiles_25.webp"
+                    "file": "lib_etoiles_25.svg"
                 },
                 {
                     "index": 26,
-                    "file": "lib_etoiles_26.webp"
+                    "file": "lib_etoiles_26.svg"
                 },
                 {
                     "index": 27,
-                    "file": "lib_etoiles_27.webp"
+                    "file": "lib_etoiles_27.svg"
                 },
                 {
                     "index": 28,
-                    "file": "lib_etoiles_28.webp"
+                    "file": "lib_etoiles_28.svg"
                 },
                 {
                     "index": 29,
-                    "file": "lib_etoiles_29.webp"
+                    "file": "lib_etoiles_29.svg"
                 },
                 {
                     "index": 30,
-                    "file": "lib_etoiles_30.webp"
+                    "file": "lib_etoiles_30.svg"
                 },
                 {
                     "index": 31,
-                    "file": "lib_etoiles_31.webp"
+                    "file": "lib_etoiles_31.svg"
                 },
                 {
                     "index": 32,
-                    "file": "lib_etoiles_32.webp"
+                    "file": "lib_etoiles_32.svg"
                 },
                 {
                     "index": 33,
-                    "file": "lib_etoiles_33.webp"
+                    "file": "lib_etoiles_33.svg"
                 },
                 {
                     "index": 34,
-                    "file": "lib_etoiles_34.webp"
+                    "file": "lib_etoiles_34.svg"
                 },
                 {
                     "index": 35,
-                    "file": "lib_etoiles_35.webp"
+                    "file": "lib_etoiles_35.svg"
                 },
                 {
                     "index": 36,
-                    "file": "lib_etoiles_36.webp"
+                    "file": "lib_etoiles_36.svg"
                 },
                 {
                     "index": 37,
-                    "file": "lib_etoiles_37.webp"
+                    "file": "lib_etoiles_37.svg"
                 },
                 {
                     "index": 38,
-                    "file": "lib_etoiles_38.webp"
+                    "file": "lib_etoiles_38.svg"
                 },
                 {
                     "index": 39,
-                    "file": "lib_etoiles_39.webp"
+                    "file": "lib_etoiles_39.svg"
                 },
                 {
                     "index": 40,
-                    "file": "lib_etoiles_40.webp"
+                    "file": "lib_etoiles_40.svg"
                 },
                 {
                     "index": 41,
-                    "file": "lib_etoiles_41.webp"
+                    "file": "lib_etoiles_41.svg"
                 },
                 {
                     "index": 42,
-                    "file": "lib_etoiles_42.webp"
+                    "file": "lib_etoiles_42.svg"
                 },
                 {
                     "index": 43,
-                    "file": "lib_etoiles_43.webp"
+                    "file": "lib_etoiles_43.svg"
                 },
                 {
                     "index": 44,
-                    "file": "lib_etoiles_44.webp"
+                    "file": "lib_etoiles_44.svg"
                 },
                 {
                     "index": 45,
-                    "file": "lib_etoiles_45.webp"
+                    "file": "lib_etoiles_45.svg"
                 },
                 {
                     "index": 46,
-                    "file": "lib_etoiles_46.webp"
+                    "file": "lib_etoiles_46.svg"
                 },
                 {
                     "index": 47,
-                    "file": "lib_etoiles_47.webp"
+                    "file": "lib_etoiles_47.svg"
                 },
                 {
                     "index": 48,
-                    "file": "lib_etoiles_48.webp"
+                    "file": "lib_etoiles_48.svg"
                 },
                 {
                     "index": 49,
-                    "file": "lib_etoiles_49.webp"
+                    "file": "lib_etoiles_49.svg"
                 },
                 {
                     "index": 50,
-                    "file": "lib_etoiles_50.webp"
+                    "file": "lib_etoiles_50.svg"
                 },
                 {
                     "index": 51,
-                    "file": "lib_etoiles_51.webp"
+                    "file": "lib_etoiles_51.svg"
                 },
                 {
                     "index": 52,
-                    "file": "lib_etoiles_52.webp"
+                    "file": "lib_etoiles_52.svg"
                 },
                 {
                     "index": 53,
-                    "file": "lib_etoiles_53.webp"
+                    "file": "lib_etoiles_53.svg"
                 },
                 {
                     "index": 54,
-                    "file": "lib_etoiles_54.webp"
+                    "file": "lib_etoiles_54.svg"
                 },
                 {
                     "index": 55,
-                    "file": "lib_etoiles_55.webp"
+                    "file": "lib_etoiles_55.svg"
                 },
                 {
                     "index": 56,
-                    "file": "lib_etoiles_56.webp"
+                    "file": "lib_etoiles_56.svg"
                 },
                 {
                     "index": 57,
-                    "file": "lib_etoiles_57.webp"
+                    "file": "lib_etoiles_57.svg"
                 },
                 {
                     "index": 58,
-                    "file": "lib_etoiles_58.webp"
+                    "file": "lib_etoiles_58.svg"
                 },
                 {
                     "index": 59,
-                    "file": "lib_etoiles_59.webp"
+                    "file": "lib_etoiles_59.svg"
                 },
                 {
                     "index": 60,
-                    "file": "lib_etoiles_60.webp"
+                    "file": "lib_etoiles_60.svg"
                 },
                 {
                     "index": 61,
-                    "file": "lib_etoiles_61.webp"
+                    "file": "lib_etoiles_61.svg"
                 },
                 {
                     "index": 62,
-                    "file": "lib_etoiles_62.webp"
+                    "file": "lib_etoiles_62.svg"
                 },
                 {
                     "index": 63,
-                    "file": "lib_etoiles_63.webp"
+                    "file": "lib_etoiles_63.svg"
                 },
                 {
                     "index": 64,
-                    "file": "lib_etoiles_64.webp"
+                    "file": "lib_etoiles_64.svg"
                 },
                 {
                     "index": 65,
-                    "file": "lib_etoiles_65.webp"
+                    "file": "lib_etoiles_65.svg"
                 },
                 {
                     "index": 66,
-                    "file": "lib_etoiles_66.webp"
+                    "file": "lib_etoiles_66.svg"
                 },
                 {
                     "index": 67,
-                    "file": "lib_etoiles_67.webp"
+                    "file": "lib_etoiles_67.svg"
                 },
                 {
                     "index": 68,
-                    "file": "lib_etoiles_68.webp"
+                    "file": "lib_etoiles_68.svg"
                 },
                 {
                     "index": 69,
-                    "file": "lib_etoiles_69.webp"
+                    "file": "lib_etoiles_69.svg"
                 },
                 {
                     "index": 70,
-                    "file": "lib_etoiles_70.webp"
+                    "file": "lib_etoiles_70.svg"
                 },
                 {
                     "index": 71,
-                    "file": "lib_etoiles_71.webp"
+                    "file": "lib_etoiles_71.svg"
                 },
                 {
                     "index": 72,
-                    "file": "lib_etoiles_72.webp"
+                    "file": "lib_etoiles_72.svg"
                 },
                 {
                     "index": 73,
-                    "file": "lib_etoiles_73.webp"
+                    "file": "lib_etoiles_73.svg"
                 },
                 {
                     "index": 74,
-                    "file": "lib_etoiles_74.webp"
+                    "file": "lib_etoiles_74.svg"
                 },
                 {
                     "index": 75,
-                    "file": "lib_etoiles_75.webp"
+                    "file": "lib_etoiles_75.svg"
                 },
                 {
                     "index": 76,
-                    "file": "lib_etoiles_76.webp"
+                    "file": "lib_etoiles_76.svg"
                 },
                 {
                     "index": 77,
-                    "file": "lib_etoiles_77.webp"
+                    "file": "lib_etoiles_77.svg"
                 },
                 {
                     "index": 78,
-                    "file": "lib_etoiles_78.webp"
+                    "file": "lib_etoiles_78.svg"
                 },
                 {
                     "index": 79,
-                    "file": "lib_etoiles_79.webp"
+                    "file": "lib_etoiles_79.svg"
                 },
                 {
                     "index": 80,
-                    "file": "lib_etoiles_80.webp"
+                    "file": "lib_etoiles_80.svg"
                 },
                 {
                     "index": 81,
-                    "file": "lib_etoiles_81.webp"
+                    "file": "lib_etoiles_81.svg"
                 },
                 {
                     "index": 82,
-                    "file": "lib_etoiles_82.webp"
+                    "file": "lib_etoiles_82.svg"
                 },
                 {
                     "index": 83,
-                    "file": "lib_etoiles_83.webp"
+                    "file": "lib_etoiles_83.svg"
                 },
                 {
                     "index": 84,
-                    "file": "lib_etoiles_84.webp"
+                    "file": "lib_etoiles_84.svg"
                 },
                 {
                     "index": 85,
-                    "file": "lib_etoiles_85.webp"
+                    "file": "lib_etoiles_85.svg"
                 },
                 {
                     "index": 86,
-                    "file": "lib_etoiles_86.webp"
+                    "file": "lib_etoiles_86.svg"
                 },
                 {
                     "index": 87,
-                    "file": "lib_etoiles_87.webp"
+                    "file": "lib_etoiles_87.svg"
                 },
                 {
                     "index": 88,
-                    "file": "lib_etoiles_88.webp"
+                    "file": "lib_etoiles_88.svg"
                 },
                 {
                     "index": 89,
-                    "file": "lib_etoiles_89.webp"
+                    "file": "lib_etoiles_89.svg"
                 },
                 {
                     "index": 90,
-                    "file": "lib_etoiles_90.webp"
+                    "file": "lib_etoiles_90.svg"
                 },
                 {
                     "index": 91,
-                    "file": "lib_etoiles_91.webp"
+                    "file": "lib_etoiles_91.svg"
                 },
                 {
                     "index": 92,
-                    "file": "lib_etoiles_92.webp"
+                    "file": "lib_etoiles_92.svg"
                 },
                 {
                     "index": 93,
-                    "file": "lib_etoiles_93.webp"
+                    "file": "lib_etoiles_93.svg"
                 },
                 {
                     "index": 94,
-                    "file": "lib_etoiles_94.webp"
+                    "file": "lib_etoiles_94.svg"
                 },
                 {
                     "index": 95,
-                    "file": "lib_etoiles_95.webp"
+                    "file": "lib_etoiles_95.svg"
                 },
                 {
                     "index": 96,
-                    "file": "lib_etoiles_96.webp"
+                    "file": "lib_etoiles_96.svg"
                 },
                 {
                     "index": 97,
-                    "file": "lib_etoiles_97.webp"
+                    "file": "lib_etoiles_97.svg"
                 },
                 {
                     "index": 98,
-                    "file": "lib_etoiles_98.webp"
+                    "file": "lib_etoiles_98.svg"
                 },
                 {
                     "index": 99,
-                    "file": "lib_etoiles_99.webp"
+                    "file": "lib_etoiles_99.svg"
                 },
                 {
                     "index": 100,
-                    "file": "lib_etoiles_100.webp"
+                    "file": "lib_etoiles_100.svg"
                 },
                 {
                     "index": 101,
-                    "file": "lib_etoiles_101.webp"
+                    "file": "lib_etoiles_101.svg"
                 },
                 {
                     "index": 102,
-                    "file": "lib_etoiles_102.webp"
+                    "file": "lib_etoiles_102.svg"
                 },
                 {
                     "index": 103,
-                    "file": "lib_etoiles_103.webp"
+                    "file": "lib_etoiles_103.svg"
                 },
                 {
                     "index": 104,
-                    "file": "lib_etoiles_104.webp"
+                    "file": "lib_etoiles_104.svg"
                 },
                 {
                     "index": 105,
-                    "file": "lib_etoiles_105.webp"
+                    "file": "lib_etoiles_105.svg"
                 },
                 {
                     "index": 106,
-                    "file": "lib_etoiles_106.webp"
+                    "file": "lib_etoiles_106.svg"
                 },
                 {
                     "index": 107,
-                    "file": "lib_etoiles_107.webp"
+                    "file": "lib_etoiles_107.svg"
                 },
                 {
                     "index": 108,
-                    "file": "lib_etoiles_108.webp"
+                    "file": "lib_etoiles_108.svg"
                 },
                 {
                     "index": 109,
-                    "file": "lib_etoiles_109.webp"
+                    "file": "lib_etoiles_109.svg"
                 },
                 {
                     "index": 110,
-                    "file": "lib_etoiles_110.webp"
+                    "file": "lib_etoiles_110.svg"
                 },
                 {
                     "index": 111,
-                    "file": "lib_etoiles_111.webp"
+                    "file": "lib_etoiles_111.svg"
                 },
                 {
                     "index": 112,
-                    "file": "lib_etoiles_112.webp"
+                    "file": "lib_etoiles_112.svg"
                 },
                 {
                     "index": 113,
-                    "file": "lib_etoiles_113.webp"
+                    "file": "lib_etoiles_113.svg"
                 },
                 {
                     "index": 114,
-                    "file": "lib_etoiles_114.webp"
+                    "file": "lib_etoiles_114.svg"
                 },
                 {
                     "index": 115,
-                    "file": "lib_etoiles_115.webp"
+                    "file": "lib_etoiles_115.svg"
                 },
                 {
                     "index": 116,
-                    "file": "lib_etoiles_116.webp"
+                    "file": "lib_etoiles_116.svg"
                 },
                 {
                     "index": 117,
-                    "file": "lib_etoiles_117.webp"
+                    "file": "lib_etoiles_117.svg"
                 },
                 {
                     "index": 118,
-                    "file": "lib_etoiles_118.webp"
+                    "file": "lib_etoiles_118.svg"
                 },
                 {
                     "index": 119,
-                    "file": "lib_etoiles_119.webp"
+                    "file": "lib_etoiles_119.svg"
                 },
                 {
                     "index": 120,
-                    "file": "lib_etoiles_120.webp"
+                    "file": "lib_etoiles_120.svg"
                 },
                 {
                     "index": 121,
-                    "file": "lib_etoiles_121.webp"
+                    "file": "lib_etoiles_121.svg"
                 },
                 {
                     "index": 122,
-                    "file": "lib_etoiles_122.webp"
+                    "file": "lib_etoiles_122.svg"
                 },
                 {
                     "index": 123,
-                    "file": "lib_etoiles_123.webp"
+                    "file": "lib_etoiles_123.svg"
                 },
                 {
                     "index": 124,
-                    "file": "lib_etoiles_124.webp"
+                    "file": "lib_etoiles_124.svg"
                 },
                 {
                     "index": 125,
-                    "file": "lib_etoiles_125.webp"
+                    "file": "lib_etoiles_125.svg"
                 },
                 {
                     "index": 126,
-                    "file": "lib_etoiles_126.webp"
+                    "file": "lib_etoiles_126.svg"
                 },
                 {
                     "index": 127,
-                    "file": "lib_etoiles_127.webp"
+                    "file": "lib_etoiles_127.svg"
                 },
                 {
                     "index": 128,
-                    "file": "lib_etoiles_128.webp"
+                    "file": "lib_etoiles_128.svg"
                 },
                 {
                     "index": 129,
-                    "file": "lib_etoiles_129.webp"
+                    "file": "lib_etoiles_129.svg"
                 },
                 {
                     "index": 130,
-                    "file": "lib_etoiles_130.webp"
+                    "file": "lib_etoiles_130.svg"
                 },
                 {
                     "index": 131,
-                    "file": "lib_etoiles_131.webp"
+                    "file": "lib_etoiles_131.svg"
                 },
                 {
                     "index": 132,
-                    "file": "lib_etoiles_132.webp"
+                    "file": "lib_etoiles_132.svg"
                 },
                 {
                     "index": 133,
-                    "file": "lib_etoiles_133.webp"
+                    "file": "lib_etoiles_133.svg"
                 },
                 {
                     "index": 134,
-                    "file": "lib_etoiles_134.webp"
+                    "file": "lib_etoiles_134.svg"
                 },
                 {
                     "index": 135,
-                    "file": "lib_etoiles_135.webp"
+                    "file": "lib_etoiles_135.svg"
                 },
                 {
                     "index": 136,
-                    "file": "lib_etoiles_136.webp"
+                    "file": "lib_etoiles_136.svg"
                 },
                 {
                     "index": 137,
-                    "file": "lib_etoiles_137.webp"
+                    "file": "lib_etoiles_137.svg"
                 },
                 {
                     "index": 138,
-                    "file": "lib_etoiles_138.webp"
+                    "file": "lib_etoiles_138.svg"
                 },
                 {
                     "index": 139,
-                    "file": "lib_etoiles_139.webp"
+                    "file": "lib_etoiles_139.svg"
                 },
                 {
                     "index": 140,
-                    "file": "lib_etoiles_140.webp"
+                    "file": "lib_etoiles_140.svg"
                 },
                 {
                     "index": 141,
-                    "file": "lib_etoiles_141.webp"
+                    "file": "lib_etoiles_141.svg"
                 },
                 {
                     "index": 142,
-                    "file": "lib_etoiles_142.webp"
+                    "file": "lib_etoiles_142.svg"
                 },
                 {
                     "index": 143,
-                    "file": "lib_etoiles_143.webp"
+                    "file": "lib_etoiles_143.svg"
                 }
             ]
         }

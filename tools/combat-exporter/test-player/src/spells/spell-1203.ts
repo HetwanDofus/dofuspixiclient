@@ -1,210 +1,180 @@
 /**
  * Spell 1203 - Panda Spell
  *
- * A spell animation with particle effects and a main shoot animation.
- * The main animation fades out starting at frame 39.
+ * A projectile spell with two types of trailing particles.
  *
  * Components:
- * - shoot: Main animation (74 frames) with fade effect starting at frame 39
- * - sprite_4: Particle effect with scaling decay  
- * - sprite_6: Directional particle effect with rotation
- * - sprite_2: Moving/flickering effect (if used)
+ * - shoot (sprite_8_shoot): Main animation at caster position, rotated toward target
+ *   - Frame 4: _rotation = 0 (reset rotation)
+ *   - Frame 39: child clip starts fading (_alpha -= 3.34 per frame)
+ *   - Frame 72: stop() and removeMovieClip()
+ * - DefineSprite_6 particles: Trailing particles with angular velocity
+ * - DefineSprite_4 particles: Trailing particles with scale decay
+ * - DefineSprite_9_move: Flicker effect with random alpha (50 + random(50))
  *
  * Original AS timing:
- * - Frame 1: Play sound "m_panda_spell_a"
- * - Frame 4: Reset rotation to 0
- * - Frame 39+: Start fading (alpha -= 3.34 per frame)
- * - Frame 72: Animation stops and removes
+ * - Frame 1 (main): Play sound 'm_panda_spell_a'
+ * - Frame 4 (shoot): _rotation = 0
+ * - Frame 72 (shoot): stop() → animation ends
+ *
+ * Hit signal: On frame 1 (instant hit, caster-targeted spell)
  */
 
-import { Texture } from 'pixi.js';
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import { Container } from 'pixi.js';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   ASParticleSystem,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const SHOOT_MANIFEST: SpriteManifest = {
-  width: 691.5,
-  height: 387,
-  offsetX: -396,
-  offsetY: -193.8,
+  width: 115.25,
+  height: 64.5,
+  offsetX: -66,
+  offsetY: -32.3,
 };
 
 export class Spell1203 extends BaseSpell {
   readonly spellId = 1203;
 
   private shootAnim!: FrameAnimatedSprite;
-  private particles4!: ASParticleSystem;
   private particles6!: ASParticleSystem;
-  private fadeStartFrame = 38; // Frame 39 in AS (0-indexed)
-  private fadePerFrame = 3.34;
-  private currentAlpha = 100;
-  private isFading = false;
+  private particles4!: ASParticleSystem;
+  private level = 1;
+  private initContext!: SpellInitContext;
+  private frameCount = 0;
+  private particleSpawnCounter = 0;
 
   protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Main shoot animation
+    this.level = Math.max(1, Math.min(6, context?.level ?? 1));
+    this.initContext = init;
+
+    const angle = context?.angle ?? 0;
+
+    // Main shoot animation at caster position, rotated toward target
+    const shootAnchor = calculateAnchor(SHOOT_MANIFEST);
     this.shootAnim = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('shoot'),
-      ...calculateAnchor(SHOOT_MANIFEST),
+      fps: 60,
+      anchorX: shootAnchor.x,
+      anchorY: shootAnchor.y,
       scale: init.scale,
     }));
     this.shootAnim.sprite.position.set(0, init.casterY);
     this.shootAnim.sprite.rotation = init.angleRad;
-    this.shootAnim
-      .stopAt(71) // Frame 72 in AS
-      .onFrame(0, () => this.callbacks.playSound('m_panda_spell_a'))
-      .onFrame(3, () => { // Frame 4 in AS
-        this.shootAnim.sprite.rotation = 0;
-      })
-      .onFrame(this.fadeStartFrame, () => {
-        this.isFading = true;
-      })
-      .onFrame(35, () => this.signalHit()); // Signal hit midway through animation
+
+    // Frame 1 (index 0): play sound
+    this.shootAnim.onFrame(0, () => {
+      this.callbacks.playSound('m_panda_spell_a');
+      this.signalHit();
+    });
+
+    // Frame 4 (index 3): reset rotation of the shoot sprite
+    this.shootAnim.onFrame(3, () => {
+      this.shootAnim.sprite.rotation = 0;
+    });
+
+    // Frame 72 (index 71): stop
+    this.shootAnim.stopAt(71);
+
     this.container.addChild(this.shootAnim.sprite);
 
-    // Particle system for sprite_4 (scaling particles)
-    const particle4Texture = textures.getFrames('sprite_4')[0];
-    if (particle4Texture) {
-      this.particles4 = new ASParticleSystem(particle4Texture);
-      this.particles4.container.position.set(0, init.casterY);
-      this.container.addChild(this.particles4.container);
-      
-      // Spawn particles following DefineSprite_4 behavior
-      this.spawnParticles4(init.angleRad);
-    }
+    // Particle systems for DefineSprite_6 and DefineSprite_4
+    // These are library symbols - use fallback textures if not available
+    const tex6 = textures.hasTexture('lib_DefineSprite_6')
+      ? textures.getFrames('lib_DefineSprite_6')[0]
+      : textures.getFrames('shoot')[0];
+    const tex4 = textures.hasTexture('lib_DefineSprite_4')
+      ? textures.getFrames('lib_DefineSprite_4')[0]
+      : textures.getFrames('shoot')[0];
 
-    // Particle system for sprite_6 (directional particles)
-    const particle6Texture = textures.getFrames('sprite_6')[0];
-    if (particle6Texture) {
-      this.particles6 = new ASParticleSystem(particle6Texture);
-      this.particles6.container.position.set(0, init.casterY);
-      this.container.addChild(this.particles6.container);
-      
-      // Spawn particles following DefineSprite_6 behavior
-      this.spawnParticles6(init.angleRad);
-    }
+    this.particles6 = new ASParticleSystem(tex6);
+    this.particles6.container.position.set(0, init.casterY);
+    this.container.addChildAt(this.particles6.container, 0);
+
+    this.particles4 = new ASParticleSystem(tex4);
+    this.particles4.container.position.set(0, init.casterY);
+    this.container.addChildAt(this.particles4.container, 0);
   }
 
-  private spawnParticles4(parentAngle: number): void {
-    // Spawn multiple particles with behavior from DefineSprite_4
-    const count = 5; // Reasonable number of particles
-    
-    this.particles4.spawnMany(count, () => {
-      const angle = parentAngle;
-      const v = 0.67 + Math.floor(Math.random() * 5);
-      const va = 20 * (-0.5 + Math.random());
-      const t = 70 + Math.floor(Math.random() * 30);
-      
-      // Initial position (particles start at origin)
-      const x = 0;
-      const y = 0;
-      
-      // Custom update function to replicate exact AS behavior
-      const customUpdate = (particle: any, deltaFrames: number) => {
-        // Update angular velocity randomly
-        if (Math.floor(Math.random() * 3) === 1) {
-          particle.va = 20 * (-0.5 + Math.random());
-        }
-        
-        // Update scale
-        particle.scale = particle.t;
-        particle.t *= 0.975;
-        
-        // Update angle
-        particle.angle += particle.va;
-        
-        // Calculate velocity components (exact AS formulas)
-        const vx = Math.abs(particle.v * Math.cos(particle.angle * 0.017453292519943295));
-        const vy = particle.v * Math.sin(particle.angle * 0.017453292519943295);
-        
-        // Update position
-        particle.x += vx * deltaFrames;
-        particle.y += vy * deltaFrames;
-        
-        // Decay velocity
-        particle.v *= 0.95;
-        
-        // Check if particle should die
-        if (particle.t < 0.1 || particle.v < 0.01) {
-          particle.alive = false;
-        }
-      };
-      
-      return { 
-        x, 
-        y, 
-        scale: t / 100, // Convert to normalized scale
-        alpha: 1,
-        customData: { angle, v, va, t },
-        customUpdate
-      };
+  private spawnParticle6(angleBase: number): void {
+    // DefineSprite_6 frame_1/DoAction.as:
+    // angle = _parent._parent.angle;
+    // v = 0.67 + random(5);
+    // va = 20 * (-0.5 + Math.random());
+    // t = 100;
+    // Physics per frame:
+    //   if(random(5) == 0) { va = 20 * (-0.5 + Math.random()); }
+    //   _xscale = v * 10;
+    //   t *= 0.999;
+    //   angle += va;
+    //   vx = Math.abs(v * Math.cos(angle * 0.017453292519943295));
+    //   vy = v * Math.sin(angle * 0.017453292519943295);
+    //   _X += vx; _Y += vy;
+    //   v *= 0.95;
+    //   _rotation = angle;
+    // We approximate this with the particle system's linear physics.
+    const v = 0.67 + Math.floor(Math.random() * 5);
+    const va = 20 * (-0.5 + Math.random());
+    const angleRad = angleBase * 0.017453292519943295;
+    const vx = Math.abs(v * Math.cos(angleRad));
+    const vy = v * Math.sin(angleRad);
+
+    this.particles6.spawn({
+      x: 0,
+      y: 0,
+      vx: vx,
+      vy: vy,
+      accX: 0.95,
+      accY: 0.95,
+      vr: va,
+      vrDecay: 1.0,
+      t: 100,
+      vt: 0,
+      vtDecay: 0,
+      rotation: angleBase,
+      alpha: 1,
     });
   }
 
-  private spawnParticles6(parentAngle: number): void {
-    // Spawn multiple particles with behavior from DefineSprite_6
-    const count = 3; // Reasonable number of particles
-    
-    this.particles6.spawnMany(count, () => {
-      const angle = parentAngle;
-      const v = 0.67 + Math.floor(Math.random() * 5);
-      const va = 20 * (-0.5 + Math.random());
-      const t = 100;
-      
-      // Initial position (particles start at origin)
-      const x = 0;
-      const y = 0;
-      
-      // Custom update function to replicate exact AS behavior
-      const customUpdate = (particle: any, deltaFrames: number) => {
-        // Update angular velocity randomly (less frequent than sprite_4)
-        if (Math.floor(Math.random() * 5) === 0) {
-          particle.va = 20 * (-0.5 + Math.random());
-        }
-        
-        // Update x scale based on velocity
-        particle.scaleX = particle.v * 10 / 100; // Normalize scale
-        
-        // Update t (decay factor)
-        particle.t *= 0.999;
-        
-        // Update angle
-        particle.angle += particle.va;
-        
-        // Calculate velocity components (exact AS formulas)
-        const vx = Math.abs(particle.v * Math.cos(particle.angle * 0.017453292519943295));
-        const vy = particle.v * Math.sin(particle.angle * 0.017453292519943295);
-        
-        // Update position
-        particle.x += vx * deltaFrames;
-        particle.y += vy * deltaFrames;
-        
-        // Decay velocity
-        particle.v *= 0.95;
-        
-        // Update rotation to match angle
-        particle.rotation = particle.angle;
-        
-        // Check if particle should die
-        if (particle.v < 0.01) {
-          particle.alive = false;
-        }
-      };
-      
-      return { 
-        x, 
-        y,
-        scaleX: v * 10 / 100, // Initial x scale based on velocity
-        scaleY: 1,
-        alpha: 1,
-        rotation: angle,
-        customData: { angle, v, va, t },
-        customUpdate
-      };
+  private spawnParticle4(angleBase: number): void {
+    // DefineSprite_4 frame_1/DoAction.as:
+    // angle = _parent._parent.angle;
+    // v = 0.67 + random(5);
+    // va = 20 * (-0.5 + Math.random());
+    // t = 70 + random(30);
+    // Physics per frame:
+    //   if(random(3) == 1) { va = 20 * (-0.5 + Math.random()); }
+    //   _xscale = t; _yscale = t;
+    //   t *= 0.975;
+    //   angle += va;
+    //   vx = Math.abs(v * Math.cos(angle * 0.017453292519943295));
+    //   vy = v * Math.sin(angle * 0.017453292519943295);
+    //   _X += vx; _Y += vy;
+    //   v *= 0.95;
+    const v = 0.67 + Math.floor(Math.random() * 5);
+    const t = 70 + Math.floor(Math.random() * 30);
+    const angleRad = angleBase * 0.017453292519943295;
+    const vx = Math.abs(v * Math.cos(angleRad));
+    const vy = v * Math.sin(angleRad);
+
+    this.particles4.spawn({
+      x: 0,
+      y: 0,
+      vx: vx,
+      vy: vy,
+      accX: 0.95,
+      accY: 0.95,
+      vr: 0,
+      vrDecay: 1.0,
+      t: t,
+      vt: 0,
+      vtDecay: t * (1 - 0.975), // approximate t *= 0.975 as vtDecay
+      rotation: 0,
+      alpha: 1,
     });
   }
 
@@ -214,43 +184,30 @@ export class Spell1203 extends BaseSpell {
     }
 
     this.anims.update(deltaTime);
-    
-    // Update fade effect
-    if (this.isFading && this.currentAlpha > 0) {
-      const deltaFrames = deltaTime * 60 / 1000; // Convert to 60fps frames
-      this.currentAlpha -= this.fadePerFrame * deltaFrames;
-      if (this.currentAlpha < 0) {
-        this.currentAlpha = 0;
+    this.particles6.update();
+    this.particles4.update();
+
+    // Spawn particles periodically while shoot animation plays (frames 1-38, before fade)
+    const currentFrame = this.shootAnim.getFrame();
+    if (currentFrame < 38) {
+      this.particleSpawnCounter += deltaTime;
+      // Spawn particles roughly every few frames
+      while (this.particleSpawnCounter >= 16.67) {
+        this.particleSpawnCounter -= 16.67;
+        const angleDeg = (this.initContext.angleRad * 180) / Math.PI;
+        this.spawnParticle6(angleDeg);
+        this.spawnParticle4(angleDeg);
       }
-      this.shootAnim.sprite.alpha = this.currentAlpha / 100;
-    }
-    
-    // Update particle systems
-    if (this.particles4) {
-      this.particles4.update();
-    }
-    if (this.particles6) {
-      this.particles6.update();
     }
 
-    // Check completion
-    if (this.shootAnim.isComplete()) {
-      const particles4Done = !this.particles4 || !this.particles4.hasAliveParticles();
-      const particles6Done = !this.particles6 || !this.particles6.hasAliveParticles();
-      
-      if (particles4Done && particles6Done) {
-        this.complete();
-      }
+    if (this.shootAnim.isStopped() && !this.particles6.hasAliveParticles() && !this.particles4.hasAliveParticles()) {
+      this.complete();
     }
   }
 
   destroy(): void {
-    if (this.particles4) {
-      this.particles4.destroy();
-    }
-    if (this.particles6) {
-      this.particles6.destroy();
-    }
+    this.particles6.destroy();
+    this.particles4.destroy();
     super.destroy();
   }
 }

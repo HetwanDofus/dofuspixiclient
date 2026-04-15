@@ -1,7 +1,5 @@
 import { Application, Assets, ColorMatrixFilter, Container, Graphics, Sprite, Texture } from 'pixi.js';
-import type { SpellContext, SpellCallbacks, SpellTextureProvider, ISpellAnimation } from '../../spell-interface';
-import { Spell1005 } from './spells/spell-1005';
-import { Spell909 } from './spells/spell-909';
+import type { SpellContext, SpellCallbacks, SpellTextureProvider, ISpellAnimation } from '@dofus/spell-runtime';
 
 // ============================================================================
 // SOUND MANAGER
@@ -140,21 +138,32 @@ interface Manifest {
   id: number;
   fps: number;
   scale: number;
-  mainTimelineScale?: number; // Scale applied by main timeline (some spells use < 1.0)
+  mainTimelineScale?: number;
+  requiresTypeScript?: boolean;
   animations: Animation[];
   scripts?: string[];
   librarySymbols?: LibrarySymbol[];
-  sounds?: SoundTrigger[]; // Sound triggers for pre-rendered spells
+  sounds?: SoundTrigger[];
 }
 
 // ============================================================================
 // SPELL REGISTRY - Maps spell IDs to their dynamic implementations
 // ============================================================================
 
-const DYNAMIC_SPELLS: Record<number, new () => ISpellAnimation> = {
-  909: Spell909,
-  1005: Spell1005,
-};
+/**
+ * Dynamically import a spell implementation.
+ * Returns the spell class or undefined if no implementation exists.
+ */
+async function loadDynamicSpell(spellId: number): Promise<(new () => ISpellAnimation) | undefined> {
+  try {
+    const module = await import(`./spells/spell-${spellId}.ts`);
+    // Find the exported class (Spell{ID})
+    const className = `Spell${spellId}`;
+    return module[className] ?? module.default;
+  } catch {
+    return undefined;
+  }
+}
 
 // ============================================================================
 // PRE-RENDERED ANIMATION PLAYER
@@ -501,13 +510,20 @@ async function main() {
   const urlParams = new URLSearchParams(window.location.search);
   let spellId = parseInt(urlParams.get('spell') ?? '1001', 10);
 
-  // Create spell selector UI
-  const selector = document.getElementById('spell-selector') as HTMLSelectElement;
+  // Spell selector UI
+  const selector = document.getElementById('spell-selector') as HTMLInputElement;
+  const loadBtn = document.getElementById('load-spell');
   if (selector) {
     selector.value = String(spellId);
-    selector.addEventListener('change', () => {
+    const loadSpell = () => {
       const newId = parseInt(selector.value, 10);
-      window.location.search = `?spell=${newId}`;
+      if (!isNaN(newId)) {
+        window.location.search = `?spell=${newId}`;
+      }
+    };
+    loadBtn?.addEventListener('click', loadSpell);
+    selector.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loadSpell();
     });
   }
 
@@ -528,7 +544,12 @@ async function main() {
   console.log(`Loaded spell ${spellId}:`, manifest);
 
   const animation = manifest.animations[0];
-  const isDynamic = spellId in DYNAMIC_SPELLS;
+
+  // Try to load dynamic spell implementation
+  const DynamicSpellClass = manifest.requiresTypeScript
+    ? await loadDynamicSpell(spellId)
+    : undefined;
+  const isDynamic = DynamicSpellClass !== undefined;
 
   // Update mode indicator
   const modeEl = document.getElementById('mode');
@@ -569,7 +590,7 @@ async function main() {
           console.log(`Loading ${childSprite.frameCount} frames for ${childSprite.name}...`);
 
           for (let i = 0; i < childSprite.frameCount; i++) {
-            const framePath = `${basePath}/${childSprite.name}_${i}.webp`;
+            const framePath = `${basePath}/${childSprite.name}_${i}.svg`;
             try {
               const texture = await Assets.load(framePath);
               textures.push(texture);
@@ -640,6 +661,40 @@ async function main() {
   console.log(`  Center: (${centerX}, ${centerY})`);
   console.log(`  Angle: ${angle.toFixed(1)}°, Distance: ${distance.toFixed(1)}px`);
 
+  // Shared context for spell creation
+  const context: SpellContext = {
+    cellFrom: { cellId: casterCellId, x: casterPos.x, y: casterPos.y, groundLevel: DEFAULT_GROUND_LEVEL },
+    cellTo: { cellId: targetCellId, x: targetPos.x, y: targetPos.y, groundLevel: DEFAULT_GROUND_LEVEL },
+    angle: angle,
+    distance: distance,
+    level: 3,
+    caster: { id: 1, name: 'Caster', team: 0, hp: 100, maxHp: 100, isPlayer: true },
+    casterFacingRight: dx >= 0,
+    parentFrame: 0,
+    instanceIndex: 0,
+    isCritical: false,
+  };
+
+  const callbacks: SpellCallbacks = {
+    playSound: (soundId: string) => console.log(`Sound: ${soundId}`),
+    onComplete: () => console.log('Animation complete!'),
+    onHit: () => console.log('Hit!'),
+    onEvent: (name: string, data?: unknown) => console.log(`Event: ${name}`, data),
+  };
+
+  const textureProvider = new ManifestTextureProvider(textureMap);
+
+  // Track the current dynamic spell so we can destroy and recreate it
+  let activeSpell: ISpellAnimation | null = null;
+
+  function createDynamicSpell(): ISpellAnimation {
+    const spell = new DynamicSpellClass!();
+    spell.init(context, callbacks, textureProvider);
+    spell.container.position.set(casterPos.x, casterPos.y);
+    battlefieldContainer.addChild(spell.container);
+    return spell;
+  }
+
   if (isDynamic) {
     // Create battlefield visualization
     const battlefield = createBattlefield(mapWidth, cellCount);
@@ -647,11 +702,11 @@ async function main() {
 
     // Highlight caster and target cells
     const highlightGraphics = new Graphics();
-    drawCell(highlightGraphics, casterPos.x, casterPos.y, 0x00ff00, 0.5); // Green for caster
-    drawCell(highlightGraphics, targetPos.x, targetPos.y, 0xff0000, 0.5); // Red for target
+    drawCell(highlightGraphics, casterPos.x, casterPos.y, 0x00ff00, 0.5);
+    drawCell(highlightGraphics, targetPos.x, targetPos.y, 0xff0000, 0.5);
     battlefieldContainer.addChild(highlightGraphics);
 
-    // Add fighter markers
+    // Fighter markers
     const casterMarker = createFighterMarker(0x00ff00, 'C');
     casterMarker.position.set(casterPos.x, casterPos.y);
     battlefieldContainer.addChild(casterMarker);
@@ -660,51 +715,15 @@ async function main() {
     targetMarker.position.set(targetPos.x, targetPos.y);
     battlefieldContainer.addChild(targetMarker);
 
-    // Create dynamic spell instance
-    const SpellClass = DYNAMIC_SPELLS[spellId];
-    const spell = new SpellClass();
-
-    // Create real context with battlefield data
-    const context: SpellContext = {
-      cellFrom: { cellId: casterCellId, x: casterPos.x, y: casterPos.y, groundLevel: DEFAULT_GROUND_LEVEL },
-      cellTo: { cellId: targetCellId, x: targetPos.x, y: targetPos.y, groundLevel: DEFAULT_GROUND_LEVEL },
-      angle: angle,
-      distance: distance,
-      level: 3, // Test with level 3 for more particles
-      caster: { id: 1, name: 'Caster', team: 0 },
-      casterFacingRight: dx >= 0,
-      parentFrame: 0,
-      instanceIndex: 0,
-      isCritical: false,
-    };
-
-    // Create callbacks
-    const callbacks: SpellCallbacks = {
-      playSound: (soundId: string) => {
-        console.log(`Sound: ${soundId}`);
-        soundManager.play(soundId);
-      },
-      onComplete: () => console.log('Animation complete!'),
-      onHit: () => console.log('Hit!'),
-      onEvent: (name: string, data?: unknown) => console.log(`Event: ${name}`, data),
-    };
-
-    // Initialize spell
-    const textureProvider = new ManifestTextureProvider(textureMap);
-    spell.init(context, callbacks, textureProvider);
-
-    // Position spell container at caster position (spell handles internal positioning)
-    spell.container.position.set(casterPos.x, casterPos.y);
-    battlefieldContainer.addChild(spell.container);
-
-    // Debug: Draw line of sight from caster to target (at cell center)
+    // Debug line
     const debugLine = new Graphics();
     debugLine.moveTo(casterPos.x, casterPos.y);
     debugLine.lineTo(targetPos.x, targetPos.y);
     debugLine.stroke({ color: 0xffff00, width: 2, alpha: 0.8 });
     battlefieldContainer.addChild(debugLine);
 
-    currentAnimation = spell;
+    activeSpell = createDynamicSpell();
+    currentAnimation = activeSpell;
     animContainer = battlefieldContainer;
   } else {
     // Pre-rendered spells also show on battlefield
@@ -872,11 +891,17 @@ async function main() {
   const replayBtn = document.getElementById('replay');
   if (replayBtn) {
     replayBtn.addEventListener('click', () => {
-      if ('reset' in currentAnimation && typeof currentAnimation.reset === 'function') {
-        currentAnimation.reset();
-      }
       frameAccumulator = 0;
       lastTime = performance.now();
+
+      if (isDynamic && activeSpell) {
+        // Destroy old spell and create a fresh one
+        activeSpell.destroy();
+        activeSpell = createDynamicSpell();
+        currentAnimation = activeSpell;
+      } else if (!isDynamic) {
+        (currentAnimation as PreRenderedAnimation).reset();
+      }
     });
   }
 

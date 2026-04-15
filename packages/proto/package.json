@@ -1,0 +1,17 @@
+{
+  "name": "@dofus/proto",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "gen/index.ts",
+  "exports": {
+    ".": "./gen/index.ts",
+    "./*": "./gen/*.ts"
+  },
+  "scripts": {
+    "gen": "cd ../.. && buf generate"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.2.3"
+  }
+}

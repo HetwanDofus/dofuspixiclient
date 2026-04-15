@@ -1,54 +1,56 @@
 /**
- * Spell 1102 - Unknown Name
+ * Spell 1102 - Aute
  *
- * A simple single-animation spell effect.
+ * A single animation spell played at the target position.
  *
  * Components:
- * - anim1: Main animation at caster position
+ * - anim1: Main animation at target position, stops at frame 104
  *
  * Original AS timing:
- * - Frame 1: Play sound "aute_1102"
- * - Frame 137: Signal hit (this.end())
- * - Frame 159: Remove movie clip
+ * - Frame 1 (main): Play sound 'aute_1102'
+ * - Frame 137 (main): this.end() - signal hit
+ * - Frame 159 (main): removeMovieClip() - animation ends
+ * - DefineSprite_15/frame_105: stop() - anim1 stops at frame 104 (0-indexed)
  */
 
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const ANIM1_MANIFEST: SpriteManifest = {
-  width: 1340.6999999999998,
-  height: 1062.3000000000002,
-  offsetX: -818.0999999999999,
-  offsetY: -738,
+  width: 223.45,
+  height: 177.05,
+  offsetX: -136.35,
+  offsetY: -123,
 };
 
 export class Spell1102 extends BaseSpell {
   readonly spellId = 1102;
 
-  private mainAnim!: FrameAnimatedSprite;
-
-  protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
+  protected setup(_context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
+    const anim1Textures = textures.getFrames('anim1');
     const anchor = calculateAnchor(ANIM1_MANIFEST);
 
-    // Main animation at caster position
-    this.mainAnim = this.anims.add(new FrameAnimatedSprite({
-      textures: textures.getFrames('anim1'),
+    const anim = this.anims.add(new FrameAnimatedSprite({
+      textures: anim1Textures,
+      fps: 30,
       anchorX: anchor.x,
       anchorY: anchor.y,
       scale: init.scale,
     }));
-    this.mainAnim.sprite.position.set(0, init.casterY);
-    this.mainAnim
-      .stopAt(104) // AS frame 105 (0-indexed)
-      .onFrame(0, () => this.callbacks.playSound('aute_1102')) // AS frame 1
-      .onFrame(136, () => this.signalHit()); // AS frame 137
-    
-    this.container.addChild(this.mainAnim.sprite);
+
+    anim.sprite.position.set(init.targetX, init.targetY);
+
+    anim
+      .stopAt(104)
+      .onFrame(0, () => this.callbacks.playSound('aute_1102'))
+      .onFrame(103, () => this.signalHit());
+
+    this.container.addChild(anim.sprite);
   }
 
   update(deltaTime: number): void {
@@ -58,8 +60,7 @@ export class Spell1102 extends BaseSpell {
 
     this.anims.update(deltaTime);
 
-    // Complete at frame 159 (0-indexed: 158)
-    if (this.mainAnim.getFrame() >= 158) {
+    if (this.anims.allStopped()) {
       this.complete();
     }
   }

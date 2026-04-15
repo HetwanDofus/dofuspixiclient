@@ -1,91 +1,91 @@
 {
     "id": 2061,
     "fps": 60,
-    "scale": 6,
+    "scale": 1,
     "mainTimelineScale": 1,
     "animations": [
         {
             "name": "anim1",
             "frameCount": 18,
-            "width": 1707.6000000000001,
-            "height": 897.3000000000001,
-            "offsetX": -859.1999999999999,
-            "offsetY": -447.59999999999997,
+            "width": 284.6,
+            "height": 149.55,
+            "offsetX": -143.2,
+            "offsetY": -74.6,
             "stopFrame": 15,
             "fadingFrame": 14,
             "isComposite": false,
             "frames": [
                 {
                     "index": 0,
-                    "file": "anim1_0.webp"
+                    "file": "anim1_0.svg"
                 },
                 {
                     "index": 1,
-                    "file": "anim1_1.webp"
+                    "file": "anim1_1.svg"
                 },
                 {
                     "index": 2,
-                    "file": "anim1_2.webp"
+                    "file": "anim1_2.svg"
                 },
                 {
                     "index": 3,
-                    "file": "anim1_3.webp"
+                    "file": "anim1_3.svg"
                 },
                 {
                     "index": 4,
-                    "file": "anim1_4.webp"
+                    "file": "anim1_4.svg"
                 },
                 {
                     "index": 5,
-                    "file": "anim1_5.webp"
+                    "file": "anim1_5.svg"
                 },
                 {
                     "index": 6,
-                    "file": "anim1_6.webp"
+                    "file": "anim1_6.svg"
                 },
                 {
                     "index": 7,
-                    "file": "anim1_7.webp"
+                    "file": "anim1_7.svg"
                 },
                 {
                     "index": 8,
-                    "file": "anim1_8.webp"
+                    "file": "anim1_8.svg"
                 },
                 {
                     "index": 9,
-                    "file": "anim1_9.webp"
+                    "file": "anim1_9.svg"
                 },
                 {
                     "index": 10,
-                    "file": "anim1_10.webp"
+                    "file": "anim1_10.svg"
                 },
                 {
                     "index": 11,
-                    "file": "anim1_11.webp"
+                    "file": "anim1_11.svg"
                 },
                 {
                     "index": 12,
-                    "file": "anim1_12.webp"
+                    "file": "anim1_12.svg"
                 },
                 {
                     "index": 13,
-                    "file": "anim1_13.webp"
+                    "file": "anim1_13.svg"
                 },
                 {
                     "index": 14,
-                    "file": "anim1_14.webp"
+                    "file": "anim1_14.svg"
                 },
                 {
                     "index": 15,
-                    "file": "anim1_15.webp"
+                    "file": "anim1_15.svg"
                 },
                 {
                     "index": 16,
-                    "file": "anim1_16.webp"
+                    "file": "anim1_16.svg"
                 },
                 {
                     "index": 17,
-                    "file": "anim1_17.webp"
+                    "file": "anim1_17.svg"
                 }
             ]
         }

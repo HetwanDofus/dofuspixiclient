@@ -2,7 +2,6 @@
 
 namespace App\Command;
 
-use App\Renderer\Supersampled6xRsvgRenderer;
 use Arakne\Swf\Error\Errors;
 use Arakne\Swf\Extractor\Drawer\Converter\Converter;
 use Arakne\Swf\Extractor\Image\ImageCharacterInterface;
@@ -31,7 +30,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  */
 final class ExtractSpellAnimsCommand extends Command
 {
-    private const SUPERSAMPLE_FACTOR = 6;
+    private const SCALE_FACTOR = 1;
 
     private string $outputBase;
     private array $manifest = [];
@@ -40,7 +39,7 @@ final class ExtractSpellAnimsCommand extends Command
     {
         $this
             ->setName('extract:spell-anims')
-            ->setDescription('Extract spell animations from Dofus SWF files to WebP')
+            ->setDescription('Extract spell animations from Dofus SWF files to SVG')
             ->addOption('input', 'i', InputOption::VALUE_REQUIRED, 'Input directory containing spell SWF files')
             ->addOption('output', 'o', InputOption::VALUE_OPTIONAL, 'Output directory', './output/spell-anims')
             ->addOption('spell', 's', InputOption::VALUE_OPTIONAL, 'Extract only a specific spell ID')
@@ -153,7 +152,7 @@ final class ExtractSpellAnimsCommand extends Command
             $animData = [
                 'id' => $animId,
                 'fps' => $frameRate,
-                'scale' => self::SUPERSAMPLE_FACTOR, // Always 6x - actual rendering scale
+                'scale' => self::SCALE_FACTOR,
                 'mainTimelineScale' => $mainTransform['scaleX'], // Scale applied by main timeline
                 'animations' => [],
             ];
@@ -389,7 +388,7 @@ final class ExtractSpellAnimsCommand extends Command
         $bounds = $character->bounds();
         $isRasterImage = $character instanceof ImageCharacterInterface;
 
-        $scale = $isRasterImage ? 1 : self::SUPERSAMPLE_FACTOR;
+        $scale = $isRasterImage ? 1 : self::SCALE_FACTOR;
 
         return [
             'width' => ($bounds->width() / 20) * $scale,
@@ -404,17 +403,17 @@ final class ExtractSpellAnimsCommand extends Command
         $frames = [];
         $safeAnimName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $animationName);
         $spellDir = sprintf('%s/%d', $this->outputBase, $spellId);
+        $converter = new Converter();
 
         for ($i = 0; $i < $frameCount; $i++) {
-            $frameFilename = sprintf('%s_%d.webp', $safeAnimName, $i);
+            $frameFilename = sprintf('%s_%d.svg', $safeAnimName, $i);
             $outputPath = sprintf('%s/%s', $spellDir, $frameFilename);
 
             try {
-                $converter = new Converter(svgRenderer: new Supersampled6xRsvgRenderer());
-                $webpBlob = $converter->toWebp($timeline, $i, ['lossless' => true]);
+                $svg = $converter->toSvg($timeline, $i);
 
-                if (!empty($webpBlob)) {
-                    file_put_contents($outputPath, $webpBlob);
+                if (!empty($svg)) {
+                    file_put_contents($outputPath, $svg);
 
                     $frames[] = [
                         'index' => $i,

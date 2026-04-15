@@ -104,9 +104,13 @@ message DiceRollResult {
   string channel = 6;
 }
 
-// YT - Temporis packet
+// YT - Temporis packet (seasonal event wrapper).
+// Legacy 1.29: "YT<subCode><payload>" — sub-code dispatches to different
+// temporis events. StarLoco fork does not implement temporis; kept as a
+// typed passthrough for future adapter work.
 message TemporisPacket {
-  string raw_data = 1;
+  string sub_code = 1;
+  string payload = 2;
 }
 
 // ============================================================================
@@ -127,9 +131,10 @@ message SpecializationChange {
 // FIGHTS PROTOCOL (f prefix) - Fight listing (not in-fight combat)
 // ============================================================================
 
-// fA - Fights auto-select
+// fA - Fights auto-select (dungeon auto-pick).
+// Legacy 1.29: "fA<fightId>" — server picks a fight for the player.
 message FightsAutoSelect {
-  string raw_data = 1;
+  int32 fight_id = 1;
 }
 
 // fC - Fight count
@@ -224,27 +229,42 @@ message QuestObjective {
   bool  completed = 2;
 }
 
+// Quest reward entry; legacy 1.29 tuple "<itemId>,<qty>" or "<kamas>,0"
+// when reward_type == KAMAS.
 message QuestReward {
-  string raw_data = 1;
+  enum RewardType {
+    REWARD_TYPE_UNSPECIFIED = 0;
+    ITEM = 1;
+    KAMAS = 2;
+    XP = 3;
+  }
+  RewardType reward_type = 1;
+  int32      item_id = 2;       // when ITEM
+  int32      quantity = 3;      // items or kamas amount
+  int64      xp = 4;            // when XP
 }
 
 // ============================================================================
 // TTG / CARD GAME PROTOCOL (t prefix)
 // ============================================================================
 
-// ts - TTG list
+// ts - TTG list (show another player's card collection).
+// Legacy 1.29: "ts<cardsJson>" — collection payload (JSON-ish).
 message TtgList {
-  string raw_data = 1;
+  string collection_json = 1;
 }
 
-// td - TTG dates
+// td - TTG dates (recent recycler dates for a target player).
+// Producer stub: pkg/ttg/interfaces/register.go:120 returns literal "{}".
 message TtgDates {
-  string raw_data = 1;
+  string dates_json = 1;
 }
 
-// ta - TTG add
+// ta - TTG add (card added to collection).
+// Legacy 1.29: "ta<cardId>|<qty>".
 message TtgAdd {
-  string raw_data = 1;
+  int32 card_id = 1;
+  int32 quantity = 2;
 }
 
 // tr - Cards recycler loots
@@ -257,10 +277,11 @@ message TtgLoot {
   int32 quantity = 2;
 }
 
-// to - TTG create
+// to - TTG create (open TTG UI).
+// Legacy 1.29: "to<npcId>" when opening the trading-card dialog at an NPC.
 message TtgCreate {
-  bool   success = 1;
-  string raw_data = 2;
+  bool  success = 1;
+  int64 npc_id = 2;
 }
 
 // tc - TTG leave
@@ -314,9 +335,10 @@ message JobLevel {
   int32 new_level = 2;
 }
 
-// JR - Job remove
+// JR - Job remove (forget/drop a job).
+// StarLoco Player.java:2945 and GameClient.java:6152 — "JR<jobId>".
 message JobRemove {
-  string raw_data = 1;
+  int32 job_id = 1;
 }
 
 // JO - Job options
@@ -350,29 +372,35 @@ message KeyLeave {}
 // RAPID STUFF PROTOCOL (X prefix)
 // ============================================================================
 
-// xC - Rapid stuff cache
+// xC - Rapid stuff cache (saved equipment sets).
+// Legacy 1.29: "xC<cacheBlob>" — freeform per-slot cache payload.
+// Not emitted by StarLoco fork; kept typed for future cache-service work.
 message RapidStuffCache {
-  string raw_data = 1;
+  string cache_blob = 1;
 }
 
 // ============================================================================
 // MOD REPORT PROTOCOL (m prefix)
 // ============================================================================
 
-// mC - Mod report creation
+// mC - Mod report creation.
+// Legacy 1.29: "mC<reportId>" — the new report id assigned by the server.
 message ModReportCreation {
-  bool   success = 1;
-  string raw_data = 2;
+  bool  success = 1;
+  int64 report_id = 2;
 }
 
-// mI - Mod report infos
+// mI - Mod report infos (single report details payload).
+// Legacy 1.29: "mI<infoBlob>" — pipe-delimited per-case info; not produced
+// by StarLoco fork. Kept as typed passthrough.
 message ModReportInfos {
-  string raw_data = 1;
+  string info_blob = 1;
 }
 
-// mL - Mod report cases list
+// mL - Mod report cases list.
+// Legacy 1.29: "mL<caseBlob>" — list-of-cases payload.
 message ModReportCasesList {
-  string raw_data = 1;
+  string cases_blob = 1;
 }
 
 // ============================================================================
@@ -440,11 +468,17 @@ message ModReportCreateRequest {
   bool   link_chat = 3;
   string note = 4;
 }
+// Client→server: bulk state change across multiple report ids.
 message ModReportChangeStateMultiple {
-  string raw_data = 1;
+  repeated int64 report_ids = 1;
+  int32          new_state = 2;
+  string         comment = 3;
 }
+// Client→server: state change for a single report.
 message ModReportChangeStateSingle {
-  string raw_data = 1;
+  int64  report_id = 1;
+  int32  new_state = 2;
+  string comment = 3;
 }
 message ModReportDestroyRequest {}
 

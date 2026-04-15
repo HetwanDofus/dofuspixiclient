@@ -19,9 +19,19 @@
     "experimentalDecorators": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/lib/*"]
+      "@/*": ["src/*"],
+      "vello-wasm": ["../../../dofus-vello-custom-format/packages/vello-wasm/pkg/vello_wasm.d.ts"]
     }
   },
   "include": ["src", "lingui.config.ts", "*.d.ts"],
-  "exclude": ["node_modules", "dist", "build", "../../package/dist"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "../../package/dist",
+    "src/game/spells",
+    "src/game/stores/inventory-store.spec.ts",
+    "src/game/machines/fight.machine.spec.ts",
+    "src/game/machines/login.machine.spec.ts"
+  ]
 }

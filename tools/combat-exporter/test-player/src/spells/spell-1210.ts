@@ -1,73 +1,78 @@
 /**
- * Spell 1210 - Pandawa Wave
+ * Spell 1210 - Duplicate (Pandawa)
  *
- * A directional wave effect that adapts based on casting angle.
- *
- * Components:
- * - duplicate: Main animation that flips and changes timeline based on angle
+ * A single composite animation played at the target position.
+ * The animation has two possible playback directions based on angle:
+ * - If |angle| > 90, the X scale is flipped
+ * - If angle < 0, playback starts at frame 148 (0-indexed: 147)
+ * - frame 127 (0-indexed: 126): removeMovieClip (end of forward path)
+ * - frame 271 (0-indexed: 270): removeMovieClip (end of reverse path)
  *
  * Original AS timing:
- * - Frame 1: Play sound "panda_vague" and check angle for direction
- * - Frame 127: Remove if angle >= 0 
- * - Frame 271: Remove if angle < 0
+ * - Frame 1 (main): Play sound 'panda_vague'
+ * - Frame 1 (DefineSprite_18_duplicate): Flip xscale if |angle|>90, jump to 148 if angle<0
+ * - Frame 127: removeMovieClip (forward direction end)
+ * - Frame 271: removeMovieClip (reverse direction end)
  */
 
-import { Texture } from 'pixi.js';
-import type { SpellContext, SpellTextureProvider } from '../../../spell-interface';
+import type { SpellContext, SpellTextureProvider } from '@dofus/spell-runtime';
 import {
   FrameAnimatedSprite,
   calculateAnchor,
   type SpriteManifest,
-} from '../../../spell-utils';
-import { BaseSpell, type SpellInitContext } from './base-spell';
+} from '@dofus/spell-runtime';
+import { BaseSpell, type SpellInitContext } from '@dofus/spell-runtime';
 
 const DUPLICATE_MANIFEST: SpriteManifest = {
-  width: 809.7,
-  height: 718.8,
-  offsetX: -352.2,
-  offsetY: -344.1,
+  width: 134.95,
+  height: 119.8,
+  offsetX: -58.7,
+  offsetY: -57.35,
 };
 
 export class Spell1210 extends BaseSpell {
   readonly spellId = 1210;
 
-  private duplicateAnim!: FrameAnimatedSprite;
-  private isNegativeAngle = false;
+  private mainAnim!: FrameAnimatedSprite;
 
   protected setup(context: SpellContext, textures: SpellTextureProvider, init: SpellInitContext): void {
-    // Determine animation direction based on angle
     const angle = context?.angle ?? 0;
-    this.isNegativeAngle = angle < 0;
 
-    // Create main animation
-    this.duplicateAnim = this.anims.add(new FrameAnimatedSprite({
+    // Determine playback direction per AS:
+    // if (angle < 0) gotoAndPlay(148) -> 0-indexed: startFrame = 147
+    // stop frame: if angle < 0 -> frame 271 (0-indexed: 270), else frame 127 (0-indexed: 126)
+    const startFrame = angle < 0 ? 147 : 0;
+    const stopFrame = angle < 0 ? 270 : 126;
+
+    const anchor = calculateAnchor(DUPLICATE_MANIFEST);
+
+    this.mainAnim = this.anims.add(new FrameAnimatedSprite({
       textures: textures.getFrames('duplicate'),
-      ...calculateAnchor(DUPLICATE_MANIFEST),
+      fps: 60,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
       scale: init.scale,
-      startFrame: this.isNegativeAngle ? 147 : 0,
+      startFrame,
     }));
 
-    // Position at caster
-    this.duplicateAnim.sprite.position.set(0, init.casterY);
+    // Position at target
+    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
 
-    // Flip horizontally if angle > 90 or < -90 (facing left)
+    // AS: if (Math.abs(_parent.angle) > 90) { _xscale = -_xscale; }
     if (Math.abs(angle) > 90) {
-      this.duplicateAnim.sprite.scale.x = -this.duplicateAnim.sprite.scale.x;
+      this.mainAnim.sprite.scale.x = -this.mainAnim.sprite.scale.x;
     }
 
-    // Play sound at frame 1
-    this.duplicateAnim.onFrame(0, () => this.callbacks.playSound('panda_vague'));
+    // Sound at frame 0 (main timeline frame 1)
+    this.mainAnim.onFrame(0, () => this.callbacks.playSound('panda_vague'));
 
-    // Stop at appropriate frame based on angle
-    if (this.isNegativeAngle) {
-      // For negative angles, plays from 148 to 271
-      this.duplicateAnim.stopAt(270);
-    } else {
-      // For positive angles, plays from 1 to 127
-      this.duplicateAnim.stopAt(126);
-    }
+    // Signal hit at start of impact (when animation begins showing effect)
+    // Use frame 0 or the chosen start frame for hit signal
+    this.mainAnim.onFrame(startFrame === 147 ? 147 : 0, () => this.signalHit());
 
-    this.container.addChild(this.duplicateAnim.sprite);
+    this.mainAnim.stopAt(stopFrame);
+
+    this.container.addChild(this.mainAnim.sprite);
   }
 
   update(deltaTime: number): void {
@@ -77,7 +82,7 @@ export class Spell1210 extends BaseSpell {
 
     this.anims.update(deltaTime);
 
-    if (this.anims.allComplete()) {
+    if (this.anims.allStopped()) {
       this.complete();
     }
   }
