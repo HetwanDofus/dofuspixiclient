@@ -1,0 +1,2929 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1258,
+        "E": {
+            "4": {
+                "d": "Teleports over a maximum range of #1 cells",
+                "c": 89,
+                "p": -100,
+                "o": ""
+            },
+            "5": {
+                "d": "Makes you move back #1 cell(s)",
+                "c": 92,
+                "p": -100,
+                "o": ""
+            },
+            "6": {
+                "d": "Makes you move forward #1 square(s)",
+                "c": 91,
+                "p": -100,
+                "o": ""
+            },
+            "7": {
+                "d": "Get a divorce",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "8": {
+                "d": "Switch the position of 2 players",
+                "c": 90,
+                "p": -100,
+                "o": ""
+            },
+            "9": {
+                "d": "Avoids #1% of hits by moving back of #2 square(s)",
+                "c": 92,
+                "p": -100,
+                "o": ""
+            },
+            "10": {
+                "d": "Allows the use of emoticon #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "13": {
+                "d": "Changes the playing time of a player",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "50": {
+                "d": "Carry a player",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "51": {
+                "d": "Throw a player",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "77": {
+                "d": "Steals #1{~1~2 to }#2 MP",
+                "c": 28,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "78": {
+                "d": "Adds #1{~1~2 to }#2 MP",
+                "c": 0,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "79": {
+                "d": "#3% damage received x#1, or else healed by x#2",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "81": {
+                "d": "HP restored #1{~1~2 to }#2",
+                "c": 82,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "82": {
+                "d": "Steals #1{~1~2 to }#2 HP (fixed)",
+                "c": 11,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "84": {
+                "d": "Steals #1{~1~2 to }#2 AP",
+                "c": 1,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "85": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's life (water)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true,
+                "e": "W"
+            },
+            "86": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's life (earth)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true,
+                "e": "E"
+            },
+            "87": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's life (air)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true,
+                "e": "A"
+            },
+            "88": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's life (fire)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true,
+                "e": "F"
+            },
+            "89": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's life (neutral)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true,
+                "e": "N"
+            },
+            "90": {
+                "d": "Gives #1{~1~2 to }#2 % of his own life",
+                "c": 11,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "91": {
+                "d": "Steals #1{~1~2 to }#2 HP (water)",
+                "c": 0,
+                "p": 994,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "W"
+            },
+            "92": {
+                "d": "Steals #1{~1~2 to }#2 HP (earth)",
+                "c": 0,
+                "p": 992,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "E"
+            },
+            "93": {
+                "d": "Steals #1{~1~2 to }#2 HP (air)",
+                "c": 0,
+                "p": 991,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "A"
+            },
+            "94": {
+                "d": "Steals #1{~1~2 to }#2 HP (fire)",
+                "c": 0,
+                "p": 993,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "F"
+            },
+            "95": {
+                "d": "Steals #1{~1~2 to }#2 HP (neutral)",
+                "c": 0,
+                "p": 995,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "N"
+            },
+            "96": {
+                "d": "Damage: #1{~1~2 to }#2 (water)",
+                "c": 0,
+                "p": 999,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "W"
+            },
+            "97": {
+                "d": "Damage: #1{~1~2 to }#2 (earth)",
+                "c": 0,
+                "p": 997,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "E"
+            },
+            "98": {
+                "d": "Damage: #1{~1~2 to }#2 (air)",
+                "c": 0,
+                "p": 996,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "A"
+            },
+            "99": {
+                "d": "Damage: #1{~1~2 to }#2 (fire)",
+                "c": 0,
+                "p": 998,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "F"
+            },
+            "100": {
+                "d": "Damage: #1{~1~2 to }#2 (neutral)",
+                "c": 0,
+                "p": 1000,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "N"
+            },
+            "101": {
+                "d": "Lost AP for the target: #1{~1~2 to }#2",
+                "c": 1,
+                "p": 989,
+                "o": "/",
+                "t": true,
+                "j": true
+            },
+            "105": {
+                "d": "Damage reduced by #1{~1~2 to }#2",
+                "c": 6,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "106": {
+                "d": "Reflects a spell, max. of level #2",
+                "c": 30,
+                "p": -100,
+                "o": ""
+            },
+            "107": {
+                "d": "Reflects #1{~1~2 to }#2 damage",
+                "c": 31,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "108": {
+                "d": "HP restored #1{~1~2 to }#2",
+                "c": 82,
+                "p": 990,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "109": {
+                "d": "Damage to the caster: #1{~1~2 to }#2",
+                "c": 0,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "110": {
+                "d": "+#1{~1~2 to }#2 life",
+                "c": 82,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "111": {
+                "d": "+#1{~1~2 to }#2 AP",
+                "c": 1,
+                "p": 101,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "112": {
+                "d": "+#1{~1~2 to }#2 damage",
+                "c": 80,
+                "p": 88,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "113": {
+                "d": "Doubles damage or restores #1{~1~2 to }#2 HP",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "114": {
+                "d": "Multiply damage by #1",
+                "c": 17,
+                "p": -100,
+                "o": "+"
+            },
+            "115": {
+                "d": "+#1{~1~2 to }#2 critical hits",
+                "c": 18,
+                "p": 87,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "116": {
+                "d": "-#1{~1~2 to }#2 range",
+                "c": 19,
+                "p": 99,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "117": {
+                "d": "+#1{~1~2 to }#2 range",
+                "c": 19,
+                "p": 99,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "118": {
+                "d": "+#1{~1~2 to }#2 strength",
+                "c": 10,
+                "p": 93,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "119": {
+                "d": "+#1{~1~2 to }#2 agility",
+                "c": 14,
+                "p": 92,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "120": {
+                "d": "Adds +#1{~1~2 to }#2 AP",
+                "c": 1,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "121": {
+                "d": "+#1{~1~2 to }#2 damage",
+                "c": 80,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "122": {
+                "d": "Adds #1{~1~2 to }#2 to critical failures",
+                "c": 39,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "123": {
+                "d": "+#1{~1~2 to }#2 chance",
+                "c": 13,
+                "p": 95,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "124": {
+                "d": "+#1{~1~2 to }#2 wisdom",
+                "c": 12,
+                "p": 90,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "125": {
+                "d": "+#1{~1~2 to }#2 vitality",
+                "c": 11,
+                "p": 96,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "126": {
+                "d": "+#1{~1~2 to }#2 intelligence",
+                "c": 15,
+                "p": 94,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "127": {
+                "d": "MP lost: #1{~1~2 to }#2",
+                "c": 23,
+                "p": 100,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "128": {
+                "d": "+#1{~1~2 to }#2 MP",
+                "c": 23,
+                "p": 100,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "130": {
+                "d": "Steals #1{~1~2 to }#2 Kamas",
+                "c": 2,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "131": {
+                "d": "Using #1 AP makes you lose #2 HP",
+                "c": 0,
+                "p": -100,
+                "o": "-"
+            },
+            "132": {
+                "d": "Dispels magic effects",
+                "c": -1,
+                "p": -100,
+                "o": ""
+            },
+            "133": {
+                "d": "Lost AP for caster: #1{~1~2 to }#2",
+                "c": 1,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "134": {
+                "d": "Lost MP for caster: #1{~1~2 to }#2",
+                "c": 23,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "135": {
+                "d": "Caster's range reduced by: #1{~1~2 to }#2",
+                "c": 19,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "136": {
+                "d": "Caster's range increased by: #1{~1~2 to }#2",
+                "c": 19,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "137": {
+                "d": "Caster's physical damage increased by : #1{~1~2 to }#2",
+                "c": 79,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "138": {
+                "d": "Increases damage by #1{~1~2 to }#2%",
+                "c": 17,
+                "p": 91,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "139": {
+                "d": "Restores #1{~1~2 to }#2 energy points",
+                "c": 29,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "140": {
+                "d": "Makes you skip a turn",
+                "c": -1,
+                "p": -100,
+                "o": ""
+            },
+            "141": {
+                "d": "Kills the target",
+                "c": 102,
+                "p": -100,
+                "o": ""
+            },
+            "142": {
+                "d": "+#1{~1~2 to }#2 to physical damage",
+                "c": 79,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "143": {
+                "d": "HP restored: #1{~1~2 to }#2",
+                "c": 82,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "144": {
+                "d": "Damage: #1{~1~2 to }#2 (unboosted)",
+                "c": 11,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "145": {
+                "d": "-#1{~1~2 to }#2 to damage",
+                "c": 80,
+                "p": 88,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "146": {
+                "d": "Changes the words",
+                "c": 38,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "147": {
+                "d": "Revive an ally",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "148": {
+                "d": "Someone's following you!",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "149": {
+                "d": "Changes appearance",
+                "c": 38,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "150": {
+                "d": "Makes the character invisible",
+                "c": 24,
+                "p": -100,
+                "o": "+"
+            },
+            "152": {
+                "d": "-#1{~1~2 to }#2 chance",
+                "c": 13,
+                "p": 95,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "153": {
+                "d": "-#1{~1~2 to }#2 vitality",
+                "c": 11,
+                "p": 96,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "154": {
+                "d": "-#1{~1~2 to }#2 agility",
+                "c": 14,
+                "p": 92,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "155": {
+                "d": "-#1{~1~2 to }#2 intelligence",
+                "c": 15,
+                "p": 94,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "156": {
+                "d": "-#1{~1~2 to }#2 wisdom",
+                "c": 12,
+                "p": 90,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "157": {
+                "d": "-#1{~1~2 to }#2 strength",
+                "c": 10,
+                "p": 93,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "158": {
+                "d": "Increases load weight by #1{~1~2 to }#2 pods",
+                "c": 96,
+                "p": 97,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "159": {
+                "d": "Decreases load weight by #1{~1~2 to }#2 pods",
+                "c": 96,
+                "p": 97,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "160": {
+                "d": "Increases chance of avoiding AP loss by #1{~1~2 to }#2%",
+                "c": 27,
+                "p": 0,
+                "o": "+",
+                "j": true
+            },
+            "161": {
+                "d": "Increases chance of avoiding MP loss by #1{~1~2 to }#2%",
+                "c": 28,
+                "p": 0,
+                "o": "+",
+                "j": true
+            },
+            "162": {
+                "d": "-#1{~1~2 to}#2% chance of avoiding AP losses",
+                "c": 27,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "163": {
+                "d": "-#1{~1~2 to}#2% chance of avoiding MP losses",
+                "c": 28,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "164": {
+                "d": "Damage reduced by #1%",
+                "c": 6,
+                "p": -100,
+                "o": "+"
+            },
+            "165": {
+                "d": "Increases (#1) damage by #2%",
+                "c": 16,
+                "p": -100,
+                "o": "+"
+            },
+            "166": {
+                "d": "AP given back: #1{~1~2 to }#2",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "168": {
+                "d": "-#1{~1~2 to }#2 AP",
+                "c": 1,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "169": {
+                "d": "-#1{~1~2 to }#2 MP",
+                "c": 23,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "171": {
+                "d": "-#1{~1~2 to }#2 critical hits",
+                "c": 18,
+                "p": 87,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "172": {
+                "d": "Magic reduction decreased by #1{~1~2 to }#2",
+                "c": 20,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "173": {
+                "d": "Physical reduction decreased by #1{~1~2 to }#2",
+                "c": 79,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "174": {
+                "d": "+#1{~1~2 to }#2 initiative",
+                "c": 44,
+                "p": 98,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "175": {
+                "d": "-#1{~1~2 to }#2 initiative",
+                "c": 44,
+                "p": 98,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "176": {
+                "d": "+#1{~1~2 to }#2 prospecting",
+                "c": 48,
+                "p": 89,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "177": {
+                "d": "-#1{~1~2 to }#2 prospecting",
+                "c": 48,
+                "p": 89,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "178": {
+                "d": "+#1{~1~2 to }#2 heals",
+                "c": 49,
+                "p": 81,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "179": {
+                "d": "-#1{~1~2 to }#2 heals",
+                "c": 49,
+                "p": 81,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "180": {
+                "d": "Creates a double of the caster",
+                "c": 97,
+                "p": -100,
+                "o": ""
+            },
+            "181": {
+                "d": "Summons: #1",
+                "c": 97,
+                "p": -100,
+                "o": ""
+            },
+            "182": {
+                "d": "+#1{~1~2 to }#2 to summonable creatures",
+                "c": 26,
+                "p": 80,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "183": {
+                "d": "Magic reduction of #1{~1~2 to }#2",
+                "c": 6,
+                "p": 0,
+                "o": "/",
+                "t": true,
+                "j": true
+            },
+            "184": {
+                "d": "Physical reduction of #1{~1~2 to }#2",
+                "c": 6,
+                "p": 0,
+                "o": "/",
+                "t": true,
+                "j": true
+            },
+            "185": {
+                "d": "Summons a static creature",
+                "c": 98,
+                "p": -100,
+                "o": ""
+            },
+            "186": {
+                "d": "Decreases damage by #1{~1~2 to }#2%",
+                "c": 17,
+                "p": 91,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "188": {
+                "d": "Switches alignment",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "194": {
+                "d": "Gain #1{~1~2 to }#2 Kamas",
+                "c": 2,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "197": {
+                "d": "Transform into #1",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "201": {
+                "d": "Put an item on the ground",
+                "c": -1,
+                "p": -100,
+                "o": ""
+            },
+            "202": {
+                "d": "Reveals all invisible items",
+                "c": -1,
+                "p": -100,
+                "o": ""
+            },
+            "206": {
+                "d": "Revive the target",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "210": {
+                "d": "#1{~1~2 to }#2 % earth resistance",
+                "c": 33,
+                "p": 83,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "211": {
+                "d": "#1{~1~2 to }#2 % water resistance",
+                "c": 35,
+                "p": 85,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "212": {
+                "d": "#1{~1~2 to }#2 % air resistance",
+                "c": 36,
+                "p": 82,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "213": {
+                "d": "#1{~1~2 to }#2 % fire resistance",
+                "c": 34,
+                "p": 84,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "214": {
+                "d": "#1{~1~2 to }#2 % neutral resistance",
+                "c": 37,
+                "p": 86,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "215": {
+                "d": "#1{~1~2 to }#2 % earth weakness",
+                "c": 33,
+                "p": 83,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "216": {
+                "d": "#1{~1~2 to }#2 % water weakness",
+                "c": 35,
+                "p": 85,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "217": {
+                "d": "#1{~1~2 to }#2 % air weakness",
+                "c": 36,
+                "p": 82,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "218": {
+                "d": "#1{~1~2 to }#2 % fire weakness",
+                "c": 34,
+                "p": 84,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "219": {
+                "d": "#1{~1~2 to }#2 % neutral weakness",
+                "c": 37,
+                "p": 86,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "220": {
+                "d": "Reflects #1{~1~2 to }#2 damage",
+                "c": 50,
+                "p": 74,
+                "o": "+",
+                "t": true
+            },
+            "221": {
+                "d": "What's in there?",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "222": {
+                "d": "What's in there?",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "225": {
+                "d": "Adds #1{~1~2 to }#2 to trap damage",
+                "c": 70,
+                "p": 73,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "226": {
+                "d": "+#1{~1~2 to }#2% damage to traps",
+                "c": 69,
+                "p": 72,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "229": {
+                "d": "Get a mount!",
+                "c": 81,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "230": {
+                "d": "+#1 of lost energy",
+                "c": 51,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "239": {
+                "d": "Transform into #1",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "240": {
+                "d": "+#1{~1~2 à }#2 earth resistance",
+                "c": 83,
+                "p": 76,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "241": {
+                "d": "+#1{~1~2 à }#2 water resistance",
+                "c": 85,
+                "p": 78,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "242": {
+                "d": "+#1{~1~2 à }#2 air resistance",
+                "c": 86,
+                "p": 75,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "243": {
+                "d": "+#1{~1~2 à }#2 fire resistance",
+                "c": 84,
+                "p": 77,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "244": {
+                "d": "+#1{~1~2 à }#2 neutral resistance",
+                "c": 87,
+                "p": 79,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "245": {
+                "d": "-#1{~1~2 à }#2 earth resistance",
+                "c": 83,
+                "p": 76,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "246": {
+                "d": "-#1{~1~2 à }#2 water resistance",
+                "c": 85,
+                "p": 78,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "247": {
+                "d": "-#1{~1~2 à }#2 air resistance",
+                "c": 86,
+                "p": 75,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "248": {
+                "d": "-#1{~1~2 à }#2 fire resistance",
+                "c": 84,
+                "p": 77,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "249": {
+                "d": "-#1{~1~2 à }#2 neutral resistance",
+                "c": 87,
+                "p": 79,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "250": {
+                "d": "#1{~1~2 to }#2% earth resistance against fighters",
+                "c": 33,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "251": {
+                "d": "#1{~1~2 to }#2 % water resistance against fighters",
+                "c": 35,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "252": {
+                "d": "#1{~1~2 to }#2 % air resistance against fighters",
+                "c": 36,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "253": {
+                "d": "#1{~1~2 to }#2 % fire resistance against fighters",
+                "c": 34,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "254": {
+                "d": "#1{~1~2 to }#2 % neutral resistance against fighters",
+                "c": 37,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "255": {
+                "d": "#1{~1~2 to }#2 % earth weakness against fighters",
+                "c": 33,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "256": {
+                "d": "#1{~1~2 to }#2 % water weakness against fighters",
+                "c": 35,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "257": {
+                "d": "#1{~1~2 to }#2 % air weakness against fighters",
+                "c": 36,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "258": {
+                "d": "#1{~1~2 to }#2 % fire weakness against fighters",
+                "c": 34,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "259": {
+                "d": "#1{~1~2 to }#2 % neutral weakness against fighters",
+                "c": 37,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "260": {
+                "d": "+#1{~1~2 à }#2 earth resistance against fighters",
+                "c": 83,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "261": {
+                "d": "+#1{~1~2 à }#2 water resistance against fighters",
+                "c": 85,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "262": {
+                "d": "Adds #1{~1~2 à }#2 air resistance against fighters",
+                "c": 86,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "263": {
+                "d": "+#1{~1~2 à }#2 fire resistance against fighters",
+                "c": 84,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "264": {
+                "d": "+#1{~1~2 à }#2 neutral resistance against fighters",
+                "c": 87,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "265": {
+                "d": "Damage reduced by #1{~1~2 to }#2",
+                "c": 6,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "266": {
+                "d": "#1{~1~2 to }#2 Chance theft",
+                "c": 13,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "267": {
+                "d": "#1{~1~2 to }#2 Vitality theft",
+                "c": 11,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "268": {
+                "d": "#1{~1~2 to }#2 Agility theft",
+                "c": 14,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "269": {
+                "d": "#1{~1~2 to }#2 Intelligence theft",
+                "c": 15,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "270": {
+                "d": "#1{~1~2 to }#2 Wisdom theft",
+                "c": 12,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "271": {
+                "d": "#1{~1~2 to }#2 Strength theft",
+                "c": 10,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "275": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's lost HP (water)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "276": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's lost HP (earth)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "277": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's lost HP (air)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "278": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's lost HP (fire)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "279": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's lost HP (neutral)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "281": {
+                "d": "Increases #1's range by #3",
+                "c": 19,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "282": {
+                "d": "Makes it possible to modify #1's range",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "283": {
+                "d": "Adds #3 to #1's damage",
+                "c": 80,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "284": {
+                "d": "Adds #3 to #1's heals",
+                "c": 49,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "285": {
+                "d": "Reduces #1's AP cost by #3",
+                "c": 1,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "286": {
+                "d": "Reduces #1's cooldown period by #3",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "287": {
+                "d": "Adds #3 to #1's Critical Hits",
+                "c": 18,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "288": {
+                "d": "#1 no longer has to be cast in a straight line",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "289": {
+                "d": "#1 no longer needs line of sight",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "290": {
+                "d": "Increases the maximum number of times #1 can be cast per turn by #3",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "291": {
+                "d": "Increases the maximum number of times #1 can be cast per target by #3",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "292": {
+                "d": "#1's cooldown period is set to #3",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "293": {
+                "d": "Increases #1's basic damage by #3",
+                "c": 0,
+                "p": -100,
+                "o": "+"
+            },
+            "294": {
+                "d": "Reduces #1's range by #3",
+                "c": 19,
+                "p": -100,
+                "o": "-"
+            },
+            "300": {
+                "d": "Casts the #3 spell",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "310": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "320": {
+                "d": "Steals #1{~1~2 to }#2 range",
+                "c": 19,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "333": {
+                "d": "Change a colour",
+                "c": 38,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "335": {
+                "d": "Change appearance",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "400": {
+                "d": "Sets a grade #2 trap",
+                "c": 70,
+                "p": -100,
+                "o": ""
+            },
+            "401": {
+                "d": "Sets a grade #2 glyph",
+                "c": -1,
+                "p": -100,
+                "o": ""
+            },
+            "402": {
+                "d": "Sets a grade #2 glyph",
+                "c": -1,
+                "p": -100,
+                "o": ""
+            },
+            "405": {
+                "d": "Kills and replaces with a summon",
+                "c": 97,
+                "p": -100,
+                "o": ""
+            },
+            "406": {
+                "d": "[wip]Enlève les effets du sort %1",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "448": {
+                "d": "Effectiveness: #3",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "513": {
+                "d": "Place a prism",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "600": {
+                "d": "Teleport to save point",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "601": {
+                "d": "Teleports: '#1' to (#2, #3)",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "602": {
+                "d": "Save your position",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "603": {
+                "d": "Learn the #3 profession",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "604": {
+                "d": "Learn the spell #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "605": {
+                "d": "+#1{~1~2 to }#2 XP points",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "606": {
+                "d": "+#1{~1~2 to }#2 wisdom",
+                "c": 12,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "607": {
+                "d": "+#1{~1~2 to }#2 strength",
+                "c": 10,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "608": {
+                "d": "+#1{~1~2 to }#2 chance",
+                "c": 13,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "609": {
+                "d": "+#1{~1~2 to }#2 agility",
+                "c": 14,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "610": {
+                "d": "+#1{~1~2 to }#2 vitality",
+                "c": 11,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "611": {
+                "d": "+#1{~1~2 to }#2 intelligence",
+                "c": 15,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "612": {
+                "d": "+#1{~1~2 to }#2 characteristic points",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "613": {
+                "d": "+#1{~1~2 to }#2 spell points",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "614": {
+                "d": "+#1 XP for profession #2",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "615": {
+                "d": "Makes you forget the profession #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "616": {
+                "d": "Makes you forget one level of the spell #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "620": {
+                "d": "Consult #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "621": {
+                "d": "Summon: #3 (level #1)",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "622": {
+                "d": "Teleport to your house",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "623": {
+                "d": "Summons: #3",
+                "c": -1,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "624": {
+                "d": "Makes you forget one level of the spell #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "625": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "626": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "627": {
+                "d": "Recreates original map",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "628": {
+                "d": "Summons: #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "631": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "640": {
+                "d": "Adds #3 Honour points",
+                "c": 52,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "641": {
+                "d": "Adds #3 Disgrace points",
+                "c": 53,
+                "p": 0,
+                "o": "-",
+                "t": true
+            },
+            "642": {
+                "d": "Withdraws #3 Honour points",
+                "c": 52,
+                "p": 0,
+                "o": "-",
+                "t": true
+            },
+            "643": {
+                "d": "Withdraws #3 Disgrace points",
+                "c": 53,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "645": {
+                "d": "Resuscitates allies on your map",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "646": {
+                "d": "Restored HP: #1{~1~2 to }#2",
+                "c": 82,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "647": {
+                "d": "Frees enemy souls",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "648": {
+                "d": "Frees an enemy soul",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "649": {
+                "d": "Pretend to be #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "654": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": "+"
+            },
+            "666": {
+                "d": "No additional effects",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "669": {
+                "d": "Incarnation level #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "670": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's HP (Neutral-type)",
+                "c": 93,
+                "p": -100,
+                "o": "",
+                "t": true,
+                "j": true
+            },
+            "671": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's HP (Neutral-type)",
+                "c": 93,
+                "p": -100,
+                "o": "",
+                "t": true,
+                "j": true
+            },
+            "672": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's life (neutral)",
+                "c": 93,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "699": {
+                "d": "Link a job: #1",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "700": {
+                "d": "Change the attack element",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "701": {
+                "d": "Power: #1{~1~2 to }#2",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "702": {
+                "d": "+#1{~1~2 to }#2 durability points",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true,
+                "j": true
+            },
+            "705": {
+                "d": "#1% chance of capturing a power #3 soul",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "706": {
+                "d": "#1% chance of capturing a mount",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "710": {
+                "d": "Additional cost",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "715": {
+                "d": "#1 : #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "716": {
+                "d": "#1 : #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "717": {
+                "d": "#1 : #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "720": {
+                "d": "Number of victims: #2",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "722": {
+                "d": "Gives the #3 spell",
+                "c": 0,
+                "p": 986,
+                "o": "",
+                "t": true
+            },
+            "724": {
+                "d": "Display title: '#3'",
+                "c": 0,
+                "p": -10,
+                "o": "",
+                "t": true
+            },
+            "725": {
+                "d": "Rename guild: #4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "730": {
+                "d": "Teleport to the nearest allied prism",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "731": {
+                "d": "Attack players of the opposite alignment automatically",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "740": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "741": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "742": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "750": {
+                "d": "Increases chance of capture by: #1{~1~2 à }#2%",
+                "c": 72,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "751": {
+                "d": "Bonus to Dragoturkey XP: #1{~1~2 à }#2%",
+                "c": 73,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "760": {
+                "d": "Disappear by moving",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "765": {
+                "d": "Switch the position of 2 players",
+                "c": 90,
+                "p": -100,
+                "o": ""
+            },
+            "770": {
+                "d": "Clockwise confusion: #1{~1~2 to }#2 degrees",
+                "c": 74,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "771": {
+                "d": "Clockwise confusion: #1{~1~2 to }#2 Pi/2",
+                "c": 74,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "772": {
+                "d": "Clockwise confusion: #1{~1~2 to }#2 Pi/4",
+                "c": 74,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "773": {
+                "d": "Anticlockwise confusion: #1{~1~2 to }#2 degrees",
+                "c": 74,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "774": {
+                "d": "Anticlockwise confusion: #1{~1~2 to }#2 Pi/2",
+                "c": 74,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "775": {
+                "d": "Anticlockwise confusion: #1{~1~2 to }#2 Pi/4",
+                "c": 74,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "776": {
+                "d": "Increases permanent damage taken by #1{~1~2 to }#2%",
+                "c": 75,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "780": {
+                "d": "Summons the last ally who died with #1{~1~2 to }#2 % of their HP",
+                "c": 0,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "781": {
+                "d": "Minimizes random effects",
+                "c": 0,
+                "p": -100,
+                "o": "-"
+            },
+            "782": {
+                "d": "Maximizes random effects",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "783": {
+                "d": "Repels to the targeted cell",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "784": {
+                "d": "Return to original position",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "785": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "786": {
+                "d": "Heals upon attack",
+                "c": 11,
+                "p": -100,
+                "o": "/"
+            },
+            "787": {
+                "d": "#1",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "788": {
+                "d": "Punishment of #2 for #3 turn(s)",
+                "c": 0,
+                "p": -100,
+                "o": "+"
+            },
+            "789": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "790": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "791": {
+                "d": "Prepare #1{~1~2 to }#2 mercenary scrolls",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "795": {
+                "d": "Hunting Weapon",
+                "c": 0,
+                "p": 105,
+                "o": "/",
+                "t": true
+            },
+            "800": {
+                "d": "Health points: #3",
+                "c": 99,
+                "p": 987,
+                "o": "",
+                "t": true
+            },
+            "805": {
+                "d": "Received on: #1",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "806": {
+                "d": "State: #1",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "807": {
+                "d": "Last meal: #1",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "808": {
+                "d": "Last meal: #1",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "810": {
+                "d": "Size: #3 squares",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "811": {
+                "d": "Remaining turn(s): #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "812": {
+                "d": "Durability: #2 / #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "813": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "814": {
+                "d": "#1",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "815": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "816": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "825": {
+                "d": "Teleport",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "856": {
+                "d": "Voir la collection de cartes",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "857": {
+                "d": "[NO_TRAD]",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "905": {
+                "d": "Start a fight against #2",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "930": {
+                "d": "Increases serenity, decreases aggressiveness",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "931": {
+                "d": "Improves aggressiveness, decreases serenity",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "932": {
+                "d": "Increases stamina",
+                "c": 0,
+                "p": -100,
+                "o": "+"
+            },
+            "933": {
+                "d": "Decreases stamina",
+                "c": 0,
+                "p": -100,
+                "o": "-"
+            },
+            "934": {
+                "d": "Increases love",
+                "c": 0,
+                "p": -100,
+                "o": "+"
+            },
+            "935": {
+                "d": "Decreases love",
+                "c": 0,
+                "p": -100,
+                "o": "-"
+            },
+            "936": {
+                "d": "Speeds maturity",
+                "c": 0,
+                "p": -100,
+                "o": "+"
+            },
+            "937": {
+                "d": "Slows down maturity",
+                "c": 0,
+                "p": -100,
+                "o": "-"
+            },
+            "939": {
+                "d": "Increases the capacity of a pet #3 .",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "940": {
+                "d": "Improved abilities",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "945": {
+                "d": "Give your mount a gene",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "946": {
+                "d": "Temporarily remove a Breeding item",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "947": {
+                "d": "Remove an item from a Paddock",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "948": {
+                "d": "Paddock Item",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "949": {
+                "d": "Get on/off a mount",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "950": {
+                "d": "State #3",
+                "c": 71,
+                "p": -100,
+                "o": "/"
+            },
+            "951": {
+                "d": "Removes state '#3'",
+                "c": 71,
+                "p": -100,
+                "o": "/"
+            },
+            "960": {
+                "d": "Alignment: #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "961": {
+                "d": "Rank: #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "962": {
+                "d": "Level: #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "963": {
+                "d": "Created #3 day(s) ago",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "964": {
+                "d": "Name: #4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "969": {
+                "d": "Afterimage of #3",
+                "c": 0,
+                "p": -10,
+                "o": "/",
+                "t": true
+            },
+            "970": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "971": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "972": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "973": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "974": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "975": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "983": {
+                "d": "Linked to the account #1",
+                "c": 0,
+                "p": -11,
+                "o": "/",
+                "t": true
+            },
+            "984": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": "/"
+            },
+            "985": {
+                "d": "Modified by: #4",
+                "c": 0,
+                "p": -9,
+                "o": "/",
+                "t": true
+            },
+            "986": {
+                "d": "Prepares #1{~1~2 to }#2 scrolls",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "987": {
+                "d": "Belongs to: #4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "988": {
+                "d": "Made by: #4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "989": {
+                "d": "Seeks: #4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "990": {
+                "d": "#4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "994": {
+                "d": "!! Invalid Certificate !!",
+                "c": 0,
+                "p": 0,
+                "o": "-",
+                "t": true
+            },
+            "995": {
+                "d": "View mount characteristics",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "996": {
+                "d": "Belongs to: #4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "997": {
+                "d": "Name: #4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "998": {
+                "d": "Validity: #1d #2h #3m",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "999": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": "+"
+            },
+            "2001": {
+                "d": "Gain #1{~1~2 to }#2 Kamas",
+                "c": 2,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "2008": {
+                "d": "Increases total damage by #1{~1~2 to }#2%",
+                "c": 76,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "2009": {
+                "d": "Decreases total damage by #1{~1~2 to }#2%",
+                "c": 76,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "2010": {
+                "d": "+#1{~1~2 à }#2 power stack(s)",
+                "c": 77,
+                "p": -100,
+                "o": "+"
+            },
+            "2011": {
+                "d": "-#1{~1~2 à -}#2 power stack(s)",
+                "c": 77,
+                "p": -100,
+                "o": "-"
+            },
+            "2050": {
+                "d": "XP gains: equivalent to moving from level 1 to #1{~2 (+#2%)}",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "2100": {
+                "d": "AP lost: #1{~1~2 to }#2",
+                "c": 1,
+                "p": 101,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "2101": {
+                "d": "Contains a “Tragic The Gardening” card",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2102": {
+                "d": "Adds the card to the binder",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2107": {
+                "d": "Contains a “Tragic The Gardening” card",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2111": {
+                "d": "Diminue de #1{~1~2 à }#2 le renvoi de dommages",
+                "c": 50,
+                "p": 74,
+                "o": "-",
+                "t": true
+            },
+            "2112": {
+                "d": "-#1{~1~2 to }#2 to summonable creatures",
+                "c": 26,
+                "p": 80,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "2113": {
+                "d": "-#1{~1~2 to }#2 to trap damage",
+                "c": 70,
+                "p": 73,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "2114": {
+                "d": "-#1{~1~2 to }#2% damage to traps",
+                "c": 69,
+                "p": 72,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "2116": {
+                "d": "Extra bonuses:",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true,
+                "j": true
+            },
+            "2117": {
+                "d": "No bonus!",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true,
+                "j": true
+            },
+            "2118": {
+                "d": "-#1{~1~2 to }#2 life",
+                "c": 82,
+                "p": 0,
+                "o": "-",
+                "j": true
+            },
+            "2123": {
+                "d": "Reduces the weapon's AP cost by #3",
+                "c": 1,
+                "p": -100,
+                "o": "+"
+            },
+            "2124": {
+                "d": "Increases the range of all spells by #3",
+                "c": 0,
+                "p": -100,
+                "o": "+"
+            },
+            "2126": {
+                "d": "Damage: #1{~1~2 to }#2 (best element)",
+                "c": 95,
+                "p": -100,
+                "o": "",
+                "j": true,
+                "e": "B"
+            },
+            "2127": {
+                "d": "Makes you move forward #1 square(s)",
+                "c": 91,
+                "p": -100,
+                "o": ""
+            },
+            "2128": {
+                "d": "State #3",
+                "c": 71,
+                "p": -100,
+                "o": "/"
+            },
+            "2129": {
+                "d": "Removes state '#3'",
+                "c": 71,
+                "p": -100,
+                "o": "/"
+            },
+            "2130": {
+                "d": "Save your position",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "2131": {
+                "d": "Teleports to previous position",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "2132": {
+                "d": "Draws 1 card",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "2133": {
+                "d": "Shuffles the cards",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "2134": {
+                "d": "Steals #1{~1~2 to }#2 HP (best element)",
+                "c": 95,
+                "p": -100,
+                "o": "+",
+                "j": true,
+                "e": "B"
+            },
+            "2135": {
+                "d": "Steals #1{~1~2 to -}#2 in all characteristics",
+                "c": 88,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "2136": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's HP (Neutral-type)",
+                "c": 93,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "2137": {
+                "d": "State #3",
+                "c": 71,
+                "p": -100,
+                "o": "/"
+            },
+            "2138": {
+                "d": "Adds #3% to #1's damage",
+                "c": 17,
+                "p": -100,
+                "o": "+"
+            },
+            "2139": {
+                "d": "Teleport targets symmetrically",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "2142": {
+                "d": "Change attack element",
+                "c": 0,
+                "p": 0,
+                "o": "/"
+            },
+            "2143": {
+                "d": "Teleport : #1",
+                "c": 89,
+                "p": -100,
+                "o": ""
+            },
+            "2144": {
+                "d": "Ajoute un monstre au combat",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "2146": {
+                "d": "Progress: #2{~3.}#3%",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2147": {
+                "d": "-",
+                "c": 0,
+                "p": -1,
+                "o": ""
+            },
+            "2148": {
+                "d": "-",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "2149": {
+                "d": "Ceremonial Resistance: #2 / #3",
+                "c": 0,
+                "p": -12,
+                "o": "",
+                "t": true
+            },
+            "2150": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "2151": {
+                "d": "Linked to the character #1",
+                "c": 101,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2152": {
+                "d": "Give #1 to #2 '#3'",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2153": {
+                "d": "Teleports the group members",
+                "c": 0,
+                "p": -12,
+                "o": "",
+                "t": true
+            },
+            "2154": {
+                "d": "Locked to account until: #1",
+                "c": 101,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "2155": {
+                "d": "Locked to account (favourited item)",
+                "c": 0,
+                "p": -12,
+                "o": "/",
+                "t": true
+            },
+            "2156": {
+                "d": "You look radiant!",
+                "c": 38,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2157": {
+                "d": "Increases final damage received by #1{~1~2 to }#2%",
+                "c": 78,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "2158": {
+                "d": "Reduces final damage received by #1{~1~2 to }#2%",
+                "c": 78,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "2159": {
+                "d": "Domm. finaux infligés +#1{~1~3 à }#3%, reçus +#2{~2~4 à }#4%",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true,
+                "j": true
+            },
+            "2161": {
+                "d": "Gives +#3 token at the end of fights",
+                "c": 100,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "2162": {
+                "d": "Gives #3 tokens at the end of fights for each monster killed",
+                "c": 100,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "2163": {
+                "d": "Gives #3 tokens at the end of fights for each spell tonic bought (#1 of #2)",
+                "c": 100,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "2164": {
+                "d": "Gives #3 tokens at the end of fights for each resupply done (#1 of #2)",
+                "c": 100,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "2165": {
+                "d": "+#3 permanent in #1 at the end of a fight",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "2166": {
+                "d": "Increases the base #1 gain earned after a victory by #3",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "2169": {
+                "d": "#1{~1~2 to -}#2 damage steal",
+                "c": 80,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "2170": {
+                "d": "#1{~1~2 to -}#2 critical hit steal",
+                "c": 18,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "2171": {
+                "d": "HP restored #1{~1~2 to }#2",
+                "c": 82,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "2172": {
+                "d": "Increases the #3 spell's level by #2",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "2173": {
+                "d": "Changes the effects of the #3 spell to the best element",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2174": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's health (earth)",
+                "c": 94,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "2175": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's health (best element)",
+                "c": 95,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "2179": {
+                "d": "+#1% XP in combat with a partner",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2184": {
+                "d": "Evolving item: Skin #3 out of #1",
+                "c": 0,
+                "p": 0,
+                "o": " "
+            }
+        },
+        "EDMG": {
+            "0": 100,
+            "1": 95,
+            "2": 97,
+            "3": 92,
+            "4": 98,
+            "5": 93,
+            "6": 96,
+            "7": 91,
+            "8": 99,
+            "9": 94,
+            "10": 80
+        },
+        "EHEL": {
+            "0": 108,
+            "1": 81
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 4,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "E",
+            "EDMG",
+            "EHEL",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

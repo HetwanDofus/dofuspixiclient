@@ -1,0 +1,1153 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "KBC": {
+            "1": {
+                "n": "Benutzeroberfläche",
+                "o": 1,
+                "i": 1,
+                "ep": 1
+            },
+            "4": {
+                "n": "Kampf",
+                "o": -1,
+                "i": 4,
+                "ep": 1
+            },
+            "5": {
+                "n": "Questen",
+                "o": -1,
+                "i": 5,
+                "ep": 1
+            },
+            "6": {
+                "n": "Kommunikation",
+                "o": -1,
+                "i": 6,
+                "ep": 1
+            },
+            "32": {
+                "n": "Steigern",
+                "o": -1,
+                "i": 32,
+                "ep": 1
+            },
+            "33": {
+                "n": "Gegenstände",
+                "o": -1,
+                "i": 33,
+                "ep": 1
+            },
+            "34": {
+                "n": "Wirtschaft",
+                "o": -1,
+                "i": 34,
+                "ep": 1
+            },
+            "35": {
+                "n": "Berufe",
+                "o": -1,
+                "i": 35,
+                "ep": 1
+            },
+            "36": {
+                "n": "Reisen",
+                "o": -1,
+                "i": 36,
+                "ep": -1
+            }
+        },
+        "KBA": {
+            "33": {
+                "c": 4,
+                "n": "Resistenzen",
+                "o": -1,
+                "a": "<b>Prozentuelle neutrale Resistenz</b>\nSenkt den Schaden durch neutrale Angriffe um einen bestimmten Prozentsatz.\n\n<b>Feste neutrale Resistenz</b>\nSenkt den Schaden durch neutrale Angriffe um einen festen Wert.\n\n<b>Prozentuelle neutrale Resistenz gegen Krieger</b>\nSenkt den Schaden durch neutrale Angriffe von Kriegern um einen bestimmten Prozentsatz.\n\n<b>Feste neutrale Resistenz gegen Krieger</b>\nSenkt den Schaden durch neutrale Angriffe von Kriegern um einen festen Wert.\n\n<b>Prozentuelle Luft-Resistenz</b>\nSenkt den Schaden durch Luft-Angriffe um einen bestimmten Prozentsatz.\n\n<b>Feste Luft-Resistenz</b>\nSenkt den Schaden durch Luft-Angriffe um einen festen Wert.\n\n<b>Prozentuelle Luft-Resistenz gegen Krieger</b>\nSenkt den Schaden durch Luft-Angriffe von Kriegern um einen bestimmten Prozentsatz.\n\n<b>Feste Luft-Resistenz gegen Krieger</b>\nSenkt den Schaden durch Luft-Angriffe von Kriegern um einen festen Wert.\n\n<b>Prozentuelle Wasser-Resistenz</b>\nSenkt den Schaden durch Wasser-Angriffe um einen bestimmten Prozentsatz.\n\n<b>Feste Wasser-Resistenz</b>\nSenkt den Schaden durch Wasser-Angriffe um einen festen Wert.\n\n<b>Prozentuelle Wasser-Resistenz gegen Krieger</b>\nSenkt den Schaden durch Wasser-Angriffe von Kriegern um einen bestimmten Prozentsatz.\n\n<b>Feste Wasser-Resistenz gegen Krieger</b>\nSenkt den Schaden durch Wasser-Angriffe von Kriegern um einen festen Wert.\n\n<b>Prozentuelle Erd-Resistenz</b>\nSenkt den Schaden durch Erd-Angriffe um einen bestimmten Prozentsatz.\n\n<b>Feste Erd-Resistenz</b>\nSenkt den Schaden durch Erd-Angriffe um einen festen Wert.\n\n<b>Prozentuelle Erd-Resistenz gegen Krieger</b>\nSenkt den Schaden durch Erd-Angriffe von Kriegern um einen bestimmten Prozentsatz.\n\n<b>Feste Erd-Resistenz gegen Krieger</b>\nSenkt den Schaden durch Erd-Angriffe von Kriegern um einen festen Wert.\n\n<b>Prozentuelle Feuer-Resistenz</b>\nSenkt den Schaden durch Feuer-Angriffe um einen bestimmten Prozentsatz.\n\n<b>Feste Feuer-Resistenz</b>\nSenkt den Schaden durch Feuer-Angriffe um einen festen Wert\n\n<b>Prozentuelle Feuer-Resistenz gegen Krieger</b>\nSenkt den Schaden durch Feuer-Angriffe von Kriegern um einen bestimmten Prozentsatz\n\n<b>Feste Feuer-Resistenz gegen Krieger</b>\nSenkt den Schaden durch Feuer-Angriffe von Kriegern um einen festen Wert\n\n<b>Resistenz gegen magische Angriffe</b>\nSenkt den erhaltenen Feuer-, Wasser- und Luftschaden um einen festen Betrag.\n\n<b>Resistenz gegen physische Angriffe</b>\nSenkt den erhaltenen Erd- und neutralen Schaden um einen festen Betrag.\n\n<b>Resistenz gegen BP-Entzug</b>\nErmöglicht dem Entzug von Bewegungspunkten zu widerstehen.\n\n<b>Resistenz gegen AP-Entzug</b>\nErmöglicht dem Entzug von Aktionspunkten zu widerstehen.",
+                "k": [
+                    "Neutral",
+                    "Luft",
+                    "Wasser",
+                    "Erde",
+                    "Feuer",
+                    "Kämpfer",
+                    "magisch",
+                    "physisch",
+                    "Schaden",
+                    "BP",
+                    "AP",
+                    "Entzug",
+                    "Resistenz"
+                ],
+                "i": 33,
+                "ep": 1
+            },
+            "58": {
+                "c": 1,
+                "n": "Zaubersprüche",
+                "o": -1,
+                "a": "Auf der Seite « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnSpells\">Zaubersprüche</a> » kannst du alle Sprüche, die dein Charakter zur Verfügung hat, einsehen.\n\nAn dieser Stelle kannst du ebenso die Zauberspruchpunkte, die du beim Stufenaufstieg oder durch bestimmte Schriftrollen erhalten hast, einsetzen, um die Sprüche zu steigern.",
+                "k": [
+                    "Grad",
+                    "steigern",
+                    "erlernen",
+                    "Zauberbuch",
+                    "Zaubersprüche"
+                ],
+                "i": 58,
+                "ep": 1
+            },
+            "7": {
+                "c": 6,
+                "n": "Emotes",
+                "o": -1,
+                "a": "Dein Charakter kann verschiedene Ausdrucksfähigkeiten erlernen (Emotes). Das erste Emote hast du sicher bereits von Ganymède kennen gelernt: es heißt 'ausruhen'. Mit den Emotes kannst du Diskussionen lebendiger gestalten, indem du Emotionen zeigst. Doch aufgepasst: um die Emotes zu bekommen, musst du komplizierte Rätsel lösen oder schwierige Kämpfe gewinnen!\n\n<strong>Guter Rat sei mit Euch!</strong> Geh zu Wally Lekonom, den du in der Bilbliothek von Amakna finden kannst: er sucht immer nach Abenteurern, die ihm helfen könnten.",
+                "k": [
+                    "Emotes"
+                ],
+                "i": 7,
+                "ep": 1
+            },
+            "62": {
+                "c": 1,
+                "n": "Freunde",
+                "o": -1,
+                "a": "Über die Seite « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnFriends\">Freundesliste</a> » kannst du die Liste deiner Freunde... und auch die deiner Feinde verwalten.\n\nDu kannst neue Charaktere zur Freundesliste hinzufügen oder Freunde aus der Liste löschen. Darüber hinaus kannst du deinen Mitspielercharakteren auch Privatnachrichten zuschicken oder sie in eine Gruppe einladen.",
+                "k": [
+                    "Feinde",
+                    "Freunde"
+                ],
+                "i": 62,
+                "ep": 1
+            },
+            "26": {
+                "c": 4,
+                "n": "Herausfordern",
+                "o": -1,
+                "a": "Der beste Weg, zahlreiche Strategien und Kampftechniken in DOFUS zu meistern und zu entdecken, besteht darin, andere Spieler zum Kampf herauszufordern. Ohne Angst vor Energieverlusten kann man bei diesen freundlichen Kämpfen, die man zudem jederzeit unterbrechen kann, gegen andere Spieler antreten. Allerdings wirst du damit keine Erfahrungspunkte gewinnen.",
+                "k": [
+                    "Erfahrung",
+                    "Test",
+                    "Herausfordern"
+                ],
+                "i": 26,
+                "ep": 1
+            },
+            "27": {
+                "c": 32,
+                "n": "Erfahrung",
+                "o": -1,
+                "a": "Erfahrungspunkte gewinnen wird in der Sprache der Spieler oftmals als \"EP gewinnen, EPen oder XPen\" bezeichnet. In DOFUS funktioniert dies durch das Angreifen von Monstern. Wer fix EP gewinnt, klettert auch fixer eine Rangstufe höher und erhält Zugriff zu bestimmten Questen, Gegenständen, usw.\n\nBeim Erreichen jeder neuen Rangstufe werden 5 Attributspunkte hinzugewonnen, wie auch 1 Zauberspruchpunkt. Je nach Strategie und Vorliebe können diese Punkte zum Steigern von Zaubersprüchen oder Attributen eingesetzt werden. Doch Vorsicht: einmal ausgegebene Punkte können nicht umverteilt werden!",
+                "k": [
+                    "Questen",
+                    "Level",
+                    "Stufen",
+                    "EP",
+                    "XP",
+                    "Erfahrung"
+                ],
+                "i": 27,
+                "ep": 1
+            },
+            "64": {
+                "c": 1,
+                "n": "Reittiere",
+                "o": -1,
+                "a": "Die Seite « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnMount\">Reittiere</a> » zeigen alle Werte des aktuell genutzten Reittieres an.",
+                "k": [
+                    "Dracotruter",
+                    "Reittier"
+                ],
+                "i": 64,
+                "ep": 1
+            },
+            "35": {
+                "c": 33,
+                "n": "Waffen und Charaktere",
+                "o": -1,
+                "a": "Waffen dienen dazu, Gegner zu bekämpfen. Unter anderem zeichnen sich die Waffen aus durch:\n- die Kosten ihres Erwerbs,\n- den angerichteten Schaden und die durch sie erhaltenen Resistenzen,\n- das Element, in dem sie wirken,\n- ihre Reichweite und ihr Wirkungsgebiet.\n\nWichtig sind ferner die verschiedenen Boni  (oder Mali, je nachdem), welche die Waffen ihren Trägern verleihen können.\n\nJede Klasse hat ihre eigene Vorliebe für bestimmte Waffen:\n\n- Crâ: Bogen\n- Ecaflip: Schwert\n- Eniripsa: Stab\n- Enutrof: Schaufel\n- Féca: Stecken\n- Iop: Schwert\n- Osamodas: Hammer\n- Pandawa: Axt\n- Sacrieur: bloße Hände\n- Sadida: Stecken\n- Sram: Dolch\n- Xélor: Hammer.",
+                "k": [
+                    "Auswahl",
+                    "Klassen",
+                    "Waffen"
+                ],
+                "i": 35,
+                "ep": 1
+            },
+            "21": {
+                "c": 4,
+                "n": "Reichweite",
+                "o": -1,
+                "a": "Die Reichweite bezeichnet die Entfernung, bis zu der ein Gegner im Kampf getroffen werden kann. Sie kommt überall zum Tragen, ganz gleich, ob es sich um einen Zauberspruch oder um eine Waffe handelt. Die Reichweite wird in Feldern gemessen. Hindernisse verringern die Reichweite, wenn sie höher sind als der angreifende Charakter. Hecken und Zäune werden also nicht die Reichweite eines Charakters reduzieren, ein Baum hingegen sehr wohl.",
+                "k": [
+                    "Angriff",
+                    "Zauberspruch",
+                    "Entfernung",
+                    "RW",
+                    "Reichweite"
+                ],
+                "i": 21,
+                "ep": 1
+            },
+            "42": {
+                "c": 34,
+                "n": "Verkaufsstände",
+                "o": -1,
+                "a": "Die wichtigsten und meisten Verkaufsstände befinden sich in den Städten. Hier kann man Gegenstände verkaufen, ohne dafür die ganze Zeit eingewählt bleiben oder selbst Werbung machen zu müssen. Bei diesem System bestimmt der Verkäufer den Verkaufspreis und die Anzahl der von ihm feilgebotenen Gegenstände. Die Dauer der Auslage, die maximale Stufe und Anzahl der Gegenstände, sowie die Verkaufsgebühr hingegen hängen vom jeweiligen Verkaufsstand ab. All diese Rahmendaten werden an jedem Verkaufsstand angezeigt.\nWird ein Gegenstand nicht vor Abschluss der Auslagedauer verkauft, so landet er wieder im Schließfach des Verkäufers. Im Falle eines Verkaufs wird das Geld auf das Konto des Verkäufers überwiesen.\nAm Verkaufsstand werden alle Gegenstände nach Typ und nach Preis sortiert. Für identische Gegenstände, die mehrfach im Angebot sind, wird den Käufern immer nur das Angebot mit dem niedrigsten Preis angezeigt. Entsprechend ist es für die Verkäufer ratsam, erst einmal das billigste Angebot für ihren zu verkaufenden Gegenstand nachzuschlagen, und dieses anschließend zu unterbieten. Zur Orientierung wird auch immer der Durchschnittspreis aller bisherigen verkauften Gegenstände ein und desselben Typs angezeigt.\nDie Verkaufsräume sind auf der Weltkarte eingetragen.",
+                "k": [
+                    "Verkaufsstand",
+                    "Kamas",
+                    "kaufen",
+                    "verkaufen",
+                    "Wirtschaft"
+                ],
+                "i": 42,
+                "ep": 1
+            },
+            "37": {
+                "c": 33,
+                "n": "Vertraute",
+                "o": -1,
+                "a": "Ein Vertrauter wird dich während deiner Abenteuer unterstützen. Die Boni, die der Vertraute seinem Herrn verleihen kann, sind oftmals beträchtlich. Jedoch muss man Vertraute ständig füttern, und dies zu bestimmten Zeiten, sonst geht es ihnen nicht gut.",
+                "k": [
+                    "Vertraute",
+                    "Begleiter",
+                    "Bonus",
+                    "Gesundheit",
+                    "Nahrung",
+                    "füttern",
+                    "Vertraute"
+                ],
+                "i": 37,
+                "ep": 1
+            },
+            "48": {
+                "c": 36,
+                "n": "Reittiere",
+                "o": -1,
+                "a": "Reittiere bieten eine weitere Möglichkeit, schnell durch die Welt von Amakna zu reisen. Je erfahrener ein Reittier dabei ist, desto schneller kann es laufen.",
+                "k": [
+                    "bewegen",
+                    "Dracotruter",
+                    "Reittiere"
+                ],
+                "i": 48,
+                "ep": 20
+            },
+            "11": {
+                "c": 4,
+                "n": "Lebenspunkte",
+                "o": -1,
+                "a": "Die Lebenspunkte des Charakters sinken, wenn dieser Schaden erleidet (beim Angriff eines Gegners, zum Beispiel). Sie steigen wieder bei Heilung des Charakters (z.B. durch Zaubersprüche, Gegenstände, Hinsetzen, dank eines Verbündeten). Erreicht die Anzahl der LP Null, so stirbt der Charakter! Die eigenen LP und die der Gegner sollte man also immer im Auge behalten. Während eines Kampfes kann ein Teil des erlittenen Schadens nicht mehr geheilt werden.",
+                "k": [
+                    "Sieg",
+                    "Tod",
+                    "Lebenspunkte",
+                    "LP"
+                ],
+                "i": 11,
+                "ep": 1
+            },
+            "40": {
+                "c": 33,
+                "n": "Bank",
+                "o": -1,
+                "a": "Auf der Bank können Spieler Gegenstände lagern (beispielsweise, wenn sie kein Haus besitzen). Jede Stadt oder jedes Dorf besitzt eine Bank. Das Eröffnen eines Schließfaches ist kostenlos und die Anzahl an lagerbaren Gegenständen unbegrenzt. Jedoch kostet jedes Abrufen des Inhaltes 1 Kama pro benutztem Gegenstandsslot. Ein Schließfach kann von allen Charakteren eines Accounts, die auf ein und demselben Server spielen, aufgerufen werden.",
+                "k": [
+                    "Kamas",
+                    "Gegenstände",
+                    "Schließfach",
+                    "Bank"
+                ],
+                "i": 40,
+                "ep": 1
+            },
+            "8": {
+                "c": 6,
+                "n": "Variablen",
+                "o": -1,
+                "a": "Um den Dialog mit anderen Spielern zu erleichtern, gibt es bestimmte Variablen, mit deren Hilfe du beispielsweise deine Attribute mitteilen, den Namen deiner Gilde oder deinen aktuellen Standort angeben kannst. So hast du diese Daten direkt parat und brauchst sie nicht selbst abzuschreiben!\nHier sind einige dieser Variablen. Wenn du sie im Chat-Fenster eingibst, wird folgendes ausgegeben:\n\n<b>%zone%</b> der Name des Gebietes, in dem du dich befindest (Astrub, zum Beispiel).\n<b>%subzone%</b> der Name des näheren Umfeldes, in dem du dich befindest (Felder von Astrub, zum Beispiel).\n<b>%pos%</b> die genauen Koordinaten der Karte an, auf der du dich gerade befindest.\n\n<b>%ich%</b> gibt den Namen deines Charakters an.\n<b>%stats%</b> gibt eine vollständige Liste der Attribute deines Charakters an (Attribute, AP, BP, Initiative).\n<b>%stufe%</b> gibt die Stufe deines Charakters an.\n<b>%gilde%</b> gibt den Namen der Gilde an, der dein Charakter angehört.\n\n<b>%lpmax%</b> gibt deine maximalen Lebenspunkte an.\n<b>%lp%</b> gibt die Lebenspunkte an, die du derzeit übrig hast.\n<b>%lpp%</b> gibt die Prozentzahl der Lebenspunkte an, die du derzeit übrig hast",
+                "k": [
+                    "Variablen"
+                ],
+                "i": 8,
+                "ep": 1
+            },
+            "44": {
+                "c": 35,
+                "n": "Berufe zur Ressourcengewinnung",
+                "o": -1,
+                "a": "Es gibt zahlreiche Berufe, mit deren Ausübung in DOFUS Ressourcen gesammelt werden können. Diese Ressourcen sind nur in wenigen Fällen gleich nach dem Abbauen einsatzbereit, da sie meist noch weiter verarbeitet werden müssen, bevor sie für ein Handwerk genutzt werden können. Berufe zur Ressourcengewinnung sind relativ einfach zu erlernen (bei den NSC des entsprechenden Berufs) und benötigen nur wenig Kapital-, dafür jedoch recht viel Zeiteinsatz.",
+                "k": [
+                    "gewinnen",
+                    "abbauen",
+                    "Ressourcen",
+                    "Beruf"
+                ],
+                "i": 44,
+                "ep": 1
+            },
+            "12": {
+                "c": 4,
+                "n": "Initiative",
+                "o": -1,
+                "a": "Die Initiative ist ausschlaggebend für die Reihenfolge, in der die einzelnen Spieler im Kampf agieren können. Die Initiative bleibt während des gesamtes Kampfes gleich. Der Spieler mit der höchsten Initiative aller Kämpfer / Kreaturen kommt also stets als Erster an die Reihe. Bei Gleichstand der Initiative entscheidet das Los.",
+                "k": [
+                    "Initiative"
+                ],
+                "i": 12,
+                "ep": 1
+            },
+            "30": {
+                "c": 4,
+                "n": "Kritische Treffer & Patzer",
+                "o": -1,
+                "a": "Bei jedem Angriff oder Zauberspruch wird ein Wurf auf Kritische Treffer (KT) oder Kritische Patzer (KP) gemacht. Die Wahrscheinlichkeit, dass ein KT oder ein KP eintritt, ist im Fenster zu den Attributen und Zaubern des Charakters aufgeführt.\nBei einem KP wird grundsätzlich das Ziel verfehlt, während bei einem KT die Chance erhöht wird, sehr viel Schaden anzurichten.",
+                "k": [
+                    "KP",
+                    "KT",
+                    "kritische Patzer",
+                    "kritische Treffer"
+                ],
+                "i": 30,
+                "ep": 1
+            },
+            "29": {
+                "c": 32,
+                "n": "Schadensboni und -resistenz",
+                "o": -1,
+                "a": "Der angerichtete Schaden kann erhöht (man sprich von einem Schadensbonus, oder \"geboostetem Schaden\") oder gesenkt werden (durch Boni auf Resistenz gegen bestimmte Elemente). Das geschieht in Abhängigkeit von den auf beiden Seiten eingesetzten Waffen und Gegenständen.\n\nNehmen wir einen Sacrieur-Krieger als Beispiel:\nSagen wir, dieser trägt einen Umhang, der den angerichteten Erd-Schaden um 10 erhöht. Dazu noch einen Hut, der den angereichteten Erdschaden um 15 erhöht (also insgesamt +25 Bonus auf Erd-Schaden).\nWenn dieser Krieger nun seinen Sacrieurs-Fuß einsetzt (ein Erdschaden, der 10 bis 18 Punkte Schaden anrichten kann), dann wird er mit jedem Angriff damit zwischen 35 und 43 Punkte Schaden bei seinem Gegner anrichten, sofern dieser keine Resistenzen hat.",
+                "k": [
+                    "Element",
+                    "Resistenz",
+                    "Schaden",
+                    "Senken",
+                    "Bonus"
+                ],
+                "i": 29,
+                "ep": 1
+            },
+            "45": {
+                "c": 35,
+                "n": "Handwerksberufe",
+                "o": -1,
+                "a": "Handwerksberufe sind im Allgemeinen komplexer als die Berufe zur Ressourcengewinnung. Sie machen größere Investitionen erforderlich, da erst einmal verschiedene Ressourcen erworben werden müssen. Grundsätzlich ist es daher meist nützlich, zuerst einen Beruf zur Ressourcengewinnung zu erlernen, um ein wenig Geld zu verdienen und einen Grundstock an benötigten Ressourcen zu schaffen. Später dann kann immernoch ein passender Handwerksberuf erlernt werden.",
+                "k": [
+                    "Craft",
+                    "Handwerk",
+                    "Herstellen",
+                    "Beruf"
+                ],
+                "i": 45,
+                "ep": 1
+            },
+            "16": {
+                "c": 4,
+                "n": "Aktionspunkte",
+                "o": -1,
+                "a": "Die Aktionspunkte sind ein Maß für die Fähigkeit eines Kämpfers, Aktionen durchzuführen – sei es, einen Angriff durchzuführen oder Zaubersprüche zu wirken. Beides kostet Aktionspunkte. Wenn die Zahl der AP Null erreicht, kann der Charakter keine weiteren Handlungen mehr durchführen. Die AP eines jeden Charakters ist auf 6 festgelegt, kann jedoch durch Zaubersprüche oder Ausrüstung erhöht oder gesenkt werden.",
+                "k": [
+                    "Aktionen",
+                    "AP",
+                    "Aktionspunkte"
+                ],
+                "i": 16,
+                "ep": 1
+            },
+            "41": {
+                "c": 34,
+                "n": "Kamas",
+                "o": -1,
+                "a": "Der Kama ist die offizielle Währung des Spieles, die überall in der DOFUS-Welt verwendet werden kann. Mit Kamas kannst du so ziemlich alles von anderen Abenteurern erwerben. Doch Vorsicht: der Kama-Kurs schwankt sehr stark! Darum bringt es nicht viel, Kamas zu horten, was zudem auch noch sehr gefährlich sein kann! Doch solltest du stets darauf achten, immer eine gewisse Kamasumme dabei zu haben, um Zaaps oder Zaapis zu benutzen, das Schließfach zu öffnen oder einige Ressourcen zu erwerben.",
+                "k": [
+                    "Währung",
+                    "Geld",
+                    "Kamas"
+                ],
+                "i": 41,
+                "ep": 1
+            },
+            "46": {
+                "c": 36,
+                "n": "Zaaps",
+                "o": -1,
+                "a": "Zaaps sind magische Steinbögen, mittels welcher sich die Abenteurer für ein paar Kamas selbst zu den abgelegensten Winkeln der DOFUS-Welt teleportieren können. Wenn du einen Zaaps siehst, dann klicke ihn an, um seine Position zu speichern, denn man kann sich nur zwischen bereits gespeicherten Zaaps hin- und her teleportieren.",
+                "k": [
+                    "stargate",
+                    "kostenpflichtig",
+                    "reisen",
+                    "Zaaps"
+                ],
+                "i": 46,
+                "ep": 1
+            },
+            "22": {
+                "c": 4,
+                "n": "Energie",
+                "o": -1,
+                "a": "Wer einen Kampf verliert, wird an die zuletzt gespeicherte Position (z.B. an einen Zaap) zurückgebracht. (Im Falle von Gruppenkämpfen geht dies nur, wenn die gesamte Gruppe verliert.) Der Charakter hat dann alle LP bis auf einen sowie eine gewisse Anzahl an Energie verloren. Wenn keine Position gespeichert wurde, wird der Charakter nach Astrub zurückgebracht.\n\n<b>Guter Rat sei mit dir!</b> Du kannst Energie zurückerhalten, wenn du dich in einer Taverne ausloggst.",
+                "k": [
+                    "Taverne",
+                    "Niederlage",
+                    "Tod",
+                    "Energie"
+                ],
+                "i": 22,
+                "ep": 1
+            },
+            "28": {
+                "c": 32,
+                "n": "Schaden erhöhen",
+                "o": -1,
+                "a": "Es ist absolut wesentlich, sich auf gewisse Attribute zu spezialisieren. Von den 6 Attributen erhöhen 4 den angerichteten Schaden:\n\n- Stärke erhöht den angerichteten Erd-Schaden (und neutralen Schaden), wie auch die Anzahl an Pods.\n- Glück erhöht den angerichteten Wasser-Schaden und das Filzen.\n- Flinkheit erhöht den angerichteten Luft-Schaden, wie auch die Wahrscheinlichkeit, \"Kritische Treffer\" anzurichten oder aus einem Gedränge (Nahkampf) zu entkommen.\n- Intelligenz erhöht den angerichten Feuer-Schaden, sowie die Lebenspunkte, die bei der Heilung zurückgewonnen werden.\n\nIm Allgemeinen solltest du dich auf ein einziges Element spezialisieren. Die Wahl des Attributes hängt dann von diesem Element ab (Feuer, Wasser, Erde, Luft).",
+                "k": [
+                    "Luft",
+                    "Feuer",
+                    "Wasser",
+                    "Erde",
+                    "Intelligenz",
+                    "Flinkheit",
+                    "Glück",
+                    "Stärke",
+                    "Schaden"
+                ],
+                "i": 28,
+                "ep": 1
+            },
+            "55": {
+                "c": 36,
+                "n": "Bewegung und Verlassen der Karten",
+                "o": -1,
+                "a": "Um seinen Charakter innerhalb einer Karte zu bewegen, genügt es, mit einem Linksklick der Maus die Zielposition anzuklicken.\n\nUm die Karte zu wechseln, gibt es die Kartenwechselsymbole (auch Sprungsteine genannt): kleine gelb-grüne Windrosen am Kartenrand. Diese kannst du anklicken, um von deiner Karte zur Nachbarkarte zu wechseln.",
+                "k": [
+                    "Map",
+                    "Karte",
+                    "wechseln",
+                    "bewegen"
+                ],
+                "i": 55,
+                "ep": 1
+            },
+            "23": {
+                "c": 4,
+                "n": "Tod",
+                "o": -1,
+                "a": "Wenn du einen Kampf verlierst, wirst du an die letzte gespeicherte Position (üblicherweise ein Zaap) teleportiert. Dort wachst du mit genau 1 LP wieder auf. Wenn deine Energie nach einem Kampf auf Null fällt, verlässt du die Welt der Lebenden und wirst zum Geist. Dann musst du nur noch eine Phönixstatue finden, um wieder ins Leben zurückzukehren.\n(Wenn ein Spieler die Welt der Geister betritt, werden alle Phönixstatuen durch rote Fahnen auf der Weltkarte angezeigt). In einem solchen Fall kannst du dich entweder von einem Priester wiedererwecken lassen oder die nächstgelegene Phönixstatue aufsuchen.",
+                "k": [
+                    "Energie",
+                    "LP",
+                    "Lebenspunkte",
+                    "Phönix",
+                    "Niederlage",
+                    "Tod"
+                ],
+                "i": 23,
+                "ep": 1
+            },
+            "61": {
+                "c": 1,
+                "n": "Geoposition",
+                "o": -1,
+                "a": "Über die « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnMap\">Geoposition </a> » kannst du dir eine Karte der DOFUS-Welt anzeigen lassen.\n\nAuf dieser sind die Standorte der Zaaps, Verkaufsräume, Werkstätten, Tempel u.ä. eingezeichnet. Die Koordinaten von Gebieten werden per Mouseover angezeigt.",
+                "k": [
+                    "Weltkarte",
+                    "Position",
+                    "Geographie",
+                    "Koordinaten",
+                    "Map",
+                    "Karte"
+                ],
+                "i": 61,
+                "ep": 1
+            },
+            "14": {
+                "c": 4,
+                "n": "Filzen",
+                "o": -1,
+                "a": "Dieser Wert verbessert die Wahrscheinlichkeit, am Ende von Kämpfen Gegenstände zu droppen. Ein Mitglied der Spielergemeinde besitzt zu Beginn des Spieles 100 Filzpunkte (120 für Enutrofs). Dieser Wert lässt sich noch durch Gegenstände erhöhen, die Boni fürs Filzen verleihen. Desweiteren verbessert auch das Attribut 'Glück' das Filzen (und zwar um 1 pro 10 Punkten Glück).",
+                "k": [
+                    "Chance",
+                    "Gegenstände",
+                    "Droppen",
+                    "Filzen"
+                ],
+                "i": 14,
+                "ep": 1
+            },
+            "15": {
+                "c": 4,
+                "n": "Bewegungspunkte",
+                "o": -1,
+                "a": "Die Bewegungspunkte erlauben dir, im Kampf flexibler zu agieren. Jede Bewegung im Kampf kostet dabei pro Feld einen Bewegungspunkt. Zu Beginn hat jeder 3 BP. Die BP können jedoch durch Gegenstände oder Zaubersprüche erhöht oder erniedrigt werden.\nSpezialfall: Wenn sich ein Kämpfer auf einem der 4 direkt an einen Gegner angrenzenden Felder befindet, so befindet er sich im 'Gedränge' (direkte Nahkampfzone). Will er dort wieder heraus, so muss ihm erst ein Wurf in 'Ausweichen' gelingen. Dazu werden die Werte in Flinkheit des Charakters und des Gegners verglichen. Je höher die Differenz zugunsten des Charakters ist, desto größer ist seine Chance, aus dem Gedränge zu entrinnen. Mißlingt der Versuch, so musst der Kämpfer diese Runde passen.\n\n<b>Guter Rat sei mit dir!</b> 1. Gewisse Kreaturen besitzen mehr als 3 BP und 6 AP! 2. Seltene Gegenstände können dir einen Bonus auf deine AP oder BP verleihen!",
+                "k": [
+                    "Laufen",
+                    "BP",
+                    "Bewegung"
+                ],
+                "i": 15,
+                "ep": 1
+            },
+            "24": {
+                "c": 4,
+                "n": "Vitalität",
+                "o": -1,
+                "a": "Die Vitalität bestimmt die Anzahl an Lebenspunkten. Wenn du dich dafür entscheidest, dieses Attribut zu erhöhen, steigen die Lebenspunkte deines Charakters. Das ist besonders wichtig für Sacrieurs.",
+                "k": [
+                    "Lebenspunkte",
+                    "LP",
+                    "Vitalität"
+                ],
+                "i": 24,
+                "ep": 1
+            },
+            "57": {
+                "c": 1,
+                "n": "Attribute und Berufe",
+                "o": -1,
+                "a": "Auf der Seite « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnStatsJob\">Attribute und Berufe</a> » werden alle Attribute des Charakters, die Berufe und seine Gesinnung angezeigt. Dort erhältst du also alle lebenswichtigen Informationen auf einen Blick.\n\nAuf dieser Seite kannst du außerdem deine Attributspunkte zum Steigern von Attributen einsetzen.\n\nDurch Anklicken des Schwertes kannst du die erweiterte Ansicht öffnen, welche die Einzelheiten zu allen Attributen und die Modifikation der Attribute durch Gegenstände anzeigt.",
+                "k": [
+                    "Berufe",
+                    "Attribute",
+                    "Charakter",
+                    "Übersicht"
+                ],
+                "i": 57,
+                "ep": 1
+            },
+            "60": {
+                "c": 1,
+                "n": "Questenbuch",
+                "o": -1,
+                "a": "Im « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnQuests\">Questenbuch </a> » werden laufende und beendete Questen angezeigt.\n\nWenn dir bei einer Queste der rote Faden verloren geht, kannst du dir über das Questenbuch die Dialoge des NSC, von dem du mit der Queste beauftragt wurdest, wieder ins Gedächtnis rufen. Außerdem kannst du mit Hilfe des Kompasses den Zielpunkt der Queste direkt ansteuern.",
+                "k": [
+                    "Tagebuch",
+                    "Questbuch",
+                    "Mission",
+                    "Auftrag",
+                    "Quest"
+                ],
+                "i": 60,
+                "ep": 1
+            },
+            "38": {
+                "c": 33,
+                "n": "Persönliche Schatztruhen",
+                "o": -1,
+                "a": "Spieler, die ein Haus besitzen, können in den dort befindlichen Schatztruhen ihre Besitzgegenstände ablegen. Diese häuslichen Schatzkisten sind allerdings etwas kleiner, als die auf der Bank. In manchen der größeren Häuser stehen allerdings bis zu 3 Truhen bereit.",
+                "k": [
+                    "Häuser",
+                    "privat",
+                    "Schatztruhe"
+                ],
+                "i": 38,
+                "ep": 1
+            },
+            "47": {
+                "c": 36,
+                "n": "Zaapis",
+                "o": -1,
+                "a": "Die Benutzung von Zaapis kostet nur wenige Kamas und ermöglicht es, sich innerhalb einer Stadt von einem Stadtteil zum nächsten zu bewegen.\nIm Gegensatz zu Zaap, die man vor der Benutzung besucht und gespeichert haben muss, kann man sich innerhalb der gleichen Stadt problemlos von einem Zaapi zu jedem anderen Zaapi teleportieren.",
+                "k": [
+                    "bewegen",
+                    "Brâkmar",
+                    "Bonta",
+                    "Zaapis"
+                ],
+                "i": 47,
+                "ep": 16
+            },
+            "17": {
+                "c": 4,
+                "n": "Die verschiedenen Elemente",
+                "o": -1,
+                "a": "Jedes Element wird bestimmten Attributen zugeordnet. Zaubersprüche und manche Gegenstände werden von bestimmten Elementen beeinflusst, wodurch der angerichtete Schaden, die Heilung oder die Fähigkeit zum Ausweichen, usw. verbessert werden können.\n\n- Erde wird der Stärke zugeordnet.\n- Wasser wird dem Glück zugeordnet.\n- Luft wird der Flinkheit zugeordnet.\n- Feuer wird dem Intelligenz zugeordnet.\n- Vitalität: bestimmt die Anzahl an Lebenspunkten deines Charakters.\n- Weisheit: beeinflusst die Anzahl an gewonnen Erfahrungspunkten nach einem Kampf und die Resistenz gegen AP- und BP-Entzug;\r\n            außerdem erhöht sie die Wirksamkeit von Zaubersprüchen, die Schaden zurückwerfen (wie z.B. beim Xelor-Zauberspruch \"Konter\").",
+                "k": [
+                    "Luft",
+                    "Wasser",
+                    "Feuer",
+                    "Erde",
+                    "Elemente"
+                ],
+                "i": 17,
+                "ep": 1
+            },
+            "43": {
+                "c": 34,
+                "n": "Händlermodus",
+                "o": -1,
+                "a": "Der Händlermodus ermöglicht es den Spielern, ihre Gegenstände zu verkaufen, wenn sie bereits aus dem Spiel ausgeloggt sind. Die maximale Anzahl an verkaufbaren Gegenständen hängt dabei von der Stufe des Charakters ab. Pro Stufe kann eine Sorte an Gegenständen feilgeboten werden (die Anzahl ist dabei nicht beschränkt).\nWenn ein Spieler in den Händlermodus wechseln möchte, muss er erst einmal eine Karte finden, auf der dies möglich ist (mit wenigen Ausnahmen kann es pro Karte nur 6 Charaktere im Händlermodus geben, und manche Karten sind gar nicht für diesen Modus zugelassen). Die zu verkaufenden Gegenstände, ihre Anzahl und ihr Preis können über die Option \"den Shop organisieren\" ausgewählt werden. Nun kann der Händlermodus gestartet werden, indem die Schaltfläche \"in den Händlermodus wechseln\" ausgewählt wird, was einen Logout des Charakters zur Folge hat. Die übrigen Spieler können nun die verkäuflichen Gegenstände ansehen und erwerben. Das dabei erhaltene Geld landet direkt im Inventar des Charakters.",
+                "k": [
+                    "Ausloggen",
+                    "Händler",
+                    "Modus",
+                    "kaufen",
+                    "verkaufen"
+                ],
+                "i": 43,
+                "ep": 1
+            },
+            "56": {
+                "c": 33,
+                "n": "Vertraute",
+                "o": -1,
+                "a": "Vertraute sind Kreaturen, die du von deinem Inventar aus anlegen kannst. Angelegt und regelmäßig gefüttert, können sie dir erhebliche Boni verleihen. Jeder Vertraute hat seine eigene Lieblingsnahrung, also gib ihm nicht irgend etwas! Wenn du es versäumst, deinen Vertrauten regelmäßig zu füttern, verliert er Lebenspunkte und wird schließlich zu einem Geist...\n\nIm <a href=\"asfunction:onHref,PointCompass,9,21\">Tierheim</a> kannst du deine Vertrauten gut versorgt zurücklassen. Dort wird dir auch ein Tierheimzertifikat ausgestellt, gegen dessen Aushändigung du deinen Begleiter jederzeit gegen eine gewisse Kamasumme wieder abholen kannst. Im Tierheim kannst du außerdem Bücher erwerben, in denen erklärt wird, wie man seine Vertrauten gut versorgt.",
+                "k": [
+                    "füttern",
+                    "fressen",
+                    "Hunger",
+                    "Tierheim",
+                    "Nahrung",
+                    "Vertraute"
+                ],
+                "i": 56,
+                "ep": 1
+            },
+            "32": {
+                "c": 32,
+                "n": "Boni",
+                "o": -1,
+                "a": "<b>Reichweitenbonus</b>\nDie Grundreichweite jedes Charakters beträgt null, wozu allerdings noch die Reichweite von Zaubersprüchen oder Waffen addiert wird. Manche Gegenstände geben dann noch zusätzlich Boni auf die Reichweite.\n\n<b>Bonus auf Kritische Treffer</b>\nDieser Bonus erhöht die Wahrscheinlichkeit, beim Angriff mit einer Waffe oder einem Zauberspruch einen Kritischen Treffer zu verursachen.\n\n<b>Bonus auf beschwörbare Kreaturen</b>\nDurch einen Bonus auf beschwörbare Kreaturen können mehr Kreaturen zur gleichen Zeit beschworen werden.\n\n<b>Fester Schadensbonus</b>\nEin fester Schadensbonus erhöht jede Art von Schaden.\n\n<b>Prozentueller Schadensbonus</b>\nEine prozentueller Schadensbonus betrifft alle Arten von angerichtetem Schaden.\n\n<b>Fester Schadensbonus auf Fallen</b>\nEin fester Schadensbonus erhöht jede Art von Schaden, der durch ausgelöste Fallen entsteht.\n\n<b>Prozentueller Schadensbonus auf Fallen</b>\nEin prozentueller Schadensbonus betrifft alle Arten von angerichtetem Schaden, der durch ausgelöste Fallen entsteht.\n\n<b>Bonus auf Heilung</b>\nEin Bonus auf Heilung erhöht die Lebenspunkte, die durch im Kampf gewirkte Heilzauber zurückgewonnen werden.",
+                "k": [
+                    "Heilung",
+                    "Fallen",
+                    "Schaden",
+                    "Beschwörung",
+                    "kritisch",
+                    "Treffer",
+                    "Reichweite",
+                    "Bonus"
+                ],
+                "i": 32,
+                "ep": 1
+            },
+            "10": {
+                "c": 4,
+                "n": "Starten von Kämpfen",
+                "o": -1,
+                "a": "Die Kämpfe in DOFUS laufen rundenbasiert ab: zu Beginn jeder Runde hat jeder Charakter ein bestimmtes Zeitkontingent (30 Sekunden), um Handlungen auszuführen: sei es sich zu Beginn des Kampfes platzieren, sich im Kampf bewegen, Zuschlagen, Zauber wirken... während dieser Zeit kannst du also deine eigenen Strategien entwickeln!\n\nEine gute Position zu Beginn des Kampfes gibt den Spielern einen nicht unerheblichen Vorteil. Sobald du deine Kampfhandlung ausgeführt hast, kannst du durch Anklicken des Pfeiles rechts die nächste Runde starten.\n\n<b>Guter Rat sei mit dir!</b> Du kannst andere Spieler aus Kämpfen, die du eröffnet hast, ausschließen. Desweiteren kannst du um Hilfe bitten: bis zu 7 andere Spieler können dir im Kampf beistehen. Diese Mithilfe wird über die Symbole auf der rechten Seite gesteuert. Zu Beginn des Kampfes erscheinen dort neue Symbole, mit deren Hilfe du neben den genannten Funktionen auch anderen Spielern verbieten kannst, dem Kampf zuzuschauen. Diese Funktion ist vor allem im PvP nützlich, damit keine anderen Spieler deine Taktik analysieren können.\n\nBefehle zu Beginn des Kampfes:\n<b>/list</b> (oder <b>/players</b>): Liste der am Kampf teilnehmenden Charaktere.\n<b</kick</b> Charaktername: Dieser Befehl kickt einen Charakter während der Eröffnungsphase aus dem Kampf. Dies geht aber nur, wenn du selbst den Kampf eröffnet hast.\n<b>/spectator</b> (oder <b>/s</b>): (De)Aktiviert den Zuschauermodus im Kampf;\r\n            dies geht aber nur, wenn du selbst den Kampf eröffnet hast.",
+                "k": [
+                    "Beginn",
+                    "Kampf",
+                    "Kick"
+                ],
+                "i": 10,
+                "ep": 1
+            },
+            "34": {
+                "c": 33,
+                "n": "Ausrüstung",
+                "o": -1,
+                "a": "Du kannst deinen Charakter mit einer Vielzahl von Gegenständen ausrüsten: Waffen, Kleider und sogar Schmuck können vom Inventar auf den Charakter gezogen und dadurch angelegt werden. Anlegbare Gegenstände lassen sich in folgende Kategorien einteilen:\n\n- Vertraute\n- Dofus\n- Kleider (Mäntel, Hüte, Stiefel, usw.)\n- Waffen.\n\nJeder Gegenstand kann, wenn angelegt, dem Charakter einen Bonus in einem Element, einen Bonus auf Schaden, Reichweite, AP, BP oder Resistenzen uvm. verleihen. Finde es heraus!!\nGegenstände, die nicht angelegt werden können, sind zum Beispiel Questgegenstände oder Ressourcen.\n\nSpezialfall: Sets. Ein Set ist ein Ensemble aus Gegenständen (also Hut, Mantel, Stiefel, Waffe zum Beispiel), die alle von einer bestimmten Kreatur stammen. Ein Set gibt zusätzlich zu den Boni der Einzelteile auch noch bestimmt Setboni, die recht mächtig sein können. Die genaue Art der Setboni hängt stark von der Art des Sets ab (z.B. Fresssack-, Prespik-, Keiler- oder Moskito-Set).",
+                "k": [
+                    "Ausrüstung",
+                    "Sets",
+                    "anlegen",
+                    "Gegenstände"
+                ],
+                "i": 34,
+                "ep": 1
+            },
+            "39": {
+                "c": 33,
+                "n": "Häuser",
+                "o": -1,
+                "a": "Es ist möglich, ein Haus zu erwerben, um sich dort zusammen mit seinen Freunden zurückzuziehen, Gegenstände in den dort befindlichen Schatztruhen abzulegen oder sich in Sicherheit auszuruhen (gibt Energie zurück). Je größer und besser ein Haus gelegen ist, desto teurer ist es. Der Eigentümer des Hauses kann dieses jederzeit zu einem beliebigen Betrag verkaufen und bestimmen, wem er dank eines Zugangscodes Zugriff gibt. Nur Spieler, die beim Anklicken der Tür diesen Code eingeben, können dann auch wirklich hineingehen. Jedoch lässt sich ein Haus auch offen für alle halten. Pro Account kann ein Spieler nur 1 einziges Haus besitzen.",
+                "k": [
+                    "Eigentümer",
+                    "Code",
+                    "lagern",
+                    "Gegenstände",
+                    "Häuser"
+                ],
+                "i": 39,
+                "ep": 1
+            },
+            "19": {
+                "c": 4,
+                "n": "Spezialzauber",
+                "o": -1,
+                "a": "Zusätzlich zu den jeweiligen Klassenzaubern gibt es verschiedene Spezialzauber, die an den Verkaufsständen gekauft, in Questen gewonnen oder von Monstern gedroppt werden können. Darunter sind so nützliche Dinge wie Meisterzauber zum Meistern von Waffen oder lustige, wie die Beschwörung von Arachneen.\n<b>Möge die Kühnheit mit dir sein!</b> Es ist unnütz, einen Spezialzauber wie z.B. den Zauberspruch \"Meister des Dolches\" zu lernen, wenn ihr diese Waffe überhaupt nicht verwendet. Verkauft den Spruch in solchen Fällen besser für eine hübsche Summe!",
+                "k": [
+                    "Beschwörung",
+                    "Meisterzauber",
+                    "Sprüche",
+                    "Zauber"
+                ],
+                "i": 19,
+                "ep": 1
+            },
+            "25": {
+                "c": 4,
+                "n": "Weisheit",
+                "o": -1,
+                "a": "Dieses Attribut ist sehr nützlich, um mehr Erfahrung zu gewinnen. Jedoch ist es sehr teuer, es mit Attributspunkten zu steigern. Darum solltest du die Weisheit deines Charakters besser mit Schriftrollen erhöhen.\n\n<b>Guter Rat sei mit dir!</b> Finde das Handbuch der Miliz von Astrub - ein recht ausführliches Werk. Sprich dazu mit Nowa, dem Pandawa.",
+                "k": [
+                    "Attribute",
+                    "Schriftrollen",
+                    "Weisheit",
+                    "XP",
+                    "EP"
+                ],
+                "i": 25,
+                "ep": 1
+            },
+            "9": {
+                "c": 6,
+                "n": "Chat-Kanäle",
+                "o": -1,
+                "a": "Du hast derzeit maximal sieben Chat-Kanäle zur Verfügung, um mit anderen Spielern zu reden. Jeder Kanal hat seine eigene Funktion und eigene Regeln. Darum solltest du jedesmal genau abwägen, welcher Kanal für welche Nachrichten geeignet ist, sonst läufst du Gefahr, deine Mitspieler zu verärgern. Du kannst auf folgenden Kanälen schreiben:\n\n<b>Allgemeiner Kanal (in schwarz) :</b> Dies ist der Standardkanal. Hier kannst du über alles Mögliche mit Spielern auf der gleichen Karte sprechen, vorausgesetzt, du hältst dich an die Spielregeln. Bitte denke daran, dass der Schreihandel verboten ist, außer auf Marktplätzen.\n\n<b>Teamkanal (in blau) :</b> Über diesen Kanal kannst du mit anderen Spielern im Team während eines Kampfes Strategien ausmachen, ohne dass eure Gegner etwas davon mitbekommen.\n\n<b>Gruppenkanal (in blau) :</b> Hier kannst du dich mit anderen Gruppenmitgliedern austauschen, egal in welcher Entfernung sie sich gerade befinden (siehe auch Kapitel 9 des Spielerhandbuchs: \"Spielen in einer Gruppe\").\n\n<b>Gildenkanal (in violett) :</b> Dieser Kanal ist Diskussionen innerhalb deiner Gilde vorbehalten (siehe auch Kapitel 10 des Spielerhandbuchs: \"Spielen in einer Gilde\"). Nur Gildenmitglieder können violette Texte lesen und schreiben.\n\n<b>Gesinnungskanal (in orange) </b>: Es gibt 3 Gesinnungskanäle: einen für Bontas, einen für Brâks und einen für die Serianer. Diese Kanäle sind Charakteren mit den entsprechenden Gesinnungen vorbehalten. Als Anhänger einer Gesinnung kannst du den entsprechenden Kanal lesen. Um selbst schreiben zu können, musst du einen gewissen Rang erreicht haben.\n\n<b>Rekrutierungskanal (in grau) :</b> Wenn du eine Gilde gründen, einer solchen beitreten willst, auf der Suche nach einer Gruppe bist, oder dich mit anderen in ein bestimmtes Dungeon wagen möchtest, dann kannst du dich über diesen Kanal mitteilen.\n\n<b>Handelskanal (in braun) :</b> Über diesen Kanal kannst du Gegenstände zum Verkauf feilbieten oder Angebote anderer Spieler lesen, die sich in derselben Gegend wie du aufhalten.",
+                "k": [
+                    "Sprechen",
+                    "Kanal",
+                    "Chat"
+                ],
+                "i": 9,
+                "ep": 1
+            },
+            "65": {
+                "c": 1,
+                "n": "IP-Adresse",
+                "o": -1,
+                "a": "Eine IP-Adresse ist eine Nummer, die zu jedem Zeitpunkt eure Internetverbindung identifiziert. Im Allgemeinen werden IP-Adressen dynamisch vergeben, d.h. sie ändern sich bei jeder neuen Einwahl.\n\nEure IP-Adresse zeigt an, wer euer Internetprovider ist, von wo ihr aus ihr euch einwählt, usw... Weitere Informationen zu diesem Thema findet ihr auf folgender Webseite: http://www.ripe.net/whois-advanced.\n\nDurch die Anzeige eurer IP-Adresse und des Zeitpunktes der letzten Einwahl geben wir euch bei jeder erneuten Einwahl bei DOFUS die Möglichkeit zu überprüfen, ob jemand anderes während eurer Abwesenheit euren Account verwendet haben könnte.",
+                "k": [
+                    "Modem",
+                    "Hack",
+                    "Verbindung",
+                    "DSL",
+                    "Provider",
+                    "Adresse",
+                    "IP"
+                ],
+                "i": 65,
+                "ep": 1
+            },
+            "20": {
+                "c": 4,
+                "n": "Einen Kampf gewinnen",
+                "o": -1,
+                "a": "Der Sieg über eine Kreatur bringt euch Erfahrungspunkte und machmal auch Gegenstände ein (siehe Kapitel 5 des Spielerhandbuchs), denn besiegte Kreaturen hinterlassen des Öfteren Gegenstände, die dann von den Spielern aufgesammelt (d.h. gedroppt) werden können. Auf diese Art kommen Spieler, die den Kampf gewonnen haben in den Besitz der Ressourcen und Gegenstände des Monsters.\nDurch den Verkauf dieser Ressourcen und Gegenstände lassen sich gut Kamas machen, wobei Kamas der Name der Währung Amaknas, der Welt von DOFUS, ist. Mit Kamas kannst du wiederum nützliche Gegenstände für deinen Charakter, oder aber mächtige Zaubersprüche kaufen. Auf welchen Bereich du dich dabei spezialisierst und konzentrierst, bleibt dir allein überlassen.",
+                "k": [
+                    "EP",
+                    "Erfahrung",
+                    "Drop",
+                    "Sieg",
+                    "Kampf"
+                ],
+                "i": 20,
+                "ep": 1
+            },
+            "59": {
+                "c": 1,
+                "n": "Inventar",
+                "o": -1,
+                "a": "Im « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnInventory\">Inventar</a> » werden alle Gegenstände angezeigt, die sich im Rucksack befinden oder getragen werden.\n\nDer Rucksack besteht aus 4 Fächern:\n- Ausrüstung (Waffen, Kleider und alle Gegenstände, die sich anlegen lassen);\r\n\n- Verschiedenes (Schriftrollen, Bücher, Tränke, Brote...);\r\n\n- Ressourcen (Monsterteile oder geerntete Ressourcen...);\r\n\n- Questgegenstände (Hochwichtige Gegenstände! Nicht anfassen!).",
+                "k": [
+                    "Questgegenstände",
+                    "Ressourcen",
+                    "Gegenstände",
+                    "Ausrüstung",
+                    "Inventar"
+                ],
+                "i": 59,
+                "ep": 1
+            },
+            "18": {
+                "c": 4,
+                "n": "Klassenzauber",
+                "o": -1,
+                "a": "Zaubersprüche können vielfältige Auswirkungen haben, die gelernt (gesteigert) werden müssen, um wirksamer zu sein. Zaubersprüche können beispielsweise: heilen, Kreaturen beschwören, die BP der Gegner verringern, die AP von Verbündeten erhöhen und natürlich auch Schaden anrichten oder erhöhen... Es gibt also vielfältige Kombinationsmöglichkeiten. Wie Waffen auch, besitzen Zaubersprüche eine bestimmte Reichweite und einen Wirkungsbereich.\n\n<b>Bemerkung:</b> Wenn ein Zauberspruch neutral ist, wird seine Stärke durch das Attribut Erde verstärkt.\n\nAusgegebene Zauberspruchpunkte können in den jeweiligen Klassentempeln nach Dubbelkämpfen zurückgewonnen werden.",
+                "k": [
+                    "Vergessen",
+                    "Zaubersprüche"
+                ],
+                "i": 18,
+                "ep": 1
+            },
+            "49": {
+                "c": 36,
+                "n": "Luftschiffe",
+                "o": -1,
+                "a": "Im Dorf der Bringandiner gibt es Luftschiffe und andere Flugmaschinen. Jedoch kannst du diese Fortbewegungsmittel nur dann nutzen, wenn du die passende Gesinnung besitzt, und deine Gesinnung das Dorf bereits erobert hat.",
+                "k": [
+                    "Brâkmar",
+                    "Bonta",
+                    "Gesinnung",
+                    "Luftschiff",
+                    "Reisen"
+                ],
+                "i": 49,
+                "ep": 17
+            },
+            "63": {
+                "c": 1,
+                "n": "Gilde",
+                "o": -1,
+                "a": "Die Seite « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnGuild\">Gilde</a> » lässt sich nur öffnen, wenn man einer Gilde angehört.\n\nHier werden dann alle wichtigen Informationen über die Gilde erfasst: die Liste der Mitglieder, die Stufe der Gilde und die Position der Perzeptauren.\n\nAlle Mitglieder einer Gilde werden unter einem Wappen vereint und können von folgenden Möglichkeiten profitieren:\n\n<strong>Perzeptauren</strong>\nIm Auftrag der Gilde sammeln die Perzeptoren (kurz: Percs) auf einer bestimmten Karte Gegenstände, Ressourcen und Kamas zu Gunsten der Gilde ein. Die Wahrscheinlichkeit, an diese Güter zu gelangen, kann mit den Punkten, die zur Verteilung auf die Attribute des Percs zur Verfügung stehen, gesteigert werden. Je höher die Stufe der Gilde, desto teurer  die Aufstellung eines Percs (1.000 Kamas + (Stufe der Gilde × 10), und desto länger auch der Zeitraum, der  zwischen 2  Einnahmen durch den Perc vergehen muss. Dagegen erhöhen sich mit jeder Stufe, die die Gilde erreicht, die Fähigkeiten des Percs, bestimmte Boni zu erhalten.\nSobald der Perc eurer Gilde angegriffen wird, solltet ihr ihm zu Hilfe eilen.\n\n<strong>Gildenkoppeln</strong>\nFür Gilden besteht die Möglichkeit, eigene Koppel für die Aufzucht von Dracotruten zu erwerben. Dadurch genießen sie den Vorteil, die Aufzucht dieser Reittiere genau steuern zu können.\n\n<strong>Gildenhäuser</strong>\nGildenmitglieder, die ein Haus erwerben, haben die Möglichkeit, dieses als Gildenhaus einzurichten und entsprechende Zugangsrechte an andere Gildenmitglieder zu vergeben. Ideal für das Abhalten geheimer Treffen.\n\n<strong>Gildenentwicklung</strong>\nMit jedem gewonnenen Kampf stiftet jedes Mitglied seiner Gilde automatisch einen bestimmten Prozentsatz seiner EP, denn genau wie jeder Spielercharakter braucht auch die Gilde EP, um zu wachsen. Mit jeder neu erreichten Gildenstufe wachsen auch die Möglichkeiten, Gildenhäuser und -koppel zu erwerben, und weitere Perzeptauren aufstellen zu können.",
+                "k": [
+                    "Perzeptauren",
+                    "Gilde"
+                ],
+                "i": 63,
+                "ep": 1
+            },
+            "31": {
+                "c": 32,
+                "n": "Grundattribute",
+                "o": -1,
+                "a": "<br>Stärke</b>\nStärke erhöht die zulässige Traglast des Charakters (also die Anzahl an Pods). Zudem erhöht sie den neutralen und Erd-Schaden, der durch Waffen und Zauber angerichtet wird.\n\n<br>Flinkheit</b>\nFlinkheit erhöht die Wahrscheinlichkeit, aus einem Gedränge zu entkommen oder, umgekehrt, Gegner daran zu hindern. Dazu auch noch die Chance auf Kritische Treffer und den angerichteten Luft-Schaden.\n\n<br>Vitalität</b>\nVitalität erhöht die Lebenspunkte des Charakters.\n\n<br>Lebenspunkte</b>\nLebenspunkte sind ein Maß für die Gesundheit des Charakters. Ab der 100. Stufe erhält ein Charakter fortan 10 LP pro Stufe.\n\n<br>Intelligenz</b>\nIntelligenz erhöht den angerichteten Feuer-Schaden und die Heilung im Kampf.\n\n<br>Glück</b>\nGlück beeinflußt das Filzen im Verhältnis 10/1 (10 Punkte Glück erhöhen das Filzen um 1). Zudem erhöht das Glück den angerichteten Wasser-Schaden.\n\n<br>Weisheit</b>\nWeisheit erhöht die am Ende von Kämpfen gewonnene Erfahrung. Zudem auch noch die Resistenz gegen AP- und BP-Entzug.\n\n<br>Initiative</b>\nInitiative bestimmt die Reihenfolge, in der die Charaktere während einer Runde handeln können. Je höher der Wert, desto früher kommt euer Charakter an die Reihe. Die Initiative wird durch Stärke, Flinkheit, Glück und vor allem durch Weisheit und Intelligenz beeinflußt.\n\n<br>Filzen</b>\nFilzen erhöht die Wahrscheinlichkeit, nach einem Kampf den besiegten Gegnern Gegenstände abnehmen zu können.\n\n<br>Aktionspunkte (\"AP\")</b>\nAktionspunkte ermöglichen es eurem Charakter, im Kampf mit der Waffe oder mit Zaubersprüchen anzugreifen. Dabei wird je nach Aktion eine gewisse Zahl an AP abgezogen. Zu Beginn jeder Runde werden die AP wieder aufgefüllt.\n\n<br>Bewegungspunkte (\"BP\")</b>\nBewegungspunkte ermöglichen es eurem Charakter, sich im Kampf zu bewegen. Pro Feld wird dabei 1 BP ausgegeben. Zu Beginn jeder Runde werden die BP wieder aufgefüllt.\n\n<br>Energie</b>\nEnergie gibt den allgemeinen Zustand des Charakters an. Ein Charakter ohne Energie wird zum Geist. Energie verliert man, wenn man Kämpfe gegen Monster oder angreifende Spieler verliert.",
+                "k": [
+                    "Attribute",
+                    "Energie",
+                    "Filzen",
+                    "Initiative",
+                    "Vitalität",
+                    "LP",
+                    "Stärke",
+                    "Flinkheit",
+                    "Intelligenz",
+                    "Glück",
+                    "Weisheit"
+                ],
+                "i": 31,
+                "ep": 1
+            },
+            "36": {
+                "c": 33,
+                "n": "Pods",
+                "o": -1,
+                "a": "Um die Anzahl an Pods (Traglast) zu erhöhen, gibt es mehrere Möglichkeiten:\n\n- Mit jeder neuen Stufe, die der Charakter in seinem Beruf erreicht, erhält er 5 Pods mehr an maximaler Traglast. Zudem erhält der Charakter bei Erreichen der 100. Stufe in seinem Beruf noch einen einmaligen Bonus von 1.000 Pods.\n- Ein Punkt in Stärke ergibt ebenfalls 5 Pods mehr an Traglast. Oftmals ist es jedoch besser, die Stärke mittels Schriftrollen zu steigern.\n- Rucksäcke erhöhen ebenfalls die Traglast, vorausgesetzt, der Charakter hat entweder eine bestimmte Stufe im Beruf, oder eine bestimmte Charakterstufe oder gar beides erreicht.\nBestimmte Gürtel und Stiefel können gleichfalls die Anzahl an Pods erhöhen. (Ein Fresssackgürtel beispielsweise maximal um bis zu 500 Pods.)",
+                "k": [
+                    "Belastung",
+                    "Ausrüstung",
+                    "Stärke",
+                    "Berufe",
+                    "erhöhen",
+                    "Rucksack",
+                    "tragen",
+                    "Gewicht",
+                    "Pods"
+                ],
+                "i": 36,
+                "ep": 1
+            },
+            "2": {
+                "c": 6,
+                "n": "Chatleiste",
+                "o": 0,
+                "a": "Das Plus-Symbol vergrößert das Chat-Fenster.\n\nDas Minus-Symbol verkleinert es wieder auf die normale Größe.\n\nDas Stern-Symbol fasst die grundlegenden Chat-Befehle zusammen, z.B. wie man vorgeht, um mit der Gruppe, Gilde oder Spielern derselben Gesinnung zu sprechen.\n\nÜber die farbigen Symbole kannst du auswählen, über welche Kanäle du Nachrichten empfangen willst.\n\nDas Symbol mit dem Mund gestattet es dir, Emotes und Smileys anzuzeigen. Manche Emotes können über bestimmte Questen gewonnen werden. Sprecht z.B. mit Wally Lekonom in der Bibliothek von Amakna oder mit Griesgrahm in der Taverne von Amakna, um mehr zu diesem Punkt zu erfahren.\n\nDas Symbol \"Freundesliste\" erlaubt es dir, andere Charaktere zur Liste der Freunde hinzufügen. Klick einfach einen befreundeten Charakter an und wähle die Option \"Zur Freundesliste hinzufügen\" aus.\n\nDas Symbol \"Gilde\" öffnet das Gildenfenster. Das geht allerdings nur, wenn du bereits Mitglied einer Gilde bist.",
+                "k": [
+                    "Feinde",
+                    "Freunde",
+                    "Gilde",
+                    "Chat"
+                ],
+                "i": 2,
+                "ep": 1
+            },
+            "5": {
+                "c": 6,
+                "n": "Chatbefehle",
+                "o": 1,
+                "a": "Hier sind die wichtigsten Befehle, um mit anderen Spielern zu interagieren:\n\n<b>/w</b> (oder <b>/msg</b> oder <b>/whispe</b>) Charaktername: Dieser Befehl sendet eine Privatnachricht an den Charakter.\n<b>/t Nachricht</b> sendet eine Nachricht an das Team.\n<b>/g Nachricht</b>sendet eine Nachricht an die Gilde.\n<b>/p Nachricht</b> sendet eine Nachricht an die Gruppe.\n<b>/a Nachricht</b>sendet eine Nachricht an den Gesinnungskanal. Benötigt mindestens Rang 3 in dieser Gesinnung.\n\nMit den oben angegeben Befehlen bist du bereits in der Lage, auf Abenteuersuche auszuziehen. Jedoch gibt es noch ein paar andere hilfreiche Befehle, die dir später nützlich werden könnten:\n\n<b>/invite Charaktername </b> lädt einen anderen Charakter ein, der Gruppe beizutreten. Beim Kampf gegen gefährliche Monster sollte man nicht zögern, diesen Befehl einzugeben.\n<b>/away</b> (De)aktiviert den \"Abwesenheitsmodus\". Wenn dieser aktiviert ist, kannst du keine Privatnachrichten oder Einladungen mehr erhalten.\n<b>/invisible</b> hat die gleiche Wirkung wie /away, mit der Ausnahme, dass euch immernoch die Spieler aus eurer Freundesliste kontaktieren können.\n<b>/help</b> ruft die Liste mit den Befehlen des Spieles auf, solltet ihr den einen oder anderen daraus vergessen haben.\n\n<b>Möge die Kühnheit mit dir sein!</b> Wenn du eine Privatnachricht an einen Spieler auf der gleichen Karte schicken willst, welcher einen längeren Namen benutzt, dann kannst du auch einfach nur \"/w\" eingeben, gefolgt von den Anfangsbuchstaben des Namens. Durch die Tastenkombination \"Strg + rechter Pfeil\" wird nun auch der Rest des Namens angezeigt.",
+                "k": [
+                    "Tastenkürzel",
+                    "Chat",
+                    "Befehle"
+                ],
+                "i": 5,
+                "ep": 1
+            },
+            "1": {
+                "c": 6,
+                "n": "Das Sprechen mit PCs und NPCs",
+                "o": 2,
+                "a": "Ein NPC (NichtSpielerCharakter) ist eine vom Computer geführte Figur, die von den Spielentwicklern von DOFUS programmiert wurde. NPC erlauben es Spielern z.B. Berufe zu erlernen, bestimmte Gegenstände oder Ressourcen zu kaufen, verkaufen oder einzutauschen und/oder vergeben Questen: übrigens, vergiss nicht beim Start im Spiel die Anfangsquesten zu machen. Zum Ansprechen von NPCs muss man diese einfach nur anklicken, woraufhin sich ein Fenster mit den möglichen Interaktionsmöglichkeiten öffnet.\n\nEin PC ist ein Spielercharakter. Mit diesen kannst du mittels des Chatfensters kommunizieren, wenn sie sich auf der gleichen Karte befinden",
+                "k": [
+                    "Chat",
+                    "PC",
+                    "NPC"
+                ],
+                "i": 1,
+                "ep": 1
+            }
+        },
+        "KBT": {
+            "1": {
+                "i": 1,
+                "c": "Mit dieser Übersicht behaltet ihr den Überblick darüber, wer von euren Freunden gerade online ist.",
+                "l": 1
+            },
+            "2": {
+                "i": 2,
+                "c": "Klickt auf ein<a href=\"asfunction:onHref,PictoIndicator,-1,1030\">Kartenwechselsymbol</a>, um zur Nachbarkarte zu wechseln.",
+                "l": 55
+            },
+            "3": {
+                "i": 3,
+                "c": "Klickt einen <a href=\"asfunction:onHref,SpriteIndicator,-1,9059\">Nicht-Spieler-Charakter</a> (NSC) an, um mit ihm zu reden und zu interagieren.",
+                "l": 1
+            },
+            "4": {
+                "i": 4,
+                "c": "Klickt auf ein <a href=\"asfunction:onHref,SpriteIndicator,-1,1219\">Monster</a>, um den Kampf mit ihm zu eröffnen.",
+                "l": 10
+            },
+            "5": {
+                "i": 5,
+                "c": "Klickt auf ein rotes Feld, um eure Startposition auszuwählen.\nAnschließend könnt ihr den Kampf über den Button <a href=\"asfunction:onHref,UiIndicator,ChallengeMenu,_lblReady\">\"Bereit\"</a> starten.",
+                "l": 10
+            },
+            "7": {
+                "i": 7,
+                "c": "<a href=\"asfunction:onHref,UiIndicator,Banner,_pvMP\">Bewegungspunkte</a> (BP) geben euch die Möglichkeit, euch im Kampf über eine den Punkten entsprechende Anzahl an Feldern zu bewegen.",
+                "l": 10
+            },
+            "8": {
+                "i": 8,
+                "c": "<a href=\"asfunction:onHref,UiIndicator,Banner,_pvAP\">Aktionspunkte</a> (AP) ermöglichen euch, <a href=\"asfunction:onHref,UiIndicator,Banner,_ctrCC\">Angriffe im Kampf</a> durchzuführen oder <a href=\"asfunction:onHref,UiIndicator,Banner,_ctr1\">Zaubersprüche</a> zu wirken.\nWenn ihr eure Handlungen in der Runde beendet habt, könnt ihr auf den Button <a href=\"asfunction:onHref,UiIndicator,Banner,_btnNextTurn\">\"Fertig\"</a> klicken, um in die nächste Runde zu gehen und Zeit zu sparen.",
+                "l": 10
+            },
+            "11": {
+                "i": 11,
+                "c": "<a href=\"asfunction:onHref,UiIndicator,Banner,_hHeart\">Lebenspunkte</a> (LP) lassen sich durch \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnSitDown\">Ausruhen</a>\", das Essen von Brot, die Einnahme von Tränken oder das Benutzen eines <a href=\"asfunction:onHref,PictoIndicator,-1,7004\">Jungbrunnens</a> zurückgewinnen.",
+                "l": 11
+            },
+            "12": {
+                "i": 12,
+                "c": "Am Ende eines Kampfes wird euch tabellarisch angezeigt, welche Gegenstände und wieviel Erfahrung ihr erhalten habt.",
+                "l": 10
+            },
+            "13": {
+                "i": 13,
+                "c": "Wenn ihr einen Kampf verliert, werdet ihr automatisch an die zuletzt gespeicherte Position teleportiert.",
+                "l": 23
+            },
+            "14": {
+                "i": 14,
+                "c": "Wenn eure Energie auf Null sinkt, werdet ihr zu einem Geist. Findet eine Phönix-Statue, um wiedererweckt zu werden. Öffnet eure <ahref=\"asfunction:onHref,UiIndicator,Banner,_btnMap\">Weltkarte</a>, denn dort werden euch die Phönixstatuen angezeigt.",
+                "l": 23
+            },
+            "15": {
+                "i": 15,
+                "c": "Mit den <a href=\"asfunction:onHref,PictoIndicator,-1,7000\">Zaaps</a> könnt ihr euch teleportieren. Dazu müsst ihr die Position aller euch bekannten <a href=\"asfunction:onHref,PictoIndicator,-1,7000\">Zaaps</a> speichern. Das Teleportieren geht immer nur von <a href=\"asfunction:onHref,PictoIndicator,-1,7000\">Zaaps</a> zu <a href=\"asfunction:onHref,PictoIndicator,-1,7000\">Zaaps</a>.",
+                "l": 46
+            },
+            "16": {
+                "i": 16,
+                "c": "Manche Ressourcen können abgebaut werden. Dazu müsst ihr allerdings den passenden Beruf erlernt, die entsprechende Stufe darin erreicht haben und mit dem dazugehörigen Werkzeug ausgerüstet sein.",
+                "l": 44
+            },
+            "17": {
+                "i": 17,
+                "c": "Klickt Ganymed an, um mit ihm zu sprechen. Das Ausrufezeichen über seinem Kopf bedeutet, dass er euch eine Queste anzubieten hat.",
+                "l": 1
+            },
+            "18": {
+                "i": 18,
+                "c": "Ihr habt genug Erfahrung erhalten, um Stufe höher aufzusteigen und einen neuen Zauber zu erlernen.\nUm diesen in eurer <a href=\"asfunction:onHref,UiIndicator,Banner,_btnTabSpells\">Zauberleiste</a> zu platzieren, könnt ihr ihn einfach von eurem <a href=\"asfunction:onHref,UiIndicator,Banner,_bntSpells\">Zauberbuch</a> herunterziehen.",
+                "l": 18
+            },
+            "19": {
+                "i": 19,
+                "c": "Euer Charakter in Stufe höher gestiegen. Ihr erhaltet daher <a href=\"asfunction:onHref,UiIndicator,Banner,_btnStatsJob\">Attributspunkte</a> und <a href=\"asfunction:onHref,UiIndicator,Banner,_btnSpells\">Zauberspruchpunkte</a> zum Verbessern von Attributen und Zaubersprüchen.",
+                "l": 27
+            },
+            "20": {
+                "i": 20,
+                "c": "Wenn ihr den passenden Beruf erlernt habt und das dazu gehörige Werkzeug in den Händen haltet, könnt ihr Ressourcen abbauen.",
+                "l": 44
+            },
+            "21": {
+                "i": 21,
+                "c": "Manche <a href=\"asfunction:onHref,SpriteIndicator,-1,9037\">Nicht-Spieler-Charaktere</a> (NPC) können euch Berufe beibringen. Scheut euch nicht davor, sie anzusprechen!",
+                "l": 44
+            },
+            "22": {
+                "i": 22,
+                "c": "In den Werkstätten könnt ihr Werkzeuge und Maschinen einsetzen, um Gegenstände herzustellen.",
+                "l": 45
+            },
+            "23": {
+                "i": 23,
+                "c": "<a href=\"asfunction:onHref,SpriteIndicator,-1,9059\">Nicht-Spieler-Charaktere</a> (NPC) mit einem grünen Ausrufezeichen über ihrem Kopf bieten euch eine Queste an. Scheut euch nicht davor, sie anzusprechen!",
+                "l": 1
+            },
+            "24": {
+                "i": 24,
+                "c": "Die Feenbrunnen geben euch all eure Lebenspunkte wieder zurück. Doch Achtung: Charaktere über der 15. Stufe können sich nicht länger an ihnen stärken!",
+                "l": 11
+            },
+            "25": {
+                "i": 25,
+                "c": "Klickt auf den <a href=\"asfunction:onHref,SpriteIndicator,-1,53\">Grabstein</a>, um euren Geist zu befreien, wenn ihr nicht die Zeit habt, zu warten, bis euch ein Priester wieder auferweckt.",
+                "l": 23
+            },
+            "26": {
+                "i": 26,
+                "c": "Ihr habt nun eine neue Position gespeichert. Wenn euer Charakter stirbt, wird er dorthin teleportiert.",
+                "l": 23
+            },
+            "27": {
+                "i": 27,
+                "c": "Über diese Benutzeroberfläche habt ihr eure <a href=\"asfunction:onHref,UiIndicator,Quests,_dgQuests,_lstList\">Questen</a> immer gut im Blick. Klickt einfach die gewünschte <a href=\"asfunction:onHref,UiIndicator,Quests,_dgQuests,_lstList\">Quest</a> an, um die Liste der einzelnen Schritte einzusehen.",
+                "l": 60
+            },
+            "28": {
+                "i": 28,
+                "c": "Hier könnt ihr eure Zaubersprüche einsehen und verwalten. Von dieser Übersicht aus könnt ihr nützliche Zaubersprüche auch in die <a href=\"asfunction:onHref,UiIndicator,Banner,_msShortcuts,_ctr4\">Leiste mit Zaubersprüchen</a> verschieben, um sie im Kampf schneller wirken zu können.",
+                "l": 58
+            },
+            "29": {
+                "i": 29,
+                "c": "Diese Benutzeroberfläche zeigt den Ausschnitt der Weltkarte an, auf dem sich euer Charakter momentan gerade befindet. Ihr könnt auch zoomen und scrollen und euch dank verschiedener <a href=\"asfunction:onHref,UiIndicator,MapExplorer,_mcFilter4\">Filter</a> wichtige Orte eurer Wahl anzeigen lassen.",
+                "l": 61
+            },
+            "30": {
+                "i": 30,
+                "c": "Hier könnt ihr eure Attribute einsehen und Attributspunkte verteilen. Gleichfalls werden hier eure Erfahrungspunkte (EP) und die Energie angezeigt.",
+                "l": 31
+            },
+            "31": {
+                "i": 31,
+                "c": "Hier könnt ihr die einzelnen Schritte eurer Queste einsehen. Klickt einen der <a href=\"asfunction:onHref,UiIndicator,Quests,_mcTab,_lstObjectives\">Schritte</a> an, dann zeigt euch der Kompass die Richtung zum nächsten Zielpunkt an.",
+                "l": 60
+            },
+            "32": {
+                "i": 32,
+                "c": "Der Zeitpunkt eurer letzten Einwahl, sowie die Anzeige der zum Zeitpunkt der Einwahl aktuellen IP-Adresse sind ein Hinweis darauf, ob die Sicherheit eures Accounts verletzt wurde.",
+                "l": 65
+            },
+            "33": {
+                "i": 33,
+                "c": "Euer Perzeptaurus ist schüchtern, er braucht daher immer seine Zeit zwischen zwei Leerungen. Also solltet ihr ihn immer ca. 1 Stunde pro Gildenstufe ausruhen lassen.",
+                "l": 63
+            },
+            "34": {
+                "i": 34,
+                "c": "Um in die nächste Runde zu gehen, klickt auf das Feld <a href=\"asfunction:onHref,UiIndicator,Banner,_btnNextTurn\">bouton \"Runde beenden\"</a>.",
+                "l": 10
+            },
+            "35": {
+                "i": 35,
+                "c": "Wenn du einem Freund beistehen möchtest, kannst du ihn in deine <a href=\"asfunction:onHref,UiIndicator,Banner,_btnFriends\">Freundesliste</a> aufnehmen. Sobald dein Freund dann online ist, kannst du dich direkt zu ihm hinteleportieren, indem du einfach seinen Namen anklickst.",
+                "l": 1
+            }
+        },
+        "KBD": {
+            "1": {
+                "t": 2,
+                "v": "Friends",
+                "d": 1
+            },
+            "13": {
+                "t": 2,
+                "v": "StatsJob",
+                "d": 30
+            },
+            "4": {
+                "t": 1,
+                "v": [
+                    10302
+                ],
+                "d": 21
+            },
+            "10": {
+                "t": 1,
+                "v": [
+                    10258
+                ],
+                "d": 11
+            },
+            "2": {
+                "t": 1,
+                "v": [
+                    10285,
+                    10289,
+                    10294,
+                    10300,
+                    10299,
+                    10298,
+                    10296,
+                    10292,
+                    10284,
+                    10283,
+                    10279,
+                    10276
+                ],
+                "d": 3
+            },
+            "6": {
+                "t": 1,
+                "v": [
+                    10355
+                ],
+                "d": 22
+            },
+            "3": {
+                "t": 1,
+                "v": [
+                    10324,
+                    10325,
+                    10327,
+                    10331,
+                    10330,
+                    10329,
+                    10328,
+                    10326,
+                    10323,
+                    10322,
+                    10321,
+                    10305
+                ],
+                "d": 23
+            },
+            "5": {
+                "t": 1,
+                "v": [
+                    10349,
+                    10317,
+                    10304,
+                    10297
+                ],
+                "d": 15
+            },
+            "12": {
+                "t": 2,
+                "v": "Quests",
+                "d": 27
+            },
+            "14": {
+                "t": 2,
+                "v": "MapExplorer",
+                "d": 29
+            },
+            "15": {
+                "t": 2,
+                "v": "Spells",
+                "d": 28
+            },
+            "16": {
+                "t": 1,
+                "v": [
+                    10295
+                ],
+                "d": 35
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 423,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "KBC",
+            "KBA",
+            "KBT",
+            "KBD",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

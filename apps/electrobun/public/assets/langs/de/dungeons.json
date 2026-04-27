@@ -1,0 +1,909 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1258,
+        "DU": {
+            "1": {
+                "n": "Fresssack-Dungeon",
+                "m": {
+                    "2073": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Raum 1",
+                        "i": 900
+                    },
+                    "2074": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Raum 2"
+                    },
+                    "2075": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Raum 3"
+                    },
+                    "2076": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Raum 4"
+                    },
+                    "2077": {
+                        "x": 4,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Raum 5"
+                    },
+                    "2079": {
+                        "x": 4,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Raum 6"
+                    },
+                    "2080": {
+                        "x": 4,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Raum 7"
+                    },
+                    "2081": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Raum 8"
+                    },
+                    "2082": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Raum 9"
+                    },
+                    "2083": {
+                        "x": 1,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Raum 10",
+                        "i": 905
+                    },
+                    "2084": {
+                        "x": 0,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Raum 11",
+                        "i": 901
+                    }
+                }
+            },
+            "2": {
+                "n": "Dungeon der Felder",
+                "m": {
+                    "9768": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9769": {
+                        "x": 10,
+                        "y": 0,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9770": {
+                        "x": 20,
+                        "y": 0,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9771": {
+                        "x": 30,
+                        "y": 0,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9772": {
+                        "x": 30,
+                        "y": 10,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9773": {
+                        "x": 30,
+                        "y": 20,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9774": {
+                        "x": 30,
+                        "y": 30,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9786": {
+                        "x": 0,
+                        "y": 30,
+                        "z": 0,
+                        "n": ""
+                    }
+                }
+            },
+            "3": {
+                "n": "Meister Rabs Bibliothek",
+                "m": {
+                    "9589": {
+                        "x": 0,
+                        "y": -1,
+                        "z": 0,
+                        "n": "Eingang"
+                    },
+                    "9590": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Erster Raum"
+                    },
+                    "9591": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Vierter Raum"
+                    },
+                    "9592": {
+                        "x": 0,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Neunter Raum"
+                    },
+                    "9593": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Dreizehnter Raum"
+                    },
+                    "9594": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Fünfter Raum"
+                    },
+                    "9595": {
+                        "x": 2,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Siebter Raum"
+                    },
+                    "9596": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Fünfter Raum"
+                    },
+                    "9597": {
+                        "x": 1,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Zehnter Raum"
+                    },
+                    "9598": {
+                        "x": 1,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Vierzehnter Raum"
+                    },
+                    "9599": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Dritter Raum"
+                    },
+                    "9600": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Sechster Raum"
+                    },
+                    "9601": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Elfter Raum"
+                    },
+                    "9602": {
+                        "x": 2,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Vierter Raum"
+                    },
+                    "9603": {
+                        "x": 3,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Achter Raum"
+                    },
+                    "9604": {
+                        "x": 3,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Ausgang"
+                    },
+                    "9723": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Zwölfter Raum"
+                    },
+                    "9724": {
+                        "x": 3,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Siebter Raum"
+                    }
+                }
+            },
+            "4": {
+                "n": "Labyrinth des Minotorors",
+                "m": {
+                    "9553": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Erster Raum"
+                    },
+                    "9554": {
+                        "x": 4,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Zehnter Raum"
+                    },
+                    "9555": {
+                        "x": 0,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Elfter Raum"
+                    },
+                    "9556": {
+                        "x": 1,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Zwölfter Raum"
+                    },
+                    "9557": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Zentralraum"
+                    },
+                    "9558": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Friedhof"
+                    },
+                    "9559": {
+                        "x": 4,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Vierter Raum"
+                    },
+                    "9560": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Siebter Raum"
+                    },
+                    "9561": {
+                        "x": 1,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Siebzehnter Raum"
+                    },
+                    "9562": {
+                        "x": 2,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Achtzehnter Raum"
+                    },
+                    "9563": {
+                        "x": 3,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Neunzehnter Raum"
+                    },
+                    "9564": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Fünfter Raum"
+                    },
+                    "9565": {
+                        "x": 4,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Zwanzigster Raum"
+                    },
+                    "9566": {
+                        "x": 0,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Einundzwanzigster Raum"
+                    },
+                    "9567": {
+                        "x": 1,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Zweiundzwanzigster Raum"
+                    },
+                    "9568": {
+                        "x": 2,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Dreiundzwanzigster Raum"
+                    },
+                    "9569": {
+                        "x": 3,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Vierundzwanzigster Raum"
+                    },
+                    "9570": {
+                        "x": 4,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Fünfundzwanzigster Raum"
+                    },
+                    "9571": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Dritter Raum"
+                    },
+                    "9572": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Vierter Raum"
+                    },
+                    "9573": {
+                        "x": 4,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Fünfter Raum"
+                    },
+                    "9574": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Sechster Raum"
+                    },
+                    "9575": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Siebter Raum"
+                    },
+                    "9576": {
+                        "x": 2,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Achter Raum"
+                    },
+                    "9577": {
+                        "x": 3,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Neunter Raum"
+                    },
+                    "9876": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Fliesenraum"
+                    },
+                    "9877": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 1,
+                        "n": "Höhle des Minotorors"
+                    },
+                    "9879": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 1,
+                        "n": "Höhle des Minotots"
+                    },
+                    "9880": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 1,
+                        "n": "Höhle des Minotorors"
+                    },
+                    "9881": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 1,
+                        "n": "Höhle des Minotots"
+                    }
+                }
+            },
+            "5": {
+                "n": "Labyrinth des Schweinedrachens",
+                "m": {
+                    "9371": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Erster Raum"
+                    },
+                    "9372": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Vierter Raum"
+                    },
+                    "9373": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Dritter Raum"
+                    },
+                    "9374": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Fünfter Raum"
+                    },
+                    "9375": {
+                        "x": 2,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Achter Raum"
+                    },
+                    "9376": {
+                        "x": 0,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Elfter Raum"
+                    },
+                    "9377": {
+                        "x": 2,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Achtzehnter Raum"
+                    },
+                    "9378": {
+                        "x": 4,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Zwanzigster Raum"
+                    },
+                    "9379": {
+                        "x": 1,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Zweiundzwanzigster Raum"
+                    },
+                    "9380": {
+                        "x": 3,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Neunter Raum"
+                    },
+                    "9381": {
+                        "x": 1,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Zwölfter Raum"
+                    },
+                    "9382": {
+                        "x": 4,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Vierter Raum"
+                    },
+                    "9383": {
+                        "x": 3,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Neunzehnter Raum"
+                    },
+                    "9384": {
+                        "x": 4,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Fünfundzwanzigster Raum"
+                    },
+                    "9385": {
+                        "x": 4,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Fünfter Raum"
+                    },
+                    "9386": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Sechster Raum"
+                    },
+                    "9387": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Vierzehnter Raum"
+                    },
+                    "9388": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Siebter Raum"
+                    },
+                    "9389": {
+                        "x": 2,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Dreiundzwanzigster Raum"
+                    },
+                    "9390": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Siebter Raum"
+                    },
+                    "9391": {
+                        "x": 4,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Zehnter Raum"
+                    },
+                    "9392": {
+                        "x": 1,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Siebzehnter Raum"
+                    },
+                    "9393": {
+                        "x": 0,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Einundzwanzigster Raum"
+                    },
+                    "9394": {
+                        "x": 3,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Vierundzwanzigster Raum"
+                    },
+                    "9395": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Dreizehnter Raum"
+                    },
+                    "9396": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Fliesenraum"
+                    },
+                    "9398": {
+                        "x": 6,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Friedhof"
+                    }
+                }
+            },
+            "6": {
+                "n": "Höhle des Schweinedrachens",
+                "m": {
+                    "8541": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Erster Raum"
+                    },
+                    "8542": {
+                        "x": 1,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Fünfter Raum"
+                    },
+                    "8543": {
+                        "x": 1,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Vierter Raum"
+                    },
+                    "8544": {
+                        "x": 0,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Fünfter Raum"
+                    },
+                    "8545": {
+                        "x": 1,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Dritter Raum"
+                    },
+                    "8546": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Sechster Raum"
+                    },
+                    "8547": {
+                        "x": 2,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Siebter Raum"
+                    },
+                    "8548": {
+                        "x": 3,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Achter Raum"
+                    },
+                    "8549": {
+                        "x": 4,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Neunter Raum"
+                    },
+                    "9989": {
+                        "x": 4,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Neunter Raum"
+                    }
+                }
+            },
+            "7": {
+                "n": "Heiligtum der Dracheier",
+                "m": {}
+            },
+            "8": {
+                "n": "Gladiatrool",
+                "m": {
+                    "15000": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Raum 1",
+                        "i": 900
+                    },
+                    "15008": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Raum 2"
+                    },
+                    "15016": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Raum 3"
+                    },
+                    "15024": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Raum 4"
+                    },
+                    "15032": {
+                        "x": 4,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Raum 5",
+                        "i": 904
+                    },
+                    "15040": {
+                        "x": 5,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Raum 6"
+                    },
+                    "15048": {
+                        "x": 6,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Raum 7",
+                        "i": 904
+                    },
+                    "15056": {
+                        "x": 7,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Raum 8"
+                    },
+                    "15064": {
+                        "x": 8,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Raum 9"
+                    },
+                    "15072": {
+                        "x": 9,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Raum 10",
+                        "i": 905
+                    },
+                    "15080": {
+                        "x": 10,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Ausgang",
+                        "i": 906
+                    }
+                }
+            },
+            "9": {
+                "n": "Versandetes Dungeon",
+                "m": {}
+            },
+            "10": {
+                "n": "Tofu-Dungeon",
+                "m": {}
+            },
+            "11": {
+                "n": "Skelett-Dungeon",
+                "m": {}
+            },
+            "12": {
+                "n": "Dungeon der Schattenschmiede",
+                "m": {}
+            },
+            "13": {
+                "n": "Bulbi-Höhle",
+                "m": {}
+            },
+            "14": {
+                "n": "Larven-Dungeon",
+                "m": {}
+            },
+            "15": {
+                "n": "Aggrotte",
+                "m": {}
+            },
+            "16": {
+                "n": "Bwork-Dungeon",
+                "m": {}
+            },
+            "17": {
+                "n": "Scarablatt-Dungeon",
+                "m": {}
+            },
+            "18": {
+                "n": "Krachler-Dungeon",
+                "m": {}
+            },
+            "19": {
+                "n": "Astaknyden-Dungeon",
+                "m": {}
+            },
+            "20": {
+                "n": "Otomaïs Arche",
+                "m": {}
+            },
+            "21": {
+                "n": "Canidae-Dungeon",
+                "m": {}
+            },
+            "22": {
+                "n": "Kuhloss-Dungeon",
+                "m": {}
+            },
+            "23": {
+                "n": "Rattendungeon von Bonta",
+                "m": {}
+            },
+            "24": {
+                "n": "Rattendungeon von Brâkmar",
+                "m": {}
+            },
+            "25": {
+                "n": "Shilf-Engpass",
+                "m": {}
+            },
+            "26": {
+                "n": "Unterschlupf der Pandikaze",
+                "m": {}
+            },
+            "27": {
+                "n": "Kitsoune-Dungeon",
+                "m": {}
+            },
+            "28": {
+                "n": "Tynril-Labyrinth",
+                "m": {}
+            },
+            "29": {
+                "n": "Rattendungeon des Schlosses von Amakna",
+                "m": {}
+            },
+            "30": {
+                "n": "Weich-Eich-Dungeon",
+                "m": {}
+            },
+            "31": {
+                "n": "Blätterdach des Kimbo",
+                "m": {}
+            },
+            "32": {
+                "n": "Pilz-Dungeon",
+                "m": {}
+            },
+            "33": {
+                "n": "Bworker-Dungeon",
+                "m": {}
+            },
+            "34": {
+                "n": "Riesen-Krakamor-Höhle",
+                "m": {}
+            },
+            "35": {
+                "n": "Dungeon von Ilyzaelle",
+                "m": {}
+            },
+            "36": {
+                "n": "Heiligtum von Qu'Tan",
+                "m": {}
+            },
+            "37": {
+                "n": "Donjon Grobe",
+                "m": {}
+            },
+            "38": {
+                "n": "Portail de Rushu",
+                "m": {}
+            },
+            "39": {
+                "n": "Schloss des Wa Wabbits",
+                "m": {}
+            },
+            "40": {
+                "n": "Wabbit-Dungeon",
+                "m": {}
+            },
+            "41": {
+                "n": "Incarnam-Dungeon",
+                "m": {}
+            },
+            "42": {
+                "n": "Unterschlupf des Skeunks",
+                "m": {}
+            },
+            "43": {
+                "n": "Blob-Dungeon",
+                "m": {}
+            },
+            "44": {
+                "n": "Dungeon von Moon",
+                "m": {}
+            },
+            "45": {
+                "n": "Dungeon des Königlichen Tofus",
+                "m": {}
+            },
+            "46": {
+                "n": "Feuerfux-Dungeon",
+                "m": {}
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 103,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "DU",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

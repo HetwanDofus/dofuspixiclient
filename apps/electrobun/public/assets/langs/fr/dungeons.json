@@ -1,0 +1,909 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1258,
+        "DU": {
+            "1": {
+                "n": "Donjon Bouftou",
+                "m": {
+                    "2073": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle 1",
+                        "i": 900
+                    },
+                    "2074": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle 2"
+                    },
+                    "2075": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle 3"
+                    },
+                    "2076": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle 4"
+                    },
+                    "2077": {
+                        "x": 4,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle 5"
+                    },
+                    "2079": {
+                        "x": 4,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Salle 6"
+                    },
+                    "2080": {
+                        "x": 4,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Salle 7"
+                    },
+                    "2081": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Salle 8"
+                    },
+                    "2082": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Salle 9"
+                    },
+                    "2083": {
+                        "x": 1,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Salle 10",
+                        "i": 905
+                    },
+                    "2084": {
+                        "x": 0,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Salle 11",
+                        "i": 901
+                    }
+                }
+            },
+            "2": {
+                "n": "Donjon des champs",
+                "m": {
+                    "9768": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9769": {
+                        "x": 10,
+                        "y": 0,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9770": {
+                        "x": 20,
+                        "y": 0,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9771": {
+                        "x": 30,
+                        "y": 0,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9772": {
+                        "x": 30,
+                        "y": 10,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9773": {
+                        "x": 30,
+                        "y": 20,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9774": {
+                        "x": 30,
+                        "y": 30,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9786": {
+                        "x": 0,
+                        "y": 30,
+                        "z": 0,
+                        "n": ""
+                    }
+                }
+            },
+            "3": {
+                "n": "Bibliothèque du Maître Corbac",
+                "m": {
+                    "9589": {
+                        "x": 0,
+                        "y": -1,
+                        "z": 0,
+                        "n": "Entrée"
+                    },
+                    "9590": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Première salle"
+                    },
+                    "9591": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Quatrième salle"
+                    },
+                    "9592": {
+                        "x": 0,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Neuvième salle"
+                    },
+                    "9593": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Treizième salle"
+                    },
+                    "9594": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Deuxième salle"
+                    },
+                    "9595": {
+                        "x": 2,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Septième salle"
+                    },
+                    "9596": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Cinquième salle"
+                    },
+                    "9597": {
+                        "x": 1,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Dixième salle"
+                    },
+                    "9598": {
+                        "x": 1,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Quatorzième salle"
+                    },
+                    "9599": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Troisième salle"
+                    },
+                    "9600": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Sixième salle"
+                    },
+                    "9601": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Onzième salle"
+                    },
+                    "9602": {
+                        "x": 2,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Quinzième salle"
+                    },
+                    "9603": {
+                        "x": 3,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Huitième salle"
+                    },
+                    "9604": {
+                        "x": 3,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Sortie"
+                    },
+                    "9723": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Douzième salle"
+                    },
+                    "9724": {
+                        "x": 3,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Seizième salle"
+                    }
+                }
+            },
+            "4": {
+                "n": "Labyrinthe du Minotoror",
+                "m": {
+                    "9553": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Première salle"
+                    },
+                    "9554": {
+                        "x": 4,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Dixième salle"
+                    },
+                    "9555": {
+                        "x": 0,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Onzième salle"
+                    },
+                    "9556": {
+                        "x": 1,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Douzième salle"
+                    },
+                    "9557": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Salle centrale"
+                    },
+                    "9558": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Cimetière"
+                    },
+                    "9559": {
+                        "x": 4,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Quinzième salle"
+                    },
+                    "9560": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Seizième salle"
+                    },
+                    "9561": {
+                        "x": 1,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Dix-septième salle"
+                    },
+                    "9562": {
+                        "x": 2,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Dix-huitième salle"
+                    },
+                    "9563": {
+                        "x": 3,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Dix-neuvième salle"
+                    },
+                    "9564": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Deuxième salle"
+                    },
+                    "9565": {
+                        "x": 4,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Vingtième salle"
+                    },
+                    "9566": {
+                        "x": 0,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Vingt-et-unième salle"
+                    },
+                    "9567": {
+                        "x": 1,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Vingt-deuxième salle"
+                    },
+                    "9568": {
+                        "x": 2,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Vingt-troisième salle"
+                    },
+                    "9569": {
+                        "x": 3,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Vingt-quatrième salle"
+                    },
+                    "9570": {
+                        "x": 4,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Vingt-cinquième salle"
+                    },
+                    "9571": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Troisième salle"
+                    },
+                    "9572": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Quatrième salle"
+                    },
+                    "9573": {
+                        "x": 4,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Cinquième salle"
+                    },
+                    "9574": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Sixième salle"
+                    },
+                    "9575": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Septième salle"
+                    },
+                    "9576": {
+                        "x": 2,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Huitième salle"
+                    },
+                    "9577": {
+                        "x": 3,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Neuvième salle"
+                    },
+                    "9876": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle des dalles"
+                    },
+                    "9877": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 1,
+                        "n": "Salle du Minotoror"
+                    },
+                    "9879": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 1,
+                        "n": "Salle du Minotot"
+                    },
+                    "9880": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 1,
+                        "n": "Salle du Minotoror"
+                    },
+                    "9881": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 1,
+                        "n": "Salle du Minotot"
+                    }
+                }
+            },
+            "5": {
+                "n": "Labyrinthe du Dragon Cochon",
+                "m": {
+                    "9371": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Première salle"
+                    },
+                    "9372": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Quatrième salle"
+                    },
+                    "9373": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Troisième salle"
+                    },
+                    "9374": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Deuxième salle"
+                    },
+                    "9375": {
+                        "x": 2,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Huitième salle"
+                    },
+                    "9376": {
+                        "x": 0,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Onzième salle"
+                    },
+                    "9377": {
+                        "x": 2,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Dix-huitième salle"
+                    },
+                    "9378": {
+                        "x": 4,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Vingtième salle"
+                    },
+                    "9379": {
+                        "x": 1,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Vingt-deuxième salle"
+                    },
+                    "9380": {
+                        "x": 3,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Neuvième salle"
+                    },
+                    "9381": {
+                        "x": 1,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Douzième salle"
+                    },
+                    "9382": {
+                        "x": 4,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Quinzième salle"
+                    },
+                    "9383": {
+                        "x": 3,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Dix-neuvième salle"
+                    },
+                    "9384": {
+                        "x": 4,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Vingt-cinquième salle"
+                    },
+                    "9385": {
+                        "x": 4,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Cinquième salle"
+                    },
+                    "9386": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Sixième salle"
+                    },
+                    "9387": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Quatorzième salle"
+                    },
+                    "9388": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Seizième salle"
+                    },
+                    "9389": {
+                        "x": 2,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Vingt-troisième salle"
+                    },
+                    "9390": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Septième salle"
+                    },
+                    "9391": {
+                        "x": 4,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Dixième salle"
+                    },
+                    "9392": {
+                        "x": 1,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Dix-septième salle"
+                    },
+                    "9393": {
+                        "x": 0,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Vingt-et-unième salle"
+                    },
+                    "9394": {
+                        "x": 3,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Vingt-quatrième salle"
+                    },
+                    "9395": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Treizième salle"
+                    },
+                    "9396": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle des dalles"
+                    },
+                    "9398": {
+                        "x": 6,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Cimetière"
+                    }
+                }
+            },
+            "6": {
+                "n": "Antre du Dragon Cochon",
+                "m": {
+                    "8541": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Première salle"
+                    },
+                    "8542": {
+                        "x": 1,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Deuxième salle"
+                    },
+                    "8543": {
+                        "x": 1,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Quatrième salle"
+                    },
+                    "8544": {
+                        "x": 0,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Cinquième salle"
+                    },
+                    "8545": {
+                        "x": 1,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Troisième salle"
+                    },
+                    "8546": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Sixième salle"
+                    },
+                    "8547": {
+                        "x": 2,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Septième salle"
+                    },
+                    "8548": {
+                        "x": 3,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Huitième salle"
+                    },
+                    "8549": {
+                        "x": 4,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Neuvième salle"
+                    },
+                    "9989": {
+                        "x": 4,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Neuvième salle"
+                    }
+                }
+            },
+            "7": {
+                "n": "Sanctuaire des Dragoeufs",
+                "m": {}
+            },
+            "8": {
+                "n": "Gladiatrool",
+                "m": {
+                    "15000": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle 1",
+                        "i": 900
+                    },
+                    "15008": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle 2"
+                    },
+                    "15016": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle 3"
+                    },
+                    "15024": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle 4"
+                    },
+                    "15032": {
+                        "x": 4,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle 5",
+                        "i": 904
+                    },
+                    "15040": {
+                        "x": 5,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle 6"
+                    },
+                    "15048": {
+                        "x": 6,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle 7",
+                        "i": 904
+                    },
+                    "15056": {
+                        "x": 7,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle 8"
+                    },
+                    "15064": {
+                        "x": 8,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle 9"
+                    },
+                    "15072": {
+                        "x": 9,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Salle 10",
+                        "i": 905
+                    },
+                    "15080": {
+                        "x": 10,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Sortie",
+                        "i": 906
+                    }
+                }
+            },
+            "9": {
+                "n": "Donjon Ensablé",
+                "m": {}
+            },
+            "10": {
+                "n": "Donjon des Tofus",
+                "m": {}
+            },
+            "11": {
+                "n": "Donjon des Squelettes",
+                "m": {}
+            },
+            "12": {
+                "n": "Donjon des Forgerons",
+                "m": {}
+            },
+            "13": {
+                "n": "Donjon des Bulbes",
+                "m": {}
+            },
+            "14": {
+                "n": "Donjon des Larves",
+                "m": {}
+            },
+            "15": {
+                "n": "Grotte Hesque",
+                "m": {}
+            },
+            "16": {
+                "n": "Donjon des Bworks",
+                "m": {}
+            },
+            "17": {
+                "n": "Donjon des Scarafeuilles",
+                "m": {}
+            },
+            "18": {
+                "n": "Donjon des Craqueleurs",
+                "m": {}
+            },
+            "19": {
+                "n": "Donjon des Abraknydes",
+                "m": {}
+            },
+            "20": {
+                "n": "Arche d'Otomaï",
+                "m": {}
+            },
+            "21": {
+                "n": "Donjon des Canidés",
+                "m": {}
+            },
+            "22": {
+                "n": "Donjon du Koulosse",
+                "m": {}
+            },
+            "23": {
+                "n": "Donjon des Rats de Bonta",
+                "m": {}
+            },
+            "24": {
+                "n": "Donjon des Rats de Brâkmar",
+                "m": {}
+            },
+            "25": {
+                "n": "Goulet du Rasboul",
+                "m": {}
+            },
+            "26": {
+                "n": "Repaire des Pandikazes",
+                "m": {}
+            },
+            "27": {
+                "n": "Donjon des Kitsounes",
+                "m": {}
+            },
+            "28": {
+                "n": "Laboratoire du Tynril",
+                "m": {}
+            },
+            "29": {
+                "n": "Donjon des Rats du Château d'Amakna",
+                "m": {}
+            },
+            "30": {
+                "n": "Donjon du Chêne Mou",
+                "m": {}
+            },
+            "31": {
+                "n": "Canopée du Kimbo",
+                "m": {}
+            },
+            "32": {
+                "n": "Donjon Fungus",
+                "m": {}
+            },
+            "33": {
+                "n": "Donjon du Bworker",
+                "m": {}
+            },
+            "34": {
+                "n": "Antre du Kralamoure Géant",
+                "m": {}
+            },
+            "35": {
+                "n": "Belvédère d'Ilyzaelle",
+                "m": {}
+            },
+            "36": {
+                "n": "Sanctuaire de Qu'Tan",
+                "m": {}
+            },
+            "37": {
+                "n": "Donjon Grobe",
+                "m": {}
+            },
+            "38": {
+                "n": "Portail de Rushu",
+                "m": {}
+            },
+            "39": {
+                "n": "Château du Wa Wabbit",
+                "m": {}
+            },
+            "40": {
+                "n": "Donjon Wabbit",
+                "m": {}
+            },
+            "41": {
+                "n": "Donjon d'Incarnam",
+                "m": {}
+            },
+            "42": {
+                "n": "Repaire de Skeunk",
+                "m": {}
+            },
+            "43": {
+                "n": "Donjon des Blops",
+                "m": {}
+            },
+            "44": {
+                "n": "Donjon de Moon",
+                "m": {}
+            },
+            "45": {
+                "n": "Donjon du Tofu Royal",
+                "m": {}
+            },
+            "46": {
+                "n": "Donjon des Firefoux",
+                "m": {}
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 106,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "DU",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

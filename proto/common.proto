@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package dofus;
 
-option go_package = "dofus/proto";
 
 // ============================================================================
 // COMMON TYPES - Shared across the entire Dofus 1.29 protocol
@@ -68,11 +67,68 @@ message ItemData {
   string          effects_raw = 6;  // Raw compressed effects string for passthrough
 }
 
-// Spell data (parsed from ~-separated format)
+// Area-of-effect shape for spells. Values must stay in sync with the
+// canonical definition in packages/grid/src/area.ts (AreaKind).
+enum AreaKind {
+  AREA_KIND_NONE          = 0;
+  AREA_KIND_CROSS         = 1;
+  AREA_KIND_PERP_CROSS    = 2;
+  AREA_KIND_LINE          = 3;
+  AREA_KIND_DIAGONAL_LINE = 4;
+  AREA_KIND_RING          = 5;
+  AREA_KIND_SQUARE        = 6;
+  AREA_KIND_CIRCLE        = 7;
+  AREA_KIND_SECTOR        = 8;
+}
+
+// Spell data sent to the client so it can fully render + preview a spell
+// before casting. Fields 1-6 match the original compressed "Sp" frame;
+// fields 7+ expose the targeting + cooldown flags the server uses to
+// validate a cast so the client can gate its UI without a round-trip.
 message SpellData {
   int32 spell_id = 1;
   int32 level = 2;
-  int32 position = 3;  // Hotbar position (encoded via base64 compression)
+  int32 position = 3;   // Hotbar position (encoded via base64 compression)
+  int32 ap_cost = 4;    // Action points needed to cast at this level
+  int32 range_min = 5;  // Minimum cast range in cells (0 = self / adjacent)
+  int32 range_max = 6;  // Maximum cast range in cells
+
+  // Targeting flags, lifted from the spell_levels row for this level.
+  bool     line_of_sight    = 7;
+  bool     modifiable_range = 8;   // PO boosts apply to range_max
+  bool     empty_cell       = 9;   // Target cell must be empty
+  bool     line_only        = 10;  // Cast restricted to caster's cardinal lines
+  int32    cast_per_turn    = 11;  // 0 = unlimited
+  int32    cast_per_target  = 12;  // 0 = unlimited
+  int32    cooldown         = 13;  // Turns before the spell can be recast
+  int32    critical_rate    = 14;  // 1/x chance of critical at this level
+  int32    failure_rate     = 15;  // 1/x chance of failure at this level
+
+  // Shape of the primary effect's area (first non-critical effect).
+  // The client uses this together with area_size to draw the AoE
+  // preview on hover without resolving the full effect list.
+  AreaKind area_kind        = 16;
+  int32    area_size        = 17;
+  int32    target_mask      = 18;  // Bitmask of legal target kinds.
+
+  // True when the primary effect spawns a persistent ground entity
+  // (trap, glyph) or a creature (summon). For these spells the
+  // hover preview shows ONLY the placement cell — area_kind/area_size
+  // describe the spawned entity's trigger / aura, not a cast-time AOE.
+  bool     single_target_spawn = 23;
+
+  // Localized display info, resolved server-side from @dofus/dofus-lang.
+  // Ships in the SpellList on enter-game so the HUD doesn't need a second
+  // round-trip (or client-side lang bundle) to render tooltips + grid.
+  string name         = 19;
+  string description  = 20;
+
+  // NOTE: icon_sprite + icon_color fields (21, 22) were removed. The asset
+  // pipeline now composes the full 3-layer tinted icon at build time, keyed
+  // directly by spell_id (`/assets/dofassets/spells/icons/<spell_id>.dofasset`).
+  // The client has everything it needs from `spell_id` above.
+  reserved 21, 22;
+  reserved "icon_sprite", "icon_color";
 }
 
 // Guild emblem
@@ -195,4 +251,14 @@ enum Element {
   ELEMENT_FIRE = 3;
   ELEMENT_WATER = 4;
   ELEMENT_AIR = 5;
+}
+
+// Game server lifecycle state — mirrors the legacy Dofus 1.29 server list
+// discriminator. Also persisted as game_servers.state (smallint) so the DB
+// column, the proto field, and the authd use-case share one source of truth.
+enum ServerState {
+  SERVER_STATE_OFFLINE = 0;
+  SERVER_STATE_ONLINE  = 1;
+  SERVER_STATE_SAVING  = 2;
+  SERVER_STATE_FULL    = 3;
 }

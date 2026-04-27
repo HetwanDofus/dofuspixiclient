@@ -1,238 +1,241 @@
 /**
- * Spell 316 - Pépite (Nugget/Gold Dust)
+ * Spell 316 — Pépite (Enutrof gold nugget shower).
  *
- * A particle shower spell that spawns up to 119 "pepite" (nugget) particles
- * falling from above the target position with gravity physics.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/316/scripts/scripts/
  *
- * Components:
- * - Up to 119 pepite particles spawned one per frame starting from frame 1
- * - Each particle falls with gravity, bounces, and stops
- * - Main container fades out starting at frame 127 (-5 alpha per frame)
- * - Removes at frame 160
+ * displayType=11 (TargetCell). The outer SWF places a single "DefineSprite_8"
+ * container at the target cell. That container's frame_1 script spawns up to
+ * 119 `pepite` particles (attachMovie loop: c runs 1..119) via an onEnterFrame
+ * loop. Each `pepite` is a 45-frame gold-nugget sprite with its own physics:
+ *   - frame_1: seeds rotation, starting Y=-90, gravity, scatter X/amp, scale,
+ *     horizontal drift velocity, and a "bounce floor" height `h` that increments
+ *     per particle from _parent.h.
+ *   - onEnterFrame: integrates gravity, bounces off floor (damping vx/v on hit),
+ *     stops when energy exhausted.
+ *   - frame_45: stop().
+ *   - An inner PlaceObject clip (frame_1 onClipEvent(load)): gotoAndStop(random(2)+1)
+ *     — picks one of two visual variants for the nugget.
  *
- * Original AS timing:
- * - Frame 1 (DefineSprite_8): Begin spawning pepites, one per enterFrame, up to c=119
- * - Frame 127 (DefineSprite_8): Container starts fading (_alpha -= 5 per frame)
- * - Frame 160 (DefineSprite_8): removeMovieClip(), stop()
+ * DefineSprite_8 also has:
+ *   - frame_127: a PlaceObject clip whose onEnterFrame fades _parent._alpha by 5
+ *     per frame (fade-out of the whole container starting at frame 127).
+ *   - frame_160: _parent.removeMovieClip() → spell complete. stop().
  *
- * Pepite physics (DefineSprite_5_pepite/frame_1):
- * - _rotation = random(360)
- * - _Y = -90 (start above)
- * - g = 0.6 (gravity)
- * - v = 0 (vertical velocity)
- * - h = _parent.h (floor height, starts at -10, increments by 0.5 each spawn)
- * - amp = 60 - h
- * - dh = random(5)
- * - _X = amp * (-0.5 + Math.random())
- * - t = 30 + 70 * Math.random() (scale %)
- * - vx = -0.5 + Math.random()
- * - Each frame: _X += vx; _Y += (v += g)
- * - When _Y > -h: bounce with reduced velocity, stop horizontal, reduce dh
+ * Library symbols:
+ *   - lib_pepite — 45-frame gold nugget. onLoad: gotoAndStop(random(2)+1).
+ *     frame_1: seeds physics + onEnterFrame. frame_45: stop().
  *
- * Pepite sprite (PlaceObject2_3_1 onClipEvent load):
- * - gotoAndStop(random(2) + 1) -> start at frame 0 or 1 (0-indexed)
+ * Main timeline (DefineSprite_8 is the outer container): The harness attaches
+ * the container at the target cell. We model DefineSprite_8 as the root-level
+ * clip via `onSpellStart`, attaching a single "sprite8" container whose
+ * frameScripts replicate the outer timeline behaviour.
+ *
+ * No SOMA.playSound in the canonical scripts — no sound call needed.
+ *
+ * signalHit: fired at frame_127 of DefineSprite_8 (when the fade begins,
+ * matching the impact moment).
+ * complete: fired at frame_160 of DefineSprite_8 (_parent.removeMovieClip()).
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Container, type Texture } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const PEPITE_MANIFEST: SpriteManifest = {
+const PEPITE_BOUNDS = {
   width: 13.3,
   height: 17.8,
   offsetX: -6.55,
   offsetY: -12.25,
 };
 
-interface PepiteParticle {
-  anim: FrameAnimatedSprite;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  g: number;
-  h: number;
-  dh: number;
-  stopped: boolean;
-}
-
-export class Spell316 extends BaseSpell {
+export class Spell316 extends RuntimeSpell {
   readonly spellId = 316;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private pepiteTextures: Texture[] = [];
-  private pepiteAnchorX = 0.5;
-  private pepiteAnchorY = 0.5;
-  private pepiteScale = 1;
+  private pepiteSym!: SymbolDefinition;
+  private sprite8Sym!: SymbolDefinition;
 
-  private pepiteContainer!: Container;
-  private particles: PepiteParticle[] = [];
-  private spawnCount = 1; // c starts at 1
-  private h = -10; // h starts at -10
-
-  private frameAccumulator = 0;
-  private readonly frameTime = 1000 / 60;
-  private currentFrame = 0;
-  private containerAlpha = 1;
-  private fadingOut = false;
-
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    this.pepiteTextures = textures.getFrames("lib_pepite");
-    const anchor = calculateAnchor(PEPITE_MANIFEST);
-    this.pepiteAnchorX = anchor.x;
-    this.pepiteAnchorY = anchor.y;
-    this.pepiteScale = init.scale;
+    const pepiteAnchor = calculateAnchor(PEPITE_BOUNDS);
 
-    // Main container positioned at target
-    this.pepiteContainer = new Container();
-    this.pepiteContainer.position.set(init.targetX, init.targetY);
-    this.container.addChild(this.pepiteContainer);
-  }
+    // ---- lib_pepite — 45-frame gold nugget particle ---------------
+    // Textures: librarySymbols entry "pepite" → textures.getFrames("lib_pepite")
+    this.pepiteSym = {
+      name: "pepite",
+      totalFrames: 45,
+      frames: textures.getFrames("lib_pepite"),
+      anchorX: pepiteAnchor.x,
+      anchorY: pepiteAnchor.y,
 
-  private spawnPepite(): void {
-    if (this.pepiteTextures.length === 0) {
-      return;
-    }
+      // AS: DefineSprite_5_pepite/frame_1/PlaceObject2_3_1/CLIPACTIONRECORD onClipEvent(load).as
+      // gotoAndStop(random(2) + 1) — picks visual variant 1 or 2 (0-based: 0 or 1)
+      onLoad: (clip) => {
+        clip.gotoAndStop(Math.floor(Math.random() * 2));
+      },
 
-    // PlaceObject2_3_1 onClipEvent(load): gotoAndStop(random(2) + 1) -> frame 0 or 1 (0-indexed)
-    const startFrame = Math.floor(Math.random() * 2);
+      onEnterFrame: (clip) => {
+        // AS: DefineSprite_5_pepite/frame_1/DoAction.as — onEnterFrame function
+        // _X = _X + vx; _Y = _Y + (v += g);
+        // if (_Y > -h) { bounce + stop/dampen }
+        const vx = clip.vars.vx as number;
+        let v = clip.vars.v as number;
+        const g = clip.vars.g as number;
+        let h = clip.vars.h as number;
+        let dh = clip.vars.dh as number;
 
-    const anim = new FrameAnimatedSprite({
-      textures: this.pepiteTextures,
-      anchorX: this.pepiteAnchorX,
-      anchorY: this.pepiteAnchorY,
-      scale: this.pepiteScale,
-      startFrame,
-    });
-    // pepite starts stopped at the random frame (gotoAndStop)
-    anim.pause();
+        clip.x += vx;
+        v += g;
+        clip.y += v;
 
-    // pepite frame_1/DoAction.as physics
-    const currentH = this.h;
-    this.h += 0.5;
+        if (clip.y > -h) {
+          clip.y = -h;
+          h -= Math.floor(Math.random() * Math.round(dh));
+          dh *= 0.5 + 0.5 * Math.random();
+          clip.vars.vx = vx * 0.23;
+          clip.vars.v = (-v) / (3 + Math.floor(Math.random() * 7));
+          clip.vars.h = h;
+          clip.vars.dh = dh;
+          clip.stop();
+          // onEnterFrame is still registered but clip is stopped —
+          // it won't advance frames but enterFrame still fires.
+          // To match AS: when stopped, onEnterFrame keeps running
+          // but the clip doesn't move frames. We nullify it to avoid
+          // re-entering the bounce logic repeatedly while stopped.
+          clip.onEnterFrame = null;
+        } else {
+          clip.vars.v = v;
+          clip.vars.h = h;
+          clip.vars.dh = dh;
+        }
+      },
 
-    const amp = 60 - currentH;
-    const dh = Math.floor(Math.random() * 5);
-    const x = amp * (-0.5 + Math.random());
-    const t = 30 + 70 * Math.random();
-    const vx = -0.5 + Math.random();
-    const rotation = Math.floor(Math.random() * 360);
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: DefineSprite_5_pepite/frame_1/DoAction.as
+            // _rotation = random(360);
+            // _Y = -90; g = 0.6; v = 0;
+            // h = _parent.h; _parent.h += 0.5;
+            // amp = 60 - h; dh = random(5);
+            // _X = amp * (-0.5 + Math.random());
+            // t = 30 + 70 * Math.random(); _xscale = t; _yscale = t;
+            // vx = -0.5 + Math.random();
+            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+            clip.y = -90;
 
-    // Apply initial transform
-    anim.sprite.rotation = (rotation * Math.PI) / 180;
-    anim.sprite.scale.set(
-      (t / 100) * this.pepiteScale,
-      (t / 100) * this.pepiteScale
-    );
-    anim.sprite.position.set(x, -90);
+            const parentH = (clip.parent?.vars.h as number) ?? -10;
+            // increment parent's h
+            if (clip.parent) {
+              clip.parent.vars.h = parentH + 0.5;
+            }
 
-    this.pepiteContainer.addChild(anim.sprite);
+            const h = parentH;
+            const amp = 60 - h;
+            const dh = Math.floor(Math.random() * 5);
+            clip.x = amp * (-0.5 + Math.random());
 
-    const particle: PepiteParticle = {
-      anim,
-      x,
-      y: -90,
-      vx,
-      vy: 0,
-      g: 0.6,
-      h: currentH,
-      dh,
-      stopped: false,
+            const t = 30 + 70 * Math.random();
+            clip.scaleX = t / 100;
+            clip.scaleY = t / 100;
+
+            clip.vars.g = 0.6;
+            clip.vars.v = 0;
+            clip.vars.h = h;
+            clip.vars.dh = dh;
+            clip.vars.vx = -0.5 + Math.random();
+          },
+        ],
+        [
+          44,
+          (clip) => {
+            // AS: DefineSprite_5_pepite/frame_45/DoAction.as → stop()
+            clip.stop();
+          },
+        ],
+      ]),
     };
 
-    this.particles.push(particle);
+    // ---- sprite8 — outer container (160-frame timeline) ----------
+    // Models DefineSprite_8 which the outer SWF places at the target cell.
+    // frame_1: seeds c=1, h=-10, starts spawning pepite particles via onEnterFrame
+    // frame_127: a placed clip fades _parent._alpha by 5 per frame — we implement
+    //            this as a root.onEnterFrame that starts at frame 127.
+    // frame_160: _parent.removeMovieClip(); stop() → complete the spell.
+    this.sprite8Sym = {
+      name: "sprite8",
+      totalFrames: 160,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: DefineSprite_8/frame_1/DoAction.as
+            // c = 1; h = -10;
+            // this.onEnterFrame = function() { if(c < 120) { attachMovie("pepite","pepite"+c,c); c++; } };
+            clip.vars.c = 1;
+            clip.vars.h = -10;
+            clip.onEnterFrame = (self, ctx) => {
+              const c = self.vars.c as number;
+              if (c < 120) {
+                self.attach(this.pepiteSym, `pepite${c}`, c, ctx);
+                self.vars.c = c + 1;
+              }
+            };
+          },
+        ],
+        [
+          126,
+          (clip) => {
+            // AS: DefineSprite_8/frame_127/PlaceObject2_7_2/CLIPACTIONRECORD onClipEvent(enterFrame).as
+            // _parent._alpha -= 5;
+            // The placed clip at frame_127 fires this every frame from 127 onward.
+            // We replace the onEnterFrame (particle spawning is done by now since
+            // c reaches 120 well before frame 127) with the fade logic.
+            this.runtime.signalHit();
+            clip.onEnterFrame = (self) => {
+              self.alpha = Math.max(0, self.alpha - 5 / 100);
+            };
+          },
+        ],
+        [
+          159,
+          (clip) => {
+            // AS: DefineSprite_8/frame_160/DoAction.as
+            // _parent.removeMovieClip(); stop();
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
+
+    this.registry.register(this.pepiteSym);
+    this.registry.register(this.sprite8Sym);
   }
 
-  private updateParticle(p: PepiteParticle): void {
-    if (p.stopped) {
-      return;
-    }
-
-    p.x += p.vx;
-    p.vy += p.g;
-    p.y += p.vy;
-
-    if (p.y > -p.h) {
-      p.y = -p.h;
-      p.h -= Math.floor(Math.random() * Math.round(p.dh));
-      p.dh = p.dh * (0.5 + 0.5 * Math.random());
-      p.vx *= 0.23;
-      p.vy = -p.vy / (3 + Math.floor(Math.random() * 7));
-      p.stopped = true;
-    }
-
-    p.anim.sprite.position.set(p.x, p.y);
-  }
-
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.frameAccumulator += deltaTime;
-
-    while (this.frameAccumulator >= this.frameTime) {
-      this.frameAccumulator -= this.frameTime;
-      this.tickFrame();
-    }
-  }
-
-  private tickFrame(): void {
-    this.currentFrame++;
-
-    // Spawn pepites: c starts at 1, spawns while c < 120, increments each frame
-    // AS: c = 1; if(c < 120) { attachMovie; c++; }
-    // So we spawn one per frame for frames 1..119 (119 particles total)
-    if (this.spawnCount < 120) {
-      this.spawnPepite();
-      this.spawnCount++;
-    }
-
-    // Update all particles
-    for (const p of this.particles) {
-      this.updateParticle(p);
-    }
-
-    // Frame 127 (0-indexed: 126): start fading out the container
-    // AS: DefineSprite_8/frame_127: _parent._alpha -= 5 per enterFrame
-    if (this.currentFrame >= 126) {
-      this.fadingOut = true;
-    }
-
-    if (this.fadingOut) {
-      // _alpha is 0-100 in AS, we use 0-1 in PixiJS
-      this.containerAlpha -= 5 / 100;
-      if (this.containerAlpha < 0) {
-        this.containerAlpha = 0;
-      }
-      this.pepiteContainer.alpha = this.containerAlpha;
-    }
-
-    // Signal hit at first spawn (frame 1)
-    if (this.currentFrame === 1) {
-      this.signalHit();
-    }
-
-    // Frame 160 (0-indexed: 159): removeMovieClip, stop
-    if (this.currentFrame >= 159) {
-      this.complete();
-    }
-  }
-
-  destroy(): void {
-    for (const p of this.particles) {
-      p.anim.destroy();
-    }
-    this.particles = [];
-    super.destroy();
+  protected onSpellStart(
+    _callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // No SOMA.playSound in canonical scripts.
+    // Attach the outer sprite8 container at root — it becomes the
+    // primary timeline driving particle spawning and fade-out.
+    this.root.attach(this.sprite8Sym, "sprite8", 1, context);
   }
 }

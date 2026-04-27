@@ -1,79 +1,128 @@
 /**
- * Spell 101 - Arty
+ * Spell 101 — Attaque Naturelle (Iop / generic melee, "arty_101").
  *
- * A complex spell with multiple animated components:
- * - Main animation (anim1): 189 frames, plays through, signals hit at frame 85, ends at frame 187
- * - Sprite_9: A scaled sprite (scale: 80-130%) - flicker effect
- * - Sprite_10: Rotating/pulsing sprites (sinusoidal x-scale)
- * - Sprite_3: Gravity/bounce physics sprites
- * - Sprite_13: Spiral floating sprites with alpha fade
- * - Sprite_12: Random alpha flicker sprites
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/101/scripts/scripts/
  *
- * Original AS timing:
- * - Frame 1 (main): Play sound 'arty_101'
- * - Frame 85 (DefineSprite_14): this.end() -> signal hit
- * - Frame 187 (DefineSprite_14): _parent.removeMovieClip() -> animation ends
+ * displayType=11 (TargetCell). The spell has no projectile motion symbols
+ * (`move`/`shoot`/`duplicate`), no `librarySymbols[]` in the manifest, and
+ * no references to `_parent.cellFrom`/`cellTo` in the authored scripts.
+ * All content is a single `anim1` animation anchored at the target cell.
+ * The `anim1` symbol itself is a 189-frame composite that is the sole
+ * visual; it plays through and the outer clip removes itself on frame 187.
+ *
+ * There are several inline child clip-event scripts embedded inside
+ * DefineSprite_14 (the anim1 container — 189 authored frames):
+ *
+ *   DefineSprite_9   — static scale particle. onLoad seeds random scale.
+ *   DefineSprite_10  — pulsing particle. onLoad seeds rotation/alpha/phase i.
+ *                      onEnterFrame pulses _xscale via sin(i += 0.1).
+ *   DefineSprite_3   — gravity bounce particle. onLoad seeds v=0. onEnterFrame
+ *                      integrates gravity (v += 0.6), bounces at _Y > 0.
+ *   DefineSprite_13  — rising spiral ring. onLoad seeds spiral params + sets
+ *                      _parent._alpha = 10. onEnterFrame drives spiral motion
+ *                      and fades parent in/out, removing when alpha drops < 0.
+ *   DefineSprite_12  — flicker particle. onEnterFrame randomises alpha every
+ *                      frame.
+ *
+ * frame_85  of DefineSprite_14: `this.end()` → signalHit.
+ * frame_187 of DefineSprite_14: `_parent.removeMovieClip()` → complete.
+ *
+ * All of these are authored INTO the anim1 SWF timeline (the child sprites
+ * are placed by the SWF's PlaceObject2 tags, not by runtime attachMovie
+ * calls from AS). The manifest has no `librarySymbols[]` and no
+ * `attachMovie` calls in the scripts — the composition tree is baked.
+ *
+ * We therefore model `anim1` as a single SymbolDefinition whose frame
+ * textures drive the visual and whose frameScripts fire the two game
+ * signals at the canonical frames. The child clip-event behaviours (scale
+ * pulse, gravity bounce, spiral ring, etc.) are fully baked into the
+ * pre-rendered SVG frames by the exporter; we do not need to re-implement
+ * them at runtime — they are visual-only and have no game-logic side effects.
+ *
+ * Library symbols: none (manifest `librarySymbols` is absent/empty).
+ * Main timeline: SOMA.playSound("arty_101").
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const ANIM1_MANIFEST: SpriteManifest = {
+const ANIM1_BOUNDS = {
   width: 46.35,
   height: 30.45,
   offsetX: -22.6,
   offsetY: -15.1,
 };
 
-export class Spell101 extends BaseSpell {
+export class Spell101 extends RuntimeSpell {
   readonly spellId = 101;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private mainAnim!: FrameAnimatedSprite;
+  private anim1Sym!: SymbolDefinition;
 
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const anchor = calculateAnchor(ANIM1_MANIFEST);
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // Main animation (anim1) at target position
-    // DefineSprite_14 contains the main animation with 189 frames
-    // Frame 85 (0-indexed: 84): this.end() -> signal hit
-    // Frame 187 (0-indexed: 186): _parent.removeMovieClip() -> complete
-    this.mainAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("anim1"),
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-      })
-    );
-    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
+    // anim1 — 189-frame impact composite anchored at target cell.
+    // Canonical source: DefineSprite_14 (the outer anim1 container).
+    //   frame_85/DoAction.as  : this.end()              → signalHit
+    //   frame_187/DoAction.as : _parent.removeMovieClip() → complete
+    //
+    // Child clip-event behaviours (DefineSprite_9, _10, _3, _13, _12)
+    // are baked into the exported SVG frames; no runtime re-implementation
+    // is needed for them.
+    this.anim1Sym = {
+      name: "anim1",
+      totalFrames: 189,
+      frames: textures.getFrames("anim1"),
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
+      frameScripts: new Map([
+        [
+          84,
+          (_clip) => {
+            // AS: DefineSprite_14/frame_85/DoAction.as — this.end()
+            // Signals the hit (damage popup) at the canonical impact frame.
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          186,
+          (clip) => {
+            // AS: DefineSprite_14/frame_187/DoAction.as — _parent.removeMovieClip()
+            // The anim1 clip IS the outer mc for this displayType; removing it
+            // ends the spell.
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // Frame 0 (AS frame 1): play sound
-    this.mainAnim.onFrame(0, () => this.callbacks.playSound("arty_101"));
-
-    // Frame 84 (AS frame 85): signal hit
-    this.mainAnim.onFrame(84, () => this.signalHit());
-
-    // Frame 186 (AS frame 187): animation complete
-    this.mainAnim.onFrame(186, () => this.complete());
-
-    this.container.addChild(this.mainAnim.sprite);
+    this.registry.register(this.anim1Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // AS: scripts/frame_1/DoAction.as — SOMA.playSound("arty_101");
+    callbacks.playSound("arty_101");
 
-    this.anims.update(deltaTime);
+    // The main timeline implicitly places the anim1 composite on frame 1.
+    // Attach it so it starts ticking from the next runtime frame.
+    this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

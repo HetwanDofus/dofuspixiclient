@@ -1,0 +1,180 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "PP": {
+            "hp": [
+                18000,
+                17500,
+                15000,
+                12500,
+                10000,
+                7500,
+                5000,
+                3000,
+                1500,
+                500,
+                0
+            ],
+            "maxdp": 500,
+            "grds": [
+                [
+                    {
+                        "nc": "EROE",
+                        "nl": "Eroe"
+                    },
+                    {
+                        "nc": "CMD",
+                        "nl": "Comandante"
+                    },
+                    {
+                        "nc": "STR",
+                        "nl": "Stratega"
+                    },
+                    {
+                        "nc": "CNQ",
+                        "nl": "Conquistatore"
+                    },
+                    {
+                        "nc": "CMP",
+                        "nl": "Campione"
+                    },
+                    {
+                        "nc": "CVL",
+                        "nl": "Cavaliere"
+                    },
+                    {
+                        "nc": "DFS",
+                        "nl": "Difensore"
+                    },
+                    {
+                        "nc": "SNT",
+                        "nl": "Sentinella"
+                    },
+                    {
+                        "nc": "ASP",
+                        "nl": "Aspirante"
+                    },
+                    {
+                        "nc": "RCL",
+                        "nl": "Recluta"
+                    },
+                    {
+                        "nc": "null",
+                        "nl": "null"
+                    }
+                ],
+                [
+                    {
+                        "nc": "EROE",
+                        "nl": "Eroe"
+                    },
+                    {
+                        "nc": "CMD",
+                        "nl": "Comandante"
+                    },
+                    {
+                        "nc": "STR",
+                        "nl": "Stratega"
+                    },
+                    {
+                        "nc": "CNQ",
+                        "nl": "Conquistatore"
+                    },
+                    {
+                        "nc": "CMP",
+                        "nl": "Campione"
+                    },
+                    {
+                        "nc": "CVL",
+                        "nl": "Cavaliere"
+                    },
+                    {
+                        "nc": "DFS",
+                        "nl": "Difensore"
+                    },
+                    {
+                        "nc": "SNT",
+                        "nl": "Sentinella"
+                    },
+                    {
+                        "nc": "ASP",
+                        "nl": "Aspirante"
+                    },
+                    {
+                        "nc": "RCL",
+                        "nl": "Recluta"
+                    },
+                    {
+                        "nc": "null",
+                        "nl": "null"
+                    }
+                ],
+                [
+                    {
+                        "nc": "EROE",
+                        "nl": "Eroe"
+                    },
+                    {
+                        "nc": "CMD",
+                        "nl": "Comandante"
+                    },
+                    {
+                        "nc": "STR",
+                        "nl": "Stratega"
+                    },
+                    {
+                        "nc": "CNQ",
+                        "nl": "Conquistatore"
+                    },
+                    {
+                        "nc": "CMP",
+                        "nl": "Campione"
+                    },
+                    {
+                        "nc": "CVL",
+                        "nl": "Cavaliere"
+                    },
+                    {
+                        "nc": "DFS",
+                        "nl": "Difensore"
+                    },
+                    {
+                        "nc": "SNT",
+                        "nl": "Sentinella"
+                    },
+                    {
+                        "nc": "ASP",
+                        "nl": "Aspirante"
+                    },
+                    {
+                        "nc": "RCL",
+                        "nl": "Recluta"
+                    },
+                    {
+                        "nc": "null",
+                        "nl": "null"
+                    }
+                ],
+                [
+                    {
+                        "nc": "NTR",
+                        "nl": "Neutro"
+                    }
+                ]
+            ]
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 38,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "PP",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

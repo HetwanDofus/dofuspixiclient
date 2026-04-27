@@ -1,0 +1,2 @@
+export const MAX_CHARACTERS_PER_ACCOUNT = 5;
+export const CHARACTER_LEVEL_MAX = 200;

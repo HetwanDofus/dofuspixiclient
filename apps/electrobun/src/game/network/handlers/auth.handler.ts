@@ -8,6 +8,7 @@ import type {
   AccountServersList,
   HandshakeConnectionKey,
 } from "@/game/network/protocol";
+import { LoginError, SelectServerError } from "@/game/network/protocol";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("AuthHandler");
@@ -80,7 +81,7 @@ export class AuthHandler {
       "accountSelectServer",
       (payload: AccountSelectServer) => {
         if (!payload.success) {
-          const reason = payload.errorCode || "server-select-failed";
+          const reason = describeSelectServerError(payload.errorCode);
           log.warn("Server select failed:", reason);
           loginActor.send({ type: "AUTH_FAILURE", reason });
           return;
@@ -123,13 +124,47 @@ export class AuthHandler {
 
 function describeLoginError(payload: AccountLoginResponse): string {
   switch (payload.errorCode) {
-    case "v":
+    case LoginError.VERSION_MISMATCH:
       return `version mismatch (required: ${payload.requiredVersion})`;
-    case "k":
+    case LoginError.KICKED:
       return payload.kickMessage || payload.kickTitle || "account kicked";
-    case "":
+    case LoginError.INVALID_CREDENTIALS:
+      return "invalid credentials";
+    case LoginError.BANNED:
+      return "account banned";
+    case LoginError.ALREADY_ONLINE:
+      return "already online";
+    case LoginError.MALFORMED:
+      return "malformed request";
+    case LoginError.BACKEND:
+      return "backend error";
+    case LoginError.QUEUED:
+      return "queued";
+    case LoginError.UNSPECIFIED:
       return "unknown error";
     default:
       return `error code: ${payload.errorCode}`;
+  }
+}
+
+function describeSelectServerError(code: SelectServerError): string {
+  switch (code) {
+    case SelectServerError.DOWN:
+      return "server down";
+    case SelectServerError.FULL:
+      return "server full";
+    case SelectServerError.FULL_NON_MEMBER:
+      return "non-member queue full";
+    case SelectServerError.SHOP:
+      return "shop only";
+    case SelectServerError.RESTRICTED:
+      return "access restricted";
+    case SelectServerError.NOT_FOUND:
+      return "server not found";
+    case SelectServerError.UNKNOWN:
+      return "unknown select-server error";
+    case SelectServerError.UNSPECIFIED:
+    default:
+      return "server-select-failed";
   }
 }

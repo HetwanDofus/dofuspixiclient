@@ -41,6 +41,12 @@ export interface ActivePlayer {
   container: Container;
   sprite: Sprite | null;
   placeholderGraphics: Graphics | null;
+  /**
+   * Team-colored under-foot ring shown during fights (ally = blue,
+   * enemy = red per Dofus 1.29's absolute TEAMS_COLOR mapping). Null
+   * for world-actor players where it shouldn't render.
+   */
+  groundCircle: Graphics | null;
   nameplate: PlayerNameplate;
   hpBar: Graphics;
   cellId: number;
@@ -67,6 +73,22 @@ export interface ActivePlayer {
   spriteLoading: boolean;
   /** Queued animation request while spriteLoading is true. */
   pendingAnim: { baseAnim: string; direction: number } | null;
+  /**
+   * When set, the renderer flips the player back to this animation as
+   * soon as the current one-shot animation reaches its last frame.
+   * Mirrors AS2 `setAnimTimer(anim, false, …, defaultAnimation)` —
+   * the cast pose plays once, then the sprite returns to idle without
+   * the spell-visual layer needing to coordinate the revert.
+   */
+  revertTo: PlayerAnimationValue | null;
+  /**
+   * One-shot completion callback. Fires once when a one-shot animation
+   * reaches its last frame, BEFORE the revertTo flip. Mirrors AS2
+   * sequencer-blocking semantics — used for canonical "cast pose
+   * completes → spell visual launches" ordering (SpriteHandler.as:782
+   * addAction(18, true=blocking, setAnim) before addAction(20, addEffect)).
+   */
+  onAnimComplete: (() => void) | null;
   look: string;
   linkedParentId?: number;
   linkedChildren: number[];

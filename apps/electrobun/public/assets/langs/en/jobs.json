@@ -1,0 +1,215 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "J": {
+            "1": {
+                "n": "-Basic-",
+                "s": 0,
+                "g": -1
+            },
+            "2": {
+                "n": "Lumberjack",
+                "s": 0,
+                "g": 1
+            },
+            "11": {
+                "n": "Sword Smith",
+                "s": 0,
+                "g": 10
+            },
+            "13": {
+                "n": "Bow Carver",
+                "s": 0,
+                "g": 6
+            },
+            "14": {
+                "n": "Hammer Smith",
+                "s": 0,
+                "g": 11
+            },
+            "15": {
+                "n": "Shoemaker",
+                "s": 0,
+                "g": 5
+            },
+            "16": {
+                "n": "Jeweller",
+                "s": 0,
+                "g": 15
+            },
+            "17": {
+                "n": "Dagger Smith",
+                "s": 0,
+                "g": 9
+            },
+            "18": {
+                "n": "Staff Carver",
+                "s": 0,
+                "g": 8
+            },
+            "19": {
+                "n": "Wand Carver",
+                "s": 0,
+                "g": 7
+            },
+            "20": {
+                "n": "Shovel Smith",
+                "s": 0,
+                "g": 12
+            },
+            "24": {
+                "n": "Miner",
+                "s": 0,
+                "g": 13
+            },
+            "25": {
+                "n": "Baker",
+                "s": 0,
+                "g": 3
+            },
+            "26": {
+                "n": "Alchemist",
+                "s": 0,
+                "g": 14
+            },
+            "27": {
+                "n": "Tailor",
+                "s": 0,
+                "g": 20
+            },
+            "28": {
+                "n": "Farmer",
+                "s": 0,
+                "g": 18
+            },
+            "31": {
+                "n": "Axe Smith",
+                "s": 0,
+                "g": 19
+            },
+            "36": {
+                "n": "Fisherman",
+                "s": 0,
+                "g": 30
+            },
+            "41": {
+                "n": "Hunter",
+                "s": 0,
+                "g": 32
+            },
+            "43": {
+                "n": "Dagger Smithmagus",
+                "s": 17,
+                "g": 21
+            },
+            "44": {
+                "n": "Sword Smithmagus",
+                "s": 11,
+                "g": 24
+            },
+            "45": {
+                "n": "Hammer Smithmagus",
+                "s": 14,
+                "g": 25
+            },
+            "46": {
+                "n": "Shovel Smithmagus",
+                "s": 20,
+                "g": 26
+            },
+            "47": {
+                "n": "Axe Smithmagus",
+                "s": 31,
+                "g": 23
+            },
+            "48": {
+                "n": "Bow Carvmagus",
+                "s": 13,
+                "g": 28
+            },
+            "49": {
+                "n": "Wand Carvmagus",
+                "s": 19,
+                "g": 29
+            },
+            "50": {
+                "n": "Staff Carvmagus",
+                "s": 18,
+                "g": 22
+            },
+            "56": {
+                "n": "Butcher",
+                "s": 0,
+                "g": 33
+            },
+            "58": {
+                "n": "Fishmonger",
+                "s": 0,
+                "g": 31
+            },
+            "60": {
+                "n": "Shield Smith",
+                "s": 0,
+                "g": 40
+            },
+            "62": {
+                "n": "Shoemagus",
+                "s": 15,
+                "g": 36
+            },
+            "63": {
+                "n": "Jewelmagus",
+                "s": 16,
+                "g": 37
+            },
+            "64": {
+                "n": "Costumagus",
+                "s": 27,
+                "g": 35
+            },
+            "65": {
+                "n": "Handyman",
+                "s": 0,
+                "g": 34
+            },
+            "66": {
+                "n": "jeweller",
+                "s": 0,
+                "g": 0
+            },
+            "67": {
+                "n": "jeweller",
+                "s": 0,
+                "g": 0
+            },
+            "70": {
+                "n": "farmer",
+                "s": 0,
+                "g": 0
+            },
+            "71": {
+                "n": "farmer",
+                "s": 0,
+                "g": 0
+            },
+            "72": {
+                "n": "[NO TRAD]",
+                "s": 0,
+                "g": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 50,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "J",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

@@ -1,0 +1,200 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "R": {
+            "1": {
+                "n": "Meneur",
+                "o": 1,
+                "i": 1
+            },
+            "2": {
+                "n": "Bras Droit",
+                "o": 2,
+                "i": 2
+            },
+            "3": {
+                "n": "Trésorier",
+                "o": 3,
+                "i": 3
+            },
+            "4": {
+                "n": "Protecteur",
+                "o": 4,
+                "i": 4
+            },
+            "5": {
+                "n": "Artisan",
+                "o": 5,
+                "i": 5
+            },
+            "6": {
+                "n": "Réserviste",
+                "o": 6,
+                "i": 6
+            },
+            "8": {
+                "n": "Gardien",
+                "o": 7,
+                "i": 8
+            },
+            "9": {
+                "n": "Eclaireur",
+                "o": 8,
+                "i": 9
+            },
+            "10": {
+                "n": "Espion",
+                "o": 9,
+                "i": 10
+            },
+            "11": {
+                "n": "Diplomate",
+                "o": 10,
+                "i": 11
+            },
+            "12": {
+                "n": "Secrétaire",
+                "o": 11,
+                "i": 12
+            },
+            "33": {
+                "n": "Tueur de familiers",
+                "o": 82,
+                "i": 33
+            },
+            "31": {
+                "n": "Braconnier",
+                "o": 84,
+                "i": 31
+            },
+            "30": {
+                "n": "Chercheur de trésors",
+                "o": 85,
+                "i": 30
+            },
+            "29": {
+                "n": "Voleur",
+                "o": 86,
+                "i": 29
+            },
+            "28": {
+                "n": "Initié",
+                "o": 87,
+                "i": 28
+            },
+            "27": {
+                "n": "Assassin",
+                "o": 88,
+                "i": 27
+            },
+            "26": {
+                "n": "Gouverneur",
+                "o": 89,
+                "i": 26
+            },
+            "25": {
+                "n": "Muse",
+                "o": 90,
+                "i": 25
+            },
+            "24": {
+                "n": "Conseiller",
+                "o": 91,
+                "i": 24
+            },
+            "23": {
+                "n": "Elu",
+                "o": 92,
+                "i": 23
+            },
+            "21": {
+                "n": "Guide",
+                "o": 93,
+                "i": 21
+            },
+            "22": {
+                "n": "Mentor",
+                "o": 94,
+                "i": 22
+            },
+            "20": {
+                "n": "Recruteur",
+                "o": 95,
+                "i": 20
+            },
+            "19": {
+                "n": "Eleveur",
+                "o": 96,
+                "i": 19
+            },
+            "18": {
+                "n": "Marchand",
+                "o": 97,
+                "i": 18
+            },
+            "17": {
+                "n": "Apprenti",
+                "o": 98,
+                "i": 17
+            },
+            "16": {
+                "n": "Bourreau",
+                "o": 100,
+                "i": 16
+            },
+            "34": {
+                "n": "Mascotte",
+                "o": 103,
+                "i": 34
+            },
+            "13": {
+                "n": "Pénitent",
+                "o": 104,
+                "i": 13
+            },
+            "35": {
+                "n": "Tueur de Percepteur",
+                "o": 105,
+                "i": 35
+            },
+            "15": {
+                "n": "Déserteur",
+                "o": 110,
+                "i": 15
+            },
+            "32": {
+                "n": "Traître",
+                "o": 120,
+                "i": 32
+            },
+            "14": {
+                "n": "Boulet",
+                "o": 150,
+                "i": 14
+            },
+            "7": {
+                "n": "Larbin",
+                "o": 200,
+                "i": 7
+            },
+            "0": {
+                "n": "A l'essai",
+                "o": 999,
+                "i": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 49,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "R",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

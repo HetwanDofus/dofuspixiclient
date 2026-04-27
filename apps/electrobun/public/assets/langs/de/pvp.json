@@ -1,0 +1,180 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "PP": {
+            "hp": [
+                18000,
+                17500,
+                15000,
+                12500,
+                10000,
+                7500,
+                5000,
+                3000,
+                1500,
+                500,
+                0
+            ],
+            "maxdp": 500,
+            "grds": [
+                [
+                    {
+                        "nc": "HLD",
+                        "nl": "Held"
+                    },
+                    {
+                        "nc": "ANF",
+                        "nl": "Anführer"
+                    },
+                    {
+                        "nc": "STR",
+                        "nl": "Stratege"
+                    },
+                    {
+                        "nc": "EBR",
+                        "nl": "Eroberer"
+                    },
+                    {
+                        "nc": "CHP",
+                        "nl": "Champion"
+                    },
+                    {
+                        "nc": "RIT",
+                        "nl": "Ritter"
+                    },
+                    {
+                        "nc": "VTG",
+                        "nl": "Verteidiger"
+                    },
+                    {
+                        "nc": "WCT",
+                        "nl": "Wächter"
+                    },
+                    {
+                        "nc": "ANW",
+                        "nl": "Anwärter"
+                    },
+                    {
+                        "nc": "RKT",
+                        "nl": "Rekrut"
+                    },
+                    {
+                        "nc": "null",
+                        "nl": "null"
+                    }
+                ],
+                [
+                    {
+                        "nc": "HLD",
+                        "nl": "Held"
+                    },
+                    {
+                        "nc": "ANF",
+                        "nl": "Anführer"
+                    },
+                    {
+                        "nc": "STR",
+                        "nl": "Stratege"
+                    },
+                    {
+                        "nc": "EBR",
+                        "nl": "Eroberer"
+                    },
+                    {
+                        "nc": "CHP",
+                        "nl": "Champion"
+                    },
+                    {
+                        "nc": "RIT",
+                        "nl": "Ritter"
+                    },
+                    {
+                        "nc": "VTG",
+                        "nl": "Verteidiger"
+                    },
+                    {
+                        "nc": "WCT",
+                        "nl": "Wächter"
+                    },
+                    {
+                        "nc": "ANW",
+                        "nl": "Anwärter"
+                    },
+                    {
+                        "nc": "RKT",
+                        "nl": "Rekrut"
+                    },
+                    {
+                        "nc": "null",
+                        "nl": "null"
+                    }
+                ],
+                [
+                    {
+                        "nc": "HLD",
+                        "nl": "Held"
+                    },
+                    {
+                        "nc": "ANF",
+                        "nl": "Anführer"
+                    },
+                    {
+                        "nc": "STR",
+                        "nl": "Stratege"
+                    },
+                    {
+                        "nc": "EBR",
+                        "nl": "Eroberer"
+                    },
+                    {
+                        "nc": "CHP",
+                        "nl": "Champion"
+                    },
+                    {
+                        "nc": "RIT",
+                        "nl": "Ritter"
+                    },
+                    {
+                        "nc": "VTG",
+                        "nl": "Verteidiger"
+                    },
+                    {
+                        "nc": "WCT",
+                        "nl": "Wächter"
+                    },
+                    {
+                        "nc": "ANW",
+                        "nl": "Anwärter"
+                    },
+                    {
+                        "nc": "RKT",
+                        "nl": "Rekrut"
+                    },
+                    {
+                        "nc": "null",
+                        "nl": "null"
+                    }
+                ],
+                [
+                    {
+                        "nc": "0",
+                        "nl": "Neutral"
+                    }
+                ]
+            ]
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 38,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "PP",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

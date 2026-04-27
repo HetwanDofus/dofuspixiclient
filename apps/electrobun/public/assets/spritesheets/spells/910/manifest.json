@@ -1,0 +1,1 @@
+{"version":1,"spriteId":"910","animations":{"shoot":{"file":"atlas.svg","width":1243,"height":946,"offsetX":-102.5,"offsetY":-71.85,"fps":60,"frames":[],"frameOrder":[],"duplicates":{}}},"spell":{"id":910,"fps":60,"mainTimelineScale":1,"requiresTypeScript":false,"sounds":[{"frame":0,"soundId":"explosion"}],"librarySymbols":[],"animationMeta":{"shoot":{"isComposite":false}}}}

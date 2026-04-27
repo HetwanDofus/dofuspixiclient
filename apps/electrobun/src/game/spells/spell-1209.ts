@@ -1,237 +1,207 @@
 /**
- * Spell 1209
+ * Spell 1209 — (Unknown name, likely a Feca/Osamodas-type impact).
  *
- * A spell with multiple spark/ember particles (sprite_6) that fly outward
- * from the target position, and a main impact animation (sprite_7).
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/1209/scripts/scripts/
  *
- * Components:
- * - sprite_7: Main impact animation at target position (117 frames, ends at frame 115)
- * - sprite_6: Multiple spark particles, each with independent angular physics
+ * displayType=11 (TargetCell). There is no `move`/`shoot` pair, no
+ * `duplicate`, no `_parent.cellFrom`/`cellTo` world-positioning. The
+ * spell is a single impact at the target cell. sprite_7 is a 117-frame
+ * composite impact animation; sprite_6 is a 2-frame particle sprite
+ * whose frame_1 seeds physics via an onEnterFrame closure and frame_2
+ * stops. The main timeline frame_2 stops — so the outer mc idles while
+ * sprite_7 and however-many sprite_6 particles run. sprite_7 frame_115
+ * calls `_parent.removeMovieClip()` to signal completion.
  *
- * Original AS timing:
- * - sprite_6 frame_1: Initialize angle, velocity, angular velocity, onEnterFrame physics
- * - sprite_6 frame_2: stop()
- * - sprite_7 frame_115: _parent.removeMovieClip() - remove this particle
- * - frame_2 (main): stop()
+ * Library symbols (librarySymbols[] is absent in manifest — all content
+ * comes from `animations[]`):
+ *   - sprite_6  — 2-frame drift particle. frame_1 seeds angle/v/va/t
+ *                 and installs an onEnterFrame for physics (oscillating
+ *                 angle, decaying speed, position integration, scale).
+ *                 frame_2 stops the clip.
+ *   - sprite_7  — 117-frame composite impact timeline. frame_115
+ *                 calls _parent.removeMovieClip(), which we map to
+ *                 runtime.complete().
  *
- * Particle physics (sprite_6 / DefineSprite_6):
- * - angle = 360 * Math.random()
- * - v = 6.67 + random(20)  [random(20) = 0..19]
- * - va = 40 * (-0.5 + Math.random())
- * - t = 100
- * - Each frame: randomly update va, scale by v*14, fade t*=0.95,
- *   move by velocity, rotate, decay v*=0.9
+ * NOTE: manifest has no `librarySymbols[]` array — textures are under
+ * bare names ("sprite_6", "sprite_7"), NOT "lib_sprite_6" / "lib_sprite_7".
  *
- * Hit signal: at start (frame 0) of sprite_7 - the main impact begins
- * Complete: when sprite_7 reaches frame 114 (AS frame 115, removeMovieClip)
+ * Main timeline: frame_2/DoAction.as → stop(). We call
+ * `this.runtime.signalHit()` at sprite_7 frame_1 (first visible impact
+ * frame) since displayType=11 and no explicit hit frame is authored.
+ * Completion fires from sprite_7 frame_114 (= AS frame_115).
+ *
+ * The canonical AS for sprite_6/frame_1 does NOT use attachMovie — it
+ * defines an onEnterFrame on `this`. In the original SWF, sprite_6
+ * instances are presumably attached by the main timeline (or sprite_7
+ * internals) via attachMovie("sprite_6", ...). Since the AS we have for
+ * the main timeline only has `stop()` and sprite_7/frame_115 only has
+ * `_parent.removeMovieClip()`, the particle spawning appears to be
+ * driven by sprite_7's authored content (a composite timeline). We
+ * register sprite_6 so it can be resolved if sprite_7's composite
+ * references it at runtime, and attach sprite_7 directly in
+ * onSpellStart.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Container } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const IMPACT_MANIFEST: SpriteManifest = {
-  width: 187.9,
-  height: 187.9,
-  offsetX: -95.7,
-  offsetY: -109.7,
-};
-
-const SPARK_MANIFEST: SpriteManifest = {
+const SPRITE_6_BOUNDS = {
   width: 41.25,
   height: 10,
   offsetX: -20,
   offsetY: -5,
 };
 
-interface SparkState {
-  anim: FrameAnimatedSprite;
-  angle: number;
-  v: number;
-  va: number;
-  t: number;
-  x: number;
-  y: number;
-}
+const SPRITE_7_BOUNDS = {
+  width: 187.9,
+  height: 187.9,
+  offsetX: -95.7,
+  offsetY: -109.7,
+};
 
-export class Spell1209 extends BaseSpell {
+export class Spell1209 extends RuntimeSpell {
   readonly spellId = 1209;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private impactAnim!: FrameAnimatedSprite;
-  private sparks: SparkState[] = [];
-  private sparksContainer!: Container;
+  private sprite6Sym!: SymbolDefinition;
+  private sprite7Sym!: SymbolDefinition;
 
-  protected setup(
-    context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const level = Math.max(1, Math.min(6, context?.level ?? 1));
+    const sprite6Anchor = calculateAnchor(SPRITE_6_BOUNDS);
+    const sprite7Anchor = calculateAnchor(SPRITE_7_BOUNDS);
 
-    // Main impact animation (sprite_7) at target position
-    const impactAnchor = calculateAnchor(IMPACT_MANIFEST);
-    this.impactAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_7"),
-        anchorX: impactAnchor.x,
-        anchorY: impactAnchor.y,
-        scale: init.scale,
-      })
-    );
-    this.impactAnim.sprite.position.set(init.targetX, init.targetY);
+    // ---- sprite_6 — oscillating drift particle -------------------
+    // AS: scripts/DefineSprite_6/frame_1/DoAction.as
+    //   Seeds angle, v, va, t on the clip itself, then installs an
+    //   onEnterFrame that integrates velocity with angular wobble and
+    //   decaying speed.
+    //
+    // AS: scripts/DefineSprite_6/frame_2/DoAction.as
+    //   stop();
+    this.sprite6Sym = {
+      name: "sprite_6",
+      totalFrames: 2,
+      frames: textures.getFrames("sprite_6"),
+      anchorX: sprite6Anchor.x,
+      anchorY: sprite6Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_6/frame_1/DoAction.as
+            clip.vars.angle = 360 * Math.random();
+            clip.vars.v = 6.67 + Math.floor(Math.random() * 20);
+            clip.vars.va = 40 * (-0.5 + Math.random());
+            clip.vars.t = 100;
 
-    // Signal hit immediately when impact starts (frame 0)
-    this.impactAnim.onFrame(0, () => this.signalHit());
+            clip.onEnterFrame = (self) => {
+              // AS: if (random(2) == 0) { va = 40 * (-0.5 + Math.random()); }
+              if (Math.floor(Math.random() * 2) === 0) {
+                self.vars.va = 40 * (-0.5 + Math.random());
+              }
 
-    // At AS frame 115 (0-indexed: 114), sprite_7 calls removeMovieClip
-    // We treat this as the animation completing
-    this.container.addChild(this.impactAnim.sprite);
+              const v = self.vars.v as number;
+              let t = self.vars.t as number;
+              let angle = self.vars.angle as number;
+              const va = self.vars.va as number;
 
-    // Spark particles container at target position
-    this.sparksContainer = new Container();
-    this.sparksContainer.position.set(init.targetX, init.targetY);
-    this.container.addChild(this.sparksContainer);
+              // AS: _xscale = v * 14
+              self.scaleX = (v * 14) / 100;
 
-    // Spawn spark particles
-    // Number of sparks: base 5 + level * 2 (reasonable for this type of spell)
-    // The AS doesn't specify count explicitly via _parent.level in the provided scripts,
-    // but sprite_6 instances are placed by the parent timeline.
-    // Using level-based count: 5 + level * 2
-    const sparkCount = 5 + level * 2;
-    const sparkTextures = textures.getFrames("sprite_6");
-    const sparkAnchor = calculateAnchor(SPARK_MANIFEST);
+              // AS: t *= 0.95
+              t *= 0.95;
+              self.vars.t = t;
 
-    for (let i = 0; i < sparkCount; i++) {
-      const anim = new FrameAnimatedSprite({
-        textures: sparkTextures,
-        anchorX: sparkAnchor.x,
-        anchorY: sparkAnchor.y,
-        scale: init.scale,
-        stopFrame: 1,
-      });
+              // AS: angle += va
+              angle += va;
+              self.vars.angle = angle;
 
-      // AS frame_1/DoAction.as initialization:
-      // angle = 360 * Math.random()
-      const angle = 360 * Math.random();
-      // v = 6.67 + random(20)  [random(20) returns 0..19]
-      const v = 6.67 + Math.floor(Math.random() * 20);
-      // va = 40 * (-0.5 + Math.random())
-      const va = 40 * (-0.5 + Math.random());
-      // t = 100
-      const t = 100;
+              // AS: vx = v * cos(angle * 0.017453...)
+              //     vy = v * sin(angle * 0.017453...)
+              // angle is in degrees; 0.017453292519943295 = PI/180
+              const vx = v * Math.cos(angle * 0.017453292519943295);
+              const vy = v * Math.sin(angle * 0.017453292519943295);
 
-      // Initial position at origin (target)
-      anim.sprite.position.set(0, 0);
+              // AS: _X = _X + vx; _Y = _Y + vy
+              self.x += vx;
+              self.y += vy;
 
-      // Apply initial scale: _xscale = v * 14
-      // In PixiJS: xscale is separate, we handle this in update
-      const initialXScale = ((v * 14) / 100) * init.scale;
-      anim.sprite.scale.set(initialXScale, init.scale);
+              // AS: v *= 0.9
+              self.vars.v = v * 0.9;
 
-      // Initial rotation
-      anim.sprite.rotation = (angle * Math.PI) / 180;
+              // AS: _rotation = angle  (degrees → radians)
+              self.rotation = (angle * Math.PI) / 180;
+            };
+          },
+        ],
+        [
+          1,
+          (clip) => {
+            // AS DefineSprite_6/frame_2/DoAction.as: stop()
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-      this.sparksContainer.addChild(anim.sprite);
+    // ---- sprite_7 — 117-frame composite impact timeline ----------
+    // AS: scripts/DefineSprite_7/frame_115/DoAction.as
+    //   _parent.removeMovieClip();
+    // frame_115 → 0-based index 114.
+    // We also signal hit on the first tick (frame index 0) since this
+    // is a TargetCell impact and no earlier dedicated hit frame exists.
+    this.sprite7Sym = {
+      name: "sprite_7",
+      totalFrames: 117,
+      frames: textures.getFrames("sprite_7"),
+      anchorX: sprite7Anchor.x,
+      anchorY: sprite7Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          () => {
+            // First impact frame — signal hit for displayType=11.
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          114,
+          (clip) => {
+            // AS DefineSprite_7/frame_115/DoAction.as:
+            //   _parent.removeMovieClip();
+            // clip is sprite_7; its parent is root (the outer mc).
+            clip.parent?.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-      this.sparks.push({
-        anim,
-        angle,
-        v,
-        va,
-        t,
-        x: 0,
-        y: 0,
-      });
-    }
+    this.registry.register(this.sprite6Sym);
+    this.registry.register(this.sprite7Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    // Update main impact animation
-    this.impactAnim.update(deltaTime);
-
-    // Update spark particles with AS physics
-    // The AS onEnterFrame runs every frame (at 60fps)
-    // deltaTime is in ms, one frame = 1000/60 ms
-    const frameTime = 1000 / 60;
-    const frames = deltaTime / frameTime;
-
-    for (let f = 0; f < frames; f++) {
-      for (const spark of this.sparks) {
-        if (!spark.anim.sprite.visible) {
-          continue;
-        }
-
-        // AS: if(random(2) == 0) { va = 40 * (-0.5 + Math.random()); }
-        if (Math.floor(Math.random() * 2) === 0) {
-          spark.va = 40 * (-0.5 + Math.random());
-        }
-
-        // AS: _xscale = v * 14
-        const xScalePct = spark.v * 14;
-        spark.anim.sprite.scale.set(
-          (xScalePct / 100) * (1 / 1), // init.scale already applied, apply relative
-          1 * (1 / 1)
-        );
-
-        // AS: t *= 0.95
-        spark.t *= 0.95;
-
-        // AS: angle += va
-        spark.angle += spark.va;
-
-        // AS: vx = v * Math.cos(angle * 0.017453292519943295)
-        const vx = spark.v * Math.cos(spark.angle * 0.017453292519943295);
-        // AS: vy = v * Math.sin(angle * 0.017453292519943295)
-        const vy = spark.v * Math.sin(spark.angle * 0.017453292519943295);
-
-        // AS: _X = _X + vx; _Y = _Y + vy
-        spark.x += vx;
-        spark.y += vy;
-
-        // AS: v *= 0.9
-        spark.v *= 0.9;
-
-        // AS: _rotation = angle
-        spark.anim.sprite.rotation = (spark.angle * Math.PI) / 180;
-
-        // Apply position (scaled)
-        spark.anim.sprite.position.set(spark.x, spark.y);
-
-        // Apply alpha via t (t is 100 initially, fades via *=0.95)
-        spark.anim.sprite.alpha = spark.t / 100;
-
-        // Apply scale: xscale = v*14 (percentage), yscale stays 100%
-        // We need to scale relative to init.scale
-        const xs = (spark.v * 14) / 100;
-        const ys = 1;
-        spark.anim.sprite.scale.set(xs, ys);
-
-        // Kill when effectively invisible
-        if (spark.t < 1) {
-          spark.anim.sprite.visible = false;
-        }
-      }
-    }
-
-    // Check completion: sprite_7 at AS frame 115 (0-indexed: 114) calls removeMovieClip
-    // The animation has 117 frames (0-116), it completes naturally
-    if (this.impactAnim.isComplete()) {
-      this.complete();
-    }
-
-    // Also check: if sprite_7 has reached frame 114 (AS 115)
-    if (this.impactAnim.getFrame() >= 114) {
-      this.complete();
-    }
+  protected onSpellStart(
+    _callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // Main timeline frame_2/DoAction.as: stop()
+    // No sound in the canonical scripts. Attach sprite_7 at target
+    // (container is already at target cell for displayType=11, so
+    // local (0,0) is correct).
+    this.root.attach(this.sprite7Sym, "sprite7", 1, context);
   }
 }

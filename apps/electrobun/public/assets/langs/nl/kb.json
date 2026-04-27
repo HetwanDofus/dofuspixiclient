@@ -1,0 +1,1141 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1248,
+        "KBC": {
+            "1": {
+                "n": "Interface",
+                "o": 1,
+                "i": 1,
+                "ep": 1
+            },
+            "4": {
+                "n": "Gevecht",
+                "o": -1,
+                "i": 4,
+                "ep": 1
+            },
+            "5": {
+                "n": "Missies",
+                "o": -1,
+                "i": 5,
+                "ep": 1
+            },
+            "6": {
+                "n": "Communicatie",
+                "o": -1,
+                "i": 6,
+                "ep": 1
+            },
+            "32": {
+                "n": "Evolueren",
+                "o": -1,
+                "i": 32,
+                "ep": 1
+            },
+            "33": {
+                "n": "Voorwerpen",
+                "o": -1,
+                "i": 33,
+                "ep": 1
+            },
+            "34": {
+                "n": "Economie",
+                "o": -1,
+                "i": 34,
+                "ep": 1
+            },
+            "35": {
+                "n": "Beroepen",
+                "o": -1,
+                "i": 35,
+                "ep": 1
+            },
+            "36": {
+                "n": "Reizen",
+                "o": -1,
+                "i": 36,
+                "ep": -1
+            }
+        },
+        "KBA": {
+            "33": {
+                "c": 4,
+                "n": "Weerstanden",
+                "o": -1,
+                "a": "Neutrale weerstand in percentage\nHet kan neutrale type aanvallen verminderen in percentage.\n\nReeks neutrale weerstanden\nHet kan neutrale type aanvallen verminderen aan de hand van een reeks getallen.\n\nNeutrale weerstand in percentage tot vechters.\nHet kan neutrale type aanvallen gelanceerd door spelers verminderen in percentage.\n\nReeks neutrale weerstanden tot vechters\nHet kan neutrale type aanvallen gelanceerd door spelers verminderen aan de hand van een reeks nummers.\n\nLucht weerstand in percentage\nHet kan lucht type aanvallen verminderen in percentage.\n\nReeks lucht weerstanden\nHet kan lucht type aanvallen verminderen aan de hand van een reeks getallen.\n\nLucht weerstand in percentage tot vechters\nHet kan lucht type aanvallen gelanceerd door spelers verminderen in percentage.\n\nReeks lucht weerstanden tot vechters\nHet kan lucht type aanvallen gelanceerd door spelers verminderen aan de hand van getallen.\n\nWater weerstand in percentage\nHet kan water type aanvallen verminderen qua percentage.\n\nReeks water weerstanden\nHet kan water type aanvallen verminderen aan de hand van een reeks getallen.\n\nWater weerstand in verhouding tot vechters\nHet kan water type aanvallen gelanceerd door spelers verminderen in percentage.\n\nReeks water weerstanden tot vechters\nHet kan water type aanvallen gelanceerd door spelers verminderen aan de hand van een reeks getallen\n\nAarde weerstand in percentage\nHet kan aarde type aanvallen verminderen in percentage\n\nReeks aarde weerstanden\nHet kan aarde type aanvallen verminderen aan de hand van een reeks getallen\n\nAarde weerstand in percentage tot vechters\nHet kan aarde type aanvallen gelanceerd door spelers verminderen in percentage\n\nReeks aarde weerstanden tot vechters\nHet kan aarde type aanvallen gelanceerd door spelers verminderen aan de hand van een vast getal\n\nVuur weerstand in percentage\nHet kan vuur type aanvallen verminderen in percentage\n\nReeks vuur weerstanden\nHet kan vuur type aanvallen verminderen aan de hand van een reeks nummers\n\nVuurweerstand in percentage tot vechters\nHet kan vuur type aanvallen gelanceerd door spelers verminderen in percentage\n\nReeks vuur weerstanden tot vechters\nHet kan vuur type aanvallen gelanceerd door spelers verminderen aan de hand van een nummer\n\nWeerstand tot magische schade\nHet kan water,vuur en lucht schade verminderen aan de hand van een getal\n\nWeerstand tot fysieke schade\nHet kan aarde en neutrale schade verminderen aan de hand van een nummer\n\nWeerstand tot beweging punten verlies\nHet maakt het mogelijk om te ontwijken dat je verlies lijdt qua beweging punten\n\nWeerstand tot actie punten verlies\nHet maakt het mogelijk om te ontwijken dat je verlies lijdt qua actie punten",
+                "k": [
+                    "neutraal",
+                    "lucht",
+                    "water",
+                    "aarde",
+                    "vuur",
+                    "vechters",
+                    "magisch",
+                    "fysiek",
+                    "schade",
+                    "MP",
+                    "AP",
+                    "verlies",
+                    "weerstand"
+                ],
+                "i": 33,
+                "ep": 1
+            },
+            "58": {
+                "c": 1,
+                "n": "Je Spreuken",
+                "o": -1,
+                "a": "De pagina \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnSpells\">Je Spreuken</a>\" laat al jouw spreuken zien die je kunt gebruiken.\n\nGa naar dit scherm om je karakterpunten te verdelen als je een level omhoog bent gegaan of om perkamenten te kopen.",
+                "k": [
+                    "spreuk punten",
+                    "perkament",
+                    "spreuken"
+                ],
+                "i": 58,
+                "ep": 1
+            },
+            "7": {
+                "c": 6,
+                "n": "De emoticons",
+                "o": -1,
+                "a": "Je personage kan verschillende vaardigheden leren (emoticons). Een van de eerste heb je geleerd van Ganymedes: de emoticon: gaan zitten. Met de emoticons kun je je discussies levendiger maken. Maar pas op! Je moet heel Amakna doorlopen, raadsels oplossen en zware gevechten leveren om ze allemaal te krijgen!\n\n<strong>Wees slim!</strong> Ga naar Wally Elconom in de bibliotheek van Amakna: hij zoekt geschikte avonturiers die hem kunnen helpen.",
+                "k": [
+                    "Emoticons"
+                ],
+                "i": 7,
+                "ep": 1
+            },
+            "62": {
+                "c": 1,
+                "n": "Je Vrienden",
+                "o": -1,
+                "a": "De pagina \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnFriends\">Je Vrienden</a>\" laat je je Vrienden lijst beheren... en je Vijanden lijst!\n\nVanaf deze lijst kun je spelers toevoegen, verwijderen en privéberichten versturen en zelfs nieuwe spelers uitnodigen...",
+                "k": [
+                    "vijanden",
+                    "vrienden"
+                ],
+                "i": 62,
+                "ep": 1
+            },
+            "26": {
+                "c": 4,
+                "n": "Uitdagingen",
+                "o": -1,
+                "a": "De beste manier om alle verschillende vechttechnieken te leren die in DOFUS bestaan, is om tegen andere spelers te vechten. Om dit te doen zonder de dood te riskeren, kun je je tegenspelers naar wens uitnodigen. De uitdagingen zijn vriendschappelijke gevechten die elk moment onderbroken kunnen worden zonder jou in gevaar te brengen, zo kun je de techniek van vele andere spelers leren. Uitdagingen zullen je ervaring niet laten toenemen.",
+                "k": [
+                    "ervaring",
+                    "test",
+                    "uitdaging"
+                ],
+                "i": 26,
+                "ep": 1
+            },
+            "27": {
+                "c": 32,
+                "n": "Ervaring",
+                "o": -1,
+                "a": "Het verzamelen van ervaring wordt in het algemeen ‘XP behalen' of alleen ‘XP' genoemd in de non Role-Play spelers taal. Een gezond niveau van XP punten vraagt om roekeloos verslaan van monsters, elk succesvolle gevecht wordt beloond met XP punten. XP is noodzakelijk voor een beginner om omhoog te gaan qua level, toegang tot hogere zoektochten, meer geavanceerde uitrusting etc.\n\nHet verkrijgen van ervaring laat je toe om omhoog te gaan in level. Elke keer dat je een level passeert verdien je 5 karakterpunten en 1 spreukpunt. Investeer ze aan de hand van je eigen strategie maar wees voorzichtig! Uitgeven van karakterpunten kun je niet weer terughalen, wanneer je de karakter punten toegewezen hebt. Maar je kunt perkamenten gebruiken om ze te compenseren.",
+                "k": [
+                    "quests",
+                    "levels",
+                    "XP",
+                    "ervaring"
+                ],
+                "i": 27,
+                "ep": 1
+            },
+            "64": {
+                "c": 1,
+                "n": "Je Mount",
+                "o": -1,
+                "a": "De pagina \" <a href=\"asfunction:onHref,UiIndicator,Banner,_btnMount\">Je Mount</a> \" toont je de details over je Dragoturkey.",
+                "k": [
+                    "dragoturkey",
+                    "mount"
+                ],
+                "i": 64,
+                "ep": 1
+            },
+            "35": {
+                "c": 33,
+                "n": "Wapen en Karakter Klassen",
+                "o": -1,
+                "a": "Wapens worden gebruikt om de vijand te raken. Wapens verschillen sterk in:\n\n- Hoeveel ze kosten\n- De schade die ze aanrichten en de weerstand die ze geven.\n- Hun element\n- Hun bereik en effect gebied\n- En tenslotte de bonussen die ze geven aan vechters die ze hanteren of zelfs de nadelen die zij brengen.\n\nWapens en karakter klassen\nElke klasse gebruikt een specifiek wapen:\n\n- Cra: Boog\n- Ecaflip: Zwaard\n- Eniripsa: Toverstaf\n- Enutrof: Schop\n- Feca: Stok\n- Iop: Zwaard\n- Osamodas: Hamer\n- Pandawa: Bijl\n- Sacrier: Blote Handen\n- Sadida: Staf\n- Sram: Dolken\n- Xelor: Hamer",
+                "k": [
+                    "specifiek",
+                    "klassen",
+                    "wapen"
+                ],
+                "i": 35,
+                "ep": 1
+            },
+            "21": {
+                "c": 4,
+                "n": "Spreuk en Wapen Bereik (RA)",
+                "o": -1,
+                "a": "Het bereik (RA) geeft een indicatie van de maximale afstand waarvan je een tegenstander kunt raken in een gevecht. Het wordt in blokjes weergegeven. Obstakels verminderen de afstand als ze hoger zijn dan de karakter die de spreuk doet of aanvalt. Bijvoorbeeld, een boom zal de spreuk of wapenbereik verminden, maar een heg of hek hebben geen effect.",
+                "k": [
+                    "aanval",
+                    "spreuk",
+                    "afstand",
+                    "RA",
+                    "bereik"
+                ],
+                "i": 21,
+                "ep": 1
+            },
+            "42": {
+                "c": 34,
+                "n": "Markten",
+                "o": -1,
+                "a": "Hoofdmarkten zijn toegankelijk in de steden. Deze gebouwen staan je toe om je voorwerpen te verkopen zonder reclame te maken, zelfs wanneer je offline bent. Verkopers stellen vooraf de prijs en de hoeveelheid die ze willen verkopen van de voorwerpen in. Hun voorwerpen kunnen gekocht worden door spelers op de Markt. De hoeveelheid, level en belasting van de voorwerpen die je wilt verkopen en de periode waarin dat kan, hangt af van de markt waar u zich bevindt. Deze factoren worden in iedere Markt getoond. Besteed daar aandacht aan. Op deze manier kunt u zien dat Markten in grotere steden veel interessanter zijn. Wanneer een voorwerp niet in de verkoopperiode is verkocht, wordt het van de Markt gehaald en teruggestuurd naar de bank van de eigenaar. Indien het voorwerp wel verkocht is word het verdiende geld naar de bank van de eigenaar gestuurd. Voorwerpen die op de Markt worden verkocht worden op volgorde van aard en prijs ingedeeld. Wanneer identieke voorwerpen verkocht worden in dezelfde hoeveelheid, zal enkel de goedkoopste getoond worden om het voor de koper makkelijk te maken. Sommige voorwerpen kunnen dus niet gekocht worden voordat de goedkoopste voorwerpen zijn verkocht. Voordat je een voorwerp plaatst, controleer dan eerst de voorwerpen die al verkocht worden op de Markt en probeer een goedkopere prijs te zetten indien je je voorwerpen snel wilt verkopen. Een markt is het meest effectieve handelssysteem op het spel. Ze geven je de gelegenheid alles wat je wilt te kopen en verkopen, de beste prijs te vinden en een boel tijd te besparen. Alle Markten zijn weergegeven op de spel kaart.",
+                "k": [
+                    "markt",
+                    "kamas",
+                    "koop",
+                    "verkoop",
+                    "economie"
+                ],
+                "i": 42,
+                "ep": 1
+            },
+            "37": {
+                "c": 33,
+                "n": "Huisdieren",
+                "o": -1,
+                "a": "Een huisdier is echt een avonturiers beste vriend. Van de lieve Bow Meow tot de extreem zeldzame Bow Wow je zult vast en zeker een compagnon vinden die je bevalt vooral omdat ze je meestal aanzienlijke bonussen brengen. Maar wees voorzichtig! Vergeet niet je huisdier te voeren... respecteer zijn eettijden en zijn specifieke dieeet om er zeker van te zijn dat hij gezond blijft.",
+                "k": [
+                    "huisdier",
+                    "gezelschap",
+                    "bonus",
+                    "gezondheid",
+                    "dieet",
+                    "vertraging",
+                    "maaltijd",
+                    "voeren",
+                    "huisdieren"
+                ],
+                "i": 37,
+                "ep": 1
+            },
+            "48": {
+                "c": 36,
+                "n": "Mounts",
+                "o": -1,
+                "a": "Mounts staan de speler toe om sneller te bewegen dan wanneer ze rennen. Hoe ervarener een Mount is, des te sneller hij beweegt.",
+                "k": [
+                    "bewegen",
+                    "dragoturkeys",
+                    "mounts"
+                ],
+                "i": 48,
+                "ep": 20
+            },
+            "11": {
+                "c": 4,
+                "n": "Health Points",
+                "o": -1,
+                "a": "De Health Points (levenspunten) van je personage dalen als je schade oploopt (door een klap van je tegenstander bijvoorbeeld). Ze stijgen als je personage zichzelf verzorgt (door een toverspreuk, een voorwerp, dankzij een bondgenoot). Als het aantal HP van je strijders op nul staat, is hij dood! Let op de HP en die van de tegenstanders, want die zijn essentieel om te winnen.",
+                "k": [
+                    "gewonnen",
+                    "dood",
+                    "health points"
+                ],
+                "i": 11,
+                "ep": 1
+            },
+            "40": {
+                "c": 33,
+                "n": "De Bank",
+                "o": -1,
+                "a": "De bank geeft spelers die geen huis hebben en daarom dus ook geen privé kluis de kans om voorwerpen te bewaren. Elke stad of groot dorp heeft zijn eigen bank. Het openen van een bankrekening is gratis en je kunt zoveel items bewaren als je wilt. Het is onbeperkt. Elke plek kost je 1 Kama elke keer dat je jou bankrekening gebruikt. De bankrekening is open voor alle karakters op het account zolang ze op dezelfde server zijn.",
+                "k": [
+                    "kamas",
+                    "voorwerpen",
+                    "kluis",
+                    "bank"
+                ],
+                "i": 40,
+                "ep": 1
+            },
+            "8": {
+                "c": 6,
+                "n": "De variabelen",
+                "o": -1,
+                "a": "Om de dialoog met andere spelers te vergemakkelijken, als je bijvoorbeeld je kenmerken met hen wilt delen, de naam van je gilde wilt geven of hen meedelen in welke hoek van de Wereld jij rondbanjert, is er een aantal variabelen die je het leven vergemakkelijkt en die je het opnieuw alles intikken bespaart!\nHier heb je enkele variabelen die je kunt gebruiken in het chatvenster:\n\n<strong>%zone%</strong> geeft de naam van het gebied waar jij je bevindt (Astrub, bijvoorbeeld).\n<strong>%souszone%</strong> geeft met meer precisie de naam van het gebied waar jij je bevindt (Veld van Astrub, bijvoorbeeld).\n<strong>%pos%</strong> geeft de coördinaten van de kaart waar jij je bevindt.\n\n<strong>%moi%</strong> geeft de pseudonaam van je personage\n<strong>%stats%</strong> geeft alle statistieken van je personage (kenmerken, AP, MP, initiatieven).\n<strong>%niveau%</strong> geeft het level van je personage.\n<strong>%guilde%</strong> geeft de naam van het gilde van je personage.\n\n<strong>%viemax%</strong> geeft jouw maximum aantal health points\n<strong>%vie%</strong> geeft jouw aantal resterende health points.\n<strong>%viep%</strong> geeft jouw resterende levenspercentage.",
+                "k": [
+                    "variabelen"
+                ],
+                "i": 8,
+                "ep": 1
+            },
+            "44": {
+                "c": 35,
+                "n": "Grondstofproducenten",
+                "o": -1,
+                "a": "Deze beroepen staan een speler toe om goederen te produceren en te verzamelen in het DOFUS universum. Je kunt deze goederen bijna nooit gelijk gebruiken nadat je ze verzameld hebt - ze moeten meestal worden bewerkt en/of gecombineerd om ze te kunnen gebruiken. Deze beroepen geven de snelste winst omdat ze geen investeringen nodig hebben... je zult aardig wat tijd moeten investeren om de betrokken technieken te oefenen. Je moet veel trucs leren via de andere makers.",
+                "k": [
+                    "ambachtsmannen",
+                    "verzamel",
+                    "beroepen"
+                ],
+                "i": 44,
+                "ep": 1
+            },
+            "12": {
+                "c": 4,
+                "n": "Initiatief",
+                "o": -1,
+                "a": "Het initiatief dient om je positie te bepalen aan het begin van een gevecht. Als het initiatief van je strijder hoger is dan die van alle strijders/wezens, mag je als eerste het gevecht beginnen. Als de initiatiefpunten gelijk zijn, geeft een loting de doorslag. Het initiatief blijft hetzelfde voor de hele veldslag.",
+                "k": [
+                    "initiatief"
+                ],
+                "i": 12,
+                "ep": 1
+            },
+            "30": {
+                "c": 4,
+                "n": "Kritieke Slag en Kritieke Misser",
+                "o": -1,
+                "a": "Het succes die elke slag of spreuk doet, wordt beoordeeld door de Kritieke Slag (CH) en Kritieke Misser (CF). De slagingkans van de kritieke slag wordt getoond binnen het Wapen and Spreuk beschrijvingsscherm. Een Kritieke Misser dient geen schade toe, terwijl een kritieke slag de kansen aanzienlijk laat toenemen op het slaan van je vijand op de zere plekken.",
+                "k": [
+                    "KM",
+                    "KS",
+                    "kritieke misser",
+                    "kritieke slag"
+                ],
+                "i": 30,
+                "ep": 1
+            },
+            "29": {
+                "c": 32,
+                "n": "Bonussen en Schade reductie",
+                "o": -1,
+                "a": "Schade kan worden versterkt (door schade bonussen, zulke schade wordt \"boosted\" genoemd) of verminderd (door weerstand bonussen) aan de hand van het element van je wapens (of je spreuken als je kiest voor aanval spreuken) en je voorwerpen. Je moet kiezen tussen schade en weerstand bonussen aan de hand van je wapen en/of spreuk element. Als voorbeeld laten we zeggen dat een Sacrier vechter is uitgerust met:\n\n- een cape die AARDE schade verhoogt met 10\n- een hoed die AARDE schade verhoogt met 15 (dat is een totaal van + 25 AARDE schade)\n- De spreuk “Sacrier's Voet” (een AARDE type spreuk dat 10 tot 18 schadepunten toebrengt)\n\nBij elke slag zal de Sacrier tussen de 35 en 45 schade punten toebrengen aan zijn vijand, zolang de laatst genoemde geen weerstandspreuken of vaardigheden heeft.\n\nAls de spreuk “Sacrier's Voet” wordt vervangen door Raziel (zwaard – 26 tot 40 neutrale type schade) zal de Sacrier zoveel mogelijk schade toebrengen aan zijn vijand zolang de laatst genoemde geen weerstandspreuken of vaardigheden heeft. (Onthoud dat het Aarde element ook de neutrale type schade verhoogt).",
+                "k": [
+                    "elementen",
+                    "weerstanden",
+                    "schade",
+                    "aftrek",
+                    "bonus"
+                ],
+                "i": 29,
+                "ep": 1
+            },
+            "45": {
+                "c": 35,
+                "n": "Ambachtsmannen",
+                "o": -1,
+                "a": "Het is moeilijker om een ambacht te doen dan een grondstofproducent te zijn. Een aanzienlijke investering is ook nodig om alle verschillende materialen te verzamelen die je nodig hebt om een voorwerp te maken. De beste aanpak is meestal om te starten met het verzamelen en verkopen van ruwe materialen en om daarna verder te gaan met een beroep wanneer je wat materialen hebt verzameld.",
+                "k": [
+                    "ambachtsman",
+                    "ambacht",
+                    "beroep"
+                ],
+                "i": 45,
+                "ep": 1
+            },
+            "16": {
+                "c": 4,
+                "n": "Action Points",
+                "o": -1,
+                "a": "De Action Points van je strijder bepalen zijn vermogen tot handelen. Een aanval uitvoeren, een toverspreuk doen, kost Action Points: bijvoorbeeld, met een wapen aanvallen kost gewoonlijk 5 AP. Als het aantal AP nul is, kan je personage geen acties meer uitvoeren. Voor alle strijders wordt door toverspreuken en/of uitrusting standaard 6 AP opgeteld of afgetrokken.",
+                "k": [
+                    "action",
+                    "AP",
+                    "action point"
+                ],
+                "i": 16,
+                "ep": 1
+            },
+            "41": {
+                "c": 34,
+                "n": "Kamas",
+                "o": -1,
+                "a": "De Kama is de officiele betaaleenheid in het spel. Je kunt het overal in het continent gebruiken en dingen mee kopen van andere spelers. Waarschuwing! De waarde van de Kama varieerd sterkt. Geld opslaan in DOFUS kan erg winstgevend zijn, maar ook erg risicovol!! Hou altijd een of twee Kama in je zak, je zult ze nodig hebben om bij je kluis bij de bankt te kunnen, De Zaaps / Zaapis te gebruiken of belasting in de Markten te betalen, etc.",
+                "k": [
+                    "betaaleenheid",
+                    "geld",
+                    "kamas"
+                ],
+                "i": 41,
+                "ep": 1
+            },
+            "46": {
+                "c": 36,
+                "n": "Zaaps",
+                "o": -1,
+                "a": "Zaaps zijn magische bogen die je kunnen teleporteren naar elke plek in de wereld voor een paar Kamas. Als je er een ziet, zorg dan dat je dichtbij genoeg bent om er op te klikken en het zal je positie bewaren. Als je dit doet kun je later terug keren naar dezelfde positie. Het kost je niks om je positie te bewaren maar je zult wel een bedrag moeten betalen om te reizen via de Zaap. Waarschuwing! Je kunt alleen Zaaps gebruiken waar je eerder je positie opgeslagen hebt.",
+                "k": [
+                    "stargate",
+                    "prijs",
+                    "kamas",
+                    "reis",
+                    "zaaps"
+                ],
+                "i": 46,
+                "ep": 1
+            },
+            "22": {
+                "c": 4,
+                "n": "Energiepunten (EP)",
+                "o": -1,
+                "a": "Als je een gevecht verliest, ga je terug naar je laatst opgeslagen positie (vaak een Zaap). Je karakter zal alle HP en een paar EP verloren hebben. Als je je positie niet opgeslagen hebt, zal je karakter terugkomen in Astrub.\n\n<b>Dat de wijsheid met je is!</b> Je krijgt EP terug als je karakter wat tijd vrij neem ('verbinding verbreekt') in een Kroeg.",
+                "k": [
+                    "Kroeg",
+                    "Ep",
+                    "verlagen",
+                    "dood",
+                    "energie"
+                ],
+                "i": 22,
+                "ep": 1
+            },
+            "28": {
+                "c": 32,
+                "n": "Schade Verbetering",
+                "o": -1,
+                "a": "Het is essentieel dat je je karakter laat evolueren. Van de 6 karakteristieken kunnen er 4 schade verhogen:\n\n- Kracht verhoogt Aarde (en neutrale)-type schade en ook Pods (eenheid van verplaatsbaar gewicht).\n- Kans verhoogt Water type schade en ook het zoeken (kans dat items neervallen na het verslaan van monsters).\n- Behendigheid verhoogt Lucht type schade en ook de waarschijnlijkheid van het uitdelen van een kritieke slag en ontsnappen uit een gevarenzone.\n- Intelligentie verhoogt Vuur type schade en ook levenspunten door helende spreuken.\n\nVoor de meeste doeleinden bevelen we aan dat je je richt op een enkele karakteristiek. Je zou deze karakteristieken moeten kiezen aan de hand van een element (Aarde, Vuur, Water en Lucht) die je wilt verbeteren.",
+                "k": [
+                    "vuur",
+                    "lucht",
+                    "water",
+                    "aarde",
+                    "intelligentie",
+                    "snelheid",
+                    "kans",
+                    "sterkte",
+                    "schade"
+                ],
+                "i": 28,
+                "ep": 1
+            },
+            "55": {
+                "c": 36,
+                "n": "Bewegen en Kaart Veranderen",
+                "o": -1,
+                "a": "Om je karakter te laten bewegen hoef je alleen maar klikken op de bestemming waar je heen wilt met je linker muisknop.\n\nAls je de map wilt veranderen moet je klikken op de gebied verander knoppen, welke lijken op kompaspunten, door middel van een klik op de linker muisknop. Er is een gebied verander knop aan elke zijde van de map.",
+                "k": [
+                    "kaart",
+                    "veranderen",
+                    "bewegen"
+                ],
+                "i": 55,
+                "ep": 1
+            },
+            "23": {
+                "c": 4,
+                "n": "Dood",
+                "o": -1,
+                "a": "Als je een gevecht verliest, ga je terug naar je laatst opgeslagen positie (vaak een Zaap) met een enkel levenspunt. Als je energie naar nul zakt, wordt je een geest. Als je weer terug tot leven wilt komen en je EP wilt aanvullen, moet je naar een Feniks gaan. (Als een speler de geestenwereld in gaat, staan de Feniksen waar hij naartoe kan gaan aangegeven met een klein rood vlaggetje op de kaart.) Als dit met je gebeurd, kun je kiezen of je wilt herrijzen door een priester of naar de dichtstbijzijnde Feniks wilt gaan.",
+                "k": [
+                    "energie",
+                    "levenspunten",
+                    "phoenix",
+                    "verslaan",
+                    "dood"
+                ],
+                "i": 23,
+                "ep": 1
+            },
+            "61": {
+                "c": 1,
+                "n": "Je Geopositie",
+                "o": -1,
+                "a": "De pagina \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnMap\">Geo-positie </a>\" toont de wereldkaart.\n\nJe kunt op de kaart zaaps, markten, werkplaatsen, guild tempels etc vinden. De coördinaten van de verschillende gebieden worden getoond wanneer je er met je muis overheen gaat.",
+                "k": [
+                    "coordinaten",
+                    "geografie",
+                    "kaart"
+                ],
+                "i": 61,
+                "ep": 1
+            },
+            "14": {
+                "c": 4,
+                "n": "Onderzoek",
+                "o": -1,
+                "a": "Deze waarde verbetert je vermogen om voorwerpen te droppen aan het eind van het gevecht. Je bezit 100 onderzoekspunten in het begin (120 voor de Enutrofs) en je kunt het verbeteren door voorwerpen met onderzoeksbonussen. Daarbij kun je ook met geluk dit kenmerk verbeteren (+1 onderzoekspunt op 10 gelukspunten).",
+                "k": [
+                    "geluk",
+                    "voorwerp",
+                    "droppen",
+                    "onderzoek"
+                ],
+                "i": 14,
+                "ep": 1
+            },
+            "15": {
+                "c": 4,
+                "n": "Movement Points",
+                "o": -1,
+                "a": "De Movement Points van je strijder bepalen hoe hij zich kan verplaatsen. Als een strijder zich verplaatst, worden er Movement Points van zijn totale aantal MP afgetrokken. Voor alle strijders wordt door toverspreuken en/of uitrusting standaard 3 MP opgeteld of afgetrokken. Uitzondering: Als een strijder zich bevindt op een van de vier aangrenzende vakken waar een wezen of een andere strijder is, is hij in een zgn. tacklezone (ook wel controlezone genoemd). De mogelijkheid om te ontwijken en dus uit de tacklezone te komen, hangt af van de behendigheid van de twee strijders: Belangrijk is het verschil van behendigheid èn de strijder die probeert de tacklezone te verlaten. Als je dit niet lukt, kun je niet ontwijken en moet je je beurt overslaan. Elke verplaatsing kost je 1 tot 3 MP, afhankelijk van het aantal vakken waarover je je verplaatst.\n\nWees slim! Sommige wezens bezitten meer dan 3 MP en 6 AP! Met bepaalde zeldzame uitrustingen kun je je aantal AP en MP verhogen!",
+                "k": [
+                    "movement",
+                    "MP",
+                    "verplaatsing"
+                ],
+                "i": 15,
+                "ep": 1
+            },
+            "24": {
+                "c": 4,
+                "n": "Vitaliteit",
+                "o": -1,
+                "a": "Vitaliteit is verbonden met je HP. Je moet het regelmatig verhogen met de karakteristiek die je gekozen hebt. Let op: die bloeddorstige dwergen, de Sacriers, hebben een hoog niveau van vitaliteit nodig om behoorlijk te spelen.",
+                "k": [
+                    "HP",
+                    "vitaliteit"
+                ],
+                "i": 24,
+                "ep": 1
+            },
+            "57": {
+                "c": 1,
+                "n": "Karakteristieken en Beroepen",
+                "o": -1,
+                "a": "De pagina \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnStatsJob\">Karakteristieken en Beroepen</a>\" toont alle karakteristieken van je karakter, inclusief beroepen en verbonden. Je kunt alle details zien met een enkele blik.\n\nGa naar dit venster om je karakterpunten te gebruiken nadat je een level omhoog bent gegaan.\n\nAls je klikt op het zwaard, kun je alle details van je karakters karakteristieken zien en de bonussen die door je uitrusting worden gegeven.",
+                "k": [
+                    "beroepen",
+                    "karakteristieken",
+                    "karakter",
+                    "tag"
+                ],
+                "i": 57,
+                "ep": 1
+            },
+            "60": {
+                "c": 1,
+                "n": "Quests Lijst",
+                "o": -1,
+                "a": "De pagina \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnQuests\">Quest Lijst </a>\" toont alle Quest die je bent begonnen en degene die je hebt afgerond.\n\nAls je geen raad meer weet met de quest, kun je de gesprekken zien van de NPC's die jou de quests hebben toevertrouwd  evenals de coördinaten van de plaats waar je daarna heen moet gaan.",
+                "k": [
+                    "questboek",
+                    "quest lijst",
+                    "quests"
+                ],
+                "i": 60,
+                "ep": 1
+            },
+            "38": {
+                "c": 33,
+                "n": "Privé Kluis",
+                "o": -1,
+                "a": "Spelers die een huis bezitten kunnen hun items in een kluis deponeren, elke kluis beschikt over 60 tot 80 slots. Grotere huizen kunnen 3 kluizen hebben of meer.",
+                "k": [
+                    "huizen",
+                    "privé",
+                    "kluis"
+                ],
+                "i": 38,
+                "ep": 1
+            },
+            "47": {
+                "c": 36,
+                "n": "Zaapis",
+                "o": -1,
+                "a": "Het gebruiken van Zaapis kost je maar een paar Kamas en ze laten je reizen tussen sommige hoofdgebouwen in een stad. In tegenstelling tot Zaaps welke een voor een gevonden moeten worden voordat je ze kunt gebruiken, zijn Zaapis standaard weergegeven. Natuurlijk zijn ze alleen actief in de stad waar je op dat moment bevind.",
+                "k": [
+                    "bewegen",
+                    "brakmaer",
+                    "bonta",
+                    "zaapis"
+                ],
+                "i": 47,
+                "ep": 16
+            },
+            "17": {
+                "c": 4,
+                "n": "De elementen",
+                "o": -1,
+                "a": "Elk element correspondeert met een type kenmerk. De toverspreuken en sommige uitrustingen worden beïnvloed door de elementen en bieden de mogelijkheid om aangebrachte schade, verzorging of het vermogen om te ontwijken, te verbeteren...\n\n- Aarde correspondeert met Kracht\n- Water correspondeert met Geluk\n- Lucht correspondeert met Behendigheid\n- Vuur correspondeertmet Intelligentie\n- Vitaliteit: bepaalt het aantal HP van je personage.\n- Wijsheid: hiermee kun je makkelijk ervaring verdienen, het voorkomen van AP- en MP-verlies, het verhoogt de kans op verliezen van AP of MP van je tegenstanders en verhoogt de kracht van toverspreuken van teruggekregen schade (zoals de toverspreuk tegen de Xeliors bijvoorbeeld).",
+                "k": [
+                    "lucht",
+                    "water",
+                    "vuur",
+                    "aarde",
+                    "elementen"
+                ],
+                "i": 17,
+                "ep": 1
+            },
+            "43": {
+                "c": 34,
+                "n": "Handelaarsmodus",
+                "o": -1,
+                "a": "Handelaarsmodus laat spelers hun voorwerpen verkopen, maar alleen als ze niet ingelogd zijn. Het aantal voorwerpen dat een speler kan verkopen in handelaarsmodus wordt berekend aan de hand van de speler zijn level. Bij iedere level kan een speler een bepaald type voorwerp in een hoeveelheid naar zijn keuze te koop zetten. Een speler die handelaarsmodus wil gebruiken moet eerst een beschikbaar gebied vinden: er kunnen niet meer dan 6 handelaren per kaart zijn. Dan moet hij kiezen welke items hij in handelaarsmodus wil plaatsen (je kan toegang krijgen tot de opties via het karakter pop-up menu), de prijs en hoeveelheid instellen van de voorwerpen voordat je uitlogt en de handelaarsmodus activeert. Andere spelers hebben dan de mogelijkheid om de handelaarsmodus te raadplegen en de voorwerpen te kopen. Het geld wat de speler verdient wordt gelijk toegevoegd aan zijn inventaris.",
+                "k": [
+                    "verbinding verbroken",
+                    "koopman",
+                    "modus",
+                    "koop",
+                    "verkoop"
+                ],
+                "i": 43,
+                "ep": 1
+            },
+            "56": {
+                "c": 33,
+                "n": "Huisdieren",
+                "o": -1,
+                "a": "Je kunt je uitrusten met een huisdier door middel van je inventaris pagina. Als je ze goed behandelt en genoeg te eten geeft, geven ze je aanzienlijke bonussen! Elk huisdier heeft zijn eigen dieet dus zorg dat je ze het juiste voedsel te eten geeft! Als je ze niet regelmatig voedt gaan je huisdieren dood door uithongering.\n\nDe <a href=\"asfunction:onHref,PointCompass,9,21\">Kennel</a> staat je toe om je huisdier onder professioneel oog alleen te laten. Een certificaat wordt je toegereikt zodat je jou huisdier op elk tijdstip kunt ophalen tegen betaling van een paar Kamas. De kennel verkoopt ook boeken over hoe je jouw huisdieren moet voeden.",
+                "k": [
+                    "eten",
+                    "hongerig",
+                    "kennel",
+                    "voedsel",
+                    "huisdieren"
+                ],
+                "i": 56,
+                "ep": 1
+            },
+            "32": {
+                "c": 32,
+                "n": "Bonussen",
+                "o": -1,
+                "a": "Afstandsbonus\nHet basisbereik van een karakter is nul. Het veranderd aan de hand van spreuken of wapens die het karakter gebruikt. Elke heeft een eigen bereik. Sommige spreuken of voorwerpen kunnen het bereik van spreuken vergroten, als dat wordt toegestaan.\n\nOproepbunus\nEen oproepbonus laat spelers meerdere oproepspreuken tegelijk doen.\n\nSet Schade Bonus\nSet schade bonussen kunnen alle vorm van schade vergroten.\n\nSchade Bonus in percentage\nSchade bonussen in percentage kunnen alle vormen van schade vergroten, maar ook karakteristieken als kracht, behendigheid, kans en intelligentie - het vergroot alleen de schade.\n\nVal Set Schade Bonus\nVal set schade bonussen kunnen alle typen schade door vallen vergroten.\n\n\nVal Schade Bonus in percentage\nVal schade bonus in percentage kan alle vormen van schade vergroten, maar ook karakteristieken als kracht, behendigheid, kans en intelligentie - het vergroot alleen de schade door vallen.\n\n<strong>Helende Bonus</strong>\nEen helende bonus vergroot de kracht van helende spreuken, die de levenspunten beïnvleoden.",
+                "k": [
+                    "helen",
+                    "vallen",
+                    "schade",
+                    "summon",
+                    "kritiek",
+                    "slagen",
+                    "bereik",
+                    "bonus"
+                ],
+                "i": 32,
+                "ep": 1
+            },
+            "10": {
+                "c": 4,
+                "n": "Het lanceren van het gevecht",
+                "o": -1,
+                "a": "Om een gevecht te lanceren, moet je enkel op een monster of een groep monsters klikken.\nSommige monsters zijn agressief en zullen je aanvallen als je te dichtbij komt.\n\nJe kunt ook gewoon meedoen met een gevecht dat gelanceerd is door een andere speler.\nHiervoor klik je op het symbool met de vorm van een zwaard en sluit je aan bij het team van de speler die het gevecht gelanceerd heeft.\n\nDe gevechten vinden beurtelings plaats: bij elke beurt spelen de spelers na elkaar in de toegestane tijd (30 seconden): als eerste vechten, je verplaatsen, slaan, toverspreuken gebruiken... het is aan jou om je eigen strategie te bepalen!\n\nAls je als een van de eersten vecht, heb je een belangrijk voordeel.  Als je gespeeld hebt, of je bent geplaatst, denk er dan aan dat je je beurt kunt overslaan door op de pijl rechts van je portret te klikken.\n\n<strong>Wees slim!</strong> Je kunt spelers uit een gevecht gooien als jij dit gevecht als eerste geïnitieerd hebt. Je kunt zelfs de hulp inroepen van andere avonturiers. Er mogen 7 spelers aan het gevecht meedoen. Klik daarvoor op de symbolen die afgebeeld staan rechts in je beeldscherm zodra een gevecht begonnen is. Je kunt ook andere spelers verbieden om het gevecht dat je begonnen bent te bekijken. Deze functie is vooral nuttig in de PvP modus, zodat andere spelers je tactiek niet kunnen analyseren.\n\nDe commando's die je moet weten in een gevecht\n<strong>/list</strong> (of <strong>/players</strong>) laat de lijst zien van spelers in een gevecht.\n<strong</kick</strong> Naam-speler zet een speler uit het gevecht tijdens de voorbereiding, alleen als jij het gevecht aangegaan bent.\n<strong>/spectator</strong> (of <strong>/s</strong>) activeert/deactiveert de toeschouwermodus van het gevecht, als jij het gevecht aangegaan bent.",
+                "k": [
+                    "begin",
+                    "gevecht",
+                    "kick"
+                ],
+                "i": 10,
+                "ep": 1
+            },
+            "34": {
+                "c": 33,
+                "n": "Voorwerpen die je kunt uitrusten",
+                "o": -1,
+                "a": "Je kunt je karakter uitrusten met items zoals wapens, kleren en sieraden door een object te verslepen uit je inventaris naar je karakter. De voorwerpen die je kunt uitrusten zijn geordend in verschillende categorieën.\n\n- Huisdieren\n- Dofus\n- Kleren, (cape, hoofduitrusting, laarzen, etc.)\n- Wapens\n\nElk voorwerp kan je karakter een bonus geven zoals element bonus, schade of weerstand bonus, bereik bonus, MP / AP bonus, etc. Het is aan jou om de juiste combinatie te vinden!\nSommige items, zoals een plant, mijnen en dieren middelen, kunnen niet gedragen worden.\n\nSpeciaal geval: sets, Deze zijn complete sets van verschillende items (Laarzen, Cape/Mantel, hoofd uitrusting, etc.) te vinden op hetzelfde wezen. Een set geeft zijn drager bepaalde effecten aan de hand van het type (Veelvraat, Prespic, Boar, Moskito, etc.).",
+                "k": [
+                    "uitrusting",
+                    "setten",
+                    "uitrusten",
+                    "voorwerpen"
+                ],
+                "i": 34,
+                "ep": 1
+            },
+            "39": {
+                "c": 33,
+                "n": "Er Gaat Niets Boven Je Eigen Huis",
+                "o": -1,
+                "a": "Je kunt een huis kopen om bijeenkomsten te houden met je vrienden of om voorwerpen in bewaring te leggen (in privé kluizen). De meeste huizen worden gekocht in steden en dorpen, maar er zijn er ook een paar verkrijgbaar in het land. Hoe groter je huis is, hoe meer privé kluizen je hebt en hoe duurder het is. Wanneer je een huis hebt gekocht, kan deze verkocht worden voor elke prijs. De eigenaar van het huis bepaald wanneer deze open of dicht is voor andere spelers  en er kan zelfs een toegangscode op worden gezet die je kunt delen met vrienden. De eigenaar van het huis kan toegang verkrijgen tot deze parameters via de deur van het huis. Een speler kan enkel een huis bezitten per account.",
+                "k": [
+                    "eigenaar",
+                    "code",
+                    "opslaan",
+                    "voorwerpen",
+                    "kluizen",
+                    "huis"
+                ],
+                "i": 39,
+                "ep": 1
+            },
+            "19": {
+                "c": 4,
+                "n": "Speciale toverspreuken",
+                "o": -1,
+                "a": "De gewone spreuken van alle klasses kun je kopen of weg doen. De onvermijdelijke spreuken zoals die van het meesterschap zijn duurder en andere zijn meer folkloristisch zoals de bezwering van Arachnee.\n\n<strong>Wees slim!</strong> Het heeft geen nut een speciale toverspreuk te leren zoals die van het dolkenmeesterschap, want je gebruikt geen dolken! Bewaar deze spreuk om weer te verkopen aan een Sram bijvoorbeeld.",
+                "k": [
+                    "bezwering",
+                    "meesterschap",
+                    "elementair",
+                    "Toverspreuk"
+                ],
+                "i": 19,
+                "ep": 1
+            },
+            "25": {
+                "c": 4,
+                "n": "Wijsheid",
+                "o": -1,
+                "a": "Ervaring opdoen is heel nuttig maar ook erg duur. In plaats van investeren van waardevolle karakterpunten, probeer dan eens om het met perkamenten en guests te ontwikkelen.\n\n<strong>Mag de wijsheid met je zijn!</strong> Vind het handboek 'Hoe een perfecte huurling in Astrub te zijn', het vult dit boek aan. Voor dit, moet je slechts Nowa de Pandawa vinden.",
+                "k": [
+                    "karakteristieken",
+                    "perkamenten",
+                    "wijsdom",
+                    "XP"
+                ],
+                "i": 25,
+                "ep": 1
+            },
+            "9": {
+                "c": 6,
+                "n": "De chat-kanalen",
+                "o": -1,
+                "a": "Je hebt maximaal zeven chatkanalen tot je beschikking waarin je kunt communiceren met andere spelers, vrienden of onbekenden. Elk kanaal heeft z'n functionaliteit en z'n eigen regels. Je moet dus zorgvuldig <a href=\"asfunction:onHref,UiIndicator,Banner,_btnHelp,_mcIcon\">kiezen</a> waar je wilt praten. Hieronder vind je de diverse kanalen:\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter2\">De algemene chat (zwart) :</a> Dit is de standaard chat. Je kunt hier over alles of niets praten met spelers die op dezelfde kaart zijn als jij, als je je maar aan de spelregels houdt. Let echter op dat verkoop bij opbod verboden is, indien je niet op een marktplaats bent.\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter3\">De team-chat (blauw):</a> Op deze chat kun je praten met andere personen van je team in gevecht, zonder dat je tegenstanders het kunnen lezen. Onmisbaar om goeie strategiën op te zetten.\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter3\">De groeps-chat (blauw):</a> Op deze chat kun je praten over het verloop van een spel met personen die deel uitmaken van je groep avonturiers (zie paragraaf 9 van de handleiding: \"In groepsverband spelen\").\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter4\">De gilde-chat (paars):</a> Deze chat is gereserveerd voor gesprekken van je gilde (zie paragraaf 10 van de handleiding: \"In gildeverband spelen\"). Alle leden van je gilde en alleen zij, kunnen het lezen en erover praten.\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter5\">De karakter-chat (oranje): </a> Er bestaan 3 karakter-chats: de Bonta-chat, de Brakmar-chat en de Seriane-chat. Deze chats zijn gereserveerd voor spelers die hebben gekozen om zich met de een of ander van deze gemeenschap. Je moet ook een bepaalde rang hebben om op deze chats te kunnen praten.\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter6\">De rekruterings-chat (grijs):</a> Als je een gilde zoekt, of juist gemotiveerde leden om in je gilde op te nemen, als je spelers zoekt om een groep te vormen om een toren aan te vallen... Dan staat deze chat tot je beschikking.\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter7\">De handels-chat (bruin):</a> Middels deze chat kun je je voorwerpen te koop aanbieden en aanbiedingen van andere spelers bekijken die in hetzelfde gebied zijn als jij.",
+                "k": [
+                    "hé",
+                    "discussie",
+                    "kanaal",
+                    "chat"
+                ],
+                "i": 9,
+                "ep": 1
+            },
+            "65": {
+                "c": 1,
+                "n": "IP adres",
+                "o": -1,
+                "a": "Een IP adres is een nummer dat de locatie van je internetverbinding indentificeert op elk moment. In het algemeen, zijn deze IP dynamisch wat betekent dat ze elke keer dat je je modem reset veranderen.\n\nJe IP adres toont wat je ISP (Internet service provider) is, je locatie etc. Je kunt informatie over dit adres (zoals de ISP bijvoorbeeld) vinden door het IP adres hier in te vullen: http://www.ripe.net/whois-advanced\n\nMet het weergeven van je IP adres en de tijd van je laatste verbinding met DOFUS, geven we je de mogelijkheid om te kijken of iemand anders op je account is geweest terwijl je offline was.",
+                "k": [
+                    "hack",
+                    "modem",
+                    "verbinding",
+                    "ISP",
+                    "adres",
+                    "IP"
+                ],
+                "i": 65,
+                "ep": 1
+            },
+            "20": {
+                "c": 4,
+                "n": "Een gevecht winnen",
+                "o": -1,
+                "a": "Het winnen van een gevecht tegen een wezen levert je ervaring op en voorwerpen (zie deel 5 Evolutie), maar vooral om voorwerpen te droppen.\nDe Drop verwijst naar de actie vechten tegen monsters met het doel hun middelen te bemachtigen. Verder betekent droppen het met volle kracht afslachten van een monster om hun middelen achterover te drukken.\nJe kunt kamas verdienen door de voorwerpen te verkopen die je gevonden hebt in de overblijfselen van de monsters die je verslagen hebt. Kamas is de munteenheid in de Wereld van DOFUS. Hiermee kun je de uitrusting en spreuken kopen, die jou het beste lijken, het is nog de beste manier om je personage te ontwikkelen... hier begint de DOFUS tactiek!",
+                "k": [
+                    "xp",
+                    "experience",
+                    "drop",
+                    "overwinning",
+                    "gevecht"
+                ],
+                "i": 20,
+                "ep": 1
+            },
+            "59": {
+                "c": 1,
+                "n": "Je Inventaris",
+                "o": -1,
+                "a": "De pagina  \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnInventory\">Jouw inventaris</a>\" toont alle voorwerpen die je in je zak hebt en de uitrusting van je karakter.\n\nJe zak is in vier categoriën verdeeld:\n- Uitrusting (inclusief wapens, kleren en alle onderdelen die je kunt dragen);\r\n\n- Miscellaneous (inclusief perkamenten, boeken, drankjes, brood..);\r\n\n- Hulpmiddelen (inclusief monster-lichaamsonderdelen of grondstoffen..);\r\n\n- Quest Voorwerpen (dit zijn bijzonder belangrijke voorwerpen! Je kan ze niet aanraken).",
+                "k": [
+                    "quest voorwerpen",
+                    "uitrusting",
+                    "goederen",
+                    "voorwerpen",
+                    "inventaris"
+                ],
+                "i": 59,
+                "ep": 1
+            },
+            "18": {
+                "c": 4,
+                "n": "Klasse-toverspreuken",
+                "o": -1,
+                "a": "De toverspreuken hebben verschillende uitwerkingen die je je eigen moet maken om doeltreffend te zijn: verzorgen, een wezen bezweren, MP van een tegenstander beperken, AP verhogen van een van je bondgenoten... de combinaties zijn talrijk! Met sommige toverspreuken kun je zelfs schade toebrengen, of ze verhogen. Zoals met wapens, die hebben een bereik en een doelgebied.\n\n<strong>Opmerking:</strong> als een toverspreuk neutraal is, kan z'n uitwerking versterkt worden, dankzij het kenmerk Aarde.\n\nIn tegenstelling tot de kenmerkpunten, zijn de toverspreukpunten terug te winnen door middel van het vergeetdrankje, dat je kunt \"kopen\" bij de tempel van de verschillende klasses. Maar let op: hoe hoger je level wordt, hoe meer kamas het kost om zo'n drankje te nemen!!",
+                "k": [
+                    "vergeten",
+                    "toverspreuken"
+                ],
+                "i": 18,
+                "ep": 1
+            },
+            "49": {
+                "c": 36,
+                "n": "Vliegtuigen",
+                "o": -1,
+                "a": "Je zult allerlei soorten vliegmachines en vliegtuigen vinden in het Imp Dorp. Je moet een verbond hebben en je mede avonturiers moeten het dorp veroverd hebben voordat je zulk soort transport kunt gebruiken.",
+                "k": [
+                    "brakmar",
+                    "bonta",
+                    "verbond",
+                    "vliegtuig",
+                    "reis"
+                ],
+                "i": 49,
+                "ep": 17
+            },
+            "63": {
+                "c": 1,
+                "n": "Je Guild",
+                "o": -1,
+                "a": "De pagina \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnGuild\">Jouw Guild</a>\" kan enkel worden geopend indien je in een guild zit.\n\nJe zult daar alle hoofdzakelijke details over je guild vinden: ledenlijst, guild level, locatie van de verzamelaars.\n\nHet principe van een guild is enkele spelers onder hetzelfde embleem te groeperen. Behalve de vriendelijkheid van een verenigde guild zijn er ook andere spelmogelijkheden bijgekomen zoals:\n\n<strong>Gebruik Verzamelaars</strong>\nVerzamelaars kunnen een deel van de verzamelde hulpbronnen op een kaart nemen, evenals een deel van de items, Kamas of opgedane ervaring na de gevechten op de map. Hoe hoger het level van de guild, hoe duurder het plaatsen van verzamelaars is (1,000 Kamer + (guild level x 10)) en hoe langer de tijd is tussen twee collecties (1 uur x guild level). Hoe dan ook, hoe hoger het guild level is, hoe beter de verzamelaars worden (sterker en met meer vaardigheden) om bonussen te krijgen. Wacht niet om aan een gevecht deel te nemen wanneer je verzamelaar wordt aangevallen!\n\n<strong>Gebruik Guild Paddocks</strong>\nGuilds hebben de mogelijkheid om Dragoturkey paddocks te krijgen. Verschillend met de publieke paddocks is, in deze kun je veilig Dragoturkeys kweken en kun je alles onder controle houden (inclusief de stamboom).\n\n<strong>Guild Huizen</strong>\nWanneer een guild lid een huis koopt, kan hij het tot een guild-huis maken en andere leden ervan te laten profiteren Dit is perfect voor geheime bijeenkomsten!\n\n<strong>Guild Evolutie</strong>\nWanneer je vecht, kun je kiezen om een percentage van je verdiende ervaring aan de guild te geven. Door te levelen, zal je guild de mogelijkheid hebben om meer huizen en paddocks te kopen, en sterkere verzamelaars te plaatsen.",
+                "k": [
+                    "verzamelaar",
+                    "guild"
+                ],
+                "i": 63,
+                "ep": 1
+            },
+            "31": {
+                "c": 32,
+                "n": "Basis Karakteristieken",
+                "o": -1,
+                "a": "<strong>Kracht</strong>\nKracht verhoogt de spelers pod tarief, i.e. de hoeveelheid voorwerpen dat hij kan dragen. Het verhoogt ook de schade die wordt aangebracht door wapens en door neutrale of aard type spreuken.\n\n<strong>Behendigheid</strong>\nBehendigheid verhoogt je capaciteit om uit de gevarenzone te geraken en behoed je vijanden om hetzelfde te doen. Het verhoogt ook de kans dat je een kritische slag maakt en ook verhoogd het de lucht aanval schade.\n\n<strong>Leven</strong>\nLeven representeert de hoeveelheid gezondheidspunten van je karakter. Startend vanaf een maximum van 100, verdient een karakter 10 gezondheid punten elke keer dat hij een level omhoog gaat..\n\n<strong>Intelligentie</strong>\nIntelligentie verhoogt de schade van vuur type aanvallen en heel spreuken.\n\n<strong>Kans</strong>\nKans verhoogt de zoekercapaciteit van je karakter met een verhouding van 10/1 (10 in kans verhoogt capaciteit met 1). Het verhoogd ook water type schade.\n\n<strong>Wijsheid</strong>\nWijsheid verhoogt de ervaring die je verkrijgt aan het einde van een gevecht. Het verhoogt ook de capaciteit van het ontwijken van actiepunt en bewegingspunt verlies.\n\n<strong>Initiatief</strong>\nInitiatief bepaalt in welke volgorde de karakters zullen spelen tijdens een gevecht. Hoe hoger het is hoe groter de kans dat je karakter eerder start dan anderen. Initiatiefwordt iets bepaald door kracht, behendigheid, kans, maar hoofdzakelijk door intelligentie en wijsheid\n\n<strong>Zoeken</strong>\nZoeken bepaald de kans dat je voorwerpen vindt op beesten nadat je een gevecht gewonnen hebt.\n\n<strong>Actie Punten (AP)</strong>\nActie Punten laten je toe om spreuken te gebruiken of om aan te vallen met wapens in een gevecht. Het gebruiken van spreuken of wapens neemt punten af van je Actie Punten meter. De meter vult zich op aan het begin van elke beurt.\n\n<strong>Bewegingspunten (BP)</strong>\nBeweging punten laat je karakter toe om te bewegen tijdens een gevecht. Elke beweging neemt punten af van je beweging punten meter. Deze meter vult zich op aan het begin van elke beurt.\n\n<strong>Energie Punten</strong>\n\nEnergie punten bepalen de hoofdstatus van je karakter. Wanneer je karakter geen energie punten meer heeft wordt hij een geest. Je verliest energie punten wanneer je een gevecht verliest tegen een andere speler of wezen.",
+                "k": [
+                    "karakteristieken",
+                    "energie punten",
+                    "bewegings punten",
+                    "onderzoeken",
+                    "initiatief",
+                    "vitaliteit",
+                    "gezondheid",
+                    "sterkte",
+                    "snelheid",
+                    "intelligentie",
+                    "kans",
+                    "wijsdom"
+                ],
+                "i": 31,
+                "ep": 1
+            },
+            "36": {
+                "c": 33,
+                "n": "Pods",
+                "o": -1,
+                "a": "Er zijn veel manieren om het aantal pods te verhogen (dat is “de inhoud van je tas”):\n\n- Voor elk extra level dat je verkrijgt in je beroep verdien je 5 pods en een bonus van 1,000 pods voor elk beroep van level 100.\n- Één kracht punt geeft je ook 5 pods (notitie: het is beter om je pods te verhogen met perkamenten in plaats van kenmerkpunten).\n- Sommige tassen hebben een verhoogd aantal pods wat handig is als je verzamelaars level gemiddeld is.\n- Sommige riemen kunnen je pods ook verhogen. De makkelijkste te verkrijgen en ook de meest efficiënte is de Veelvraat Riem (tot 500 pods).",
+                "k": [
+                    "uitrusting",
+                    "sterkte",
+                    "beroepen",
+                    "vergroten",
+                    "tas",
+                    "draagbare",
+                    "gewicht",
+                    "doppen"
+                ],
+                "i": 36,
+                "ep": 1
+            },
+            "2": {
+                "c": 6,
+                "n": "De chat-balk",
+                "o": 0,
+                "a": "- Met het symbool + kun je het dialoogvenster groter maken. Met het symbool - breng je het venster terug naar het oorspronkelijke formaat.\n\n- Het stersymbool bevat de belangrijkste commando's om je tot je groep, je karakter of je gilde te richten. Door op Help te klikken, verschijnen alle commando's in het dialoogvenster.\n\n- Met de gekleurde symbolen kun je de berichten selecteren die je ontvangt.\n\n- Met het mondsymbook kun je emoticons afbeelden (smileys): sommige emoticons kun je verdienen door het voltooien van missies. Ga naar Wally Elconom in de bibliotheek van Amakna of naar Grizmine in de herberg van Amakna om meer te weten te komen.\n\n- Met het symbool Vriendenboekje kun je het venster Vriendenboekje openen. Om vrienden te maken, klik op het personage van een speler en dan op Toevoegen aan mijn vrienden\n\n- Met het gildesymbool open je het venster van je Gilde. Het is alleen actief als je lid bent van een Gilde.",
+                "k": [
+                    "Kikoo",
+                    "Vrienden",
+                    "Gilde",
+                    "Chat"
+                ],
+                "i": 2,
+                "ep": 1
+            },
+            "5": {
+                "c": 6,
+                "n": "Chat-commando's",
+                "o": 1,
+                "a": "De belangrijkste commando's die je moet kennen om makkelijk te communceren met andere spelers zijn:\n\n<strong>/w</strong> (of <strong>/msg</strong> of <strong>/whispe</strong>) Naam-speler stuurt een persoonlijk bericht.\n<strong>/t message</strong> stuurt het bericht enkel bestemd voor het team\n<strong>/g message</strong> stuurt het bericht aan de gilde.\n<strong>/p message</strong> stuurt het bericht aan de groep.\n<strong>/a message</strong> stuurt het bericht in de karakter-chat. Hiervoor moet je rang moet hoger zijn dan 3.\n\nJe hebt al wat om je in het avontuur te storten, maar voor degene die verder zijn, zijn er zat andere commando's die je van pas kunnen komen naarmate je zult vorderen. Hieronder volgen wat voorbeelden\n\n<strong>/invite Nom-joueur</strong> nodigt de speler uit om bij je groep te komen. Onmisbaar voor aanslagen op machtige monsters!\n<strong>/away</strong> activeert of deactiveert de modus \"afwezig\". Als je deze modus activeert, ontvang je geen berichten en ook een uitnodigingen.\n<strong>/invisible</strong> heeft hetzelfde effect als /away behalve dat de spelers van je vriendenlijst wel contact met je kunnen opnemen.\n<strong>/help</strong> laatDe belangrijkste commando's die je moet kennen om makkelijk te communceren met andere spelers zijn:\n\n<strong>/w</strong> (of <strong>/msg</strong> of <strong>/whispe</strong>) Naam-speler stuurt een persoonlijk bericht.\n<strong>/t message</strong> stuurt het bericht enkel bestemd voor het team\n<strong>/g message</strong> stuurt het bericht aan de gilde.\n<strong>/p message</strong> stuurt het bericht aan de groep.\n<strong>/a message</strong> stuurt het bericht in de karakter-chat. Hiervoor moet je rang moet hoger zijn dan 3.\n\nJe hebt al wat om je in het avontuur te storten, maar voor degene die verder zijn, zijn er zat andere commando's die je van pas kunnen komen naarmate je zult vorderen. Hieronder volgen wat voorbeelden\n\n<strong>/invite Nom-joueur</strong> nodigt de speler uit om bij je groep te komen. Onmisbaar voor aanslagen op machtige monsters!\n<strong>/away</strong> activeert of deactiveert de modus \"afwezig\". Als je deze modus activeert, ontvang je geen berichten en ook een uitnodigingen.\n<strong>/invisible</strong> heeft hetzelfde effect als /away behalve dat de spelers van je vriendenlijst wel contact met je kunnen opnemen.\n<strong>/help</strong> laat de lijst verschijnen met commando's van het spel, voor als je het even niet meer weet.\n\n<strong>Que l'astuce soit avec toi ! :</strong> Als je een persoonlijk bericht wilt sturen aan een speler die op dezelfde kaart is als jij en een dubbele naam heeft: xXx_LabelleHerséphine_xXx, typ je enkel  \"/w\" gevolgd door de eerste letters van je pseudonaam. Als je dan \"Ctrl + pijltje rechts\" indrukt, volgt automatisch de rest van je pseudonaam.  de lijst verschijnen met commando's van het spel, voor als je het even niet meer weet.\n\n<strong>Que l'astuce soit avec toi ! :</strong> Als je een persoonlijk bericht wilt sturen aan een speler die op dezelfde kaart is als jij en een dubbele naam heeft: xXx_LabelleHerséphine_xXx, typ je enkel  \"/w\" gevolgd door de eerste letters van je pseudonaam. Als je dan \"Ctrl + pijltje rechts\" indrukt, volgt automatisch de rest van je pseudonaam. .",
+                "k": [
+                    "snelkoppelingen",
+                    "Chat",
+                    "Commando's"
+                ],
+                "i": 5,
+                "ep": 1
+            },
+            "1": {
+                "c": 6,
+                "n": "Communiceren met NPCs en PCs",
+                "o": 2,
+                "a": "Een NPC (Non Playable Character), is een personage van wie de handelwijze vastgelegd is door de ontwerpers van DOFUS. Met de NPCs kun je een beroep leren, verkopen, kopen op ruilen van voorwerpen of middelen. Sommigen vertrouwen je missies toe: als je een beginneling bent, mis dan niet de missies van de stad in Astrub. Je kunt met een NPC praten door er gewoon op te klikken: in het dialoogvenster zie je dan welke interacties mogelijk zijn.\n\nEen PC is een Playable Character. Je kunt met PCs communiceren als je op dezelfde kaart bent door de chatbalk te gebruiken.",
+                "k": [
+                    "Chat",
+                    "PC",
+                    "NPC"
+                ],
+                "i": 1,
+                "ep": 1
+            }
+        },
+        "KBT": {
+            "1": {
+                "i": 1,
+                "c": "Deze interface laat je je Vriendenlijst beheren en laat je zien of ze online zijn.",
+                "l": 1
+            },
+            "2": {
+                "i": 2,
+                "c": "Klik op de <a href=\"asfunction:onHref,PictoIndicator,-1,1030\">kaart verwissel knop</a> als je wilt wisselen van kaart.",
+                "l": 55
+            },
+            "3": {
+                "i": 3,
+                "c": "Klik op een <a href=\"asfunction:onHref,SpriteIndicator,-1,9059\">Non Playable Character</a> (NPC) als je met ze wilt praten of interactie wilt hebben.",
+                "l": 1
+            },
+            "4": {
+                "i": 4,
+                "c": "Klik op een  <a href=\"asfunction:onHref,SpriteIndicator,-1,1219\">monster</a> als je een gevecht wilt starten.",
+                "l": 10
+            },
+            "5": {
+                "i": 5,
+                "c": "Klik op een rood blokje om je startpositie te kiezen.\nKlik dan op de <a href=\"asfunction:onHref,UiIndicator,ChallengeMenu,_lblReady\">\"Klaar\"</a> knop.",
+                "l": 10
+            },
+            "7": {
+                "i": 7,
+                "c": "<a href=\"asfunction:onHref,UiIndicator,Banner,_pvMP\">Bewegingspunten</a> (MP) laten je bewegen in een gevecht.",
+                "l": 10
+            },
+            "8": {
+                "i": 8,
+                "c": "<a href=\"asfunction:onHref,UiIndicator,Banner,_pvAP\">Actiepunten</a> (AP) laten je <a href=\"asfunction:onHref,UiIndicator,Banner,_msShortcuts,_ctr1\">spreuken</a> oproepen of <a href=\"asfunction:onHref,UiIndicator,Banner,_msShortcuts,_ctrCC\">close combat aanvallen</a> starten.\nAls je klaar bent met je beurt, vergeet dan niet om op de <a href=\"asfunction:onHref,UiIndicator,Banner,_btnNextTurn\">\"Eind van de beurt\" knop</a> te drukken.",
+                "l": 10
+            },
+            "11": {
+                "i": 11,
+                "c": "Je krijgt je <a href=\"asfunction:onHref,UiIndicator,Banner,_hHeart\">Levenspunten</a> (HP) weer door de \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnSitDown\">zitten</a>\" emoticon te gebruiken, brood te eten, potions te drinken drinking of een <a href=\"asfunction:onHref,PictoIndicator,-1,7004\">fontein van de jeugd</a> te gebruiken.",
+                "l": 11
+            },
+            "12": {
+                "i": 12,
+                "c": "Aan het einde van elk gevecht zal een tabel je de details weergeven van alle voorwerpen en ervaring die je hebt opgedaan.",
+                "l": 10
+            },
+            "13": {
+                "i": 13,
+                "c": "Als je een gevecht verliest, zul je geteleporteerd worden naar je laatste opgeslagen punt.",
+                "l": 23
+            },
+            "14": {
+                "i": 14,
+                "c": "Als je geen energie meer over hebt, zul je in een geest veranderen. Als je terug tot leven wilt worden gebracht moet je enkel een Phoenix standbeeld vinden.\nOpen je <a href=\"asfunction:onHref,UiIndicator,Banner,_btnMap\">kaart</a> om te zien waar de Phoenix standbeelden zijn.",
+                "l": 23
+            },
+            "15": {
+                "i": 15,
+                "c": "<a href=\"asfunction:onHref,PictoIndicator,-1,7000\">Zaaps</a> geeft je de mogelijkheid om je positie op te slaan en te reizen tussen de verschillende <a href=\"asfunction:onHref,PictoIndicator,-1,7000\">Zaaps</a> waar je karakter al is geweest.",
+                "l": 46
+            },
+            "16": {
+                "i": 16,
+                "c": "Als je goederen wilt kunnen verzamelen, moet je je beroep oefenen, het adequate level hebben en het juiste gereedschap hebben.",
+                "l": 44
+            },
+            "17": {
+                "i": 17,
+                "c": "Klik op de arend Ganymede om met hem te praten.\n\nHet uitroepteken boven zijn hoofd betekend dat hij je een missie aan kan bieden.",
+                "l": 1
+            },
+            "18": {
+                "i": 18,
+                "c": "Als je een level omhoog gaat krijg je een nieuwe spreuk.\n\nOm het te gebruiken, open je <a href=\"asfunction:onHref,UiIndicator,Banner,_bntSpells\">Boek der Spreuken</a> en verplaats het naar je <a href=\"asfunction:onHref,UiIndicator,Banner,_msShortcuts,_ctr4\">Spreukbalk</a>.",
+                "l": 18
+            },
+            "19": {
+                "i": 19,
+                "c": "Je karakter is zojuist een level omhoog gegaan.\nJe kunt nu de <a href=\"asfunction:onHref,UiIndicator,Banner,_btnStatsJob\">karakteristieke punten</a> en de  <a href=\"asfunction:onHref,UiIndicator,Banner,_btnSpells\">Spreukpunten</a> verdelen.",
+                "l": 27
+            },
+            "20": {
+                "i": 20,
+                "c": "Als je het juiste beroep en gereedschap hebt, kun je de goederen verzamelen.",
+                "l": 44
+            },
+            "21": {
+                "i": 21,
+                "c": "Sommige <a href=\"asfunction:onHref,SpriteIndicator,-1,9037\">Non Playable Characters</a> (NPC) kunnen je beroepen leren, aarzel niet om met ze te praten.",
+                "l": 44
+            },
+            "22": {
+                "i": 22,
+                "c": "Cursussen zullen het mogelijk maken voor je om gereedschappen en machines te gebruiken om voorwerpen te verwerken.",
+                "l": 45
+            },
+            "23": {
+                "i": 23,
+                "c": "<a href=\"asfunction:onHref,SpriteIndicator,-1,9059\">Non Playable Characters </a> (NPC) met een groen uitroepteken boven hun hoofd kunnen je missies geven om te doen.\nAarzel niet om met ze te praten voor meer details.",
+                "l": 1
+            },
+            "24": {
+                "i": 24,
+                "c": "Je kunt al je levenspunten herstellen door te drinken bij de fontein van de jeugd. Karakters van level 15 en hoger kunnen ze niet gebruiken.",
+                "l": 11
+            },
+            "25": {
+                "i": 25,
+                "c": "Klik op je <a href=\"asfunction:onHref,SpriteIndicator,-1,53\">grafsteen</a> om je geest vrij te laten als je niet op de priester wilt wachten om je te herrijzen.",
+                "l": 23
+            },
+            "26": {
+                "i": 26,
+                "c": "Je hebt een nieuw opgeslagen punt. Als je karakter dood gaat, zul je geteleporteerd worden naar dit punt.",
+                "l": 23
+            },
+            "27": {
+                "i": 27,
+                "c": "Deze interface laat je je <a href=\"asfunction:onHref,UiIndicator,Quests,_dgQuests,_lstList,_mcContent,row0\">quests</a> bekijken.\nJe kunt op en van je <a href=\"asfunction:onHref,UiIndicator,Quests,_dgQuests,_lstList,_mcContent,row0\">quests</a> klikken om de verschillende stappen daarvan te zien.",
+                "l": 60
+            },
+            "28": {
+                "i": 28,
+                "c": "Deze interface maakt het mogelijk je spreuken te zien en ze te verbeteren.\nJe kunt je spreuken van deze interface naar de <a href=\"asfunction:onHref,UiIndicator,Banner,_msShortcuts,_ctr4\">spreukenbalk</a> verplaatsen om ze makkelijker te kunnen gebruiken tijdens gevechten.",
+                "l": 58
+            },
+            "29": {
+                "i": 29,
+                "c": "Deze interface laat je de kaart van het gebied waar je karakter is zien.\nJe kunt de belangrijke plaatsen van je keuze laten zien door de verschillende <a href=\"asfunction:onHref,UiIndicator,MapExplorer,_mcFilter4\">filters</a> te zien.",
+                "l": 61
+            },
+            "30": {
+                "i": 30,
+                "c": "Deze interface laat je je karakteristieke punten zien en verdelen.\nJe kunt ook je ervaring (XP) en energiepunten zien.",
+                "l": 31
+            },
+            "31": {
+                "i": 31,
+                "c": "Deze interface laat je de stappen in je quest zien. \nKlik op een <a href=\"asfunction:onHref,UiIndicator,Quests,_mcTab,_lstObjectives\">stap</a> met een compas ernaast om te zien waar je naartoe moet gaan.",
+                "l": 60
+            },
+            "32": {
+                "i": 32,
+                "c": "Als je vermoed dat de veiligheid van je account is gecomprimeerd is kun je de tijd van de laatste connectie en het IP-adres wat er op zat controleren.",
+                "l": 65
+            },
+            "33": {
+                "i": 33,
+                "c": "Je Verzamelaar is verlegen: tussen twee verzamelingen moet je hem een uur laten rusten voor elk level van je guild.",
+                "l": 63
+            },
+            "34": {
+                "i": 34,
+                "c": "Je kunt je beurt overslaan door gebruik te maken van de <a href=\"asfunction:onHref,UiIndicator,Banner,_btnNextTurn\">\"Einde van de beurt\" knop</a>.",
+                "l": 10
+            },
+            "35": {
+                "i": 35,
+                "c": "Als je je vrienden wilt vinden, voeg ze dan toe aan je <a href=\"asfunction:onHref,UiIndicator,Banner,_btnFriends\">Vriendenlijst</a>. Als je vrienden online zijn, kun je je naar ze toe teleporteren door op hun naam te klikken.",
+                "l": 1
+            }
+        },
+        "KBD": {
+            "1": {
+                "t": 2,
+                "v": "Friends",
+                "d": 1
+            },
+            "13": {
+                "t": 2,
+                "v": "StatsJob",
+                "d": 30
+            },
+            "4": {
+                "t": 1,
+                "v": [
+                    10302
+                ],
+                "d": 21
+            },
+            "10": {
+                "t": 1,
+                "v": [
+                    10258
+                ],
+                "d": 11
+            },
+            "2": {
+                "t": 1,
+                "v": [
+                    10285,
+                    10289,
+                    10294,
+                    10300,
+                    10299,
+                    10298,
+                    10296,
+                    10292,
+                    10284,
+                    10283,
+                    10279,
+                    10276
+                ],
+                "d": 3
+            },
+            "6": {
+                "t": 1,
+                "v": [
+                    10355
+                ],
+                "d": 22
+            },
+            "3": {
+                "t": 1,
+                "v": [
+                    10324,
+                    10325,
+                    10327,
+                    10331,
+                    10330,
+                    10329,
+                    10328,
+                    10326,
+                    10323,
+                    10322,
+                    10321,
+                    10305
+                ],
+                "d": 23
+            },
+            "5": {
+                "t": 1,
+                "v": [
+                    10349,
+                    10317,
+                    10304,
+                    10297
+                ],
+                "d": 15
+            },
+            "12": {
+                "t": 2,
+                "v": "Quests",
+                "d": 27
+            },
+            "14": {
+                "t": 2,
+                "v": "MapExplorer",
+                "d": 29
+            },
+            "15": {
+                "t": 2,
+                "v": "Spells",
+                "d": 28
+            },
+            "16": {
+                "t": 1,
+                "v": [
+                    10295
+                ],
+                "d": 35
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 468,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "KBC",
+            "KBA",
+            "KBT",
+            "KBD",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

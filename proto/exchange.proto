@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package dofus;
 
-option go_package = "dofus/proto";
 
 // ============================================================================
 // EXCHANGE PROTOCOL (E prefix) - Trading, crafting, shops, big store

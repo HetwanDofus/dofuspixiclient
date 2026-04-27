@@ -150,6 +150,7 @@ class ExtractSpriteMetadataCommand extends Command
 
         $colorZones = []; // zone => [hex colors]
         $animations = [];
+        $applyEndFrames = []; // animName => frame index (0-based) where GAC.applyEnd fires
         $converter = new Converter(subpixelStrokeWidth: false);
 
         // First pass: extract color zones from a single animation (staticR or first available)
@@ -177,6 +178,19 @@ class ExtractSpriteMetadataCommand extends Command
                 $animations[$animName] = $animFrames;
             }
 
+            // Independently scan the animation's inner timeline for the
+            // canonical `GAC.applyEnd(this)` call. That call routes
+            // through GlobalSpriteHandler.applyEnd → sequencer.onActionEnd
+            // (GlobalSpriteHandler.as:430) to advance the blocking
+            // setAnim sequencer step, which is what triggers spell
+            // visuals to launch (SpriteHandler.as:782 → 791
+            // addAction(20, addEffect)). Without this metadata the
+            // runtime can only fall back to the 1000ms Sequencer cap.
+            $applyEnd = $this->findApplyEndFrame($character);
+            if ($applyEnd !== null) {
+                $applyEndFrames[$animName] = $applyEnd;
+            }
+
             $ext->releaseIfOutOfMemory();
         }
 
@@ -192,12 +206,22 @@ class ExtractSpriteMetadataCommand extends Command
         // Get color mapping for this gfxId
         $colorMapping = self::COLOR_MAPPINGS[(string) $spriteId] ?? [1 => 1, 2 => 2, 3 => 3];
 
-        return [
+        $payload = [
             'gfxId' => $spriteId,
             'colorZones' => $colorZones,
             'colorMapping' => $colorMapping,
             'animations' => $animations,
         ];
+        if (!empty($applyEndFrames)) {
+            // 0-based inner-timeline frame indices. The runtime
+            // PlayerRenderer reads this map (sprite.gfxId + animName →
+            // frame index) and fires its one-shot completion callback
+            // when the playhead reaches that frame, instead of waiting
+            // for the last frame OR the 1000ms canonical Sequencer
+            // fallback. Per AS frame numbering, AS `frame_31` = index 30.
+            $payload['applyEndFrames'] = $applyEndFrames;
+        }
+        return $payload;
     }
 
     private function extractAnimation(
@@ -255,13 +279,22 @@ class ExtractSpriteMetadataCommand extends Command
                                 $b = $matrix ? round($matrix['r0'] ?? 0, 4) : 0;
                                 $c = $matrix ? round($matrix['r1'] ?? 0, 4) : 0;
                                 $d = $matrix ? round($matrix['sy'], 4) : 1;
-                                $frameData['accessories'][] = [
+                                $accEntry = [
                                     'slot' => $call['slot'],
                                     'depth' => $depth,
                                     'x' => $tx,
                                     'y' => $ty,
                                     'matrix' => [$a, $b, $c, $d, $tx, $ty],
                                 ];
+                                // `side` is the timeline frame name the accessory
+                                // MUST goto (e.g. "R", "L", "RR"). This is the only
+                                // authoritative source for shield/cape directional
+                                // overrides — the runtime truth table is a
+                                // guess that fails for rotated / asymmetric poses.
+                                if (isset($call['side'])) {
+                                    $accEntry['side'] = $call['side'];
+                                }
+                                $frameData['accessories'][] = $accEntry;
                             } elseif ($call['method'] === 'applyColor') {
                                 $partEntry['colorZone'] = $call['zone'];
                                 if ($extractColors) {
@@ -284,6 +317,83 @@ class ExtractSpriteMetadataCommand extends Command
             break; // Only process the first valid outer frame
         }
         return empty($allFrameData) ? null : $allFrameData;
+    }
+
+    /**
+     * Walk an exported animation's wrapper → inner timeline and find
+     * the FIRST inner frame whose `DoAction` calls `GAC.applyEnd(this)`.
+     *
+     * Returns 0-based frame index, or null if no applyEnd is present.
+     *
+     * Verified against canonical Feca (sprite 10):
+     *   anim1R wrapper chid 698 → inner DefineSprite_676 (69 frames)
+     *   frame_31/DoAction.as:  GAC.applyEnd(this);  → returns 30
+     */
+    private function findApplyEndFrame(SpriteDefinition $character): ?int
+    {
+        $timeline = $character->timeline();
+        $frames = $this->getFrames($timeline);
+        if (empty($frames)) return null;
+
+        // Wrapper sprite = exported anim symbol, usually a 1-frame
+        // PlaceObject2 of the actual inner timeline.
+        foreach ($frames as $frame) {
+            $objects = $this->getObjects($frame);
+            if (empty($objects)) continue;
+            $wrapperObj = reset($objects);
+            $innerSprite = $this->getChildObject($wrapperObj);
+            if (!($innerSprite instanceof SpriteDefinition)) continue;
+
+            $innerTimeline = $innerSprite->timeline();
+            $innerFrames = $this->getFrames($innerTimeline);
+            if (empty($innerFrames)) continue;
+
+            foreach ($innerFrames as $innerFrameIdx => $innerFrame) {
+                if ($this->frameCallsApplyEnd($innerFrame)) {
+                    return $innerFrameIdx;
+                }
+            }
+            // Only consider the first valid wrapper; mirrors
+            // extractAnimation's `break;` after the first wrapper.
+            break;
+        }
+        return null;
+    }
+
+    /**
+     * Inspect a single timeline frame's DoAction tags for the bytecode
+     * sequence `... ActionPush "applyEnd" ... ActionCallMethod ...`.
+     * Same pattern parseGacCalls uses to detect `applyAccessory` /
+     * `applyColor` — we only need the call-name match, not the args.
+     */
+    private function frameCallsApplyEnd($frame): bool
+    {
+        $actions = $this->getActions($frame);
+        if (empty($actions)) return false;
+
+        foreach ($actions as $tag) {
+            $records = $this->getActionRecords($tag);
+            $pushStack = [];
+
+            foreach ($records as $rec) {
+                $opcode = $this->getOpcode($rec);
+                $data = $this->getData($rec);
+
+                if ($opcode === 'ActionPush' && is_array($data)) {
+                    foreach ($data as $v) {
+                        if (is_object($v)) {
+                            $pushStack[] = $this->getValueFromPush($v);
+                        }
+                    }
+                } elseif ($opcode === 'ActionCallMethod') {
+                    if (in_array('applyEnd', $pushStack, true)) {
+                        return true;
+                    }
+                    $pushStack = [];
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -325,8 +435,28 @@ class ExtractSpriteMetadataCommand extends Command
                                     break;
                                 }
                             }
+                            // Find side: first short non-empty string in stack that
+                            // isn't a GAC/method identifier. Dofus calls always pass
+                            // one of "R"/"L"/"F"/"B"/"S"/"WR"/"WL"/... as the third
+                            // arg, so we capture the shortest such string.
+                            $side = null;
+                            foreach ($pushStack as $v) {
+                                if (is_string($v)
+                                    && $v !== ''
+                                    && strlen($v) <= 3
+                                    && $v !== 'GAC'
+                                    && $v !== 'applyAccessory'
+                                    && $v !== 'applyColor') {
+                                    $side = $v;
+                                    break;
+                                }
+                            }
                             if ($slot !== null) {
-                                $calls[] = ['method' => 'applyAccessory', 'slot' => $slot];
+                                $call = ['method' => 'applyAccessory', 'slot' => $slot];
+                                if ($side !== null) {
+                                    $call['side'] = $side;
+                                }
+                                $calls[] = $call;
                             }
                         } elseif (in_array('applyColor', $pushStack)) {
                             // Zone is the FIRST value pushed (first element)

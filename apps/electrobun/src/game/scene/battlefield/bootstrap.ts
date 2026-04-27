@@ -8,6 +8,7 @@ import { AdjacentMapCache } from "@/game/assets/adjacent-map-cache";
 import { InteractionHandler } from "@/game/input/interaction-handler";
 import { AtlasLoader } from "@/game/render/atlas-loader";
 import { PickingSystem } from "@/game/render/picking-system";
+import { SpellVelloRenderer } from "@/game/render/spell-vello-renderer";
 import { MapTransition } from "@/game/scene/map/transition";
 import { DebugOverlay } from "@/game/scene/overlays/debug";
 import { GridOverlay } from "@/game/scene/overlays/grid";
@@ -45,8 +46,17 @@ export interface BattlefieldBootstrapContext {
   debugOverlay: DebugOverlay | null;
   gridOverlay: GridOverlay | null;
   sceneTickerCallback: (() => void) | null;
+  /**
+   * Shared Vello renderer for spell .dofasset files. Instantiated in
+   * `initPickingAndAtlas` and bound to the Vello WASM renderer in
+   * `wireVelloLoaders`; FightUI reads it when creating SpellRenderer
+   * so cast animations render through the same GPU pipeline as tiles
+   * and character sprites.
+   */
+  spellVelloRenderer: SpellVelloRenderer | null;
 
   handleGroundClick(mapX: number, mapY: number): void;
+  handleGroundHover(mapX: number, mapY: number): void;
 }
 
 /**
@@ -70,6 +80,13 @@ export async function initEngineAndVello(
   ctx.app = ctx.engine.getApp();
 
   ctx.mapContainer = new Container();
+  // mapContainer holds the full battlefield stack — tiles, world-actors,
+  // cell-highlights, grid, damage/spell-fx. Without sortableChildren the
+  // order would follow insertion (fight UI added last → on top of every
+  // sprite), which is the opposite of the original Dofus 1.29 layout
+  // where Zone (cell tints) sits between Object1 and Object2. Explicit
+  // zIndex on each layer child keeps the ordering deterministic.
+  ctx.mapContainer.sortableChildren = true;
   ctx.app.stage.addChild(ctx.mapContainer);
   ctx.mapTransition = new MapTransition(ctx.app, ctx.mapContainer);
 }
@@ -85,6 +102,10 @@ export function initPickingAndAtlas(ctx: BattlefieldBootstrapContext): void {
     ctx.app.screen.height
   );
   ctx.atlasLoader = new AtlasLoader(ctx.app.renderer, "/assets/spritesheets");
+  ctx.spellVelloRenderer = new SpellVelloRenderer(
+    ctx.app.renderer,
+    "/assets/spritesheets"
+  );
 }
 
 /**
@@ -109,7 +130,17 @@ export async function wireVelloLoaders(
     ctx.app.renderer,
     getMaxTextureSize()
   );
+  ctx.spellVelloRenderer?.setVelloRenderer(vello);
   ctx.adjacentMapCache = new AdjacentMapCache(ctx.atlasLoader);
+
+  // HUD spell-icon renderer uses the same Vello + Pixi handles to turn
+  // `/assets/dofassets/spells/icons/<sprite>.dofasset` into `<img>`-ready
+  // data URLs for the banner grid. Initialized here so the hook mounted by
+  // BannerReact can resolve URLs as soon as the battlefield finishes boot.
+  const { getSpellIconRenderer } = await import(
+    "@/game/render/spell-icon-renderer"
+  );
+  getSpellIconRenderer().init(vello, ctx.app.renderer);
 
   const spriteLoader = ctx.characterSpriteLoader;
   ctx.engine.debugInfo = () => {
@@ -149,6 +180,7 @@ export function initInteraction(ctx: BattlefieldBootstrapContext): void {
     onObjectClick: (result) => ctx.picking.onObjectClick(result),
     onObjectHover: (result) => ctx.picking.onObjectHover(result),
     onGroundClick: (mapX, mapY) => ctx.handleGroundClick(mapX, mapY),
+    onGroundHover: (mapX, mapY) => ctx.handleGroundHover(mapX, mapY),
   });
   ctx.interactionHandler.init();
   ctx.interactionHandler.setBaseZoom(ctx.engine.getBaseZoom());

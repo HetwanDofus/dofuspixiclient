@@ -50,7 +50,7 @@ export function getNeighbors(
   const neighbors: number[] = [];
   for (let dir = 0; dir < 8; dir++) {
     if (isValidDirection(row, col, isLong, dir, mapWidth, tRows)) {
-      neighbors.push(cellId + offsets[dir]);
+      neighbors.push(cellId + (offsets[dir] as number));
     }
   }
   return neighbors;

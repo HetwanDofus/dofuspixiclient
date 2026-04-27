@@ -1,0 +1,215 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "J": {
+            "1": {
+                "n": "-Grundwert-",
+                "s": 0,
+                "g": -1
+            },
+            "2": {
+                "n": "Holzfäller",
+                "s": 0,
+                "g": 1
+            },
+            "11": {
+                "n": "Schwertschmied",
+                "s": 0,
+                "g": 10
+            },
+            "13": {
+                "n": "Bogenschnitzer",
+                "s": 0,
+                "g": 6
+            },
+            "14": {
+                "n": "Hammerschmied",
+                "s": 0,
+                "g": 11
+            },
+            "15": {
+                "n": "Schuhmacher",
+                "s": 0,
+                "g": 5
+            },
+            "16": {
+                "n": "Juwelier",
+                "s": 0,
+                "g": 15
+            },
+            "17": {
+                "n": "Dolchschmied",
+                "s": 0,
+                "g": 9
+            },
+            "18": {
+                "n": "Steckenschnitzer",
+                "s": 0,
+                "g": 8
+            },
+            "19": {
+                "n": "Stabschnitzer",
+                "s": 0,
+                "g": 7
+            },
+            "20": {
+                "n": "Schaufelschmied",
+                "s": 0,
+                "g": 12
+            },
+            "24": {
+                "n": "Bergmann",
+                "s": 0,
+                "g": 13
+            },
+            "25": {
+                "n": "Bäcker",
+                "s": 0,
+                "g": 3
+            },
+            "26": {
+                "n": "Alchemist",
+                "s": 0,
+                "g": 14
+            },
+            "27": {
+                "n": "Schneider",
+                "s": 0,
+                "g": 20
+            },
+            "28": {
+                "n": "Bauer",
+                "s": 0,
+                "g": 18
+            },
+            "31": {
+                "n": "Axtschmied",
+                "s": 0,
+                "g": 19
+            },
+            "36": {
+                "n": "Fischer",
+                "s": 0,
+                "g": 30
+            },
+            "41": {
+                "n": "Jäger",
+                "s": 0,
+                "g": 32
+            },
+            "43": {
+                "n": "Schmiedmagier für Dolche",
+                "s": 17,
+                "g": 21
+            },
+            "44": {
+                "n": "Schmiedmagier für Schwerter",
+                "s": 11,
+                "g": 24
+            },
+            "45": {
+                "n": "Schmiedmagier für Hämmer",
+                "s": 14,
+                "g": 25
+            },
+            "46": {
+                "n": "Schmiedmagier für Schaufeln",
+                "s": 20,
+                "g": 26
+            },
+            "47": {
+                "n": "Schmiedmagier für Äxte",
+                "s": 31,
+                "g": 23
+            },
+            "48": {
+                "n": "Schnitzmagier für Bögen",
+                "s": 13,
+                "g": 28
+            },
+            "49": {
+                "n": "Schnitzmagier für Stäbe",
+                "s": 19,
+                "g": 29
+            },
+            "50": {
+                "n": "Schnitzmagier für Stecken",
+                "s": 18,
+                "g": 22
+            },
+            "56": {
+                "n": "Metzger",
+                "s": 0,
+                "g": 33
+            },
+            "58": {
+                "n": "Fischhändler",
+                "s": 0,
+                "g": 31
+            },
+            "60": {
+                "n": "Schildschmied",
+                "s": 0,
+                "g": 40
+            },
+            "62": {
+                "n": "Schuhmagier",
+                "s": 15,
+                "g": 36
+            },
+            "63": {
+                "n": "Schmuckmagier",
+                "s": 16,
+                "g": 37
+            },
+            "64": {
+                "n": "Kleidsamagier",
+                "s": 27,
+                "g": 35
+            },
+            "65": {
+                "n": "Bastler",
+                "s": 0,
+                "g": 34
+            },
+            "66": {
+                "n": "Gemmenmeister",
+                "s": 0,
+                "g": 0
+            },
+            "67": {
+                "n": "Juwelier",
+                "s": 0,
+                "g": 0
+            },
+            "70": {
+                "n": "Bauer",
+                "s": 0,
+                "g": 0
+            },
+            "71": {
+                "n": "Bauer",
+                "s": 0,
+                "g": 0
+            },
+            "72": {
+                "n": "Schneiden",
+                "s": 0,
+                "g": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 49,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "J",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

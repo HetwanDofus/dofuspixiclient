@@ -1,0 +1,200 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "R": {
+            "1": {
+                "n": "Capo",
+                "o": 1,
+                "i": 1
+            },
+            "2": {
+                "n": "Braccio Destro",
+                "o": 2,
+                "i": 2
+            },
+            "3": {
+                "n": "Tesoriere",
+                "o": 3,
+                "i": 3
+            },
+            "4": {
+                "n": "Protettore",
+                "o": 4,
+                "i": 4
+            },
+            "5": {
+                "n": "Artigiano",
+                "o": 5,
+                "i": 5
+            },
+            "6": {
+                "n": "Riservista",
+                "o": 6,
+                "i": 6
+            },
+            "8": {
+                "n": "Guardiano",
+                "o": 7,
+                "i": 8
+            },
+            "9": {
+                "n": "Esploratore",
+                "o": 8,
+                "i": 9
+            },
+            "10": {
+                "n": "Spia",
+                "o": 9,
+                "i": 10
+            },
+            "11": {
+                "n": "Diplomatico",
+                "o": 10,
+                "i": 11
+            },
+            "12": {
+                "n": "Segretario",
+                "o": 11,
+                "i": 12
+            },
+            "33": {
+                "n": "Ammazzafamigli",
+                "o": 82,
+                "i": 33
+            },
+            "31": {
+                "n": "Bracconiere",
+                "o": 84,
+                "i": 31
+            },
+            "30": {
+                "n": "Cercatore di tesori",
+                "o": 85,
+                "i": 30
+            },
+            "29": {
+                "n": "Ladro",
+                "o": 86,
+                "i": 29
+            },
+            "28": {
+                "n": "Iniziato",
+                "o": 87,
+                "i": 28
+            },
+            "27": {
+                "n": "Assassino",
+                "o": 88,
+                "i": 27
+            },
+            "26": {
+                "n": "Governatore",
+                "o": 89,
+                "i": 26
+            },
+            "25": {
+                "n": "Musa",
+                "o": 90,
+                "i": 25
+            },
+            "24": {
+                "n": "Consigliere",
+                "o": 91,
+                "i": 24
+            },
+            "23": {
+                "n": "Eletto",
+                "o": 92,
+                "i": 23
+            },
+            "21": {
+                "n": "Guida",
+                "o": 93,
+                "i": 21
+            },
+            "22": {
+                "n": "Mentore",
+                "o": 94,
+                "i": 22
+            },
+            "20": {
+                "n": "Reclutatore",
+                "o": 95,
+                "i": 20
+            },
+            "19": {
+                "n": "Allevatore",
+                "o": 96,
+                "i": 19
+            },
+            "18": {
+                "n": "Mercante",
+                "o": 97,
+                "i": 18
+            },
+            "17": {
+                "n": "Apprendista",
+                "o": 98,
+                "i": 17
+            },
+            "16": {
+                "n": "Boia",
+                "o": 100,
+                "i": 16
+            },
+            "34": {
+                "n": "Mascotte",
+                "o": 103,
+                "i": 34
+            },
+            "13": {
+                "n": "Penitente",
+                "o": 104,
+                "i": 13
+            },
+            "35": {
+                "n": "Assassino di Percettori",
+                "o": 105,
+                "i": 35
+            },
+            "15": {
+                "n": "Disertore",
+                "o": 110,
+                "i": 15
+            },
+            "32": {
+                "n": "Traditore",
+                "o": 120,
+                "i": 32
+            },
+            "14": {
+                "n": "Imbranato",
+                "o": 150,
+                "i": 14
+            },
+            "7": {
+                "n": "Domestico",
+                "o": 200,
+                "i": 7
+            },
+            "0": {
+                "n": "In prova",
+                "o": 999,
+                "i": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 49,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "R",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

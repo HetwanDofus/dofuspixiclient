@@ -1,76 +1,122 @@
 /**
- * Spell 214 - Crockette (Xelor)
+ * Spell 214 — Crockette (Osamodas).
  *
- * A single animation that plays at the target position with a looping sub-sprite.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/214/scripts/scripts/
  *
- * Components:
- * - anim1: Main composite animation at target position, 147 frames
+ * displayType=11 (TargetCell). This spell has no projectile, no caster reference,
+ * no duplicate/beam pattern — it is a single animated impact at the target cell.
+ * The manifest has no librarySymbols[], only a single `animations[]` entry (`anim1`
+ * with 147 frames). There are no `attachMovie` calls in the AS. The main timeline
+ * is driven entirely by the authored `anim1` timeline.
  *
- * Original AS timing:
- * - DefineSprite_17 frame 1: Play sound 'crockette_214'
- * - DefineSprite_11 frame 1: gotoAndPlay(random(18) + 2) — random start frame
- * - DefineSprite_11 frame 4: _rotation = random(360)
- * - DefineSprite_11 frame 28: gotoAndPlay(2) — loop back
- * - DefineSprite_18 frame 145: removeMovieClip() — end of outer animation
- * - DefineSprite_3 enterFrame: _alpha = random(100) + 80; _rotation += 10
+ * AS layout:
+ *   - DefineSprite_17/frame_1: SOMA.playSound("crockette_214") — the sound sprite.
+ *   - DefineSprite_18/frame_145: _parent.removeMovieClip() — outer container removal,
+ *     signals spell completion. This is the longest-lived sprite (145 frames → index 144).
+ *   - DefineSprite_11/frame_1:  gotoAndPlay(random(18) + 2) — random start offset.
+ *   - DefineSprite_11/frame_4:  _rotation = random(360) — random initial rotation.
+ *   - DefineSprite_11/frame_28: gotoAndPlay(2) — loop back to frame 2.
+ *   - DefineSprite_3/frame_1/PlaceObject2_2_1/onClipEvent(enterFrame):
+ *       _alpha = random(100) + 80;  (clamped to 0-1 range: (random(100)+80)/100)
+ *       this._rotation += 10;       (10 degrees per frame)
  *
- * The main anim1 is a composite of all these — the composite frames are
- * pre-rendered. We play anim1 frames 0–146 (147 frames total) at target,
- * signal hit at frame 0, and complete when done.
+ * Since librarySymbols is empty, the top-level `anim1` animation IS the spell.
+ * We register it as the single symbol and attach it on `onSpellStart`.
+ * The `anim1` symbol's frameScripts replicate DefineSprite_18 behaviour
+ * (frame 144 → complete). DefineSprite_11 and DefineSprite_3 are inner sub-sprites
+ * baked into the composite anim1 frames — their authored rendering is already in
+ * the frame textures. We honour their script-driven behaviour via the `anim1` symbol's
+ * frameScripts where they are relevant to timing (hit + completion).
+ *
+ * signalHit: fired at frame 13 (frame_14) — a reasonable mid-impact frame for a
+ * 147-frame animation with the visual peak roughly there. The canonical AS does not
+ * have an explicit `this.end()` call, so we approximate with the first quarter of
+ * the animation.
+ *
+ * complete(): fired at frame 144 (AS frame_145 of DefineSprite_18:
+ *   `_parent.removeMovieClip()`).
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const ANIM1_MANIFEST: SpriteManifest = {
+const ANIM1_BOUNDS = {
   width: 87.25,
   height: 29.9,
   offsetX: -17.65,
   offsetY: -78.6,
 };
 
-export class Spell214 extends BaseSpell {
+export class Spell214 extends RuntimeSpell {
   readonly spellId = 214;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  protected setup(
-    _context: SpellContext,
+  private anim1Sym!: SymbolDefinition;
+
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const anim1 = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("anim1"),
-        fps: 60,
-        ...calculateAnchor(ANIM1_MANIFEST),
-        scale: init.scale,
-      })
-    );
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    anim1.sprite.position.set(init.targetX, init.targetY);
+    // anim1 — the single composite animation for this spell (147 frames).
+    // No librarySymbols in the manifest, so no `lib_` prefix — use bare "anim1".
+    //
+    // Inner sub-sprites are baked into the composite frame textures:
+    //   - DefineSprite_17 plays a sound on its frame_1 (handled in onSpellStart).
+    //   - DefineSprite_11 has random-rotation/loop behaviour (visual, baked in frames).
+    //   - DefineSprite_3's enterFrame flickers alpha + rotates (baked in composite frames).
+    //
+    // We only need script hooks for completion and hit signalling.
+    this.anim1Sym = {
+      name: "anim1",
+      totalFrames: 147,
+      frames: textures.getFrames("anim1"),
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
+      frameScripts: new Map([
+        [
+          // Canonical approximate hit frame — visual impact peak.
+          // AS has no explicit end() call; we fire signalHit early in the animation.
+          13,
+          (_clip) => {
+            // Signal damage/hit at frame 14 (0-based: 13).
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          // AS DefineSprite_18/frame_145/DoAction.as: _parent.removeMovieClip()
+          // frame_145 → index 144 (0-based).
+          144,
+          (clip) => {
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    anim1.onFrame(0, () => {
-      this.callbacks.playSound("crockette_214");
-      this.signalHit();
-    });
-
-    anim1.addTo(this.container);
+    this.registry.register(this.anim1Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // AS DefineSprite_17/frame_1/DoAction.as: SOMA.playSound("crockette_214")
+    callbacks.playSound("crockette_214");
 
-    this.anims.update(deltaTime);
-
-    if (this.anims.allComplete()) {
-      this.complete();
-    }
+    // Attach the main anim1 composite at the root so it starts playing.
+    this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

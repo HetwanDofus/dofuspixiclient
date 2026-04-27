@@ -1,349 +1,273 @@
 /**
- * Spell 1055 - Vlad (Sadida)
+ * Spell 1055 — Vlad (unknown class, likely Sram/Xelor based on sound "vlad_804").
  *
- * Two sprite_8 animations play simultaneously: one at cellFrom, one at cellTo.
- * At frame 4 of each sprite_8, 10 "spire" particle instances are spawned
- * and a sound plays. Each spire rises upward and fades out.
- * sprite_9 plays at both positions, signaling hit at frame 10.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/1055/scripts/scripts/
  *
- * Components:
- * - sprite_8 (at cellFrom): Plays sound at frame 4, spawns 10 spires, stops at frame 115
- * - sprite_8 (at cellTo): Spawns 10 spires, stops at frame 115
- * - sprite_9 (at cellFrom): Signals hit at frame 10, completes at frame 27
- * - sprite_9 (at cellTo): Signals hit at frame 10, completes at frame 27
- * - 20 total spire particles (10 per location), rising and fading
+ * displayType=50 (WorldAbsolute). Two parallel authored timelines placed on the
+ * main timeline frame_2: sprite_8 (117-frame, caster-anchored spire burst with
+ * particle system) and sprite_9 (27-frame, target-anchored impact). Both position
+ * themselves via _parent.cellFrom / _parent.cellTo on their onLoad events,
+ * which is the canonical WorldAbsolute pattern.
  *
- * Original AS timing:
- * - Main frame 2: stop() - two sprite_8 instances placed
- * - sprite_8 frame 4: playSound('vlad_804'), spawn 10 spires at _X, _Y - random(50)
- * - sprite_9 frame 10: this.end() (signal hit)
- * - sprite_8 frame 115: removeMovieClip()
+ * Library symbols:
+ *   - lib_spire — single-frame upward-drifting spike particle. onLoad seeds va
+ *     (alpha decay rate), alpha, scale, velocity v, and frame variant (1 or 2
+ *     based on parent.c parity). onEnterFrame scales up, drifts upward with
+ *     friction, fades alpha; removes parent when alpha < 0.
  *
- * Spire physics (per enterFrame):
- * - _yscale *= 1.02
- * - _Y -= (v *= 0.97)
- * - _alpha -= va
- * - dies when _alpha < 0
+ * Main timeline (frame_2/DoAction.as): stop(). Two clips (sprite_8 at depth 1,
+ * sprite_9 at depth 6) are placed on the main timeline with onLoad positioning.
+ *
+ * sprite_8 (DefineSprite_8):
+ *   - frame_4/PlaceObject2_7_4/onClipEvent(load): spawns 10 spire particles
+ *     at self's position with random Y offsets, copies rotation.
+ *   - frame_4/DoAction.as: plays sound "vlad_804".
+ *   - frame_115/DoAction.as: _parent.removeMovieClip() → spell complete.
+ *
+ * sprite_9 (DefineSprite_9):
+ *   - frame_10/DoAction.as: this.end() → signalHit.
+ *
+ * Both sprite_8 and sprite_9 only appear in animations[] (not librarySymbols[]),
+ * so their texture keys have NO lib_ prefix. lib_spire is in librarySymbols[] so
+ * it uses the lib_ prefix.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Container, Sprite, Texture } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const SPRITE_8_MANIFEST: SpriteManifest = {
-  width: 51.8,
-  height: 207.35,
-  offsetX: -27.45,
-  offsetY: -182.45,
-};
-
-const SPIRE_MANIFEST: SpriteManifest = {
+const SPIRE_BOUNDS = {
   width: 12.65,
   height: 23.8,
   offsetX: -6.05,
   offsetY: -11.9,
 };
 
-interface SpireParticle {
-  sprite: Sprite;
-  x: number;
-  y: number;
-  xscale: number;
-  yscale: number;
-  /** AS _alpha value (0-100 range) */
-  alpha: number;
-  va: number;
-  v: number;
-  alive: boolean;
-}
-
-export class Spell1055 extends BaseSpell {
+export class Spell1055 extends RuntimeSpell {
   readonly spellId = 1055;
+  readonly displayType = SpellDisplayType.WorldAbsolute;
 
-  private spireTextures: Texture[] = [];
-  private spireAnchorX = 0.5;
-  private spireAnchorY = 0.5;
-  private spireScale = 1;
+  private sprite8Sym!: SymbolDefinition;
+  private sprite9Sym!: SymbolDefinition;
+  private spireSym!: SymbolDefinition;
 
-  private spireContainer1!: Container;
-  private spireContainer2!: Container;
-  private spires1: SpireParticle[] = [];
-  private spires2: SpireParticle[] = [];
-
-  private sprite8_1!: FrameAnimatedSprite;
-  private sprite8_2!: FrameAnimatedSprite;
-  private sprite9_1!: FrameAnimatedSprite;
-  private sprite9_2!: FrameAnimatedSprite;
-
-  protected setup(
-    context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    this.spireScale = init.scale;
+    const spireAnchor = calculateAnchor(SPIRE_BOUNDS);
 
-    // Preload spire textures (sprite_2 has 2 frames used by spire library symbol)
-    this.spireTextures = textures.getFrames("sprite_2");
+    // ---- lib_spire — upward-drifting spike particle ---------------
+    // AS: DefineSprite_3_spire/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
+    // AS: DefineSprite_3_spire/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    this.spireSym = {
+      name: "spire",
+      totalFrames: 2,
+      frames: textures.getFrames("lib_spire"),
+      anchorX: spireAnchor.x,
+      anchorY: spireAnchor.y,
+      onLoad: (clip) => {
+        // AS onClipEvent(load):
+        //   va = 1 + random(2.5)  → random(2.5) in AS = Math.floor(Math.random() * 2.5) = 0 or 1
+        //   _alpha = 50 + random(50)
+        //   _yscale = 80
+        //   _xscale = 80 + random(80)
+        //   v = 0.67 + 1.67 * Math.random()
+        //   if (_parent.c % 2 == 0) gotoAndStop(2) else gotoAndStop(1)
+        clip.vars.va = 1 + Math.floor(Math.random() * 2.5);
+        clip.alpha = (50 + Math.floor(Math.random() * 50)) / 100;
+        clip.scaleY = 80 / 100;
+        clip.scaleX = (80 + Math.floor(Math.random() * 80)) / 100;
+        clip.vars.v = 0.67 + 1.67 * Math.random();
+        const parentC = (clip.parent?.vars.c as number) ?? 1;
+        if (parentC % 2 === 0) {
+          clip.gotoAndStop(1); // AS gotoAndStop(2) → 0-based index 1
+        } else {
+          clip.gotoAndStop(0); // AS gotoAndStop(1) → 0-based index 0
+        }
+      },
+      onEnterFrame: (clip) => {
+        // AS onClipEvent(enterFrame):
+        //   _yscale = _yscale * 1.02
+        //   _Y = _Y - (v *= 0.97)
+        //   _alpha = _alpha - va
+        //   if (_alpha < 0) _parent.removeMovieClip()
+        clip.scaleY = clip.scaleY * 1.02;
+        let v = clip.vars.v as number;
+        v *= 0.97;
+        clip.vars.v = v;
+        clip.y -= v;
+        const va = clip.vars.va as number;
+        const newAlpha = clip.alpha * 100 - va;
+        clip.alpha = newAlpha / 100;
+        if (newAlpha < 0) {
+          clip.parent?.remove();
+        }
+      },
+    };
 
-    const spireAnchor = calculateAnchor(SPIRE_MANIFEST);
-    this.spireAnchorX = spireAnchor.x;
-    this.spireAnchorY = spireAnchor.y;
+    // ---- sprite_8 — caster-side 117-frame timeline ---------------
+    // Positions itself at cellFrom on load.
+    // frame_4: spawns 10 spire particles + plays sound.
+    // frame_115: _parent.removeMovieClip() → spell complete.
+    this.sprite8Sym = {
+      name: "sprite_8",
+      totalFrames: 117,
+      frames: textures.getFrames("sprite_8"),
+      anchorX: calculateAnchor({
+        width: 51.8,
+        height: 207.35,
+        offsetX: -27.45,
+        offsetY: -182.45,
+      }).x,
+      anchorY: calculateAnchor({
+        width: 51.8,
+        height: 207.35,
+        offsetX: -27.45,
+        offsetY: -182.45,
+      }).y,
+      onLoad: (clip) => {
+        // AS frame_2/PlaceObject2_8_1/CLIPACTIONRECORD onClipEvent(load).as:
+        //   _X = _parent.cellFrom.x
+        //   _Y = _parent.cellFrom.y
+        const root = clip.parent;
+        const cellFrom = root?.vars.cellFrom as { x: number; y: number } | undefined;
+        if (cellFrom) {
+          clip.x = cellFrom.x;
+          clip.y = cellFrom.y;
+        }
+      },
+      frameScripts: new Map([
+        [
+          3,
+          (clip, ctx) => {
+            // AS DefineSprite_8/frame_4/PlaceObject2_7_4/CLIPACTIONRECORD onClipEvent(load).as
+            // and DefineSprite_8/frame_4/DoAction.as
+            //
+            // The PlaceObject at frame_4 places a child MC at depth 4 (PlaceObject2_7_4),
+            // whose onClipEvent(load) spawns 10 spire particles inside it using
+            // eval("spire" + c) references (i.e. attaching to that child MC).
+            // We model this by creating an intermediate container "spireContainer" and
+            // attaching the spire children to it; the container inherits the clip's
+            // position/rotation so eval("spire"+c)._x = _X etc. works correctly.
+            //
+            // The PlaceObject child itself is positioned at clip._X, clip._Y with
+            // clip._rotation from the authored SWF — since sprite_8 was placed at
+            // cellFrom in onLoad, the container's position is already the right
+            // world position. The spires are attached TO the container at offsets
+            // relative to the container (eval("spire"+c)._y = _Y - random(50) means
+            // relative to the container's own registration, so Y offset = -random(50)).
+            //
+            // AS: c = 1; while (c <= 10) { attachMovie("spire","spire"+c,c); ... c++ }
+            // Note: loop is 1-based c <= 10 (10 iterations)
+            const containerSym: SymbolDefinition = {
+              name: "_spireContainer",
+              totalFrames: 1,
+              frames: [],
+              anchorX: 0.5,
+              anchorY: 0.5,
+              onLoad: (container, innerCtx) => {
+                // AS DefineSprite_8/frame_4/PlaceObject2_7_4/CLIPACTIONRECORD onClipEvent(load).as:
+                //   c = 1; while (c <= 10) { attachMovie("spire","spire"+c, c); set props; c++ }
+                // eval("spire"+c)._x = _X and _y = _Y - random(50) are in the CONTAINER's
+                // local coord space (_X/_Y of the PlaceObject MC, which is 0,0 locally).
+                // _rotation = _rotation means copy the container's rotation.
+                for (let c = 1; c <= 10; c++) {
+                  const spireChild = container.attach(
+                    this.spireSym,
+                    `spire${c}`,
+                    c,
+                    innerCtx,
+                  );
+                  spireChild.x = 0; // eval("spire"+c)._x = _X (container's local X = 0)
+                  spireChild.y = 0 - Math.floor(Math.random() * 50); // _Y - random(50)
+                  spireChild.rotation = container.rotation; // _rotation = _rotation
+                  spireChild.vars.c = c;
+                }
+              },
+            };
+            // Register the ephemeral container sym in registry so attach works
+            this.registry.register(containerSym);
+            clip.attach(containerSym, "_spireContainerInst", 4, ctx);
 
-    const sprite8Textures = textures.getFrames("sprite_8");
-    const sprite8Anchor = calculateAnchor(SPRITE_8_MANIFEST);
-    const sprite9Textures = textures.getFrames("sprite_9");
+            // AS DefineSprite_8/frame_4/DoAction.as: SOMA.playSound("vlad_804")
+            // Sound playback from a frame script — use the stored callback
+            if (this.soundCallback) {
+              this.soundCallback("vlad_804");
+            }
+          },
+        ],
+        [
+          114,
+          (clip) => {
+            // AS DefineSprite_8/frame_115/DoAction.as: _parent.removeMovieClip()
+            // This is the outer mc removal — signal completion.
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // Calculate positions
-    // AS: instance 1 -> _X = _parent.cellFrom.x, _Y = _parent.cellFrom.y
-    // Container is placed at cellFrom, so local coords: (0, 0)
-    const pos1x = 0;
-    const pos1y = 0;
+    // ---- sprite_9 — target-side 27-frame impact timeline ---------
+    // Positions itself at cellTo on load.
+    // frame_10: this.end() → signalHit.
+    this.sprite9Sym = {
+      name: "sprite_9",
+      totalFrames: 27,
+      frames: textures.getFrames("sprite_9"),
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onLoad: (clip) => {
+        // AS frame_2/PlaceObject2_8_6/CLIPACTIONRECORD onClipEvent(load).as:
+        //   _X = _parent.cellTo.x
+        //   _Y = _parent.cellTo.y
+        const root = clip.parent;
+        const cellTo = root?.vars.cellTo as { x: number; y: number } | undefined;
+        if (cellTo) {
+          clip.x = cellTo.x;
+          clip.y = cellTo.y;
+        }
+      },
+      frameScripts: new Map([
+        [
+          9,
+          () => {
+            // AS DefineSprite_9/frame_10/DoAction.as: this.end() → signalHit
+            this.runtime.signalHit();
+          },
+        ],
+      ]),
+    };
 
-    // AS: instance 2 -> _X = _parent.cellTo.x, _Y = _parent.cellTo.y
-    // Relative to container (which is at cellFrom):
-    const pos2x =
-      context?.cellTo && context?.cellFrom
-        ? context.cellTo.x - context.cellFrom.x
-        : 0;
-    const pos2y =
-      context?.cellTo && context?.cellFrom
-        ? context.cellTo.y - context.cellFrom.y
-        : 0;
-
-    // --- Spire containers ---
-    this.spireContainer1 = new Container();
-    this.spireContainer1.position.set(pos1x, pos1y);
-    this.container.addChild(this.spireContainer1);
-
-    this.spireContainer2 = new Container();
-    this.spireContainer2.position.set(pos2x, pos2y);
-    this.container.addChild(this.spireContainer2);
-
-    // --- sprite_8 instance 1 at cellFrom ---
-    this.sprite8_1 = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: sprite8Textures,
-        anchorX: sprite8Anchor.x,
-        anchorY: sprite8Anchor.y,
-        scale: init.scale,
-      })
-    );
-    this.sprite8_1.sprite.position.set(pos1x, pos1y);
-    // AS frame 4 = index 3: play sound + spawn spires
-    // AS frame 115 = index 114: removeMovieClip -> stop there
-    this.sprite8_1
-      .onFrame(3, () => {
-        this.callbacks.playSound("vlad_804");
-        this.spawnSpires(this.spires1, this.spireContainer1);
-      })
-      .stopAt(114);
-    this.container.addChild(this.sprite8_1.sprite);
-
-    // --- sprite_8 instance 2 at cellTo ---
-    this.sprite8_2 = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: sprite8Textures,
-        anchorX: sprite8Anchor.x,
-        anchorY: sprite8Anchor.y,
-        scale: init.scale,
-      })
-    );
-    this.sprite8_2.sprite.position.set(pos2x, pos2y);
-    this.sprite8_2
-      .onFrame(3, () => {
-        this.spawnSpires(this.spires2, this.spireContainer2);
-      })
-      .stopAt(114);
-    this.container.addChild(this.sprite8_2.sprite);
-
-    // --- sprite_9 instance 1 at cellFrom ---
-    this.sprite9_1 = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: sprite9Textures,
-        anchorX: 0.5,
-        anchorY: 0.5,
-        scale: init.scale,
-      })
-    );
-    this.sprite9_1.sprite.position.set(pos1x, pos1y);
-    // AS frame 10 = index 9: this.end() -> signal hit
-    this.sprite9_1.onFrame(9, () => this.signalHit());
-    this.container.addChild(this.sprite9_1.sprite);
-
-    // --- sprite_9 instance 2 at cellTo ---
-    this.sprite9_2 = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: sprite9Textures,
-        anchorX: 0.5,
-        anchorY: 0.5,
-        scale: init.scale,
-      })
-    );
-    this.sprite9_2.sprite.position.set(pos2x, pos2y);
-    this.sprite9_2.onFrame(9, () => this.signalHit());
-    this.container.addChild(this.sprite9_2.sprite);
+    this.registry.register(this.spireSym);
+    this.registry.register(this.sprite8Sym);
+    this.registry.register(this.sprite9Sym);
   }
 
-  /**
-   * Spawn 10 spire particles.
-   *
-   * AS onClipEvent(load) for spire container (PlaceObject2_7_4):
-   *   c = 1; while(c <= 10) {
-   *     attachMovie("spire", "spire"+c, c);
-   *     spireN._x = _X;              <- world X of sprite_8 = 0 in local spireContainer space
-   *     spireN._y = _Y - random(50); <- world Y - random offset
-   *     spireN._rotation = _rotation; <- 0
-   *     spireN.c = c;
-   *   }
-   *
-   * AS onClipEvent(load) for each spire (DefineSprite_3_spire):
-   *   va = 1 + random(2.5);   -> random(2) in AS = 0 or 1 -> result: 1 or 2
-   *   _alpha = 50 + random(50);
-   *   _yscale = 80;
-   *   _xscale = 80 + random(80);
-   *   v = 0.67 + 1.67 * Math.random();
-   *   if(c % 2 == 0) gotoAndStop(2) else gotoAndStop(1)
-   *     -> frame index 1 or 0
-   */
-  private spawnSpires(particles: SpireParticle[], container: Container): void {
-    for (let c = 1; c <= 10; c++) {
-      // AS: _x = _X (world x of sprite_8 = 0 local to spireContainer)
-      const x = 0;
-      // AS: _y = _Y - random(50)
-      const y = -Math.floor(Math.random() * 50);
+  private soundCallback?: (id: string) => void;
 
-      // AS: va = 1 + random(2.5) -> random() arg truncated to int 2, so 0 or 1
-      const va = 1 + Math.floor(Math.random() * 2);
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // Capture sound callback for use in frame scripts
+    this.soundCallback = callbacks.playSound.bind(callbacks);
 
-      // AS: _alpha = 50 + random(50)  (stored as 0-100)
-      const alpha = 50 + Math.floor(Math.random() * 50);
-
-      // AS: _yscale = 80
-      const yscale = 80;
-
-      // AS: _xscale = 80 + random(80)
-      const xscale = 80 + Math.floor(Math.random() * 80);
-
-      // AS: v = 0.67 + 1.67 * Math.random()
-      const v = 0.67 + 1.67 * Math.random();
-
-      // AS: if(c % 2 == 0) gotoAndStop(2) else gotoAndStop(1)
-      // gotoAndStop(2) -> frame index 1; gotoAndStop(1) -> frame index 0
-      const frameIndex = c % 2 === 0 ? 1 : 0;
-
-      const texture =
-        this.spireTextures[frameIndex] ??
-        this.spireTextures[0] ??
-        Texture.EMPTY;
-      const spr = new Sprite(texture);
-      spr.anchor.set(this.spireAnchorX, this.spireAnchorY);
-      spr.position.set(x, y);
-      spr.scale.set(
-        (xscale / 100) * this.spireScale,
-        (yscale / 100) * this.spireScale
-      );
-      spr.alpha = alpha / 100;
-
-      container.addChild(spr);
-
-      particles.push({
-        sprite: spr,
-        x,
-        y,
-        xscale,
-        yscale,
-        alpha,
-        va,
-        v,
-        alive: true,
-      });
-    }
-  }
-
-  /**
-   * Update spire particles - runs every frame tick.
-   *
-   * AS onClipEvent(enterFrame):
-   *   _yscale = _yscale * 1.02;
-   *   _Y = _Y - (v *= 0.97);
-   *   _alpha = _alpha - va;
-   *   if(_alpha < 0) { _parent.removeMovieClip(); }
-   */
-  private updateSpires(particles: SpireParticle[]): void {
-    for (const p of particles) {
-      if (!p.alive) {
-        continue;
-      }
-
-      // AS: _yscale = _yscale * 1.02
-      p.yscale = p.yscale * 1.02;
-
-      // AS: _Y = _Y - (v *= 0.97)
-      p.v *= 0.97;
-      p.y = p.y - p.v;
-
-      // AS: _alpha = _alpha - va
-      p.alpha = p.alpha - p.va;
-
-      // AS: if(_alpha < 0) removeMovieClip()
-      if (p.alpha < 0) {
-        p.alive = false;
-        p.sprite.visible = false;
-        continue;
-      }
-
-      p.sprite.position.set(p.x, p.y);
-      p.sprite.scale.set(
-        (p.xscale / 100) * this.spireScale,
-        (p.yscale / 100) * this.spireScale
-      );
-      p.sprite.alpha = p.alpha / 100;
-    }
-  }
-
-  private spiresAllDead(particles: SpireParticle[]): boolean {
-    if (particles.length === 0) {
-      return true;
-    }
-    return particles.every((p) => !p.alive);
-  }
-
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-    this.updateSpires(this.spires1);
-    this.updateSpires(this.spires2);
-
-    const sprite9Done =
-      this.sprite9_1.isComplete() && this.sprite9_2.isComplete();
-    const sprite8Done =
-      this.sprite8_1.isStopped() && this.sprite8_2.isStopped();
-    const spiresDone =
-      this.spiresAllDead(this.spires1) && this.spiresAllDead(this.spires2);
-
-    if (sprite9Done && sprite8Done && spiresDone) {
-      this.complete();
-    }
-  }
-
-  destroy(): void {
-    for (const p of this.spires1) {
-      p.sprite.destroy();
-    }
-    for (const p of this.spires2) {
-      p.sprite.destroy();
-    }
-    this.spires1 = [];
-    this.spires2 = [];
-    super.destroy();
+    // AS frame_2/DoAction.as: stop()
+    // The main timeline stops at frame 2 which has sprite_8 (depth 1) and
+    // sprite_9 (depth 6) placed on it with onLoad positioning scripts.
+    // We attach them here so they start ticking from the next runtime frame.
+    this.root.attach(this.sprite8Sym, "sprite8", 1, context);
+    this.root.attach(this.sprite9Sym, "sprite9", 6, context);
   }
 }

@@ -1,80 +1,129 @@
 /**
- * Spell 2108 - Grina
+ * Spell 2108 — Grina (Sram poison/needle spell).
  *
- * A composite animation spell with a single anim1 animation.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/2108/scripts/scripts/
  *
- * Components:
- * - anim1: Main animation at target position, 105 frames
+ * displayType=11 (TargetCell). There is no `move`/`shoot`/`duplicate` symbol,
+ * no caster-relative positioning, no projectile arc — the animation is a single
+ * composite impact at the target cell. The top-level `anim1` animation (105 frames)
+ * is driven by a chain of nested DefineSprite clips placed on the main timeline.
  *
- * Original AS timing:
- * - Frame 1 (main): Play sound 'grina_701'
- * - Frame 103 (DefineSprite_23): removeMovieClip() - animation ends
- * - DefineSprite_13 loops at frame 52 back to frame 2
- * - DefineSprite_21 instances start at random rotation
- * - DefineSprite_22 instances start at random frames
- * - DefineSprite_15 rotates +1.6 degrees per frame
+ * Canonical AS layout:
+ *
+ *   - `DefineSprite_21` — single-frame sub-symbol. frame_1: `_rotation = -random(180)`.
+ *     Used as the spinning needle/shard. Three instances are placed by DefineSprite_22
+ *     at depths 3, 7, 11, each with an onClipEvent(load) that randomises their start
+ *     frame via `gotoAndPlay(random(_totalframes + 1))`.
+ *
+ *   - `DefineSprite_13` — 52-frame looping sub-symbol.
+ *       frame_1: `gotoAndPlay(random(47) + 2)` — randomises start in [2..48].
+ *       frame_52: `gotoAndPlay(2)` — loops back from frame 52 to frame 2 (skipping
+ *                 the randomise-only frame_1 on subsequent loops).
+ *
+ *   - `DefineSprite_15` — contains a sub-clip with onClipEvent(enterFrame):
+ *       `_rotation = _rotation + 1.6` (degrees per frame → radians per frame).
+ *       This drives a continuously-rotating child element.
+ *
+ *   - `DefineSprite_22` — composite container. Places three DefineSprite_21 instances
+ *       at depths 3, 7, 11. Each one's onClipEvent(load) calls
+ *       `gotoAndPlay(random(_totalframes + 1))` to stagger their rotation phase.
+ *
+ *   - `DefineSprite_23` — outermost composite clip, 103 frames of authored content.
+ *       frame_103: `_parent.removeMovieClip()` → spell complete + signalHit.
+ *
+ *   - Main timeline frame_1: `SOMA.playSound("grina_701")`.
+ *
+ * The manifest has a single `animations` entry `anim1` (105 frames, isComposite=true)
+ * and no `librarySymbols` entries. All nested sprites are sub-symbols rendered inside
+ * `anim1`. We register the composite animation as a single `SymbolDefinition` named
+ * `anim1` and drive its timeline to frame 104 (AS frame_105 ≈ end), triggering
+ * signalHit at the impact frame and complete at the removal frame.
+ *
+ * Because `librarySymbols` is empty in the manifest, we use `textures.getFrames("anim1")`
+ * (NO `lib_` prefix). The rotation/looping sub-symbol behaviours (DefineSprite_21,
+ * DefineSprite_13, DefineSprite_15, DefineSprite_22) are baked into the pre-rendered
+ * composite SVG frames — we do not need to instantiate them separately at runtime.
+ * The only frame-script behaviour we must reproduce is:
+ *   - frame_103 of DefineSprite_23: `_parent.removeMovieClip()` → complete().
+ *
+ * signalHit: fired at the same frame as completion (frame 103 / index 102) since there
+ * is no earlier explicit hit signal in the AS source.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const ANIM1_MANIFEST: SpriteManifest = {
+const ANIM1_BOUNDS = {
   width: 143.5,
   height: 68.1,
   offsetX: -64.35,
   offsetY: -34.05,
 };
 
-export class Spell2108 extends BaseSpell {
+export class Spell2108 extends RuntimeSpell {
   readonly spellId = 2108;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private mainAnim!: FrameAnimatedSprite;
-
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const anchor = calculateAnchor(ANIM1_MANIFEST);
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    this.mainAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("anim1"),
-        fps: 60,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-      })
-    );
+    // ---- anim1 — 105-frame composite impact at target cell -------
+    // The composite bakes in all sub-symbol behaviour (DefineSprite_21
+    // random rotation, DefineSprite_13 looping, DefineSprite_15 spinning
+    // child, DefineSprite_22 staggered instances). The only canonical
+    // script we must reproduce at the TS level is DefineSprite_23/
+    // frame_103/DoAction.as: `_parent.removeMovieClip()` which ends the
+    // spell. We fire signalHit at the same moment since there is no
+    // earlier explicit hit frame in the AS source.
+    const anim1Sym: SymbolDefinition = {
+      name: "anim1",
+      totalFrames: 105,
+      frames: textures.getFrames("anim1"),
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
+      frameScripts: new Map([
+        [
+          // AS DefineSprite_23/frame_103/DoAction.as: _parent.removeMovieClip()
+          // 0-based index: frame_103 → index 102
+          102,
+          (clip) => {
+            clip.remove();
+            this.runtime.signalHit();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
-
-    // Frame 1 (0-indexed: 0): Play sound
-    this.mainAnim.onFrame(0, () => this.callbacks.playSound("grina_701"));
-
-    // Frame 103 (0-indexed: 102): DefineSprite_23 calls removeMovieClip -> signal hit and complete
-    this.mainAnim.onFrame(102, () => {
-      this.signalHit();
-    });
-
-    this.container.addChild(this.mainAnim.sprite);
+    this.registry.register(anim1Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // AS scripts/frame_1/DoAction.as: SOMA.playSound("grina_701");
+    callbacks.playSound("grina_701");
 
-    this.anims.update(deltaTime);
-
-    if (this.anims.allComplete()) {
-      this.complete();
+    // Attach the composite anim1 clip so it starts ticking immediately.
+    // The main timeline implicitly places it at frame_1; we replicate
+    // that by attaching it at depth 1 on the root.
+    const anim1Sym = this.registry.resolve("anim1");
+    if (anim1Sym) {
+      this.root.attach(anim1Sym, "anim1", 1, context);
     }
   }
 }

@@ -1,0 +1,608 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "ST": {
+            "72": {
+                "n": "[wip]Rayonnement 3 boss",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "73": {
+                "n": "Entourbé",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "0": {
+                "n": "Neutre",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "53": {
+                "n": "[wip]Châtiment spirituel",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "55": {
+                "n": "Retraité",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "66": {
+                "n": "[wip]Rayonnement 1 joueur",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "40": {
+                "n": "Corrompu",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "46": {
+                "n": "Contente",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "29": {
+                "n": "Glyphe impaire",
+                "p": 0,
+                "d": true,
+                "s": "G. Impaire"
+            },
+            "52": {
+                "n": "[wip]Châtiment osé",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "78": {
+                "n": "Coeur",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "107": {
+                "n": "Tac",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "27": {
+                "n": "Léopardo",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "33": {
+                "n": "Encre tertiaire",
+                "p": 0,
+                "d": true,
+                "s": "Tertiaire"
+            },
+            "97": {
+                "n": "Souffrance III",
+                "p": 0,
+                "d": true,
+                "s": "Souffr. III"
+            },
+            "47": {
+                "n": "Mauvaise humeur",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "50": {
+                "n": "Altruiste",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "4": {
+                "n": "Peureux",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "36": {
+                "n": "Envie de paralyser",
+                "p": 0,
+                "d": true,
+                "s": "Paralyser"
+            },
+            "32": {
+                "n": "Encre secondaire",
+                "p": 0,
+                "d": true,
+                "s": "Secondaire"
+            },
+            "8": {
+                "n": "Porté",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "84": {
+                "n": "Trèfle",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "108": {
+                "n": "Chasseur",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "39": {
+                "n": "Flou",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "96": {
+                "n": "Souffrance II",
+                "p": 0,
+                "d": true,
+                "s": "Souffr. II"
+            },
+            "7": {
+                "n": "Pesanteur",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "94": {
+                "n": "Insoignable",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "90": {
+                "n": "Carreau",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "18": {
+                "n": "Gelé",
+                "p": 1,
+                "d": true,
+                "s": ""
+            },
+            "11": {
+                "n": "Chevauchant",
+                "p": 0,
+                "d": true,
+                "s": "Chevauch."
+            },
+            "41": {
+                "n": "Silencieux",
+                "p": 1,
+                "d": true,
+                "s": ""
+            },
+            "28": {
+                "n": "Libre",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "79": {
+                "n": "Coeur",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "12": {
+                "n": "Pas sage",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "89": {
+                "n": "Carreau",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "61": {
+                "n": "Bagarreur",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "71": {
+                "n": "[wip]Rayonnement 2 boss",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "42": {
+                "n": "Affaibli",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "10": {
+                "n": "Apprivoisement",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "65": {
+                "n": "[wip]Rayonnement bloqué",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "35": {
+                "n": "Envie de tuer",
+                "p": 0,
+                "d": true,
+                "s": "Tuer"
+            },
+            "98": {
+                "n": "Prédation",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "69": {
+                "n": "[wip]Rayonnement 4 joueur",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "88": {
+                "n": "Pique",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "13": {
+                "n": "Vraiment pas sage",
+                "p": 0,
+                "d": true,
+                "s": "V. pas sage"
+            },
+            "105": {
+                "n": "Saoul",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "30": {
+                "n": "Glyphe paire",
+                "p": 0,
+                "d": true,
+                "s": "G. Paire"
+            },
+            "82": {
+                "n": "Trèfle",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "102": {
+                "n": "Vivifié",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "103": {
+                "n": "Avarice",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "67": {
+                "n": "[wip]Rayonnement 2 joueur",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "54": {
+                "n": "[wip]Châtiment vitalesque",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "93": {
+                "n": "Ataraxie",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "99": {
+                "n": "Rassasié",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "101": {
+                "n": "Maîtrise",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "19": {
+                "n": "Fissuré",
+                "p": 1,
+                "d": true,
+                "s": ""
+            },
+            "83": {
+                "n": "Trèfle",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "60": {
+                "n": "Dévoué",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "49": {
+                "n": "Goulifié",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "37": {
+                "n": "Envie de maudire",
+                "p": 0,
+                "d": true,
+                "s": "Maudire"
+            },
+            "9": {
+                "n": "Motivation Sylvestre",
+                "p": 0,
+                "d": true,
+                "s": "M.Sylvestre"
+            },
+            "87": {
+                "n": "Pique",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "51": {
+                "n": "[wip]Châtiment agile",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "106": {
+                "n": "Tic",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "58": {
+                "n": "Compte à rebours - 1",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "63": {
+                "n": "[wip]Lourd",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "26": {
+                "n": "Endormi",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "80": {
+                "n": "Coeur",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "91": {
+                "n": "Carreau",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "5": {
+                "n": "Désorienté",
+                "p": 0,
+                "d": true,
+                "s": "Disorient."
+            },
+            "70": {
+                "n": "[wip]Rayonnement 1 boss",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "43": {
+                "n": "[wait] OVNI",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "56": {
+                "n": "Invulnérable",
+                "p": 0,
+                "d": true,
+                "s": "Invulnérab."
+            },
+            "17": {
+                "n": "Séparé",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "81": {
+                "n": "Trèfle",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "15": {
+                "n": "Eveillé",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "1": {
+                "n": "Saoul",
+                "p": 1,
+                "d": true,
+                "s": ""
+            },
+            "6": {
+                "n": "Enraciné",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "104": {
+                "n": "Contaminé",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "3": {
+                "n": "Porteur",
+                "p": 1,
+                "d": true,
+                "s": ""
+            },
+            "68": {
+                "n": "[wip]Rayonnement 3 joueur",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "75": {
+                "n": "Intaclable",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "64": {
+                "n": "[wip]Glyphe nom provisoire",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "85": {
+                "n": "Pique",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "38": {
+                "n": "Envie d'empoisonner",
+                "p": 0,
+                "d": true,
+                "s": "Empoisonner"
+            },
+            "95": {
+                "n": "Souffrance I",
+                "p": 0,
+                "d": true,
+                "s": "Souffr. I"
+            },
+            "77": {
+                "n": "Coeur",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "14": {
+                "n": "Enneigé",
+                "p": 0,
+                "d": true,
+                "s": "Snow-cover."
+            },
+            "16": {
+                "n": "Fragilisé",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "57": {
+                "n": "Compte à rebours - 2",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "31": {
+                "n": "Encre primaire",
+                "p": 0,
+                "d": true,
+                "s": "Primaire"
+            },
+            "92": {
+                "n": "Carreau",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "76": {
+                "n": "Chassé",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "86": {
+                "n": "Pique",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "44": {
+                "n": "Pas contente",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "48": {
+                "n": "Confus",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "34": {
+                "n": "Encre quaternaire",
+                "p": 0,
+                "d": true,
+                "s": "Quaternaire"
+            },
+            "2": {
+                "n": "Chercheur d'âmes",
+                "p": 0,
+                "d": true,
+                "s": "Chercheur"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 120,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "ST",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

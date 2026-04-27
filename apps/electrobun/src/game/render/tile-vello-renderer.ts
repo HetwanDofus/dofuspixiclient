@@ -3,7 +3,7 @@ import { ExternalSource, type Renderer, Texture } from "pixi.js";
 
 import { createLogger } from "@/utils/logger";
 
-import type { VelloFrameResult } from "./vello-loader";
+import type { VelloAnimationMeta, VelloFrameResult } from "./vello-loader";
 
 const log = createLogger("TileVello");
 
@@ -19,6 +19,8 @@ export class TileVelloRenderer {
 
   private readonly assetIds = new Map<string, number>();
   private readonly pendingLoads = new Map<string, Promise<boolean>>();
+  /** Raw bytes per tileKey, retained so atlas-loader can read the Extras section. */
+  private readonly assetBytes = new Map<string, Uint8Array>();
   /** cacheKey → vello texture ID, so the frame cache can tell Vello to drop it. */
   private readonly textureIds = new Map<string, number>();
 
@@ -33,6 +35,26 @@ export class TileVelloRenderer {
 
   hasAsset(tileKey: string): boolean {
     return this.assetIds.has(tileKey);
+  }
+
+  /** Raw dofasset bytes for a loaded tile, used to parse the Extras section. */
+  getAssetBytes(tileKey: string): Uint8Array | undefined {
+    return this.assetBytes.get(tileKey);
+  }
+
+  /**
+   * Query the uniform canvas + anchor for this tile's "tile" animation at 1x.
+   * Returns null if Vello isn't ready or the tile hasn't been loaded yet.
+   */
+  getAnimationMeta(tileKey: string): VelloAnimationMeta | null {
+    const vello = this.vello;
+    const assetId = this.assetIds.get(tileKey);
+    if (!vello || assetId === undefined) return null;
+    return vello.getAnimationMeta(
+      assetId,
+      "tile",
+      1.0
+    ) as VelloAnimationMeta | null;
   }
 
   /** Load a tile's `.dofasset` into Vello. Deduplicates concurrent loads. */
@@ -113,8 +135,17 @@ export class TileVelloRenderer {
       return false;
     }
 
-    const [type, idStr] = tileKey.split("_");
-    const url = `${this.basePath}/tiles/${type}/${idStr}.dofasset`;
+    // `tactic_<id>` and `cell_<id>` route to the flat spritesheets/{tactic,cell}/
+    // folders produced by the staticTile publish stage (the tactic-view overlay
+    // reuses this tile loader path because every staticTile dofasset ships a
+    // `TileExtras` section with an `animations.tile` entry).
+    const underscore = tileKey.indexOf("_");
+    const type = underscore === -1 ? tileKey : tileKey.slice(0, underscore);
+    const idStr = underscore === -1 ? "" : tileKey.slice(underscore + 1);
+    const url =
+      type === "tactic" || type === "cell"
+        ? `${this.basePath}/${type}/${idStr}.dofasset`
+        : `${this.basePath}/tiles/${type}/${idStr}.dofasset`;
 
     try {
       const res = await fetch(url);
@@ -128,6 +159,7 @@ export class TileVelloRenderer {
       const id = this.nextAssetId++;
       vello.loadAsset(id, data);
       this.assetIds.set(tileKey, id);
+      this.assetBytes.set(tileKey, data);
       return true;
     } catch (e) {
       log.warn(`Failed to load dofasset for ${tileKey}:`, e);

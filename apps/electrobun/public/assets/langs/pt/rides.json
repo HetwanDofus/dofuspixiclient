@@ -1,0 +1,593 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1258,
+        "RI": {
+            "1": {
+                "n": "Dragossauro Amêndoa Selvagem",
+                "g": "7002",
+                "c1": "16772045",
+                "c2": "-1",
+                "c3": "16772045"
+            },
+            "3": {
+                "n": "Dragossauro Ébano",
+                "g": "7002",
+                "c1": "1245184",
+                "c2": "393216",
+                "c3": "1245184"
+            },
+            "6": {
+                "n": "Dragossauro Selvagem",
+                "g": "7002",
+                "c1": "16747520",
+                "c2": "-1",
+                "c3": "16747520"
+            },
+            "9": {
+                "n": "Dragossauro Ébano e Marfim",
+                "g": "7002",
+                "c1": "1182992",
+                "c2": "16777200",
+                "c3": "16777200"
+            },
+            "10": {
+                "n": "Dragossauro Gengibre",
+                "g": "7002",
+                "c1": "16747520",
+                "c2": "-1",
+                "c3": "16747520"
+            },
+            "11": {
+                "n": "Dragossauro Marfim e Gengibre",
+                "g": "7002",
+                "c1": "16747520",
+                "c2": "16777200",
+                "c3": "16777200"
+            },
+            "12": {
+                "n": "Dragossauro Ébano e Gengibre",
+                "g": "7002",
+                "c1": "16747520",
+                "c2": "1703936",
+                "c3": "1774084"
+            },
+            "15": {
+                "n": "Dragossauro Turquesa",
+                "g": "7002",
+                "c1": "4251856",
+                "c2": "-1",
+                "c3": "4251856"
+            },
+            "16": {
+                "n": "Dragossauro Marfim",
+                "g": "7002",
+                "c1": "16777200",
+                "c2": "16777200",
+                "c3": "16777200"
+            },
+            "17": {
+                "n": "Dragossauro Índigo",
+                "g": "7002",
+                "c1": "4915330",
+                "c2": "-1",
+                "c3": "4915330"
+            },
+            "18": {
+                "n": "Dragossauro Dourado",
+                "g": "7002",
+                "c1": "16766720",
+                "c2": "16766720",
+                "c3": "16766720"
+            },
+            "19": {
+                "n": "Dragossauro Carmesim",
+                "g": "7002",
+                "c1": "14423100",
+                "c2": "-1",
+                "c3": "14423100"
+            },
+            "20": {
+                "n": "Dragossauro Amêndoa",
+                "g": "7002",
+                "c1": "16772045",
+                "c2": "-1",
+                "c3": "16772045"
+            },
+            "21": {
+                "n": "Dragossauro Esmeralda",
+                "g": "7002",
+                "c1": "3329330",
+                "c2": "-1",
+                "c3": "3329330"
+            },
+            "22": {
+                "n": "Dragossauro Orquídea",
+                "g": "7002",
+                "c1": "15859954",
+                "c2": "16777200",
+                "c3": "15859954"
+            },
+            "23": {
+                "n": "Dragossauro Ameixa",
+                "g": "7002",
+                "c1": "14524637",
+                "c2": "-1",
+                "c3": "14524637"
+            },
+            "33": {
+                "n": "Dragossauro Amêndoa e Dourado",
+                "g": "7002",
+                "c1": "16772045",
+                "c2": "16766720",
+                "c3": "16766720"
+            },
+            "34": {
+                "n": "Dragossauro Amêndoa e Ébano",
+                "g": "7002",
+                "c1": "16772045",
+                "c2": "1245184",
+                "c3": "1245184"
+            },
+            "35": {
+                "n": "Dragossauro Amêndoa e Esmeralda",
+                "g": "7002",
+                "c1": "16772045",
+                "c2": "3329330",
+                "c3": "3329330"
+            },
+            "36": {
+                "n": "Dragossauro Amêndoa e Índigo",
+                "g": "7002",
+                "c1": "16772045",
+                "c2": "4915330",
+                "c3": "4915330"
+            },
+            "37": {
+                "n": "Dragossauro Amêndoa e Marfim",
+                "g": "7002",
+                "c1": "16772045",
+                "c2": "16777200",
+                "c3": "16777200"
+            },
+            "38": {
+                "n": "Dragossauro Amêndoa e Gengibre",
+                "g": "7002",
+                "c1": "16772045",
+                "c2": "16747520",
+                "c3": "16747520"
+            },
+            "39": {
+                "n": "Dragossauro Amêndoa e Turquesa",
+                "g": "7002",
+                "c1": "16772045",
+                "c2": "4251856",
+                "c3": "4251856"
+            },
+            "40": {
+                "n": "Dragossauro Amêndoa e Orquídea",
+                "g": "7002",
+                "c1": "16772045",
+                "c2": "15859954",
+                "c3": "15859954"
+            },
+            "41": {
+                "n": "Dragossauro Amêndoa e Carmesim",
+                "g": "7002",
+                "c1": "16772045",
+                "c2": "14423100",
+                "c3": "14423100"
+            },
+            "42": {
+                "n": "Dragossauro Dourado e Ébano",
+                "g": "7002",
+                "c1": "1245184",
+                "c2": "16766720",
+                "c3": "16766720"
+            },
+            "43": {
+                "n": "Dragossauro Dourado e Esmeralda",
+                "g": "7002",
+                "c1": "16766720",
+                "c2": "3329330",
+                "c3": "3329330"
+            },
+            "44": {
+                "n": "Dragossauro Dourado e Índigo",
+                "g": "7002",
+                "c1": "16766720",
+                "c2": "4915330",
+                "c3": "4915330"
+            },
+            "45": {
+                "n": "Dragossauro Dourado e Marfim",
+                "g": "7002",
+                "c1": "16766720",
+                "c2": "16777200",
+                "c3": "16777200"
+            },
+            "46": {
+                "n": "Dragossauro Dourado e Gengibre",
+                "g": "7002",
+                "c1": "16766720",
+                "c2": "16747520",
+                "c3": "16747520"
+            },
+            "47": {
+                "n": "Dragossauro Dourado e Turquesa",
+                "g": "7002",
+                "c1": "16766720",
+                "c2": "4251856",
+                "c3": "4251856"
+            },
+            "48": {
+                "n": "Dragossauro Dourado e Orquídea",
+                "g": "7002",
+                "c1": "16766720",
+                "c2": "15859954",
+                "c3": "15859954"
+            },
+            "49": {
+                "n": "Dragossauro Dourado e Carmesim",
+                "g": "7002",
+                "c1": "16766720",
+                "c2": "14423100",
+                "c3": "14423100"
+            },
+            "50": {
+                "n": "Dragossauro Ébano e Esmeralda",
+                "g": "7002",
+                "c1": "1245184",
+                "c2": "3329330",
+                "c3": "3329330"
+            },
+            "51": {
+                "n": "Dragossauro Ébano e Índigo",
+                "g": "7002",
+                "c1": "4915330",
+                "c2": "4915330",
+                "c3": "1245184"
+            },
+            "52": {
+                "n": "Dragossauro Ébano e Turquesa",
+                "g": "7002",
+                "c1": "1245184",
+                "c2": "4251856",
+                "c3": "4251856"
+            },
+            "53": {
+                "n": "Dragossauro Ébano e Orquídea",
+                "g": "7002",
+                "c1": "15859954",
+                "c2": "0",
+                "c3": "0"
+            },
+            "54": {
+                "n": "Dragossauro Ébano e Carmesim",
+                "g": "7002",
+                "c1": "14423100",
+                "c2": "14423100",
+                "c3": "1245184"
+            },
+            "55": {
+                "n": "Dragossauro Esmeralda e Índigo",
+                "g": "7002",
+                "c1": "3329330",
+                "c2": "4915330",
+                "c3": "4915330"
+            },
+            "56": {
+                "n": "Dragossauro Esmeralda e Marfim",
+                "g": "7002",
+                "c1": "3329330",
+                "c2": "16777200",
+                "c3": "16777200"
+            },
+            "57": {
+                "n": "Dragossauro Esmeralda e Gengibre",
+                "g": "7002",
+                "c1": "3329330",
+                "c2": "16747520",
+                "c3": "16747520"
+            },
+            "58": {
+                "n": "Dragossauro Esmeralda e Turquesa",
+                "g": "7002",
+                "c1": "3329330",
+                "c2": "4251856",
+                "c3": "4251856"
+            },
+            "59": {
+                "n": "Dragossauro Esmeralda e Orquídea",
+                "g": "7002",
+                "c1": "3329330",
+                "c2": "15859954",
+                "c3": "15859954"
+            },
+            "60": {
+                "n": "Dragossauro Esmeralda e Carmesim",
+                "g": "7002",
+                "c1": "3329330",
+                "c2": "14423100",
+                "c3": "14423100"
+            },
+            "61": {
+                "n": "Dragossauro Índigo e Marfim",
+                "g": "7002",
+                "c1": "4915330",
+                "c2": "16777200",
+                "c3": "16777200"
+            },
+            "62": {
+                "n": "Dragossauro Índigo e Gengibre",
+                "g": "7002",
+                "c1": "4915330",
+                "c2": "16747520",
+                "c3": "16747520"
+            },
+            "63": {
+                "n": "Dragossauro Índigo e Turquesa",
+                "g": "7002",
+                "c1": "4915330",
+                "c2": "4251856",
+                "c3": "4251856"
+            },
+            "64": {
+                "n": "Dragossauro Índigo e Orquídea",
+                "g": "7002",
+                "c1": "4915330",
+                "c2": "15859954",
+                "c3": "15859954"
+            },
+            "65": {
+                "n": "Dragossauro Índigo e Carmesim",
+                "g": "7002",
+                "c1": "14423100",
+                "c2": "4915330",
+                "c3": "4915330"
+            },
+            "66": {
+                "n": "Dragossauro Marfim e Turquesa",
+                "g": "7002",
+                "c1": "16777200",
+                "c2": "4251856",
+                "c3": "4251856"
+            },
+            "67": {
+                "n": "Dragossauro Marfim e Orquídea",
+                "g": "7002",
+                "c1": "16777200",
+                "c2": "16731355",
+                "c3": "16711910"
+            },
+            "68": {
+                "n": "Dragossauro Marfim e Marfim",
+                "g": "7002",
+                "c1": "14423100",
+                "c2": "16777200",
+                "c3": "16777200"
+            },
+            "69": {
+                "n": "Dragossauro Turquesa e Gengibre",
+                "g": "7002",
+                "c1": "4251856",
+                "c2": "16747520",
+                "c3": "16747520"
+            },
+            "70": {
+                "n": "Dragossauro Orquídea e Gengibre",
+                "g": "7002",
+                "c1": "14315734",
+                "c2": "16747520",
+                "c3": "16747520"
+            },
+            "71": {
+                "n": "Dragossauro Carmesim e Gengibre",
+                "g": "7002",
+                "c1": "14423100",
+                "c2": "16747520",
+                "c3": "16747520"
+            },
+            "72": {
+                "n": "Dragossauro Turquesa e Orquídea",
+                "g": "7002",
+                "c1": "15859954",
+                "c2": "4251856",
+                "c3": "4251856"
+            },
+            "73": {
+                "n": "Dragossauro Turquesa e Carmesim",
+                "g": "7002",
+                "c1": "14423100",
+                "c2": "4251856",
+                "c3": "4251856"
+            },
+            "74": {
+                "n": "Dragossauro Dourado Selvagem",
+                "g": "7002",
+                "c1": "16766720",
+                "c2": "16766720",
+                "c3": "16766720"
+            },
+            "75": {
+                "n": "Dragossauro Esqueleto",
+                "g": "7003",
+                "c1": "16772045",
+                "c2": "-1",
+                "c3": "16772045"
+            },
+            "76": {
+                "n": "Dragossauro Orquídea e Carmesim",
+                "g": "7002",
+                "c1": "14315734",
+                "c2": "14423100",
+                "c3": "14423100"
+            },
+            "77": {
+                "n": "Dragossauro Ameixa e Amêndoa",
+                "g": "7002",
+                "c1": "14524637",
+                "c2": "16772045",
+                "c3": "16772045"
+            },
+            "78": {
+                "n": "Dragossauro Ameixa e Dourado",
+                "g": "7002",
+                "c1": "14524637",
+                "c2": "16766720",
+                "c3": "16766720"
+            },
+            "79": {
+                "n": "Dragossauro Ameixa e Ébano",
+                "g": "7002",
+                "c1": "14524637",
+                "c2": "1245184",
+                "c3": "1245184"
+            },
+            "80": {
+                "n": "Dragossauro Ameixa e Esmeralda",
+                "g": "7002",
+                "c1": "14524637",
+                "c2": "3329330",
+                "c3": "3329330"
+            },
+            "82": {
+                "n": "Dragossauro Ameixa e Índigo",
+                "g": "7002",
+                "c1": "14524637",
+                "c2": "4915330",
+                "c3": "4915330"
+            },
+            "83": {
+                "n": "Dragossauro Ameixa e Marfim",
+                "g": "7002",
+                "c1": "14524637",
+                "c2": "16777200",
+                "c3": "16777200"
+            },
+            "84": {
+                "n": "Dragossauro Ameixa e Gengibre",
+                "g": "7002",
+                "c1": "14524637",
+                "c2": "16747520",
+                "c3": "16747520"
+            },
+            "85": {
+                "n": "Dragossauro Ameixa e Turquesa",
+                "g": "7002",
+                "c1": "14524637",
+                "c2": "4251856",
+                "c3": "4251856"
+            },
+            "86": {
+                "n": "Dragossauro Ameixa e Orquídea",
+                "g": "7002",
+                "c1": "14524637",
+                "c2": "15859954",
+                "c3": "15859954"
+            },
+            "87": {
+                "n": "Dragossauro Ameixa e Carmesim",
+                "g": "7002",
+                "c1": "14524637",
+                "c2": "14423100",
+                "c3": "14423100"
+            },
+            "88": {
+                "n": "Dragossauro com armadura",
+                "g": "7005",
+                "c1": "16753715",
+                "c2": "7482137",
+                "c3": "8079413"
+            },
+            "89": {
+                "n": "Dragossauro do Paladino",
+                "g": "7006",
+                "c1": "-1",
+                "c2": "-1",
+                "c3": "-1"
+            },
+            "90": {
+                "n": "Tabi",
+                "g": "7007",
+                "c1": "-1",
+                "c2": "-1",
+                "c3": "-1"
+            },
+            "91": {
+                "n": "Tabi",
+                "g": "7008",
+                "c1": "-1",
+                "c2": "-1",
+                "c3": "-1"
+            },
+            "92": {
+                "n": "Gobsmac Ked",
+                "g": "7009",
+                "c1": "-1",
+                "c2": "-1",
+                "c3": "-1"
+            }
+        },
+        "RIA": {
+            "1": {
+                "n": "Incansável",
+                "d": "Uma montaria incansável tem muito mais energia do que uma montaria normal e também recupera energia mais rápido.",
+                "e": "null"
+            },
+            "2": {
+                "n": "De carga",
+                "d": "Uma montaria de carga pode carregar muito mais itens do que uma montaria normal.",
+                "e": "null"
+            },
+            "3": {
+                "n": "Reprodutora",
+                "d": "Uma montaria reprodutora terá mais crias do que uma montaria normal.",
+                "e": "null"
+            },
+            "4": {
+                "n": "Inteligente",
+                "d": "Uma montaria inteligente evolui duas vezes mais rápido do que uma montaria normal.",
+                "e": "null"
+            },
+            "5": {
+                "n": "Robusta",
+                "d": "Uma montaria robusta terá maior chance de se tornar mais forte do que uma montaria normal.",
+                "e": "null"
+            },
+            "6": {
+                "n": "Amorosa",
+                "d": "Uma montaria amorosa terá maior chance de se apaixonar do que uma montaria normal.",
+                "e": "null"
+            },
+            "7": {
+                "n": "Precoce",
+                "d": "Uma montaria precoce se tornará madura mais rápida do que uma montaria normal.",
+                "e": "null"
+            },
+            "8": {
+                "n": "Predisposta geneticamente",
+                "d": "Uma montaria predisposta geneticamente terá maior chance de passar suas características genéticas do que uma montaria normal.",
+                "e": "null"
+            },
+            "9": {
+                "n": "Camaleão",
+                "d": "Uma montaria Camaleão pode mudar a cor de sua pele para combinar com a aparência de seu cavaleiro.",
+                "e": "null"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 141,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "RI",
+            "RIA",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

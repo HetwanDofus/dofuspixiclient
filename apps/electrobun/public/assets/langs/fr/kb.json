@@ -1,0 +1,1147 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1248,
+        "KBC": {
+            "1": {
+                "n": "Interface",
+                "o": 1,
+                "i": 1,
+                "ep": 1
+            },
+            "4": {
+                "n": "Combat",
+                "o": -1,
+                "i": 4,
+                "ep": 1
+            },
+            "5": {
+                "n": "Quêtes",
+                "o": -1,
+                "i": 5,
+                "ep": 1
+            },
+            "6": {
+                "n": "Communication",
+                "o": -1,
+                "i": 6,
+                "ep": 1
+            },
+            "32": {
+                "n": "Evoluer",
+                "o": -1,
+                "i": 32,
+                "ep": 1
+            },
+            "33": {
+                "n": "Objets",
+                "o": -1,
+                "i": 33,
+                "ep": 1
+            },
+            "34": {
+                "n": "Économie",
+                "o": -1,
+                "i": 34,
+                "ep": 1
+            },
+            "35": {
+                "n": "Métiers",
+                "o": -1,
+                "i": 35,
+                "ep": 1
+            },
+            "36": {
+                "n": "Les voyages",
+                "o": -1,
+                "i": 36,
+                "ep": -1
+            }
+        },
+        "KBA": {
+            "33": {
+                "c": 4,
+                "n": "Les Résistances",
+                "o": -1,
+                "a": "<strong>Résistance neutre en %</strong>\nPermet de réduire en pourcentage, les attaques de type neutre.\n\n<strong>Résistance neutre fixe</strong>\nPermet de réduire de façon fixe, les attaques de type neutre.\n\n<strong>Résistance neutre en % aux combattants</strong>\nPermet de réduire en pourcentage, les attaques de type neutre lancées par les joueurs uniquement.\n\n<strong>Résistance neutre fixe aux combattants</strong>\nPermet de réduire de façon fixe, les attaques de type neutre lancées par les joueurs uniquement.\n\n<strong>Résistance air en %</strong>\nPermet de réduire en pourcentage, les attaques de type air.\n\n<strong>Résistance air fixe</strong>\nPermet de réduire de façon fixe, les attaques de type air.\n\n<strong>Résistance air en % aux combattants</strong>\nPermet de réduire en pourcentage, les attaques de type air lancées par les joueurs uniquement.\n\n<strong>Résistance air fixe aux combattants</strong>\nPermet de réduire de façon fixe, les attaques de type air lancées par les joueurs uniquement.\n\n<strong>Résistance eau en %</strong>\nPermet de réduire en pourcentage, les attaques de type eau.\n\n<strong>Résistance eau fixe</strong>\nPermet de réduire de façon fixe, les attaques de type eau.\n\n<strong>Résistance eau en % aux combattants</strong>\nPermet de réduire en pourcentage, les attaques de type eau lancées par les joueurs uniquement.\n\n<strong>Résistance eau fixe aux combattants</strong>\nPermet de réduire de façon fixe, les attaques de type eau lancées par les joueurs uniquement.\n\n<strong>Résistance terre en %</strong>\nPermet de réduire en pourcentage, les attaques de type terre.\n\n<strong>Résistance terre fixe</strong>\nPermet de réduire de façon fixe, les attaques de type terre.\n\n<strong>Résistance terre en % aux combattants</strong>\nPermet de réduire en pourcentage, les attaques de type terre lancées par les joueurs uniquement.\n\n<strong>Résistance terre fixe aux combattants</strong>\nPermet de réduire de façon fixe, les attaques de type terre lancées par les joueurs uniquement.\n\n<strong>Résistance feu en %</strong>\nPermet de réduire en pourcentage, les attaques de type feu.\n\n<strong>Résistance feu fixe</strong>\nPermet de réduire de façon fixe, les attaques de type feu.\n\n<strong>Résistance feu en % aux combattants</strong>\nPermet de réduire en pourcentage, les attaques de type feu lancées par les joueurs uniquement.\n\n<strong>Résistance feu fixe aux combattants</strong>\nPermet de réduire de façon fixe, les attaques de type feu lancées par les joueurs uniquement.\n\n<strong>Résistance aux dégâts magiques</strong>\nPermet de réduire de façon fixe, les dégâts de type eau, feu, et air.\n\n<strong>Résistance aux dégâts physiques</strong>\nPermet de réduire de façon fixe, les dégâts de type Terre et neutre.\n\n<strong>Résistance à la perte de Points de Mouvement</strong>\nPermet d'esquiver les pertes de points de mouvement.\n\n<strong>Résistance à la perte de Points d'Action</strong>\nPermet d'esquiver les pertes de points de mouvement.",
+                "k": [
+                    "neutre",
+                    "air",
+                    "eau",
+                    "terre",
+                    "feu",
+                    "combattants",
+                    "magiques",
+                    "physiques",
+                    "dégâts",
+                    "PM",
+                    "PA",
+                    "perte",
+                    "resistances"
+                ],
+                "i": 33,
+                "ep": 1
+            },
+            "58": {
+                "c": 1,
+                "n": "Tes sorts",
+                "o": -1,
+                "a": "La page « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnSpells\">Tes sorts</a> » liste tous les sorts que tu as à ta disposition.\n\nC'est à partir de là que tu pourras attribuer les points de sorts que tu gagnes à chaque niveau ou grâce à des parchemins.",
+                "k": [
+                    "point de sort",
+                    "parchemins",
+                    "sorts"
+                ],
+                "i": 58,
+                "ep": 1
+            },
+            "7": {
+                "c": 6,
+                "n": "Les emotes",
+                "o": -1,
+                "a": "Ton personnage peut apprendre différentes attitudes (emotes). La première d'entre-elles tu l'as apprise avec Ganymède : il s'agit de l'emote s'asseoir. Les emotes rendent plus vivantes tes discussions habituelles en montrant tes émotions. Mais attention ! Il faudra parcourir Amakna, résoudre des énigmes et combattre durement pour toutes les avoir !\n\n<strong>Que l'astuce soit avec toi !</strong> Va voir Wally Elconom, à la bibliothèque d'Amakna : il cherche des aventuriers susceptibles de l'aider.",
+                "k": [
+                    "Emotes"
+                ],
+                "i": 7,
+                "ep": 1
+            },
+            "62": {
+                "c": 1,
+                "n": "Tes amis",
+                "o": -1,
+                "a": "La page « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnFriends\">Tes amis</a> » te permet de gérer ta liste d'amis... mais aussi d'ennemis !\n\nÀ partir de là, tu peux ajouter de nouveaux joueurs à tes amis, en supprimer, leur envoyer des messages privés ou les inviter dans ton groupe...",
+                "k": [
+                    "ennemis",
+                    "amis"
+                ],
+                "i": 62,
+                "ep": 1
+            },
+            "26": {
+                "c": 4,
+                "n": "Les défis",
+                "o": -1,
+                "a": "La meilleure manière d'assimiler les nombreuses et différentes techniques de combat qui coexistent dans DOFUS, c'est de combattre d'autres joueurs. Pour le faire sans craindre de perdre de l'énergie, les défis sont à ta disposition ! Ce sont des combats tout ce qu'il y a de plus amicaux, qui peuvent être interrompus à tout moment sans risque, qui te permettront de t'entraîner avec d'autres joueurs. Cependant, les défis ne permettent pas de gagner de l'expérience.",
+                "k": [
+                    "expérience",
+                    "test",
+                    "défi"
+                ],
+                "i": 26,
+                "ep": 1
+            },
+            "27": {
+                "c": 32,
+                "n": "L'expérience",
+                "o": -1,
+                "a": "Gagner de l'expérience se dit « gagner de l'XP » (ou XP tout court) dans le jargon des joueurs non Role Play. On entend par XP l'action d'attaquer les monstres sans relâche afin d'augmenter son expérience et de passer des niveaux. XP est indispensable au débutant qui pourra grâce à cela gravir les échelons (ou levels, lvl, on dit aussi level up) afin d'avoir accès aux quêtes, à l'équipement de plus en plus évolué, etc...\n\nGagner de l'expérience te permet de gravir les niveaux. Chaque niveau passé te rapporte 5 points de capital caractéristique et 1 point de capital sort. A toi de les investir en fonction de ta stratégie, mais attention : les points de capital dépensés le sont définitivement. Tu ne peux pas les retirer, tu peux uniquement les compenser à l'aide de parchemins.",
+                "k": [
+                    "quêtes",
+                    "niveaux",
+                    "levels",
+                    "XP",
+                    "expérience"
+                ],
+                "i": 27,
+                "ep": 1
+            },
+            "64": {
+                "c": 1,
+                "n": "Ta monture",
+                "o": -1,
+                "a": "La page « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnMount\">Ta monture</a> » te permet d'obtenir des informations sur ta dragodinde.",
+                "k": [
+                    "dragodinde",
+                    "monture"
+                ],
+                "i": 64,
+                "ep": 1
+            },
+            "35": {
+                "c": 33,
+                "n": "Armes et personnages",
+                "o": -1,
+                "a": "Les armes servent à frapper l'adversaire. Elles se distinguent les unes des autres par :\n\n- Leur coût,\n- Les dommages infligés et les résistances octroyées,\n- Leur élément,\n- Leur portée et leur zone d'effet,\n\net enfin les bonus qu'elles accordent aux combattants qui les portent (voire aux malus qu'elles infligent).\n\nChaque classe de personnage a une arme de prédilection :\n\n- Crâ : Arc\n- Ecaflip : Epée\n- Eniripsa : Baguette\n- Enutrof : Pelle\n- Féca : Bâton\n- Iop : Epée\n- Osamodas : Marteau\n- Pandawa : Hache\n- Sacrieur : Mains nues\n- Sadida : Bâton\n- Sram : Dague\n- Xélor : Marteau",
+                "k": [
+                    "prédilection",
+                    "classes",
+                    "armes"
+                ],
+                "i": 35,
+                "ep": 1
+            },
+            "21": {
+                "c": 4,
+                "n": "La portée (PO)",
+                "o": -1,
+                "a": "La portée désigne la distance à laquelle tu peux toucher un adversaire lors d'un combat. Elle s'applique aux armes de jet comme aux sorts. Elle se mesure en cases. Les obstacles diminuent la portée, à condition qu'ils soient plus hauts que le personnage qui lance son attaque ou son sort. Par exemple, les haies et les barrières ne diminuent pas la portée d'une arme ou d'un sort, mais un arbre si.",
+                "k": [
+                    "attaque",
+                    "sort",
+                    "distance",
+                    "PO",
+                    "portée"
+                ],
+                "i": 21,
+                "ep": 1
+            },
+            "42": {
+                "c": 34,
+                "n": "Les Hôtels de Vente",
+                "o": -1,
+                "a": "Les principaux hôtels de vente sont accessibles dans les cités. Ces bâtiments, permettent de mettre en vente des objets, sans avoir à rester connecté ou devoir en faire la publicité. Les vendeurs doivent choisir le prix de vente de leur objet, la quantité d'objets qu'ils veulent vendre, et leurs objets deviennent alors achetables par les joueurs qui consulteront l'hôtel de vente. Attention cependant, la quantité des objets qui peuvent être mis en vente, leur niveau, le prix des taxes, ainsi que la durée de mise en vente dépendent des hôtels de vente. Ces spécificités sont affichées dans chaque hôtel de vente, fais-y attention, les hôtels de vente des grandes cités sont ainsi parfois beaucoup plus intéressants ! Lorsqu'un objet n'a pas été vendu avant le délai de vente, l'objet est retiré de l'hôtel de vente et retourne dans la banque de son propriétaire. Si l'objet mis en vente est vendu, l'argent gagné est transféré dans la banque du propriétaire. Les objets mis en vente dans les hôtels de vente, sont classés en fonction de leur nature et de leur prix. Pour des objets vendus en quantité identique, seuls les moins chers sont affichés, afin de faciliter le travail de l'acheteur. Ainsi, certains objets ne peuvent être achetés tant que les objets similaires mais moins chers n'ont pas été achetés ! Avant de mettre en vente un objet, pense à consulter la liste des objets déjà en vente et essaye de fixer des prix plus bas que ceux des autres objets, si tu veux que tes objets se vendent rapidement. Les hôtels de vente constituent de loin, le meilleur système de vente, et d'achat du jeu, ils te permettent d'acheter et de vendre ce que tu veux, de trouver les meilleurs prix, et de gagner énormément de temps. De plus, chaque hôtel de vente indique le prix de vente moyen constaté pour chaque objet qui y a été vendu. Les différents hôtels de vente sont affichés sur la carte du jeu.",
+                "k": [
+                    "vente",
+                    "de",
+                    "hotel",
+                    "hdv",
+                    "kamas",
+                    "acheter",
+                    "vendre",
+                    "économie"
+                ],
+                "i": 42,
+                "ep": 1
+            },
+            "37": {
+                "c": 33,
+                "n": "Les familiers",
+                "o": -1,
+                "a": "Un familier pourra t'épauler dans tes aventures. Du Chacha mignon au Chienchien rarissime, tu trouveras à coup sûr un compagnon de voyage à ton goût, d'autant plus qu'ils t'apportent des bonus souvent importants. Attention cependant, il est nécessaire de nourrir les familiers en règle générale, de respecter leurs délais de repas et leur régime alimentaire afin de veiller à leur bonne santé.",
+                "k": [
+                    "pet",
+                    "compagnon",
+                    "bonus",
+                    "santé",
+                    "régime",
+                    "délais",
+                    "repas",
+                    "nourrir",
+                    "familiers"
+                ],
+                "i": 37,
+                "ep": 1
+            },
+            "48": {
+                "c": 36,
+                "n": "Montures",
+                "o": -1,
+                "a": "Les montures permettent aux joueurs de se déplacer plus vite qu'en courant. Plus une monture est expérimentée, plus elle se déplace rapidement.",
+                "k": [
+                    "déplacement",
+                    "dragodindes",
+                    "montures"
+                ],
+                "i": 48,
+                "ep": 20
+            },
+            "11": {
+                "c": 4,
+                "n": "Les points de vie",
+                "o": -1,
+                "a": "Les Points de Vie de votre personnage baissent lorsqu'il subit des dégâts (lors d'une frappe adverse par exemple). Ils augmentent lorsque votre personnage se soigne (par un sort, un objet, grâce à un allié ou en utilisant l'attitude \"s'assoir\"). Si le nombre de PDV de votre combattant tombe à zéro, il est mort ! Surveiller les PDV et ceux de son adversaire est donc essentiel pour remporter la victoire.",
+                "k": [
+                    "victoire",
+                    "mort",
+                    "point de vie"
+                ],
+                "i": 11,
+                "ep": 1
+            },
+            "40": {
+                "c": 33,
+                "n": "La banque",
+                "o": -1,
+                "a": "La banque permet aux joueurs qui ne disposent pas de maisons et de coffres personnels, de stocker leurs objets. Chaque cité ou village important dispose de sa propre banque. L'ouverture d'un compte en banque est gratuite, et le nombre d'objets que vous pouvez y stocker est illimité, mais chaque emplacement utilisé vous coûtera 1 Kama à chaque utilisation de votre compte en banque. Le compte en banque est commun à l'ensemble des personnages d'un même compte si ces derniers se trouvent sur le même serveur.",
+                "k": [
+                    "kamas",
+                    "objets",
+                    "coffre",
+                    "banque"
+                ],
+                "i": 40,
+                "ep": 1
+            },
+            "8": {
+                "c": 6,
+                "n": "Les variables",
+                "o": -1,
+                "a": "Pour faciliter le dialogue avec les autres joueurs, dans le cas où tu voudrais partager avec eux tes caractéristiques, leur donner le nom de ta guilde ou leur dire dans quel coin du Monde tu te ballades, un certain nombre de variables existent pour te faciliter la vie et t'éviter d'avoir à tout recopier toi-même !\nVoici quelques-unes de ces variables, qu'il suffit d'entrer dans la zone de chat pour qu'elles s'affichent :\n\n<strong>%zone%</strong> donne le nom de la région où tu te trouves (Astrub, par exemple).\n<strong>%souszone%</strong> donne avec plus de précision le nom de la zone où tu te trouves (Champ d'Astrub, par exemple).\n<strong>%pos%</strong> donne les coordonnées de la carte où tu te trouves.\n\n<strong>%moi%</strong> donne le pseudo de ton personnage.\n<strong>%stats%</strong> donne l'ensemble des statistiques de ton personnage (caractéristiques, PA, PM, Initiative).\n<strong>%niveau%</strong> donne le niveau de ton personnage.\n<strong>%guilde%</strong> donne le nom de la guilde de ton personnage.\n\n<strong>%viemax%</strong> donne ton nombre de points de vie maximum.\n<strong>%vie%</strong> donne le nombre de points de vie qu'il te reste.\n<strong>%viep%</strong> donne le pourcentage de vie qu'il te reste.",
+                "k": [
+                    "variables"
+                ],
+                "i": 8,
+                "ep": 1
+            },
+            "44": {
+                "c": 35,
+                "n": "Métiers de récolte",
+                "o": -1,
+                "a": "Les métiers permettent de récolter les ressources naturelles disséminées dans l'univers de Dofus. Elles sont rarement exploitables après récolte, il faut généralement les retravailler et les combiner pour en obtenir des objets utilisables. Les métiers de récolte sont les plus simples à rentabiliser car ils ne demandent aucun investissement financier, il faut juste pouvoir y consacrer beaucoup de temps. Les métiers de récolte s'apprennent directement auprès des PNJ artisans.",
+                "k": [
+                    "artisans",
+                    "récolte",
+                    "métiers"
+                ],
+                "i": 44,
+                "ep": 1
+            },
+            "12": {
+                "c": 4,
+                "n": "L'initiative",
+                "o": -1,
+                "a": "L'initiative sert à déterminer ta position au début d'un combat. Si l'initiative de ton combattant est la plus élevée de tous les combattants/créatures, tu joueras le premier au début du combat. En cas d'égalité de points d'Initiative, les combattants sont départagés par tirage au sort. L'initiative reste la même pour toute la bataille.",
+                "k": [
+                    "initiative"
+                ],
+                "i": 12,
+                "ep": 1
+            },
+            "30": {
+                "c": 4,
+                "n": "Coups Critiques & Echecs Critiques",
+                "o": -1,
+                "a": "Chaque frappe ou lancer de sort est soumis aux Coups Critiques (CC) et aux Echecs Critiques (EC). Les indications relatives aux Coups Critiques sont affichées sur les descriptions des Armes et des Sorts.\nUn Echec Critique fait toujours 0 dommages, alors que le coup critique augmente considérablement la chance de faire beaucoup plus de dégâts.",
+                "k": [
+                    "EC",
+                    "CC",
+                    "echec critique",
+                    "coup critique"
+                ],
+                "i": 30,
+                "ep": 1
+            },
+            "29": {
+                "c": 32,
+                "n": "Bonus et Réduction de Dommages",
+                "o": -1,
+                "a": "Les dommages peuvent être renforcés (par des bonus de dommages, on dit qu'ils sont boostés) ou réduits (par des bonus de résistance) en fonction de l'élément de ton arme (ou de tes sorts si tu as choisi des sorts offensifs) et de tes objets. Le choix des bonus de dommages ou de résistance doit s'effectuer en fonction de l'élément de ton arme et/ou de tes sorts. Imaginons un combattant Sacrieur équipé :\nD'une cape augmentant les dommages TERRE de 10\nD'une coiffe augmentant les dommages TERRE de 15 (soit +25 de dégât TERRE)\nDu Sort Pied du Sacrieur (un sort TERRE qui inflige 10 à 18 points de dommage).\n\nA chaque frappe, le Sacrieur infligera entre 35 et 43 points de dommages à son adversaire, pourvu que celui-ci n'ait pas de résistances.\n\nSi le Sort Pied du Sacrieur est remplacé par la Razielle (épée – 26 à 40 de dommages Neutre), le Sacrieur infligera autant de points de dommages à son adversaire hors résistances éventuelles. (Rappelons que l'élément TERRE augmente également les dégâts Neutres).",
+                "k": [
+                    "éléments",
+                    "resistances",
+                    "dommages",
+                    "reduction",
+                    "bonus"
+                ],
+                "i": 29,
+                "ep": 1
+            },
+            "45": {
+                "c": 35,
+                "n": "Métiers de fabrication",
+                "o": -1,
+                "a": "Les métiers de fabrication sont généralement plus complexes que les métiers de récolte, ils demandent un investissement beaucoup plus important, pour rassembler les différentes ressources. Il est souvent plus intéressant de commencer par un métier de récolte pour s'enrichir et préparer des stocks de ressources, pour ensuite, se lancer dans un métier de fabrication complémentaire en utilisant ses stocks de ressources.",
+                "k": [
+                    "craft",
+                    "artisanat",
+                    "fabrication",
+                    "métier"
+                ],
+                "i": 45,
+                "ep": 1
+            },
+            "16": {
+                "c": 4,
+                "n": "Les points d'action",
+                "o": -1,
+                "a": "Les Points d'Action de ton combattant déterminent sa capacité à agir. Exécuter une attaque, lancer un sort coûte des Points d'Action : par exemple, attaquer avec une arme coûte en général 5 PA. Lorsque le nombre de PA est égal à zéro, ton personnage ne peut plus agir. Fixés à 6 PA pour tous les combattants, ils peuvent être augmentés ou réduits par des sorts et/ou des équipements.",
+                "k": [
+                    "action",
+                    "PA",
+                    "point d'action"
+                ],
+                "i": 16,
+                "ep": 1
+            },
+            "41": {
+                "c": 34,
+                "n": "Les kamas",
+                "o": -1,
+                "a": "Le Kama est la monnaie officielle du jeu, elle est reconnue dans tout le continent, et te permet d'acheter ce que tu veux aux autres joueurs. Attention, le cours du Kama est très variable, thésauriser dans Dofus peut être très rentable, mais également très dangereux ! Pense à toujours garder quelques Kamas sur toi, ils sont indispensables pour accéder à ton coffre en banque, utiliser les Zaaps, les Zaapis, payer les taxes dans les hôtels de vente etc.",
+                "k": [
+                    "monnaie",
+                    "argent",
+                    "kamas"
+                ],
+                "i": 41,
+                "ep": 1
+            },
+            "46": {
+                "c": 36,
+                "n": "Les zaaps",
+                "o": -1,
+                "a": "Les zaaps sont des arches magiques qui vous permettent de vous déplacer aux quatre coins du Monde moyennant quelques kamas. Sauvegarder une position est gratuit, mais voyager par zaap est payant. Attention ! Vous ne pouvez utiliser que les zaaps que vous avez déjà visités.",
+                "k": [
+                    "stargate",
+                    "payant",
+                    "voyager",
+                    "zaaps"
+                ],
+                "i": 46,
+                "ep": 1
+            },
+            "22": {
+                "c": 4,
+                "n": "Les Points d'Energie (PE)",
+                "o": -1,
+                "a": "Perdre un combat implique de retourner à ta dernière position sauvegardée (un Zaap par exemple). Ton personnage aura perdu la totalité de ses PDV et un peu de ses points d'énergie (PE). Si tu n'as pas sauvegardé de position, ton personnage revient à Astrub.\n\n<strong>Que l'astuce soit avec toi !</strong> Tu regagnes des PEs lorsque tu déconnectes ton personnage dans une taverne.",
+                "k": [
+                    "taverne",
+                    "PE",
+                    "défaite",
+                    "mort",
+                    "énergie"
+                ],
+                "i": 22,
+                "ep": 1
+            },
+            "28": {
+                "c": 32,
+                "n": "Augmenter ses dégâts",
+                "o": -1,
+                "a": "Il est primordial de te spécialiser dans l'évolution de tes caractéristiques. Sur 6 caractéristiques, 4 augmentent les dégâts :\n\n- Force augmente les dégâts de type Terre (et neutre), ainsi que les Pods (unité de mesure de poids transportable).\n- Chance augmente les dégâts de type Eau, ainsi que la Prospection (probabilité de trouver des objets sur les monstres vaincus).\n- Agilité augmente les dégâts de type Air ainsi que la probabilité de faire un Coup Critique, et de se dégager d'une zone de tacle.\n- Intelligence augmente les dégâts de type Feu, ainsi que le nombre de points de vie rendu pour les sorts de soin.\n\nIl est recommandé, la plupart du temps, de se focaliser sur une seule caractéristique. Le choix de cette caractéristique se fait en fonction de l'élément (Terre, Feu, Eau, Air) que tu souhaites développer.",
+                "k": [
+                    "feu",
+                    "air",
+                    "eau",
+                    "terre",
+                    "intelligence",
+                    "agilité",
+                    "chance",
+                    "force",
+                    "dégâts"
+                ],
+                "i": 28,
+                "ep": 1
+            },
+            "55": {
+                "c": 36,
+                "n": "Se déplacer et changer de carte",
+                "o": -1,
+                "a": "Pour déplacer son personnage, il suffit de cliquer sur une destination avec le bouton gauche de la souris.\n\nPour changer de carte, il faut cliquer sur les plots de changement de carte (matérialisés par des roses des vents) avec le bouton gauche de la souris.\nLes plots de changement de carte sont situés de chaque côtés des cartes du jeu.",
+                "k": [
+                    "bouger",
+                    "carte",
+                    "changer",
+                    "déplacer"
+                ],
+                "i": 55,
+                "ep": 1
+            },
+            "23": {
+                "c": 4,
+                "n": "La mort",
+                "o": -1,
+                "a": "Lorsque vous perdez un combat, vous êtes téléporté à votre dernière position enregistrée, appelée point de sauvegarde (généralement un zaap) avec 1 seul point de vie. Si votre énergie tombe à zéro à l'issue du combat, vous rejoignez le monde des spectres. À vous de trouver un Phénix pour retrouver la vie et quelques points d'énergie.\n(Lorsqu'un joueur rejoint le monde des spectres, les Phénix qu'il peut rejoindre sont indiqués par un petit drapeau rouge sur la carte générale). Si cela vous arrive, vous aurez le choix entre attendre de vous faire ressusciter par un prêtre, ou chercher le Phénix le plus proche.",
+                "k": [
+                    "énergie",
+                    "point de vie",
+                    "phénix",
+                    "défaite",
+                    "mort"
+                ],
+                "i": 23,
+                "ep": 1
+            },
+            "61": {
+                "c": 1,
+                "n": "Ta Géoposition",
+                "o": -1,
+                "a": "La page « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnMap\">Géoposition </a> » affiche la carte du monde.\n\nTu peux afficher sur celle-ci l'emplacement des zaaps, hôtels de vente, ateliers, temples de guilde... Les coordonnées des zones d'affichent en survol quand tu passes ta souris dessus.",
+                "k": [
+                    "coordonnées",
+                    "géographie",
+                    "carte"
+                ],
+                "i": 61,
+                "ep": 1
+            },
+            "14": {
+                "c": 4,
+                "n": "La prospection",
+                "o": -1,
+                "a": "Cette valeur améliore ta capacité à dropper des objets en fin de combat. Tu possèdes 100 points de Prospection quand tu débutes (120 pour les Enutrofs) et tu peux l'améliorer en t'équipant d'objets avec des bonus en prospection. De plus, la chance te permet également d'améliorer cette caractéristique (+1 point en Prospection tout les 10 points de chance).",
+                "k": [
+                    "chance",
+                    "objet",
+                    "drop",
+                    "prospection"
+                ],
+                "i": 14,
+                "ep": 1
+            },
+            "15": {
+                "c": 4,
+                "n": "Les points de mouvement",
+                "o": -1,
+                "a": "Les Points de Mouvement de ton combattant déterminent son potentiel de déplacement. Déplacer un combattant retranche des Points de Mouvement à son total de PM. Fixés à 3 PM pour tous les combattants, ils peuvent être augmentés ou réduits par des sorts et/ou des équipements.\nCas particulier : Lorsqu'un combattant se trouve sur l'une des quatre cases adjacentes à celle où se situe une créature ou un autre combattant, on dit qu'il est dans une zone de tacle (aussi appelée zone de contrôle ou de tacle). La possibilité d'esquiver, et donc de se dégager d'une zone de tacle dépend de l'agilité des deux combattants : plus la différence d'agilité est importante, plus le combattant qui essaye de sortir de la zone de tacle aura de chances d'y parvenir Si tu échoues, tu manques ton esquive et tu passes ton tour. Chaque déplacement te coûte 1 à 3 PM, en fonction du nombre de cases sur lesquelles tu t'es déplacé.\n\nQue l'astuce soit avec toi ! Certaines créatures possèdent plus de 3 PM et de 6 PA ! Certains équipements rares te permettront d'augmenter ton nombre de PA et de PM !",
+                "k": [
+                    "mouvement",
+                    "PM",
+                    "déplacement"
+                ],
+                "i": 15,
+                "ep": 1
+            },
+            "24": {
+                "c": 4,
+                "n": "La vitalité",
+                "o": -1,
+                "a": "La vitalité est associée aux PDV. Il convient de l'augmenter régulièrement avec la caractéristique que tu auras choisie. A noter que les Sacrieurs ont besoin de beaucoup de vitalité pour être joués convenablement.",
+                "k": [
+                    "PDV",
+                    "PV",
+                    "vitalité"
+                ],
+                "i": 24,
+                "ep": 1
+            },
+            "57": {
+                "c": 1,
+                "n": "Caractéristiques et métiers",
+                "o": -1,
+                "a": "La page « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnStatsJob\">caractéristiques et métiers</a> » affiche toutes les caractéristiques de ton personnage, ses métiers et son alignement. Tu peux y trouver un en coup d'oeil toutes les informations vitales.\n\nC'est également sur cette page que tu peux répartir tes points de caractéristiques quand tu gagnes un niveau.\n\nEn cliquant sur l'épée, tu peux afficher le détail de l'ensemble des caractéristiques de ton personnage et des bonus apportés par son équipement.",
+                "k": [
+                    "métiers",
+                    "caractéristiques",
+                    "personnage",
+                    "fiche"
+                ],
+                "i": 57,
+                "ep": 1
+            },
+            "60": {
+                "c": 1,
+                "n": "Liste des quêtes",
+                "o": -1,
+                "a": "La page « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnQuests\">Liste des quêtes </a> » affiche vos quêtes en cours et terminées.\n\nSi vous êtes perdu dans une quête, vous pouvez y retrouver les dialogues des PNJ (personnages non joueurs) qui vous ont confié une quête et utiliser la boussole pour retrouver l'endroit où vous devez vous rendre.",
+                "k": [
+                    "journal",
+                    "liste des quêtes",
+                    "quêtes"
+                ],
+                "i": 60,
+                "ep": 1
+            },
+            "38": {
+                "c": 33,
+                "n": "Les coffres particuliers",
+                "o": -1,
+                "a": "Les joueurs qui disposent d'une maison peuvent entreposer leurs objets dans des coffres dont le nombre d'emplacements varie généralement entre 60 et 80. Les maisons les plus grandes disposent parfois de plus de 3 coffres.",
+                "k": [
+                    "maisons",
+                    "privé",
+                    "coffre"
+                ],
+                "i": 38,
+                "ep": 1
+            },
+            "47": {
+                "c": 36,
+                "n": "Les zaapis",
+                "o": -1,
+                "a": "L'utilisation des zaapis ne coûte que quelques Kamas et permet de se déplacer à l'intérieur d'une cité entre les principaux bâtiments.\nÀ l'inverse des zaaps qu'il faut découvrir soi-même un à un avant de pouvoir les utiliser, les zaapis sont tous connus par défaut. Bien sûr, ils ne sont actifs que pour la ville dans laquelle vous êtes.",
+                "k": [
+                    "déplacement",
+                    "brakmar",
+                    "bonta",
+                    "zaapis"
+                ],
+                "i": 47,
+                "ep": 16
+            },
+            "17": {
+                "c": 4,
+                "n": "Les éléments",
+                "o": -1,
+                "a": "Chaque élément correspond à un type de caractéristique. Les sorts et certains équipements sont influencés par les éléments, et permettent donc d'augmenter les dommages causés, les soins, ou la capacité d'esquiver...\n\n- Terre correspond à Force\n- Eau correspond à Chance\n- Air correspond à Agilité\n- Feu correspond à Intelligence\n- Vitalité : elle détermine le nombre de PDV de ton personnage.\n- Sagesse : elle permet de gagner plus facilement de l'expérience, d'esquiver les pertes de PA et PM, elle augmente les chances de faire perdre des PA ou des PM à ses adversaires et augmente la puissance des sorts de renvois de dégâts (comme le sort Contre des Xélors par exemple).",
+                "k": [
+                    "air",
+                    "eau",
+                    "feu",
+                    "terre",
+                    "éléments"
+                ],
+                "i": 17,
+                "ep": 1
+            },
+            "43": {
+                "c": 34,
+                "n": "Le mode marchand",
+                "o": -1,
+                "a": "Le mode marchand permet aux joueurs de vendre leurs objets, mais uniquement lorsque ces derniers sont déconnectés. Le nombre d'objets que le joueur peut mettre en vente dans son mode marchand, dépend de son niveau. Pour chaque niveau, un joueur peut vendre un type d'objet (dans la quantité de son choix). Un joueur qui veut utiliser le mode marchand, doit commencer par trouver une carte disponible (il ne peut pas y avoir plus de 6 marchands par carte), choisir ce qu'il veut placer dans son mode marchand (ces options sont accessibles via le menu contextuel du personnage), les prix et les quantités de ses objets et se déconnecter en activant son mode marchand. Les autres joueurs pourront consulter son mode marchand et acheter ses objets. L'argent gagné est transféré directement dans l'inventaire du personnage.",
+                "k": [
+                    "déconnexion",
+                    "marchand",
+                    "mode",
+                    "acheter",
+                    "vendre"
+                ],
+                "i": 43,
+                "ep": 1
+            },
+            "56": {
+                "c": 33,
+                "n": "Les familiers",
+                "o": -1,
+                "a": "Les familiers sont des créatures que vous pouvez équiper via votre page d'inventaire. En les nourissant bien, ces compagnons pourront vous donner des bonus non négligeables ! Chaque familier a sa nourriture favorite, ne leur donnez pas n'importe quoi à manger ! Si vous ne les nourrissez pas régulièrement, vos familiers finiront pas mourir de faim.\n\nLe <a href=\"asfunction:onHref,PointCompass,9,21\">channil</a> vous permet de laisser vos familier sous bonne garde. Un certificat vous sera remis vous permettant de récupérer votre familier contre des kamas à tout moment. Le channil vend également des livre expliquant comment bien nourrir les familiers.",
+                "k": [
+                    "manger",
+                    "faim",
+                    "channil",
+                    "nourriture",
+                    "familiers"
+                ],
+                "i": 56,
+                "ep": 1
+            },
+            "32": {
+                "c": 32,
+                "n": "Les bonus",
+                "o": -1,
+                "a": "<strong>Bonus de Portée</strong>\nLa portée de base d'un personnage est de zéro. Elle varie en fonction des sorts ou des armes utilisés qui ont chacun leur propre portée. Certains sorts ou objets permettent tout de même d'augmenter la portée des sorts dont la portée peut être augmentée.\n\n<strong>Bonus de Coups critiques</strong>\nLes bonus de coups critiques permettent d'augmenter la probabilité de déclencher un coup critique lors du lancement d'un sort ou d'une attaque avec une arme.\n\n<strong>Bonus d'invocations</strong>\nLes bonus d'invocations permettent au joueur de pouvoir utiliser plusieurs invocations en même temps.\n\n<strong>Bonus de dommages fixe</strong>\nLes bonus de dommages fixes permettent d'augmenter tous les types de dommages.\n\n<strong>Bonus de dommages en %</strong>\nLes bonus de dommages en pourcentage permettent d'augmenter tous les types de dommages de la même façon que les caractéristiques force, agilité, chance, et intelligence, mais en augmentant que les dégâts.\n\n<strong>Bonus de dommages fixe aux pièges</strong>\nLes bonus de dommages fixes aux pièges permettent d'augmenter tous les types de dommages causés par les pièges.\n\n<strong>Bonus de dommages aux pièges en %</strong>\nLes bonus de dommages aux pièges en pourcentage permettent d'augmenter tous les types de dommages de la même façon que les caractéristiques force, agilité, chance, et intelligence, mais en augmentant que les dégâts causés par les pièges.\n\n<strong>Bonus de soins</strong>\nLes bonus de soins permettent d'augmenter le nombre de points de vie rendus par les sorts de soins.",
+                "k": [
+                    "soins",
+                    "pièges",
+                    "dommages",
+                    "invocations",
+                    "critiques",
+                    "coups",
+                    "portée",
+                    "bonus"
+                ],
+                "i": 32,
+                "ep": 1
+            },
+            "10": {
+                "c": 4,
+                "n": "Lancement du combat",
+                "o": -1,
+                "a": "Il suffit de cliquer sur un monstre ou un groupe de monstres pour lancer un combat.\nCertains monstres sont agressifs et vous attaqueront si vous vous en approchez trop.\n\nVous pouvez également rejoindre un combat lancé par un autre joueur.\nPour cela, il suffit de cliquer sur l'îcone en forme d'épée et rejoindre l'équipe du joueur qui a lancé le combat.\n\nLes combats se déroulent au tour par tour : à chaque tour, les joueurs jouent l'un après l'autre pendant le temps qui leur est imparti (30 secondes) : se placer au début du combat, se déplacer, frapper, lancer des sorts... A vous de bâtir votre stratégie !\n\nBien se placer au début d'un combat permet de prendre un avantage non négligeable. Lorsque vous avez joué, ou que vous êtes placé, pensez à passer votre tour en cliquant sur la flèche à droite de votre portrait.\n\n<strong>Que l'astuce soit avec vous !</strong> Vous pouvez exclure des joueurs dans un combat si vous l'avez initié en premier. Vous pouvez également appeler à l'aide d'autres aventuriers. 7 autres joueurs peuvent rejoindre le combat avant que celui-ci ne soit lancé. Pour cela, cliquez sur les icônes qui s'affichent à droite de votre écran lorsqu'un combat est déclenché. Vous pouvez aussi interdire aux autres joueurs de voir le combat que vous avez commencé. Cette fonction est surtout utile en mode PVP, pour que les autres joueurs ne puissent pas analyser votre tactique.\n\nLes commandes à connaître en combat\n<strong>/list</strong> (ou <strong>/players</strong>) liste les noms des joueurs dans un combat.\n<strong</kick</strong> Nom-joueur expulse un joueur du combat pendant la préparation, seulement si vous avez engagé le combat.\n<strong>/spectator</strong> (ou <strong>/s</strong>) active/désactive le mode spectateur du combat, si vous avez engagé le combat.",
+                "k": [
+                    "début",
+                    "combat",
+                    "kick"
+                ],
+                "i": 10,
+                "ep": 1
+            },
+            "34": {
+                "c": 33,
+                "n": "Objets équipables",
+                "o": -1,
+                "a": "Tu peux équiper ton personnage grâce aux objets équipables : armes, vêtements, bijoux peuvent être glissés de ton inventaire jusque sur ton personnage. Les Objets équipables se répartissent en différentes catégories :\n\n- Familiers\n- Dofus\n- Vêtements (capes, coiffes, bottes, etc.)\n- Armes\n\nChaque objet équipable peut apporter à ton personnage un bonus dans un élément, un bonus de dommages ou de résistances, un bonus de portée, de PM, de PA, etc. A toi de les découvrir !!\nUn objet qui ne peut-être porté est qualifié de « non équipable », c'est le cas des ressources (végétales, minières, animales, etc.)\n\nCas spécial : les panoplies. Un ensemble d'objets (Bottes, Cape, Coiffe, etc.) récupérés sur une même créature forme une panoplie. Une panoplie confère des effets spéciaux à celui qui la porte. Ces effets varient en fonction du type de panoplie (Bouftou, Prespic, Sanglier, Moskito, etc.)",
+                "k": [
+                    "équipement",
+                    "panoplies",
+                    "équipables",
+                    "objets"
+                ],
+                "i": 34,
+                "ep": 1
+            },
+            "39": {
+                "c": 33,
+                "n": "Les maisons",
+                "o": -1,
+                "a": "Il est possible d'acheter une maison pour y retrouver ses amis, entreposer des objets (dans les coffres particuliers). Les maisons peuvent être achetées dans les cités et les villages, mais aussi parfois en pleine campagne. Plus une maison est grande, plus elle comporte de coffres particuliers et plus elle est chère. Une maison achetée peut être mise en vente à n'importe quel prix. Le propriétaire de la maison peut lui-même décider d'ouvrir ou de fermer sa maison aux autres joueurs, et peut définir un code d'entrée, qu'il pourra partager avec ses amis. Le propriétaire de la maison peut accéder à ces paramètres via la porte de sa maison. Un joueur ne peut posséder qu'une seule maison par compte.",
+                "k": [
+                    "propriétaire",
+                    "code",
+                    "stocker",
+                    "objets",
+                    "coffres",
+                    "maisons"
+                ],
+                "i": 39,
+                "ep": 1
+            },
+            "19": {
+                "c": 4,
+                "n": "Les sorts spéciaux",
+                "o": -1,
+                "a": "En plus des sorts communs à toutes les classes, tu pourras acheter ou droper des sorts. Les incontournables doivent être montés tels que les maîtrises, et d'autres sont plus folkloriques tels que l'invocation d'Arakne.\n\n<strong>Que l'astuce soit avec toi !</strong> Inutile d'apprendre un sort spécial telle que la maîtrise des dagues si tu n'utilises pas de dagues ! Garde ce sort pour le revendre à un Sram par exemple.",
+                "k": [
+                    "invocation",
+                    "maîtrise",
+                    "élémentaire",
+                    "Sort"
+                ],
+                "i": 19,
+                "ep": 1
+            },
+            "25": {
+                "c": 4,
+                "n": "La Sagesse",
+                "o": -1,
+                "a": "Elle est très utile pour gagner plus d'expérience mais coûte cher. Plutôt que d'investir des points de caractéristique, développe-là à l'aide des quêtes de parchemins.\n\n<strong>Que l'astuce soit avec toi !</strong> Procure-toi le Manuel du Mercenaire d'Astrub, il complète bien cet ouvrage. Pour cela, trouve Nowa le Pandawa",
+                "k": [
+                    "caractéristiques",
+                    "parchemins",
+                    "sagesse",
+                    "XP"
+                ],
+                "i": 25,
+                "ep": 1
+            },
+            "9": {
+                "c": 6,
+                "n": "Les canaux de discussion",
+                "o": -1,
+                "a": "Tu as jusqu'à sept canaux de discussion à ta disposition pour communiquer avec les autres joueurs, amis ou inconnus. Chaque canal a son utilité et ses règles propres. Il faut donc <a href=\"asfunction:onHref,UiIndicator,Banner,_btnHelp,_mcIcon\">choisir</a> méticuleusement où parler pour ne pas se faire tirer les oreilles. Les différents canaux sont les suivants :\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter2\">Le canal général (en noir) :</a> C'est le canal par défaut. Tu peux y parler de tout et de rien avec les joueurs présents sur la même carte que toi, du moment que tu respectes la charte du jeu. Note cependant que la vente à la criée y est interdite si tu n'es pas sur une place marchande.\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter3\">Le canal équipe (en bleu) :</a> Ce canal te permet de discuter avec les autres personnes de ton équipe en combat sans que vos adversaires ne puissent vous lire. Indispensable pour établir de bonnes stratégies.\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter3\">Le canal groupe (en bleu) :</a> Ce canal te permet de discuter d'un bout du jeu à l'autre avec les personnes qui font partie de ton groupe d'aventuriers (voir la section 9 du manuel : « Jouer en groupe »).\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter4\">Le canal guilde (en violet) :</a> C'est le canal réservé aux conversations de ta guilde (voir la section 10 du manuel : « Jouer en guilde »). Tous les membres de ta guilde et eux seuls peuvent le lire et y parler.\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter5\">Le canal alignement (en orange) </a>: Il existe trois canaux d'alignement : le canal des bontariens, le canal des brakmariens et le canal des Sérianes. Ces canaux sont réservés aux joueurs qui ont choisi de s'impliquer dans l'une ou l'autre de ces communautés. Il est aussi nécessaire d'acquérir un certain grade d'alignement pour pouvoir parler sur ces canaux.\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter6\">Le canal recrutement (en gris) :</a> Si tu cherches une guilde ou, au contraire, des membres motivés pour rejoindre ta guilde, si tu cherches des joueurs pour former un groupe le temps de l'assaut d'un donjon... Ce canal est à ta disposition.\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter7\">Le canal commerce (en marron) :</a> Grâce à ce canal, tu pourras proposer tes objets à la vente et consulter les propositions des autres joueurs présents dans la même région que toi.",
+                "k": [
+                    "héhé",
+                    "discuter",
+                    "canal",
+                    "chat"
+                ],
+                "i": 9,
+                "ep": 1
+            },
+            "65": {
+                "c": 1,
+                "n": "Adresse IP",
+                "o": -1,
+                "a": "Une adresse IP est un numéro qui identifie votre connexion à Internet à un moment donné.  Généralement, ces IP sont dynamiques, c'est-à-dire qu'elles changent à chaque reconnexion de votre modem.\n\nVotre adresse IP indique quel est votre FAI (Fournisseur d'Accès à Internet), d'où vous vous connectez...  Si vous comprenez l'anglais, vous pouvez obtenir les informations associées à cette adresse, dont le FAI, en entrant l'adresse IP sur cette page : http://www.ripe.net/whois-advanced\n\nEn indiquant l'adresse IP et l'heure de votre dernière connexion à chaque reconnexion à DOFUS, nous vous permettons de vérifier vous-même si quelqu'un d'autre a utilisé votre compte en votre absence.",
+                "k": [
+                    "modem",
+                    "hack",
+                    "connexion",
+                    "FAI",
+                    "adresse",
+                    "IP"
+                ],
+                "i": 65,
+                "ep": 1
+            },
+            "20": {
+                "c": 4,
+                "n": "Gagner un combat",
+                "o": -1,
+                "a": "Remporter un combat contre une créature permet de gagner de l'expérience (voir la partie 5. Evolution), mais surtout de droper des objets.\nLe Drop désigne l'action de combattre des monstres pour s'emparer de leurs ressources. Par extension, dropper signifie massacrer du monstre à tour de bras pour faire main basse sur leurs ressources.\nVendre les objets trouvés dans les dépouilles des monstres que tu auras combattus te permettra de gagner des kamas, qui est la monnaie ayant cours dans le Monde de DOFUS. Ceci te permettra d'acheter l'équipement et les sorts qui te semblent les plus judicieux, c'est encore la meilleure façon de faire évoluer ton personnage... ici commence la tactique de DOFUS !",
+                "k": [
+                    "xp",
+                    "expérience",
+                    "drop",
+                    "victoire",
+                    "combat"
+                ],
+                "i": 20,
+                "ep": 1
+            },
+            "59": {
+                "c": 1,
+                "n": "Ton inventaire",
+                "o": -1,
+                "a": "La page « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnInventory\">Ton inventaire</a> » affiche tous les objets que tu as dans ton sac et ceux que tu as équipé.\n\nTon sac est divisé en quatre catégories :\n- Équipement (ce sont tes armes et tes vêtements, tous les objets que tu peux équiper);\r\n\n- Divers (parchemins, livres, potions, pains...);\r\n\n- Ressources (bouts de monstres ou récoltes d'artisans...);\r\n\n- Objets de quêtes (objets de première importance ! tu ne peux pas les toucher).",
+                "k": [
+                    "objets de quêtes",
+                    "équipement",
+                    "ressources",
+                    "objets",
+                    "inventaire"
+                ],
+                "i": 59,
+                "ep": 1
+            },
+            "18": {
+                "c": 4,
+                "n": "Les sorts de classe",
+                "o": -1,
+                "a": "Les sorts ont des effets multiples qu'il te faut apprendre à maîtriser pour être efficace : soigner, invoquer une créature, réduire les PM d'un adversaire, augmenter les PA d'un de tes alliés... les combinaisons sont multiples ! Certains sorts permettent également d'infliger des dommages, ou de les augmenter. Comme les armes, ils ont une portée et une zone d'effet.\n\n<strong>Remarque :</strong> si un sort est neutre, ses effets peuvent être renforcés grâce à la caractéristique Terre.\n\nLes points de sort, contrairement aux points de caractéristique, sont récupérables par le biais de potion d'oubli, que l'on « achète » au temple des différentes classes. Attention cependant : plus ton niveau est élevé, plus l'absorption d'une telle potion te coûtera cher en kamas !",
+                "k": [
+                    "oubli",
+                    "sorts"
+                ],
+                "i": 18,
+                "ep": 1
+            },
+            "49": {
+                "c": 36,
+                "n": "Les aeronefs",
+                "o": -1,
+                "a": "Tu trouveras des aéronefs et autres machines volantes dans le village des Brigandins. Tu ne pourras utiliser ce moyen de locomotion que si tu es aligné, et si les tiens ont conquis le village !",
+                "k": [
+                    "brakmar",
+                    "bonta",
+                    "alignement",
+                    "aeronef",
+                    "voyager"
+                ],
+                "i": 49,
+                "ep": 17
+            },
+            "63": {
+                "c": 1,
+                "n": "Ta guilde",
+                "o": -1,
+                "a": "La page « <a href=\"asfunction:onHref,UiIndicator,Banner,_btnGuild\">Ta guilde</a> » ne peut s'ouvrir que si tu fais partie d'une guilde.\n\nTu peux y trouver toutes les informations importantes sur ta guilde : liste des membres, niveau de la guilde, emplacement des percepteurs...\n\nLe système de guilde vous permet de vous regrouper entre joueurs sous un même blason. En plus de la convivialité et de la franche camaraderie d'une guilde bien soudée, en rejoindre une offre quelques possibilités supplémentaires :\n\n<strong>Utiliser les percepteurs</strong>\nLes percepteurs peuvent prélever une partie des ressources récoltées sur une carte donnée, ainsi qu'une partie des objets, des kamas ou de l'expérience obtenus dans les combats de cette carte. Plus le niveau de votre guilde est élevé, plus la pose d'un percepteur est chère (1000 kamas + (niveau de la guilde × 10) et plus le temps entre deux récoltes sera long (1 heure × niveau de la guilde). Cependant, plus le niveau de votre guilde augmente plus votre percepteur devient fort et doué dans l'obtention de bonus. Ne tardez jamais à rejoindre le combat lorsque votre percepteur est attaqué !\n\n<strong>Utiliser les enclos de guilde</strong>\nLes guildes ont la possibilité d'acquérir des enclos à dragodindes. Contrairement aux enclos publics, ceux-ci vous permettent d'élever vos dragodindes en toute sécurité, en conservant le contrôle total sur leurs lignées.\n\n<strong>Les maisons de guilde</strong>\nQuand un membre de la guilde achète une maison, il a la possibilité de la définir comme maison de guilde pour en faire profiter les autres membres. Idéal pour les rendez-vous secrets.\n\n<strong>Évolution de votre guilde</strong>\nQuand vous combattez, vous avez la possibilité de donner un pourcentage de votre expérience à votre guilde. En gagnant des niveaux, votre guilde pourra posséder plus de maisons et d'enclos, et poser des percepteurs plus puissants.",
+                "k": [
+                    "percepteurs",
+                    "guilde"
+                ],
+                "i": 63,
+                "ep": 1
+            },
+            "31": {
+                "c": 32,
+                "n": "Les caractéristiques basiques",
+                "o": -1,
+                "a": "<strong>Force</strong>\nLa force permet d'augmenter la quantité d'objets qu'un joueur peut porter en augmentant la taille de sa jauge de pods. Elle permet également d'augmenter les dégâts causés par les armes et sorts aux dégâts neutres ou de type Terre.\n\n<strong>Agilité</strong>\nL'agilité augmente la probabilité de sortir des zones de tacles, et d'empêcher ses adversaires de sortir des zones de tacle. Elle permet également d'augmenter la probabilité de faire des coups critiques et d'augmenter les dégâts de type Air.\n\n<strong>Vitalité</strong>\nLa vitalité permet d'augmenter la vie de votre personnage.\n\n<strong>Vie</strong>\nLa vie représente le nombre de points de vie de votre personnage. A partir du niveau 100, un personnage gagne 10 points de vie par niveau supplémentaire.\n\n<strong>Intelligence</strong>\nL'intelligence permet d'augmenter les dégâts de type Feu, et les sorts de soin.\n\n<strong>Chance</strong>\nLa chance augmente la prospection des personnages avec un rapport de 10/1 (10 en chance augmente la prospection de 1). Elle permet également d'augmenter les dégâts de type Eau.\n\n<strong>Sagesse</strong>\nLa sagesse permet d'augmenter l'expérience gagnée en fin de combat. Elle augmente également la probabilité d'esquiver les pertes de points d'action et les pertes de points de mouvement.\n\n<strong>Initiative</strong>\nL'initiative détermine l'ordre dans lequel votre personnage va commencer le premier tour d'un combat. Plus sa valeur est élevée, plus votre personnage a de chance de commencer avant les autres personnages. L'initiative est modifiée par la force, l'agilité, la chance, mais surtout par l'intelligence et la sagesse.\n\n<strong>Prospection</strong>\nLa prospection détermine la chance de trouver des objets en fin de combat contre les créatures. Plus sa valeur est élevée, plus votre personnage a de chances de trouver des objets en fin de combat contre des créatures.\n\n<strong>Point d'Action (« PA »)</strong>\nLes points d'action vous permettent de lancer des sorts ou des attaques avec des armes en cours de combat. Chaque lancer de sort ou utilisation d'une arme en combat retire des points à votre jauge de points d'action. Cette jauge se remplit totalement à chaque début de tour.\n\n<strong>Point de Mouvement (« PM »)</strong>\nLes points de mouvement permettent à votre personnage de se déplacer en combat. Chaque déplacement retire des points à votre jauge de points de mouvement. Cette jauge se remplit totalement à chaque début de tour.\n\n<strong>Point d'énergie</strong>\nLes points d'énergie déterminent l'état global de votre personnage. Un personnage sans points d'énergie, se transforme en fantôme. Les points d'énergie sont perdus lors des combats perdus contre les joueurs ou les monstres.",
+                "k": [
+                    "caractéristiques",
+                    "point d'énergie",
+                    "point de mouvement",
+                    "prospection",
+                    "initiative",
+                    "vitalité",
+                    "vie",
+                    "force",
+                    "agilité",
+                    "intelligence",
+                    "chance",
+                    "sagesse"
+                ],
+                "i": 31,
+                "ep": 1
+            },
+            "36": {
+                "c": 33,
+                "n": "Les pods",
+                "o": -1,
+                "a": "Pour augmenter tes pods (c'est à dire la charge de ton sac), il existe plusieurs moyens :\n\n- Chaque niveau de métier rapporte 5 pods plus un bonus de 1000 pods pour chaque métier de niveau 100.\n- Un point de force rapporte également 5 pods (tu augmenteras tes pods de préférence avec des parchemins, pas avec des points de caractéristique).\n- Des sacs apportent des pods supplémentaires, ils nécessitent d'avoir un niveau de récolteur moyen.\n- Quelques ceintures augmentent aussi les pods. La plus accessible est également la plus efficace : la ceinture du Bouftou (jusqu'à plus de 500 pods).",
+                "k": [
+                    "équipement",
+                    "force",
+                    "métiers",
+                    "augmenter",
+                    "sac",
+                    "portable",
+                    "poids",
+                    "pods"
+                ],
+                "i": 36,
+                "ep": 1
+            },
+            "2": {
+                "c": 6,
+                "n": "La barre de chat",
+                "o": 0,
+                "a": "- L'icône + te permet d'agrandir la fenêtre des dialogues. L'icône - la recadre à sa taille normale.\n\n- L'icône étoile récapitule les commandes principales pour t'adresser à ton groupe, ton alignement, ta guilde... En cliquant sur Aide, toutes les commandes s'afficheront dans la fenêtre de dialogue.\n\n- Les icônes de couleur te permettent de sélectionner les messages que tu reçois.\n\n- L'icône bouche te permet d'afficher les emotes (smileys) : certaines emotes peuvent être gagnées en accomplissant des quêtes. Va voir Wally Elconom dans la bibliothèque d'Amakna ou Grizmine dans la taverne d'Amakna pour en savoir plus.\n\n- L'icône Carnet d'Amis te permet d'ouvrir la fenêtre Carnet d'Amis Pour te faire un ami, clique sur le personnage d'un joueur, puis sur Ajouter à mes amis\n\n- L'icône Guilde te permet d'ouvrir la fenêtre de ta Guilde. Elle s'active seulement si tu es membre d'une Guilde.",
+                "k": [
+                    "Kikoo",
+                    "Amis",
+                    "Guilde",
+                    "Chat"
+                ],
+                "i": 2,
+                "ep": 1
+            },
+            "5": {
+                "c": 6,
+                "n": "Les commandes de chat",
+                "o": 1,
+                "a": "Les principales commandes à connaître pour communiquer facilement avec les autres joueurs sont les suivantes :\n\n<strong>/w</strong> (ou <strong>/msg</strong> ou <strong>/whispe</strong>) Nom-joueur message envoie un message privé.\n<strong>/t message</strong> envoie le message à l'équipe uniquement\n<strong>/g message</strong> envoie le message à la guilde.\n<strong>/p message</strong> envoie le message au groupe.\n<strong>/a message</strong> envoie le message dans le canal d'alignement. Nécessite un grade supérieur à 3.\n\nAvec ce qui est donné plus haut, vous avez déjà de quoi vous lancer vers l'aventure mais il y a bien d'autres commandes qui pourront vous être utile à mesure que vous progresserez. Voici quelques exemples :\n\n<strong>/invite Nom-joueur</strong> invite le joueur à rejoindre votre groupe. Indispensable pour se lancer à l'assaut de monstres puissants !\n<strong>/away</strong> active ou désactive le mode « absent ». En l'activant, vous ne recevrez plus ni messages privés ni invitations.\n<strong>/invisible</strong> a le même effet que /away à ceci près que les joueurs de votre liste d'amis pourront vous contacter.\n<strong>/help</strong> fait apparaître la liste des commandes du jeu, au cas où vous auriez un trou de mémoire.\n\n<strong>Que l'astuce soit avec toi ! :</strong> Si tu souhaites envoyer un message privé à un joueur situé qui se trouve sur la même carte que toi et possédant un nom à rallonge : xXx_LabelleHerséphine_xXx, tu peux entrer uniquement «/w\" suivi des premiers caractères de son pseudo. En faisant la combinaison «Ctrl + flèche droite\" le reste du pseudo s'affichera.\n\nEnfin il existe quelques commandes qui facilitent l'immersion dans votre personnage :\n<strong>/me message</strong> affiche le message précédé par votre pseudonyme : utile pour simuler un discours indirect.\n<strong>/think message</strong> affiche votre message comme s'il s'agissait d'une pensée.",
+                "k": [
+                    "raccourcis",
+                    "Chat",
+                    "Commandes"
+                ],
+                "i": 5,
+                "ep": 1
+            },
+            "1": {
+                "c": 6,
+                "n": "Communiquer avec les PNJs et les PJs",
+                "o": 2,
+                "a": "Un PNJ (Personnage Non Joueur), est un personnage dont le comportement a été défini par les concepteurs de DOFUS. Les PNJ vous permettront d'apprendre un métier, de vendre, d'acheter voire d'échanger des objets équipables ou des ressources. Certains vous confieront des quêtes : si vous êtes débutant, ne manquez pas les quêtes de la cité d'Astrub et de la zone d'Incarnam. Vous pouvez parler à un PNJ en cliquant simplement sur lui : une fenêtre de dialogue vous indiquera quelles sont les interactions possibles.\n\nUn PJ est un Personnage Joueur. Vous pouvez communiquer avec les PJs qui se trouvent sur la même carte que vous en utilisant le canal de discussion principal.",
+                "k": [
+                    "Chat",
+                    "PJ",
+                    "PNJ"
+                ],
+                "i": 1,
+                "ep": 1
+            }
+        },
+        "KBT": {
+            "1": {
+                "i": 1,
+                "c": "Cette interface permet de gérer sa liste d'amis et de voir s'ils sont en ligne.",
+                "l": 1
+            },
+            "2": {
+                "i": 2,
+                "c": "Cliquez sur un <a href=\"asfunction:onHref,PictoIndicator,-1,1030\">plot de changement de carte</a>, pour changer de carte.",
+                "l": 55
+            },
+            "3": {
+                "i": 3,
+                "c": "Cliquez sur un <a href=\"asfunction:onHref,SpriteIndicator,-1,9059\">personnage non joueur</a> (PNJ) pour discuter et interagir avec lui.",
+                "l": 1
+            },
+            "4": {
+                "i": 4,
+                "c": "Cliquez sur un <a href=\"asfunction:onHref,SpriteIndicator,-1,1219\">monstre</a> pour engager le combat.",
+                "l": 10
+            },
+            "5": {
+                "i": 5,
+                "c": "Cliquez sur une case rouge pour choisir votre position de départ.\nVous pouvez ensuite cliquer sur le bouton <a href=\"asfunction:onHref,UiIndicator,ChallengeMenu,_lblReady\">\"Prêt\"</a>.",
+                "l": 10
+            },
+            "7": {
+                "i": 7,
+                "c": "Les <a href=\"asfunction:onHref,UiIndicator,Banner,_pvMP\">points de mouvement</a> (PM) vous permettent de vous de déplacer en combat.",
+                "l": 10
+            },
+            "8": {
+                "i": 8,
+                "c": "Les <a href=\"asfunction:onHref,UiIndicator,Banner,_pvAP\">points d'action</a> (PA) vous permettent de lancer des <a href=\"asfunction:onHref,UiIndicator,Banner,_msShortcuts,_ctr1\">sorts</a> ou d'attaquer au <a href=\"asfunction:onHref,UiIndicator,Banner,_msShortcuts,_ctrCC\">corps à corps</a>.\nLorsque vous avez fini votre tour, pensez à cliquer sur le <a href=\"asfunction:onHref,UiIndicator,Banner,_btnNextTurn\">bouton \"Fin de tour\"</a>.",
+                "l": 10
+            },
+            "11": {
+                "i": 11,
+                "c": "Vous pouvez regagner vos <a href=\"asfunction:onHref,UiIndicator,Banner,_hHeart\">points de vie</a> (PDV) en utilisant l'attitude \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnSitDown\">s'assoir</a>\", en mangeant du pain ou des potions, ou en utilisant une <a href=\"asfunction:onHref,PictoIndicator,-1,7004\">source de jouvence</a>.",
+                "l": 11
+            },
+            "12": {
+                "i": 12,
+                "c": "En fin de combat, un tableau vous détaille ce que vous avez gagné comme objets, et comme expérience.",
+                "l": 10
+            },
+            "13": {
+                "i": 13,
+                "c": "Lorsque vous perdez un combat, vous êtes téléporté à votre dernier point de sauvegarde.",
+                "l": 23
+            },
+            "14": {
+                "i": 14,
+                "c": "Lorsque vous n'avez plus d'énergie vous êtes transformé en Spectre. Trouvez une statue de Phénix pour vous ressusciter. \nOuvrez votre <a href=\"asfunction:onHref,UiIndicator,Banner,_btnMap\">carte</a> pour trouver l'emplacement des statues de Phénix.",
+                "l": 23
+            },
+            "15": {
+                "i": 15,
+                "c": "Les <a href=\"asfunction:onHref,PictoIndicator,-1,7000\">Zaaps</a> permettent de sauvegarder votre position, et de voyager entre les différents <a href=\"asfunction:onHref,PictoIndicator,-1,7000\">Zaaps</a> que votre personnage connaît.",
+                "l": 46
+            },
+            "16": {
+                "i": 16,
+                "c": "Certaines ressources peuvent être collectées si vous disposez du bon métier, du niveau nécessaire, et si vous avez votre outil équipé.",
+                "l": 44
+            },
+            "17": {
+                "i": 17,
+                "c": "Cliquez sur l'aigle Ganymède pour lui parler. \n \nLe point d'exclamation sur sa tête signifie qu'il a une mission à vous proposer.",
+                "l": 1
+            },
+            "18": {
+                "i": 18,
+                "c": "Votre passage de niveau vous a fait gagner un nouveau sort. \nPour l'utiliser vous devez ouvrir votre <a href=\"asfunction:onHref,UiIndicator,Banner,_btnSpells\">Livre des sorts</a> et le déplacer vers votre <a href=\"asfunction:onHref,UiIndicator,Banner,_msShortcuts,_ctr4\">barre de sorts</a>.",
+                "l": 18
+            },
+            "19": {
+                "i": 19,
+                "c": "Votre personnage vient de gagner un niveau. \nVous pouvez distribuer des <a href=\"asfunction:onHref,UiIndicator,Banner,_btnStatsJob\">points de caractéristiques</a> et des  <a href=\"asfunction:onHref,UiIndicator,Banner,_btnSpells\">points de sorts</a>.",
+                "l": 27
+            },
+            "20": {
+                "i": 20,
+                "c": "Si vous disposez du métier adéquat et que vous avez équipé votre outil, vous pouvez collecter des ressources.",
+                "l": 44
+            },
+            "21": {
+                "i": 21,
+                "c": "Certains <a href=\"asfunction:onHref,SpriteIndicator,-1,9037\">personnages non joueurs</a> (PNJ) peuvent vous apprendre des métiers, n'hésitez pas à leur parler.",
+                "l": 44
+            },
+            "22": {
+                "i": 22,
+                "c": "Les ateliers vous permettent d'utiliser des outils et des machines pour créer des objets.",
+                "l": 45
+            },
+            "23": {
+                "i": 23,
+                "c": "<a href=\"asfunction:onHref,SpriteIndicator,-1,9059\">Les personnages non joueurs</a> (PNJ) qui possèdent un point d'exclamation vert au dessus de leur tête, peuvent vous proposer des quêtes.\nN'hésitez pas à leur parler pour en savoir plus.",
+                "l": 1
+            },
+            "24": {
+                "i": 24,
+                "c": "Les fontaines de jouvence vous permettent de regagner tous vos points de vie.\nLes personnages de niveau 15 et plus ne peuvent pas les utiliser.",
+                "l": 11
+            },
+            "25": {
+                "i": 25,
+                "c": "Cliquez sur votre <a href=\"asfunction:onHref,SpriteIndicator,-1,53\">tombe</a> pour libérer votre esprit si vous ne voulez pas attendre qu'un prêtre vous ressuscite.",
+                "l": 23
+            },
+            "26": {
+                "i": 26,
+                "c": "Vous avez désormais un nouveau point de sauvegarde.\nSi votre personnage meurt, il sera téléporté dans cette zone.",
+                "l": 23
+            },
+            "27": {
+                "i": 27,
+                "c": "Cette interface vous permet de visualiser vos <a href=\"asfunction:onHref,UiIndicator,Quests,_dgQuests,_lstList,_mcContent,row0\">quêtes</a>. \nVous pouvez cliquer sur une de vos <a href=\"asfunction:onHref,UiIndicator,Quests,_dgQuests,_lstList,_mcContent,row0\">quêtes</a> pour connaître la liste des étapes de cette quête.",
+                "l": 60
+            },
+            "28": {
+                "i": 28,
+                "c": "Cette interface vous permet de visualiser et de faire évoluer l'ensemble de vos sorts. \nVous pouvez déplacer vos sorts de cette interface vers votre <a href=\"asfunction:onHref,UiIndicator,Banner,_msShortcuts,_ctr4\">barre de sorts</a> pour les utiliser plus facilement pendant les combats. \n",
+                "l": 58
+            },
+            "29": {
+                "i": 29,
+                "c": "Cette interface vous permet de voir la carte de la zone dans laquelle votre personnage se trouve. \nVous pouvez y afficher les lieux importants de votre choix en sélectionnant les différents <a href=\"asfunction:onHref,UiIndicator,MapExplorer,_mcFilter4\">filtres</a>.",
+                "l": 61
+            },
+            "30": {
+                "i": 30,
+                "c": "Cette interface vous permet de visualiser et de répartir vos points de caractéristiques. \nVous pouvez également voir vos points d'expérience (XP) et vos points d'énergie.",
+                "l": 31
+            },
+            "31": {
+                "i": 31,
+                "c": "Cette interface vous permet de visualiser les étapes de votre quête. \nVous pouvez cliquer sur une <a href=\"asfunction:onHref,UiIndicator,Quests,_mcTab,_lstObjectives\">étape</a> lorsqu'une boussole est présente pour connaître la direction que vous devez suivre.",
+                "l": 60
+            },
+            "32": {
+                "i": 32,
+                "c": "L'heure de votre dernière connexion, ainsi que l'adresse IP utilisée alors, sont de bons indices pour savoir si la sécurité de votre compte est compromise.",
+                "l": 65
+            },
+            "33": {
+                "i": 33,
+                "c": "Votre percepteur est timide : entre deux récoltes, vous devez le laisser récupérer. Et ceci à raison d'une heure de repos pour chaque niveau de votre guilde.",
+                "l": 63
+            },
+            "34": {
+                "i": 34,
+                "c": "Vous pouvez passer votre tour à l'aide du <a href=\"asfunction:onHref,UiIndicator,Banner,_btnNextTurn\">bouton \"Fin de tour\"</a>.",
+                "l": 10
+            },
+            "35": {
+                "i": 35,
+                "c": "Si vous souhaitez rejoindre un ami, ajoutez le à votre <a href=\"asfunction:onHref,UiIndicator,Banner,_btnFriends\">liste d'amis</a>. Si votre ami est en ligne, vous avez la possibilité de vous téléporter à coté de lui en cliquant sur son nom.",
+                "l": 1
+            }
+        },
+        "KBD": {
+            "1": {
+                "t": 2,
+                "v": "Friends",
+                "d": 1
+            },
+            "13": {
+                "t": 2,
+                "v": "StatsJob",
+                "d": 30
+            },
+            "4": {
+                "t": 1,
+                "v": [
+                    10302
+                ],
+                "d": 21
+            },
+            "10": {
+                "t": 1,
+                "v": [
+                    10258
+                ],
+                "d": 11
+            },
+            "2": {
+                "t": 1,
+                "v": [
+                    10285,
+                    10289,
+                    10294,
+                    10300,
+                    10299,
+                    10298,
+                    10296,
+                    10292,
+                    10284,
+                    10283,
+                    10279,
+                    10276
+                ],
+                "d": 3
+            },
+            "6": {
+                "t": 1,
+                "v": [
+                    10355
+                ],
+                "d": 22
+            },
+            "3": {
+                "t": 1,
+                "v": [
+                    10324,
+                    10325,
+                    10327,
+                    10331,
+                    10330,
+                    10329,
+                    10328,
+                    10326,
+                    10323,
+                    10322,
+                    10321,
+                    10305
+                ],
+                "d": 23
+            },
+            "5": {
+                "t": 1,
+                "v": [
+                    10349,
+                    10317,
+                    10304,
+                    10297
+                ],
+                "d": 15
+            },
+            "12": {
+                "t": 2,
+                "v": "Quests",
+                "d": 27
+            },
+            "14": {
+                "t": 2,
+                "v": "MapExplorer",
+                "d": 29
+            },
+            "15": {
+                "t": 2,
+                "v": "Spells",
+                "d": 28
+            },
+            "16": {
+                "t": 1,
+                "v": [
+                    10295
+                ],
+                "d": 35
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 439,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "KBC",
+            "KBA",
+            "KBT",
+            "KBD",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

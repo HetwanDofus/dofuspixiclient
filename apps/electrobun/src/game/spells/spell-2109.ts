@@ -1,387 +1,446 @@
 /**
- * Spell 2109 - Wab (Sadida)
+ * Spell 2109 — Wabbit swirl / orbital attack (Wabbit class).
  *
- * A spiral projectile that travels from caster to target, leaving cercle particles
- * in its wake, with an impact animation at the target.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/2109/scripts/scripts/
  *
- * Components:
- * - sprite_15: Spiral projectile, originates at caster, travels to target
- *   - Contains sprite_12 (inner animation) with enterFrame spiral motion physics
- *   - Spawns "cercle" particles along its path (DefineSprite_13 logic)
- *   - Stops at frame 27 (AS frame 28 = removeMovieClip/stop)
- * - sprite_22: Impact animation at target position, signals hit at frame 54 (AS frame 55),
- *   stops at frame 81 (AS frame 82)
+ * displayType=50 (WorldAbsolute). The main timeline's frame_2 places sprite_22
+ * (target-anchored, 84-frame impact) and the outer onLoad positions it at
+ * cellTo. DefineSprite_15 (sprite_15, 30-frame orbiter) positions itself at
+ * cellFrom, computes distance d = dist(cellFrom,cellTo)/2, and drives an
+ * orbiting "sprite_13" child along an elliptical arc. That child in turn
+ * spawns `cercle` particles (library symbol) as a trail.
+ * DefineSprite_22 (sprite_22) fires `this.end()` (signalHit) at frame 55 and
+ * stops at frame 82, triggering spell completion.
  *
- * Original AS timing:
- * - Frame 1 (sprite_15): Play sound 'wab_swirl'
- * - Frame 1 (sprite_15): Initialize spiral motion (d = half-distance, rotation = angle to target)
- * - Each frame: Spiral object moves in parametric orbit, spawning cercle particles
- * - Frame 28 (sprite_15): removeMovieClip() + stop() — projectile done
- * - Frame 55 (sprite_22): this.end() — signal hit
- * - Frame 82 (sprite_22): stop()
+ * Canonical structure:
+ *   Main timeline (frame_2): stop(); place sprite_22 at cellTo; play wab_swirl.
+ *   sprite_22 (84 frames, target-side):
+ *     frame_55: this.end() → signalHit
+ *     frame_82: stop() → complete
+ *   sprite_15 (30 frames, orbiter container):
+ *     DoAction_2 (frame_1): position at cellFrom, compute d, rotation to target, stop()
+ *     frame_1 places DefineSprite_13 child with orbital onEnterFrame
+ *     frame_28: _parent.removeMovieClip(); stop()
+ *   DefineSprite_13 (orbital driver):
+ *     frame_1 DoAction: sets up onEnterFrame that samples its own position, spawns
+ *                       `cercle` particles at _parent (sprite_15 level) carrying vx/vy
+ *   lib_cercle (single-frame particle):
+ *     onLoad: seed va, t (scale), alpha, r (friction divisor)
+ *     onEnterFrame: fade by va; drift by vx/vy (divided by r each frame); remove when alpha<10
+ *
+ * Library symbols (librarySymbols[]):
+ *   - cercle (characterId 7) — trailing particle. Used by DefineSprite_13's
+ *     attachMovie("cercle","cercleN",N).
+ *
+ * Non-library animations (animations[]) used as container timelines:
+ *   - sprite_5   — inner sprite inside DefineSprite_6. Has its own onLoad/onEnterFrame
+ *                  driven by DefineSprite_6's clip events (r divisor on rotation).
+ *   - sprite_12  — the sprite inside sprite_15's PlaceObject2_13_1 (DefineSprite_13).
+ *                  Its frame_1 DoAction sets up the orbital spawner.
+ *   - sprite_15  — orbiter container (30 frames).
+ *   - sprite_22  — target-side impact (84 frames).
+ *
+ * Note on DefineSprite_6: this is the inner rotating element placed INSIDE
+ * the DefineSprite_13 composite at PlaceObject2_5_1. Its clip events read
+ * `_parent.r` which is seeded by lib_cercle's onLoad (r = 1.3 + 0.5*random).
+ * Since DefineSprite_6 is placed on the cercle clip's timeline, the `_parent`
+ * of the DefineSprite_6 instance IS the cercle clip — so `_parent.r` == cercle's r.
+ * We model this by registering a "sprite_6_inner" symbol used inside cercle.
+ *
+ * displayType=50 (WorldAbsolute): harness sets cellFrom/cellTo/angle on root.vars
+ * and anchors the container at world (0,0). Per-spell scripts position children
+ * using absolute world coords.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  ASParticleSystem,
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Container } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const SPRITE_15_MANIFEST: SpriteManifest = {
-  width: 32.75,
-  height: 27.25,
-  offsetX: -16.35,
-  offsetY: -17.65,
-};
-
-const SPRITE_22_MANIFEST: SpriteManifest = {
-  width: 62.55,
-  height: 69,
-  offsetX: -27.2,
-  offsetY: -46.95,
-};
-
-const _CERCLE_MANIFEST: SpriteManifest = {
+// Bounds from manifest librarySymbols[]
+const CERCLE_BOUNDS = {
   width: 24.75,
   height: 10.45,
   offsetX: -11.15,
   offsetY: -9.5,
 };
 
-/**
- * Spiral physics state (replicates DefineSprite_15 frame_1 PlaceObject2_13_1 enterFrame logic)
- */
-interface SpiralState {
-  pi: number;
-  v: number;
-  size: number;
-  a: number;
-  b: number;
-  t: number;
-  nFramesToIgnore: number;
-  nCurrentFrameState: number;
-  d: number; // half-distance
-  localX: number; // current local X within sprite_15
-  localY: number; // current local Y within sprite_15
-  previousWorldX: number; // for tracking movement for cercle particles
-  previousWorldY: number;
-  active: boolean;
-  triggered: boolean; // whether sprite_15 has started playing (gotoAndPlay(2))
-}
+// Bounds from manifest animations[]
+const SPRITE_5_BOUNDS = {
+  width: 26.6,
+  height: 15.1,
+  offsetX: -13.5,
+  offsetY: -13.75,
+};
 
-export class Spell2109 extends BaseSpell {
+const SPRITE_12_BOUNDS = {
+  width: 19.35,
+  height: 19.35,
+  offsetX: -9.6,
+  offsetY: -9.85,
+};
+
+const SPRITE_15_BOUNDS = {
+  width: 32.75,
+  height: 27.25,
+  offsetX: -16.35,
+  offsetY: -17.65,
+};
+
+const SPRITE_22_BOUNDS = {
+  width: 62.55,
+  height: 69,
+  offsetX: -27.2,
+  offsetY: -46.95,
+};
+
+export class Spell2109 extends RuntimeSpell {
   readonly spellId = 2109;
+  readonly displayType = SpellDisplayType.WorldAbsolute;
 
-  private impactAnim!: FrameAnimatedSprite;
-  private particles!: ASParticleSystem;
+  // Store symbols needed across registerSymbols + onSpellStart
+  private cercleSym!: SymbolDefinition;
+  private sprite6InnerSym!: SymbolDefinition;
+  private sprite13Sym!: SymbolDefinition;
+  private sprite15Sym!: SymbolDefinition;
+  private sprite22Sym!: SymbolDefinition;
 
-  // Sprite_15 container (the spiral projectile)
-  private sprite15Container!: Container;
-  private sprite15Anim!: FrameAnimatedSprite;
-
-  // Spiral state from DefineSprite_13 / DefineSprite_15 PlaceObject2_13_1
-  private spiral!: SpiralState;
-
-  // World position of the sprite_15 container (needed to compute particle world coords)
-  private sprite15WorldX = 0;
-  private sprite15WorldY = 0;
-  private sprite15Rotation = 0; // in radians
-
-  // Running time accumulator for frame-rate-independent spiral stepping
-  private spiralFrameAccumulator = 0;
-  private readonly FRAME_TIME = 1000 / 60;
-
-  // Track whether sprite_15 has been removed
-  private sprite15Removed = false;
-
-  protected setup(
-    context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext
   ): void {
-    const cellFromX = context?.cellFrom?.x ?? 0;
-    const cellFromY = context?.cellFrom?.y ?? 0;
-    const cellToX = context?.cellTo?.x ?? 0;
-    const cellToY = context?.cellTo?.y ?? 0;
+    const cercleAnchor = calculateAnchor(CERCLE_BOUNDS);
+    const sprite5Anchor = calculateAnchor(SPRITE_5_BOUNDS);
+    const sprite12Anchor = calculateAnchor(SPRITE_12_BOUNDS);
+    const sprite15Anchor = calculateAnchor(SPRITE_15_BOUNDS);
+    const sprite22Anchor = calculateAnchor(SPRITE_22_BOUNDS);
 
-    const dx = cellToX - cellFromX;
-    const dy = cellToY - cellFromY;
-    const d = Math.sqrt(dx * dx + dy * dy) / 2;
-    const rotationRad = Math.atan2(dy, dx);
-
-    // ---- sprite_15 (spiral projectile) ----
-    const sprite15Anchor = calculateAnchor(SPRITE_15_MANIFEST);
-
-    // The sprite_15 in AS is positioned at cellFrom (absolute world),
-    // but our container is relative to cellFrom, so it's at (0, 0).
-    this.sprite15Container = new Container();
-    this.sprite15Container.position.set(0, 0);
-    this.container.addChild(this.sprite15Container);
-
-    // The sprite_15 animation plays until frame 27 (0-indexed), then stops
-    this.sprite15Anim = new FrameAnimatedSprite({
-      textures: textures.getFrames("sprite_15"),
-      anchorX: sprite15Anchor.x,
-      anchorY: sprite15Anchor.y,
-      scale: init.scale,
-    });
-
-    // AS frame 1: play sound
-    this.sprite15Anim.onFrame(0, () => {
-      this.callbacks.playSound("wab_swirl");
-    });
-
-    // AS frame 28 (0-indexed: 27): removeMovieClip() + stop()
-    this.sprite15Anim.stopAt(27);
-    this.sprite15Anim.onFrame(27, () => {
-      this.sprite15Removed = true;
-      this.sprite15Container.visible = false;
-    });
-
-    this.sprite15Container.addChild(this.sprite15Anim.sprite);
-
-    // Initialize spiral state (DefineSprite_15 frame_1 PlaceObject2_13_1 onClipEvent load)
-    // size = 0.8 + 3 * Math.random()
-    const spiralSize = 0.8 + 3 * Math.random();
-    this.spiral = {
-      pi: Math.PI,
-      v: 0.3,
-      size: spiralSize,
-      a: 0,
-      b: 0,
-      t: 0,
-      nFramesToIgnore: 2,
-      nCurrentFrameState: 0,
-      d,
-      // Initial position from DoAction_2.as:
-      // _X = d + d * Math.cos(pi + a)  where a=0 => d + d * cos(pi) = d - d = 0
-      // _Y = d * Math.sin(0) / size = 0
-      localX: d + d * Math.cos(Math.PI + 0),
-      localY: (d * Math.sin(0)) / spiralSize,
-      previousWorldX: 0,
-      previousWorldY: 0,
-      active: true,
-      triggered: false,
+    // ---- DefineSprite_6 inner rotating element -------------------
+    // This symbol is placed inside lib_cercle (PlaceObject2_5_1).
+    // Clip events read _parent.r (the cercle clip's r variable).
+    // AS: DefineSprite_6/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as
+    //   vr = random(100) + 50;
+    //   _rotation = random(360);
+    //   gotoAndStop(random(_totalframes) + 1);
+    // AS: DefineSprite_6/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    //   _rotation = _rotation + (vr /= _parent.r);
+    this.sprite6InnerSym = {
+      name: "sprite_6_inner",
+      totalFrames: 10,
+      frames: textures.getFrames("sprite_5"),
+      anchorX: sprite5Anchor.x,
+      anchorY: sprite5Anchor.y,
+      onLoad: (clip) => {
+        // AS DefineSprite_6/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as
+        const vr = Math.floor(Math.random() * 100) + 50;
+        clip.vars.vr = vr;
+        clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+        const randomFrame = Math.floor(Math.random() * clip.totalFrames);
+        clip.gotoAndStop(randomFrame);
+      },
+      onEnterFrame: (clip) => {
+        // AS DefineSprite_6/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+        let vr = clip.vars.vr as number;
+        const parentR = (clip.parent?.vars.r as number) ?? 1.3;
+        vr = vr / parentR;
+        clip.vars.vr = vr;
+        clip.rotation += (vr * Math.PI) / 180;
+      },
     };
 
-    // Store world position for sprite_15 (it sits at cellFrom in world space)
-    this.sprite15WorldX = 0; // relative to container which is at cellFrom
-    this.sprite15WorldY = 0;
-    this.sprite15Rotation = rotationRad;
-
-    // Apply rotation from DoAction_2: _rotation = Math.atan2(dy, dx) * 180 / 3.1415
-    this.sprite15Container.rotation = rotationRad;
-
-    // Compute initial world position of spiral object for particle tracking
-    const initWorld = this.spiralLocalToWorld(
-      this.spiral.localX,
-      this.spiral.localY
-    );
-    this.spiral.previousWorldX = initWorld.wx;
-    this.spiral.previousWorldY = initWorld.wy;
-
-    // ---- Particle system (cercle) ----
-    const cercleTextures = textures.getFrames("lib_cercle");
-    const cercleTexture =
-      cercleTextures[0] ?? textures.getTexture("lib_cercle_0");
-    this.particles = new ASParticleSystem(cercleTexture);
-    // Particles are in world space (relative to our container at cellFrom)
-    this.container.addChildAt(this.particles.container, 0);
-
-    // ---- sprite_22 (impact at target) ----
-    const sprite22Anchor = calculateAnchor(SPRITE_22_MANIFEST);
-
-    this.impactAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_22"),
-        anchorX: sprite22Anchor.x,
-        anchorY: sprite22Anchor.y,
-        scale: init.scale,
-      })
-    );
-
-    // AS: _X = _parent.cellTo.x; _Y = _parent.cellTo.y
-    // Relative to our container (which is at cellFrom), target is at:
-    this.impactAnim.sprite.position.set(init.targetX, init.targetY);
-
-    // AS frame 55 (0-indexed: 54): this.end() — signal hit
-    this.impactAnim.onFrame(54, () => {
-      this.signalHit();
-    });
-
-    // AS frame 82 (0-indexed: 81): stop()
-    this.impactAnim.stopAt(81);
-
-    this.container.addChild(this.impactAnim.sprite);
-  }
-
-  /**
-   * Convert spiral local coordinates (within sprite_15's rotated frame) to
-   * world coordinates relative to our main container.
-   */
-  private spiralLocalToWorld(
-    lx: number,
-    ly: number
-  ): { wx: number; wy: number } {
-    const cos = Math.cos(this.sprite15Rotation);
-    const sin = Math.sin(this.sprite15Rotation);
-    // sprite_15 container is at (0, 0) in our main container space
-    const wx = this.sprite15WorldX + lx * cos - ly * sin;
-    const wy = this.sprite15WorldY + lx * sin + ly * cos;
-    return { wx, wy };
-  }
-
-  /**
-   * Advance the spiral physics by one frame.
-   * Replicates DefineSprite_15/frame_1/PlaceObject2_13_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-   */
-  private updateSpiralOneFrame(): void {
-    const s = this.spiral;
-
-    if (s.t > 28) {
-      // AS: _parent.gotoAndPlay(2) — sprite_15 starts playing from frame 2
-      // In our implementation, sprite_15Anim is already playing; we just mark triggered
-      if (!s.triggered) {
-        s.triggered = true;
-        // The sprite_15 animation should already be running; nothing extra needed
-      }
-    } else if (s.nCurrentFrameState > 0) {
-      // Sub-frame interpolation step
-      s.b = s.a;
-      s.b += s.v / 3;
-      s.localX = s.d + s.d * Math.cos(s.pi + s.b);
-      s.localY = (s.d * Math.sin(s.b)) / s.size;
-      s.nCurrentFrameState--;
-    } else {
-      // Main frame step
-      s.localX = s.d + s.d * Math.cos(s.pi + s.a);
-      s.localY = (s.d * Math.sin(s.a)) / s.size;
-      s.a += s.v;
-      s.t++;
-
-      if (s.t <= 14) {
-        s.v -= 0.015;
-      } else {
-        s.v += 0.03;
-      }
-
-      s.nCurrentFrameState = s.nFramesToIgnore;
-    }
-  }
-
-  /**
-   * Spawn a cercle particle at current spiral position.
-   * Replicates DefineSprite_13 frame_1 DoAction (the onEnterFrame handler).
-   *
-   * The cercle particle has its own enterFrame logic from:
-   * DefineSprite_7_cercle/frame_1/PlaceObject2_6_1/CLIPACTIONRECORD onClipEvent(load).as
-   * DefineSprite_7_cercle/frame_1/PlaceObject2_6_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-   */
-  private spawnCercleParticle(
-    wx: number,
-    wy: number,
-    vx: number,
-    vy: number
-  ): void {
-    // DefineSprite_7_cercle onClipEvent(load):
-    // va = 8 - random(3)  [0,1,2 -> values 8,7,6]
-    // t = 60 + random(70) [60..129]
-    // _xscale = t; _yscale = t
-    // _alpha = 90 + random(30) [90..119, but alpha is 0-100 in AS, >100 = 100]
-    // r = 1.3 + 0.5 * Math.random()
-
-    const va = 8 - Math.floor(Math.random() * 3); // alpha decay per frame
-    const t = 60 + Math.floor(Math.random() * 70); // initial scale (as percentage)
-    const alpha = Math.min(100, 90 + Math.floor(Math.random() * 30)) / 100; // clamp to 1.0
-    const r = 1.3 + 0.5 * Math.random(); // friction for velocity
-
-    // The cercle particle: each frame reduces alpha by va, moves by vx/vy, then divides vx/vy by r
-    // We model this using ASParticleSystem with alphaVelocity, but the friction on velocity
-    // is more complex (division rather than multiplication). We'll handle it manually via
-    // a custom update approach. Since ASParticleSystem uses accX/accY as multipliers,
-    // we can set accX = 1/r and accY = 1/r to replicate "_parent.vx /= r".
-
-    this.particles.spawn({
-      x: wx,
-      y: wy,
-      vx: vx,
-      vy: vy,
-      accX: 1 / r,
-      accY: 1 / r,
-      vr: 0,
-      vrDecay: 1,
-      t: t,
-      vt: 0,
-      vtDecay: 0,
-      rotation: 0,
-      alpha: alpha,
-      alphaVelocity: -(va / 100), // per-frame alpha reduction (va is in % units)
-      gravity: 0,
-    });
-  }
-
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    // Update spiral physics (frame-rate independent, one step per 1/60s)
-    if (this.spiral.active && !this.sprite15Removed) {
-      this.spiralFrameAccumulator += deltaTime;
-
-      while (this.spiralFrameAccumulator >= this.FRAME_TIME) {
-        this.spiralFrameAccumulator -= this.FRAME_TIME;
-
-        if (!this.sprite15Removed) {
-          this.updateSpiralOneFrame();
-
-          // Compute current world position
-          const world = this.spiralLocalToWorld(
-            this.spiral.localX,
-            this.spiral.localY
-          );
-
-          // Velocity = movement since last frame (replicates DefineSprite_13's vx/vy calculation)
-          const vx = world.wx - this.spiral.previousWorldX;
-          const vy = world.wy - this.spiral.previousWorldY;
-
-          // Spawn cercle particle at current position
-          this.spawnCercleParticle(world.wx, world.wy, vx, vy);
-          this.cercleCounter++;
-
-          this.spiral.previousWorldX = world.wx;
-          this.spiral.previousWorldY = world.wy;
+    // ---- lib_cercle — trailing particle (library symbol) ----------
+    // AS: DefineSprite_7_cercle/frame_1/PlaceObject2_6_1/CLIPACTIONRECORD onClipEvent(load).as
+    //   va = 8 - random(3);
+    //   t = 60 + random(70);
+    //   _xscale = t; _yscale = t;
+    //   _alpha = 90 + random(30);
+    //   r = 1.3 + 0.5 * Math.random();
+    // AS: DefineSprite_7_cercle/frame_1/PlaceObject2_6_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    //   if(_alpha < 10) { _parent.removeMovieClip(); }
+    //   _alpha -= va;
+    //   _X += _parent.vx; _Y += _parent.vy;
+    //   _parent.vx /= r; _parent.vy /= r;
+    this.cercleSym = {
+      name: "cercle",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_cercle"),
+      anchorX: cercleAnchor.x,
+      anchorY: cercleAnchor.y,
+      onLoad: (clip, ctx) => {
+        // AS DefineSprite_7_cercle/frame_1/PlaceObject2_6_1/CLIPACTIONRECORD onClipEvent(load).as
+        const va = 8 - Math.floor(Math.random() * 3);
+        const t = 60 + Math.floor(Math.random() * 70);
+        clip.vars.va = va;
+        clip.vars.t = t;
+        clip.scaleX = t / 100;
+        clip.scaleY = t / 100;
+        clip.alpha = (90 + Math.floor(Math.random() * 30)) / 100;
+        clip.vars.r = 1.3 + 0.5 * Math.random();
+        // Attach the inner rotating sprite_6 element (PlaceObject2_5_1 inside cercle)
+        clip.attach(this.sprite6InnerSym, "inner", 1, ctx);
+      },
+      onEnterFrame: (clip) => {
+        // AS DefineSprite_7_cercle/frame_1/PlaceObject2_6_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+        const currentAlpha = clip.alpha * 100; // convert back to 0-100 range for comparison
+        if (currentAlpha < 10) {
+          clip.parent?.remove();
+          return;
         }
-      }
-    }
+        const va = clip.vars.va as number;
+        const r = clip.vars.r as number;
+        clip.alpha -= va / 100;
+        // vx / vy are stored on the cercle clip itself (set by DefineSprite_13's spawner)
+        const vx = (clip.vars.vx as number) ?? 0;
+        const vy = (clip.vars.vy as number) ?? 0;
+        clip.x += vx;
+        clip.y += vy;
+        clip.vars.vx = vx / r;
+        clip.vars.vy = vy / r;
+      },
+    };
 
-    // Update sprite_15 animation (managed manually, not via this.anims)
-    if (!this.sprite15Removed) {
-      this.sprite15Anim.update(deltaTime);
-    }
+    // ---- DefineSprite_13 — orbital motion driver -----------------
+    // AS: DefineSprite_13/frame_1/DoAction.as
+    //   c = 100; xi = _X; yi = _Y;
+    //   this.onEnterFrame = function() {
+    //     vx = _X - xi; vy = _Y - yi;
+    //     _parent.attachMovie("cercle","cercle"+c,c);
+    //     eval("_parent.cercle"+c)._x = _X;
+    //     eval("_parent.cercle"+c)._y = _Y;
+    //     eval("_parent.cercle"+c).vx = vx;
+    //     eval("_parent.cercle"+c).vy = vy;
+    //     c++; xi = _X; yi = _Y;
+    //   };
+    // Note: DefineSprite_13 renders using sprite_12 textures.
+    this.sprite13Sym = {
+      name: "sprite_13",
+      totalFrames: 9,
+      frames: textures.getFrames("sprite_12"),
+      anchorX: sprite12Anchor.x,
+      anchorY: sprite12Anchor.y,
+      onLoad: (clip) => {
+        // AS DefineSprite_13/frame_1/DoAction.as — initialise particle counter + position tracking
+        clip.vars.c = 100;
+        clip.vars.xi = clip.x;
+        clip.vars.yi = clip.y;
+      },
+      onEnterFrame: (clip, ctx) => {
+        // AS DefineSprite_13/frame_1/DoAction.as — onEnterFrame closure
+        const xi = clip.vars.xi as number;
+        const yi = clip.vars.yi as number;
+        const vx = clip.x - xi;
+        const vy = clip.y - yi;
+        let c = clip.vars.c as number;
+        // _parent.attachMovie("cercle","cercle"+c,c)
+        // _parent here is sprite_15, so we attach the cercle onto sprite_15
+        const parentClip = clip.parent;
+        if (parentClip) {
+          const newCercle = parentClip.attach(
+            this.cercleSym,
+            `cercle${c}`,
+            c,
+            ctx
+          );
+          // Set position at current driver position (world-space within sprite_15's local)
+          newCercle.x = clip.x;
+          newCercle.y = clip.y;
+          // Seed velocity from delta
+          newCercle.vars.vx = vx;
+          newCercle.vars.vy = vy;
+        }
+        c++;
+        clip.vars.c = c;
+        clip.vars.xi = clip.x;
+        clip.vars.yi = clip.y;
+      },
+    };
 
-    // Update impact animation
-    this.anims.update(deltaTime);
+    // ---- sprite_15 — orbiter container (30 frames) ---------------
+    // AS DefineSprite_15/frame_1/DoAction_2.as:
+    //   x = _parent.cellFrom.x; y = _parent.cellFrom.y;
+    //   _X = x; _Y = y;
+    //   dx = _parent.cellTo.x - x; dy = _parent.cellTo.y - y;
+    //   d = Math.sqrt(dx*dx + dy*dy) / 2;
+    //   _rotation = Math.atan2(dy,dx)*180/PI;
+    //   stop();
+    // AS DefineSprite_15/frame_1/PlaceObject2_13_1/onClipEvent(load):
+    //   pi=3.1415; v=0.3; size=0.8+3*random; a=0; b=0; t=0; nFramesToIgnore=2; nCurrentFrameState=0;
+    // AS DefineSprite_15/frame_1/PlaceObject2_13_1/onClipEvent(enterFrame): orbital ellipse motion
+    // AS DefineSprite_15/frame_1/DoAction.as: SOMA.playSound("wab_swirl")
+    // AS DefineSprite_15/frame_28/DoAction.as: _parent.removeMovieClip(); stop();
+    this.sprite15Sym = {
+      name: "sprite_15",
+      totalFrames: 30,
+      frames: textures.getFrames("sprite_15"),
+      anchorX: sprite15Anchor.x,
+      anchorY: sprite15Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS DefineSprite_15/frame_1/DoAction.as + DoAction_2.as
+            // DoAction.as: SOMA.playSound("wab_swirl") — sound is played in onSpellStart
+            // DoAction_2.as: position self at cellFrom, compute d, rotation, stop()
+            const root = clip.parent;
+            const cellFrom = root?.vars.cellFrom as
+              | { x: number; y: number }
+              | undefined;
+            const cellTo = root?.vars.cellTo as
+              | { x: number; y: number }
+              | undefined;
+            if (cellFrom) {
+              clip.x = cellFrom.x;
+              clip.y = cellFrom.y;
+            }
+            const x = cellFrom?.x ?? 0;
+            const y = cellFrom?.y ?? 0;
+            const tx = cellTo?.x ?? 0;
+            const ty = cellTo?.y ?? 0;
+            const dx = tx - x;
+            const dy = ty - y;
+            const d = Math.sqrt(dx * dx + dy * dy) / 2;
+            clip.vars.d = d;
+            clip.rotation = Math.atan2(dy, dx);
+            clip.stop();
+            // Place the orbital driver (DefineSprite_13 / PlaceObject2_13_1)
+            const driver = clip.attach(this.sprite13Sym, "driver", 1, ctx);
+            // AS PlaceObject2_13_1/onClipEvent(load):
+            // pi=3.1415; v=0.3; size=0.8+3*random; a=0; b=0; t=0;
+            // nFramesToIgnore=2; nCurrentFrameState=0;
+            driver.vars.pi = 3.1415;
+            driver.vars.v = 0.3;
+            driver.vars.size = 0.8 + 3 * Math.random();
+            driver.vars.a = 0;
+            driver.vars.b = 0;
+            driver.vars.t = 0;
+            driver.vars.nFramesToIgnore = 2;
+            driver.vars.nCurrentFrameState = 0;
+            // Override onEnterFrame with orbital motion
+            driver.onEnterFrame = (driverClip, _driverCtx) => {
+              // AS DefineSprite_15/frame_1/PlaceObject2_13_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+              const parentClip = driverClip.parent;
+              if (!parentClip) {
+                return;
+              }
+              const d2 = (parentClip.vars.d as number) ?? 0;
+              let v = driverClip.vars.v as number;
+              let a = driverClip.vars.a as number;
+              let b = driverClip.vars.b as number;
+              let t = driverClip.vars.t as number;
+              const size = driverClip.vars.size as number;
+              let nCurrentFrameState = driverClip.vars.nCurrentFrameState as number;
+              const nFramesToIgnore = driverClip.vars.nFramesToIgnore as number;
+              const pi = driverClip.vars.pi as number;
 
-    // Update particles
-    this.particles.update();
+              if (t > 28) {
+                // Trigger sprite_15 to play frame 2 onward
+                parentClip.gotoAndPlay(1);
+              } else if (nCurrentFrameState > 0) {
+                b = a;
+                b += v / 3;
+                driverClip.x = d2 + d2 * Math.cos(pi + b);
+                driverClip.y = (d2 * Math.sin(b)) / size;
+                nCurrentFrameState--;
+                driverClip.vars.b = b;
+                driverClip.vars.nCurrentFrameState = nCurrentFrameState;
+              } else {
+                driverClip.x = d2 + d2 * Math.cos(pi + a);
+                driverClip.y = (d2 * Math.sin(a)) / size;
+                a += v;
+                t++;
+                if (t <= 14) {
+                  v -= 0.015;
+                } else {
+                  v += 0.03;
+                }
+                nCurrentFrameState = nFramesToIgnore;
+                driverClip.vars.a = a;
+                driverClip.vars.t = t;
+                driverClip.vars.v = v;
+                driverClip.vars.nCurrentFrameState = nCurrentFrameState;
+              }
+            };
+          },
+        ],
+        [
+          27,
+          (clip) => {
+            // AS DefineSprite_15/frame_28/DoAction.as: _parent.removeMovieClip(); stop();
+            clip.parent?.remove();
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-    // Check completion: impact animation stopped AND no alive particles
-    if (this.impactAnim.isStopped() && !this.particles.hasAliveParticles()) {
-      this.complete();
-    }
+    // ---- sprite_22 — target-side impact (84 frames) --------------
+    // AS DefineSprite_22/frame_55/DoAction_2.as: this.end() → signalHit
+    // AS DefineSprite_22/frame_82/DoAction.as: stop() → spell complete
+    // onLoad (from frame_2/PlaceObject2_22_3): _X = _parent.cellTo.x; _Y = _parent.cellTo.y;
+    this.sprite22Sym = {
+      name: "sprite_22",
+      totalFrames: 84,
+      frames: textures.getFrames("sprite_22"),
+      anchorX: sprite22Anchor.x,
+      anchorY: sprite22Anchor.y,
+      onLoad: (clip) => {
+        // AS scripts/frame_2/PlaceObject2_22_3/CLIPACTIONRECORD onClipEvent(load).as
+        // _X = _parent.cellTo.x; _Y = _parent.cellTo.y;
+        const root = clip.parent;
+        const cellTo = root?.vars.cellTo as
+          | { x: number; y: number }
+          | undefined;
+        if (cellTo) {
+          clip.x = cellTo.x;
+          clip.y = cellTo.y;
+        }
+      },
+      frameScripts: new Map([
+        [
+          54,
+          () => {
+            // AS DefineSprite_22/frame_55/DoAction_2.as: this.end() → signalHit
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          81,
+          (clip) => {
+            // AS DefineSprite_22/frame_82/DoAction.as: stop() → spell complete
+            clip.stop();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
+
+    this.registry.register(this.cercleSym);
+    this.registry.register(this.sprite6InnerSym);
+    this.registry.register(this.sprite13Sym);
+    this.registry.register(this.sprite15Sym);
+    this.registry.register(this.sprite22Sym);
   }
 
-  destroy(): void {
-    this.particles.destroy();
-    if (!this.sprite15Removed) {
-      this.sprite15Anim.destroy();
-    }
-    super.destroy();
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext
+  ): void {
+    // AS scripts/frame_2/DoAction.as: stop()
+    // AS DefineSprite_15/frame_1/DoAction.as: SOMA.playSound("wab_swirl")
+    callbacks.playSound("wab_swirl");
+
+    // Main timeline frame_2 places sprite_22 (target-side) and sprite_15 (orbiter).
+    // sprite_22 is placed at depth 3 (PlaceObject2_22_3) and positions itself via onLoad.
+    this.root.attach(this.sprite22Sym, "sprite22", 3, context);
+    // sprite_15 is placed at depth implied by the manifest ordering; use depth 1.
+    this.root.attach(this.sprite15Sym, "sprite15", 1, context);
   }
 }

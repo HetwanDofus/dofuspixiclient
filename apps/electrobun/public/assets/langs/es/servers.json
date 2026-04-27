@@ -1,0 +1,228 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "SR": {
+            "612": {
+                "n": "Bun",
+                "d": "Quizás ya te hayas topado en Incarnam con esta pequeña bola de pelo azul que da saltitos para llamar la atención de las almas recién encarnadas y que da buenos consejos a los viajeros extraviados. ¿Pero conoces su historia? Corren muchos rumores sobre él. El más extendido es que el bun es el «peluche» de Osamodas. Una afirmación refutada por el principal afectado, claro, aunque sus homólogos no dudan en usarla para burlarse de él...",
+                "l": "en",
+                "p": "0",
+                "t": 5,
+                "c": "2",
+                "date": "1611705600000",
+                "rlng": {}
+            },
+            "649": {
+                "n": "Fallanster",
+                "d": "Connu pour sa droiture et son courage, Fallanster est une personnalité emblématique de la cité d'Astrub. En bon frère du roi Allister, il n'a de cesse d'œuvrer pour la justice. Il occupe le poste de Chef du Conseil des Douze d'Astrub depuis de nombreuses années maintenant et est également le fondateur de la guilde Féca d'Astrub. Aux dernières nouvelles, les entraves Têtes à Clic et à Clac, ces menottes magiques qui ont permis à Allister d'emprisonner le démon Uk'Not'Allag après qu'il eut envahi Amakna et réduit sa population en esclavage, sont en sa possession.",
+                "l": "en",
+                "p": "0",
+                "t": 3,
+                "c": "2",
+                "date": "1706054400000",
+                "rlng": {}
+            },
+            "650": {
+                "n": "Allisteria",
+                "d": "Fille de Fallanster et nièce d'Allister, Allisteria est une bergère féca qui apprécie la compagnie des bêtes plus que celle des Douziens. Elle passe d'ailleurs le plus clair de son temps auprès de son troupeau familial de bouftous. Parmi eux, Greg et Fidel sont ses petits chouchous ! Allisteria fait également partie du conseil des Fécas, un groupe de disciples où chacun s'efforce de protéger son prochain. Sa présence y est grandement appréciée, aussi en raison des délicieux petits plats qu'elle prend parfois plaisir à préparer ! ",
+                "l": "en",
+                "p": "0",
+                "t": 4,
+                "c": "2",
+                "date": "1706054400000",
+                "rlng": {}
+            },
+            "651": {
+                "n": "Tournament",
+                "d": "Este servidor está disponible en circunstancias puntuales, para la organización de torneos.",
+                "l": "en",
+                "p": "0",
+                "t": 4,
+                "c": "2",
+                "date": "1710806400000",
+                "rlng": {}
+            }
+        },
+        "SRP": {
+            "0": "Recomendado",
+            "1": "Media",
+            "2": "Elevada",
+            "3": "Disponible próximamente",
+            "4": "Completo",
+            "5": "New"
+        },
+        "SRPW": {
+            "0": 1,
+            "1": 2,
+            "2": 3,
+            "3": 99,
+            "4": 4,
+            "5": 5
+        },
+        "SRC": {
+            "0": {
+                "n": "Francófona",
+                "d": true,
+                "i": 0,
+                "c": [
+                    "LU",
+                    "BE",
+                    "CH",
+                    "FR"
+                ]
+            },
+            "1": {
+                "n": "Reino Unido & Irlanda",
+                "d": true,
+                "i": 1,
+                "c": [
+                    "GB",
+                    "IE",
+                    "UK"
+                ]
+            },
+            "2": {
+                "n": "Internacional",
+                "d": true,
+                "i": 2,
+                "c": [
+                    "XX"
+                ]
+            },
+            "3": {
+                "n": "Alemana",
+                "d": true,
+                "i": 3,
+                "c": [
+                    "LI",
+                    "AT",
+                    "DE"
+                ]
+            },
+            "4": {
+                "n": "HispaÑia",
+                "d": true,
+                "i": 4,
+                "c": [
+                    "MX",
+                    "CK",
+                    "AR",
+                    "AD",
+                    "ES"
+                ]
+            },
+            "5": {
+                "n": "Rusa",
+                "d": true,
+                "i": 5,
+                "c": [
+                    "RU"
+                ]
+            },
+            "6": {
+                "n": "Brasileña",
+                "d": true,
+                "i": 6,
+                "c": [
+                    "BR",
+                    "PT"
+                ]
+            },
+            "7": {
+                "n": "Neerlandesa",
+                "d": true,
+                "i": 7,
+                "c": [
+                    "NL"
+                ]
+            },
+            "9": {
+                "n": "Italiana",
+                "d": true,
+                "i": 9,
+                "c": [
+                    "IT"
+                ]
+            },
+            "10": {
+                "n": "Japonesa",
+                "d": true,
+                "i": 10,
+                "c": [
+                    "JP"
+                ]
+            },
+            "99": {
+                "n": "Debug",
+                "d": false,
+                "i": 99,
+                "c": {}
+            }
+        },
+        "SRVT": {
+            "1": {
+                "l": "MERCENARY_CLAN",
+                "d": "Clan de los mercenarios"
+            },
+            "2": {
+                "l": "MERCENARY_LEADER",
+                "d": "Marcelo Naire"
+            },
+            "3": {
+                "l": "MERCENARY_INTRONIZER",
+                "d": "Ascenso a"
+            },
+            "4": {
+                "l": "MERCENARY_SHORT_NAME",
+                "d": "Mercenario"
+            },
+            "31": {
+                "l": "EVENT_HOUSE_NAME",
+                "d": "Planta de alquiler"
+            }
+        },
+        "SRVC": {
+            "1|2": "Caln de los Samulais",
+            "2|2": "(Ne pas traduire)",
+            "1|6": "Clan de Nédora Reim",
+            "1|1": "Clan de Seriane-Kerm",
+            "1|5": "Clan de los Selenitas",
+            "1|3": "Clan de los Steros",
+            "31|3": "Piso Zoooooooornal",
+            "4|6": "Nédora",
+            "3|6": "Nedorizador",
+            "3|5": "Selenizador",
+            "4|5": "Selenita",
+            "4|4": "Erinyes",
+            "1|4": "Clan de los Erinyes",
+            "3|4": "Erinyzador",
+            "3|2": "Samulalizador",
+            "4|2": "Samulail",
+            "3|3": "Sterizador",
+            "1|666": "SHADOW DOOM HELL§§§",
+            "4|3": "Stero",
+            "3|1": "Serianizador",
+            "2|1": "Kawet",
+            "4|1": "Seriane",
+            "4|666": "de Nimaoh"
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 134,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "SR",
+            "SRP",
+            "SRPW",
+            "SRC",
+            "SRVT",
+            "SRVC",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

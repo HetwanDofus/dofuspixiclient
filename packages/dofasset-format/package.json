@@ -1,0 +1,19 @@
+{
+  "name": "@dofus/dofasset-format",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./pipeline": "./src/pipeline.ts"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "domhandler": "^6.0.1",
+    "ts-pattern": "^5.9.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  }
+}

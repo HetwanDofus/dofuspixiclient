@@ -1,4 +1,4 @@
-export type TileType = "ground" | "objects";
+export type TileType = "ground" | "objects" | "tactic" | "cell";
 
 /**
  * Tile behavior classification.

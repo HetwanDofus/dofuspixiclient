@@ -1,0 +1,909 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1258,
+        "DU": {
+            "1": {
+                "n": "Gobball Dungeon",
+                "m": {
+                    "2073": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Room 1",
+                        "i": 900
+                    },
+                    "2074": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Room 2"
+                    },
+                    "2075": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Room 3"
+                    },
+                    "2076": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Room 4"
+                    },
+                    "2077": {
+                        "x": 4,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Room 5"
+                    },
+                    "2079": {
+                        "x": 4,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Room 6"
+                    },
+                    "2080": {
+                        "x": 4,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Room 7"
+                    },
+                    "2081": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Room 8"
+                    },
+                    "2082": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Room 9"
+                    },
+                    "2083": {
+                        "x": 1,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Room 10",
+                        "i": 905
+                    },
+                    "2084": {
+                        "x": 0,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Room 11",
+                        "i": 901
+                    }
+                }
+            },
+            "2": {
+                "n": "Field Dungeon",
+                "m": {
+                    "9768": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9769": {
+                        "x": 10,
+                        "y": 0,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9770": {
+                        "x": 20,
+                        "y": 0,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9771": {
+                        "x": 30,
+                        "y": 0,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9772": {
+                        "x": 30,
+                        "y": 10,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9773": {
+                        "x": 30,
+                        "y": 20,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9774": {
+                        "x": 30,
+                        "y": 30,
+                        "z": 0,
+                        "n": ""
+                    },
+                    "9786": {
+                        "x": 0,
+                        "y": 30,
+                        "z": 0,
+                        "n": ""
+                    }
+                }
+            },
+            "3": {
+                "n": "Lord Crow's Library",
+                "m": {
+                    "9589": {
+                        "x": 0,
+                        "y": -1,
+                        "z": 0,
+                        "n": "Entrance"
+                    },
+                    "9590": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": "First Room"
+                    },
+                    "9591": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Fourth Room"
+                    },
+                    "9592": {
+                        "x": 0,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Ninth Room"
+                    },
+                    "9593": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Thirteenth Room"
+                    },
+                    "9594": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Second Room"
+                    },
+                    "9595": {
+                        "x": 2,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Seventh Room"
+                    },
+                    "9596": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Fifth Room"
+                    },
+                    "9597": {
+                        "x": 1,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Tenth Room"
+                    },
+                    "9598": {
+                        "x": 1,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Fourteenth Room"
+                    },
+                    "9599": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Third Room"
+                    },
+                    "9600": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Sixth Room"
+                    },
+                    "9601": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Eleventh Room"
+                    },
+                    "9602": {
+                        "x": 2,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Fifteenth Room"
+                    },
+                    "9603": {
+                        "x": 3,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Eighth Room"
+                    },
+                    "9604": {
+                        "x": 3,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Exit"
+                    },
+                    "9723": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Twelfth Room"
+                    },
+                    "9724": {
+                        "x": 3,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Sixteenth Room"
+                    }
+                }
+            },
+            "4": {
+                "n": "Labyrinth of the Minotoror",
+                "m": {
+                    "9553": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": "First Room"
+                    },
+                    "9554": {
+                        "x": 4,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Tenth Room"
+                    },
+                    "9555": {
+                        "x": 0,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Eleventh Room"
+                    },
+                    "9556": {
+                        "x": 1,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Twelfth Room"
+                    },
+                    "9557": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Central Room"
+                    },
+                    "9558": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Cemetery"
+                    },
+                    "9559": {
+                        "x": 4,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Fifteenth Room"
+                    },
+                    "9560": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Sixteenth Room"
+                    },
+                    "9561": {
+                        "x": 1,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Seventeenth Room"
+                    },
+                    "9562": {
+                        "x": 2,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Eighteenth Room"
+                    },
+                    "9563": {
+                        "x": 3,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Nineteenth Room"
+                    },
+                    "9564": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Second Room"
+                    },
+                    "9565": {
+                        "x": 4,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Twentieth Room"
+                    },
+                    "9566": {
+                        "x": 0,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Twenty-first Room"
+                    },
+                    "9567": {
+                        "x": 1,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Twenty-second Room"
+                    },
+                    "9568": {
+                        "x": 2,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Twenty-third Room"
+                    },
+                    "9569": {
+                        "x": 3,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Twenty-fourth Room"
+                    },
+                    "9570": {
+                        "x": 4,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Twenty-fifth Room"
+                    },
+                    "9571": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Third Room"
+                    },
+                    "9572": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Fourth Room"
+                    },
+                    "9573": {
+                        "x": 4,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Fifth Room"
+                    },
+                    "9574": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Sixth Room"
+                    },
+                    "9575": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Seventh Room"
+                    },
+                    "9576": {
+                        "x": 2,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Eighth Room"
+                    },
+                    "9577": {
+                        "x": 3,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Ninth Room"
+                    },
+                    "9876": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Slab Room"
+                    },
+                    "9877": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 1,
+                        "n": "Minotoror Room"
+                    },
+                    "9879": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 1,
+                        "n": "Minotot Room"
+                    },
+                    "9880": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 1,
+                        "n": "Minotoror Room"
+                    },
+                    "9881": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 1,
+                        "n": "Minotot Room"
+                    }
+                }
+            },
+            "5": {
+                "n": "Dragon Pig's Maze",
+                "m": {
+                    "9371": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": "First Room"
+                    },
+                    "9372": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Fourth Room"
+                    },
+                    "9373": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Third Room"
+                    },
+                    "9374": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Second Room"
+                    },
+                    "9375": {
+                        "x": 2,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Eighth Room"
+                    },
+                    "9376": {
+                        "x": 0,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Eleventh Room"
+                    },
+                    "9377": {
+                        "x": 2,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Eighteenth Room"
+                    },
+                    "9378": {
+                        "x": 4,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Twentieth Room"
+                    },
+                    "9379": {
+                        "x": 1,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Twenty-second Room"
+                    },
+                    "9380": {
+                        "x": 3,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Ninth Room"
+                    },
+                    "9381": {
+                        "x": 1,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Twelfth Room"
+                    },
+                    "9382": {
+                        "x": 4,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Fifteenth Room"
+                    },
+                    "9383": {
+                        "x": 3,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Nineteenth Room"
+                    },
+                    "9384": {
+                        "x": 4,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Twenty-fifth Room"
+                    },
+                    "9385": {
+                        "x": 4,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Fifth Room"
+                    },
+                    "9386": {
+                        "x": 0,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Sixth Room"
+                    },
+                    "9387": {
+                        "x": 3,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Fourteenth Room"
+                    },
+                    "9388": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Sixteenth Room"
+                    },
+                    "9389": {
+                        "x": 2,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Twenty-third Room"
+                    },
+                    "9390": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Seventh Room"
+                    },
+                    "9391": {
+                        "x": 4,
+                        "y": 1,
+                        "z": 0,
+                        "n": "Tenth Room"
+                    },
+                    "9392": {
+                        "x": 1,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Seventeenth Room"
+                    },
+                    "9393": {
+                        "x": 0,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Twenty-first Room"
+                    },
+                    "9394": {
+                        "x": 3,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Twenty-fourth Room"
+                    },
+                    "9395": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Thirteenth Room"
+                    },
+                    "9396": {
+                        "x": -1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Slab Room"
+                    },
+                    "9398": {
+                        "x": 6,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Cemetery"
+                    }
+                }
+            },
+            "6": {
+                "n": "Dragon Pig's Den",
+                "m": {
+                    "8541": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 0,
+                        "n": "First Room"
+                    },
+                    "8542": {
+                        "x": 1,
+                        "y": 2,
+                        "z": 0,
+                        "n": "Second Room"
+                    },
+                    "8543": {
+                        "x": 1,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Fourth Room"
+                    },
+                    "8544": {
+                        "x": 0,
+                        "y": 4,
+                        "z": 0,
+                        "n": "Fifth Room"
+                    },
+                    "8545": {
+                        "x": 1,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Third Room"
+                    },
+                    "8546": {
+                        "x": 0,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Sixth Room"
+                    },
+                    "8547": {
+                        "x": 2,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Seventh Room"
+                    },
+                    "8548": {
+                        "x": 3,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Eighth Room"
+                    },
+                    "8549": {
+                        "x": 4,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Ninth Room"
+                    },
+                    "9989": {
+                        "x": 4,
+                        "y": 3,
+                        "z": 0,
+                        "n": "Ninth Room"
+                    }
+                }
+            },
+            "7": {
+                "n": "Dreggon Sanctuary",
+                "m": {}
+            },
+            "8": {
+                "n": "Gladiatrool",
+                "m": {
+                    "15000": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Room 1",
+                        "i": 900
+                    },
+                    "15008": {
+                        "x": 1,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Room 2"
+                    },
+                    "15016": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Room 3"
+                    },
+                    "15024": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Room 4"
+                    },
+                    "15032": {
+                        "x": 4,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Room 5",
+                        "i": 904
+                    },
+                    "15040": {
+                        "x": 5,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Room 6"
+                    },
+                    "15048": {
+                        "x": 6,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Room 7",
+                        "i": 904
+                    },
+                    "15056": {
+                        "x": 7,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Room 8"
+                    },
+                    "15064": {
+                        "x": 8,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Room 9"
+                    },
+                    "15072": {
+                        "x": 9,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Room 10",
+                        "i": 905
+                    },
+                    "15080": {
+                        "x": 10,
+                        "y": 0,
+                        "z": 0,
+                        "n": "Exit",
+                        "i": 906
+                    }
+                }
+            },
+            "9": {
+                "n": "Sand Dungeon",
+                "m": {}
+            },
+            "10": {
+                "n": "Tofu Dungeon",
+                "m": {}
+            },
+            "11": {
+                "n": "Skeleton Dungeon",
+                "m": {}
+            },
+            "12": {
+                "n": "Smith Dungeon",
+                "m": {}
+            },
+            "13": {
+                "n": "Bulb Dungeon",
+                "m": {}
+            },
+            "14": {
+                "n": "Larva Dungeon",
+                "m": {}
+            },
+            "15": {
+                "n": "Grotto Hesque",
+                "m": {}
+            },
+            "16": {
+                "n": "Bwork Dungeon",
+                "m": {}
+            },
+            "17": {
+                "n": "Scaraleaf Dungeon",
+                "m": {}
+            },
+            "18": {
+                "n": "Crackler Dungeon",
+                "m": {}
+            },
+            "19": {
+                "n": "Treechnid Dungeon",
+                "m": {}
+            },
+            "20": {
+                "n": "Otomai's Ark",
+                "m": {}
+            },
+            "21": {
+                "n": "Canidae Dungeon",
+                "m": {}
+            },
+            "22": {
+                "n": "Koolich Dungeon",
+                "m": {}
+            },
+            "23": {
+                "n": "Bonta Rat Dungeon",
+                "m": {}
+            },
+            "24": {
+                "n": "Brakmar Rat Dungeon",
+                "m": {}
+            },
+            "25": {
+                "n": "Bherb's Gully",
+                "m": {}
+            },
+            "26": {
+                "n": "Lair of the Pandikazes",
+                "m": {}
+            },
+            "27": {
+                "n": "Kitsoune Dungeon",
+                "m": {}
+            },
+            "28": {
+                "n": "The Tynril Lab",
+                "m": {}
+            },
+            "29": {
+                "n": "Amakna Castle Rat Dungeon",
+                "m": {}
+            },
+            "30": {
+                "n": "Soft Oak Dungeon",
+                "m": {}
+            },
+            "31": {
+                "n": "Kimbo's Canopy",
+                "m": {}
+            },
+            "32": {
+                "n": "Fungus Dungeon",
+                "m": {}
+            },
+            "33": {
+                "n": "Bworker Dungeon",
+                "m": {}
+            },
+            "34": {
+                "n": "Lair of the Giant Kralove",
+                "m": {}
+            },
+            "35": {
+                "n": "Ilyzaelle's Lookout",
+                "m": {}
+            },
+            "36": {
+                "n": "Qu'Tan's Sanctuary",
+                "m": {}
+            },
+            "37": {
+                "n": "Donjon Grobe",
+                "m": {}
+            },
+            "38": {
+                "n": "Portail de Rushu",
+                "m": {}
+            },
+            "39": {
+                "n": "Wa Wabbit's Castle",
+                "m": {}
+            },
+            "40": {
+                "n": "Wabbit Dungeon",
+                "m": {}
+            },
+            "41": {
+                "n": "Incarnam Dungeon",
+                "m": {}
+            },
+            "42": {
+                "n": "Skeunk's Hideout",
+                "m": {}
+            },
+            "43": {
+                "n": "Blop Dungeon",
+                "m": {}
+            },
+            "44": {
+                "n": "Moon Dungeon",
+                "m": {}
+            },
+            "45": {
+                "n": "Royal Tofu Dungeon",
+                "m": {}
+            },
+            "46": {
+                "n": "Firefoux Dungeon",
+                "m": {}
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 106,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "DU",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

@@ -36,6 +36,23 @@ export const ANIM_TO_SPRITE_BASE: Record<string, string> = {
 };
 
 /**
+ * One-shot animations play once and hold on the last frame instead of
+ * looping back to frame 0. Mirrors AS2 `Sprite.setAnim(name, bLoop=false)`
+ * — the original Flash MovieClip stops on its last frame for cast/hit/die.
+ * Looping animations (idle, walk, run, sit) continue to wrap modulo textureCount.
+ */
+const ONE_SHOT_ANIMS: ReadonlySet<PlayerAnimationValue> = new Set([
+  PlayerAnimation.CAST,
+  PlayerAnimation.HIT,
+  PlayerAnimation.DEATH,
+  PlayerAnimation.ATTACK,
+]);
+
+export function isOneShotAnimation(anim: PlayerAnimationValue): boolean {
+  return ONE_SHOT_ANIMS.has(anim);
+}
+
+/**
  * Per-direction movement speeds in px/ms (from ank.battlefield.mc.Sprite).
  */
 const WALK_SPEEDS = [0.07, 0.06, 0.06, 0.06, 0.07, 0.06, 0.06, 0.06];
@@ -197,12 +214,19 @@ export function startMovementSegment(
 /**
  * Update sprite frame animation based on elapsed time.
  * Modifies frame state in-place.
+ *
+ * `loop=true` (default) wraps back to frame 0 once the last frame plays
+ * — correct for idle/walk/run.
+ * `loop=false` holds at the last frame index — matches AS2's
+ * `bLoop=false` behavior for cast/hit/die (the MovieClip stops on its
+ * final frame and stays there until something else calls `setAnim`).
  */
 export function updateFrameAnimation(
   frame: FighterFrameState,
   deltaS: number,
   textureCount: number,
-  fps: number
+  fps: number,
+  loop = true
 ): void {
   if (textureCount <= 1) {
     return;
@@ -214,7 +238,12 @@ export function updateFrameAnimation(
 
   if (frame.frameTimer >= frameDuration) {
     frame.frameTimer -= frameDuration;
-    frame.frameIndex = (frame.frameIndex + 1) % textureCount;
+    if (loop) {
+      frame.frameIndex = (frame.frameIndex + 1) % textureCount;
+    } else if (frame.frameIndex < textureCount - 1) {
+      frame.frameIndex += 1;
+    }
+    // When loop=false and we're already at the last frame, hold (no-op).
   }
 }
 

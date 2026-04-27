@@ -1,252 +1,244 @@
 /**
- * Spell 2000 - Wab (Sadida)
+ * Spell 2000 — Wabbit attack.
  *
- * A ball/projectile spell that travels from caster to target with a curved path.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/2000/scripts/scripts/
  *
- * Components:
- * - Bouncing ball (PlaceObject2_3_1): Moves from caster to target in phases
- * - Impact sprite (sprite_13): Plays at target position when ball arrives
+ * displayType=50 (WorldAbsolute). The container sits at world origin (0,0);
+ * all children position themselves using absolute world coords from
+ * _parent.cellFrom / _parent.cellTo stored on root.vars by the harness.
  *
- * Original AS timing:
- * - Frame 1 (main): Play sound 'wab_2000a'
- * - Frame 1 (sprite_13): Play sound 'wab_2000b', set position to cellTo, call this.end()
- * - Frame 2 (main): stop() - waits for ball animation
- * - Ball load: Start at caster position (x1, y1-70), target px=(x1, y1-120)
- * - Ball t=21: Move toward 1/6 of path with randomness
- * - Ball t=42: Move to (x2, y2-100)
- * - Ball t=63: Move to (x2, y2+50)
- * - Ball t=66: gotoAndStop(3) -> triggers sprite_13 impact
- * - sprite_13 frame 40: stop(), removeMovieClip -> spell ends
+ * Main timeline layout:
+ *   frame_1/DoAction.as:  SOMA.playSound("wab_2000a")
+ *   frame_2/DoAction.as:  stop()
+ *   frame_2 also places PlaceObject2_3_1 (the boule projectile container)
+ *   and DefineSprite_13 (the target-side impact animation) on the root.
  *
- * The ball uses spring-based movement: vx = -(X - px) / 9, vy = -(Y - py) / 9
- * Speed is capped at 6. The "boule" sub-sprite squishes based on speed.
+ * DefineSprite_13 (sprite_13, 42 frames, placed at root):
+ *   frame_1/DoAction.as:   SOMA.playSound("wab_2000b")
+ *   frame_1/DoAction_2.as: _X = _parent.cellTo.x; _Y = _parent.cellTo.y; this.end()
+ *                          → positions itself at cellTo, fires signalHit
+ *   frame_40/DoAction.as:  stop(); _parent.removeMovieClip() → spell complete
+ *
+ * PlaceObject2_3_1 (boule_container, placed at root on frame_2):
+ *   onClipEvent(load):      seed position at caster, init spring-physics vars,
+ *                           set inner boule _yscale=200, _xscale=50
+ *   onClipEvent(enterFrame): multi-waypoint spring motion toward target;
+ *                            drives rotation + squash/stretch scale on self;
+ *                            at t==66 calls _parent.gotoAndStop(3) which we
+ *                            model as removing the boule container.
+ *
+ * Library symbols: none (librarySymbols[] is absent from manifest).
+ * sprite_13 appears in animations[] — use bare "sprite_13" key (no lib_ prefix).
+ * boule_container has no authored frame textures (container-only).
+ *
+ * signalHit: fired from sprite_13 frameScripts[0] (mirrors "this.end()").
+ * complete:  fired from sprite_13 frameScripts[39] (mirrors "_parent.removeMovieClip()").
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Container, Graphics } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const IMPACT_MANIFEST: SpriteManifest = {
+const SPRITE_13_BOUNDS = {
   width: 76.85,
   height: 50.9,
   offsetX: -38.6,
   offsetY: -28.85,
 };
 
-export class Spell2000 extends BaseSpell {
+export class Spell2000 extends RuntimeSpell {
   readonly spellId = 2000;
+  readonly displayType = SpellDisplayType.WorldAbsolute;
 
-  private impactAnim!: FrameAnimatedSprite;
-  private impactTriggered = false;
-  private impactStarted = false;
+  private sprite13Sym!: SymbolDefinition;
+  private bouleContainerSym!: SymbolDefinition;
+  private soundCallback?: (id: string) => void;
 
-  // Ball physics state (from onClipEvent(load))
-  private x1 = 0;
-  private y1 = 0;
-  private x2 = 0;
-  private y2 = 0;
-  private px = 0;
-  private py = 0;
-  private ballX = 0;
-  private ballY = 0;
-  private t = 0;
-
-  // Ball visual (simple circle as proxy for "boule")
-  private ballContainer!: Container;
-  private ballGraphic!: Graphics;
-
-  // Accumulator for frame-stepping the ball at 60fps
-  private frameAccum = 0;
-  private readonly frameTime = 1000 / 60;
-
-  protected setup(
-    context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext
   ): void {
-    // Compute world-space positions relative to the container (which is at cellFrom)
-    // In the AS, _parent is the main timeline which has cellFrom and cellTo as screen coords.
-    // Our container is positioned at cellFrom by the fight system.
-    const cellFromX = context?.cellFrom?.x ?? 0;
-    const cellFromY = context?.cellFrom?.y ?? 0;
-    const cellToX = context?.cellTo?.x ?? 0;
-    const cellToY = context?.cellTo?.y ?? 0;
+    const sprite13Anchor = calculateAnchor(SPRITE_13_BOUNDS);
 
-    // Store in local coords (relative to cellFrom, since container is at cellFrom)
-    this.x1 = 0;
-    this.y1 = 0;
-    this.x2 = cellToX - cellFromX;
-    this.y2 = cellToY - cellFromY;
+    // ---- sprite_13 — impact animation at target cell -------------
+    // Canonical: scripts/DefineSprite_13/frame_1/DoAction.as
+    //            scripts/DefineSprite_13/frame_1/DoAction_2.as
+    //            scripts/DefineSprite_13/frame_40/DoAction.as
+    this.sprite13Sym = {
+      name: "sprite_13",
+      totalFrames: 42,
+      frames: textures.getFrames("sprite_13"),
+      anchorX: sprite13Anchor.x,
+      anchorY: sprite13Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: scripts/DefineSprite_13/frame_1/DoAction.as
+            // SOMA.playSound("wab_2000b")
+            this.soundCallback?.("wab_2000b");
 
-    // Ball initial position: _X = x1, _Y = y1 - 70 (in local coords)
-    this.ballX = this.x1;
-    this.ballY = this.y1 - 70;
+            // AS: scripts/DefineSprite_13/frame_1/DoAction_2.as
+            // _X = _parent.cellTo.x; _Y = _parent.cellTo.y; this.end()
+            const root = clip.parent;
+            const cellTo = root?.vars.cellTo as { x: number; y: number } | undefined;
+            if (cellTo) {
+              clip.x = cellTo.x;
+              clip.y = cellTo.y;
+            }
+            // this.end() → damage popup at target
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          39,
+          (clip) => {
+            // AS: scripts/DefineSprite_13/frame_40/DoAction.as
+            // stop(); _parent.removeMovieClip()
+            clip.stop();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // Initial target position: px = x1, py = y1 - 120
-    this.px = this.x1;
-    this.py = this.y1 - 120;
+    // ---- boule_container — projectile driven by spring physics ---
+    // Container-only (no authored frame textures). Driven entirely by
+    // onClipEvent(load) and onClipEvent(enterFrame).
+    //
+    // The canonical SWF has an inner "boule" child whose _xscale/_yscale
+    // are manipulated. We model the squash/stretch directly on this clip's
+    // own scaleX/scaleY since we have no authored sub-child.
+    //
+    // Canonical: scripts/frame_2/PlaceObject2_3_1/CLIPACTIONRECORD onClipEvent(load).as
+    //            scripts/frame_2/PlaceObject2_3_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    this.bouleContainerSym = {
+      name: "boule_container",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onLoad: (clip) => {
+        // AS: onClipEvent(load)
+        // x1 = _parent.cellFrom.x; y1 = _parent.cellFrom.y
+        // x2 = _parent.cellTo.x;   y2 = _parent.cellTo.y
+        // px = x1; py = y1 - 120
+        // _X = x1; _Y = y1 - 70
+        // boule._yscale = 200; boule._xscale = 50
+        // t = 0; v = 0
+        const root = clip.parent;
+        const cellFrom = root?.vars.cellFrom as { x: number; y: number } | undefined;
+        const cellTo = root?.vars.cellTo as { x: number; y: number } | undefined;
+        const x1 = cellFrom?.x ?? 0;
+        const y1 = cellFrom?.y ?? 0;
+        const x2 = cellTo?.x ?? 0;
+        const y2 = cellTo?.y ?? 0;
+        clip.vars.x1 = x1;
+        clip.vars.y1 = y1;
+        clip.vars.x2 = x2;
+        clip.vars.y2 = y2;
+        clip.vars.px = x1;
+        clip.vars.py = y1 - 120;
+        clip.x = x1;
+        clip.y = y1 - 70;
+        // boule inner _yscale=200, _xscale=50 → decimal
+        clip.scaleY = 200 / 100;
+        clip.scaleX = 50 / 100;
+        clip.vars.t = 0;
+        clip.vars.v = 0;
+      },
+      onEnterFrame: (clip) => {
+        // AS: onClipEvent(enterFrame)
+        let t = clip.vars.t as number;
+        const x1 = clip.vars.x1 as number;
+        const y1 = clip.vars.y1 as number;
+        const x2 = clip.vars.x2 as number;
+        const y2 = clip.vars.y2 as number;
+        let px = clip.vars.px as number;
+        let py = clip.vars.py as number;
 
-    this.t = 0;
+        // AS: if(t++ == 21) { ... }
+        // Post-increment: test THEN increment. So we test at current t, then bump.
+        if (t === 21) {
+          px = x1 + (x2 - x1) / 6 + (-0.5 + Math.random()) * 100;
+          py = y1 + (y2 - y1) / 6 + (-0.5 + Math.random()) * 50 - 50;
+          clip.vars.px = px;
+          clip.vars.py = py;
+        }
+        t++;
+        clip.vars.t = t;
 
-    // Create ball visual
-    this.ballContainer = new Container();
-    this.ballContainer.position.set(
-      this.ballX * init.scale,
-      this.ballY * init.scale
-    );
+        if (t === 42) {
+          px = x2;
+          py = y2 - 100;
+          clip.vars.px = px;
+          clip.vars.py = py;
+        }
+        if (t === 63) {
+          px = x2;
+          py = y2 + 50;
+          clip.vars.px = px;
+          clip.vars.py = py;
+        }
+        if (t === 66) {
+          // AS: _parent.gotoAndStop(3)
+          // The outer mc transitions away; we model this by removing the
+          // boule container to halt further projectile ticking.
+          clip.remove();
+          return;
+        }
 
-    this.ballGraphic = new Graphics();
-    this.drawBall(50, 200);
-    this.ballContainer.addChild(this.ballGraphic);
-    this.container.addChild(this.ballContainer);
+        const vx = (-(clip.x - px)) / 9;
+        const vy = (-(clip.y - py)) / 9;
+        let v = Math.sqrt(vx * vx + vy * vy);
 
-    // Impact animation (sprite_13) at target position
-    const impactTextures = textures.getFrames("sprite_13");
-    const anchor = calculateAnchor(IMPACT_MANIFEST);
+        // AS: _rotation = Math.atan2(vy,vx) * 57.29746936176985
+        // 57.29... = 180/PI converts atan2 result (radians) to degrees for Flash.
+        // clip.rotation expects radians, so we use atan2 directly.
+        clip.rotation = Math.atan2(vy, vx);
 
-    this.impactAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: impactTextures,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-      })
-    );
-    this.impactAnim.sprite.position.set(
-      this.x2 * init.scale,
-      this.y2 * init.scale
-    );
-    this.impactAnim.sprite.visible = false;
+        if (v > 6) {
+          v = 6;
+        }
+        clip.vars.v = v;
 
-    // sprite_13 frame 1 (0-indexed: 0): play sound wab_2000b, signal hit
-    this.impactAnim.onFrame(0, () => {
-      this.callbacks.playSound("wab_2000b");
-      this.signalHit();
-    });
+        // AS: boule._xscale = 100 + 3*v; boule._yscale = 100 - 3*v
+        // Applied to this clip directly (no authored sub-child).
+        clip.scaleX = (100 + 3 * v) / 100;
+        clip.scaleY = (100 - 3 * v) / 100;
 
-    // sprite_13 frame 40 (0-indexed: 39): stop -> spell ends
-    this.impactAnim.stopAt(39);
+        clip.x = clip.x + vx;
+        clip.y = clip.y + vy;
+      },
+    };
 
-    this.container.addChild(this.impactAnim.sprite);
-
-    // Play main sound at frame 1 (immediately on setup)
-    this.callbacks.playSound("wab_2000a");
+    this.registry.register(this.sprite13Sym);
+    this.registry.register(this.bouleContainerSym);
   }
 
-  private drawBall(scaleX: number, scaleY: number): void {
-    this.ballScaleX = scaleX;
-    this.ballScaleY = scaleY;
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext
+  ): void {
+    // Capture callbacks so frame scripts inside sprite_13 can play sounds.
+    this.soundCallback = callbacks.playSound;
 
-    this.ballGraphic.clear();
-    // Draw a simple ellipse to represent the ball
-    // scaleX/scaleY are percentages (100 = normal)
-    const rx = (8 * scaleX) / 100;
-    const ry = (8 * scaleY) / 100;
-    this.ballGraphic.beginFill(0x44aa44, 1);
-    this.ballGraphic.drawEllipse(0, 0, rx, ry);
-    this.ballGraphic.endFill();
-  }
+    // AS: scripts/frame_1/DoAction.as — SOMA.playSound("wab_2000a")
+    callbacks.playSound("wab_2000a");
 
-  update(deltaTime: number, _elapsedTime?: number): void {
-    if (this.done) {
-      return;
-    }
-
-    // Step the ball physics at 60fps ticks
-    if (!this.impactTriggered) {
-      this.frameAccum += deltaTime;
-
-      while (this.frameAccum >= this.frameTime && !this.impactTriggered) {
-        this.frameAccum -= this.frameTime;
-        this.stepBall();
-      }
-    }
-
-    // Update impact animation once triggered
-    if (this.impactStarted) {
-      this.anims.update(deltaTime);
-
-      if (this.impactAnim.isStopped() || this.impactAnim.isComplete()) {
-        this.complete();
-      }
-    }
-  }
-
-  private stepBall(): void {
-    // AS: if(t++ == 21)
-    if (this.t === 21) {
-      this.px =
-        this.x1 + (this.x2 - this.x1) / 6 + (-0.5 + Math.random()) * 100;
-      this.py =
-        this.y1 + (this.y2 - this.y1) / 6 + (-0.5 + Math.random()) * 50 - 50;
-    }
-
-    if (this.t === 42) {
-      this.px = this.x2;
-      this.py = this.y2 - 100;
-    }
-
-    if (this.t === 63) {
-      this.px = this.x2;
-      this.py = this.y2 + 50;
-    }
-
-    if (this.t === 66) {
-      // gotoAndStop(3) -> triggers sprite_13
-      this.triggerImpact();
-    }
-
-    // Increment t AFTER checks (AS: t++ means post-increment, check is == 21 before increment)
-    this.t++;
-
-    if (this.impactTriggered) {
-      return;
-    }
-
-    // Spring movement
-    const vx = -(this.ballX - this.px) / 9;
-    const vy = -(this.ballY - this.py) / 9;
-    let v = Math.sqrt(vx * vx + vy * vy);
-
-    const rotation = Math.atan2(vy, vx) * 57.29746936176985;
-
-    if (v > 6) {
-      v = 6;
-    }
-
-    const bScaleX = 100 + 3 * v;
-    const bScaleY = 100 - 3 * v;
-
-    this.ballX = this.ballX + vx;
-    this.ballY = this.ballY + vy;
-
-    // Update ball visual
-    const _scale = 1; // init.scale stored implicitly; we use raw coords * scale below
-    this.ballContainer.position.set(this.ballX, this.ballY);
-    this.ballContainer.rotation = rotation * (Math.PI / 180);
-    this.drawBall(bScaleX, bScaleY);
-  }
-
-  private triggerImpact(): void {
-    this.impactTriggered = true;
-    this.impactStarted = true;
-
-    // Hide ball
-    this.ballContainer.visible = false;
-
-    // Show impact animation
-    this.impactAnim.sprite.visible = true;
-  }
-
-  destroy(): void {
-    this.ballGraphic.destroy();
-    this.ballContainer.destroy({ children: true });
-    super.destroy();
+    // AS: frame_2/DoAction.as — stop() on main timeline.
+    // frame_2 also places PlaceObject2_3_1 (boule_container) and DefineSprite_13
+    // (sprite_13) on the root. Attach them so they start ticking next runtime frame.
+    this.root.attach(this.bouleContainerSym, "boule_container", 1, context);
+    this.root.attach(this.sprite13Sym, "sprite_13", 2, context);
   }
 }

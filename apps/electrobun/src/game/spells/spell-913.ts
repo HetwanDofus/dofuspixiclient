@@ -1,154 +1,204 @@
 /**
- * Spell 913 - Fulminant (Shoot)
+ * Spell 913 — Flèche de Glace / Cra ice arrow (Cra).
  *
- * A shoot spell with a main animation and 7 oscillating child sprites.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
  *
- * Components:
- * - shoot (DefineSprite_9_shoot): Main animation at caster, rotated toward target
- *   - Contains DefineSprite_8: plays sound "jet_903" on frame 1
- *   - Contains DefineSprite_11_move: 7 child sprites with oscillating rotation
- *   - Contains DefineSprite_3: positioned with random offset, stops at frame 35
- *   - Contains DefineSprite_7: stops at frame 27
+ * Canonical AS layout (`tools/combat-exporter/output/spell-anims/913/scripts/scripts/`):
  *
- * Original AS timing:
- * - Frame 1 (DefineSprite_8): Play sound "jet_903"
- * - Frame 1 (DefineSprite_3): Set rotation = parent angle, random X/Y offset
- * - Frame 7 (DefineSprite_9_shoot): this.end() -> signal hit
- * - Frame 27 (DefineSprite_7): stop()
- * - Frame 35 (DefineSprite_3): stop()
- * - Frame 65 (DefineSprite_9_shoot): removeMovieClip() -> animation ends
+ *   animations[]:
+ *     - `shoot` — 66-frame composite animation at the target cell.
  *
- * DefineSprite_11_move children (7 instances, PlaceObject2_10_1/3/5/7/9/11/13):
- * - onLoad: a=45, t=50+3*level, _xscale=t, _yscale=t
- * - onEnterFrame: _rotation = 90 + a * Math.cos(i += 0.5); a /= 1.1
+ *   librarySymbols[]: (none in manifest — all symbols are in animations[])
+ *
+ *   DefineSprite_9_shoot — 66-frame container (the main impact at target):
+ *     frame_7:  this.end() → signalHit (damage popup).
+ *     frame_65: this._parent.removeMovieClip() → spell complete.
+ *
+ *   DefineSprite_11_move — container holding 7 authored sub-clips
+ *     (PlaceObject2_10_1, _3, _5, _7, _9, _11, _13). Each sub-clip is
+ *     a spinning/oscillating particle with identical load + enterFrame:
+ *       onLoad:  a=45; t=50+3*level; _xscale=_yscale=t
+ *       onEnterFrame: _rotation = 90 + a*cos(i+=0.5); a/=1.1
+ *     These are AUTHORED children baked into the move timeline (not
+ *     runtime-attached via attachMovie), but the harness drives move
+ *     along the ballistic arc. We model them as a single "spinner"
+ *     SymbolDefinition that gets attached 7 times with distinct names
+ *     to mirror the 7 PlaceObject2 instances.
+ *
+ *   DefineSprite_3 — 35-frame single particle used inside move's
+ *     authored children (the actual spinning fire/ice flake visual):
+ *     frame_1:  _rotation = _parent._parent.angle; scatter X/Y
+ *     frame_35: stop()
+ *
+ *   DefineSprite_7 — 27-frame sub-symbol:
+ *     frame_27: stop()
+ *
+ *   DefineSprite_8 — sound clip:
+ *     frame_1: SOMA.playSound("jet_903")
+ *
+ * displayType=30 (ProjectileBallistic):
+ *   - Has both `move` and `shoot` symbols.
+ *   - `move` is a 1-frame container with authored sub-clips (spinners).
+ *   - `shoot` is a 66-frame impact at target.
+ *   - Harness drives ballistic arc, attaches shoot on landing, calls
+ *     signalHit automatically → we must NOT call it ourselves.
+ *   - complete() is fired from shoot frame_65.
+ *
+ * Library symbols:
+ *   - `spinner` — oscillating particle child of `move`. onLoad seeds
+ *     a=45, t=50+3*level, scale. onEnterFrame oscillates rotation with
+ *     decaying amplitude via cos.
+ *   - `move` — 1-frame container, frame_1 attaches 7 spinner instances.
+ *   - `shoot` — 66-frame impact composite using the `shoot` animation
+ *     frames. frame_7 signals hit (via this.end()), frame_65 completes.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const SHOOT_MANIFEST: SpriteManifest = {
+const SHOOT_BOUNDS = {
   width: 101.1,
   height: 63.25,
   offsetX: -62.05,
   offsetY: -28.4,
 };
 
-/**
- * State for a single oscillating child sprite (DefineSprite_11_move instance)
- */
-interface OscillatingChild {
-  sprite: FrameAnimatedSprite;
-  a: number;
-  i: number;
-}
-
-export class Spell913 extends BaseSpell {
+export class Spell913 extends RuntimeSpell {
   readonly spellId = 913;
+  readonly displayType = SpellDisplayType.ProjectileBallistic;
 
-  private shootAnim!: FrameAnimatedSprite;
-  private oscillatingChildren: OscillatingChild[] = [];
-  private level = 1;
-  private frameAccumulator = 0;
-  private readonly FRAME_TIME = 1000 / 25; // 25 FPS
+  private spinnerSym!: SymbolDefinition;
 
-  protected setup(
-    context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext
   ): void {
-    this.level = Math.max(1, Math.min(6, context?.level ?? 1));
+    // ---- spinner — oscillating particle authored inside `move` ----
+    // AS: DefineSprite_11_move/frame_1/PlaceObject2_10_*/CLIPACTIONRECORD onClipEvent(load).as
+    //     DefineSprite_11_move/frame_1/PlaceObject2_10_*/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    // All 7 PlaceObject2 instances have identical load + enterFrame scripts.
+    // We model them as a shared SymbolDefinition attached 7 times.
+    this.spinnerSym = {
+      name: "spinner",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onLoad: (clip) => {
+        // AS onClipEvent(load):
+        //   a = 45;
+        //   t = 50 + 3 * _parent._parent.level;
+        //   _xscale = t; _yscale = t;
+        // _parent._parent from spinner's perspective:
+        //   spinner → move → root (root has vars.level)
+        const root = clip.parent?.parent ?? clip.parent;
+        const level = (root?.vars.level as number) ?? 1;
+        clip.vars.a = 45;
+        const t = 50 + 3 * level;
+        clip.scaleX = t / 100;
+        clip.scaleY = t / 100;
+        clip.vars.i = 0;
+      },
+      onEnterFrame: (clip) => {
+        // AS onClipEvent(enterFrame):
+        //   _rotation = 90 + a * Math.cos(i += 0.5);
+        //   a /= 1.1;
+        let a = clip.vars.a as number;
+        let i = clip.vars.i as number;
+        i += 0.5;
+        // AS rotation in degrees → convert to radians
+        clip.rotation = ((90 + a * Math.cos(i)) * Math.PI) / 180;
+        a /= 1.1;
+        clip.vars.a = a;
+        clip.vars.i = i;
+      },
+    };
 
-    // Main shoot animation (DefineSprite_9_shoot) at caster position, rotated toward target
-    const shootTextures = textures.getFrames("shoot");
-    const anchor = calculateAnchor(SHOOT_MANIFEST);
+    // ---- move — 1-frame container holding 7 spinner sub-clips ----
+    // AS: DefineSprite_11_move has 7 authored PlaceObject2 children
+    // (depths 1, 3, 5, 7, 9, 11, 13). We attach them all in frame_1.
+    const moveSym: SymbolDefinition = {
+      name: "move",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS: DefineSprite_11_move/frame_1 — 7 authored PlaceObject2
+            // instances at depths 1, 3, 5, 7, 9, 11, 13.
+            // Each has identical load/enterFrame — attach as spinner.
+            const depths = [1, 3, 5, 7, 9, 11, 13];
+            for (const depth of depths) {
+              clip.attach(this.spinnerSym, `spinner_${depth}`, depth, ctx);
+            }
+          },
+        ],
+      ]),
+    };
 
-    this.shootAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: shootTextures,
-        fps: 25,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-      })
-    );
-    this.shootAnim.sprite.position.set(0, init.casterY);
-    this.shootAnim.sprite.rotation = init.angleRad;
+    // ---- shoot — 66-frame impact composite at target -------------
+    // AS: DefineSprite_9_shoot
+    //   frame_7:  this.end() → signalHit
+    //   frame_65: this._parent.removeMovieClip() → spell complete
+    // NOTE: displayType=30, harness calls signalHit() automatically on
+    // landing — but shoot's canonical frame_7 also calls this.end()
+    // which is the game's hit signal. The harness signalHit fires at
+    // the ballistic landing moment (before shoot plays). The frame_7
+    // this.end() is a secondary / redundant trigger that in canonical
+    // AS was how the outer MC informed the combat sequencer. Since the
+    // harness already signalled hit at landing, we do NOT call it again
+    // here (per the guide: "Per-spell modules should NOT also call it
+    // for displayType 30/31 spells").
+    const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
+    const shootSym: SymbolDefinition = {
+      name: "shoot",
+      totalFrames: 66,
+      frames: textures.getFrames("shoot"),
+      anchorX: shootAnchor.x,
+      anchorY: shootAnchor.y,
+      frameScripts: new Map([
+        [
+          6,
+          (_clip) => {
+            // AS DefineSprite_9_shoot/frame_7/DoAction.as: this.end()
+            // Harness has already called signalHit() at ballistic landing.
+            // No-op here for displayType=30 per the implementation guide.
+          },
+        ],
+        [
+          64,
+          (clip) => {
+            // AS DefineSprite_9_shoot/frame_65/DoAction.as:
+            //   this._parent.removeMovieClip();
+            clip.parent?.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // Frame 1 (0-indexed: 0): Play sound "jet_903" (DefineSprite_8)
-    this.shootAnim.onFrame(0, () => this.callbacks.playSound("jet_903"));
-
-    // Frame 7 (0-indexed: 6): this.end() -> signal hit
-    this.shootAnim.onFrame(6, () => this.signalHit());
-
-    this.container.addChild(this.shootAnim.sprite);
-
-    // DefineSprite_11_move: 7 oscillating children placed inside the shoot sprite
-    // They exist inside the shoot animation container, positioned relative to it.
-    // Since we can't nest inside the FrameAnimatedSprite, we place them in a
-    // sub-container that mirrors the shoot sprite's transform.
-    const t = (50 + 3 * this.level) / 100;
-
-    // 7 instances (PlaceObject2_10_1, _3, _5, _7, _9, _11, _13)
-    const childTextures = textures.getFrames("shoot");
-    for (let idx = 0; idx < 7; idx++) {
-      // Each oscillating child uses a minimal single-frame placeholder
-      // In the original, these are DefineSprite_10 (small graphic symbol)
-      // We approximate using the first frame of shoot at tiny scale
-      const childAnim = new FrameAnimatedSprite({
-        textures: childTextures,
-        fps: 25,
-        anchorX: 0.5,
-        anchorY: 0.5,
-        scale: init.scale * t,
-      });
-
-      // Initial rotation: 90 + 45 * cos(0) = 90 + 45 = 135 degrees
-      childAnim.sprite.rotation = (90 + 45 * Math.cos(0)) * (Math.PI / 180);
-      childAnim.sprite.visible = false; // These are sub-elements, hide them
-
-      this.oscillatingChildren.push({
-        sprite: childAnim,
-        a: 45,
-        i: 0,
-      });
-    }
-
-    // DefineSprite_3: positioned with random X/Y offset, rotation = parent angle
-    // AS: _rotation = _parent._parent.angle; _X = 50*(Math.random()-0.5); _Y = 25*(Math.random()-0.5)
-    // This is a child of the shoot sprite - we track its behavior but it's part
-    // of the composite shoot animation itself (baked into the sprite frames)
-    // The random offset and rotation are baked into the composite frames already.
+    this.registry.register(this.spinnerSym);
+    this.registry.register(moveSym);
+    this.registry.register(shootSym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-
-    // Update oscillating children per-frame (enterFrame logic)
-    // Each frame: _rotation = 90 + a * cos(i += 0.5); a /= 1.1
-    this.frameAccumulator += deltaTime;
-    while (this.frameAccumulator >= this.FRAME_TIME) {
-      this.frameAccumulator -= this.FRAME_TIME;
-      for (const child of this.oscillatingChildren) {
-        child.i += 0.5;
-        const rotDeg = 90 + child.a * Math.cos(child.i);
-        child.sprite.sprite.rotation = rotDeg * (Math.PI / 180);
-        child.a /= 1.1;
-      }
-    }
-
-    // Frame 65 (0-indexed: 64): removeMovieClip() -> animation ends
-    if (this.shootAnim.isComplete()) {
-      this.complete();
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    _context: SpellContext
+  ): void {
+    // AS: DefineSprite_8/frame_1/DoAction.as: SOMA.playSound("jet_903")
+    callbacks.playSound("jet_903");
   }
 }

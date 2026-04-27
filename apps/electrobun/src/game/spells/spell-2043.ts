@@ -1,161 +1,311 @@
 /**
- * Spell 2043
+ * Spell 2043 — (Unknown name, likely a Cra/Iop projectile spell).
  *
- * A projectile spell with a beam/line from caster to target, followed by an impact animation.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/2043/scripts/scripts/
  *
- * Components:
- * - DefineSprite_29 (clip1): Line/beam from cellFrom to cellTo, width = distance, rotated toward target
- *   - DefineSprite_27 inside it: stops at frame 34
- * - DefineSprite_37 (impact): At target position, rotated same as beam
- *   - Frame 4: Play sound 'vol'
- *   - Frame 7: Signal hit (this.end())
- *   - Frame 28: stop() + removeMovieClip() -> complete
- * - DefineSprite_18_shoot (shoot): At target position (no Y offset), plays from frame 1
- *   - Frame 10: Play sound 'explosion'
- *   - Frame 70: stop()
+ * displayType=50 (WorldAbsolute). Two parallel authored timelines anchored
+ * at world origin, each positioning themselves at _parent.cellFrom or
+ * _parent.cellTo using absolute world coords. This mirrors the sprite_22 /
+ * sprite_41 pattern from spell 909.
  *
- * Original AS timing (1-indexed -> 0-indexed):
- * - DefineSprite_29/frame_1: Set position and rotation (init)
- * - DefineSprite_27/frame_34: stop() -> stopAt(33)
- * - DefineSprite_37/frame_1: Set position = cellTo, rotation = clip1._rotation (init)
- * - DefineSprite_37/frame_4: Play sound 'vol' -> onFrame(3)
- * - DefineSprite_37/frame_7: this.end() -> signalHit() at onFrame(6)
- * - DefineSprite_37/frame_28: stop() -> stopAt(27)
- * - DefineSprite_18_shoot/frame_1: Set position = cellTo (no y-20 offset) (init)
- * - DefineSprite_18_shoot/frame_10: Play sound 'explosion' -> onFrame(9)
- * - DefineSprite_18_shoot/frame_70: stop() -> stopAt(69)
+ * Canonical AS layout:
+ *
+ *   - top-level main timeline: frame_2/DoAction.as → stop(). No sound on
+ *     main timeline. frame_1 implicitly places DefineSprite_29 (beam/line
+ *     from caster to target) and an outer container that holds
+ *     DefineSprite_37 and DefineSprite_18_shoot.
+ *
+ *   - DefineSprite_29 — line/beam from caster to target (frame 1 only):
+ *       frame_1: positions self at cellFrom (y-20), rotates toward cellTo,
+ *                sets a child "PlaceObject2_27_1" (DefineSprite_27) to width
+ *                = longueur (the pixel distance). The child DefineSprite_27
+ *                stops at frame 34.
+ *       This is a visual beam connecting caster to target.
+ *
+ *   - DefineSprite_37 — target-side impact/explosion (28 frames):
+ *       frame_1: position at cellTo (y-20), rotation = _parent.clip1._rotation
+ *                (mirrors the beam angle).
+ *       frame_4: SOMA.playSound("vol").
+ *       frame_7: this.end() → signalHit (damage popup).
+ *       frame_28: stop(); _parent.removeMovieClip() → spell complete.
+ *
+ *   - DefineSprite_18_shoot — animated shoot at target (84 frames):
+ *       frame_1: position at cellTo (y=0, not -20), rotation = 0.
+ *       frame_10: SOMA.playSound("explosion").
+ *       frame_70: stop().
+ *
+ * displayType detection:
+ *   - DefineSprite_29/frame_1 reads `_parent.cellFrom` AND `_parent.cellTo`
+ *     and positions itself at absolute world coords.
+ *   - DefineSprite_37/frame_1 reads `_parent.cellTo` at absolute world coord.
+ *   - DefineSprite_18_shoot/frame_1 reads `_parent.cellTo` at absolute world coord.
+ *   - No `move`/`shoot` pattern for ballistic; no `duplicate` for beam.
+ *   - Multiple sprites anchored in world space → WorldAbsolute (50).
+ *   - The manifest has no librarySymbols[] entry (empty). All symbols appear
+ *     in animations[] as the "shoot" animation (84 frames). DefineSprite_29,
+ *     DefineSprite_37, DefineSprite_27, and DefineSprite_18_shoot are
+ *     container-only timelines (authored but no lib_ prefix in manifest).
+ *
+ * Library symbols:
+ *   No librarySymbols[] in manifest — all symbols are container-only or
+ *   use the bare "shoot" animation from animations[].
+ *   We register: sprite29 (beam), sprite37 (impact), sprite27 (beam width
+ *   child), shoot (DefineSprite_18_shoot, 84 frames of animated content).
+ *
+ * Main timeline: frame_2 → stop(). onSpellStart attaches sprite29, sprite37,
+ * and shoot (DefineSprite_18_shoot) at root.
+ *
+ * Sounds:
+ *   - "vol" fired from DefineSprite_37/frame_4 (frame index 3, 0-based).
+ *   - "explosion" fired from DefineSprite_18_shoot/frame_10 (frame index 9).
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const SHOOT_MANIFEST: SpriteManifest = {
+const SHOOT_BOUNDS = {
   width: 204.8,
   height: 129.6,
   offsetX: -102.35,
   offsetY: -68.1,
 };
 
-export class Spell2043 extends BaseSpell {
+export class Spell2043 extends RuntimeSpell {
   readonly spellId = 2043;
+  readonly displayType = SpellDisplayType.WorldAbsolute;
 
-  protected setup(
-    context: SpellContext,
+  private sprite27Sym!: SymbolDefinition;
+  private sprite29Sym!: SymbolDefinition;
+  private sprite37Sym!: SymbolDefinition;
+  private shootSym!: SymbolDefinition;
+
+  private soundCallback?: (id: string) => void;
+
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    // Calculate beam geometry from AS:
-    // x1 = cellFrom.x, y1 = cellFrom.y - 20
-    // x2 = cellTo.x, y2 = cellTo.y - 20
-    // dx = x2 - x1, dy = y2 - y1
-    // _rotation = atan2(dy, dx) * 57.29...
-    // longueur = sqrt(dx*dx + dy*dy)
-    const x1 = context.cellFrom.x;
-    const y1 = context.cellFrom.y - 20;
-    const x2 = context.cellTo.x;
-    const y2 = context.cellTo.y - 20;
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const beamRotation = Math.atan2(dy, dx);
-    const longueur = Math.sqrt(dx * dx + dy * dy);
+    const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // Target position relative to cellFrom (which is container origin)
-    // DefineSprite_37 uses cellTo.x, cellTo.y - 20
-    const targetRelX = context.cellTo.x - context.cellFrom.x;
-    const targetRelY = context.cellTo.y - 20 - context.cellFrom.y;
+    // ---- DefineSprite_27 — beam-width child inside sprite29 ------
+    // AS: DefineSprite_27/frame_34/DoAction.as → stop()
+    // This is the actual visual line/beam content. It is placed as a
+    // child of DefineSprite_29 and has its _width set to `longueur`
+    // (the pixel distance from caster to target) via onClipEvent(load).
+    // It plays through 34 frames then stops.
+    this.sprite27Sym = {
+      name: "sprite_27",
+      totalFrames: 34,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onLoad: (clip) => {
+        // AS: DefineSprite_29/frame_1/PlaceObject2_27_1/CLIPACTIONRECORD onClipEvent(load).as
+        // _width = _parent.longueur
+        // We mirror this by reading longueur from the parent (sprite29).
+        const longueur = (clip.parent?.vars.longueur as number) ?? 0;
+        if (longueur > 0) {
+          clip.scaleX = longueur / Math.max(SHOOT_BOUNDS.width, 1);
+        }
+      },
+      frameScripts: new Map([
+        [
+          33,
+          (clip) => {
+            // AS: DefineSprite_27/frame_34/DoAction.as → stop()
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-    // DefineSprite_18_shoot uses cellTo.x, cellTo.y (no -20)
-    const shootRelX = context.cellTo.x - context.cellFrom.x;
-    const shootRelY = context.cellTo.y - context.cellFrom.y;
+    // ---- DefineSprite_29 — beam from caster to target -------------
+    // AS: DefineSprite_29/frame_1/DoAction.as
+    // Positions self at cellFrom (y-20), rotates to face cellTo,
+    // computes longueur (pixel distance), then a child (sprite_27) has
+    // its width set to longueur via onClipEvent(load).
+    this.sprite29Sym = {
+      name: "sprite_29",
+      totalFrames: 34,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS: DefineSprite_29/frame_1/DoAction.as
+            const root = clip.parent;
+            const cellFrom = root?.vars.cellFrom as
+              | { x: number; y: number }
+              | undefined;
+            const cellTo = root?.vars.cellTo as
+              | { x: number; y: number }
+              | undefined;
+            const x1 = cellFrom?.x ?? 0;
+            const y1 = (cellFrom?.y ?? 0) - 20;
+            const x2 = cellTo?.x ?? 0;
+            const y2 = (cellTo?.y ?? 0) - 20;
+            clip.x = x1;
+            clip.y = y1;
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            // AS: _rotation = Math.atan2(dy,dx) * 57.29746... (degrees)
+            // TS: store radians directly
+            clip.rotation = Math.atan2(dy, dx);
+            const longueur = Math.sqrt(dx * dx + dy * dy);
+            clip.vars.longueur = longueur;
+            // Attach sprite_27 as the visual beam child at depth 1.
+            // Its onLoad will read longueur from this clip.
+            clip.attach(this.sprite27Sym, "clip27", 1, ctx);
+          },
+        ],
+      ]),
+    };
 
-    // DefineSprite_29 (clip1 / beam) - the line from caster to target
-    // It contains DefineSprite_27 which stops at frame 34
-    // The beam is positioned at cellFrom (relative: 0, -20 from cellFrom)
-    // In AS: _X = x1, _Y = y1 (absolute), container is at cellFrom
-    // So relative to cellFrom: x = 0, y = -20
-    const beamTextures = textures.getFrames("shoot");
-    // We use the shoot animation for the beam (DefineSprite_27 inside DefineSprite_29)
-    // The beam/clip1 uses the underlying sprite scaled to longueur
-    // DefineSprite_27 has 34 frames and stops. We use shoot frames for it.
-    // Actually looking at the manifest, we only have 'shoot' animation (84 frames).
-    // DefineSprite_29 wraps DefineSprite_27 (the beam line), setting its width = longueur.
-    // DefineSprite_27 stops at frame 34.
-    // We'll treat the beam as using 'shoot' frames 0..33, stopped at 33.
+    // ---- DefineSprite_37 — target-side impact animation -----------
+    // AS: DefineSprite_37/frame_1/DoAction.as  → position at cellTo, rotate
+    // AS: DefineSprite_37/frame_4/DoAction.as  → SOMA.playSound("vol")
+    // AS: DefineSprite_37/frame_7/DoAction.as  → this.end() (signalHit)
+    // AS: DefineSprite_37/frame_28/DoAction.as → stop(); _parent.removeMovieClip()
+    this.sprite37Sym = {
+      name: "sprite_37",
+      totalFrames: 28,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: DefineSprite_37/frame_1/DoAction.as
+            // _X = _parent.cellTo.x
+            // _Y = _parent.cellTo.y - 20
+            // _rotation = _parent.clip1._rotation
+            // clip1 refers to sprite_29 (the beam clip placed at depth 1
+            // on the root). We read its rotation to mirror it.
+            const root = clip.parent;
+            const cellTo = root?.vars.cellTo as
+              | { x: number; y: number }
+              | undefined;
+            clip.x = cellTo?.x ?? 0;
+            clip.y = (cellTo?.y ?? 0) - 20;
+            // Mirror the beam rotation from sprite_29 (named "clip1" in AS).
+            const clip1 = root?.children.get("clip1");
+            if (clip1) {
+              clip.rotation = clip1.rotation;
+            }
+          },
+        ],
+        [
+          3,
+          () => {
+            // AS: DefineSprite_37/frame_4/DoAction.as → SOMA.playSound("vol")
+            this.soundCallback?.("vol");
+          },
+        ],
+        [
+          6,
+          () => {
+            // AS: DefineSprite_37/frame_7/DoAction.as → this.end()
+            // this.end() is the canonical hit signal in Dofus AS.
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          27,
+          (clip) => {
+            // AS: DefineSprite_37/frame_28/DoAction.as
+            // stop(); _parent.removeMovieClip()
+            clip.stop();
+            clip.parent?.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    const beamAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: beamTextures.slice(0, 34),
-        fps: 60,
-        ...calculateAnchor(SHOOT_MANIFEST),
-        scale: init.scale,
-      })
-    );
-    beamAnim.sprite.position.set(0, -20);
-    beamAnim.sprite.rotation = beamRotation;
-    // Scale X to match longueur (beam width)
-    beamAnim.sprite.scale.x = (longueur / SHOOT_MANIFEST.width) * init.scale;
-    beamAnim.stopAt(33);
-    this.container.addChild(beamAnim.sprite);
+    // ---- DefineSprite_18_shoot — animated shoot at target ---------
+    // AS: DefineSprite_18_shoot/frame_1/DoAction.as
+    //       _X = _parent.cellTo.x
+    //       _Y = _parent.cellTo.y
+    //       _rotation = 0
+    // AS: DefineSprite_18_shoot/frame_10/DoAction.as → SOMA.playSound("explosion")
+    // AS: DefineSprite_18_shoot/frame_70/DoAction.as → stop()
+    // Uses the "shoot" animation frames from animations[] (84 frames).
+    this.shootSym = {
+      name: "shoot",
+      totalFrames: 84,
+      frames: textures.getFrames("shoot"),
+      anchorX: shootAnchor.x,
+      anchorY: shootAnchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: DefineSprite_18_shoot/frame_1/DoAction.as
+            const root = clip.parent;
+            const cellTo = root?.vars.cellTo as
+              | { x: number; y: number }
+              | undefined;
+            clip.x = cellTo?.x ?? 0;
+            clip.y = cellTo?.y ?? 0;
+            clip.rotation = 0;
+          },
+        ],
+        [
+          9,
+          () => {
+            // AS: DefineSprite_18_shoot/frame_10/DoAction.as
+            // SOMA.playSound("explosion")
+            this.soundCallback?.("explosion");
+          },
+        ],
+        [
+          69,
+          (clip) => {
+            // AS: DefineSprite_18_shoot/frame_70/DoAction.as → stop()
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-    // DefineSprite_37 (impact at target, rotated same as beam)
-    // Frame 4 (0-indexed: 3): play sound 'vol'
-    // Frame 7 (0-indexed: 6): signalHit
-    // Frame 28 (0-indexed: 27): stop -> completion
-    const impactTextures = beamTextures; // use available frames
-    const impactAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: impactTextures.slice(0, 28),
-        fps: 60,
-        ...calculateAnchor(SHOOT_MANIFEST),
-        scale: init.scale,
-      })
-    );
-    impactAnim.sprite.position.set(targetRelX, targetRelY);
-    impactAnim.sprite.rotation = beamRotation;
-    impactAnim
-      .stopAt(27)
-      .onFrame(3, () => {
-        this.callbacks.playSound("vol");
-      })
-      .onFrame(6, () => {
-        this.signalHit();
-      });
-    this.container.addChild(impactAnim.sprite);
-
-    // DefineSprite_18_shoot (impact at cellTo, no Y offset, rotation = 0)
-    // Frame 10 (0-indexed: 9): play sound 'explosion'
-    // Frame 70 (0-indexed: 69): stop
-    const shootAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: beamTextures,
-        fps: 60,
-        ...calculateAnchor(SHOOT_MANIFEST),
-        scale: init.scale,
-      })
-    );
-    shootAnim.sprite.position.set(shootRelX, shootRelY);
-    shootAnim.sprite.rotation = 0;
-    shootAnim.stopAt(69).onFrame(9, () => {
-      this.callbacks.playSound("explosion");
-    });
-    this.container.addChild(shootAnim.sprite);
+    this.registry.register(this.sprite27Sym);
+    this.registry.register(this.sprite29Sym);
+    this.registry.register(this.sprite37Sym);
+    this.registry.register(this.shootSym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // Capture sound callback for use inside frame scripts.
+    this.soundCallback = callbacks.playSound;
 
-    this.anims.update(deltaTime);
+    // AS: frame_2/DoAction.as → stop() (main timeline just stops at frame 2).
+    // frame_1 implicitly places the three authored sprites.
+    // We attach them here so they start ticking from the next runtime frame.
 
-    if (this.anims.allStopped()) {
-      this.complete();
-    }
+    // sprite_29 is the beam from caster to target (placed as "clip1" in AS
+    // so that sprite_37 can read _parent.clip1._rotation).
+    this.root.attach(this.sprite29Sym, "clip1", 1, context);
+
+    // sprite_37 is the target-side impact animation.
+    this.root.attach(this.sprite37Sym, "clip37", 2, context);
+
+    // shoot (DefineSprite_18_shoot) is the full 84-frame animated impact.
+    this.root.attach(this.shootSym, "shoot", 3, context);
   }
 }

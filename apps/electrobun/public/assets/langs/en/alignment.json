@@ -1,0 +1,1112 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "A": {
+            "a": {
+                "0": {
+                    "n": "Neutral",
+                    "c": true
+                },
+                "1": {
+                    "n": "Bontarian",
+                    "c": true
+                },
+                "2": {
+                    "n": "Brakmarian",
+                    "c": true
+                },
+                "3": {
+                    "n": "Mercenary",
+                    "c": false
+                }
+            },
+            "o": {
+                "0": {
+                    "n": "Neutral",
+                    "a": 0
+                },
+                "1": {
+                    "n": "Bontarian New Recruit",
+                    "a": 1
+                },
+                "2": {
+                    "n": "Order of the Valiant Heart",
+                    "a": 1
+                },
+                "3": {
+                    "n": "Order of the Salvatory Spirit",
+                    "a": 1
+                },
+                "4": {
+                    "n": "Order of the Watching Eye",
+                    "a": 1
+                },
+                "5": {
+                    "n": "Brakmarian New Recruit",
+                    "a": 2
+                },
+                "6": {
+                    "n": "Order of the Bleeding Heart",
+                    "a": 2
+                },
+                "7": {
+                    "n": "Order of the Unsound Mind",
+                    "a": 2
+                },
+                "8": {
+                    "n": "Order of the Putrid Eye",
+                    "a": 2
+                },
+                "9": {
+                    "n": "Serian-Kerm Clan",
+                    "a": 3
+                }
+            },
+            "jo": {
+                "0": [
+                    false,
+                    false,
+                    false,
+                    true
+                ],
+                "1": [
+                    true,
+                    false,
+                    true,
+                    true
+                ],
+                "2": [
+                    true,
+                    true,
+                    false,
+                    true
+                ],
+                "3": [
+                    true,
+                    true,
+                    true,
+                    true
+                ]
+            },
+            "at": {
+                "0": [
+                    false,
+                    false,
+                    false,
+                    false
+                ],
+                "1": [
+                    true,
+                    true,
+                    false,
+                    true
+                ],
+                "2": [
+                    true,
+                    false,
+                    true,
+                    true
+                ],
+                "3": [
+                    true,
+                    true,
+                    true,
+                    true
+                ]
+            },
+            "f": {
+                "1": {
+                    "n": "Efficiency",
+                    "g": 1,
+                    "e": 10
+                },
+                "2": {
+                    "n": "Initiative",
+                    "g": 2,
+                    "e": 2
+                },
+                "3": {
+                    "n": "Earth Resistance",
+                    "g": 3,
+                    "e": 17
+                },
+                "4": {
+                    "n": "Fire Resistance",
+                    "g": 4,
+                    "e": 18
+                },
+                "5": {
+                    "n": "Water Resistance",
+                    "g": 5,
+                    "e": 19
+                },
+                "6": {
+                    "n": "Air Resistance",
+                    "g": 6,
+                    "e": 20
+                },
+                "7": {
+                    "n": "Neutral Resistance",
+                    "g": 7,
+                    "e": 21
+                },
+                "8": {
+                    "n": "Hardiness",
+                    "g": 8,
+                    "e": 4
+                },
+                "9": {
+                    "n": "Endurance",
+                    "g": 9,
+                    "e": 22
+                },
+                "10": {
+                    "n": "Art of Camouflage",
+                    "g": 10,
+                    "e": 0
+                },
+                "11": {
+                    "n": "Scroll Knowledge",
+                    "g": 11,
+                    "e": 0
+                },
+                "12": {
+                    "n": "Resurrection Ability",
+                    "g": 12,
+                    "e": 0
+                },
+                "13": {
+                    "n": "Additional Energy Loss",
+                    "g": 12,
+                    "e": 23
+                },
+                "15": {
+                    "n": "Resistance to Earth Fighters",
+                    "g": 3,
+                    "e": 29
+                },
+                "16": {
+                    "n": "Resistance to Water Fighters",
+                    "g": 5,
+                    "e": 31
+                },
+                "17": {
+                    "n": "Resistance to Air Fighters",
+                    "g": 6,
+                    "e": 32
+                },
+                "18": {
+                    "n": "Resistance to Neutral Fighters",
+                    "g": 7,
+                    "e": 33
+                },
+                "19": {
+                    "n": "Resistance to Fire Fighters",
+                    "g": 4,
+                    "e": 30
+                },
+                "20": {
+                    "n": "Prospecting",
+                    "g": 13,
+                    "e": 40
+                },
+                "21": {
+                    "n": "Guard",
+                    "g": 1,
+                    "e": 0
+                },
+                "22": {
+                    "n": "Weakening",
+                    "g": 12,
+                    "e": 23
+                },
+                "23": {
+                    "n": "Potion Knowledge",
+                    "g": 11,
+                    "e": 0
+                }
+            },
+            "fe": {
+                "1": "+#1 Range",
+                "2": "+#1 Initiative",
+                "3": "+#1 Damage",
+                "4": "+#1 Vitality",
+                "6": "+#1 Intelligence",
+                "7": "+#1 Strength",
+                "8": "+#1 Agility",
+                "9": "+#1 Chance",
+                "10": "+#1 Critical Hit",
+                "11": "+#1 AP",
+                "12": "+#1 MP",
+                "13": "+#1 Wisdom",
+                "14": "+#1 Resistance to AP Loss",
+                "15": "+#1 Resistance to MP Loss",
+                "16": "#1% discount in shops",
+                "17": "+#1% Resistance to Earth Damage",
+                "18": "+#1% Resistance to Fire Damage",
+                "19": "+#1% Resistance to Water Damage",
+                "20": "+#1% Resistance to Air Damage",
+                "21": "+#1% Resistance to Neutral Damage",
+                "22": "+#1 Energy",
+                "23": "+#1 Lost Energy",
+                "24": "+#1 Resistance to Earth Damage",
+                "25": "+#1 Resistance to Fire Damage",
+                "26": "+#1 Resistance to Water Damage",
+                "27": "+#1 Resistance to Air Damage",
+                "28": "+#1 Resistance to Neutral Damage",
+                "29": "+#1% Resistance to Fighters Earth Damage",
+                "30": "+#1% Resistance to Fighters Fire Damage",
+                "31": "+#1% Resistance to Fighters Water Damage",
+                "32": "+#1% Resistance to Fighters Air Damage",
+                "33": "+#1% Resistance to Fighters Neutral Damage",
+                "34": "+#1 Resistance to Fighters Earth Damage",
+                "35": "+#1 Resistance to Fighters Fire Damage",
+                "36": "+#1 Resistance to Fighters Water Damage",
+                "37": "+#1 Resistance to Fighters Air Damage",
+                "38": "+#1 Resistance to Fighters Neutral Damage",
+                "39": "+#1 Heals",
+                "40": "+#1 Prospection"
+            },
+            "b": {
+                "0": {
+                    "s": 0,
+                    "e": 10,
+                    "n": "Requiem",
+                    "d": "Your alignment is so weak that its very survival is threatened."
+                },
+                "1": {
+                    "s": 10,
+                    "e": 20,
+                    "n": "Survivor",
+                    "d": "Your alignment barely survives in a very hostile environment."
+                },
+                "2": {
+                    "s": 20,
+                    "e": 30,
+                    "n": "Guerrilla",
+                    "d": "Your alignment resists all attacks."
+                },
+                "3": {
+                    "s": 30,
+                    "e": 40,
+                    "n": "Minority",
+                    "d": "Your alignment is on its knees, but it will soon stand tall again."
+                },
+                "4": {
+                    "s": 40,
+                    "e": 50,
+                    "n": "Cohabitation",
+                    "d": "The World's balance is not favourable to your alignment."
+                },
+                "5": {
+                    "s": 50,
+                    "e": 60,
+                    "n": "Status quo",
+                    "d": "Your alignment tips the World's balance in your favour."
+                },
+                "6": {
+                    "s": 60,
+                    "e": 70,
+                    "n": "Domination",
+                    "d": "Your enemies no longer dare venture outside. Your alignment is dominant"
+                },
+                "7": {
+                    "s": 70,
+                    "e": 80,
+                    "n": "Tyranny",
+                    "d": "The power of your alignment is such that you're starting to doubt the very existence of your enemies."
+                },
+                "8": {
+                    "s": 80,
+                    "e": 90,
+                    "n": "Conqueror",
+                    "d": "Nothing poses a threat to your alignment, the war is almost won."
+                },
+                "9": {
+                    "s": 90,
+                    "e": 100,
+                    "n": "Zenith",
+                    "d": "Your alignment is at its peak. Your enemies (probably) no longer exist."
+                }
+            },
+            "g": {
+                "0": [
+                    false,
+                    false,
+                    false,
+                    false
+                ],
+                "1": [
+                    false,
+                    true,
+                    true,
+                    false
+                ],
+                "2": [
+                    false,
+                    true,
+                    true,
+                    false
+                ],
+                "3": [
+                    true,
+                    false,
+                    false,
+                    false
+                ]
+            },
+            "s": {
+                "0": {
+                    "n": "Neutral",
+                    "d": "-",
+                    "o": 0,
+                    "av": 0,
+                    "f": {}
+                },
+                "1": {
+                    "n": "Neophyte",
+                    "d": "The new recruits chose to defend and protect the destitute. However, they've only started their training and haven't chosen their specialization yet. Only later will their desires and abilities unite to guide them.",
+                    "o": 1,
+                    "av": 0,
+                    "f": {}
+                },
+                "2": {
+                    "n": "Disciple of Menalt",
+                    "d": "Eager to become more deadly in battle, Menalt's disciples have to prove their valour and strength through long and painful training.",
+                    "o": 2,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            21
+                        ],
+                        [
+                            [
+                                200
+                            ],
+                            1,
+                            22
+                        ]
+                    ]
+                },
+                "3": {
+                    "n": "Page",
+                    "d": "A page worthy of the name would never complain about shooting pains from head to toe. The recruits will have ample time to prove it through their long and painful training.",
+                    "o": 2,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            21
+                        ],
+                        [
+                            [
+                                400
+                            ],
+                            2,
+                            22
+                        ]
+                    ]
+                },
+                "4": {
+                    "n": "Knight of Hope",
+                    "d": "-",
+                    "o": 2,
+                    "av": 60,
+                    "f": [
+                        [
+                            [
+                                600
+                            ],
+                            3,
+                            22
+                        ],
+                        [
+                            3,
+                            21
+                        ]
+                    ]
+                },
+                "5": {
+                    "n": "Supreme Champion",
+                    "d": "-",
+                    "o": 2,
+                    "av": 80,
+                    "f": [
+                        [
+                            4,
+                            21
+                        ],
+                        [
+                            [
+                                800
+                            ],
+                            4,
+                            22
+                        ]
+                    ]
+                },
+                "6": {
+                    "n": "Legendary Hero",
+                    "d": "-",
+                    "o": 2,
+                    "av": 100,
+                    "f": [
+                        [
+                            5,
+                            21
+                        ],
+                        [
+                            [
+                                1000
+                            ],
+                            5,
+                            22
+                        ]
+                    ]
+                },
+                "7": {
+                    "n": "Disciple of Jiva",
+                    "d": "Eager to increase their magical powers, Jiva's disciples have to search within to find the spiritual strength required to make good their invocations.",
+                    "o": 3,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            23
+                        ]
+                    ]
+                },
+                "8": {
+                    "n": "Apprentice",
+                    "d": "To earn the right to be named an Apprentice of this profession, you'll have to learn how to heal wounded and dying soldiers.",
+                    "o": 3,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            23
+                        ]
+                    ]
+                },
+                "9": {
+                    "n": "Follower of Writing",
+                    "d": "-",
+                    "o": 3,
+                    "av": 60,
+                    "f": [
+                        [
+                            3,
+                            23
+                        ]
+                    ]
+                },
+                "10": {
+                    "n": "Master of Scrolls",
+                    "d": "-",
+                    "o": 3,
+                    "av": 80,
+                    "f": [
+                        [
+                            4,
+                            23
+                        ]
+                    ]
+                },
+                "11": {
+                    "n": "Guardian of Knowledge",
+                    "d": "-",
+                    "o": 3,
+                    "av": 100,
+                    "f": [
+                        [
+                            5,
+                            23
+                        ]
+                    ]
+                },
+                "13": {
+                    "n": "Disciple of Silvosse",
+                    "d": "Eager to hone their expertise as spies, Silvosse's disciples must learn how to collect useful information... and how to hide it.",
+                    "o": 4,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            10
+                        ]
+                    ]
+                },
+                "14": {
+                    "n": "Spy",
+                    "d": "Calling yourself a spy doesn't make you one. As still as the oak, as silent as the rock, only a skilled Spy can hear the very sounds of the earth.",
+                    "o": 4,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            10
+                        ]
+                    ]
+                },
+                "15": {
+                    "n": "Renegade Hunter",
+                    "d": "-",
+                    "o": 4,
+                    "av": 60,
+                    "f": [
+                        [
+                            3,
+                            10
+                        ]
+                    ]
+                },
+                "16": {
+                    "n": "Supreme Assassin",
+                    "d": "-",
+                    "o": 4,
+                    "av": 80,
+                    "f": [
+                        [
+                            4,
+                            10
+                        ]
+                    ]
+                },
+                "17": {
+                    "n": "Master of Illusions",
+                    "d": "-",
+                    "o": 4,
+                    "av": 100,
+                    "f": [
+                        [
+                            5,
+                            10
+                        ]
+                    ]
+                },
+                "18": {
+                    "n": "Neophyte",
+                    "d": "The new recruits were born face down in the most hideous and rotten mire. They are treacherous now, but their stupidity stands between them and the deadly murderers they long to become. This will change, they will learn...",
+                    "o": 5,
+                    "av": 0,
+                    "f": {}
+                },
+                "19": {
+                    "n": "Disciple of Djaul",
+                    "d": "Driven by their love for hate, Djaul's disciples learn that in a battle, there are no enemies... only heads to shatter.",
+                    "o": 6,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            21
+                        ],
+                        [
+                            [
+                                200
+                            ],
+                            1,
+                            22
+                        ]
+                    ]
+                },
+                "20": {
+                    "n": "Knife Fighter",
+                    "d": "Being a Knife Fighter for Djaul is no easy task. Not only do you need immense physical strength, but he also demands that his apprentices be entirely devoid of conscience.",
+                    "o": 6,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            21
+                        ],
+                        [
+                            [
+                                400
+                            ],
+                            2,
+                            22
+                        ]
+                    ]
+                },
+                "21": {
+                    "n": "Knight of Despair",
+                    "d": "-",
+                    "o": 6,
+                    "av": 60,
+                    "f": [
+                        [
+                            3,
+                            21
+                        ],
+                        [
+                            [
+                                600
+                            ],
+                            3,
+                            22
+                        ]
+                    ]
+                },
+                "22": {
+                    "n": "Chaos Champion",
+                    "d": "-",
+                    "o": 6,
+                    "av": 80,
+                    "f": [
+                        [
+                            [
+                                800
+                            ],
+                            4,
+                            22
+                        ],
+                        [
+                            4,
+                            21
+                        ]
+                    ]
+                },
+                "23": {
+                    "n": "Apocalypse Hero",
+                    "d": "-",
+                    "o": 6,
+                    "av": 100,
+                    "f": [
+                        [
+                            [
+                                1000
+                            ],
+                            5,
+                            22
+                        ],
+                        [
+                            5,
+                            21
+                        ]
+                    ]
+                },
+                "24": {
+                    "n": "Disciple of Hecate",
+                    "d": "Driven by vice, Hecate's disciples must prove their ability to collect accurate information as well as to invent unfounded rumours.",
+                    "o": 7,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            23
+                        ]
+                    ]
+                },
+                "25": {
+                    "n": "Dark Apprentice",
+                    "d": "To earn the right to be named an Apprentice of this profession, you'll have to bewitch the living, the dead, and the living-dead.",
+                    "o": 7,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            23
+                        ]
+                    ]
+                },
+                "26": {
+                    "n": "Follower of Pain",
+                    "d": "-",
+                    "o": 7,
+                    "av": 60,
+                    "f": [
+                        [
+                            3,
+                            23
+                        ]
+                    ]
+                },
+                "27": {
+                    "n": "Master of Brutality",
+                    "d": "-",
+                    "o": 7,
+                    "av": 80,
+                    "f": [
+                        [
+                            4,
+                            23
+                        ]
+                    ]
+                },
+                "28": {
+                    "n": "Guardian of Torture",
+                    "d": "-",
+                    "o": 7,
+                    "av": 100,
+                    "f": [
+                        [
+                            5,
+                            23
+                        ]
+                    ]
+                },
+                "29": {
+                    "n": "Disciple of Brumaire",
+                    "d": "Driven by an attachment to gloomy places, Brumaire's disciples must gain a perfect knowledge of the poisons that abound in nature and how to combine them to deadly effect.",
+                    "o": 8,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            10
+                        ]
+                    ]
+                },
+                "30": {
+                    "n": "Dark Spy",
+                    "d": "Wrapped in his dark coat, the Dark Spy eyes will shed blood and blades will cry...",
+                    "o": 8,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            10
+                        ]
+                    ]
+                },
+                "31": {
+                    "n": "Soul Hunter",
+                    "d": "-",
+                    "o": 8,
+                    "av": 60,
+                    "f": [
+                        [
+                            3,
+                            10
+                        ]
+                    ]
+                },
+                "32": {
+                    "n": "Psychopath",
+                    "d": "-",
+                    "o": 8,
+                    "av": 80,
+                    "f": [
+                        [
+                            4,
+                            10
+                        ]
+                    ]
+                },
+                "33": {
+                    "n": "Master of Shadows",
+                    "d": "-",
+                    "o": 8,
+                    "av": 100,
+                    "f": [
+                        [
+                            5,
+                            10
+                        ]
+                    ]
+                },
+                "34": {
+                    "n": "Neophyte",
+                    "d": "-",
+                    "o": 9,
+                    "av": 0,
+                    "f": {}
+                },
+                "36": {
+                    "n": "Mercenary Apprentice",
+                    "d": "-",
+                    "o": 9,
+                    "av": 20,
+                    "f": [
+                        [
+                            [
+                                1
+                            ],
+                            1,
+                            3
+                        ],
+                        [
+                            [
+                                1
+                            ],
+                            1,
+                            6
+                        ],
+                        [
+                            [
+                                50
+                            ],
+                            1,
+                            2
+                        ],
+                        [
+                            [
+                                1500
+                            ],
+                            1,
+                            13
+                        ],
+                        [
+                            [
+                                1
+                            ],
+                            1,
+                            4
+                        ],
+                        [
+                            [
+                                1
+                            ],
+                            1,
+                            5
+                        ]
+                    ]
+                },
+                "37": {
+                    "n": "Mercenary",
+                    "d": "-",
+                    "o": 9,
+                    "av": 40,
+                    "f": [
+                        [
+                            [
+                                100
+                            ],
+                            2,
+                            2
+                        ],
+                        [
+                            [
+                                2
+                            ],
+                            2,
+                            3
+                        ],
+                        [
+                            [
+                                2
+                            ],
+                            2,
+                            5
+                        ],
+                        [
+                            [
+                                2
+                            ],
+                            2,
+                            4
+                        ],
+                        [
+                            [
+                                3500
+                            ],
+                            2,
+                            13
+                        ],
+                        [
+                            [
+                                2
+                            ],
+                            2,
+                            6
+                        ]
+                    ]
+                },
+                "38": {
+                    "n": "Great Mercenary",
+                    "d": "-",
+                    "o": 9,
+                    "av": 60,
+                    "f": [
+                        [
+                            [
+                                3
+                            ],
+                            3,
+                            6
+                        ],
+                        [
+                            [
+                                3
+                            ],
+                            3,
+                            3
+                        ],
+                        [
+                            [
+                                5500
+                            ],
+                            3,
+                            13
+                        ],
+                        [
+                            [
+                                3
+                            ],
+                            3,
+                            4
+                        ],
+                        [
+                            [
+                                150
+                            ],
+                            3,
+                            2
+                        ],
+                        [
+                            [
+                                50
+                            ],
+                            3,
+                            8
+                        ],
+                        [
+                            [
+                                3
+                            ],
+                            3,
+                            5
+                        ]
+                    ]
+                },
+                "39": {
+                    "n": "Mercenary Master",
+                    "d": "-",
+                    "o": 9,
+                    "av": 80,
+                    "f": [
+                        [
+                            [
+                                100
+                            ],
+                            4,
+                            8
+                        ],
+                        [
+                            [
+                                4
+                            ],
+                            4,
+                            6
+                        ],
+                        [
+                            1,
+                            11
+                        ],
+                        [
+                            [
+                                4
+                            ],
+                            4,
+                            5
+                        ],
+                        [
+                            [
+                                7500
+                            ],
+                            4,
+                            13
+                        ],
+                        [
+                            [
+                                4
+                            ],
+                            4,
+                            4
+                        ],
+                        [
+                            [
+                                4
+                            ],
+                            4,
+                            3
+                        ],
+                        [
+                            [
+                                200
+                            ],
+                            4,
+                            2
+                        ]
+                    ]
+                },
+                "40": {
+                    "n": "Great Mercenary Master",
+                    "d": "-",
+                    "o": 9,
+                    "av": 100,
+                    "f": [
+                        [
+                            [
+                                5
+                            ],
+                            5,
+                            5
+                        ],
+                        [
+                            1,
+                            11
+                        ],
+                        [
+                            [
+                                250
+                            ],
+                            5,
+                            2
+                        ],
+                        [
+                            [
+                                5
+                            ],
+                            5,
+                            4
+                        ],
+                        [
+                            [
+                                5
+                            ],
+                            5,
+                            6
+                        ],
+                        [
+                            [
+                                5
+                            ],
+                            5,
+                            3
+                        ],
+                        [
+                            [
+                                9500
+                            ],
+                            5,
+                            13
+                        ],
+                        [
+                            [
+                                150
+                            ],
+                            5,
+                            8
+                        ]
+                    ]
+                }
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 168,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "A",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

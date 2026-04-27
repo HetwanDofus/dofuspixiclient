@@ -1,0 +1,4918 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "SST": {
+            "9": {
+                "d": "Teclado Alemão - Alemanha",
+                "i": 9
+            },
+            "4": {
+                "d": "Teclado Francês - Canadá",
+                "i": 4
+            },
+            "1": {
+                "d": "Teclado Francês - França",
+                "i": 1
+            },
+            "2": {
+                "d": "Teclado Francês - França (Linux)",
+                "i": 2
+            },
+            "8": {
+                "d": "Teclado Francês - França (Mac)",
+                "i": 8
+            },
+            "7": {
+                "d": "Teclado Francês - Suíça",
+                "i": 7
+            },
+            "3": {
+                "d": "Teclado Inglês - EUA",
+                "i": 3
+            },
+            "6": {
+                "d": "Teclado Inglês - Reino Unido",
+                "i": 6
+            }
+        },
+        "SSK": {
+            "1|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 52,
+                "c": 1,
+                "s": "Ctrl+'"
+            },
+            "1|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 53,
+                "c": 1,
+                "s": "Ctrl+("
+            },
+            "1|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 54,
+                "c": 1,
+                "s": "Ctrl+-"
+            },
+            "1|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Barra de Espaço",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "1|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "1|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "1|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "1|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 109,
+                "c": 2,
+                "s": "Shift+-"
+            },
+            "1|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "1|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "1|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Cima",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Ant."
+            },
+            "1|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "Ctrl+D"
+            },
+            "1|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "1|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "1|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "1|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+("
+            },
+            "1|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "1|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Direita"
+            },
+            "1|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 49,
+                "c": 0,
+                "s": "&"
+            },
+            "1|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "1|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "1|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "1|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 222,
+                "c": 1,
+                "s": "Ctrl+²"
+            },
+            "1|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "1|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "1|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 51,
+                "c": 0,
+                "s": "3"
+            },
+            "1|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+'"
+            },
+            "1|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 222,
+                "c": 2,
+                "s": "Shift+²"
+            },
+            "1|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 52,
+                "c": 0,
+                "s": "'"
+            },
+            "1|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 54,
+                "c": 0,
+                "s": "-"
+            },
+            "1|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            },
+            "1|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "1|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "1|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 222,
+                "c": 0,
+                "s": "²"
+            },
+            "1|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 53,
+                "c": 0,
+                "s": "("
+            },
+            "1|SEND_CHAT": {
+                "d": "SEND_CHAT",
+                "o": true,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "1|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "1|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "1|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+&"
+            },
+            "1|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "1|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "1|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "1|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "1|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+è"
+            },
+            "1|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "1|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "1|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "1|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Baixo",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Seg."
+            },
+            "1|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "1|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 161,
+                "c": 0,
+                "s": "!",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "1|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "1|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "1|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "1|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "1|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+é"
+            },
+            "1|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "1|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Direita"
+            },
+            "1|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Cima"
+            },
+            "1|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 50,
+                "c": 1,
+                "s": "Ctrl+é"
+            },
+            "1|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "1|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "1|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 55,
+                "c": 1,
+                "s": "Ctrl+è"
+            },
+            "1|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 55,
+                "c": 0,
+                "s": "è"
+            },
+            "1|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Esquerda"
+            },
+            "1|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "1|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "é"
+            },
+            "1|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+\""
+            },
+            "1|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 226,
+                "c": 0,
+                "s": "<"
+            },
+            "1|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "1|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "1|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "1|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "1|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "1|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Baixo"
+            },
+            "1|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "1|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "1|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "1|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "1|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 51,
+                "c": 1,
+                "s": "Ctrl+\""
+            },
+            "1|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 49,
+                "c": 1,
+                "s": "Ctrl+&"
+            },
+            "2|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "2|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+\""
+            },
+            "2|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Cima",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Ant."
+            },
+            "2|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 114,
+                "c": 1,
+                "s": "Shift+F3"
+            },
+            "2|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 113,
+                "c": 1,
+                "s": "Shift+F2"
+            },
+            "2|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "2|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Baixo",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Seg."
+            },
+            "2|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "2|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "2|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "2|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 109,
+                "c": 2,
+                "s": "Shift+-"
+            },
+            "2|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+("
+            },
+            "2|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 114,
+                "c": 0,
+                "s": "3"
+            },
+            "2|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 222,
+                "c": 2,
+                "s": "Shift+'"
+            },
+            "2|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+&"
+            },
+            "2|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "2|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 161,
+                "c": 0,
+                "s": "!",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "2|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "2|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "2|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "2|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "2|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 190,
+                "c": 0,
+                "s": "<"
+            },
+            "2|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "2|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Baixo"
+            },
+            "2|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "2|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "2|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "2|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "Ctrl+D"
+            },
+            "2|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "2|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "2|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "2|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 178,
+                "c": 2,
+                "s": "Shift+²"
+            },
+            "2|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            },
+            "2|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "2|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 178,
+                "c": 0,
+                "s": "²"
+            },
+            "2|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "2|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "2|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Direita"
+            },
+            "2|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "2|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "2|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "2|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "2|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "2|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "2|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "2|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "2|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 112,
+                "c": 1,
+                "s": "Ctrl+F1"
+            },
+            "2|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 115,
+                "c": 1,
+                "s": "Ctrl+F4"
+            },
+            "2|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 116,
+                "c": 1,
+                "s": "Ctrl+F5"
+            },
+            "2|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 116,
+                "c": 1,
+                "s": "Ctrl+F6"
+            },
+            "2|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 118,
+                "c": 1,
+                "s": "Ctrl+F7"
+            },
+            "2|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "2|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "2|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "2|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 178,
+                "c": 1,
+                "s": "Ctrl+²"
+            },
+            "2|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "2|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "2|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "2|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Direita"
+            },
+            "2|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "2|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "2|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "2|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "2|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "2|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "2|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "2|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "2|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 118,
+                "c": 0,
+                "s": "F7"
+            },
+            "2|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Barra de Espaço",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "2|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "2|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 113,
+                "c": 0,
+                "s": "F2"
+            },
+            "2|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 115,
+                "c": 0,
+                "s": "F4"
+            },
+            "2|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 116,
+                "c": 0,
+                "s": "F5"
+            },
+            "2|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 117,
+                "c": 0,
+                "s": "F6"
+            },
+            "2|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Esquerda"
+            },
+            "2|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 84,
+                "c": 2,
+                "s": "Shift+é"
+            },
+            "2|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 232,
+                "c": 2,
+                "s": "Shift+è"
+            },
+            "2|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Cima"
+            },
+            "2|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "3|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "3|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "3|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Baixo",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Seg."
+            },
+            "3|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "3|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "3|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "3|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "3|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 192,
+                "c": 0,
+                "s": "`"
+            },
+            "3|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "3|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 192,
+                "c": 1,
+                "s": "Ctrl+`"
+            },
+            "3|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "3|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "3|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "3|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 55,
+                "c": 0,
+                "s": "7"
+            },
+            "3|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 54,
+                "c": 0,
+                "s": "6"
+            },
+            "3|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "3|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Cima"
+            },
+            "3|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "3|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Cima",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Ant."
+            },
+            "3|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 53,
+                "c": 0,
+                "s": "5"
+            },
+            "3|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "3|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "3|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Direita"
+            },
+            "3|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "3|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "3|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+$"
+            },
+            "3|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "3|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 52,
+                "c": 0,
+                "s": "4"
+            },
+            "3|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "3|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "3|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 226,
+                "c": 0,
+                "s": ""
+            },
+            "3|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "3|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "3|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+^"
+            },
+            "3|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 53,
+                "c": 1,
+                "s": "Ctrl+5"
+            },
+            "3|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "3|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "3|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 54,
+                "c": 1,
+                "s": "Ctrl+6"
+            },
+            "3|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 52,
+                "c": 1,
+                "s": "Ctrl+4"
+            },
+            "3|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "3|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "3|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+@"
+            },
+            "3|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 192,
+                "c": 2,
+                "s": "Shift+`"
+            },
+            "3|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "3|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 55,
+                "c": 1,
+                "s": "Ctrl+7"
+            },
+            "3|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 51,
+                "c": 1,
+                "s": "Ctrl+3"
+            },
+            "3|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "3|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "3|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "Ctrl+D"
+            },
+            "3|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Esquerda"
+            },
+            "3|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Direita"
+            },
+            "3|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            },
+            "3|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "3|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "3|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "3|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 50,
+                "c": 1,
+                "s": "Ctrl+2"
+            },
+            "3|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "2"
+            },
+            "3|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "3|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "3|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "3|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "3|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 51,
+                "c": 0,
+                "s": "3"
+            },
+            "3|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "3|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+&"
+            },
+            "3|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "3|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 49,
+                "c": 1,
+                "s": "Ctrl+1"
+            },
+            "3|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 161,
+                "c": 0,
+                "s": "!",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "3|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "3|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "3|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 49,
+                "c": 0,
+                "s": "1"
+            },
+            "3|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "3|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+#"
+            },
+            "3|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+!"
+            },
+            "3|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Barra de Espaço",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "3|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "3|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+%"
+            },
+            "3|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "3|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Baixo"
+            },
+            "3|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "4|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+!"
+            },
+            "4|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "4|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "4|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 222,
+                "c": 0,
+                "s": "/"
+            },
+            "4|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 49,
+                "c": 0,
+                "s": "1"
+            },
+            "4|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "2"
+            },
+            "4|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "4|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 51,
+                "c": 0,
+                "s": "3"
+            },
+            "4|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 52,
+                "c": 0,
+                "s": "4"
+            },
+            "4|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 53,
+                "c": 0,
+                "s": "5"
+            },
+            "4|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 54,
+                "c": 0,
+                "s": "6"
+            },
+            "4|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 55,
+                "c": 0,
+                "s": "7"
+            },
+            "4|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Baixo"
+            },
+            "4|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 222,
+                "c": 1,
+                "s": "Ctrl+/"
+            },
+            "4|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "4|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 49,
+                "c": 1,
+                "s": "Ctrl+1"
+            },
+            "4|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 50,
+                "c": 1,
+                "s": "Ctrl+2"
+            },
+            "4|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 51,
+                "c": 1,
+                "s": "Ctrl+3"
+            },
+            "4|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 52,
+                "c": 1,
+                "s": "Ctrl+4"
+            },
+            "4|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 53,
+                "c": 1,
+                "s": "Ctrl+5"
+            },
+            "4|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 54,
+                "c": 1,
+                "s": "Ctrl+6"
+            },
+            "4|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 55,
+                "c": 1,
+                "s": "Ctrl+7"
+            },
+            "4|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Direita"
+            },
+            "4|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "4|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "4|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "4|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "4|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Direita"
+            },
+            "4|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "4|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "4|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "4|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Barra de Espaço",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "4|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Esquerda"
+            },
+            "4|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Cima"
+            },
+            "4|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+#"
+            },
+            "4|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+$"
+            },
+            "4|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "4|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+%"
+            },
+            "4|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+&"
+            },
+            "4|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "4|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+?"
+            },
+            "4|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+@"
+            },
+            "4|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Baixo",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Seg."
+            },
+            "4|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "4|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Cima",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Ant."
+            },
+            "4|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "4|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "4|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "4|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "4|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "4|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "4|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "4|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "4|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 226,
+                "c": 0,
+                "s": "ù"
+            },
+            "4|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "4|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "4|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "4|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "4|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            },
+            "4|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "4|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "4|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "4|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "4|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 222,
+                "c": 2,
+                "s": "Shift+/"
+            },
+            "4|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "4|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "4|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "4|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "4|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "4|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "4|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "4|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "4|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "4|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "4|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "4|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "4|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "Ctrl+D"
+            },
+            "4|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 161,
+                "c": 0,
+                "s": "!",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "4|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "6|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "6|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 54,
+                "c": 1,
+                "s": "Ctrl+6"
+            },
+            "6|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 191,
+                "c": 0,
+                "s": "!",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "6|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "6|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 54,
+                "c": 0,
+                "s": "6"
+            },
+            "6|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+!"
+            },
+            "6|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 55,
+                "c": 0,
+                "s": "7"
+            },
+            "6|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 53,
+                "c": 1,
+                "s": "Ctrl+5"
+            },
+            "6|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 52,
+                "c": 1,
+                "s": "Ctrl+4"
+            },
+            "6|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "6|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "6|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "6|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 223,
+                "c": 2,
+                "s": "Shift+`"
+            },
+            "6|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 51,
+                "c": 1,
+                "s": "Ctrl+3"
+            },
+            "6|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Barra de Espaço",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "6|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "6|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "6|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "6|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "6|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 50,
+                "c": 1,
+                "s": "Ctrl+2"
+            },
+            "6|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+^"
+            },
+            "6|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "6|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Baixo",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Seg."
+            },
+            "6|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 49,
+                "c": 1,
+                "s": "Ctrl+1"
+            },
+            "6|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "6|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "6|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Baixo"
+            },
+            "6|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "6|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "6|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "2"
+            },
+            "6|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 49,
+                "c": 0,
+                "s": "1"
+            },
+            "6|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "6|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "6|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "6|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "6|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "6|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+$"
+            },
+            "6|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Direita"
+            },
+            "6|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Cima"
+            },
+            "6|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+&"
+            },
+            "6|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "6|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "6|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "6|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "6|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "p"
+            },
+            "6|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+£"
+            },
+            "6|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "6|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 223,
+                "c": 1,
+                "s": "Ctrl+`"
+            },
+            "6|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "6|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+%"
+            },
+            "6|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "6|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Cima",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Ant."
+            },
+            "6|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "6|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "6|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+\""
+            },
+            "6|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "6|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Esquerda"
+            },
+            "6|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "6|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "6|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "6|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "6|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 220,
+                "c": 0,
+                "s": ""
+            },
+            "6|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "6|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "6|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "6|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 223,
+                "c": 0,
+                "s": "`"
+            },
+            "6|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "6|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 51,
+                "c": 0,
+                "s": "3"
+            },
+            "6|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "6|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Direita"
+            },
+            "6|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            },
+            "6|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "6|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "6|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 52,
+                "c": 0,
+                "s": "4"
+            },
+            "6|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 53,
+                "c": 0,
+                "s": "5"
+            },
+            "6|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "6|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "6|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "6|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 55,
+                "c": 1,
+                "s": "Ctrl+7"
+            },
+            "7|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "7|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 54,
+                "c": 1,
+                "s": "Ctrl+6"
+            },
+            "7|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "7|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 191,
+                "c": 0,
+                "s": "§"
+            },
+            "7|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "7|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "7|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "Ctrl+D"
+            },
+            "7|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "7|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 53,
+                "c": 1,
+                "s": "Ctrl+5"
+            },
+            "7|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "7|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "7|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Direita"
+            },
+            "7|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "7|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 191,
+                "c": 1,
+                "s": "Ctrl+§"
+            },
+            "7|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 51,
+                "c": 0,
+                "s": "3"
+            },
+            "7|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "7|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            },
+            "7|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 53,
+                "c": 0,
+                "s": "5"
+            },
+            "7|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "7|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 52,
+                "c": 1,
+                "s": "Ctrl+4"
+            },
+            "7|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "7|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 191,
+                "c": 0,
+                "s": "g",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "7|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "7|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "7|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 191,
+                "c": 2,
+                "s": "Shift+§"
+            },
+            "7|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Baixo",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Seg."
+            },
+            "7|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 55,
+                "c": 0,
+                "s": "7"
+            },
+            "7|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 51,
+                "c": 1,
+                "s": "Ctrl+3"
+            },
+            "7|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 226,
+                "c": 0,
+                "s": "<"
+            },
+            "7|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "7|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "7|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "7|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "7|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "7|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "7|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "7|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 54,
+                "c": 0,
+                "s": "6"
+            },
+            "7|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 52,
+                "c": 0,
+                "s": "4"
+            },
+            "7|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Esquerda"
+            },
+            "7|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 55,
+                "c": 1,
+                "s": "Ctrl+7"
+            },
+            "7|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "7|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "7|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "7|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 50,
+                "c": 1,
+                "s": "Ctrl+2"
+            },
+            "7|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 49,
+                "c": 0,
+                "s": "1"
+            },
+            "7|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "7|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "7|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "7|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "7|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "7|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 49,
+                "c": 1,
+                "s": "Ctrl+1"
+            },
+            "7|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Cima",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Ant."
+            },
+            "7|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "7|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Baixo"
+            },
+            "7|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "7|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "7|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "7|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "7|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "7|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "7|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "7|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Barra de Espaço",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "7|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "7|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "7|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Cima"
+            },
+            "7|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "7|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "2"
+            },
+            "7|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "7|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "7|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "7|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "7|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "7|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "7|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Direita"
+            },
+            "7|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "7|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "7|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "7|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "7|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "8|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Barra de Espaço",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "8|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Cima",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Ant."
+            },
+            "8|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+\""
+            },
+            "8|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "8|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+è"
+            },
+            "8|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Cima"
+            },
+            "8|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Esquerda"
+            },
+            "8|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+é"
+            },
+            "8|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 122,
+                "c": 1,
+                "s": "F1"
+            },
+            "8|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "8|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "8|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "8|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "8|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "8|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "8|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "8|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "8|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "8|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "8|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "8|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Direita"
+            },
+            "8|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "8|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "8|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "8|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "8|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 55,
+                "c": 0,
+                "s": "è"
+            },
+            "8|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "é"
+            },
+            "8|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 54,
+                "c": 0,
+                "s": "-"
+            },
+            "8|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "8|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "8|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "8|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "8|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "8|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "8|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "8|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "Ctrl+D"
+            },
+            "8|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "8|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            },
+            "8|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Direita"
+            },
+            "8|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "8|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "8|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 55,
+                "c": 1,
+                "s": "Ctrl+7"
+            },
+            "8|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 54,
+                "c": 1,
+                "s": "Ctrl+6"
+            },
+            "8|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 53,
+                "c": 1,
+                "s": "Ctrl+5"
+            },
+            "8|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "8|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 52,
+                "c": 1,
+                "s": "Ctrl+4"
+            },
+            "8|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 122,
+                "c": 2,
+                "s": "Shift+F1"
+            },
+            "8|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 51,
+                "c": 1,
+                "s": "Ctrl+3"
+            },
+            "8|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "8|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "8|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 50,
+                "c": 1,
+                "s": "Ctrl+2"
+            },
+            "8|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 161,
+                "c": 0,
+                "s": "!",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "8|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "8|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 49,
+                "c": 1,
+                "s": "Ctrl+1"
+            },
+            "8|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "8|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "8|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "8|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Baixo"
+            },
+            "8|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "@"
+            },
+            "8|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 192,
+                "c": 0,
+                "s": "<"
+            },
+            "8|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "8|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "8|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "8|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "8|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "8|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "8|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "8|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 53,
+                "c": 0,
+                "s": "("
+            },
+            "8|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 51,
+                "c": 0,
+                "s": "3"
+            },
+            "8|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "8|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+&"
+            },
+            "8|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+'"
+            },
+            "8|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+("
+            },
+            "8|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 52,
+                "c": 0,
+                "s": "'"
+            },
+            "8|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 49,
+                "c": 0,
+                "s": "&"
+            },
+            "8|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+-§"
+            },
+            "8|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "8|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "8|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Baixo",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Seg."
+            },
+            "9|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "9|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "9|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "9|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 54,
+                "c": 0,
+                "s": "6"
+            },
+            "9|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 53,
+                "c": 1,
+                "s": "Ctrl+5"
+            },
+            "9|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 54,
+                "c": 1,
+                "s": "Ctrl+6"
+            },
+            "9|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "Ctrl+D"
+            },
+            "9|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "9|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+%"
+            },
+            "9|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "9|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "9|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "9|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "9|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "9|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 53,
+                "c": 0,
+                "s": "5"
+            },
+            "9|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 52,
+                "c": 0,
+                "s": "4"
+            },
+            "9|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 55,
+                "c": 1,
+                "s": "Ctrl+7"
+            },
+            "9|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "9|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "9|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Direita"
+            },
+            "9|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+&"
+            },
+            "9|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "9|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "9|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "9|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "9|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "9|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "9|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "9|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+§"
+            },
+            "9|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "9|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 51,
+                "c": 0,
+                "s": "3"
+            },
+            "9|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "9|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "2"
+            },
+            "9|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 220,
+                "c": 1,
+                "s": "Ctrl+^"
+            },
+            "9|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "9|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "9|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "9|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "9|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Baixo",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Seg."
+            },
+            "9|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Cima"
+            },
+            "9|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 49,
+                "c": 0,
+                "s": "1"
+            },
+            "9|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Direita"
+            },
+            "9|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+!"
+            },
+            "9|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "9|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Cima",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Página Ant."
+            },
+            "9|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "9|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "9|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "9|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+\""
+            },
+            "9|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+/"
+            },
+            "9|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "9|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "9|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "9|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "9|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "9|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+$"
+            },
+            "9|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "9|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "9|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 161,
+                "c": 0,
+                "s": "!",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "9|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "9|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Baixo"
+            },
+            "9|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "9|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "9|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Barra de Espaço",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "9|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 226,
+                "c": 0,
+                "s": "<"
+            },
+            "9|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "9|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 49,
+                "c": 1,
+                "s": "Ctrl+1"
+            },
+            "9|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "9|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 220,
+                "c": 0,
+                "s": "^"
+            },
+            "9|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 50,
+                "c": 1,
+                "s": "Ctrl+2"
+            },
+            "9|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "9|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Esquerda"
+            },
+            "9|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "9|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 51,
+                "c": 1,
+                "s": "Ctrl+3"
+            },
+            "9|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 220,
+                "c": 2,
+                "s": "Shift+^"
+            },
+            "9|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 55,
+                "c": 0,
+                "s": "7"
+            },
+            "9|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 52,
+                "c": 1,
+                "s": "Ctrl+4"
+            },
+            "9|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "9|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            }
+        },
+        "SSC": {
+            "1": {
+                "d": "Outros atalhos",
+                "i": 1,
+                "o": 99
+            },
+            "7": {
+                "d": "Combinação da porta",
+                "i": 7,
+                "o": 7
+            },
+            "4": {
+                "d": "Interface",
+                "i": 4,
+                "o": 6
+            },
+            "5": {
+                "d": "Menus",
+                "i": 5,
+                "o": 5
+            },
+            "8": {
+                "d": "Barra de ferramentas de Atalho Móvel",
+                "i": 8,
+                "o": 4
+            },
+            "3": {
+                "d": "Barra de atalhos móvel",
+                "i": 3,
+                "o": 3
+            },
+            "6": {
+                "d": "Combate",
+                "i": 6,
+                "o": 2
+            },
+            "2": {
+                "d": "Bate-papo",
+                "i": 2,
+                "o": 1
+            }
+        },
+        "SH": {
+            "CONSOLESIZE": {
+                "d": "Resize the console",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "SHOWTRIGGERS": {
+                "d": "Realçar as células importantes do mapa",
+                "c": 1,
+                "k": "",
+                "s": false
+            },
+            "SHOW_CELL": {
+                "d": "Permite que você aponte uma determinada célula para seus companheiros de equipe.",
+                "c": 6,
+                "k": "",
+                "s": false
+            },
+            "NEXTTURN": {
+                "d": "Passar seu turno ou ficar pronto na fase de preparação do combate",
+                "c": 6,
+                "k": "",
+                "s": false
+            },
+            "MOUNT_INVENTORY": {
+                "d": "Montaria : abrir inventário",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "MOUNT": {
+                "d": "Montaria",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "MOUNTING": {
+                "d": "Montar / Desmontar",
+                "c": 1,
+                "k": "",
+                "s": false
+            },
+            "MINI": {
+                "d": "Minimizar janela de bate-papo",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "HISTORY_DOWN": {
+                "d": "Mensagem seguinte no histórico",
+                "c": 2,
+                "k": "",
+                "s": false
+            },
+            "TEAM_MESSAGE": {
+                "d": "Mensagem no canal do Grupo",
+                "c": 2,
+                "k": "",
+                "s": true
+            },
+            "GUILD_MESSAGE": {
+                "d": "Mensagem no canal da Guilda",
+                "c": 2,
+                "k": "",
+                "s": true
+            },
+            "HISTORY_UP": {
+                "d": "Mensagem anterior no histórico",
+                "c": 2,
+                "k": "",
+                "s": false
+            },
+            "ALLOWSCALE": {
+                "d": "Maximizar / Minimizar a tela do jogo",
+                "c": 1,
+                "k": "",
+                "s": true
+            },
+            "MAXI": {
+                "d": "Maximizar janela de bate-papo",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "MAP": {
+                "d": "Mapa do mundo",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "QUESTS": {
+                "d": "Lista de missões",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "SPELLS": {
+                "d": "Lista de feitiços",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "FRIENDS": {
+                "d": "Lista de Amigos / Inimigos",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "CODE_NEXT": {
+                "d": "Ir para o número código",
+                "c": 7,
+                "k": "",
+                "s": false
+            },
+            "CODE_PREVIOUS": {
+                "d": "Ir para o número anterior",
+                "c": 7,
+                "k": "",
+                "s": false
+            },
+            "INVENTORY": {
+                "d": "Inventário",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "GUILD_TAX_COLLECTOR": {
+                "d": "Guilda : abrir guia coletor",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "GUILD": {
+                "d": "Guilda",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "MERGE_RUNE": {
+                "d": "(Forjamagia) Mesclar uma vez",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "ESCAPE": {
+                "d": "Fechar a interface",
+                "c": 1,
+                "k": "",
+                "s": true
+            },
+            "BUFF": {
+                "d": "Exibir / Ocultar buffs e de-buffs",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "COORDS": {
+                "d": "Exibir / Ocultar as coordenadas do mapa",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "CONSOLE": {
+                "d": "Exibir / Ocultar a linha de comando",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "GRID": {
+                "d": "Exibir / Ocultar a grade",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR": {
+                "d": "Exibir / Ocultar a barra de atalho móvel",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "SHOWMONSTERSTOOLTIP": {
+                "d": "Exibir as dicas dos monstros",
+                "c": 1,
+                "k": "",
+                "s": false
+            },
+            "TOGGLE_FIGHT_INFOS": {
+                "d": "Exibe / Oculta detalhes da luta no bate-papo.",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "HIDESPRITES": {
+                "d": "Esconder os sprites",
+                "c": 1,
+                "k": "",
+                "s": false
+            },
+            "SEND_CHAT_MSG": {
+                "d": "Enviar mensagem atual",
+                "c": 2,
+                "k": "",
+                "s": true
+            },
+            "WHISPER_HISTORY_DOWN": {
+                "d": "Correspondente seguinte no histórico",
+                "c": 2,
+                "k": "",
+                "s": false
+            },
+            "WHISPER_HISTORY_UP": {
+                "d": "Correspondente anterior no histórico",
+                "c": 2,
+                "k": "",
+                "s": false
+            },
+            "CONQUEST_AND_HUNT": {
+                "d": "Conquista e Caça",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "AUTOCOMPLETE": {
+                "d": "Completar o nome de um personagem",
+                "c": 2,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH15": {
+                "d": "Célula de atalho para feitiço ou item usável 16",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH14": {
+                "d": "Célula de atalho para feitiço ou item usável 15",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH13": {
+                "d": "Célula de atalho para feitiço ou item usável 14",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH12": {
+                "d": "Célula de atalho para feitiço ou item usável 13",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH11": {
+                "d": "Célula de atalho para feitiço ou item usável 12",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH10": {
+                "d": "Célula de atalho para feitiço ou item usável 11",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH9": {
+                "d": "Célula de atalho para feitiço ou item usável 10",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH8": {
+                "d": "Célula de atalho para feitiço ou item usável 09",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH7": {
+                "d": "Célula de atalho para feitiço ou item usável 08",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH6": {
+                "d": "Célula de atalho para feitiço ou item usável 07",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH5": {
+                "d": "Célula de atalho para feitiço ou item usável 06",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH4": {
+                "d": "Célula de atalho para feitiço ou item usável 05",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH3": {
+                "d": "Célula de atalho para feitiço ou item usável 04",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH2": {
+                "d": "Célula de atalho para feitiço ou item usável 03",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH1": {
+                "d": "Célula de atalho para feitiço ou item usável 02",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH0": {
+                "d": "Célula de atalho para feitiço ou item usável 01",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "CHARAC": {
+                "d": "Características",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "FULLSCREEN": {
+                "d": "Ativar /  Desativar o modo tela cheia",
+                "c": 1,
+                "k": "",
+                "s": true
+            },
+            "SPRITEINFOS": {
+                "d": "Ativar / Desativar informações complementares de um jogador na luta",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "TRANSPARENCY": {
+                "d": "Ativar / Desativar a transparência de jogadores",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "STRINGCOURSE": {
+                "d": "Ativar / Desativar a ilustração no começo de um turno",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "SHOW_FIX_RES": {
+                "d": "Ativar/desativar a exibição das resistências fixas no painel de combate",
+                "c": 6,
+                "k": "",
+                "s": false
+            },
+            "SH0": {
+                "d": "Ataque corpo a corpo",
+                "c": 6,
+                "k": "",
+                "s": false
+            },
+            "SH9": {
+                "d": "Atalho para feitiço ou item 9",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH8": {
+                "d": "Atalho para feitiço ou item 8",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH7": {
+                "d": "Atalho para feitiço ou item 7",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH6": {
+                "d": "Atalho para feitiço ou item 6",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH5": {
+                "d": "Atalho para feitiço ou item 5",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH4": {
+                "d": "Atalho para feitiço ou item 4",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH3": {
+                "d": "Atalho para feitiço ou item 3",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH2": {
+                "d": "Atalho para feitiço ou item 2",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH14": {
+                "d": "Atalho para feitiço ou item 14",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH13": {
+                "d": "Atalho para feitiço ou item 13",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH12": {
+                "d": "Atalho para feitiço ou item 12",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH11": {
+                "d": "Atalho para feitiço ou item 11",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH10": {
+                "d": "Atalho para feitiço ou item 10",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH1": {
+                "d": "Atalho para feitiço ou item 1",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "CODE_CLEAR": {
+                "d": "Apagar número atual",
+                "c": 7,
+                "k": "",
+                "s": false
+            },
+            "SWAP": {
+                "d": "Alternar feitiços e atalhos de itens",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "ACCEPT_CURRENT_DIALOG": {
+                "d": "Aceitar a caixa de diálogo",
+                "c": 1,
+                "k": "",
+                "s": true
+            },
+            "TEMPORIS": {
+                "d": "Abrir a interface temporis",
+                "c": 5,
+                "k": "",
+                "s": false
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 468,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "SST",
+            "SSK",
+            "SSC",
+            "SH",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

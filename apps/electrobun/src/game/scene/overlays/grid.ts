@@ -124,6 +124,11 @@ export class GridOverlay extends Actor implements Rendered {
     this.container = new Container();
     this.container.label = "grid-overlay";
     this.container.visible = false;
+    // Match the Actor's zIndex on the Pixi container so the sortable
+    // mapContainer places the grid just below Object2 (sprites) and
+    // above cell tints, mirroring Dofus 1.29's Grid=400 / Zone=500 /
+    // Object2=800 layering.
+    this.container.zIndex = Z_GRID_OVERLAY;
     parentContainer.addChild(this.container);
 
     this.graphics = new Graphics();

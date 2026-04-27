@@ -3,6 +3,7 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import {
   createContext,
+  forwardRef,
   type ReactNode,
   useContext,
   useId,
@@ -1018,20 +1019,27 @@ function MainBannerTurnButton({
   );
 }
 
-function MainBannerGridSlot({
-  className,
-  children,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+const MainBannerGridSlot = forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(function MainBannerGridSlot({ className, children, ...props }, ref) {
   return (
     <div
+      ref={ref}
       className={cn(
         "relative",
         "w-[calc(25px*var(--resolution-factor))]",
         "h-[calc(25px*var(--resolution-factor))]",
         "bg-[#beb998] border-none",
-        "shadow-[inset_calc(1px*var(--resolution-factor))_calc(1px*var(--resolution-factor))_0_0_#877b63,inset_calc(-1px*var(--resolution-factor))_calc(-1px*var(--resolution-factor))_0_0_#d1ccb6]",
-        "hover:shadow-[inset_0_0_0_calc(2px*var(--resolution-factor))_#ff6600]",
+        // Bevel + hover ring are painted on an `::after` pseudo-element
+        // that sits ABOVE the icon canvas (pseudo-elements render after
+        // siblings). If we put the bevel on the slot itself with a plain
+        // `shadow-[inset]`, the icon canvas would paint on top of it and
+        // hide the bevel. `::after` keeps the icon visually INSIDE the
+        // bevel even when the icon fills the slot edge-to-edge.
+        "after:absolute after:inset-0 after:pointer-events-none",
+        "after:shadow-[inset_calc(1px*var(--resolution-factor))_calc(1px*var(--resolution-factor))_0_0_#877b63,inset_calc(-1px*var(--resolution-factor))_calc(-1px*var(--resolution-factor))_0_0_#d1ccb6]",
+        "hover:after:shadow-[inset_0_0_0_calc(2px*var(--resolution-factor))_#ff6600]",
         className
       )}
       {...props}
@@ -1039,7 +1047,7 @@ function MainBannerGridSlot({
       {children}
     </div>
   );
-}
+});
 
 function MainBannerGridTab({
   className,

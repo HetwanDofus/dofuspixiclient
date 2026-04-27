@@ -1,0 +1,37 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "SUB": {
+            "8": {
+                "1": "Zes talismans bestaan in deze wereld,\ndragers van mysterieuze krachten en voorspoed.",
+                "2": "Zes Dragon eieren, het heilige Dofus,",
+                "3": "Zijn gestolen van onze beschermers...",
+                "4": "Toen gingen de elementen weer wild tekeer,\nMonsters slepen hun slagtanden,",
+                "5": "Avonturiers pakten hun wapen,\nEn alles heeft geleid tot een vrolijke massamoord!",
+                "6": "Maar de tijd is gekomen!\nJe lot brengt je naar Incarnam...",
+                "7": "Kies je pad als een ridder, een heler of een bezweerder.",
+                "8": "Vind de Dofus,\nEn wordt de held waar de wereld op heeft gewacht!"
+            },
+            "14": {
+                "1": "[TR2]",
+                "2": "[TR2]",
+                "3": "[TR2]",
+                "4": "[TR2]",
+                "5": "[TR2]"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 19,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "SUB",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

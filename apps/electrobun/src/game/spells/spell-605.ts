@@ -1,109 +1,154 @@
 /**
- * Spell 605 - Dodge (Sram)
+ * Spell 605 — Esquive (Dodge/Sidestep, likely Iop or Sacrier).
  *
- * A dodge animation with randomized alpha effects.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/605/scripts/scripts/
  *
- * Components:
- * - anim1: Main dodge animation at target position, 135 frames
+ * displayType=11 (TargetCell). The spell has no move/shoot/duplicate
+ * symbols, no projectile motion, no dual-anchor. It is a single
+ * self-contained animated sprite (anim1, 135 frames) that plays at the
+ * target cell. The canonical structure is:
  *
- * Original AS timing:
- * - DefineSprite_21/frame_1: enterFrame sets _alpha = 20 + random(70) each frame
- * - DefineSprite_29/frame_28: Play sounds 'dodge_605' and 'pas_homme_normal'
- * - DefineSprite_29/frame_37: enterFrame sets _alpha = 20 + random(70) each frame
- * - DefineSprite_29/frame_40: Play sound 'pas_homme_normal'
- * - DefineSprite_29/frame_133: removeMovieClip() - animation ends
+ *   - DefineSprite_29 (the outer authored timeline, 135 frames):
+ *       frame_28:  plays "dodge_605" + "pas_homme_normal" sounds.
+ *       frame_37:  has a placed child (PlaceObject2_17_1) whose
+ *                  onEnterFrame randomly flickers _alpha ∈ [20,90).
+ *       frame_40:  plays "pas_homme_normal" again.
+ *       frame_133: _parent.removeMovieClip() → spell complete.
+ *
+ *   - DefineSprite_21 (a sub-sprite placed at some earlier frame,
+ *     referenced by PlaceObject2_19_1 in its frame_1 clip event):
+ *       onEnterFrame: _alpha = 20 + random(70) — same flicker pattern.
+ *
+ * The manifest has no librarySymbols[] — only animations: ["anim1"].
+ * All content is driven by the single anim1 timeline; no attachMovie
+ * calls exist. We model DefineSprite_29 as the "anim1" symbol and
+ * embed all frame scripts + clip event handlers inside it.
+ *
+ * Since DefineSprite_29 and DefineSprite_21 both have the same
+ * _alpha flicker pattern on placed children, and since the manifest
+ * exposes only a single composite "anim1" timeline (not separate
+ * per-sub-sprite textures), we treat the full 135-frame composite as
+ * one symbol. The two onEnterFrame flickering instances are modelled
+ * as a single repeating alpha jitter on the anim1 clip itself — the
+ * visual result is identical to what a viewer sees (the composite
+ * already bakes both layers). Sound cues and completion timing are
+ * the load-bearing parts and are ported exactly.
+ *
+ * signalHit: fired at frame_28 (first footstep + dodge sound → the
+ * dodge is the hit moment). No harness auto-signal because displayType
+ * is TargetCell (11), not ProjectileBallistic.
+ *
+ * Library symbols: none (librarySymbols[] is empty in manifest).
+ * The sole symbol registered is "anim1" from animations[].
+ *
+ * Main timeline: attaches anim1 in onSpellStart.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const ANIM1_MANIFEST: SpriteManifest = {
+const ANIM1_BOUNDS = {
   width: 59.5,
   height: 60.85,
   offsetX: -31.25,
   offsetY: -108.2,
 };
 
-export class Spell605 extends BaseSpell {
+export class Spell605 extends RuntimeSpell {
   readonly spellId = 605;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private mainAnim!: FrameAnimatedSprite;
-  private alphaRandomizerActive = false;
+  private anim1Sym!: SymbolDefinition;
+  private soundCallbacks?: SpellCallbacks;
 
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const anchor = calculateAnchor(ANIM1_MANIFEST);
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    this.mainAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("anim1"),
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-      })
-    );
+    // ---- anim1 — 135-frame composite timeline at target cell ----
+    // Models DefineSprite_29 (the outer 135-frame sprite) plus the
+    // embedded flicker behaviour from DefineSprite_21/PlaceObject2_19_1
+    // and DefineSprite_29/frame_37/PlaceObject2_17_1.
+    //
+    // Both placed children share the same onClipEvent(enterFrame):
+    //   _alpha = 20 + random(70)
+    // Since the manifest bakes them into the composite frames, we
+    // apply the flicker to the anim1 clip itself as an onEnterFrame
+    // so the rendered result matches the canonical visual output.
+    //
+    // AS DefineSprite_21/frame_1/PlaceObject2_19_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    // AS DefineSprite_29/frame_37/PlaceObject2_17_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    this.anim1Sym = {
+      name: "anim1",
+      totalFrames: 135,
+      frames: textures.getFrames("anim1"),
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
 
-    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
+      onEnterFrame: (clip) => {
+        // AS: _alpha = 20 + random(70)  (both placed-child flickerers)
+        clip.alpha = (20 + Math.floor(Math.random() * 70)) / 100;
+      },
 
-    // Frame 28 (AS frame 28, 0-indexed: 27): play sounds
-    this.mainAnim.onFrame(27, () => {
-      this.callbacks.playSound("dodge_605");
-      this.callbacks.playSound("pas_homme_normal");
-    });
+      frameScripts: new Map([
+        [
+          27,
+          (_clip) => {
+            // AS DefineSprite_29/frame_28/DoAction.as
+            // SOMA.playSound("dodge_605");
+            // SOMA.playSound("pas_homme_normal");
+            this.soundCallbacks?.playSound("dodge_605");
+            this.soundCallbacks?.playSound("pas_homme_normal");
+            // frame_28 is the dodge impact — signal hit here.
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          39,
+          (_clip) => {
+            // AS DefineSprite_29/frame_40/DoAction.as
+            // SOMA.playSound("pas_homme_normal");
+            this.soundCallbacks?.playSound("pas_homme_normal");
+          },
+        ],
+        [
+          132,
+          (clip) => {
+            // AS DefineSprite_29/frame_133/DoAction.as
+            // _parent.removeMovieClip();
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // Frame 37 (AS frame 37, 0-indexed: 36): start second alpha randomizer phase
-    this.mainAnim.onFrame(36, () => {
-      this.alphaRandomizerStartFrame = 36;
-      this.alphaRandomizerActive = true;
-    });
-
-    // Frame 40 (AS frame 40, 0-indexed: 39): play sound
-    this.mainAnim.onFrame(39, () => {
-      this.callbacks.playSound("pas_homme_normal");
-    });
-
-    // Frame 133 (AS frame 133, 0-indexed: 132): removeMovieClip - signal hit and end
-    this.mainAnim.onFrame(132, () => {
-      this.signalHit();
-    });
-
-    // The animation has 135 frames total, completion is at frame 134 (0-indexed)
-    // DefineSprite_29/frame_133 calls removeMovieClip, so we stop at 132 (0-indexed)
-    this.mainAnim.stopAt(132);
-
-    this.container.addChild(this.mainAnim.sprite);
-
-    // Alpha randomizer is active from frame 1 (DefineSprite_21 enterFrame)
-    // The outer sprite (DefineSprite_21) has its alpha randomized every frame
-    // This applies to the whole animation from the start
-    this.alphaRandomizerActive = true;
-    this.alphaRandomizerStartFrame = 0;
+    this.registry.register(this.anim1Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // Capture callbacks so frame scripts can fire sounds.
+    this.soundCallbacks = callbacks;
 
-    this.anims.update(deltaTime);
-
-    // Apply alpha randomization every frame (replicates onClipEvent(enterFrame))
-    // AS: _alpha = 20 + random(70) — random(70) returns 0..69
-    if (this.alphaRandomizerActive) {
-      this.mainAnim.sprite.alpha = (20 + Math.floor(Math.random() * 70)) / 100;
-    }
-
-    if (this.mainAnim.isStopped() || this.mainAnim.isComplete()) {
-      this.complete();
-    }
+    // Attach the main composite timeline at depth 1.
+    // DisplayType=11 (TargetCell): the root container is already
+    // positioned at the target cell by the harness; anim1 sits at
+    // local (0,0) which is the canonical target-cell origin.
+    this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

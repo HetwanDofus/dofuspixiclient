@@ -1,0 +1,215 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "J": {
+            "1": {
+                "n": "-Base-",
+                "s": 0,
+                "g": -1
+            },
+            "2": {
+                "n": "Leñador",
+                "s": 0,
+                "g": 1
+            },
+            "11": {
+                "n": "Forjador de Espadas",
+                "s": 0,
+                "g": 10
+            },
+            "13": {
+                "n": "Escultor de Arcos",
+                "s": 0,
+                "g": 6
+            },
+            "14": {
+                "n": "Forjador de Martillos",
+                "s": 0,
+                "g": 11
+            },
+            "15": {
+                "n": "Zapatero",
+                "s": 0,
+                "g": 5
+            },
+            "16": {
+                "n": "Joyero",
+                "s": 0,
+                "g": 15
+            },
+            "17": {
+                "n": "Forjador de Dagas",
+                "s": 0,
+                "g": 9
+            },
+            "18": {
+                "n": "Escultor de Bastones",
+                "s": 0,
+                "g": 8
+            },
+            "19": {
+                "n": "Escultor de Varitas",
+                "s": 0,
+                "g": 7
+            },
+            "20": {
+                "n": "Forjador de Palas",
+                "s": 0,
+                "g": 12
+            },
+            "24": {
+                "n": "Minero",
+                "s": 0,
+                "g": 13
+            },
+            "25": {
+                "n": "Panadero",
+                "s": 0,
+                "g": 3
+            },
+            "26": {
+                "n": "Alquimista",
+                "s": 0,
+                "g": 14
+            },
+            "27": {
+                "n": "Sastre",
+                "s": 0,
+                "g": 20
+            },
+            "28": {
+                "n": "Campesino",
+                "s": 0,
+                "g": 18
+            },
+            "31": {
+                "n": "Forjador de Hachas",
+                "s": 0,
+                "g": 19
+            },
+            "36": {
+                "n": "Pescador",
+                "s": 0,
+                "g": 30
+            },
+            "41": {
+                "n": "Cazador",
+                "s": 0,
+                "g": 32
+            },
+            "43": {
+                "n": "Forjamago de Dagas",
+                "s": 17,
+                "g": 21
+            },
+            "44": {
+                "n": "Forjamago de Espadas",
+                "s": 11,
+                "g": 24
+            },
+            "45": {
+                "n": "Forjamago de Martillos",
+                "s": 14,
+                "g": 25
+            },
+            "46": {
+                "n": "Forjamago de Palas",
+                "s": 20,
+                "g": 26
+            },
+            "47": {
+                "n": "Forjamago de Hachas",
+                "s": 31,
+                "g": 23
+            },
+            "48": {
+                "n": "Escultomago de Arcos",
+                "s": 13,
+                "g": 28
+            },
+            "49": {
+                "n": "Escultomago de Varitas",
+                "s": 19,
+                "g": 29
+            },
+            "50": {
+                "n": "Escultomago de Bastones",
+                "s": 18,
+                "g": 22
+            },
+            "56": {
+                "n": "Carnicero",
+                "s": 0,
+                "g": 33
+            },
+            "58": {
+                "n": "Pescadero",
+                "s": 0,
+                "g": 31
+            },
+            "60": {
+                "n": "Forjador de Escudos",
+                "s": 0,
+                "g": 40
+            },
+            "62": {
+                "n": "Zapateromago",
+                "s": 15,
+                "g": 36
+            },
+            "63": {
+                "n": "Joyeromago",
+                "s": 16,
+                "g": 37
+            },
+            "64": {
+                "n": "Sastremago",
+                "s": 27,
+                "g": 35
+            },
+            "65": {
+                "n": "Manitas",
+                "s": 0,
+                "g": 34
+            },
+            "66": {
+                "n": "joyero",
+                "s": 0,
+                "g": 0
+            },
+            "67": {
+                "n": "joyero",
+                "s": 0,
+                "g": 0
+            },
+            "70": {
+                "n": "campesino",
+                "s": 0,
+                "g": 0
+            },
+            "71": {
+                "n": "campesino",
+                "s": 0,
+                "g": 0
+            },
+            "72": {
+                "n": "[NO TRAD]",
+                "s": 0,
+                "g": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 50,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "J",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

@@ -69,6 +69,42 @@ export interface FighterInfo {
 }
 
 /**
+ * AS2 displayType enum (from VisualEffectHandler.as:85-232).
+ * Determines where the spell container is anchored in world coords.
+ *
+ * - CasterCell (10/12): container at caster cell, children offset by deltas.
+ * - TargetCell (11): container at target cell. Most impact-style anims.
+ * - ProjectileLinear (20/21): container at caster, internal "shoot" placed
+ *   at delta-to-target. Container is rotated to face target.
+ * - ProjectileBallistic (30/31): container at caster (-10 y offset), internal
+ *   parabolic motion handler positions children along the gravity arc.
+ * - BeamLine (40/41): container at caster, periodic "duplicate" sprites
+ *   placed along caster→target line.
+ * - WorldAbsolute (50/51): container at world origin (0,0); spell positions
+ *   children at absolute world coords from cellFrom / cellTo.
+ *
+ * Default for spells without metadata is TargetCell (matches the most
+ * common impact use case in 1.29). Spell classes can read
+ * `context.displayType` to tailor behavior, but in practice they should
+ * just use `context.anchor` (already resolved) for child positions.
+ */
+export const SpellDisplayType = {
+  CasterCell: 10,
+  TargetCell: 11,
+  CasterCellAlt: 12,
+  ProjectileLinear: 20,
+  ProjectileLinearAlt: 21,
+  ProjectileBallistic: 30,
+  ProjectileBallisticAlt: 31,
+  BeamLine: 40,
+  BeamLineAlt: 41,
+  WorldAbsolute: 50,
+  WorldAbsoluteAlt: 51,
+} as const;
+export type SpellDisplayTypeValue =
+  (typeof SpellDisplayType)[keyof typeof SpellDisplayType];
+
+/**
  * Context provided to spell animations by the combat system
  *
  * Note: For AOE spells hitting multiple targets, a separate spell animation
@@ -82,6 +118,22 @@ export interface SpellContext {
 
   /** Target cell - where the spell hits */
   cellTo: CellInfo;
+
+  /**
+   * AS2 displayType for this spell (10/11/12/20/21/30/31/40/41/50/51).
+   * The runtime has already used it to position the parent container —
+   * subclasses that match AS2 mental models should mostly read `anchor`
+   * (the resolved world coords of the container origin) instead.
+   */
+  displayType: number;
+
+  /**
+   * Resolved world coordinates of the spell container's origin (0,0).
+   * For displayType=11 (target) this equals cellTo. For 10/12 it equals
+   * cellFrom (caster). For 50/51 it's (0,0). Spell classes that want
+   * absolute world coords for a child compute `worldX - anchor.x`.
+   */
+  anchor: { x: number; y: number };
 
   /**
    * Pre-calculated angle from caster to target in DEGREES
@@ -182,6 +234,25 @@ export interface SpellCallbacks {
 // ============================================================================
 
 /**
+ * Per-animation rasterization metadata. Exposes the actual TEXTURE
+ * frame bounds and registration anchor in logical pixels — these may
+ * differ from the source-manifest bounds when the renderer computes
+ * tight per-frame bounds (e.g., morph shapes that don't fill the whole
+ * canonical bbox).
+ *
+ * `frameWidth/Height` is the size of one rendered frame in logical
+ * pixels. `anchorPxX/Y` is the pixel offset of the SWF (0,0)
+ * registration point within the frame. To use with Pixi sprites:
+ * `sprite.anchor.set(anchorPxX / frameWidth, anchorPxY / frameHeight)`.
+ */
+export interface SpellAnimationInfo {
+  frameWidth: number;
+  frameHeight: number;
+  anchorPxX: number;
+  anchorPxY: number;
+}
+
+/**
  * Interface for loading spell textures
  * Provided to spells so they can load their assets
  */
@@ -194,6 +265,13 @@ export interface SpellTextureProvider {
 
   /** Check if a texture exists */
   hasTexture(name: string): boolean;
+
+  /**
+   * Per-animation actual rasterization bounds + anchor. Returns null
+   * if the animation hasn't been built yet or doesn't exist. Always
+   * call `getFrames(name)` first to trigger rasterization.
+   */
+  getAnimationInfo?(name: string): SpellAnimationInfo | null;
 }
 
 // ============================================================================

@@ -1,0 +1,3003 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "SIM": {
+            "24": {
+                "m": "Un día me caí dentro del retrete del rey Allister, ¡Fue genial!",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "25": {
+                "m": "Tengo hambre, dame de comer o devoraré tu inventario.",
+                "s": 3,
+                "l": 1,
+                "p": 1
+            },
+            "26": {
+                "m": "Corre, dame algo que comer, ¡O devoro tus kamas!",
+                "s": 3,
+                "l": 1,
+                "p": 1
+            },
+            "27": {
+                "m": "¡Venga! ¡Que muerda el polvo! Parece tan poca cosa...",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "28": {
+                "m": "Pero, ¿Quién es ese renacuajo que quiere agredirnos?",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "29": {
+                "m": "Me parece que ese horrible personaje ha recibido lo que merecía.",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "30": {
+                "m": "Si no lo veo nunca hubiese imaginado que fueses tan torpe como para que ese enano te ganara.",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "31": {
+                "m": "Por fin un golpe crítico, empezaba a perder la paciencia...",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "32": {
+                "m": "Oye, no lo entiendo. ¿Por qué haces más fallos críticos que golpes críticos?",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "33": {
+                "m": "¡Hombre! Por una vez que no cometes un fallo crítico...",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "34": {
+                "m": "Una vez más, ganas el combate GRACIAS A MÍ.",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "35": {
+                "m": "La próxima vez intenta no hacer tonterías, ya me estoy cansando de equipar a un perdedor.",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "36": {
+                "m": "¡Mira ese aventurero novato que acaba de llegar! ... Deberías agredirle, sería una victoria segura.",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "37": {
+                "m": "¡Mira quién acaba de llegar! Me parece que es el momento de salir por piernas...",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "38": {
+                "m": "Si al menos pudieses hacer golpes críticos tan a menudo como él...",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "39": {
+                "m": "¡Pero si es malísimo! Explícame por qué eliges tan mal a tus amigos.",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "40": {
+                "m": "¿Y ahora vuelves? ¿Qué pasa, que yo no cuento nada para ti?",
+                "s": 3,
+                "l": 1,
+                "p": 0.1
+            },
+            "41": {
+                "m": "Creo que acabas de matar a uno de nuestros aliados. Todavía estás a tiempo de ir a que te curen...",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "42": {
+                "m": "Un día de estos te tengo que enseñar cómo escoger bien tus amigos.",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "43": {
+                "m": "¡Venga! No seas roñoso, dame eso que acabas de ganar, ¡Que siempre te lo quedas todo!",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "44": {
+                "m": "No recuerdo haber formado parte del equipo de un aventurero tan torpe como tú.",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "45": {
+                "m": "¡Venga! ¡Dámelo!",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "46": {
+                "m": "¡Has vuelto a fallar! Eres más malo que pegar a un padre con un calcetín sudado.",
+                "s": 1,
+                "l": 1,
+                "p": 1
+            },
+            "47": {
+                "m": "Un día oí una canción de Badiz Mustabante. Me quedé sordo durante doce años.",
+                "s": -1,
+                "l": 1,
+                "p": 0.2
+            },
+            "48": {
+                "m": "¿Conoces la historia de Kirbola, el que arreaba golpes con la chola?",
+                "s": 2,
+                "l": 1,
+                "p": 0.1
+            },
+            "49": {
+                "m": "Un día me casaré con un Dora Bora.",
+                "s": -1,
+                "l": 1,
+                "p": 0.1
+            },
+            "50": {
+                "m": "Y entonces es cuando el malo llegó y le dijo \"¡Eh tú, renacuajo! ¡El malo aquí no soy yo, eres tú!\" Te puedes imaginar la risa que me dio.",
+                "s": 2,
+                "l": 1,
+                "p": 0.1
+            },
+            "51": {
+                "m": "Se dice que Allister tenía una nalga más gorda que la otra. Yo creo que no es cierto, cada vez que se sentaba encima mío todo mi cuerpo me dolía por igual.",
+                "s": -1,
+                "l": 1,
+                "p": 0.5
+            },
+            "52": {
+                "m": "¡Lichen es un tipo realmente estupendo!",
+                "s": -1,
+                "l": 1,
+                "p": 0.01
+            },
+            "53": {
+                "m": "Tuve una infancia difícil, equipaba a un novato de Astrub que vendía a gritos al lado del zaap. Acabé sordo.",
+                "s": -1,
+                "l": 1,
+                "p": 0.1
+            },
+            "54": {
+                "m": "Me recuerdas a un monstruo pero ahora no sé a cual... mi suegra tal vez.",
+                "s": -1,
+                "l": 1,
+                "p": 0.1
+            },
+            "55": {
+                "m": "El problema de Astrub es que nunca arde.",
+                "s": -1,
+                "l": 1,
+                "p": 0.1
+            },
+            "57": {
+                "m": "Una vez vi un feca que hacía algo más que lanzar sus armaduras e ir directo al combate... Pero luego me desperté.",
+                "s": -1,
+                "l": 1,
+                "p": 0.1
+            },
+            "58": {
+                "m": "Un día me crucé con un lobo que sabía contar, pero ese día estaba ebrio.",
+                "s": -1,
+                "l": 1,
+                "p": 0.1
+            },
+            "59": {
+                "m": "¡Tengo hambre!",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "62": {
+                "m": "Ya he comido bastante para aguantar varios meses.",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "63": {
+                "m": "He comido tanto que creo que voy a vomitar en tu inventario...",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "64": {
+                "m": "Te habría ayudado, pero comí tanto que no podía ni moverme... quizás la próxima vez.",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "65": {
+                "m": "Todavía más cosas de comer... ¡Piedad! ¡Deja de cebarme!",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "66": {
+                "m": "Si no me hubieses cebado tanto te podría haber salvado la vida.",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "67": {
+                "m": "Bueno, vale, acabas de ganar, y además estás muy contento, ¡Pero no es motivo para que me cebes a comer objetos!",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "68": {
+                "m": "¡Los trads son los mejores!",
+                "s": -1,
+                "l": 10,
+                "p": 0.01
+            },
+            "70": {
+                "m": "Se cuenta que las invocaciones roban recursos al final del combate... pero ¡Es mentira! Normalmente soy yo el que los roba.",
+                "s": -1,
+                "l": 3,
+                "p": 1
+            },
+            "71": {
+                "m": "Algunos aventureros dicen que hablar cerca de las zonas de pesca espanta a los peces... ¡Serán tontos!",
+                "s": -1,
+                "l": 5,
+                "p": 1
+            },
+            "72": {
+                "m": "Aún creo en el Minotobola de Nawidad, ¿Y tú?",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "73": {
+                "m": "¡Ah! Quizás que este sea el que me libre de ti...",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "74": {
+                "m": "Si sigues dejando que todo lo que se mueva te mate, ¡Me busco otro dueño!",
+                "s": 3,
+                "l": 1,
+                "p": 1
+            },
+            "75": {
+                "m": "¡Un traidor! ¡Eso es lo que necesitábamos para tener un poco de acción!",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "76": {
+                "m": "¿Podrías obtener un crítico en \"dar de comer al objevivo\", por favor?",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "77": {
+                "m": "Bien hecho, de todos modos ya no servía de nada.",
+                "s": 1,
+                "l": 5,
+                "p": 1
+            },
+            "78": {
+                "m": "Si alguien me busca, me he escondido en tu bolsa.",
+                "s": -1,
+                "l": 10,
+                "p": 1
+            },
+            "79": {
+                "m": "Espero que te haya dolido.",
+                "s": 1,
+                "l": 5,
+                "p": 1
+            },
+            "80": {
+                "m": "Joooo, ¡Espera, espera;rn            que voy a capturar la pantalla!",
+                "s": 2,
+                "l": 10,
+                "p": 0.5
+            },
+            "81": {
+                "m": "Quizás debería irme con este enemigo tuyo...",
+                "s": -1,
+                "l": 5,
+                "p": 1
+            },
+            "82": {
+                "m": "Creo que te están llamando para comer...",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "83": {
+                "m": "¿Y ahora \"eso\"? ¡Pues, te va a costar hacerlo peor!",
+                "s": -1,
+                "l": 15,
+                "p": 1
+            },
+            "84": {
+                "m": "Una vez me di una vuelta por el zaap de Astrub. Creo había un concurso de \"A ver quién grita más\"",
+                "s": -1,
+                "l": 15,
+                "p": 0.5
+            },
+            "85": {
+                "m": "Un día me encontré con un animal que se llama perezoso. No sé por qué, pero enseguida me recordó a un sadida.",
+                "s": -1,
+                "l": 8,
+                "p": 1
+            },
+            "86": {
+                "m": "Un wabbit me mowdió el otwo día, cweo que tendwía la wabbia u otwa enfewmedad peligwosa.",
+                "s": -1,
+                "l": 12,
+                "p": 0.5
+            },
+            "87": {
+                "m": "Antes de inventar los zaaps, creo que los habitantes de Bonta y Brakmar pasaban tanto tiempo intentando encontrar el camino a la ciudad rival como el que los sadidas se pasan durmiendo.",
+                "s": -1,
+                "l": 16,
+                "p": 1
+            },
+            "88": {
+                "m": "¿Ya has vuelto? ¿Me has traido algo que comer?",
+                "s": -1,
+                "l": 7,
+                "p": 1
+            },
+            "89": {
+                "m": "Deberías escoger mejor a tus amigos... Claro que yo también debería escoger mejor a mi dueño.",
+                "s": -1,
+                "l": 14,
+                "p": 1
+            },
+            "90": {
+                "m": "¿Y aquí cuándo se come?",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "91": {
+                "m": "El último que se negó a darme de comer, murió en circunstancias MUY extrañas.",
+                "s": -1,
+                "l": 17,
+                "p": 1
+            },
+            "92": {
+                "m": "¡Atácale! ¡Atácale! ¡¿No ves que débil está?!",
+                "s": -1,
+                "l": 3,
+                "p": 1
+            },
+            "93": {
+                "m": "Bueno, me voy a buscar a alguien competente para que te haga el objeto.",
+                "s": -1,
+                "l": 9,
+                "p": 1
+            },
+            "94": {
+                "m": "¿El siguiente, por favor?",
+                "s": -1,
+                "l": 6,
+                "p": 1
+            },
+            "95": {
+                "m": "Un día me encontré con un dragón, y no veas lo bien que me sentó morderle la cola",
+                "s": -1,
+                "l": 18,
+                "p": 1
+            },
+            "96": {
+                "m": "Bueno, a ver si al fin voy a poder comer algo...",
+                "s": -1,
+                "l": 12,
+                "p": 1
+            },
+            "97": {
+                "m": "Ay que peeenaaaaaaa..... Caaasiii..... Te ha faltado un pelín de nada  ...  ¿Qué? ¿cómo que deje de sobreactuar?",
+                "s": -1,
+                "l": 9,
+                "p": 1
+            },
+            "98": {
+                "m": "El baño, ¿dónde está el baño? ¡Necesito ir al bañoooo!",
+                "s": -1,
+                "l": 7,
+                "p": 1
+            },
+            "99": {
+                "m": "Llevo mucho tiempo preguntándome quién ganaría el concurso de seres estúpidos, los goblins o los bworks. Pero tras muchos años de reflexión, creo que a ambos los eliminarían por abusones.",
+                "s": -1,
+                "l": 11,
+                "p": 1
+            },
+            "100": {
+                "m": "¿Por qué todo el mundo se ensaña con esos pobres blops?",
+                "s": -1,
+                "l": 9,
+                "p": 1
+            },
+            "101": {
+                "m": "Pero, ¿Qué se esconderá en la torre de Gisgul?",
+                "s": -1,
+                "l": 4,
+                "p": 0.25
+            },
+            "102": {
+                "m": "¡Uy, qué bonitooo...! Además tiene una pinta que da hambre.",
+                "s": -1,
+                "l": 4,
+                "p": 1
+            },
+            "103": {
+                "m": "No cuentes conmigo para que te ayude mientras me tengas muriendo de hambre.",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "104": {
+                "m": "¡Dame sus objetos que quiero comer!",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "105": {
+                "m": "Cada día me sorprendes más",
+                "s": -1,
+                "l": 8,
+                "p": 1
+            },
+            "106": {
+                "m": "Espero que no me des sus objetos para comer...",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "107": {
+                "m": "¿No habrá algo para mí en ese montón?",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "108": {
+                "m": "Que sí, que sí, pero el que logres hacer bien las cosas de cuando en cuando no te convierte en un maestro.",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "109": {
+                "m": "Tampoco te des tanta prisa, si tienes cosas que hacer puedes volver más tarde.",
+                "s": -1,
+                "l": 5,
+                "p": 1
+            },
+            "110": {
+                "m": "¡Qué bien, un enemigo miserable! ¡Dale una buena, y a mí dame sus objetos para comer!",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "111": {
+                "m": "Parece que tu enemigo es tan hábil como tú.",
+                "s": 2,
+                "l": 5,
+                "p": 1
+            },
+            "112": {
+                "m": "No necesitas mi ayuda para acabar con ese, además me da pena.",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "113": {
+                "m": "Bof, eso sólo ha sido suerte.",
+                "s": -1,
+                "l": 5,
+                "p": 1
+            },
+            "114": {
+                "m": "¡Y un cuerno! ¡Aún no te he pedido que me des de comer!",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "115": {
+                "m": "Es una pena que no exista un valor por debajo de cero, te iría como anillo al dedo.",
+                "s": 1,
+                "l": 1,
+                "p": 1
+            },
+            "116": {
+                "m": "¿Has visto que hora es? Podrías prevenir cuando vayas a ausentarte tanto.",
+                "s": -1,
+                "l": 6,
+                "p": 0.5
+            },
+            "117": {
+                "m": "¡A por ellos! ¡Sin cuartel!",
+                "s": -1,
+                "l": 5,
+                "p": 1
+            },
+            "118": {
+                "m": "Tienes razón, defiende tu territorio.",
+                "s": -1,
+                "l": 7,
+                "p": 0.5
+            },
+            "119": {
+                "m": "La mejor defensa es un buen ataque.",
+                "s": -1,
+                "l": 8,
+                "p": 0.5
+            },
+            "120": {
+                "m": "En la guerra, como en el amor, todo vale. Menos tener deshonor.",
+                "s": -1,
+                "l": 11,
+                "p": 0.5
+            },
+            "121": {
+                "m": "La agresión es como el salchichón. Los puedes consumir sin moderación.",
+                "s": -1,
+                "l": 1,
+                "p": 1
+            },
+            "122": {
+                "m": "Ni cosquillas.",
+                "s": 1,
+                "l": 15,
+                "p": 0.3
+            },
+            "123": {
+                "m": "¡Socorro! ¡Socorro! Quieren robarme a mi dueño.",
+                "s": -1,
+                "l": 6,
+                "p": 0.7
+            },
+            "124": {
+                "m": "Creo que ese tipo te odia.",
+                "s": -1,
+                "l": 3,
+                "p": 0.6
+            },
+            "125": {
+                "m": "No quiero ofender, pero tu aliado es mucho mejor que tú.",
+                "s": -1,
+                "l": 4,
+                "p": 0.5
+            },
+            "126": {
+                "m": "Un pío no lo habría hecho mejor.",
+                "s": -1,
+                "l": 2,
+                "p": 1
+            },
+            "127": {
+                "m": "Mira como lo hizo tu aliado y aprende un poco con el ejemplo.",
+                "s": -1,
+                "l": 9,
+                "p": 0.5
+            },
+            "128": {
+                "m": "Pues no, no iba de farol.",
+                "s": -1,
+                "l": 6,
+                "p": 0.5
+            },
+            "129": {
+                "m": "¡Uy! Esto tiene que doler...",
+                "s": -1,
+                "l": 5,
+                "p": 1
+            },
+            "130": {
+                "m": "Vaya, lo hace bastante bien;rn            no como otro que yo me sé...",
+                "s": -1,
+                "l": 10,
+                "p": 0.2
+            },
+            "131": {
+                "m": "¡Guau! Reconozco que esta vez sí que me has impresionado.",
+                "s": -1,
+                "l": 12,
+                "p": 1
+            },
+            "132": {
+                "m": "Nunca te hubiese creido capaz de tal hazaña.",
+                "s": -1,
+                "l": 13,
+                "p": 0.7
+            },
+            "133": {
+                "m": "Bonito golpe, ¡Bravo!",
+                "s": -1,
+                "l": 2,
+                "p": 1
+            },
+            "134": {
+                "m": "Dame una B, dame una R, dame una A, dame una V, dame una O.  ¡¡BRAAAAVOOO!!",
+                "s": -1,
+                "l": 16,
+                "p": 0.2
+            },
+            "135": {
+                "m": "Si tan sólo pudiera suceder más a menudo...",
+                "s": -1,
+                "l": 8,
+                "p": 0.1
+            },
+            "136": {
+                "m": "¡Por los Doce! ¿Quién es este patoso?",
+                "s": 3,
+                "l": 5,
+                "p": 0.8
+            },
+            "137": {
+                "m": "¿En serio tenemos que aguantar a este torpe?",
+                "s": 3,
+                "l": 10,
+                "p": 0.8
+            },
+            "138": {
+                "m": "Un pío sería más eficaz.",
+                "s": -1,
+                "l": 2,
+                "p": 1
+            },
+            "139": {
+                "m": "¡Buajaja! Qué torpe.",
+                "s": 2,
+                "l": 3,
+                "p": 1
+            },
+            "140": {
+                "m": "¿Quién es ese payaso? ¿Lo has contratado tú?",
+                "s": -1,
+                "l": 11,
+                "p": 0.5
+            },
+            "141": {
+                "m": "A ver si la próxima vez escoges un aliado más competente.",
+                "s": -1,
+                "l": 7,
+                "p": 1
+            },
+            "142": {
+                "m": "Hacer un crítico no te garantiza la muerte de tu objetivo... pero al menos te ayuda mucho.",
+                "s": -1,
+                "l": 6,
+                "p": 0.5
+            },
+            "143": {
+                "m": "¿Crees que sabe jugar?",
+                "s": -1,
+                "l": 12,
+                "p": 1
+            },
+            "144": {
+                "m": "Te lo digo yo: Está marcándose un farol.",
+                "s": -1,
+                "l": 6,
+                "p": 0.5
+            },
+            "145": {
+                "m": "Después de esto, no vengas vanagloriándote de la victoria.",
+                "s": -1,
+                "l": 8,
+                "p": 0.8
+            },
+            "146": {
+                "m": "Pero, exactamente... ¿Qué estaba intentando hacer?",
+                "s": 2,
+                "l": 10,
+                "p": 0.6
+            },
+            "147": {
+                "m": "Así, muy bien, sigue así. Sí,sí. No, ¡no! ¡¡No!! Ten cuidado.nPues nada, si me hubieses escuchado esto no habría pasado.",
+                "s": -1,
+                "l": 4,
+                "p": 1
+            },
+            "148": {
+                "m": "Eso no mola...",
+                "s": -1,
+                "l": 3,
+                "p": 0.7
+            },
+            "149": {
+                "m": "Así que \"eso\" es lo que se llama un fallo crítico...",
+                "s": -1,
+                "l": 14,
+                "p": 0.2
+            },
+            "150": {
+                "m": "La nulidad tiene su lado bueno... ya no puedes ser peor.",
+                "s": -1,
+                "l": 13,
+                "p": 0.1
+            },
+            "151": {
+                "m": "Un día tendré que enseñarte a usar los diez dedos",
+                "s": -1,
+                "l": 8,
+                "p": 0.5
+            },
+            "152": {
+                "m": "¡Asesino! ¿Cómo has podido matar otro objeto a sangre fría y en mi presencia?",
+                "s": 3,
+                "l": 11,
+                "p": 0.2
+            },
+            "153": {
+                "m": "Por suerte, no eres tú el que me fabricó.",
+                "s": -1,
+                "l": 5,
+                "p": 1
+            },
+            "154": {
+                "m": "Déjalo, te estás haciendo daño para nada.",
+                "s": -1,
+                "l": 7,
+                "p": 0.8
+            },
+            "155": {
+                "m": "¿Cómo quieres volverte rico si no dejas de romperlo todo?",
+                "s": -1,
+                "l": 9,
+                "p": 1
+            },
+            "156": {
+                "m": "Mala suerte, quizás vaya mejor la próxima vez.",
+                "s": -1,
+                "l": 13,
+                "p": 0.5
+            },
+            "157": {
+                "m": "La verdad es que la artesanía no es lo tuyo.",
+                "s": 1,
+                "l": 15,
+                "p": 0.5
+            },
+            "158": {
+                "m": "No quiero estropearte el ambiente, pero los PNJ siempre acaban mejor que tú.",
+                "s": -1,
+                "l": 17,
+                "p": 0.2
+            },
+            "159": {
+                "m": "Ese puede ser el principio de la riqueza, sigue así.",
+                "s": -1,
+                "l": 9,
+                "p": 1
+            },
+            "160": {
+                "m": "¡Guau! ¿Puedes hacer uno para mí? Porfaaaaa",
+                "s": -1,
+                "l": 8,
+                "p": 0.5
+            },
+            "161": {
+                "m": "Un objeto más que no tendrás que comprar en el mercadillo.",
+                "s": -1,
+                "l": 10,
+                "p": 0.5
+            },
+            "162": {
+                "m": "¿Otra?",
+                "s": -1,
+                "l": 6,
+                "p": 1
+            },
+            "163": {
+                "m": "La proxima vez intenta con: \"He venido en son de paz\"",
+                "s": -1,
+                "l": 5,
+                "p": 0.5
+            },
+            "164": {
+                "m": "Me parece que es hora de irse a dormir.",
+                "s": -1,
+                "l": 2,
+                "p": 1
+            },
+            "165": {
+                "m": "No te olvides de recuperar la energía perdida, no tengo ni pizca de ganas de acabar siendo un fantasma.",
+                "s": -1,
+                "l": 8,
+                "p": 1
+            },
+            "166": {
+                "m": "¿En qué momento el combate se ha puesto en contra nuestra?",
+                "s": -1,
+                "l": 7,
+                "p": 0.5
+            },
+            "167": {
+                "m": "¡Perdimos! ¡Somos los ...! Ejem... bueno, que, hemos perdido ¿no?",
+                "s": -1,
+                "l": 15,
+                "p": 0.2
+            },
+            "168": {
+                "m": "Si me hubieses alimentado mejor esto nunca habría sucedido.",
+                "s": -1,
+                "l": 10,
+                "p": 0.8
+            },
+            "169": {
+                "m": "¡Alístate! Decían...",
+                "s": -1,
+                "l": 12,
+                "p": 0.8
+            },
+            "170": {
+                "m": "Esto es lo que sucede cuando uno empieza a hacer el idiota.",
+                "s": 1,
+                "l": 11,
+                "p": 0.5
+            },
+            "171": {
+                "m": "Vale que seas malo, y que no sea tu culpa, pero...",
+                "s": -1,
+                "l": 16,
+                "p": 0.1
+            },
+            "172": {
+                "m": "¡Ganamos! ¡Somos los mejores!",
+                "s": 2,
+                "l": 15,
+                "p": 0.2
+            },
+            "173": {
+                "m": "No cabe lugar a dudas, lo hemos hecho mejor que nadie.",
+                "s": -1,
+                "l": 10,
+                "p": 0.5
+            },
+            "174": {
+                "m": "Unos combates más como ese y serás una leyenda.",
+                "s": -1,
+                "l": 20,
+                "p": 0.1
+            },
+            "175": {
+                "m": "La próxima vez dales una oportunidad, que al menos nos divirtamos un poco.",
+                "s": -1,
+                "l": 5,
+                "p": 0.5
+            },
+            "176": {
+                "m": "No me sorprendería que fueses el aborto de un cofre animado.",
+                "s": -1,
+                "l": 11,
+                "p": 0.2
+            },
+            "178": {
+                "m": "El propio Anutrof te ha ayudado con ese golpe.",
+                "s": -1,
+                "l": 4,
+                "p": 1
+            },
+            "179": {
+                "m": "¡Qué anatrufado eres!",
+                "s": -1,
+                "l": 14,
+                "p": 0.1
+            },
+            "180": {
+                "m": "Con lo que acabas de ganar no tendrás escusas para no alimentarme.",
+                "s": -1,
+                "l": 7,
+                "p": 1
+            },
+            "181": {
+                "m": "Te juro que yo no he hecho nada, es todo culpa de mi dueño.",
+                "s": -1,
+                "l": 10,
+                "p": 0.6
+            },
+            "182": {
+                "m": "Has apuntado mal, ese es nuestro aliado (o mejor dicho \"era\" nuestro aliado)",
+                "s": -1,
+                "l": 6,
+                "p": 1
+            },
+            "183": {
+                "m": "Lo siento, mi dueño tiene guano de tofu en los ojos.",
+                "s": -1,
+                "l": 12,
+                "p": 0.5
+            },
+            "184": {
+                "m": "La próxima vez que se acople, expúlsale.",
+                "s": -1,
+                "l": 3,
+                "p": 1
+            },
+            "185": {
+                "m": "Un golpe más como éste y te denuncio a las autoridades.",
+                "s": 3,
+                "l": 16,
+                "p": 0.2
+            },
+            "186": {
+                "m": "Me estaba preguntando, la persona que te ha matado... ¿No era nuestro aliado?",
+                "s": -1,
+                "l": 13,
+                "p": 0.5
+            },
+            "187": {
+                "m": "Quédate con el lado bueno de las cosas: vas a servir de abono natural para el suelo.",
+                "s": 1,
+                "l": 9,
+                "p": 0.5
+            },
+            "188": {
+                "m": "Por un momento pensé que lo conseguirías.",
+                "s": -1,
+                "l": 6,
+                "p": 0.5
+            },
+            "189": {
+                "m": "¿Estás bien? Te veo muy pálido.",
+                "s": -1,
+                "l": 2,
+                "p": 1
+            },
+            "190": {
+                "m": "Tampoco se está tan mal por el suelo. ¿Me estás oyendo? ¡Eho! Despiértaaaaaaaa.",
+                "s": -1,
+                "l": 11,
+                "p": 1
+            },
+            "191": {
+                "m": "Vaya, no se puede decir que ese golpe le saliese mal",
+                "s": 2,
+                "l": 14,
+                "p": 0.8
+            },
+            "192": {
+                "m": "¡Te lo mereces! Por dejarme morir de hambre.",
+                "s": 1,
+                "l": 7,
+                "p": 0.8
+            },
+            "193": {
+                "m": "No se si te mereces que sienta pena por ti.",
+                "s": -1,
+                "l": 3,
+                "p": 0.4
+            },
+            "194": {
+                "m": "¡Se lo había ganado él solito! Por osar afrentarte.",
+                "s": 1,
+                "l": 2,
+                "p": 1
+            },
+            "195": {
+                "m": "Finalmente puedes hacerlo mal.",
+                "s": -1,
+                "l": 5,
+                "p": 0.5
+            },
+            "196": {
+                "m": "No me hubiese gustado estar en su lugar.",
+                "s": -1,
+                "l": 13,
+                "p": 0.5
+            },
+            "197": {
+                "m": "Al menos su sufrimiento terminó, no como el mío.",
+                "s": -1,
+                "l": 11,
+                "p": 1
+            },
+            "198": {
+                "m": "Y luego... ¿podré comerme su equipo?",
+                "s": -1,
+                "l": 4,
+                "p": 1
+            },
+            "199": {
+                "m": "¡¡Ni sueñes con que el equipo de esa... ¡cosa! Toque mis labios!!",
+                "s": 3,
+                "l": 6,
+                "p": 1
+            },
+            "200": {
+                "m": "La próxima vez que quieras morir avísame antes, para que cambie de dueño.",
+                "s": -1,
+                "l": 5,
+                "p": 1
+            },
+            "201": {
+                "m": "Tenía que haberme quedado en el paquete del regalo.",
+                "s": -1,
+                "l": 10,
+                "p": 0.2
+            },
+            "202": {
+                "m": "Lo admito, me puse a comer en cuanto te diste la vuelta.",
+                "s": -1,
+                "l": 6,
+                "p": 0.2
+            },
+            "203": {
+                "m": "Oye, ¿no te olvidarías algo al irte?",
+                "s": -1,
+                "l": 9,
+                "p": 1
+            },
+            "204": {
+                "m": "Si hubieses llegado un minuto más tarde, me habría ido a probar suerte a otro lugar.",
+                "s": -1,
+                "l": 8,
+                "p": 0.2
+            },
+            "205": {
+                "m": "¿Estas son horas de llegar?",
+                "s": 3,
+                "l": 4,
+                "p": 1
+            },
+            "206": {
+                "m": "¡¡¡Ven que te de mimooooooooooooooooooosss!!!",
+                "s": -1,
+                "l": 6,
+                "p": 1
+            },
+            "207": {
+                "m": "¡Cuánto te he echado de menos! Ven a darle un besito a bibi.",
+                "s": -1,
+                "l": 18,
+                "p": 0.4
+            },
+            "208": {
+                "m": "¿Qué cosas apasionantes vamos a hacer hoy?",
+                "s": -1,
+                "l": 19,
+                "p": 0.8
+            },
+            "209": {
+                "m": "No te olvides de decir \"adiós\" cuando te vayas.",
+                "s": -1,
+                "l": 10,
+                "p": 1
+            },
+            "210": {
+                "m": "Me llena de orgullo y satisfacción vovler a verte.",
+                "s": -1,
+                "l": 20,
+                "p": 0.2
+            },
+            "211": {
+                "m": "Oh, un horrible goblin acaba de unirse al combate.",
+                "s": -1,
+                "l": 15,
+                "p": 0.5
+            },
+            "212": {
+                "m": "Jaaaaa... ¿Has visto el nivel de ese?",
+                "s": 2,
+                "l": 10,
+                "p": 0.5
+            },
+            "213": {
+                "m": "¡Mira, un novato! ¡Uno de verdad!",
+                "s": 1,
+                "l": 6,
+                "p": 0.6
+            },
+            "214": {
+                "m": "Aquí llega uno que no tiene miedo de morir.",
+                "s": -1,
+                "l": 19,
+                "p": 1
+            },
+            "215": {
+                "m": "Empiezan a ser muchos, ¿no crees?",
+                "s": -1,
+                "l": 13,
+                "p": 1
+            },
+            "216": {
+                "m": "Este es momento ideal para marcharse discretamente.",
+                "s": -1,
+                "l": 8,
+                "p": 0.7
+            },
+            "217": {
+                "m": "En mi humilde opinión te van a dar la del pulpo.",
+                "s": -1,
+                "l": 5,
+                "p": 0.6
+            },
+            "218": {
+                "m": "Un día Fallanster dijo: \"¡Huyamos amigos!\" Quizás deberías hacer lo mismo.",
+                "s": -1,
+                "l": 18,
+                "p": 0.4
+            },
+            "219": {
+                "m": "Eh, dame un besito, venga, ¡Demuéstrame que me quieres!",
+                "s": -1,
+                "l": 16,
+                "p": 0.3
+            },
+            "220": {
+                "m": "Ay me voy otra vez, ay te dejo Bonta. nLas rutinas de piel, y tus ganas de...",
+                "s": -1,
+                "l": 8,
+                "p": 0.6
+            },
+            "221": {
+                "m": "¿Sabes qué? No, nada.",
+                "s": -1,
+                "l": 7,
+                "p": 1
+            },
+            "222": {
+                "m": "Tienes una voz tan suave como la de Khasira, la trovadora.",
+                "s": -1,
+                "l": 9,
+                "p": 0.3
+            },
+            "223": {
+                "m": "Mira, escucha que bien huelen las flores.",
+                "s": -1,
+                "l": 6,
+                "p": 0.4
+            },
+            "224": {
+                "m": "Que no te asuste admitirlo, soy el amor de tu vida.",
+                "s": -1,
+                "l": 10,
+                "p": 0.1
+            },
+            "225": {
+                "m": "El intendente Danathor huele a roquefort. Fijo que es por eso por lo que no tiene amigos.",
+                "s": -1,
+                "l": 5,
+                "p": 0.2
+            },
+            "226": {
+                "m": "¿Sabes qué diferencia hay entre un sadida y Chewbacca?",
+                "s": 2,
+                "l": 4,
+                "p": 0.3
+            },
+            "227": {
+                "m": "¿Y si fuésemos a pelear contra unos jalatós? Podría ser divertido.",
+                "s": -1,
+                "l": 2,
+                "p": 1
+            },
+            "228": {
+                "m": "Imagínate durante un momento que el tanga de un mediulubo estuviera vivo... Brr, me dan escalofríos sólo de pensarlo.",
+                "s": -1,
+                "l": 11,
+                "p": 0.5
+            },
+            "229": {
+                "m": "¿Allister? ¡No sabe NADA sobre las mujeres!",
+                "s": 2,
+                "l": 3,
+                "p": 0.4
+            },
+            "230": {
+                "m": "Si fuese un paño, me gustaría pertenecer a un aniripsa.",
+                "s": -1,
+                "l": 12,
+                "p": 0.2
+            },
+            "231": {
+                "m": "¿No va siendo hora de que hagas los deberes?",
+                "s": -1,
+                "l": 2,
+                "p": 0.7
+            },
+            "232": {
+                "m": "¡Sácate ahora mismo el dedo de la nariz!",
+                "s": 3,
+                "l": 13,
+                "p": 0.4
+            },
+            "233": {
+                "m": "¿Por qué no puedo ser forjamagiado? No es justo.",
+                "s": -1,
+                "l": 15,
+                "p": 0.3
+            },
+            "234": {
+                "m": "¿Conoces la fiesta de las bragas rotas? Es la ocasión perfecta para cambiar de ropa interior. Deberías ir a estas fiestas más a menudo...",
+                "s": -1,
+                "l": 6,
+                "p": 0.5
+            },
+            "235": {
+                "m": "De acuerdo que las yopukas son lindas, pero mucho menos que tú.",
+                "s": -1,
+                "l": 10,
+                "p": 0.1
+            },
+            "236": {
+                "m": "¿Sabes qué? Te quiero.",
+                "s": -1,
+                "l": 20,
+                "p": 0.1
+            },
+            "237": {
+                "m": "Besito besito besito besito.",
+                "s": -1,
+                "l": 5,
+                "p": 1
+            },
+            "238": {
+                "m": "Tú y yo somos los mejores amigos del  mundo.",
+                "s": -1,
+                "l": 14,
+                "p": 0.8
+            },
+            "239": {
+                "m": "Estar contigo es alcanzar la felicidad perpétua.",
+                "s": -1,
+                "l": 16,
+                "p": 0.5
+            },
+            "240": {
+                "m": "Los jalatós están totalmente desnudos debajo de su mata de pelo ¿Lo sabías? En el fondo es un poco como tú mismo.",
+                "s": -1,
+                "l": 8,
+                "p": 0.2
+            },
+            "241": {
+                "m": "Que sepas que el pandawa no es un wabbit de pandala.",
+                "s": -1,
+                "l": 7,
+                "p": 0.2
+            },
+            "242": {
+                "m": "Eres feo, pero aun así te quiero.",
+                "s": -1,
+                "l": 8,
+                "p": 0.1
+            },
+            "243": {
+                "m": "¿Estudias o trabajas? No, estoy de broma.",
+                "s": 2,
+                "l": 12,
+                "p": 0.6
+            },
+            "244": {
+                "m": "Si me dejas morir de hambre, te mandaré a freir espárragos.",
+                "s": 3,
+                "l": 14,
+                "p": 0.8
+            },
+            "245": {
+                "m": "Si me alimentases mejor, yo también podría fanfarronear.",
+                "s": -1,
+                "l": 13,
+                "p": 0.4
+            },
+            "246": {
+                "m": "Por si acaso no te habías dado cuenta, no estoy haciendo huelga de hambre.",
+                "s": -1,
+                "l": 9,
+                "p": 0.7
+            },
+            "247": {
+                "m": "¿Sabes cual es la diferencia entre tú y yo?nQue tú ya has comido.",
+                "s": -1,
+                "l": 15,
+                "p": 0.9
+            },
+            "248": {
+                "m": "Si te doy un beso, ¿me darás de comer?",
+                "s": -1,
+                "l": 17,
+                "p": 0.1
+            },
+            "249": {
+                "m": "Para variar ¿Puedes pedirme una pizza?",
+                "s": -1,
+                "l": 10,
+                "p": 0.2
+            },
+            "250": {
+                "m": "¡Oh! Tú que eres el sol de mis días. ¿Cuándo comemos?",
+                "s": -1,
+                "l": 11,
+                "p": 0.3
+            },
+            "251": {
+                "m": "De tanto cebarme a hamburguesas es normal que me encuentre un poco más redondito.",
+                "s": -1,
+                "l": 9,
+                "p": 1
+            },
+            "252": {
+                "m": "No me vas a engañar, me estás engordando para luego venderme más caro.",
+                "s": -1,
+                "l": 7,
+                "p": 0.2
+            },
+            "253": {
+                "m": "Haré lo que quieras si dejas de cebarme.",
+                "s": -1,
+                "l": 12,
+                "p": 1
+            },
+            "254": {
+                "m": "¡Buuuuuuorp! Ups, lo siento. He debido digerir mal tanta comida, y luego me salen gases.",
+                "s": -1,
+                "l": 5,
+                "p": 0.5
+            },
+            "255": {
+                "m": "¿Qué diferencia hay entre el peso de un cochinillo lechal y el mío?nNinguna.",
+                "s": -1,
+                "l": 3,
+                "p": 0.2
+            },
+            "256": {
+                "m": "No puedo más, creo que voy a vomitar.",
+                "s": -1,
+                "l": 2,
+                "p": 1
+            },
+            "257": {
+                "m": "Cweo que soy alewgico a los pwoductos fabwicados a base de zanahowia.",
+                "s": -1,
+                "l": 11,
+                "p": 0.5
+            },
+            "258": {
+                "m": "Sigue así y me volveré tan obeso como el rey Allister.",
+                "s": -1,
+                "l": 16,
+                "p": 0.1
+            },
+            "259": {
+                "m": "No me molestes, estoy en plena digestión.",
+                "s": -1,
+                "l": 12,
+                "p": 0.5
+            },
+            "260": {
+                "m": "¡Boooorp! Perdón, se me ha escapado.",
+                "s": -1,
+                "l": 4,
+                "p": 1
+            },
+            "261": {
+                "m": "¡Mier**! ¿Quién ha soltado algo así? Además pica en los ojos.",
+                "s": 3,
+                "l": 10,
+                "p": 0.2
+            },
+            "262": {
+                "m": "Estoy seguro de que si no tuvieses tantos anillos en los dedos lo habrías hecho mejor.",
+                "s": -1,
+                "r": "9255",
+                "l": 1,
+                "p": 0.7
+            },
+            "263": {
+                "m": "Vas a tener que vender tus anillos para poder paliar las pérdidas.",
+                "s": -1,
+                "r": "9255",
+                "l": 10,
+                "p": 0.5
+            },
+            "264": {
+                "m": "Inténtalo poniéndote los anillos en los dedos de los pies, a ver si así lo haces mejor.",
+                "s": -1,
+                "r": "9255",
+                "l": 15,
+                "p": 1
+            },
+            "265": {
+                "m": "Dentro de poco es mi cumpleaños, ¿me puedes preparar un Tartamuleto?",
+                "s": -1,
+                "r": "9255",
+                "l": 2,
+                "p": 0.2
+            },
+            "266": {
+                "m": "Es gracias a mí, le he entrado por los ojos.",
+                "s": 1,
+                "r": "9255",
+                "l": 14,
+                "p": 0.4
+            },
+            "267": {
+                "m": "Si no llevases anillos esto no habría ocurrido.",
+                "s": -1,
+                "r": "9255",
+                "l": 9,
+                "p": 0.8
+            },
+            "268": {
+                "m": "No escuches lo que te cuenten los anillos, son todos unos mentirosos.",
+                "s": -1,
+                "r": "9255",
+                "l": 18,
+                "p": 0.7
+            },
+            "269": {
+                "m": "Tú necesitas varios anillos, pero yo soy único.",
+                "s": -1,
+                "r": "9255",
+                "l": 19,
+                "p": 0.1
+            },
+            "270": {
+                "m": "Tener un anillo está mal, pero tener dos está aún peor.",
+                "s": -1,
+                "r": "9255",
+                "l": 17,
+                "p": 0.3
+            },
+            "271": {
+                "m": "Deberías dejar tus anillos en el banco, allí estarán seguros.",
+                "s": -1,
+                "r": "9255",
+                "l": 16,
+                "p": 0.4
+            },
+            "272": {
+                "m": "Estoy dividido entre dos amores: los amuletos y tú.",
+                "s": -1,
+                "r": "9255",
+                "l": 20,
+                "p": 0.2
+            },
+            "273": {
+                "m": "La cosa era: o amuleto, o calzón. La elección fue muy rápida.",
+                "s": -1,
+                "r": "9255",
+                "l": 4,
+                "p": 0.5
+            },
+            "274": {
+                "m": "Si no me das pronto de comer, aprieto hasta que te ahogues.",
+                "s": 3,
+                "r": "9255",
+                "l": 10,
+                "p": 0.3
+            },
+            "275": {
+                "m": "Las pelotillas de la nariz son a tu boca lo que un amuleto de pío es a la mía.",
+                "s": -1,
+                "r": "9255",
+                "l": 8,
+                "p": 1
+            },
+            "276": {
+                "m": "Si me como un amuleto del minero oscuro ¿Crees que me convertiré en un iluminado?",
+                "s": -1,
+                "r": "9255",
+                "l": 5,
+                "p": 0.6
+            },
+            "277": {
+                "m": "La Espiga de Farle es la base de una alimentación bio equilibrada.",
+                "s": -1,
+                "r": "9255",
+                "l": 13,
+                "p": 0.7
+            },
+            "278": {
+                "m": "Cuando tienes hambre comes ¿No? Pues conmigo pasa lo mismo.",
+                "s": -1,
+                "r": "9255",
+                "l": 3,
+                "p": 0.8
+            },
+            "279": {
+                "m": "Si me sigues cebando tanto voy a acabar tan gorda como el pecho de una sadida.",
+                "s": -1,
+                "r": "9255",
+                "l": 12,
+                "p": 0.2
+            },
+            "280": {
+                "m": "Con gusto me tomaría un amuletargo para ayudarme a digerir.",
+                "s": -1,
+                "r": "9255",
+                "l": 6,
+                "p": 0.5
+            },
+            "281": {
+                "m": "Quizas tenga piedad de ti si le das un anillo.",
+                "s": -1,
+                "r": "9255",
+                "l": 7,
+                "p": 0.8
+            },
+            "282": {
+                "m": "Viendo su aspecto, no creo que necesites mi ayuda para librarte de él.",
+                "s": -1,
+                "r": "9255",
+                "l": 11,
+                "p": 1
+            },
+            "283": {
+                "m": "Hola, ¿Hoy me llevas a Moon?",
+                "s": -1,
+                "r": "9255",
+                "l": 15,
+                "p": 0.4
+            },
+            "284": {
+                "m": "¿Vienes a llevarme de viaje culinario a la Isla de los Wabbits?",
+                "s": -1,
+                "r": "9255",
+                "l": 9,
+                "p": 0.4
+            },
+            "285": {
+                "m": "Si lo haces tan bién es sólo gracias a la destreza que yo te proporciono.",
+                "s": -1,
+                "r": "9256",
+                "l": 5,
+                "p": 0.8
+            },
+            "286": {
+                "m": "Eso no es lo que hay que hacer si quieres ganar un combate.",
+                "s": 3,
+                "r": "9256",
+                "l": 18,
+                "p": 1
+            },
+            "287": {
+                "m": "¿Qué querías que hiciera? A fin de cuentas sólo soy un anillo.",
+                "s": -1,
+                "r": "9256",
+                "l": 11,
+                "p": 0.6
+            },
+            "288": {
+                "m": "Tener un anillo es bueno, pero tener dos es aún mejor.",
+                "s": -1,
+                "r": "9256",
+                "l": 4,
+                "p": 0.5
+            },
+            "289": {
+                "m": "Los dioses serán los doce. Pero yo, yo soy único.",
+                "s": -1,
+                "r": "9256",
+                "l": 12,
+                "p": 0.2
+            },
+            "290": {
+                "m": "Fijate en ese anillo. ¿Has visto? Creo que intenta seducirme.",
+                "s": -1,
+                "r": "9256",
+                "l": 10,
+                "p": 0.4
+            },
+            "291": {
+                "m": "Si te pica el trasero cuando te vas a dormir, no te acuestes conmigo puesto.",
+                "s": -1,
+                "r": "9256",
+                "l": 8,
+                "p": 0.7
+            },
+            "292": {
+                "m": "¿Acaso no soy la más bonita joya del Mundo de los Doce?",
+                "s": -1,
+                "r": "9256",
+                "l": 19,
+                "p": 0.3
+            },
+            "293": {
+                "m": "¡Qué manos tán suaves! Nada que ver con mi antiguo dueño.",
+                "s": -1,
+                "r": "9256",
+                "l": 16,
+                "p": 0.2
+            },
+            "294": {
+                "m": "Para mí eres el único, nadie podrá remplazarte.",
+                "s": -1,
+                "r": "9256",
+                "l": 20,
+                "p": 0.1
+            },
+            "295": {
+                "m": "\"Un anillo para gobernarlos a todos\". Están hablando de mí.",
+                "s": -1,
+                "r": "9256",
+                "l": 11,
+                "p": 0.5
+            },
+            "296": {
+                "m": "En serio men, eres un monstruo men, ¡Cuánto te quiero men!",
+                "s": -1,
+                "r": "9256",
+                "l": 15,
+                "p": 0.4
+            },
+            "297": {
+                "m": "Tengo un secreto que decirte al oído:  que te querré siempre con locura. ¡Yupi!",
+                "s": -1,
+                "r": "9256",
+                "l": 15,
+                "p": 0.4
+            },
+            "298": {
+                "m": "Eso es, ráscate, haz como si yo no estuviese.",
+                "s": -1,
+                "r": "9256",
+                "l": 2,
+                "p": 0.4
+            },
+            "299": {
+                "m": "No quiero que me encierres en el cofre de un banco. Ten piedad.",
+                "s": -1,
+                "r": "9256",
+                "l": 3,
+                "p": 0.2
+            },
+            "300": {
+                "m": "¿Tanto me odias que me quieres ver morir de hambre?",
+                "s": -1,
+                "r": "9256",
+                "l": 6,
+                "p": 0.2
+            },
+            "301": {
+                "m": "¡Tengo hambre! ¿Dónde está el gelanillo que me prometiste?",
+                "s": -1,
+                "r": "9256",
+                "l": 9,
+                "p": 0.5
+            },
+            "302": {
+                "m": "Las pelotillas de la nariz son a tu boca lo que el anillo de pío es a la mía.",
+                "s": -1,
+                "r": "9256",
+                "l": 8,
+                "p": 1
+            },
+            "303": {
+                "m": "Dame de comer el anillo de los Nungi bellos y te cubriré de riquezas.",
+                "s": -1,
+                "r": "9256",
+                "l": 13,
+                "p": 0.2
+            },
+            "304": {
+                "m": "Por mucho que me cebes, no voy a estar más gordo.",
+                "s": -1,
+                "r": "9256",
+                "l": 14,
+                "p": 0.8
+            },
+            "305": {
+                "m": "¿Quieres el mío? Es más gordo.",
+                "s": 3,
+                "r": "9256",
+                "l": 6,
+                "p": 0.5
+            },
+            "306": {
+                "m": "Este es el plan: tú los retienes y mientras yo voy a pedir ayuda.",
+                "s": -1,
+                "r": "9256",
+                "l": 17,
+                "p": 0.7
+            },
+            "307": {
+                "m": "Lo siento, pero creo que no tendré fuerzas para pelear.",
+                "s": -1,
+                "r": "9256",
+                "l": 7,
+                "p": 0.8
+            },
+            "308": {
+                "m": "¡Por fin estás aquí! Pensé que me habías olvidado. T_T",
+                "s": -1,
+                "r": "9256",
+                "l": 10,
+                "p": 0.4
+            },
+            "309": {
+                "m": "La próxima vez que quieras rascarte el culo, no te olvides de apartarme antes.",
+                "s": -1,
+                "r": "9256",
+                "l": 1,
+                "p": 1
+            },
+            "310": {
+                "m": "¡Písale el pie, muérdele el brazo, aplástale la cabeza!",
+                "s": -1,
+                "r": "9233",
+                "l": 4,
+                "p": 0.5
+            },
+            "311": {
+                "m": "¡Ehhh tú! ¡¿Por qué atacas a mi dueño?!",
+                "s": -1,
+                "r": "9233",
+                "l": 9,
+                "p": 0.3
+            },
+            "312": {
+                "m": "¡Así! Así es como yo te conocía.",
+                "s": -1,
+                "r": "9233",
+                "l": 10,
+                "p": 0.8
+            },
+            "313": {
+                "m": "Dentro de poco es mi cumpleaños, ¿me puedes preparar una Capabizcocho?",
+                "s": -1,
+                "r": "9233",
+                "l": 2,
+                "p": 0.2
+            },
+            "314": {
+                "m": "A mi antiguo dueño se le daba mejor que a ti. Claro que él era un sram.",
+                "s": -1,
+                "r": "9233",
+                "l": 11,
+                "p": 0.4
+            },
+            "315": {
+                "m": "Hice todo lo que pude para protegerte, pero no fue suficiente.",
+                "s": -1,
+                "r": "9233",
+                "l": 13,
+                "p": 0.2
+            },
+            "316": {
+                "m": "Nadie te protegerá tan bien como yo.",
+                "s": -1,
+                "r": "9233",
+                "l": 19,
+                "p": 0.7
+            },
+            "317": {
+                "m": "¡Créeme! Si hubiese podido le habría dado una buena paliza.",
+                "s": -1,
+                "r": "9233",
+                "l": 14,
+                "p": 0.5
+            },
+            "318": {
+                "m": "No estaría nada mal que dejarás de aplastarme al echarte la siesta.",
+                "s": 3,
+                "r": "9233",
+                "l": 6,
+                "p": 0.8
+            },
+            "319": {
+                "m": "Puedo protegerte de muchas cosas, pero no de tus tonterías.",
+                "s": -1,
+                "r": "9233",
+                "l": 4,
+                "p": 0.7
+            },
+            "320": {
+                "m": "Tengo frío. ¿Por qué siempre soy yo el que te calienta a ti y nunca es al revés?",
+                "s": -1,
+                "r": "9233",
+                "l": 1,
+                "p": 0.4
+            },
+            "321": {
+                "m": "Deberías teñirme de rojo y ponerte unas mallas azules con unas botas rojas. Causaríamos sensación.",
+                "s": -1,
+                "r": "9233",
+                "l": 5,
+                "p": 0.2
+            },
+            "322": {
+                "m": "Si supieras todo lo que de ti se dice a tus espaldas... ¡Ni te lo imaginas!",
+                "s": -1,
+                "r": "9233",
+                "l": 7,
+                "p": 0.2
+            },
+            "323": {
+                "m": "Ven a acurrucarte junto a mí, que te dé calorcito.",
+                "s": -1,
+                "r": "9233",
+                "l": 12,
+                "p": 0.4
+            },
+            "324": {
+                "m": "El rey Allister en persona no posée tan bellos ropajes.",
+                "s": -1,
+                "r": "9233",
+                "l": 20,
+                "p": 0.2
+            },
+            "325": {
+                "m": "Soy la encarnación de la majestuosidad.",
+                "s": -1,
+                "r": "9233",
+                "l": 15,
+                "p": 0.3
+            },
+            "326": {
+                "m": "No soy una servilleta, y menos un trapo. ¡Soy una capa!",
+                "s": -1,
+                "r": "9233",
+                "l": 18,
+                "p": 1
+            },
+            "327": {
+                "m": "¿Por qué tengo que ser yo el que soporta tus axilas y tu trasero?",
+                "s": -1,
+                "r": "9233",
+                "l": 13,
+                "p": 0.2
+            },
+            "328": {
+                "m": "¡NO! ¡Piedad, el cesto de la ropa sucia nooooo! Te juro que nunca más volveré a hablar de tu fealdad.",
+                "s": -1,
+                "r": "9233",
+                "l": 13,
+                "p": 0.4
+            },
+            "329": {
+                "m": "La próxima vez que vayas a hacer tus necesidades, no te olvides de que estoy detrás.",
+                "s": -1,
+                "r": "9233",
+                "l": 7,
+                "p": 1
+            },
+            "330": {
+                "m": "Las pelotillas de la nariz son a tu boca lo que la capa de pío es a la mía.",
+                "s": -1,
+                "r": "9233",
+                "l": 8,
+                "p": 1
+            },
+            "331": {
+                "m": "De tanto hacer régimen voy a acabar pareciéndome a una capa del pohoyo titiritasado.",
+                "s": -1,
+                "r": "9233",
+                "l": 12,
+                "p": 0.5
+            },
+            "332": {
+                "m": "Las Gelocapas no están mal, pero se pegan entre los dientes.",
+                "s": -1,
+                "r": "9233",
+                "l": 9,
+                "p": 0.4
+            },
+            "333": {
+                "m": "Creo que ya he hecho mis reservas para este invierno.",
+                "s": -1,
+                "r": "9233",
+                "l": 10,
+                "p": 0.6
+            },
+            "334": {
+                "m": "Tu te ocupas del de la izquierda y yo del de la derecha.",
+                "s": -1,
+                "r": "9233",
+                "l": 17,
+                "p": 1
+            },
+            "335": {
+                "m": "¡Ese es mío, ese es mío!",
+                "s": -1,
+                "r": "9233",
+                "l": 16,
+                "p": 0.8
+            },
+            "336": {
+                "m": "Boff este enemigo ni siquiera merece mi atención.",
+                "s": -1,
+                "r": "9233",
+                "l": 18,
+                "p": 0.5
+            },
+            "337": {
+                "m": "¿Es un hombre o una mujer? Desde aquí no lo veo muy bien.",
+                "s": 2,
+                "r": "9233",
+                "l": 13,
+                "p": 0.3
+            },
+            "338": {
+                "m": "Parece que, de repente, huele peor. ¡Anda mira, pero si ya estás aquí!",
+                "s": -1,
+                "r": "9233",
+                "l": 3,
+                "p": 0.2
+            },
+            "339": {
+                "m": "Les aseguro que esto no es más que un desafortunado malentendido.",
+                "s": -1,
+                "r": "9234",
+                "l": 6,
+                "p": 0.4
+            },
+            "340": {
+                "m": "¡Vaya! Ante esta proeza me quito el sombrero.",
+                "s": -1,
+                "r": "9234",
+                "l": 7,
+                "p": 0.5
+            },
+            "341": {
+                "m": "Dentro de poco es mi cumpleaños, ¿me puedes preparar un Caskogalleta?",
+                "s": -1,
+                "r": "9234",
+                "l": 2,
+                "p": 0.2
+            },
+            "342": {
+                "m": "Si llevases el HmmMmmMmmm lo habría entendido, pero así... Esto es inaceptable.",
+                "s": 3,
+                "r": "9234",
+                "l": 18,
+                "p": 0.3
+            },
+            "343": {
+                "m": "Deja de hacer el idiota.",
+                "s": 3,
+                "r": "9234",
+                "l": 11,
+                "p": 0.5
+            },
+            "344": {
+                "m": "Por los Dioses ¡Que paliza! Bueno, no está todo perdido, yo sigo aquí.",
+                "s": -1,
+                "r": "9234",
+                "l": 16,
+                "p": 0.5
+            },
+            "345": {
+                "m": "Seguro que ese individuo no mercía combatir a tu lado.",
+                "s": -1,
+                "r": "9234",
+                "l": 15,
+                "p": 0.3
+            },
+            "346": {
+                "m": "¿Yo también tengo que hecerme el muerto?",
+                "s": -1,
+                "r": "9234",
+                "l": 5,
+                "p": 0.4
+            },
+            "347": {
+                "m": "Sin lugar a dudas, te quedo de maravilla.",
+                "s": -1,
+                "r": "9234",
+                "l": 15,
+                "p": 0.8
+            },
+            "348": {
+                "m": "Como estoy vivo, y en tu cabeza... pues sí, va a ser que ¡soy tu cerebro!",
+                "s": -1,
+                "r": "9234",
+                "l": 16,
+                "p": 0.5
+            },
+            "349": {
+                "m": "El mismísimo rey Allister debe de envidiarte por poseerme.",
+                "s": -1,
+                "r": "9234",
+                "l": 13,
+                "p": 0.2
+            },
+            "350": {
+                "m": "Mira ese sombrero ridículo. ¡Qué poca elegancia!",
+                "s": 2,
+                "r": "9234",
+                "l": 9,
+                "p": 0.5
+            },
+            "351": {
+                "m": "Desde aquí puedo ver todo lo que tienes en las orejas, y no es muy bonito que digamos.",
+                "s": -1,
+                "r": "9234",
+                "l": 6,
+                "p": 0.2
+            },
+            "352": {
+                "m": "Si tienes tanto éxito, es gracias a mí. No lo olvides nunca.",
+                "s": -1,
+                "r": "9234",
+                "l": 20,
+                "p": 0.4
+            },
+            "353": {
+                "m": "Si fuese una capa nunca tendrías frío, pero sólo soy un humilde sombrero, así que te protejo de la lluvia lo mejor que puedo.",
+                "s": -1,
+                "r": "9234",
+                "l": 10,
+                "p": 0.6
+            },
+            "354": {
+                "m": "Las mujeres sadida tienen unas lindas formas, ¡Como yo!",
+                "s": -1,
+                "r": "9234",
+                "l": 17,
+                "p": 0.2
+            },
+            "355": {
+                "m": "Los cuernos de Rushu son un adorno muy ridículo si los comparas conmigo.",
+                "s": -1,
+                "r": "9234",
+                "l": 19,
+                "p": 0.1
+            },
+            "356": {
+                "m": "¿Sabes por qué los magos más importantes tienen un sombrero? Porque quieren parecerse a ti.",
+                "s": -1,
+                "r": "9234",
+                "l": 20,
+                "p": 0.1
+            },
+            "357": {
+                "m": "¿Sabes por qué los magos más importantes tienen un sombrero? Porque son más hábiles que tú.",
+                "s": 1,
+                "r": "9234",
+                "l": 14,
+                "p": 0.3
+            },
+            "358": {
+                "m": "Aunque no sea tu caso, hay gente que estaría encantada de tenerme a su lado.",
+                "s": -1,
+                "r": "9234",
+                "l": 5,
+                "p": 0.2
+            },
+            "359": {
+                "m": "Vale, yo protejo tu cabeza del sol, pero ¿A mí quién me proteje?",
+                "s": -1,
+                "r": "9234",
+                "l": 10,
+                "p": 0.4
+            },
+            "360": {
+                "m": "Las pelotillas de la nariz son a tu boca lo que el sombrero del pío es a la mía.",
+                "s": -1,
+                "r": "9234",
+                "l": 8,
+                "p": 1
+            },
+            "361": {
+                "m": "Si grande es tu belleza, aún más grande es mi hambre.",
+                "s": -1,
+                "r": "9234",
+                "l": 4,
+                "p": 0.6
+            },
+            "362": {
+                "m": "¿Crees que sería capaz de tragarme un Dofus?",
+                "s": -1,
+                "r": "9234",
+                "l": 11,
+                "p": 0.3
+            },
+            "363": {
+                "m": "Si me das un Champisombrero, te vomito encima. Date por avisado.",
+                "s": -1,
+                "r": "9234",
+                "l": 12,
+                "p": 0.2
+            },
+            "364": {
+                "m": "Hay mucho piojo por aquí. Si esperas que me los coma te equivocas, no estoy tan hambriento.",
+                "s": -1,
+                "r": "9234",
+                "l": 1,
+                "p": 0.1
+            },
+            "365": {
+                "m": "Te lo pido por los Doce, lávate el pelo todos los meses, ¡Aunque no te toque!",
+                "s": -1,
+                "r": "9234",
+                "l": 3,
+                "p": 0.2
+            },
+            "366": {
+                "m": "Ése sí es un enemigo digno de interés.",
+                "s": -1,
+                "r": "9234",
+                "l": 8,
+                "p": 0.2
+            },
+            "367": {
+                "m": "Por un momento pensé que llegaba un nuevo enemigo, pero sólo era alguien que se había perdido.",
+                "s": -1,
+                "r": "9234",
+                "l": 7,
+                "p": 0.3
+            }
+        },
+        "SIT": {
+            "1": {
+                "0": [
+                    364,
+                    363,
+                    362,
+                    361,
+                    360,
+                    359,
+                    358,
+                    357,
+                    352,
+                    351,
+                    350,
+                    349,
+                    348,
+                    347,
+                    331,
+                    330,
+                    329,
+                    328,
+                    327,
+                    326,
+                    322,
+                    321,
+                    320,
+                    309,
+                    303,
+                    302,
+                    301,
+                    300,
+                    299,
+                    298,
+                    291,
+                    290,
+                    289,
+                    288,
+                    278,
+                    277,
+                    276,
+                    275,
+                    274,
+                    271,
+                    270,
+                    269,
+                    268,
+                    250,
+                    249,
+                    248,
+                    247,
+                    246,
+                    245,
+                    244,
+                    243,
+                    242,
+                    234,
+                    233,
+                    232,
+                    231,
+                    230,
+                    229,
+                    228,
+                    227,
+                    226,
+                    225,
+                    224,
+                    223,
+                    222,
+                    221,
+                    220,
+                    219,
+                    101,
+                    100,
+                    99,
+                    95,
+                    91,
+                    90,
+                    87,
+                    86,
+                    85,
+                    84,
+                    82,
+                    72,
+                    71,
+                    70,
+                    59,
+                    26,
+                    25
+                ],
+                "1": [
+                    356,
+                    355,
+                    354,
+                    353,
+                    352,
+                    351,
+                    350,
+                    349,
+                    348,
+                    347,
+                    325,
+                    324,
+                    323,
+                    322,
+                    321,
+                    320,
+                    309,
+                    297,
+                    296,
+                    295,
+                    294,
+                    293,
+                    292,
+                    291,
+                    290,
+                    289,
+                    288,
+                    273,
+                    272,
+                    271,
+                    270,
+                    269,
+                    268,
+                    241,
+                    240,
+                    239,
+                    238,
+                    237,
+                    236,
+                    235,
+                    234,
+                    233,
+                    232,
+                    231,
+                    230,
+                    229,
+                    228,
+                    227,
+                    226,
+                    225,
+                    224,
+                    223,
+                    222,
+                    221,
+                    220,
+                    219,
+                    101,
+                    100,
+                    99,
+                    95,
+                    87,
+                    86,
+                    85,
+                    84,
+                    82,
+                    72,
+                    71,
+                    70,
+                    58,
+                    57,
+                    55,
+                    55,
+                    54,
+                    53,
+                    52,
+                    51,
+                    50,
+                    49,
+                    48,
+                    47,
+                    23,
+                    5
+                ],
+                "2": [
+                    365,
+                    359,
+                    358,
+                    357,
+                    353,
+                    352,
+                    351,
+                    350,
+                    349,
+                    348,
+                    347,
+                    333,
+                    332,
+                    329,
+                    328,
+                    327,
+                    326,
+                    322,
+                    321,
+                    320,
+                    309,
+                    305,
+                    304,
+                    299,
+                    298,
+                    292,
+                    291,
+                    290,
+                    289,
+                    288,
+                    280,
+                    279,
+                    271,
+                    270,
+                    269,
+                    268,
+                    261,
+                    260,
+                    259,
+                    258,
+                    257,
+                    256,
+                    255,
+                    254,
+                    253,
+                    252,
+                    251,
+                    242,
+                    234,
+                    233,
+                    232,
+                    231,
+                    230,
+                    229,
+                    228,
+                    227,
+                    226,
+                    225,
+                    224,
+                    223,
+                    222,
+                    221,
+                    220,
+                    219,
+                    101,
+                    100,
+                    99,
+                    98,
+                    95,
+                    87,
+                    86,
+                    85,
+                    84,
+                    82,
+                    72,
+                    71,
+                    70,
+                    63,
+                    62
+                ]
+            },
+            "2": {
+                "0": [
+                    310,
+                    121,
+                    120,
+                    117,
+                    103,
+                    4
+                ],
+                "1": [
+                    310,
+                    119,
+                    118,
+                    117,
+                    27,
+                    23
+                ],
+                "2": [
+                    310,
+                    120,
+                    118,
+                    117,
+                    64
+                ]
+            },
+            "3": {
+                "0": [
+                    339,
+                    311,
+                    124,
+                    123,
+                    122,
+                    78,
+                    23,
+                    22,
+                    21
+                ],
+                "1": [
+                    339,
+                    311,
+                    124,
+                    123,
+                    122,
+                    78,
+                    28,
+                    22,
+                    21,
+                    5,
+                    4
+                ],
+                "2": [
+                    339,
+                    311,
+                    124,
+                    123,
+                    122,
+                    78
+                ]
+            },
+            "4": {
+                "0": [
+                    198,
+                    197,
+                    196,
+                    195,
+                    194,
+                    104,
+                    23
+                ],
+                "1": [
+                    196,
+                    195,
+                    194,
+                    94,
+                    29,
+                    13
+                ],
+                "2": [
+                    199,
+                    196,
+                    195,
+                    194,
+                    106
+                ]
+            },
+            "5": {
+                "0": [
+                    346,
+                    318,
+                    317,
+                    193,
+                    192,
+                    191,
+                    190,
+                    189,
+                    188,
+                    187,
+                    74,
+                    13
+                ],
+                "1": [
+                    346,
+                    317,
+                    191,
+                    190,
+                    189,
+                    188,
+                    187,
+                    74,
+                    30,
+                    5
+                ],
+                "2": [
+                    346,
+                    317,
+                    191,
+                    190,
+                    189,
+                    188,
+                    187,
+                    74
+                ]
+            },
+            "6": {
+                "0": [
+                    133,
+                    132,
+                    131,
+                    108
+                ],
+                "1": [
+                    312,
+                    135,
+                    134,
+                    133,
+                    132,
+                    131,
+                    33,
+                    31
+                ],
+                "2": [
+                    134,
+                    133,
+                    132,
+                    131,
+                    108
+                ]
+            },
+            "7": {
+                "0": [
+                    342,
+                    314,
+                    286,
+                    267,
+                    151,
+                    148,
+                    147,
+                    115,
+                    68
+                ],
+                "1": [
+                    343,
+                    342,
+                    314,
+                    286,
+                    267,
+                    150,
+                    149,
+                    148,
+                    147,
+                    83,
+                    32
+                ],
+                "2": [
+                    342,
+                    314,
+                    286,
+                    267,
+                    148,
+                    147,
+                    115,
+                    68
+                ]
+            },
+            "8": {
+                "0": [
+                    316,
+                    173,
+                    172,
+                    96
+                ],
+                "1": [
+                    316,
+                    175,
+                    174,
+                    173,
+                    172,
+                    34
+                ],
+                "2": [
+                    316,
+                    174,
+                    173,
+                    172,
+                    67
+                ]
+            },
+            "9": {
+                "0": [
+                    287,
+                    171,
+                    170,
+                    168,
+                    167,
+                    166,
+                    165,
+                    164,
+                    163,
+                    97
+                ],
+                "1": [
+                    344,
+                    315,
+                    287,
+                    169,
+                    168,
+                    167,
+                    166,
+                    165,
+                    164,
+                    163,
+                    35
+                ],
+                "2": [
+                    287,
+                    170,
+                    167,
+                    166,
+                    165,
+                    164,
+                    163,
+                    97,
+                    66
+                ]
+            },
+            "10": {
+                "0": [
+                    367,
+                    336,
+                    282,
+                    214,
+                    213,
+                    110
+                ],
+                "1": [
+                    367,
+                    337,
+                    336,
+                    214,
+                    213,
+                    212,
+                    92,
+                    36
+                ],
+                "2": [
+                    367,
+                    337,
+                    336,
+                    282,
+                    214,
+                    213,
+                    211,
+                    112
+                ]
+            },
+            "11": {
+                "0": [
+                    366,
+                    334,
+                    307,
+                    306,
+                    281,
+                    218,
+                    217,
+                    216,
+                    92,
+                    73
+                ],
+                "1": [
+                    366,
+                    335,
+                    334,
+                    306,
+                    281,
+                    218,
+                    217,
+                    216,
+                    215,
+                    37
+                ],
+                "2": [
+                    366,
+                    335,
+                    334,
+                    306,
+                    281,
+                    218,
+                    217,
+                    216,
+                    92,
+                    73
+                ]
+            },
+            "12": {
+                "0": [
+                    340,
+                    126,
+                    125,
+                    76
+                ],
+                "1": [
+                    340,
+                    127,
+                    126,
+                    125,
+                    38
+                ],
+                "2": [
+                    340,
+                    126,
+                    125,
+                    114
+                ]
+            },
+            "13": {
+                "0": [
+                    142,
+                    139,
+                    138,
+                    137,
+                    136,
+                    89,
+                    68
+                ],
+                "1": [
+                    141,
+                    140,
+                    139,
+                    138,
+                    137,
+                    136,
+                    39
+                ],
+                "2": [
+                    142,
+                    139,
+                    138,
+                    137,
+                    136,
+                    89,
+                    68
+                ]
+            },
+            "14": {
+                "0": [
+                    130,
+                    128,
+                    81,
+                    79
+                ],
+                "1": [
+                    129,
+                    128,
+                    113
+                ],
+                "2": [
+                    130,
+                    128,
+                    81,
+                    79
+                ]
+            },
+            "15": {
+                "0": [
+                    145,
+                    144,
+                    143,
+                    111,
+                    68
+                ],
+                "1": [
+                    266,
+                    146,
+                    145,
+                    144,
+                    143,
+                    111
+                ],
+                "2": [
+                    145,
+                    144,
+                    143,
+                    111,
+                    68
+                ]
+            },
+            "16": {
+                "0": [
+                    338,
+                    308,
+                    284,
+                    210,
+                    209,
+                    205,
+                    204,
+                    203,
+                    88
+                ],
+                "1": [
+                    338,
+                    283,
+                    210,
+                    209,
+                    208,
+                    207,
+                    206,
+                    116,
+                    40
+                ],
+                "2": [
+                    338,
+                    308,
+                    210,
+                    209,
+                    208,
+                    202,
+                    109
+                ]
+            },
+            "17": {
+                "0": [
+                    345,
+                    183,
+                    182,
+                    181,
+                    77
+                ],
+                "1": [
+                    345,
+                    183,
+                    182,
+                    181,
+                    77,
+                    41
+                ],
+                "2": [
+                    345,
+                    183,
+                    182,
+                    181,
+                    77
+                ]
+            },
+            "18": {
+                "0": [
+                    186,
+                    185,
+                    184,
+                    75
+                ],
+                "1": [
+                    186,
+                    185,
+                    184,
+                    75,
+                    42
+                ],
+                "2": [
+                    186,
+                    185,
+                    184,
+                    75
+                ]
+            },
+            "19": {
+                "0": [
+                    180,
+                    178,
+                    177,
+                    176,
+                    107
+                ],
+                "1": [
+                    179,
+                    178,
+                    177,
+                    176,
+                    43
+                ],
+                "2": [
+                    178,
+                    177,
+                    176,
+                    65
+                ]
+            },
+            "20": {
+                "0": [
+                    319,
+                    201,
+                    200,
+                    80
+                ],
+                "1": [
+                    319,
+                    201,
+                    200,
+                    80,
+                    44
+                ],
+                "2": [
+                    319,
+                    201,
+                    200,
+                    80
+                ]
+            },
+            "21": {
+                "0": [
+                    341,
+                    313,
+                    285,
+                    265,
+                    160,
+                    159,
+                    102,
+                    23
+                ],
+                "1": [
+                    285,
+                    162,
+                    161,
+                    160,
+                    159,
+                    105,
+                    45
+                ],
+                "2": [
+                    285,
+                    159,
+                    105
+                ]
+            },
+            "22": {
+                "0": [
+                    262,
+                    157,
+                    155,
+                    154,
+                    153,
+                    152,
+                    93
+                ],
+                "1": [
+                    263,
+                    262,
+                    156,
+                    155,
+                    154,
+                    153,
+                    152,
+                    93,
+                    46,
+                    23
+                ],
+                "2": [
+                    264,
+                    262,
+                    158,
+                    155,
+                    154,
+                    153,
+                    152,
+                    93
+                ]
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 378,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "SIM",
+            "SIT",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

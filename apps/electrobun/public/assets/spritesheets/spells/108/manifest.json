@@ -1,0 +1,1 @@
+{"version":1,"spriteId":"108","animations":{"anim1":{"file":"atlas.svg","width":461,"height":1262,"offsetX":-47.6,"offsetY":-58.8,"fps":60,"frames":[],"frameOrder":[],"duplicates":{}}},"spell":{"id":108,"fps":60,"mainTimelineScale":1,"requiresTypeScript":false,"sounds":[{"frame":0,"soundId":"shield_cara"}],"librarySymbols":[],"animationMeta":{"anim1":{"isComposite":true}}}}

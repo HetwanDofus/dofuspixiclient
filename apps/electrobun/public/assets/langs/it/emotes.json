@@ -1,0 +1,100 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "EM": {
+            "1": {
+                "n": "Sedersi",
+                "s": "sit"
+            },
+            "2": {
+                "n": "Fare un cenno con la mano",
+                "s": "bye"
+            },
+            "3": {
+                "n": "Applaudire",
+                "s": "appl"
+            },
+            "4": {
+                "n": "Arrabbiarsi",
+                "s": "mad"
+            },
+            "5": {
+                "n": "Mostrare paura",
+                "s": "fear"
+            },
+            "6": {
+                "n": "Mostrare l'arma",
+                "s": "weap"
+            },
+            "7": {
+                "n": "Suonare il flauto",
+                "s": "pipo"
+            },
+            "8": {
+                "n": "Sparare gas",
+                "s": "oups"
+            },
+            "9": {
+                "n": "Salutare",
+                "s": "hi"
+            },
+            "10": {
+                "n": "Dare un bacio",
+                "s": "kiss"
+            },
+            "11": {
+                "n": "Pietra",
+                "s": "pfc1"
+            },
+            "12": {
+                "n": "Foglia",
+                "s": "pfc2"
+            },
+            "13": {
+                "n": "Forbice",
+                "s": "pfc3"
+            },
+            "14": {
+                "n": "Incrociare le braccia",
+                "s": "cross"
+            },
+            "15": {
+                "n": "Indicare",
+                "s": "point"
+            },
+            "16": {
+                "n": ".....",
+                "s": "crow"
+            },
+            "19": {
+                "n": "Sdraiarsi",
+                "s": "rest"
+            },
+            "21": {
+                "n": "Campione",
+                "s": "champ"
+            },
+            "22": {
+                "n": "Aura di Potenza",
+                "s": "aura"
+            },
+            "23": {
+                "n": "Aura Vampyresca",
+                "s": "bat"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 52,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "EM",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

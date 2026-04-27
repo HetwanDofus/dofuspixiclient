@@ -1,0 +1,100 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "EM": {
+            "1": {
+                "n": "Sentar",
+                "s": "sit"
+            },
+            "2": {
+                "n": "Acenar",
+                "s": "bye"
+            },
+            "3": {
+                "n": "Aplaudir",
+                "s": "appl"
+            },
+            "4": {
+                "n": "Irritado",
+                "s": "mad"
+            },
+            "5": {
+                "n": "Medo",
+                "s": "fear"
+            },
+            "6": {
+                "n": "Mostrar arma",
+                "s": "weap"
+            },
+            "7": {
+                "n": "Tocar flauta",
+                "s": "pipo"
+            },
+            "8": {
+                "n": "Soltar gases",
+                "s": "oups"
+            },
+            "9": {
+                "n": "Oi",
+                "s": "hi"
+            },
+            "10": {
+                "n": "Beijo",
+                "s": "kiss"
+            },
+            "11": {
+                "n": "Pedra",
+                "s": "pfc1"
+            },
+            "12": {
+                "n": "Papel",
+                "s": "pfc2"
+            },
+            "13": {
+                "n": "Tesoura",
+                "s": "pfc3"
+            },
+            "14": {
+                "n": "Cruzar os braços",
+                "s": "cross"
+            },
+            "15": {
+                "n": "Apontar",
+                "s": "point"
+            },
+            "16": {
+                "n": ". . .",
+                "s": "crow"
+            },
+            "19": {
+                "n": "Descansar",
+                "s": "rest"
+            },
+            "21": {
+                "n": "Campeão",
+                "s": "champ"
+            },
+            "22": {
+                "n": "Aura do Poder",
+                "s": "aura"
+            },
+            "23": {
+                "n": "Aura Vermelha",
+                "s": "bat"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 52,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "EM",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

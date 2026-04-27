@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package dofus;
 
-option go_package = "dofus/proto";
 
 // ============================================================================
 // EMOTES PROTOCOL (e prefix)

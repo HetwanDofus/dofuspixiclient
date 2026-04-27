@@ -1,87 +1,136 @@
 /**
- * Spell 1006 - Craquement (Eniripsa)
+ * Spell 1006 — (Unknown, likely a self-buff or target impact).
  *
- * A single composite animation played at the target position.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/1006/scripts/scripts/
  *
- * Components:
- * - anim1: Composite animation at target position, stops at frame 128
+ * displayType=11 (TargetCell). There are no projectile symbols (move/shoot/duplicate),
+ * no caster-anchored references, no dual-anchored timelines. The spell is a single
+ * animated timeline placed at the target cell. This matches the most common impact
+ * pattern (TargetCell).
  *
- * Original AS timing:
- * - DefineSprite_5/frame_1: gotoAndPlay(random(15) + 1) — random start frame 1-15
- * - DefineSprite_5/frame_149: stop()
- * - DefineSprite_37/frame_97: this.end() — signal hit
- * - DefineSprite_37/frame_129: _parent.removeMovieClip() — animation ends
+ * Manifest layout:
+ *   - animations: [ "anim1" (130 frames, composite) ] — NO librarySymbols entries.
+ *   - librarySymbols: (empty) — so NO lib_ prefix anywhere.
  *
- * The main animation (DefineSprite_37) plays through:
- * - Frame 97 (0-indexed: 96): signal hit
- * - Frame 129 (0-indexed: 128): stop/complete
+ * AS symbol layout:
+ *   - DefineSprite_5 — inner sprite. On frame_1: gotoAndPlay(random(15) + 1)
+ *     (randomises the start frame so repeated casts don't look identical).
+ *     On frame_149: stop().
+ *   - DefineSprite_37 — outer timeline (130 frames maps to anim1):
+ *       frame_97:  this.end() → signalHit (damage popup).
+ *       frame_129: _parent.removeMovieClip(); stop() → spell complete.
  *
- * DefineSprite_5 is the inner looping sub-sprite that starts at a random frame
- * (random(15) + 1 → 0-indexed: random start 0–14), and the composite anim1
- * captures its full rendered output across all 130 frames.
+ * Because librarySymbols is empty in the manifest, anim1 is the sole top-level
+ * animation. DefineSprite_37 IS the anim1 symbol (the outer container with 130
+ * authored frames). DefineSprite_5 is an inner composited sprite referenced by
+ * the anim1 composite frames — its frame scripts randomise the playhead on load
+ * and stop at frame 149. Since it is embedded inside anim1 composite frames and
+ * not separately attachMovie'd, we model it as part of the anim1 symbol's frame
+ * scripts (frame_1 randomises, the stop at frame_149 is moot as the outer timeline
+ * only runs 130 frames).
+ *
+ * Main timeline: attaches anim1 in onSpellStart (no SOMA.playSound found in
+ * the scripts provided, so none is emitted).
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const ANIM1_MANIFEST: SpriteManifest = {
+const ANIM1_BOUNDS = {
   width: 96.75,
   height: 76.1,
   offsetX: -36.1,
   offsetY: -64.2,
 };
 
-export class Spell1006 extends BaseSpell {
+export class Spell1006 extends RuntimeSpell {
   readonly spellId = 1006;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  protected setup(
-    _context: SpellContext,
+  private anim1Sym!: SymbolDefinition;
+
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const anchor = calculateAnchor(ANIM1_MANIFEST);
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // Random start frame: AS gotoAndPlay(random(15) + 1) → 0-indexed: 0–14
-    const startFrame = Math.floor(Math.random() * 15);
+    // ---- anim1 — main impact timeline (130 frames) ---------------
+    // Corresponds to DefineSprite_37 in the canonical SWF.
+    // No librarySymbols entry in the manifest — texture key is bare "anim1".
+    //
+    // AS DefineSprite_37/frame_97/DoAction.as:  this.end() → signalHit
+    // AS DefineSprite_37/frame_129/DoAction.as: _parent.removeMovieClip(); stop()
+    //
+    // DefineSprite_5 is an inner composited sprite embedded in the anim1
+    // composite frames. Its canonical frame_1 does:
+    //   gotoAndPlay(random(15) + 1)
+    // Since it plays through anim1's composite frames and is not separately
+    // attachMovie'd, its randomised-start behaviour is baked into the
+    // pre-rendered composite frames — no separate SymbolDefinition needed.
+    // The frame_1 gotoAndPlay on the outer symbol mirrors the randomised
+    // entry point behaviour at the anim1 level.
+    this.anim1Sym = {
+      name: "anim1",
+      totalFrames: 130,
+      frames: textures.getFrames("anim1"),
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_5/frame_1/DoAction.as (inner sprite, frame_1):
+            //   gotoAndPlay(random(15) + 1)
+            // Mirrors the randomised entry-point on the outer timeline so
+            // repeated casts begin at a random frame within the first 15.
+            const randomStart = Math.floor(Math.random() * 15) + 1;
+            clip.gotoAndPlay(randomStart - 1);
+          },
+        ],
+        [
+          96,
+          () => {
+            // AS DefineSprite_37/frame_97/DoAction.as:
+            //   this.end();
+            // Signals hit (damage popup) at the canonical impact frame.
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          128,
+          (clip) => {
+            // AS DefineSprite_37/frame_129/DoAction.as:
+            //   _parent.removeMovieClip();
+            //   stop();
+            clip.stop();
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    const anim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("anim1"),
-        fps: 50,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-        startFrame,
-      })
-    );
-
-    anim.sprite.position.set(init.targetX, init.targetY);
-
-    // Frame 97 (0-indexed: 96): this.end() → signal hit
-    anim.onFrame(96, () => this.signalHit());
-
-    // Frame 129 (0-indexed: 128): removeMovieClip / stop → complete
-    anim.stopAt(128);
-    anim.onFrame(128, () => this.complete());
-
-    this.container.addChild(anim.sprite);
+    this.registry.register(this.anim1Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-
-    if (this.anims.allStopped()) {
-      this.complete();
-    }
+  protected onSpellStart(
+    _callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // Main timeline implicitly places anim1 (DefineSprite_37) on the
+    // stage. Attach it here so it starts ticking from the next runtime
+    // frame. No SOMA.playSound found in the provided AS scripts.
+    this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

@@ -1,0 +1,215 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "J": {
+            "1": {
+                "n": "-Base-",
+                "s": 0,
+                "g": -1
+            },
+            "2": {
+                "n": "Bûcheron",
+                "s": 0,
+                "g": 1
+            },
+            "11": {
+                "n": "Forgeur d'Epées",
+                "s": 0,
+                "g": 10
+            },
+            "13": {
+                "n": "Sculpteur d'Arcs",
+                "s": 0,
+                "g": 6
+            },
+            "14": {
+                "n": "Forgeur de Marteaux",
+                "s": 0,
+                "g": 11
+            },
+            "15": {
+                "n": "Cordonnier",
+                "s": 0,
+                "g": 5
+            },
+            "16": {
+                "n": "Bijoutier",
+                "s": 0,
+                "g": 15
+            },
+            "17": {
+                "n": "Forgeur de Dagues",
+                "s": 0,
+                "g": 9
+            },
+            "18": {
+                "n": "Sculpteur de Bâtons",
+                "s": 0,
+                "g": 8
+            },
+            "19": {
+                "n": "Sculpteur de Baguettes",
+                "s": 0,
+                "g": 7
+            },
+            "20": {
+                "n": "Forgeur de Pelles",
+                "s": 0,
+                "g": 12
+            },
+            "24": {
+                "n": "Mineur",
+                "s": 0,
+                "g": 13
+            },
+            "25": {
+                "n": "Boulanger",
+                "s": 0,
+                "g": 3
+            },
+            "26": {
+                "n": "Alchimiste",
+                "s": 0,
+                "g": 14
+            },
+            "27": {
+                "n": "Tailleur",
+                "s": 0,
+                "g": 20
+            },
+            "28": {
+                "n": "Paysan",
+                "s": 0,
+                "g": 18
+            },
+            "31": {
+                "n": "Forgeur de Haches",
+                "s": 0,
+                "g": 19
+            },
+            "36": {
+                "n": "Pêcheur",
+                "s": 0,
+                "g": 30
+            },
+            "41": {
+                "n": "Chasseur",
+                "s": 0,
+                "g": 32
+            },
+            "43": {
+                "n": "Forgemage de Dagues",
+                "s": 17,
+                "g": 21
+            },
+            "44": {
+                "n": "Forgemage d'Epées",
+                "s": 11,
+                "g": 24
+            },
+            "45": {
+                "n": "Forgemage de Marteaux",
+                "s": 14,
+                "g": 25
+            },
+            "46": {
+                "n": "Forgemage de Pelles",
+                "s": 20,
+                "g": 26
+            },
+            "47": {
+                "n": "Forgemage de Haches",
+                "s": 31,
+                "g": 23
+            },
+            "48": {
+                "n": "Sculptemage d'Arcs",
+                "s": 13,
+                "g": 28
+            },
+            "49": {
+                "n": "Sculptemage de Baguettes",
+                "s": 19,
+                "g": 29
+            },
+            "50": {
+                "n": "Sculptemage de Bâtons",
+                "s": 18,
+                "g": 22
+            },
+            "56": {
+                "n": "Boucher",
+                "s": 0,
+                "g": 33
+            },
+            "58": {
+                "n": "Poissonnier",
+                "s": 0,
+                "g": 31
+            },
+            "60": {
+                "n": "Forgeur de Boucliers",
+                "s": 0,
+                "g": 40
+            },
+            "62": {
+                "n": "Cordomage",
+                "s": 15,
+                "g": 36
+            },
+            "63": {
+                "n": "Joaillomage",
+                "s": 16,
+                "g": 37
+            },
+            "64": {
+                "n": "Costumage",
+                "s": 27,
+                "g": 35
+            },
+            "65": {
+                "n": "Bricoleur",
+                "s": 0,
+                "g": 34
+            },
+            "66": {
+                "n": "joaillier",
+                "s": 0,
+                "g": 0
+            },
+            "67": {
+                "n": "bijoutier",
+                "s": 0,
+                "g": 0
+            },
+            "70": {
+                "n": "paysan",
+                "s": 0,
+                "g": 0
+            },
+            "71": {
+                "n": "paysan",
+                "s": 0,
+                "g": 0
+            },
+            "72": {
+                "n": "Coupe",
+                "s": 0,
+                "g": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 51,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "J",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

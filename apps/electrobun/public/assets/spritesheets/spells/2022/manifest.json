@@ -1,0 +1,1 @@
+{"version":1,"spriteId":"2022","animations":{"shoot":{"file":"atlas.svg","width":677,"height":913,"offsetX":-34.3,"offsetY":-62,"fps":60,"frames":[],"frameOrder":[],"duplicates":{}}},"spell":{"id":2022,"fps":60,"mainTimelineScale":1,"requiresTypeScript":true,"sounds":[{"frame":0,"soundId":"flamme_2022"}],"librarySymbols":[],"animationMeta":{"shoot":{"isComposite":false}}}}

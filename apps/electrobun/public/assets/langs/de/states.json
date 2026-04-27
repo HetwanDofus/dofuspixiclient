@@ -1,0 +1,608 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "ST": {
+            "72": {
+                "n": "[wip]Rayonnement 3 boss",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "73": {
+                "n": "Umzingelt",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "0": {
+                "n": "Neutral",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "53": {
+                "n": "Geistige Bestrafung",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "55": {
+                "n": "Im Ruhestand",
+                "p": 0,
+                "d": true,
+                "s": "Im Ruhest."
+            },
+            "66": {
+                "n": "[wip]Rayonnement 1 joueur",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "40": {
+                "n": "Verdorben",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "46": {
+                "n": "Zufrieden",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "29": {
+                "n": "Ungerade Glyphe",
+                "p": 0,
+                "d": true,
+                "s": "Ungerade G."
+            },
+            "52": {
+                "n": "Gewagte Bestrafung",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "78": {
+                "n": "Hearts",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "107": {
+                "n": "Tac",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "27": {
+                "n": "Leopardo",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "33": {
+                "n": "Tertiärtinte",
+                "p": 0,
+                "d": true,
+                "s": "Tertiaire"
+            },
+            "97": {
+                "n": "Leid III",
+                "p": 0,
+                "d": true,
+                "s": "Suffer. III"
+            },
+            "47": {
+                "n": "Schlechgelaunt",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "50": {
+                "n": "Im Helfermodus",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "4": {
+                "n": "Ängstlich",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "36": {
+                "n": "Lähmlust",
+                "p": 0,
+                "d": true,
+                "s": "Paralyze"
+            },
+            "32": {
+                "n": "Sekundärtinte",
+                "p": 0,
+                "d": true,
+                "s": "Sekundärti."
+            },
+            "8": {
+                "n": "Getragen",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "84": {
+                "n": "Clubs",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "108": {
+                "n": "Jäger",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "39": {
+                "n": "Unscharf",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "96": {
+                "n": "Leid II",
+                "p": 0,
+                "d": true,
+                "s": "Suffer. II"
+            },
+            "7": {
+                "n": "Schwerkraft",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "94": {
+                "n": "Unhealable",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "90": {
+                "n": "Diamonds",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "18": {
+                "n": "Eingefroren",
+                "p": 1,
+                "d": true,
+                "s": ""
+            },
+            "11": {
+                "n": "Beritten",
+                "p": 0,
+                "d": true,
+                "s": "Chevauch."
+            },
+            "41": {
+                "n": "Lautlos",
+                "p": 1,
+                "d": true,
+                "s": ""
+            },
+            "28": {
+                "n": "Frei",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "79": {
+                "n": "Hearts",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "12": {
+                "n": "Brav",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "89": {
+                "n": "Diamonds",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "61": {
+                "n": "Kämpferisch",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "71": {
+                "n": "[wip]Rayonnement 2 boss",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "42": {
+                "n": "Geschwächt",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "10": {
+                "n": "Gezähmt",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "65": {
+                "n": "[wip]Rayonnement bloqué",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "35": {
+                "n": "Mordlust",
+                "p": 0,
+                "d": true,
+                "s": "Kill"
+            },
+            "98": {
+                "n": "Predation",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "69": {
+                "n": "[wip]Rayonnement 4 joueur",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "88": {
+                "n": "Spades",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "13": {
+                "n": "Gar nicht brav",
+                "p": 0,
+                "d": true,
+                "s": "Ext. disob."
+            },
+            "105": {
+                "n": "Betrunken",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "30": {
+                "n": "Gerade Glyphe",
+                "p": 0,
+                "d": true,
+                "s": "Gerade G."
+            },
+            "82": {
+                "n": "Clubs",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "102": {
+                "n": "Belebt",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "103": {
+                "n": "Geiz",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "67": {
+                "n": "[wip]Rayonnement 2 joueur",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "54": {
+                "n": "Vitale Bestrafung",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "93": {
+                "n": "Seelenruhe",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "99": {
+                "n": "Full",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "101": {
+                "n": "Meisterzauber",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "19": {
+                "n": "Angerissen",
+                "p": 1,
+                "d": true,
+                "s": ""
+            },
+            "83": {
+                "n": "Clubs",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "60": {
+                "n": "Freundlich",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "49": {
+                "n": "Ghulifiziert",
+                "p": 0,
+                "d": true,
+                "s": "Ghulifizie."
+            },
+            "37": {
+                "n": "Fluchlust",
+                "p": 0,
+                "d": true,
+                "s": "Curse"
+            },
+            "9": {
+                "n": "Harzschub der Sylvan",
+                "p": 0,
+                "d": true,
+                "s": "Sylvan h."
+            },
+            "87": {
+                "n": "Spades",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "51": {
+                "n": "Geschickte Bestrafung",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "106": {
+                "n": "Tic",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "58": {
+                "n": "Countdown - 1",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "63": {
+                "n": "[wip]Lourd",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "26": {
+                "n": "Eingeschlafen",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "80": {
+                "n": "Hearts",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "91": {
+                "n": "Diamonds",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "5": {
+                "n": "Desorientiert",
+                "p": 0,
+                "d": true,
+                "s": "Disorient."
+            },
+            "70": {
+                "n": "[wip]Rayonnement 1 boss",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "43": {
+                "n": "UFO",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "56": {
+                "n": "Unverwundbar",
+                "p": 0,
+                "d": true,
+                "s": "Unverwund."
+            },
+            "17": {
+                "n": "Getrennt",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "81": {
+                "n": "Clubs",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "15": {
+                "n": "Aufgewacht",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "1": {
+                "n": "Betrunken",
+                "p": 1,
+                "d": true,
+                "s": ""
+            },
+            "6": {
+                "n": "Verwurzelt",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "104": {
+                "n": "Kontaminiert",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "3": {
+                "n": "Tragend",
+                "p": 1,
+                "d": true,
+                "s": ""
+            },
+            "68": {
+                "n": "[wip]Rayonnement 3 joueur",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "75": {
+                "n": "Unblockbar",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "64": {
+                "n": "[wip]Glyphe nom provisoire",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "85": {
+                "n": "Spades",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "38": {
+                "n": "Vergiftelust",
+                "p": 0,
+                "d": true,
+                "s": "Vergifte"
+            },
+            "95": {
+                "n": "Leid I",
+                "p": 0,
+                "d": true,
+                "s": "Suffer. I"
+            },
+            "77": {
+                "n": "Hearts",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "14": {
+                "n": "Eingeschneit",
+                "p": 0,
+                "d": true,
+                "s": "Eingeschn."
+            },
+            "16": {
+                "n": "Geschwächt",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "57": {
+                "n": "Countdown - 2",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "31": {
+                "n": "Primärtinte",
+                "p": 0,
+                "d": true,
+                "s": "Primaire"
+            },
+            "92": {
+                "n": "Diamonds",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "76": {
+                "n": "Gejagt",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "86": {
+                "n": "Spades",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "44": {
+                "n": "Unzufrieden",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "48": {
+                "n": "Verwirrt",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "34": {
+                "n": "Quartärtinte",
+                "p": 0,
+                "d": true,
+                "s": "Quartärtin."
+            },
+            "2": {
+                "n": "Seelenraub",
+                "p": 0,
+                "d": true,
+                "s": "Chercheur"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 121,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "ST",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

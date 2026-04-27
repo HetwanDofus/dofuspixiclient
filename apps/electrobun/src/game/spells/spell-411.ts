@@ -1,91 +1,138 @@
 /**
- * Spell 411 - Lakam
+ * Spell 411 — Lakam (Feca shield/buff spell).
  *
- * A composite animation spell with randomized instances at the target position.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/411/scripts/scripts/
  *
- * Components:
- * - anim1 (composite): Main animation at target position, 150 frames, stops at frame 147
- *   - Each instance (DefineSprite_5) has random rotation, random scale (30-79%),
- *     and starts at a random frame (0-20)
- *   - DefineSprite_8 frame 148: removeMovieClip + stop (animation ends)
+ * displayType=10 (CasterCell). The spell has no projectile, no target-anchored
+ * impact, and no dual-anchored world-absolute layout. The single animation
+ * (`anim1`) plays at the caster cell — a classic self-buff / shield pattern.
+ * No `librarySymbols[]` entries exist in the manifest; `anim1` is the sole
+ * animation and is referenced directly via `textures.getFrames("anim1")`.
  *
- * Original AS timing:
- * - Frame 1 (main): Play sound 'lakam_409'
- * - DefineSprite_5 frame 1: _rotation = random(360), t = random(50)+30, gotoAndPlay(random(21))
- * - DefineSprite_5 frame 109: stop()
- * - DefineSprite_8 frame 148: _parent.removeMovieClip(); stop()
+ * Library symbols:
+ *   - DefineSprite_5 (anim1 sub-sprite, 109 frames):
+ *       frame_1: random initial rotation, random scale [30,80]%, gotoAndPlay(random(21))
+ *       frame_109: stop()
+ *   - DefineSprite_8 (outer container, 148 frames):
+ *       frame_148: _parent.removeMovieClip() + stop() → spell complete
+ *
+ * Main timeline: SOMA.playSound("lakam_409"); (frame_1/DoAction.as)
+ *
+ * Signal timing:
+ *   - signalHit: fired at frame_1 of the outer container (instant self-buff,
+ *     damage/effect applies immediately on cast).
+ *   - complete: fired at frame_148 of DefineSprite_8 via _parent.removeMovieClip().
+ *
+ * No `librarySymbols[]` in manifest — textures loaded via bare animation name
+ * `"anim1"` (NO `lib_` prefix).
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const ANIM1_MANIFEST: SpriteManifest = {
+const ANIM1_BOUNDS = {
   width: 160.7,
   height: 55.7,
   offsetX: 2.25,
   offsetY: -36.8,
 };
 
-export class Spell411 extends BaseSpell {
+export class Spell411 extends RuntimeSpell {
   readonly spellId = 411;
+  readonly displayType = SpellDisplayType.CasterCell;
 
-  private mainAnim!: FrameAnimatedSprite;
+  private anim1Sym!: SymbolDefinition;
 
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const anchor = calculateAnchor(ANIM1_MANIFEST);
-    const allFrames = textures.getFrames("anim1");
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // The main composite animation plays through all frames at target position.
-    // DefineSprite_5 instances each have:
-    //   - Random rotation: random(360) -> 0..359
-    //   - Random scale: t = random(50) + 30 -> 30..79 (as percentage)
-    //   - Random start frame: random(21) -> 0..20
-    // Since anim1 is a composite (pre-rendered), we play it as a single animation.
-    // The composite includes all the sub-sprite randomness baked in.
-    // However, the manifest says isComposite: true and the AS shows multiple instances
-    // of DefineSprite_5 with randomized properties - the pre-rendered frames capture this.
+    // ---- DefineSprite_5 — rotating/scaled sub-sprite (109 frames) ----
+    // This is the inner animated sprite that DefineSprite_8 (the outer
+    // container, = anim1) places on its timeline. Since the manifest has
+    // no librarySymbols[], the whole animation is baked into anim1's
+    // frame textures. We model the outer anim1 directly as the registered
+    // symbol with the frame scripts of DefineSprite_8 (the outermost
+    // sprite), using anim1's 150-frame texture strip.
+    //
+    // The canonical SWF places DefineSprite_5 instances inside
+    // DefineSprite_8; however, since all visual content is pre-composited
+    // into the exported anim1 frames, we drive the lifecycle purely via
+    // the outer DefineSprite_8 frame scripts on the anim1 symbol.
+    //
+    // DefineSprite_5/frame_1/DoAction.as:
+    //   _rotation = random(360);
+    //   t = random(50) + 30;
+    //   _xscale = t; _yscale = t;
+    //   gotoAndPlay(random(21));
+    //
+    // DefineSprite_5/frame_109/DoAction.as:
+    //   stop();
+    //
+    // These are inner-clip behaviours baked into the composite anim1
+    // frames — no runtime attachMovie for DefineSprite_5 is needed
+    // because the manifest has no librarySymbols[] entry for it.
+    //
+    // DefineSprite_8/frame_148/DoAction.as:
+    //   _parent.removeMovieClip();
+    //   stop();
 
-    this.mainAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: allFrames,
-        fps: 60,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-      })
-    );
+    this.anim1Sym = {
+      name: "anim1",
+      totalFrames: 150,
+      frames: textures.getFrames("anim1"),
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (_clip) => {
+            // AS DefineSprite_8 frame_1 (implicit — outer container starts).
+            // Signal hit at the first frame: this is a self-buff, so the
+            // effect applies immediately when the animation begins.
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          147,
+          (clip) => {
+            // AS DefineSprite_8/frame_148/DoAction.as:
+            //   _parent.removeMovieClip();
+            //   stop();
+            clip.stop();
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
-
-    // Frame 0 (AS frame 1): play sound
-    this.mainAnim.onFrame(0, () => this.callbacks.playSound("lakam_409"));
-
-    // DefineSprite_8 frame 148 (0-indexed: 147): removeMovieClip + stop -> signal hit and end
-    // The manifest stopFrame is 147 (0-indexed)
-    this.mainAnim.stopAt(147).onFrame(147, () => this.signalHit());
-
-    this.mainAnim.addTo(this.container);
+    this.registry.register(this.anim1Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // AS scripts/frame_1/DoAction.as:
+    //   SOMA.playSound("lakam_409");
+    callbacks.playSound("lakam_409");
 
-    this.anims.update(deltaTime);
-
-    if (this.anims.allStopped()) {
-      this.complete();
-    }
+    // Attach the anim1 composite as a child of the root so it starts
+    // ticking from the next runtime frame. For CasterCell the root is
+    // anchored at the caster cell; anim1 is placed at root-local (0,0).
+    this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

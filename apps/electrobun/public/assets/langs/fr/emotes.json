@@ -1,0 +1,100 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "EM": {
+            "1": {
+                "n": "S'asseoir",
+                "s": "sit"
+            },
+            "2": {
+                "n": "Faire un signe de la main",
+                "s": "bye"
+            },
+            "3": {
+                "n": "Applaudir",
+                "s": "appl"
+            },
+            "4": {
+                "n": "Se mettre en colère",
+                "s": "mad"
+            },
+            "5": {
+                "n": "Montrer sa peur",
+                "s": "fear"
+            },
+            "6": {
+                "n": "Montrer son arme",
+                "s": "weap"
+            },
+            "7": {
+                "n": "Jouer de la flûte",
+                "s": "pipo"
+            },
+            "8": {
+                "n": "Lâcher les gaz",
+                "s": "oups"
+            },
+            "9": {
+                "n": "Saluer",
+                "s": "hi"
+            },
+            "10": {
+                "n": "Faire un bisou",
+                "s": "kiss"
+            },
+            "11": {
+                "n": "Pierre",
+                "s": "pfc1"
+            },
+            "12": {
+                "n": "Feuille",
+                "s": "pfc2"
+            },
+            "13": {
+                "n": "Ciseaux",
+                "s": "pfc3"
+            },
+            "14": {
+                "n": "Croiser les bras",
+                "s": "cross"
+            },
+            "15": {
+                "n": "Montrer du doigt",
+                "s": "point"
+            },
+            "16": {
+                "n": ". . . . . ",
+                "s": "crow"
+            },
+            "19": {
+                "n": "S'allonger",
+                "s": "rest"
+            },
+            "21": {
+                "n": "Champion",
+                "s": "champ"
+            },
+            "22": {
+                "n": "Aura de puissance",
+                "s": "aura"
+            },
+            "23": {
+                "n": "Aura vampyrique",
+                "s": "bat"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 52,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "EM",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

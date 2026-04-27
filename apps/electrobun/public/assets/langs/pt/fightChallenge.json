@@ -1,0 +1,420 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "FC": {
+            "1": {
+                "n": "Zumbi",
+                "d": "Use exatamente um Ponto de Movimento (PM) por turno.",
+                "g": 11
+            },
+            "2": {
+                "n": "Estátua",
+                "d": "Termine seu turno na mesma célula que começou.",
+                "g": 9
+            },
+            "3": {
+                "n": "Voluntário",
+                "d": "Derrote %1 primeiro.",
+                "g": 4
+            },
+            "4": {
+                "n": "Estrategista",
+                "d": "Derrote %1 por último.",
+                "g": 10
+            },
+            "5": {
+                "n": "Repetidor",
+                "d": "Você deve usar apenas a mesma ação por turno até o final do combate.",
+                "g": 3
+            },
+            "6": {
+                "n": "Versátil",
+                "d": "O jogador não poderá usar a mesma ação mais de uma vez por turno até o final do combate.",
+                "g": 12
+            },
+            "7": {
+                "n": "Jardineiro",
+                "d": "Plante uma Cenowawa toda vez que este feitiço estiver disponível durante o combate.",
+                "g": 6
+            },
+            "8": {
+                "n": "Nômade",
+                "d": "Use todos os PM no mesmo turno até o final do combate.",
+                "g": 8
+            },
+            "9": {
+                "n": "Bárbaro",
+                "d": "Não use nenhum feitiço até o fim da luta.",
+                "g": 1
+            },
+            "10": {
+                "n": "Cruel",
+                "d": "Você deverá derrotar seus inimigos de acordo com seus níveis em ordem crescente.",
+                "g": 2
+            },
+            "11": {
+                "n": "Místico",
+                "d": "Use apenas feitiços até o final do combate.",
+                "g": 7
+            },
+            "12": {
+                "n": "Coveiro",
+                "d": "Invoque um Chafertu toda vez que esse feitiço estiver disponível até o resto do combate.",
+                "g": 5
+            },
+            "14": {
+                "n": "Cassino Royal",
+                "d": "Use o feitiço Roulette todas as vezes em que ele estiver disponível durante o combate.",
+                "g": 14
+            },
+            "15": {
+                "n": "Arakmania",
+                "d": "Invoque o feitiço Araknee todas as vezes em que ele estiver disponível durante o combate.",
+                "g": 15
+            },
+            "16": {
+                "n": "Entomologia",
+                "d": "Conjure uma Faísca sempre que o feitiço estiver disponível durante o combate.",
+                "g": 16
+            },
+            "17": {
+                "n": "Intocável",
+                "d": "Não perca nenhum PV durante o combate.",
+                "g": 17
+            },
+            "18": {
+                "n": "Incurável",
+                "d": "Não use feitiços de cura durante todo o combate.",
+                "g": 18
+            },
+            "19": {
+                "n": "Mãos limpas",
+                "d": "Durante o combate, derrote todos os monstros sem causar dano direto. Podem ser usadas armadilhas, glifos, poções, danos de movimento e monstros invocados.",
+                "g": 19
+            },
+            "20": {
+                "n": "Elementar, meu caro!",
+                "d": "Use apenas ataques do mesmo elemento durante o combate.",
+                "g": 20
+            },
+            "21": {
+                "n": "Circulando!",
+                "d": "Não tente roubar PM de seus inimigos durante o combate.",
+                "g": 21
+            },
+            "22": {
+                "n": "Tempo voa!",
+                "d": "Não tente reduzir os Pontos de Ação (PA) de seus inimigos durante o combate.",
+                "g": 22
+            },
+            "23": {
+                "n": "Visão",
+                "d": "Não reduza o alcance de seus inimigos durante o combate.",
+                "g": 23
+            },
+            "24": {
+                "n": "Espírito de porco",
+                "d": "Use o mesmo feitiço ou habilidade de combate corpo a corpo durante o combate.",
+                "g": 24
+            },
+            "25": {
+                "n": "Maníaco",
+                "d": "Derrote os inimigos pela ordem decrescente de seus respectivos níveis.",
+                "g": 25
+            },
+            "28": {
+                "n": "Nem Piwi nem submisso",
+                "d": "Os personagens de sexo masculino devem deixar as personagens de sexo feminino darem o golpe final em todos os inimigos durante o combate.",
+                "g": 28
+            },
+            "29": {
+                "n": "Nem Piwi nem submisso",
+                "d": "As personagens de sexo feminino devem deixar os personagens de sexo masculino darem o golpe final em todos os inimigos durante o combate.",
+                "g": 29
+            },
+            "30": {
+                "n": "Primeiros os iniciantes",
+                "d": "O jogador com menor experiência deverá dar o golpe final em todos os adversários durante o combate.",
+                "g": 30
+            },
+            "31": {
+                "n": "Foco",
+                "d": "Quando atacar um inimigo, acabe com ele antes de atacar outro adversário.",
+                "g": 31
+            },
+            "32": {
+                "n": "Elitista",
+                "d": "Todos os ataques devem ser feitos no jogador %1, até que ele seja derrotado.",
+                "g": 32
+            },
+            "33": {
+                "n": "Sobrevivente",
+                "d": "Todos os aliados devem sobrevier até o fim do combate",
+                "g": 33
+            },
+            "34": {
+                "n": "Imprevisível",
+                "d": "Todos os ataques devem ser feitos no alvo selecionado pelo personagem a cada turno.",
+                "g": 34
+            },
+            "35": {
+                "n": "Guerreiro contratado",
+                "d": "Seus inimigos deverão ser derrotados na ordem selecionada. Um novo alvo será designado toda vez que o anterior for derrotado.",
+                "g": 35
+            },
+            "36": {
+                "n": "Impertinência",
+                "d": "Termine o turno em uma célula ao lado de um inimigo.",
+                "g": 36
+            },
+            "37": {
+                "n": "Apertado",
+                "d": "Termine o turno em uma célula ao lado de um aliado.",
+                "g": 37
+            },
+            "38": {
+                "n": "Blitz",
+                "d": "Quando um adversário perder pontos de vida, deve ser derrotado antes do próximo turno se iniciar.",
+                "g": 38
+            },
+            "39": {
+                "n": "Eremita",
+                "d": "Nunca termine um turno em uma célula ao lado de um aliado.",
+                "g": 39
+            },
+            "40": {
+                "n": "Distante",
+                "d": "Nunca termine um turno em uma célula ao lado de um inimigo.",
+                "g": 40
+            },
+            "41": {
+                "n": "Exuberante",
+                "d": "Use todos os seus pontos de ação (PA) antes do término do turno.",
+                "g": 41
+            },
+            "42": {
+                "n": "Dois por um",
+                "d": "Ao derrotar um adversário, elimine apenas mais um (e apenas um) até o final do turno.",
+                "g": 42
+            },
+            "43": {
+                "n": "Sacrifício",
+                "d": "Personagens não podem ser curados durante o seu turno.",
+                "g": 43
+            },
+            "44": {
+                "n": "Compartilhar",
+                "d": "Cada personagem deve derrotar, pelo menos, um adversário durante o combate.",
+                "g": 44
+            },
+            "45": {
+                "n": "Duelo",
+                "d": "Quando um personagem atacar um inimigo, nenhum de seus aliados poderá atacá-lo durante o combate.",
+                "g": 51
+            },
+            "46": {
+                "n": "Cada um no seu quadrado",
+                "d": "Cada personagem deve derrotar, pelo menos, um adversário durante o combate, e, uma vez atacando um inimigo em particular, nenhum outro personagem poderá atacá-lo durante o combate.",
+                "g": 46
+            },
+            "47": {
+                "n": "Contaminação",
+                "d": "Quando um aliado é atacado por um adversário, você tem três turnos para derrotar seu aliado.",
+                "g": 47
+            },
+            "48": {
+                "n": "Primeiro as mulas",
+                "d": "A mula mais fraca deve derrotar todos os inimigos (isto o ensinará a “mular” como um Porco Imundo)",
+                "g": 48
+            },
+            "49": {
+                "n": "Proteja as mulas",
+                "d": "Todos os seus aliados e mulas deverão sobreviver até o fim do combate.",
+                "g": 49
+            },
+            "50": {
+                "n": "Desenvolvedores Escorregadios",
+                "d": "Ganhe o combate e o Desafio estará completo. Nossos desenvolvedores são cheios de truques, você sabe.",
+                "g": 50
+            },
+            "51": {
+                "n": "Zumbi",
+                "d": "Use exatamente um Ponto de Movimento (PM) por turno.",
+                "g": 11
+            },
+            "52": {
+                "n": "Estátua",
+                "d": "Termine seu turno na mesma célula que começou.",
+                "g": 9
+            },
+            "53": {
+                "n": "Voluntário",
+                "d": "Derrote %1 primeiro.",
+                "g": 4
+            },
+            "54": {
+                "n": "Estrategista",
+                "d": "Derrote %1 por último.",
+                "g": 10
+            },
+            "55": {
+                "n": "Versátil",
+                "d": "O jogador não poderá usar a mesma ação mais de uma vez por turno até o final do combate.",
+                "g": 12
+            },
+            "56": {
+                "n": "Jardineiro",
+                "d": "Plante uma Cenowawa toda vez que este feitiço estiver disponível durante o combate.",
+                "g": 6
+            },
+            "57": {
+                "n": "Nômade",
+                "d": "Use todos os PM no mesmo turno até o final do combate.",
+                "g": 8
+            },
+            "59": {
+                "n": "Cruel",
+                "d": "Você deverá derrotar seus inimigos de acordo com seus níveis em ordem crescente.",
+                "g": 2
+            },
+            "60": {
+                "n": "Místico",
+                "d": "Use apenas feitiços até o final do combate.",
+                "g": 7
+            },
+            "61": {
+                "n": "Coveiro",
+                "d": "Invoque um Chafertu toda vez que esse feitiço estiver disponível até o resto do combate.",
+                "g": 5
+            },
+            "63": {
+                "n": "Arakmania",
+                "d": "Invoque o feitiço Araknee todas as vezes em que ele estiver disponível durante o combate.",
+                "g": 15
+            },
+            "64": {
+                "n": "Intocável",
+                "d": "Não perca nenhum PV durante o combate.",
+                "g": 17
+            },
+            "65": {
+                "n": "Incurável",
+                "d": "Não use feitiços de cura durante todo o combate.",
+                "g": 18
+            },
+            "66": {
+                "n": "Visão",
+                "d": "Não reduza o alcance de seus inimigos durante o combate.",
+                "g": 23
+            },
+            "68": {
+                "n": "Maníaco",
+                "d": "Derrote os inimigos pela ordem decrescente de seus respectivos níveis.",
+                "g": 25
+            },
+            "69": {
+                "n": "Nem Piwi nem submisso",
+                "d": "Os personagens de sexo masculino devem deixar as personagens de sexo feminino darem o golpe final em todos os inimigos durante o combate.",
+                "g": 28
+            },
+            "70": {
+                "n": "Nem Piwi nem submisso",
+                "d": "As personagens de sexo feminino devem deixar os personagens de sexo masculino darem o golpe final em todos os inimigos durante o combate.",
+                "g": 29
+            },
+            "71": {
+                "n": "Foco",
+                "d": "Quando atacar um inimigo, acabe com ele antes de atacar outro adversário.",
+                "g": 31
+            },
+            "72": {
+                "n": "Elitista",
+                "d": "Todos os ataques devem ser feitos no jogador %1, até que ele seja derrotado.",
+                "g": 32
+            },
+            "73": {
+                "n": "Sobrevivente",
+                "d": "Todos os aliados devem sobrevier até o fim do combate",
+                "g": 33
+            },
+            "74": {
+                "n": "Imprevisível",
+                "d": "Todos os ataques devem ser feitos no alvo selecionado pelo personagem a cada turno.",
+                "g": 34
+            },
+            "75": {
+                "n": "Guerreiro contratado",
+                "d": "Seus inimigos deverão ser derrotados na ordem selecionada. Um novo alvo será designado toda vez que o anterior for derrotado.",
+                "g": 35
+            },
+            "76": {
+                "n": "Impertinência",
+                "d": "Termine o turno em uma célula ao lado de um inimigo.",
+                "g": 36
+            },
+            "77": {
+                "n": "Apertado",
+                "d": "Termine o turno em uma célula ao lado de um aliado.",
+                "g": 37
+            },
+            "79": {
+                "n": "Eremita",
+                "d": "Nunca termine um turno em uma célula ao lado de um aliado.",
+                "g": 39
+            },
+            "80": {
+                "n": "Distante",
+                "d": "Nunca termine um turno em uma célula ao lado de um inimigo.",
+                "g": 40
+            },
+            "81": {
+                "n": "Exuberante",
+                "d": "Use todos os seus pontos de ação (PA) antes do término do turno.",
+                "g": 41
+            },
+            "82": {
+                "n": "Dois por um",
+                "d": "Ao derrotar um adversário, elimine apenas mais um (e apenas um) até o final do turno.",
+                "g": 42
+            },
+            "83": {
+                "n": "Sacrifício",
+                "d": "Personagens não podem ser curados durante o seu turno.",
+                "g": 43
+            },
+            "84": {
+                "n": "Compartilhar",
+                "d": "Cada personagem deve derrotar, pelo menos, um adversário durante o combate.",
+                "g": 44
+            },
+            "85": {
+                "n": "Duelo",
+                "d": "Quando um personagem atacar um inimigo, nenhum de seus aliados poderá atacá-lo durante o combate.",
+                "g": 51
+            },
+            "86": {
+                "n": "Cada um no seu quadrado",
+                "d": "Cada personagem deve derrotar, pelo menos, um adversário durante o combate, e, uma vez atacando um inimigo em particular, nenhum outro personagem poderá atacá-lo durante o combate.",
+                "g": 46
+            },
+            "87": {
+                "n": "Contaminação",
+                "d": "Quando um aliado é atacado por um adversário, você tem três turnos para derrotar seu aliado.",
+                "g": 47
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 106,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "FC",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

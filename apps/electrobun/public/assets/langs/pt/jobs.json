@@ -1,0 +1,215 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "J": {
+            "1": {
+                "n": "-Básico-",
+                "s": 0,
+                "g": -1
+            },
+            "2": {
+                "n": "Lenhador",
+                "s": 0,
+                "g": 1
+            },
+            "11": {
+                "n": "Ferreiro de Espada",
+                "s": 0,
+                "g": 10
+            },
+            "13": {
+                "n": "Escultor de Arco",
+                "s": 0,
+                "g": 6
+            },
+            "14": {
+                "n": "Ferreiro de Martelo",
+                "s": 0,
+                "g": 11
+            },
+            "15": {
+                "n": "Sapateiro Mágico",
+                "s": 0,
+                "g": 5
+            },
+            "16": {
+                "n": "Joalheiro",
+                "s": 0,
+                "g": 15
+            },
+            "17": {
+                "n": "Ferreiro de Adaga",
+                "s": 0,
+                "g": 9
+            },
+            "18": {
+                "n": "Escultor de Cajado",
+                "s": 0,
+                "g": 8
+            },
+            "19": {
+                "n": "Escultor de Bastão",
+                "s": 0,
+                "g": 7
+            },
+            "20": {
+                "n": "Ferreiro de Pá",
+                "s": 0,
+                "g": 12
+            },
+            "24": {
+                "n": "Minerador",
+                "s": 0,
+                "g": 13
+            },
+            "25": {
+                "n": "Padeiro",
+                "s": 0,
+                "g": 3
+            },
+            "26": {
+                "n": "Alquimista",
+                "s": 0,
+                "g": 14
+            },
+            "27": {
+                "n": "Alfaiate",
+                "s": 0,
+                "g": 20
+            },
+            "28": {
+                "n": "Fazendeiro",
+                "s": 0,
+                "g": 18
+            },
+            "31": {
+                "n": "Ferreiro de Machado",
+                "s": 0,
+                "g": 19
+            },
+            "36": {
+                "n": "Pescador",
+                "s": 0,
+                "g": 30
+            },
+            "41": {
+                "n": "Caçador",
+                "s": 0,
+                "g": 32
+            },
+            "43": {
+                "n": "Ferreiro Mágico de Adaga",
+                "s": 17,
+                "g": 21
+            },
+            "44": {
+                "n": "Ferreiro Mágico de Espada",
+                "s": 11,
+                "g": 24
+            },
+            "45": {
+                "n": "Ferreiro Mágico de Martelo",
+                "s": 14,
+                "g": 25
+            },
+            "46": {
+                "n": "Ferreiro Mágico de Pá",
+                "s": 20,
+                "g": 26
+            },
+            "47": {
+                "n": "Ferreiro Mágico de Machado",
+                "s": 31,
+                "g": 23
+            },
+            "48": {
+                "n": "Escultor Mágico de Arco",
+                "s": 13,
+                "g": 28
+            },
+            "49": {
+                "n": "Escultor Mágico de Bastão",
+                "s": 19,
+                "g": 29
+            },
+            "50": {
+                "n": "Escultor Mágico de Cajado",
+                "s": 18,
+                "g": 22
+            },
+            "56": {
+                "n": "Açougueiro",
+                "s": 0,
+                "g": 33
+            },
+            "58": {
+                "n": "Peixeiro",
+                "s": 0,
+                "g": 31
+            },
+            "60": {
+                "n": "Ferreiro de Escudo",
+                "s": 0,
+                "g": 40
+            },
+            "62": {
+                "n": "Sapateiro Mágico",
+                "s": 15,
+                "g": 36
+            },
+            "63": {
+                "n": "Joalheiro Mágico",
+                "s": 16,
+                "g": 37
+            },
+            "64": {
+                "n": "Alfaiate Mágico",
+                "s": 27,
+                "g": 35
+            },
+            "65": {
+                "n": "Marceneiro",
+                "s": 0,
+                "g": 34
+            },
+            "66": {
+                "n": "Joalheiro",
+                "s": 0,
+                "g": 0
+            },
+            "67": {
+                "n": "Joalheiro",
+                "s": 0,
+                "g": 0
+            },
+            "70": {
+                "n": "Fazendeiro",
+                "s": 0,
+                "g": 0
+            },
+            "71": {
+                "n": "Fazendeiro",
+                "s": 0,
+                "g": 0
+            },
+            "72": {
+                "n": "[NO TRAD]",
+                "s": 0,
+                "g": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 47,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "J",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

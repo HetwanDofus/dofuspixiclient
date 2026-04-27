@@ -1,0 +1,6404 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "HIC": {
+            "1": {
+                "n": "Class places",
+                "c": "Orange"
+            },
+            "2": {
+                "n": "Markets",
+                "c": "Blue"
+            },
+            "3": {
+                "n": "Workshops",
+                "c": "Green"
+            },
+            "4": {
+                "n": "Miscellaneous",
+                "c": "Beige"
+            },
+            "5": {
+                "n": "Conquest Territories",
+                "c": "Red"
+            },
+            "6": {
+                "n": "Dungeons",
+                "c": "Violet"
+            }
+        },
+        "HI": [
+            {
+                "n": "Pandala Sanctuary",
+                "c": 6,
+                "g": 422,
+                "m": 12280
+            },
+            {
+                "n": "Bherb's Gully",
+                "c": 6,
+                "g": 422,
+                "m": 11260
+            },
+            {
+                "n": "Kimbo's Canopy",
+                "c": 6,
+                "g": 422,
+                "m": 11136
+            },
+            {
+                "n": "Otomai's Ark",
+                "c": 6,
+                "g": 422,
+                "m": 11066
+            },
+            {
+                "n": "The Tynril Lab",
+                "c": 6,
+                "g": 422,
+                "m": 10807
+            },
+            {
+                "n": "Grotto Hesque",
+                "c": 6,
+                "g": 422,
+                "m": 10722
+            },
+            {
+                "n": "Lair of the Giant Kralove",
+                "c": 6,
+                "g": 422,
+                "m": 10700
+            },
+            {
+                "n": "Incarnam Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 10359
+            },
+            {
+                "n": "Sandy Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 10155
+            },
+            {
+                "n": "Kwismas Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 9946
+            },
+            {
+                "n": "The Dreggon's Sanctuary",
+                "c": 6,
+                "g": 422,
+                "m": 9788
+            },
+            {
+                "n": "Canidae Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 9787
+            },
+            {
+                "n": "Amakna Castle Rat Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 9638
+            },
+            {
+                "n": "Labyrinth of the Minotoror and the Minotot",
+                "c": 6,
+                "g": 422,
+                "m": 9538
+            },
+            {
+                "n": "Skeunk's Hideout",
+                "c": 6,
+                "g": 422,
+                "m": 9503
+            },
+            {
+                "n": "Bwork Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 9470
+            },
+            {
+                "n": "Treechnid and Soft Oak Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 9127
+            },
+            {
+                "n": "Pet Sanctuary",
+                "c": 6,
+                "g": 422,
+                "m": 9052
+            },
+            {
+                "n": "Koolich Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 8905
+            },
+            {
+                "n": "Firefoux Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 8467
+            },
+            {
+                "n": "Bulb Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 8244
+            },
+            {
+                "n": "Kitsoune Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 8236
+            },
+            {
+                "n": "Lair of the Pandikazes",
+                "c": 6,
+                "g": 422,
+                "m": 8167
+            },
+            {
+                "n": "Field Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 7453
+            },
+            {
+                "n": "Brakmar Rat Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 6738
+            },
+            {
+                "n": "Larva Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 6684
+            },
+            {
+                "n": "Bonta Rat Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 6536
+            },
+            {
+                "n": "Fungus Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 5044
+            },
+            {
+                "n": "Qu'Tan's Sanctuary",
+                "c": 6,
+                "g": 422,
+                "m": 4919
+            },
+            {
+                "n": "Bworker Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 4786
+            },
+            {
+                "n": "Blop Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 4416
+            },
+            {
+                "n": "Ilyzaelle's Lookout",
+                "c": 6,
+                "g": 422,
+                "m": 4383
+            },
+            {
+                "n": "Lord Crow's Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 2985
+            },
+            {
+                "n": "Gobball Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 1856
+            },
+            {
+                "n": "Moon Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 1764
+            },
+            {
+                "n": "Wabbit Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 1763
+            },
+            {
+                "n": "Dragon Pig's Den",
+                "c": 6,
+                "g": 422,
+                "m": 1399
+            },
+            {
+                "n": "Tofu and Royal Tofu Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 1384
+            },
+            {
+                "n": "Scaraleaf Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 1298
+            },
+            {
+                "n": "Skeleton Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 1186
+            },
+            {
+                "n": "Smith Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 1130
+            },
+            {
+                "n": "Wabbit Castle",
+                "c": 6,
+                "g": 422,
+                "m": 822
+            },
+            {
+                "n": "Crackler Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 749
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 11210
+            },
+            {
+                "n": "Scarplane",
+                "c": 4,
+                "g": 428,
+                "m": 11193
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 11170
+            },
+            {
+                "n": "Imp Carrier",
+                "c": 4,
+                "g": 412,
+                "m": 11157
+            },
+            {
+                "n": "Boat to Sufokia",
+                "c": 4,
+                "g": 413,
+                "m": 10836
+            },
+            {
+                "n": "Bank",
+                "c": 4,
+                "g": 401,
+                "m": 10746
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 10643
+            },
+            {
+                "n": "Scarplane",
+                "c": 4,
+                "g": 428,
+                "m": 10626
+            },
+            {
+                "n": "Scarplane",
+                "c": 4,
+                "g": 428,
+                "m": 10531
+            },
+            {
+                "n": "Scarplane",
+                "c": 4,
+                "g": 428,
+                "m": 10476
+            },
+            {
+                "n": "Imp Carrier",
+                "c": 4,
+                "g": 412,
+                "m": 10365
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 10349
+            },
+            {
+                "n": "Transportation to Astrub",
+                "c": 4,
+                "g": 412,
+                "m": 10318
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 10317
+            },
+            {
+                "n": "Militia",
+                "c": 4,
+                "g": 407,
+                "m": 10307
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 10304
+            },
+            {
+                "n": "Inn",
+                "c": 4,
+                "g": 408,
+                "m": 10302
+            },
+            {
+                "n": "Market Place",
+                "c": 4,
+                "g": 415,
+                "m": 10301
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 10297
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 10114
+            },
+            {
+                "n": "Boat to Madrestam Harbour",
+                "c": 4,
+                "g": 413,
+                "m": 9979
+            },
+            {
+                "n": "Imp Carrier",
+                "c": 4,
+                "g": 412,
+                "m": 9550
+            },
+            {
+                "n": "Boat to Cania Bay",
+                "c": 4,
+                "g": 413,
+                "m": 9541
+            },
+            {
+                "n": "Boat to Minotoror Island",
+                "c": 4,
+                "g": 413,
+                "m": 9520
+            },
+            {
+                "n": "Boat to Kwismas Island",
+                "c": 4,
+                "g": 413,
+                "m": 9468
+            },
+            {
+                "n": "Militia",
+                "c": 4,
+                "g": 407,
+                "m": 9458
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 9454
+            },
+            {
+                "n": "Boat to Otomai Island",
+                "c": 4,
+                "g": 413,
+                "m": 9402
+            },
+            {
+                "n": "Public Paddock",
+                "c": 4,
+                "g": 419,
+                "m": 8851
+            },
+            {
+                "n": "Public Paddock",
+                "c": 4,
+                "g": 419,
+                "m": 8848
+            },
+            {
+                "n": "Bank",
+                "c": 4,
+                "g": 401,
+                "m": 8800
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 8785
+            },
+            {
+                "n": "Library",
+                "c": 4,
+                "g": 417,
+                "m": 8760
+            },
+            {
+                "n": "Profession Information Centre",
+                "c": 4,
+                "g": 418,
+                "m": 8758
+            },
+            {
+                "n": "Profession Information Centre",
+                "c": 4,
+                "g": 418,
+                "m": 8755
+            },
+            {
+                "n": "Library",
+                "c": 4,
+                "g": 417,
+                "m": 8754
+            },
+            {
+                "n": "Public Paddock",
+                "c": 4,
+                "g": 419,
+                "m": 8752
+            },
+            {
+                "n": "Public Paddock",
+                "c": 4,
+                "g": 419,
+                "m": 8751
+            },
+            {
+                "n": "Public Paddock",
+                "c": 4,
+                "g": 419,
+                "m": 8750
+            },
+            {
+                "n": "Public Paddock",
+                "c": 4,
+                "g": 419,
+                "m": 8749
+            },
+            {
+                "n": "Public Paddock",
+                "c": 4,
+                "g": 419,
+                "m": 8748
+            },
+            {
+                "n": "Public Paddock",
+                "c": 4,
+                "g": 419,
+                "m": 8747
+            },
+            {
+                "n": "Public Paddock",
+                "c": 4,
+                "g": 419,
+                "m": 8746
+            },
+            {
+                "n": "Public Paddock",
+                "c": 4,
+                "g": 419,
+                "m": 8745
+            },
+            {
+                "n": "Public Paddock",
+                "c": 4,
+                "g": 419,
+                "m": 8744
+            },
+            {
+                "n": "Public Paddock",
+                "c": 4,
+                "g": 419,
+                "m": 8743
+            },
+            {
+                "n": "\"Cross arms\" Emote",
+                "c": 4,
+                "g": 423,
+                "m": 8538
+            },
+            {
+                "n": "Boat to Pandala Sanctuary",
+                "c": 4,
+                "g": 413,
+                "m": 8506
+            },
+            {
+                "n": "Arena",
+                "c": 4,
+                "g": 411,
+                "m": 8493
+            },
+            {
+                "n": "Arena",
+                "c": 4,
+                "g": 411,
+                "m": 8478
+            },
+            {
+                "n": "Dojo",
+                "c": 4,
+                "g": 414,
+                "m": 8471
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 8437
+            },
+            {
+                "n": "Imp Carrier",
+                "c": 4,
+                "g": 412,
+                "m": 8223
+            },
+            {
+                "n": "Boat to Madrestam Harbour",
+                "c": 4,
+                "g": 413,
+                "m": 8182
+            },
+            {
+                "n": "Dojo",
+                "c": 4,
+                "g": 414,
+                "m": 8170
+            },
+            {
+                "n": "\"Point\" Emote",
+                "c": 4,
+                "g": 423,
+                "m": 8167
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 8163
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 8125
+            },
+            {
+                "n": "Dojo",
+                "c": 4,
+                "g": 414,
+                "m": 8109
+            },
+            {
+                "n": "Dojo",
+                "c": 4,
+                "g": 414,
+                "m": 8090
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 8088
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 8037
+            },
+            {
+                "n": "Market Place",
+                "c": 4,
+                "g": 415,
+                "m": 8036
+            },
+            {
+                "n": "Dojo",
+                "c": 4,
+                "g": 414,
+                "m": 8027
+            },
+            {
+                "n": "Drunken Pandawa Inn",
+                "c": 4,
+                "g": 408,
+                "m": 8026
+            },
+            {
+                "n": "Library",
+                "c": 4,
+                "g": 417,
+                "m": 8014
+            },
+            {
+                "n": "Bank",
+                "c": 4,
+                "g": 401,
+                "m": 8012
+            },
+            {
+                "n": "Dofus Receptacle",
+                "c": 4,
+                "g": 429,
+                "m": 7893
+            },
+            {
+                "n": "Grocery Store",
+                "c": 4,
+                "g": 425,
+                "m": 7529
+            },
+            {
+                "n": "Inn",
+                "c": 4,
+                "g": 408,
+                "m": 7429
+            },
+            {
+                "n": "Bank",
+                "c": 4,
+                "g": 401,
+                "m": 7414
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 7411
+            },
+            {
+                "n": "Mercenaries' Lair",
+                "c": 4,
+                "g": 430,
+                "m": 7409
+            },
+            {
+                "n": "Market Place",
+                "c": 4,
+                "g": 415,
+                "m": 7396
+            },
+            {
+                "n": "Profession Information Centre",
+                "c": 4,
+                "g": 418,
+                "m": 7362
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 6954
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 6855
+            },
+            {
+                "n": "Imp Carrier",
+                "c": 4,
+                "g": 412,
+                "m": 6850
+            },
+            {
+                "n": "Mercenaries' Residence",
+                "c": 4,
+                "g": 430,
+                "m": 6175
+            },
+            {
+                "n": "Militia",
+                "c": 4,
+                "g": 407,
+                "m": 6159
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 6137
+            },
+            {
+                "n": "Bank",
+                "c": 4,
+                "g": 401,
+                "m": 5332
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 5295
+            },
+            {
+                "n": "Militia",
+                "c": 4,
+                "g": 407,
+                "m": 5116
+            },
+            {
+                "n": "Imp Carrier",
+                "c": 4,
+                "g": 412,
+                "m": 5015
+            },
+            {
+                "n": "Tower of Gisgoul",
+                "c": 4,
+                "g": 416,
+                "m": 4908
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 4739
+            },
+            {
+                "n": "Bwork Inn",
+                "c": 4,
+                "g": 408,
+                "m": 4637
+            },
+            {
+                "n": "Burnt Cat Inn",
+                "c": 4,
+                "g": 408,
+                "m": 4623
+            },
+            {
+                "n": "Misery Inn",
+                "c": 4,
+                "g": 408,
+                "m": 4612
+            },
+            {
+                "n": "Atolmond's Inn",
+                "c": 4,
+                "g": 408,
+                "m": 4604
+            },
+            {
+                "n": "Market Place",
+                "c": 4,
+                "g": 415,
+                "m": 4601
+            },
+            {
+                "n": "Grocery Store",
+                "c": 4,
+                "g": 425,
+                "m": 4582
+            },
+            {
+                "n": "Djaul Inn",
+                "c": 4,
+                "g": 408,
+                "m": 4579
+            },
+            {
+                "n": "Tower of Brakmar",
+                "c": 4,
+                "g": 416,
+                "m": 4551
+            },
+            {
+                "n": "Imp Carrier",
+                "c": 4,
+                "g": 412,
+                "m": 4413
+            },
+            {
+                "n": "Bank",
+                "c": 4,
+                "g": 401,
+                "m": 4308
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 4263
+            },
+            {
+                "n": "Market Place",
+                "c": 4,
+                "g": 415,
+                "m": 4259
+            },
+            {
+                "n": "Kikim Inn",
+                "c": 4,
+                "g": 408,
+                "m": 4238
+            },
+            {
+                "n": "Swashbuckler Inn",
+                "c": 4,
+                "g": 408,
+                "m": 4229
+            },
+            {
+                "n": "Tower of Orders",
+                "c": 4,
+                "g": 416,
+                "m": 4223
+            },
+            {
+                "n": "Bagrutte's Inn",
+                "c": 4,
+                "g": 408,
+                "m": 4218
+            },
+            {
+                "n": "Grocery Store",
+                "c": 4,
+                "g": 425,
+                "m": 4207
+            },
+            {
+                "n": "Woodenglass Inn",
+                "c": 4,
+                "g": 408,
+                "m": 4174
+            },
+            {
+                "n": "Atyu Sirvis' Inn",
+                "c": 4,
+                "g": 408,
+                "m": 4172
+            },
+            {
+                "n": "Feubuk Inn",
+                "c": 4,
+                "g": 408,
+                "m": 4090
+            },
+            {
+                "n": "Market Place",
+                "c": 4,
+                "g": 415,
+                "m": 3453
+            },
+            {
+                "n": "Gladiatrool",
+                "c": 4,
+                "g": 411,
+                "m": 3451
+            },
+            {
+                "n": "Gobbal Wheel",
+                "c": 4,
+                "g": 427,
+                "m": 3336
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 3250
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 3022
+            },
+            {
+                "n": "Pinchaut Inn",
+                "c": 4,
+                "g": 408,
+                "m": 2214
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 2191
+            },
+            {
+                "n": "Arena",
+                "c": 4,
+                "g": 411,
+                "m": 2184
+            },
+            {
+                "n": "The Temple of Guilds",
+                "c": 4,
+                "g": 405,
+                "m": 2056
+            },
+            {
+                "n": "Kanojedo",
+                "c": 4,
+                "g": 406,
+                "m": 2021
+            },
+            {
+                "n": "Bank",
+                "c": 4,
+                "g": 401,
+                "m": 1886
+            },
+            {
+                "n": "\"Show fear\" Emote",
+                "c": 4,
+                "g": 423,
+                "m": 1884
+            },
+            {
+                "n": "Ripate Inn",
+                "c": 4,
+                "g": 408,
+                "m": 1878
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 1841
+            },
+            {
+                "n": "Imp Carrier",
+                "c": 4,
+                "g": 412,
+                "m": 1669
+            },
+            {
+                "n": "\"Wave\" Emote",
+                "c": 4,
+                "g": 423,
+                "m": 1665
+            },
+            {
+                "n": "\"Show weapon\" Emote",
+                "c": 4,
+                "g": 423,
+                "m": 1663
+            },
+            {
+                "n": "Kanojedo",
+                "c": 4,
+                "g": 406,
+                "m": 1269
+            },
+            {
+                "n": "Imp Carrier",
+                "c": 4,
+                "g": 412,
+                "m": 1246
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 1242
+            },
+            {
+                "n": "\"Get mad\" Emote",
+                "c": 4,
+                "g": 423,
+                "m": 1213
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 1158
+            },
+            {
+                "n": "Bow Kennel",
+                "c": 4,
+                "g": 404,
+                "m": 1140
+            },
+            {
+                "n": "Imp Carrier",
+                "c": 4,
+                "g": 412,
+                "m": 1116
+            },
+            {
+                "n": "Cannon to Moon Island",
+                "c": 4,
+                "g": 402,
+                "m": 1014
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 951
+            },
+            {
+                "n": "Passage to Brakmar",
+                "c": 4,
+                "g": 424,
+                "m": 936
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 935
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 844
+            },
+            {
+                "n": "Boat to Madrestam Harbour",
+                "c": 4,
+                "g": 413,
+                "m": 833
+            },
+            {
+                "n": "Imp Carrier",
+                "c": 4,
+                "g": 412,
+                "m": 819
+            },
+            {
+                "n": "\"Applause\" Emote",
+                "c": 4,
+                "g": 423,
+                "m": 736
+            },
+            {
+                "n": "KEK Factory",
+                "c": 4,
+                "g": 409,
+                "m": 709
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 528
+            },
+            {
+                "n": "Church",
+                "c": 4,
+                "g": 403,
+                "m": 494
+            },
+            {
+                "n": "\"Rock, paper, scissors\" Emote",
+                "c": 4,
+                "g": 423,
+                "m": 464
+            },
+            {
+                "n": "Imp Carrier",
+                "c": 4,
+                "g": 412,
+                "m": 188
+            },
+            {
+                "n": "Boat to Wabbit Island",
+                "c": 4,
+                "g": 413,
+                "m": 167
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 164
+            },
+            {
+                "n": "Library",
+                "c": 4,
+                "g": 417,
+                "m": 51
+            },
+            {
+                "n": "Inn",
+                "c": 4,
+                "g": 408,
+                "m": 41
+            },
+            {
+                "n": "Bank",
+                "c": 4,
+                "g": 401,
+                "m": 40
+            },
+            {
+                "n": "Market Place",
+                "c": 4,
+                "g": 415,
+                "m": 38
+            },
+            {
+                "n": "Grocery Store",
+                "c": 4,
+                "g": 425,
+                "m": 38
+            },
+            {
+                "n": "\"Kiss\" Emote",
+                "c": 4,
+                "g": 423,
+                "m": 37
+            },
+            {
+                "n": "Market Place",
+                "c": 4,
+                "g": 415,
+                "m": 33
+            },
+            {
+                "n": "Kanojedo",
+                "c": 4,
+                "g": 406,
+                "m": 32
+            },
+            {
+                "n": "Farmers' Workshop",
+                "c": 3,
+                "g": 311,
+                "m": 11246
+            },
+            {
+                "n": "Farmers' Workshop",
+                "c": 3,
+                "g": 311,
+                "m": 11245
+            },
+            {
+                "n": "Alchemists' Workshop",
+                "c": 3,
+                "g": 301,
+                "m": 11243
+            },
+            {
+                "n": "Alchemists' Workshop",
+                "c": 3,
+                "g": 301,
+                "m": 11093
+            },
+            {
+                "n": "Butchers' Workshop",
+                "c": 3,
+                "g": 303,
+                "m": 10243
+            },
+            {
+                "n": "Smithmagi's Workshop",
+                "c": 3,
+                "g": 308,
+                "m": 8757
+            },
+            {
+                "n": "Smithmagi's Workshop",
+                "c": 3,
+                "g": 308,
+                "m": 8756
+            },
+            {
+                "n": "Lumberjacks' Workshop",
+                "c": 3,
+                "g": 305,
+                "m": 8359
+            },
+            {
+                "n": "Lumberjacks' Workshop",
+                "c": 3,
+                "g": 305,
+                "m": 8356
+            },
+            {
+                "n": "Lumberjacks' Workshop",
+                "c": 3,
+                "g": 305,
+                "m": 8337
+            },
+            {
+                "n": "Shield Smiths' Workshop",
+                "c": 3,
+                "g": 316,
+                "m": 8160
+            },
+            {
+                "n": "Shield Smiths' Workshop",
+                "c": 3,
+                "g": 316,
+                "m": 8117
+            },
+            {
+                "n": "Shield Smiths' Workshop",
+                "c": 3,
+                "g": 316,
+                "m": 8089
+            },
+            {
+                "n": "Lumberjacks' Workshop",
+                "c": 3,
+                "g": 305,
+                "m": 8038
+            },
+            {
+                "n": "Miners' Workshop",
+                "c": 3,
+                "g": 310,
+                "m": 7458
+            },
+            {
+                "n": "Farmers' Workshop",
+                "c": 3,
+                "g": 311,
+                "m": 7453
+            },
+            {
+                "n": "Smiths' Workshop",
+                "c": 3,
+                "g": 309,
+                "m": 7441
+            },
+            {
+                "n": "Jewellers' Workshop",
+                "c": 3,
+                "g": 302,
+                "m": 7430
+            },
+            {
+                "n": "Alchemists' Workshop",
+                "c": 3,
+                "g": 301,
+                "m": 7426
+            },
+            {
+                "n": "Bakers' Workshop",
+                "c": 3,
+                "g": 304,
+                "m": 7382
+            },
+            {
+                "n": "Carvers' Workshop",
+                "c": 3,
+                "g": 314,
+                "m": 7377
+            },
+            {
+                "n": "Fishermen and Fishmongers' Workshop",
+                "c": 3,
+                "g": 312,
+                "m": 7364
+            },
+            {
+                "n": "Tailors' Workshop",
+                "c": 3,
+                "g": 315,
+                "m": 7360
+            },
+            {
+                "n": "Lumberjacks' Workshop",
+                "c": 3,
+                "g": 305,
+                "m": 7357
+            },
+            {
+                "n": "Hunters and Butchers' Workshop",
+                "c": 3,
+                "g": 303,
+                "m": 7351
+            },
+            {
+                "n": "Shoemakers' Workshop",
+                "c": 3,
+                "g": 307,
+                "m": 7345
+            },
+            {
+                "n": "Fairywork Workshop",
+                "c": 3,
+                "g": 318,
+                "m": 6860
+            },
+            {
+                "n": "Fishmongers' Workshop",
+                "c": 3,
+                "g": 312,
+                "m": 6146
+            },
+            {
+                "n": "Smiths' Workshop",
+                "c": 3,
+                "g": 309,
+                "m": 6117
+            },
+            {
+                "n": "Fishermen and Fishmongers' Workshop",
+                "c": 3,
+                "g": 312,
+                "m": 5334
+            },
+            {
+                "n": "Miners' Workshop",
+                "c": 3,
+                "g": 310,
+                "m": 5304
+            },
+            {
+                "n": "Smiths' Workshop",
+                "c": 3,
+                "g": 309,
+                "m": 5277
+            },
+            {
+                "n": "Alchemists' Workshop",
+                "c": 3,
+                "g": 301,
+                "m": 4930
+            },
+            {
+                "n": "Bakers' Workshop",
+                "c": 3,
+                "g": 304,
+                "m": 4639
+            },
+            {
+                "n": "Handymen's Workshop",
+                "c": 3,
+                "g": 317,
+                "m": 4627
+            },
+            {
+                "n": "Jewellers' Workshop",
+                "c": 3,
+                "g": 302,
+                "m": 4620
+            },
+            {
+                "n": "Carvers' Workshop",
+                "c": 3,
+                "g": 314,
+                "m": 4612
+            },
+            {
+                "n": "Butchers' Workshop",
+                "c": 3,
+                "g": 303,
+                "m": 4604
+            },
+            {
+                "n": "Shoemakers' Workshop",
+                "c": 3,
+                "g": 307,
+                "m": 4579
+            },
+            {
+                "n": "Tailors' Workshop",
+                "c": 3,
+                "g": 315,
+                "m": 4549
+            },
+            {
+                "n": "Lumberjacks' Workshop",
+                "c": 3,
+                "g": 305,
+                "m": 4313
+            },
+            {
+                "n": "Shoemakers' Workshop",
+                "c": 3,
+                "g": 307,
+                "m": 4300
+            },
+            {
+                "n": "Alchemists' Workshop",
+                "c": 3,
+                "g": 301,
+                "m": 4272
+            },
+            {
+                "n": "Fishermen and Fishmongers' Workshop",
+                "c": 3,
+                "g": 312,
+                "m": 4250
+            },
+            {
+                "n": "Butchers' Workshop",
+                "c": 3,
+                "g": 303,
+                "m": 4240
+            },
+            {
+                "n": "Handymen's Workshop",
+                "c": 3,
+                "g": 317,
+                "m": 4232
+            },
+            {
+                "n": "Jewellers' Workshop",
+                "c": 3,
+                "g": 302,
+                "m": 4217
+            },
+            {
+                "n": "Carvers' Workshop",
+                "c": 3,
+                "g": 314,
+                "m": 4181
+            },
+            {
+                "n": "Miners' Workshop",
+                "c": 3,
+                "g": 310,
+                "m": 4180
+            },
+            {
+                "n": "Tailors' Workshop",
+                "c": 3,
+                "g": 315,
+                "m": 4106
+            },
+            {
+                "n": "Smiths' Workshop",
+                "c": 3,
+                "g": 309,
+                "m": 4074
+            },
+            {
+                "n": "Card Workshop",
+                "c": 3,
+                "g": 319,
+                "m": 3455
+            },
+            {
+                "n": "Farmers' Workshop",
+                "c": 3,
+                "g": 311,
+                "m": 2672
+            },
+            {
+                "n": "Bakers' Workshop",
+                "c": 3,
+                "g": 304,
+                "m": 2214
+            },
+            {
+                "n": "Smithmagi's Workshop",
+                "c": 3,
+                "g": 308,
+                "m": 2187
+            },
+            {
+                "n": "Fishermen and Fishmongers' Workshop",
+                "c": 3,
+                "g": 312,
+                "m": 1888
+            },
+            {
+                "n": "Jewellers' Workshop",
+                "c": 3,
+                "g": 302,
+                "m": 1684
+            },
+            {
+                "n": "Jewellers' Workshop",
+                "c": 3,
+                "g": 302,
+                "m": 1398
+            },
+            {
+                "n": "Miners' Workshop",
+                "c": 3,
+                "g": 310,
+                "m": 1397
+            },
+            {
+                "n": "Smiths' Workshop",
+                "c": 3,
+                "g": 309,
+                "m": 1397
+            },
+            {
+                "n": "Carvers' Workshop",
+                "c": 3,
+                "g": 314,
+                "m": 1392
+            },
+            {
+                "n": "Miners' Workshop",
+                "c": 3,
+                "g": 310,
+                "m": 1388
+            },
+            {
+                "n": "Bakers' Workshop",
+                "c": 3,
+                "g": 304,
+                "m": 1369
+            },
+            {
+                "n": "Bakers' Workshop",
+                "c": 3,
+                "g": 304,
+                "m": 1356
+            },
+            {
+                "n": "Farmers' Workshop",
+                "c": 3,
+                "g": 311,
+                "m": 1355
+            },
+            {
+                "n": "Farmers' Workshop",
+                "c": 3,
+                "g": 311,
+                "m": 1339
+            },
+            {
+                "n": "Lumberjacks' Workshop",
+                "c": 3,
+                "g": 305,
+                "m": 1314
+            },
+            {
+                "n": "Carvers' Workshop",
+                "c": 3,
+                "g": 314,
+                "m": 1299
+            },
+            {
+                "n": "Carvers' Workshop",
+                "c": 3,
+                "g": 314,
+                "m": 1109
+            },
+            {
+                "n": "Lumberjacks' Workshop",
+                "c": 3,
+                "g": 305,
+                "m": 1070
+            },
+            {
+                "n": "Smiths' Workshop",
+                "c": 3,
+                "g": 309,
+                "m": 1066
+            },
+            {
+                "n": "Smiths' Workshop",
+                "c": 3,
+                "g": 309,
+                "m": 942
+            },
+            {
+                "n": "Miners' Workshop",
+                "c": 3,
+                "g": 310,
+                "m": 933
+            },
+            {
+                "n": "Fishermen's Workshop",
+                "c": 3,
+                "g": 312,
+                "m": 766
+            },
+            {
+                "n": "Miners' Workshop",
+                "c": 3,
+                "g": 310,
+                "m": 714
+            },
+            {
+                "n": "Alchemists' Workshop",
+                "c": 3,
+                "g": 301,
+                "m": 643
+            },
+            {
+                "n": "Hunters' Workshop",
+                "c": 3,
+                "g": 306,
+                "m": 618
+            },
+            {
+                "n": "Bakers' Workshop",
+                "c": 3,
+                "g": 304,
+                "m": 579
+            },
+            {
+                "n": "Carvers' Workshop",
+                "c": 3,
+                "g": 314,
+                "m": 577
+            },
+            {
+                "n": "Lumberjacks' Workshop",
+                "c": 3,
+                "g": 305,
+                "m": 531
+            },
+            {
+                "n": "Farmers' Workshop",
+                "c": 3,
+                "g": 311,
+                "m": 524
+            },
+            {
+                "n": "Shoemakers' Workshop",
+                "c": 3,
+                "g": 307,
+                "m": 55
+            },
+            {
+                "n": "Bakers' Workshop",
+                "c": 3,
+                "g": 304,
+                "m": 49
+            },
+            {
+                "n": "Tailors' Workshop",
+                "c": 3,
+                "g": 315,
+                "m": 44
+            },
+            {
+                "n": "Jewellers' Workshop",
+                "c": 3,
+                "g": 302,
+                "m": 34
+            },
+            {
+                "n": "Scroll Market",
+                "c": 2,
+                "g": 221,
+                "m": 8760
+            },
+            {
+                "n": "Pet Market",
+                "c": 2,
+                "g": 218,
+                "m": 8759
+            },
+            {
+                "n": "Rune Market",
+                "c": 2,
+                "g": 220,
+                "m": 8757
+            },
+            {
+                "n": "Rune Market",
+                "c": 2,
+                "g": 220,
+                "m": 8756
+            },
+            {
+                "n": "Scroll Market",
+                "c": 2,
+                "g": 221,
+                "m": 8754
+            },
+            {
+                "n": "Pet Market",
+                "c": 2,
+                "g": 218,
+                "m": 8753
+            },
+            {
+                "n": "Soul Market",
+                "c": 2,
+                "g": 217,
+                "m": 8493
+            },
+            {
+                "n": "Soul Market",
+                "c": 2,
+                "g": 217,
+                "m": 8478
+            },
+            {
+                "n": "Shield Smiths' Market",
+                "c": 2,
+                "g": 216,
+                "m": 8039
+            },
+            {
+                "n": "Shoemakers' Market",
+                "c": 2,
+                "g": 207,
+                "m": 7602
+            },
+            {
+                "n": "Alchemists' Market",
+                "c": 2,
+                "g": 201,
+                "m": 7516
+            },
+            {
+                "n": "Butchers' Market",
+                "c": 2,
+                "g": 203,
+                "m": 7515
+            },
+            {
+                "n": "Jewellers' Market",
+                "c": 2,
+                "g": 202,
+                "m": 7514
+            },
+            {
+                "n": "Tailors' Market",
+                "c": 2,
+                "g": 215,
+                "m": 7513
+            },
+            {
+                "n": "Carvers' Market",
+                "c": 2,
+                "g": 214,
+                "m": 7512
+            },
+            {
+                "n": "Smiths' Market",
+                "c": 2,
+                "g": 208,
+                "m": 7511
+            },
+            {
+                "n": "Bakers' Market",
+                "c": 2,
+                "g": 204,
+                "m": 7510
+            },
+            {
+                "n": "Fishmongers' Market",
+                "c": 2,
+                "g": 212,
+                "m": 7501
+            },
+            {
+                "n": "Miners' Market",
+                "c": 2,
+                "g": 209,
+                "m": 7443
+            },
+            {
+                "n": "Handymen's Market",
+                "c": 2,
+                "g": 222,
+                "m": 7428
+            },
+            {
+                "n": "Resource Market",
+                "c": 2,
+                "g": 213,
+                "m": 7413
+            },
+            {
+                "n": "Farmers' Market",
+                "c": 2,
+                "g": 210,
+                "m": 7397
+            },
+            {
+                "n": "Hunters' Market",
+                "c": 2,
+                "g": 206,
+                "m": 7350
+            },
+            {
+                "n": "Fishermen's Market",
+                "c": 2,
+                "g": 211,
+                "m": 7348
+            },
+            {
+                "n": "Lumberjacks' Market",
+                "c": 2,
+                "g": 205,
+                "m": 7289
+            },
+            {
+                "n": "Linked Scroll Market",
+                "c": 2,
+                "g": 219,
+                "m": 6167
+            },
+            {
+                "n": "Linked Scroll Market",
+                "c": 2,
+                "g": 219,
+                "m": 6159
+            },
+            {
+                "n": "Smiths' Market",
+                "c": 2,
+                "g": 208,
+                "m": 5317
+            },
+            {
+                "n": "Miners' Market",
+                "c": 2,
+                "g": 209,
+                "m": 5311
+            },
+            {
+                "n": "Lumberjacks' Market",
+                "c": 2,
+                "g": 205,
+                "m": 5112
+            },
+            {
+                "n": "Resource Market",
+                "c": 2,
+                "g": 213,
+                "m": 4646
+            },
+            {
+                "n": "Bakers' Market",
+                "c": 2,
+                "g": 204,
+                "m": 4630
+            },
+            {
+                "n": "Farmers' Market",
+                "c": 2,
+                "g": 210,
+                "m": 4629
+            },
+            {
+                "n": "Handymen's Market",
+                "c": 2,
+                "g": 222,
+                "m": 4627
+            },
+            {
+                "n": "Jewellers' Market",
+                "c": 2,
+                "g": 202,
+                "m": 4622
+            },
+            {
+                "n": "Carvers' Market",
+                "c": 2,
+                "g": 214,
+                "m": 4618
+            },
+            {
+                "n": "Fishermen and Fishmongers' Market",
+                "c": 2,
+                "g": 212,
+                "m": 4615
+            },
+            {
+                "n": "Alchemists' Market",
+                "c": 2,
+                "g": 201,
+                "m": 4607
+            },
+            {
+                "n": "Butchers and Hunters' Market",
+                "c": 2,
+                "g": 203,
+                "m": 4595
+            },
+            {
+                "n": "Tailors' Market",
+                "c": 2,
+                "g": 215,
+                "m": 4588
+            },
+            {
+                "n": "Shoemakers' Market",
+                "c": 2,
+                "g": 207,
+                "m": 4562
+            },
+            {
+                "n": "Farmers' Market",
+                "c": 2,
+                "g": 210,
+                "m": 4299
+            },
+            {
+                "n": "Butchers and Hunters' Market",
+                "c": 2,
+                "g": 203,
+                "m": 4287
+            },
+            {
+                "n": "Alchemists' Market",
+                "c": 2,
+                "g": 201,
+                "m": 4271
+            },
+            {
+                "n": "Resource Market",
+                "c": 2,
+                "g": 213,
+                "m": 4262
+            },
+            {
+                "n": "Fishermen and Fishmongers' Market",
+                "c": 2,
+                "g": 212,
+                "m": 4247
+            },
+            {
+                "n": "Handymen's Market",
+                "c": 2,
+                "g": 222,
+                "m": 4232
+            },
+            {
+                "n": "Jewellers' Market",
+                "c": 2,
+                "g": 202,
+                "m": 4216
+            },
+            {
+                "n": "Shoemakers' Market",
+                "c": 2,
+                "g": 207,
+                "m": 4183
+            },
+            {
+                "n": "Miners' Market",
+                "c": 2,
+                "g": 209,
+                "m": 4179
+            },
+            {
+                "n": "Lumberjacks' Market",
+                "c": 2,
+                "g": 205,
+                "m": 4178
+            },
+            {
+                "n": "Carvers' Market",
+                "c": 2,
+                "g": 214,
+                "m": 4174
+            },
+            {
+                "n": "Tailors' Market",
+                "c": 2,
+                "g": 215,
+                "m": 4172
+            },
+            {
+                "n": "Smiths' Market",
+                "c": 2,
+                "g": 208,
+                "m": 4098
+            },
+            {
+                "n": "Fairywork Market",
+                "c": 2,
+                "g": 223,
+                "m": 3412
+            },
+            {
+                "n": "Bakers' Market",
+                "c": 2,
+                "g": 204,
+                "m": 2221
+            },
+            {
+                "n": "The Temple of Pandawa",
+                "c": 1,
+                "g": 120,
+                "m": 8207
+            },
+            {
+                "n": "Pandawa Statue ",
+                "c": 1,
+                "g": 120,
+                "m": 8035
+            },
+            {
+                "n": "Osamodas Statue ",
+                "c": 1,
+                "g": 20,
+                "m": 7545
+            },
+            {
+                "n": "Ecaflip Statue",
+                "c": 1,
+                "g": 60,
+                "m": 7446
+            },
+            {
+                "n": "Enutrof Statue ",
+                "c": 1,
+                "g": 30,
+                "m": 7442
+            },
+            {
+                "n": "Iop Statue",
+                "c": 1,
+                "g": 80,
+                "m": 7427
+            },
+            {
+                "n": "Feca Statue",
+                "c": 1,
+                "g": 10,
+                "m": 7398
+            },
+            {
+                "n": "Sadida Statue ",
+                "c": 1,
+                "g": 100,
+                "m": 7395
+            },
+            {
+                "n": "Sram Statue ",
+                "c": 1,
+                "g": 40,
+                "m": 7392
+            },
+            {
+                "n": "Cra Statue",
+                "c": 1,
+                "g": 90,
+                "m": 7378
+            },
+            {
+                "n": "Eniripsa Statue ",
+                "c": 1,
+                "g": 70,
+                "m": 7361
+            },
+            {
+                "n": "Sacrier Statue ",
+                "c": 1,
+                "g": 110,
+                "m": 7336
+            },
+            {
+                "n": "Xelor Statue",
+                "c": 1,
+                "g": 50,
+                "m": 7332
+            },
+            {
+                "n": "The Temple of Sacrier",
+                "c": 1,
+                "g": 110,
+                "m": 2061
+            },
+            {
+                "n": "The Temple of Ecaflip",
+                "c": 1,
+                "g": 60,
+                "m": 744
+            },
+            {
+                "n": "The Temple of Sram",
+                "c": 1,
+                "g": 40,
+                "m": 690
+            },
+            {
+                "n": "The Temple of Enutrof",
+                "c": 1,
+                "g": 30,
+                "m": 686
+            },
+            {
+                "n": "The Temple of Sadida",
+                "c": 1,
+                "g": 100,
+                "m": 684
+            },
+            {
+                "n": "The Temple of Cra",
+                "c": 1,
+                "g": 90,
+                "m": 540
+            },
+            {
+                "n": "The Temple of Iop",
+                "c": 1,
+                "g": 80,
+                "m": 518
+            },
+            {
+                "n": "The Temple of Osamodas",
+                "c": 1,
+                "g": 20,
+                "m": 490
+            },
+            {
+                "n": "The Temple of Eniripsa",
+                "c": 1,
+                "g": 70,
+                "m": 487
+            },
+            {
+                "n": "The Temple of Feca",
+                "c": 1,
+                "g": 10,
+                "m": 177
+            },
+            {
+                "n": "The Temple of Xelor",
+                "c": 1,
+                "g": 50,
+                "m": 50
+            }
+        ],
+        "HIN": [
+            {
+                "x": 4,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Resource Market",
+                        "c": 2,
+                        "g": 213,
+                        "m": 7413
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": 32,
+                "h": [
+                    {
+                        "n": "Atolmond's Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4604
+                    },
+                    {
+                        "n": "Butchers' Workshop",
+                        "c": 3,
+                        "g": 303,
+                        "m": 4604
+                    }
+                ]
+            },
+            {
+                "x": 18,
+                "y": -33,
+                "h": [
+                    {
+                        "n": "Dojo",
+                        "c": 4,
+                        "g": 414,
+                        "m": 8170
+                    }
+                ]
+            },
+            {
+                "x": -14,
+                "y": 16,
+                "h": [
+                    {
+                        "n": "Qu'Tan's Sanctuary",
+                        "c": 6,
+                        "g": 422,
+                        "m": 4919
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": 32,
+                "h": [
+                    {
+                        "n": "Butchers and Hunters' Market",
+                        "c": 2,
+                        "g": 203,
+                        "m": 4595
+                    }
+                ]
+            },
+            {
+                "x": -20,
+                "y": 33,
+                "h": [
+                    {
+                        "n": "Miners' Workshop",
+                        "c": 3,
+                        "g": 310,
+                        "m": 5304
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 7429
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": 32,
+                "h": [
+                    {
+                        "n": "Market Place",
+                        "c": 4,
+                        "g": 415,
+                        "m": 4601
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Jewellers' Market",
+                        "c": 2,
+                        "g": 202,
+                        "m": 7514
+                    }
+                ]
+            },
+            {
+                "x": -25,
+                "y": 33,
+                "h": [
+                    {
+                        "n": "Resource Market",
+                        "c": 2,
+                        "g": 213,
+                        "m": 4646
+                    }
+                ]
+            },
+            {
+                "x": -22,
+                "y": 32,
+                "h": [
+                    {
+                        "n": "Bakers' Workshop",
+                        "c": 3,
+                        "g": 304,
+                        "m": 4639
+                    }
+                ]
+            },
+            {
+                "x": -5,
+                "y": -8,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 2191
+                    }
+                ]
+            },
+            {
+                "x": 17,
+                "y": -32,
+                "h": [
+                    {
+                        "n": "Lumberjacks' Workshop",
+                        "c": 3,
+                        "g": 305,
+                        "m": 8337
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": 8,
+                "h": [
+                    {
+                        "n": "Lumberjacks' Workshop",
+                        "c": 3,
+                        "g": 305,
+                        "m": 531
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 2,
+                "h": [
+                    {
+                        "n": "Smiths' Workshop",
+                        "c": 3,
+                        "g": 309,
+                        "m": 942
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "\"Kiss\" Emote",
+                        "c": 4,
+                        "g": 423,
+                        "m": 37
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": -2,
+                "h": [
+                    {
+                        "n": "KEK Factory",
+                        "c": 4,
+                        "g": 409,
+                        "m": 709
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Fishmongers' Market",
+                        "c": 2,
+                        "g": 212,
+                        "m": 7501
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Fishermen and Fishmongers' Workshop",
+                        "c": 3,
+                        "g": 312,
+                        "m": 7364
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 9,
+                "h": [
+                    {
+                        "n": "The Temple of Sadida",
+                        "c": 1,
+                        "g": 100,
+                        "m": 684
+                    }
+                ]
+            },
+            {
+                "x": 17,
+                "y": -34,
+                "h": [
+                    {
+                        "n": "Shield Smiths' Workshop",
+                        "c": 3,
+                        "g": 316,
+                        "m": 8160
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -9,
+                "h": [
+                    {
+                        "n": "The Temple of Guilds",
+                        "c": 4,
+                        "g": 405,
+                        "m": 2056
+                    }
+                ]
+            },
+            {
+                "x": 7,
+                "y": -4,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 164
+                    }
+                ]
+            },
+            {
+                "x": 7,
+                "y": 4,
+                "h": [
+                    {
+                        "n": "Transportation to Astrub",
+                        "c": 4,
+                        "g": 412,
+                        "m": 10318
+                    }
+                ]
+            },
+            {
+                "x": -20,
+                "y": 34,
+                "h": [
+                    {
+                        "n": "Miners' Market",
+                        "c": 2,
+                        "g": 209,
+                        "m": 5311
+                    }
+                ]
+            },
+            {
+                "x": -21,
+                "y": 34,
+                "h": [
+                    {
+                        "n": "Smiths' Workshop",
+                        "c": 3,
+                        "g": 309,
+                        "m": 5277
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": 4,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 10317
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Farmers' Market",
+                        "c": 2,
+                        "g": 210,
+                        "m": 7397
+                    }
+                ]
+            },
+            {
+                "x": 24,
+                "y": -34,
+                "h": [
+                    {
+                        "n": "Library",
+                        "c": 4,
+                        "g": 417,
+                        "m": 8014
+                    }
+                ]
+            },
+            {
+                "x": 25,
+                "y": -34,
+                "h": [
+                    {
+                        "n": "Dojo",
+                        "c": 4,
+                        "g": 414,
+                        "m": 8027
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": 34,
+                "h": [
+                    {
+                        "n": "Grocery Store",
+                        "c": 4,
+                        "g": 425,
+                        "m": 4582
+                    }
+                ]
+            },
+            {
+                "x": -2,
+                "y": -8,
+                "h": [
+                    {
+                        "n": "The Temple of Sacrier",
+                        "c": 1,
+                        "g": 110,
+                        "m": 2061
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "Market Place",
+                        "c": 4,
+                        "g": 415,
+                        "m": 38
+                    },
+                    {
+                        "n": "Grocery Store",
+                        "c": 4,
+                        "g": 425,
+                        "m": 38
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": 4,
+                "h": [
+                    {
+                        "n": "Kanojedo",
+                        "c": 4,
+                        "g": 406,
+                        "m": 2021
+                    }
+                ]
+            },
+            {
+                "x": 31,
+                "y": 8,
+                "h": [
+                    {
+                        "n": "Moon Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1764
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -34,
+                "h": [
+                    {
+                        "n": "Gobball Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1856
+                    }
+                ]
+            },
+            {
+                "x": -59,
+                "y": 15,
+                "h": [
+                    {
+                        "n": "Grotto Hesque",
+                        "c": 6,
+                        "g": 422,
+                        "m": 10722
+                    }
+                ]
+            },
+            {
+                "x": -21,
+                "y": 35,
+                "h": [
+                    {
+                        "n": "Smiths' Market",
+                        "c": 2,
+                        "g": 208,
+                        "m": 5317
+                    }
+                ]
+            },
+            {
+                "x": -23,
+                "y": 35,
+                "h": [
+                    {
+                        "n": "Tailors' Market",
+                        "c": 2,
+                        "g": 215,
+                        "m": 4588
+                    }
+                ]
+            },
+            {
+                "x": -55,
+                "y": 15,
+                "h": [
+                    {
+                        "n": "Alchemists' Workshop",
+                        "c": 3,
+                        "g": 301,
+                        "m": 11243
+                    }
+                ]
+            },
+            {
+                "x": -54,
+                "y": 15,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 11170
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Feca Statue",
+                        "c": 1,
+                        "g": 10,
+                        "m": 7398
+                    }
+                ]
+            },
+            {
+                "x": -53,
+                "y": 15,
+                "h": [
+                    {
+                        "n": "Imp Carrier",
+                        "c": 4,
+                        "g": 412,
+                        "m": 11157
+                    }
+                ]
+            },
+            {
+                "x": 25,
+                "y": -35,
+                "h": [
+                    {
+                        "n": "Drunken Pandawa Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 8026
+                    }
+                ]
+            },
+            {
+                "x": -24,
+                "y": 35,
+                "h": [
+                    {
+                        "n": "Tailors' Workshop",
+                        "c": 3,
+                        "g": 315,
+                        "m": 4549
+                    }
+                ]
+            },
+            {
+                "x": -25,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Blop Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 4416
+                    }
+                ]
+            },
+            {
+                "x": 26,
+                "y": -35,
+                "h": [
+                    {
+                        "n": "Shield Smiths' Market",
+                        "c": 2,
+                        "g": 216,
+                        "m": 8039
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": 35,
+                "h": [
+                    {
+                        "n": "Tower of Brakmar",
+                        "c": 4,
+                        "g": 416,
+                        "m": 4551
+                    }
+                ]
+            },
+            {
+                "x": -28,
+                "y": 35,
+                "h": [
+                    {
+                        "n": "Handymen's Workshop",
+                        "c": 3,
+                        "g": 317,
+                        "m": 4627
+                    },
+                    {
+                        "n": "Handymen's Market",
+                        "c": 2,
+                        "g": 222,
+                        "m": 4627
+                    }
+                ]
+            },
+            {
+                "x": -17,
+                "y": 8,
+                "h": [
+                    {
+                        "n": "Koolich Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 8905
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Hunters' Market",
+                        "c": 2,
+                        "g": 206,
+                        "m": 7350
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Bakers' Workshop",
+                        "c": 3,
+                        "g": 304,
+                        "m": 7382
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": 35,
+                "h": [
+                    {
+                        "n": "Public Paddock",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8851
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": 33,
+                "h": [
+                    {
+                        "n": "Miners' Workshop",
+                        "c": 3,
+                        "g": 310,
+                        "m": 1388
+                    }
+                ]
+            },
+            {
+                "x": 18,
+                "y": -36,
+                "h": [
+                    {
+                        "n": "Lair of the Pandikazes",
+                        "c": 6,
+                        "g": 422,
+                        "m": 8167
+                    },
+                    {
+                        "n": "\"Point\" Emote",
+                        "c": 4,
+                        "g": 423,
+                        "m": 8167
+                    }
+                ]
+            },
+            {
+                "x": -20,
+                "y": 36,
+                "h": [
+                    {
+                        "n": "Smiths' Workshop",
+                        "c": 3,
+                        "g": 309,
+                        "m": 6117
+                    }
+                ]
+            },
+            {
+                "x": -23,
+                "y": 36,
+                "h": [
+                    {
+                        "n": "Djaul Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4579
+                    },
+                    {
+                        "n": "Shoemakers' Workshop",
+                        "c": 3,
+                        "g": 307,
+                        "m": 4579
+                    }
+                ]
+            },
+            {
+                "x": 25,
+                "y": -4,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 844
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Ecaflip Statue",
+                        "c": 1,
+                        "g": 60,
+                        "m": 7446
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": 16,
+                "h": [
+                    {
+                        "n": "Lumberjacks' Workshop",
+                        "c": 3,
+                        "g": 305,
+                        "m": 1070
+                    }
+                ]
+            },
+            {
+                "x": -24,
+                "y": 36,
+                "h": [
+                    {
+                        "n": "Shoemakers' Market",
+                        "c": 2,
+                        "g": 207,
+                        "m": 4562
+                    }
+                ]
+            },
+            {
+                "x": 24,
+                "y": -36,
+                "h": [
+                    {
+                        "n": "Bank",
+                        "c": 4,
+                        "g": 401,
+                        "m": 8012
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": 36,
+                "h": [
+                    {
+                        "n": "Alchemists' Market",
+                        "c": 2,
+                        "g": 201,
+                        "m": 4607
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Jewellers' Workshop",
+                        "c": 3,
+                        "g": 302,
+                        "m": 7430
+                    }
+                ]
+            },
+            {
+                "x": 26,
+                "y": -36,
+                "h": [
+                    {
+                        "n": "Lumberjacks' Workshop",
+                        "c": 3,
+                        "g": 305,
+                        "m": 8038
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": 36,
+                "h": [
+                    {
+                        "n": "Public Paddock",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8748
+                    }
+                ]
+            },
+            {
+                "x": -31,
+                "y": 36,
+                "h": [
+                    {
+                        "n": "Public Paddock",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8750
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": 32,
+                "h": [
+                    {
+                        "n": "Jewellers' Workshop",
+                        "c": 3,
+                        "g": 302,
+                        "m": 1684
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Bank",
+                        "c": 4,
+                        "g": 401,
+                        "m": 7414
+                    }
+                ]
+            },
+            {
+                "x": 30,
+                "y": -36,
+                "h": [
+                    {
+                        "n": "Dojo",
+                        "c": 4,
+                        "g": 414,
+                        "m": 8090
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": 36,
+                "h": [
+                    {
+                        "n": "Public Paddock",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8749
+                    }
+                ]
+            },
+            {
+                "x": -16,
+                "y": 4,
+                "h": [
+                    {
+                        "n": "Bank",
+                        "c": 4,
+                        "g": 401,
+                        "m": 8800
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Profession Information Centre",
+                        "c": 4,
+                        "g": 418,
+                        "m": 7362
+                    }
+                ]
+            },
+            {
+                "x": -57,
+                "y": 4,
+                "h": [
+                    {
+                        "n": "Scarplane",
+                        "c": 4,
+                        "g": 428,
+                        "m": 10626
+                    }
+                ]
+            },
+            {
+                "x": -55,
+                "y": -4,
+                "h": [
+                    {
+                        "n": "Otomai's Ark",
+                        "c": 6,
+                        "g": 422,
+                        "m": 11066
+                    }
+                ]
+            },
+            {
+                "x": 10,
+                "y": 15,
+                "h": [
+                    {
+                        "n": "Skeleton Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1186
+                    }
+                ]
+            },
+            {
+                "x": 35,
+                "y": 4,
+                "h": [
+                    {
+                        "n": "Imp Carrier",
+                        "c": 4,
+                        "g": 412,
+                        "m": 1116
+                    }
+                ]
+            },
+            {
+                "x": -60,
+                "y": -8,
+                "h": [
+                    {
+                        "n": "Lair of the Giant Kralove",
+                        "c": 6,
+                        "g": 422,
+                        "m": 10700
+                    }
+                ]
+            },
+            {
+                "x": -42,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Labyrinth of the Minotoror and the Minotot",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9538
+                    }
+                ]
+            },
+            {
+                "x": -20,
+                "y": -62,
+                "h": [
+                    {
+                        "n": "Lord Crow's Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 2985
+                    }
+                ]
+            },
+            {
+                "x": 11,
+                "y": 30,
+                "h": [
+                    {
+                        "n": "Imp Carrier",
+                        "c": 4,
+                        "g": 412,
+                        "m": 10365
+                    }
+                ]
+            },
+            {
+                "x": -34,
+                "y": -8,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 6137
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -5,
+                "h": [
+                    {
+                        "n": "The Temple of Ecaflip",
+                        "c": 1,
+                        "g": 60,
+                        "m": 744
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 5,
+                "h": [
+                    {
+                        "n": "Miners' Workshop",
+                        "c": 3,
+                        "g": 310,
+                        "m": 933
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -21,
+                "h": [
+                    {
+                        "n": "Eniripsa Statue ",
+                        "c": 1,
+                        "g": 70,
+                        "m": 7361
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": 31,
+                "h": [
+                    {
+                        "n": "Brakmar Rat Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 6738
+                    }
+                ]
+            },
+            {
+                "x": -54,
+                "y": 16,
+                "h": [
+                    {
+                        "n": "Kimbo's Canopy",
+                        "c": 6,
+                        "g": 422,
+                        "m": 11136
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -15,
+                "h": [
+                    {
+                        "n": "Bakers' Market",
+                        "c": 2,
+                        "g": 204,
+                        "m": 7510
+                    }
+                ]
+            },
+            {
+                "x": -24,
+                "y": 31,
+                "h": [
+                    {
+                        "n": "Bakers' Market",
+                        "c": 2,
+                        "g": 204,
+                        "m": 4630
+                    }
+                ]
+            },
+            {
+                "x": -25,
+                "y": 31,
+                "h": [
+                    {
+                        "n": "Farmers' Market",
+                        "c": 2,
+                        "g": 210,
+                        "m": 4629
+                    }
+                ]
+            },
+            {
+                "x": -22,
+                "y": 31,
+                "h": [
+                    {
+                        "n": "Bwork Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4637
+                    }
+                ]
+            },
+            {
+                "x": -43,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Boat to Cania Bay",
+                        "c": 4,
+                        "g": 413,
+                        "m": 9541
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": 30,
+                "h": [
+                    {
+                        "n": "Lumberjacks' Workshop",
+                        "c": 3,
+                        "g": 305,
+                        "m": 1314
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -15,
+                "h": [
+                    {
+                        "n": "Hunters and Butchers' Workshop",
+                        "c": 3,
+                        "g": 303,
+                        "m": 7351
+                    }
+                ]
+            },
+            {
+                "x": 17,
+                "y": -31,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 8163
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": 30,
+                "h": [
+                    {
+                        "n": "Carvers' Workshop",
+                        "c": 3,
+                        "g": 314,
+                        "m": 1299
+                    }
+                ]
+            },
+            {
+                "x": -28,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Miners' Workshop",
+                        "c": 3,
+                        "g": 310,
+                        "m": 4180
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Shoemakers' Market",
+                        "c": 2,
+                        "g": 207,
+                        "m": 4183
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Shoemakers' Workshop",
+                        "c": 3,
+                        "g": 307,
+                        "m": 4300
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -22,
+                "h": [
+                    {
+                        "n": "Tailors' Workshop",
+                        "c": 3,
+                        "g": 315,
+                        "m": 7360
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": 29,
+                "h": [
+                    {
+                        "n": "Carvers' Workshop",
+                        "c": 3,
+                        "g": 314,
+                        "m": 1392
+                    }
+                ]
+            },
+            {
+                "x": -38,
+                "y": -56,
+                "h": [
+                    {
+                        "n": "Public Paddock",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8745
+                    }
+                ]
+            },
+            {
+                "x": -36,
+                "y": -56,
+                "h": [
+                    {
+                        "n": "Library",
+                        "c": 4,
+                        "g": 417,
+                        "m": 8760
+                    },
+                    {
+                        "n": "Scroll Market",
+                        "c": 2,
+                        "g": 221,
+                        "m": 8760
+                    }
+                ]
+            },
+            {
+                "x": -37,
+                "y": -56,
+                "h": [
+                    {
+                        "n": "Public Paddock",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8746
+                    }
+                ]
+            },
+            {
+                "x": -18,
+                "y": 28,
+                "h": [
+                    {
+                        "n": "Fungus Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 5044
+                    }
+                ]
+            },
+            {
+                "x": -9,
+                "y": -14,
+                "h": [
+                    {
+                        "n": "Treechnid and Soft Oak Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9127
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": 7,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 528
+                    }
+                ]
+            },
+            {
+                "x": -28,
+                "y": -58,
+                "h": [
+                    {
+                        "n": "Miners' Market",
+                        "c": 2,
+                        "g": 209,
+                        "m": 4179
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": -58,
+                "h": [
+                    {
+                        "n": "Bank",
+                        "c": 4,
+                        "g": 401,
+                        "m": 4308
+                    }
+                ]
+            },
+            {
+                "x": 13,
+                "y": -28,
+                "h": [
+                    {
+                        "n": "Sandy Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 10155
+                    }
+                ]
+            },
+            {
+                "x": -3,
+                "y": -7,
+                "h": [
+                    {
+                        "n": "Crackler Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 749
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": 29,
+                "h": [
+                    {
+                        "n": "Miners' Workshop",
+                        "c": 3,
+                        "g": 310,
+                        "m": 1397
+                    },
+                    {
+                        "n": "Smiths' Workshop",
+                        "c": 3,
+                        "g": 309,
+                        "m": 1397
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": -58,
+                "h": [
+                    {
+                        "n": "Swashbuckler Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4229
+                    }
+                ]
+            },
+            {
+                "x": -38,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Smithmagi's Workshop",
+                        "c": 3,
+                        "g": 308,
+                        "m": 8757
+                    },
+                    {
+                        "n": "Rune Market",
+                        "c": 2,
+                        "g": 220,
+                        "m": 8757
+                    }
+                ]
+            },
+            {
+                "x": -36,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Pet Market",
+                        "c": 2,
+                        "g": 218,
+                        "m": 8759
+                    }
+                ]
+            },
+            {
+                "x": -37,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Profession Information Centre",
+                        "c": 4,
+                        "g": 418,
+                        "m": 8758
+                    }
+                ]
+            },
+            {
+                "x": -35,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Fishermen and Fishmongers' Market",
+                        "c": 2,
+                        "g": 212,
+                        "m": 4247
+                    }
+                ]
+            },
+            {
+                "x": -33,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Alchemists' Market",
+                        "c": 2,
+                        "g": 201,
+                        "m": 4271
+                    }
+                ]
+            },
+            {
+                "x": -32,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Alchemists' Workshop",
+                        "c": 3,
+                        "g": 301,
+                        "m": 4272
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": 29,
+                "h": [
+                    {
+                        "n": "Jewellers' Workshop",
+                        "c": 3,
+                        "g": 302,
+                        "m": 1398
+                    }
+                ]
+            },
+            {
+                "x": 28,
+                "y": -59,
+                "h": [
+                    {
+                        "n": "Pandala Sanctuary",
+                        "c": 6,
+                        "g": 422,
+                        "m": 12280
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -59,
+                "h": [
+                    {
+                        "n": "Carvers' Workshop",
+                        "c": 3,
+                        "g": 314,
+                        "m": 4181
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": -59,
+                "h": [
+                    {
+                        "n": "Handymen's Workshop",
+                        "c": 3,
+                        "g": 317,
+                        "m": 4232
+                    },
+                    {
+                        "n": "Handymen's Market",
+                        "c": 2,
+                        "g": 222,
+                        "m": 4232
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": 23,
+                "h": [
+                    {
+                        "n": "Farmers' Workshop",
+                        "c": 3,
+                        "g": 311,
+                        "m": 1355
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 23,
+                "h": [
+                    {
+                        "n": "Bakers' Workshop",
+                        "c": 3,
+                        "g": 304,
+                        "m": 1356
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": 29,
+                "h": [
+                    {
+                        "n": "Imp Carrier",
+                        "c": 4,
+                        "g": 412,
+                        "m": 5015
+                    }
+                ]
+            },
+            {
+                "x": -21,
+                "y": -29,
+                "h": [
+                    {
+                        "n": "Ilyzaelle's Lookout",
+                        "c": 6,
+                        "g": 422,
+                        "m": 4383
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -14,
+                "h": [
+                    {
+                        "n": "Butchers' Market",
+                        "c": 2,
+                        "g": 203,
+                        "m": 7515
+                    }
+                ]
+            },
+            {
+                "x": -35,
+                "y": -54,
+                "h": [
+                    {
+                        "n": "Fishermen and Fishmongers' Workshop",
+                        "c": 3,
+                        "g": 312,
+                        "m": 4250
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": -60,
+                "h": [
+                    {
+                        "n": "Woodenglass Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4174
+                    },
+                    {
+                        "n": "Carvers' Market",
+                        "c": 2,
+                        "g": 214,
+                        "m": 4174
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -60,
+                "h": [
+                    {
+                        "n": "Lumberjacks' Market",
+                        "c": 2,
+                        "g": 205,
+                        "m": 4178
+                    }
+                ]
+            },
+            {
+                "x": 12,
+                "y": 29,
+                "h": [
+                    {
+                        "n": "Boat to Otomai Island",
+                        "c": 4,
+                        "g": 413,
+                        "m": 9402
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": -60,
+                "h": [
+                    {
+                        "n": "Arena",
+                        "c": 4,
+                        "g": 411,
+                        "m": 8478
+                    },
+                    {
+                        "n": "Soul Market",
+                        "c": 2,
+                        "g": 217,
+                        "m": 8478
+                    }
+                ]
+            },
+            {
+                "x": -36,
+                "y": -53,
+                "h": [
+                    {
+                        "n": "Butchers' Workshop",
+                        "c": 3,
+                        "g": 303,
+                        "m": 10243
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -53,
+                "h": [
+                    {
+                        "n": "Tower of Orders",
+                        "c": 4,
+                        "g": 416,
+                        "m": 4223
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 24,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 1242
+                    }
+                ]
+            },
+            {
+                "x": -17,
+                "y": -26,
+                "h": [
+                    {
+                        "n": "Imp Carrier",
+                        "c": 4,
+                        "g": 412,
+                        "m": 6850
+                    }
+                ]
+            },
+            {
+                "x": -18,
+                "y": -26,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 6855
+                    }
+                ]
+            },
+            {
+                "x": -33,
+                "y": -60,
+                "h": [
+                    {
+                        "n": "Jewellers' Market",
+                        "c": 2,
+                        "g": 202,
+                        "m": 4216
+                    }
+                ]
+            },
+            {
+                "x": -32,
+                "y": -60,
+                "h": [
+                    {
+                        "n": "Bagrutte's Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4218
+                    }
+                ]
+            },
+            {
+                "x": 24,
+                "y": -13,
+                "h": [
+                    {
+                        "n": "Wabbit Castle",
+                        "c": 6,
+                        "g": 422,
+                        "m": 822
+                    }
+                ]
+            },
+            {
+                "x": -3,
+                "y": 27,
+                "h": [
+                    {
+                        "n": "Imp Carrier",
+                        "c": 4,
+                        "g": 412,
+                        "m": 1246
+                    }
+                ]
+            },
+            {
+                "x": 14,
+                "y": 26,
+                "h": [
+                    {
+                        "n": "Fishermen and Fishmongers' Workshop",
+                        "c": 3,
+                        "g": 312,
+                        "m": 1888
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": -54,
+                "h": [
+                    {
+                        "n": "Farmers' Market",
+                        "c": 2,
+                        "g": 210,
+                        "m": 4299
+                    }
+                ]
+            },
+            {
+                "x": -35,
+                "y": -59,
+                "h": [
+                    {
+                        "n": "Bonta Rat Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 6536
+                    },
+                    {
+                        "n": "Grocery Store",
+                        "c": 4,
+                        "g": 425,
+                        "m": 4207
+                    }
+                ]
+            },
+            {
+                "x": -33,
+                "y": -59,
+                "h": [
+                    {
+                        "n": "Jewellers' Workshop",
+                        "c": 3,
+                        "g": 302,
+                        "m": 4217
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Smiths' Workshop",
+                        "c": 3,
+                        "g": 309,
+                        "m": 4074
+                    }
+                ]
+            },
+            {
+                "x": -49,
+                "y": 14,
+                "h": [
+                    {
+                        "n": "Scarplane",
+                        "c": 4,
+                        "g": 428,
+                        "m": 10531
+                    }
+                ]
+            },
+            {
+                "x": -31,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Tailors' Workshop",
+                        "c": 3,
+                        "g": 315,
+                        "m": 4106
+                    }
+                ]
+            },
+            {
+                "x": -28,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Smiths' Market",
+                        "c": 2,
+                        "g": 208,
+                        "m": 4098
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -25,
+                "h": [
+                    {
+                        "n": "Lumberjacks' Workshop",
+                        "c": 3,
+                        "g": 305,
+                        "m": 7357
+                    }
+                ]
+            },
+            {
+                "x": -2,
+                "y": 13,
+                "h": [
+                    {
+                        "n": "Passage to Brakmar",
+                        "c": 4,
+                        "g": 424,
+                        "m": 936
+                    }
+                ]
+            },
+            {
+                "x": -32,
+                "y": -58,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 4263
+                    }
+                ]
+            },
+            {
+                "x": -37,
+                "y": -58,
+                "h": [
+                    {
+                        "n": "Public Paddock",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8848
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": -56,
+                "h": [
+                    {
+                        "n": "Feubuk Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4090
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -56,
+                "h": [
+                    {
+                        "n": "Atyu Sirvis' Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4172
+                    },
+                    {
+                        "n": "Tailors' Market",
+                        "c": 2,
+                        "g": 215,
+                        "m": 4172
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": 3,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 10297
+                    },
+                    {
+                        "n": "The Temple of Iop",
+                        "c": 1,
+                        "g": 80,
+                        "m": 518
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": 13,
+                "h": [
+                    {
+                        "n": "Bakers' Workshop",
+                        "c": 3,
+                        "g": 304,
+                        "m": 579
+                    }
+                ]
+            },
+            {
+                "x": -32,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Resource Market",
+                        "c": 2,
+                        "g": 213,
+                        "m": 4262
+                    }
+                ]
+            },
+            {
+                "x": -33,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Militia",
+                        "c": 4,
+                        "g": 407,
+                        "m": 6159
+                    },
+                    {
+                        "n": "Linked Scroll Market",
+                        "c": 2,
+                        "g": 219,
+                        "m": 6159
+                    }
+                ]
+            },
+            {
+                "x": -23,
+                "y": -56,
+                "h": [
+                    {
+                        "n": "Lumberjacks' Workshop",
+                        "c": 3,
+                        "g": 305,
+                        "m": 4313
+                    }
+                ]
+            },
+            {
+                "x": -37,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Public Paddock",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8744
+                    }
+                ]
+            },
+            {
+                "x": -36,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Public Paddock",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8747
+                    }
+                ]
+            },
+            {
+                "x": -38,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Public Paddock",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8743
+                    }
+                ]
+            },
+            {
+                "x": 21,
+                "y": -24,
+                "h": [
+                    {
+                        "n": "Dojo",
+                        "c": 4,
+                        "g": 414,
+                        "m": 8109
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": 6,
+                "h": [
+                    {
+                        "n": "Tofu and Royal Tofu Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1384
+                    },
+                    {
+                        "n": "Farmers' Workshop",
+                        "c": 3,
+                        "g": 311,
+                        "m": 524
+                    }
+                ]
+            },
+            {
+                "x": 7,
+                "y": -25,
+                "h": [
+                    {
+                        "n": "Field Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 7453
+                    },
+                    {
+                        "n": "Farmers' Workshop",
+                        "c": 3,
+                        "g": 311,
+                        "m": 7453
+                    }
+                ]
+            },
+            {
+                "x": 19,
+                "y": 24,
+                "h": [
+                    {
+                        "n": "\"Show fear\" Emote",
+                        "c": 4,
+                        "g": 423,
+                        "m": 1884
+                    }
+                ]
+            },
+            {
+                "x": 29,
+                "y": -49,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 8437
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": 3,
+                "h": [
+                    {
+                        "n": "The Temple of Cra",
+                        "c": 1,
+                        "g": 90,
+                        "m": 540
+                    }
+                ]
+            },
+            {
+                "x": -2,
+                "y": -3,
+                "h": [
+                    {
+                        "n": "Miners' Workshop",
+                        "c": 3,
+                        "g": 310,
+                        "m": 714
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": -6,
+                "h": [
+                    {
+                        "n": "Militia",
+                        "c": 4,
+                        "g": 407,
+                        "m": 9458
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": 3,
+                "h": [
+                    {
+                        "n": "Market Place",
+                        "c": 4,
+                        "g": 415,
+                        "m": 10301
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": 26,
+                "h": [
+                    {
+                        "n": "Scaraleaf Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1298
+                    }
+                ]
+            },
+            {
+                "x": -58,
+                "y": -99,
+                "h": [
+                    {
+                        "n": "Boat to Madrestam Harbour",
+                        "c": 4,
+                        "g": 413,
+                        "m": 9979
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": 3,
+                "h": [
+                    {
+                        "n": "Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 10302
+                    }
+                ]
+            },
+            {
+                "x": -21,
+                "y": 12,
+                "h": [
+                    {
+                        "n": "Bworker Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 4786
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": -50,
+                "h": [
+                    {
+                        "n": "Pinchaut Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 2214
+                    },
+                    {
+                        "n": "Bakers' Workshop",
+                        "c": 3,
+                        "g": 304,
+                        "m": 2214
+                    }
+                ]
+            },
+            {
+                "x": 10,
+                "y": -24,
+                "h": [
+                    {
+                        "n": "\"Cross arms\" Emote",
+                        "c": 4,
+                        "g": 423,
+                        "m": 8538
+                    }
+                ]
+            },
+            {
+                "x": 29,
+                "y": -50,
+                "h": [
+                    {
+                        "n": "Dojo",
+                        "c": 4,
+                        "g": 414,
+                        "m": 8471
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -50,
+                "h": [
+                    {
+                        "n": "Butchers and Hunters' Market",
+                        "c": 2,
+                        "g": 203,
+                        "m": 4287
+                    }
+                ]
+            },
+            {
+                "x": -2,
+                "y": -6,
+                "h": [
+                    {
+                        "n": "\"Applause\" Emote",
+                        "c": 4,
+                        "g": 423,
+                        "m": 736
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": 6,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 10349
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": 25,
+                "h": [
+                    {
+                        "n": "Farmers' Workshop",
+                        "c": 3,
+                        "g": 311,
+                        "m": 1339
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": 13,
+                "h": [
+                    {
+                        "n": "Hunters' Workshop",
+                        "c": 3,
+                        "g": 306,
+                        "m": 618
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 13,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 935
+                    }
+                ]
+            },
+            {
+                "x": 28,
+                "y": -12,
+                "h": [
+                    {
+                        "n": "Wabbit Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1763
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": 3,
+                "h": [
+                    {
+                        "n": "Church",
+                        "c": 4,
+                        "g": 403,
+                        "m": 494
+                    }
+                ]
+            },
+            {
+                "x": 12,
+                "y": 24,
+                "h": [
+                    {
+                        "n": "Ripate Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 1878
+                    }
+                ]
+            },
+            {
+                "x": -24,
+                "y": 12,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 4739
+                    }
+                ]
+            },
+            {
+                "x": 24,
+                "y": -25,
+                "h": [
+                    {
+                        "n": "Lumberjacks' Workshop",
+                        "c": 3,
+                        "g": 305,
+                        "m": 8359
+                    }
+                ]
+            },
+            {
+                "x": -4,
+                "y": 24,
+                "h": [
+                    {
+                        "n": "Kanojedo",
+                        "c": 4,
+                        "g": 406,
+                        "m": 1269
+                    }
+                ]
+            },
+            {
+                "x": -57,
+                "y": 11,
+                "h": [
+                    {
+                        "n": "Farmers' Workshop",
+                        "c": 3,
+                        "g": 311,
+                        "m": 11246
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": 12,
+                "h": [
+                    {
+                        "n": "Carvers' Workshop",
+                        "c": 3,
+                        "g": 314,
+                        "m": 577
+                    }
+                ]
+            },
+            {
+                "x": -6,
+                "y": 24,
+                "h": [
+                    {
+                        "n": "\"Get mad\" Emote",
+                        "c": 4,
+                        "g": 423,
+                        "m": 1213
+                    }
+                ]
+            },
+            {
+                "x": 23,
+                "y": -3,
+                "h": [
+                    {
+                        "n": "Imp Carrier",
+                        "c": 4,
+                        "g": 412,
+                        "m": 819
+                    }
+                ]
+            },
+            {
+                "x": -23,
+                "y": -3,
+                "h": [
+                    {
+                        "n": "Mercenaries' Residence",
+                        "c": 4,
+                        "g": 430,
+                        "m": 6175
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": -52,
+                "h": [
+                    {
+                        "n": "Bakers' Market",
+                        "c": 2,
+                        "g": 204,
+                        "m": 2221
+                    }
+                ]
+            },
+            {
+                "x": -5,
+                "y": -12,
+                "h": [
+                    {
+                        "n": "Smithmagi's Workshop",
+                        "c": 3,
+                        "g": 308,
+                        "m": 2187
+                    }
+                ]
+            },
+            {
+                "x": 14,
+                "y": 25,
+                "h": [
+                    {
+                        "n": "Bank",
+                        "c": 4,
+                        "g": 401,
+                        "m": 1886
+                    }
+                ]
+            },
+            {
+                "x": 28,
+                "y": -52,
+                "h": [
+                    {
+                        "n": "Firefoux Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 8467
+                    }
+                ]
+            },
+            {
+                "x": 31,
+                "y": -52,
+                "h": [
+                    {
+                        "n": "Boat to Pandala Sanctuary",
+                        "c": 4,
+                        "g": 413,
+                        "m": 8506
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -52,
+                "h": [
+                    {
+                        "n": "Market Place",
+                        "c": 4,
+                        "g": 415,
+                        "m": 4259
+                    }
+                ]
+            },
+            {
+                "x": -56,
+                "y": 22,
+                "h": [
+                    {
+                        "n": "Scarplane",
+                        "c": 4,
+                        "g": 428,
+                        "m": 10476
+                    }
+                ]
+            },
+            {
+                "x": -3,
+                "y": 24,
+                "h": [
+                    {
+                        "n": "The Dreggon's Sanctuary",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9788
+                    }
+                ]
+            },
+            {
+                "x": 23,
+                "y": -22,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 8125
+                    }
+                ]
+            },
+            {
+                "x": 19,
+                "y": -22,
+                "h": [
+                    {
+                        "n": "Bulb Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 8244
+                    }
+                ]
+            },
+            {
+                "x": 10,
+                "y": 22,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 1158
+                    }
+                ]
+            },
+            {
+                "x": -32,
+                "y": -51,
+                "h": [
+                    {
+                        "n": "Kikim Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4238
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": -14,
+                "h": [
+                    {
+                        "n": "Sacrier Statue ",
+                        "c": 1,
+                        "g": 110,
+                        "m": 7336
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": 23,
+                "h": [
+                    {
+                        "n": "Bakers' Workshop",
+                        "c": 3,
+                        "g": 304,
+                        "m": 1369
+                    }
+                ]
+            },
+            {
+                "x": 22,
+                "y": -23,
+                "h": [
+                    {
+                        "n": "Shield Smiths' Workshop",
+                        "c": 3,
+                        "g": 316,
+                        "m": 8117
+                    }
+                ]
+            },
+            {
+                "x": -16,
+                "y": -23,
+                "h": [
+                    {
+                        "n": "Fairywork Workshop",
+                        "c": 3,
+                        "g": 318,
+                        "m": 6860
+                    }
+                ]
+            },
+            {
+                "x": 35,
+                "y": 12,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 1841
+                    }
+                ]
+            },
+            {
+                "x": -32,
+                "y": -50,
+                "h": [
+                    {
+                        "n": "Butchers' Workshop",
+                        "c": 3,
+                        "g": 303,
+                        "m": 4240
+                    }
+                ]
+            },
+            {
+                "x": 26,
+                "y": -47,
+                "h": [
+                    {
+                        "n": "Dofus Receptacle",
+                        "c": 4,
+                        "g": 429,
+                        "m": 7893
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -22,
+                "h": [
+                    {
+                        "n": "Tailors' Market",
+                        "c": 2,
+                        "g": 215,
+                        "m": 7513
+                    }
+                ]
+            },
+            {
+                "x": -63,
+                "y": -100,
+                "h": [
+                    {
+                        "n": "Kwismas Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9946
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -48,
+                "h": [
+                    {
+                        "n": "Imp Carrier",
+                        "c": 4,
+                        "g": 412,
+                        "m": 4413
+                    }
+                ]
+            },
+            {
+                "x": -14,
+                "y": -47,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 3250
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -22,
+                "h": [
+                    {
+                        "n": "Sram Statue ",
+                        "c": 1,
+                        "g": 40,
+                        "m": 7392
+                    }
+                ]
+            },
+            {
+                "x": -6,
+                "y": -11,
+                "h": [
+                    {
+                        "n": "Arena",
+                        "c": 4,
+                        "g": 411,
+                        "m": 2184
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": -21,
+                "h": [
+                    {
+                        "n": "Mercenaries' Lair",
+                        "c": 4,
+                        "g": 430,
+                        "m": 7409
+                    }
+                ]
+            },
+            {
+                "x": 11,
+                "y": 10,
+                "h": [
+                    {
+                        "n": "Cannon to Moon Island",
+                        "c": 4,
+                        "g": 402,
+                        "m": 1014
+                    }
+                ]
+            },
+            {
+                "x": -20,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 3022
+                    }
+                ]
+            },
+            {
+                "x": -6,
+                "y": 5,
+                "h": [
+                    {
+                        "n": "\"Show weapon\" Emote",
+                        "c": 4,
+                        "g": 423,
+                        "m": 1663
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": 5,
+                "h": [
+                    {
+                        "n": "Incarnam Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 10359
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -21,
+                "h": [
+                    {
+                        "n": "Smiths' Workshop",
+                        "c": 3,
+                        "g": 309,
+                        "m": 7441
+                    }
+                ]
+            },
+            {
+                "x": -10,
+                "y": -41,
+                "h": [
+                    {
+                        "n": "Fairywork Market",
+                        "c": 2,
+                        "g": 223,
+                        "m": 3412
+                    }
+                ]
+            },
+            {
+                "x": -2,
+                "y": -5,
+                "h": [
+                    {
+                        "n": "Larva Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 6684
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -21,
+                "h": [
+                    {
+                        "n": "Shoemakers' Workshop",
+                        "c": 3,
+                        "g": 307,
+                        "m": 7345
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -21,
+                "h": [
+                    {
+                        "n": "Carvers' Workshop",
+                        "c": 3,
+                        "g": 314,
+                        "m": 7377
+                    }
+                ]
+            },
+            {
+                "x": -9,
+                "y": -41,
+                "h": [
+                    {
+                        "n": "Gladiatrool",
+                        "c": 4,
+                        "g": 411,
+                        "m": 3451
+                    }
+                ]
+            },
+            {
+                "x": -20,
+                "y": 10,
+                "h": [
+                    {
+                        "n": "Skeunk's Hideout",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9503
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -42,
+                "h": [
+                    {
+                        "n": "Farmers' Workshop",
+                        "c": 3,
+                        "g": 311,
+                        "m": 2672
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -5,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 9454
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -21,
+                "h": [
+                    {
+                        "n": "Lumberjacks' Market",
+                        "c": 2,
+                        "g": 205,
+                        "m": 7289
+                    }
+                ]
+            },
+            {
+                "x": -57,
+                "y": 19,
+                "h": [
+                    {
+                        "n": "Alchemists' Workshop",
+                        "c": 3,
+                        "g": 301,
+                        "m": 11093
+                    }
+                ]
+            },
+            {
+                "x": 14,
+                "y": 20,
+                "h": [
+                    {
+                        "n": "Carvers' Workshop",
+                        "c": 3,
+                        "g": 314,
+                        "m": 1109
+                    }
+                ]
+            },
+            {
+                "x": 32,
+                "y": -38,
+                "h": [
+                    {
+                        "n": "Kitsoune Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 8236
+                    }
+                ]
+            },
+            {
+                "x": -36,
+                "y": -9,
+                "h": [
+                    {
+                        "n": "Boat to Minotoror Island",
+                        "c": 4,
+                        "g": 413,
+                        "m": 9520
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": 20,
+                "h": [
+                    {
+                        "n": "The Temple of Pandawa",
+                        "c": 1,
+                        "g": 120,
+                        "m": 8207
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Alchemists' Workshop",
+                        "c": 3,
+                        "g": 301,
+                        "m": 7426
+                    }
+                ]
+            },
+            {
+                "x": -51,
+                "y": 9,
+                "h": [
+                    {
+                        "n": "Bherb's Gully",
+                        "c": 6,
+                        "g": 422,
+                        "m": 11260
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Enutrof Statue ",
+                        "c": 1,
+                        "g": 30,
+                        "m": 7442
+                    }
+                ]
+            },
+            {
+                "x": 7,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Miners' Workshop",
+                        "c": 3,
+                        "g": 310,
+                        "m": 7458
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Cra Statue",
+                        "c": 1,
+                        "g": 90,
+                        "m": 7378
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Shoemakers' Market",
+                        "c": 2,
+                        "g": 207,
+                        "m": 7602
+                    }
+                ]
+            },
+            {
+                "x": 8,
+                "y": -5,
+                "h": [
+                    {
+                        "n": "Boat to Kwismas Island",
+                        "c": 4,
+                        "g": 413,
+                        "m": 9468
+                    }
+                ]
+            },
+            {
+                "x": -41,
+                "y": -18,
+                "h": [
+                    {
+                        "n": "Imp Carrier",
+                        "c": 4,
+                        "g": 412,
+                        "m": 9550
+                    }
+                ]
+            },
+            {
+                "x": 9,
+                "y": 21,
+                "h": [
+                    {
+                        "n": "Bow Kennel",
+                        "c": 4,
+                        "g": 404,
+                        "m": 1140
+                    }
+                ]
+            },
+            {
+                "x": -46,
+                "y": 18,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 10643
+                    }
+                ]
+            },
+            {
+                "x": -5,
+                "y": 10,
+                "h": [
+                    {
+                        "n": "Bwork Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9470
+                    }
+                ]
+            },
+            {
+                "x": -54,
+                "y": 18,
+                "h": [
+                    {
+                        "n": "Scarplane",
+                        "c": 4,
+                        "g": 428,
+                        "m": 11193
+                    }
+                ]
+            },
+            {
+                "x": 12,
+                "y": 5,
+                "h": [
+                    {
+                        "n": "The Temple of Feca",
+                        "c": 1,
+                        "g": 10,
+                        "m": 177
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Carvers' Market",
+                        "c": 2,
+                        "g": 214,
+                        "m": 7512
+                    }
+                ]
+            },
+            {
+                "x": -53,
+                "y": 18,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 11210
+                    }
+                ]
+            },
+            {
+                "x": 13,
+                "y": 21,
+                "h": [
+                    {
+                        "n": "Smith Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1130
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 33,
+                "h": [
+                    {
+                        "n": "Dragon Pig's Den",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1399
+                    }
+                ]
+            },
+            {
+                "x": -16,
+                "y": 18,
+                "h": [
+                    {
+                        "n": "Tower of Gisgoul",
+                        "c": 4,
+                        "g": 416,
+                        "m": 4908
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": -19,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 7411
+                    }
+                ]
+            },
+            {
+                "x": -22,
+                "y": 37,
+                "h": [
+                    {
+                        "n": "Lumberjacks' Market",
+                        "c": 2,
+                        "g": 205,
+                        "m": 5112
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": -19,
+                "h": [
+                    {
+                        "n": "Iop Statue",
+                        "c": 1,
+                        "g": 80,
+                        "m": 7427
+                    }
+                ]
+            },
+            {
+                "x": 12,
+                "y": -1,
+                "h": [
+                    {
+                        "n": "Fishmongers' Workshop",
+                        "c": 3,
+                        "g": 312,
+                        "m": 6146
+                    }
+                ]
+            },
+            {
+                "x": 24,
+                "y": -2,
+                "h": [
+                    {
+                        "n": "Boat to Madrestam Harbour",
+                        "c": 4,
+                        "g": 413,
+                        "m": 833
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": 37,
+                "h": [
+                    {
+                        "n": "Alchemists' Workshop",
+                        "c": 3,
+                        "g": 301,
+                        "m": 4930
+                    }
+                ]
+            },
+            {
+                "x": 26,
+                "y": -37,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 8037
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": 37,
+                "h": [
+                    {
+                        "n": "Fishermen and Fishmongers' Market",
+                        "c": 2,
+                        "g": 212,
+                        "m": 4615
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -19,
+                "h": [
+                    {
+                        "n": "Miners' Market",
+                        "c": 2,
+                        "g": 209,
+                        "m": 7443
+                    }
+                ]
+            },
+            {
+                "x": 30,
+                "y": -37,
+                "h": [
+                    {
+                        "n": "Shield Smiths' Workshop",
+                        "c": 3,
+                        "g": 316,
+                        "m": 8089
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": 37,
+                "h": [
+                    {
+                        "n": "Public Paddock",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8752
+                    }
+                ]
+            },
+            {
+                "x": -31,
+                "y": 37,
+                "h": [
+                    {
+                        "n": "Pet Market",
+                        "c": 2,
+                        "g": 218,
+                        "m": 8753
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -32,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 6954
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": 37,
+                "h": [
+                    {
+                        "n": "Public Paddock",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8751
+                    }
+                ]
+            },
+            {
+                "x": -9,
+                "y": -37,
+                "h": [
+                    {
+                        "n": "Card Workshop",
+                        "c": 3,
+                        "g": 319,
+                        "m": 3455
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -19,
+                "h": [
+                    {
+                        "n": "Xelor Statue",
+                        "c": 1,
+                        "g": 50,
+                        "m": 7332
+                    }
+                ]
+            },
+            {
+                "x": -44,
+                "y": 21,
+                "h": [
+                    {
+                        "n": "Boat to Sufokia",
+                        "c": 4,
+                        "g": 413,
+                        "m": 10836
+                    }
+                ]
+            },
+            {
+                "x": -47,
+                "y": 21,
+                "h": [
+                    {
+                        "n": "Bank",
+                        "c": 4,
+                        "g": 401,
+                        "m": 10746
+                    }
+                ]
+            },
+            {
+                "x": -23,
+                "y": 38,
+                "h": [
+                    {
+                        "n": "Militia",
+                        "c": 4,
+                        "g": 407,
+                        "m": 5116
+                    },
+                    {
+                        "n": "Linked Scroll Market",
+                        "c": 2,
+                        "g": 219,
+                        "m": 6167
+                    }
+                ]
+            },
+            {
+                "x": -24,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "Canidae Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9787
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": 38,
+                "h": [
+                    {
+                        "n": "Jewellers' Market",
+                        "c": 2,
+                        "g": 202,
+                        "m": 4622
+                    }
+                ]
+            },
+            {
+                "x": 26,
+                "y": -38,
+                "h": [
+                    {
+                        "n": "Market Place",
+                        "c": 4,
+                        "g": 415,
+                        "m": 8036
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -19,
+                "h": [
+                    {
+                        "n": "Sadida Statue ",
+                        "c": 1,
+                        "g": 100,
+                        "m": 7395
+                    }
+                ]
+            },
+            {
+                "x": 24,
+                "y": -38,
+                "h": [
+                    {
+                        "n": "Boat to Madrestam Harbour",
+                        "c": 4,
+                        "g": 413,
+                        "m": 8182
+                    }
+                ]
+            },
+            {
+                "x": 30,
+                "y": -38,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 8088
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": 38,
+                "h": [
+                    {
+                        "n": "Profession Information Centre",
+                        "c": 4,
+                        "g": 418,
+                        "m": 8755
+                    }
+                ]
+            },
+            {
+                "x": -31,
+                "y": 38,
+                "h": [
+                    {
+                        "n": "Library",
+                        "c": 4,
+                        "g": 417,
+                        "m": 8754
+                    },
+                    {
+                        "n": "Scroll Market",
+                        "c": 2,
+                        "g": 221,
+                        "m": 8754
+                    }
+                ]
+            },
+            {
+                "x": 9,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "Fishermen's Workshop",
+                        "c": 3,
+                        "g": 312,
+                        "m": 766
+                    }
+                ]
+            },
+            {
+                "x": 9,
+                "y": -2,
+                "h": [
+                    {
+                        "n": "Boat to Wabbit Island",
+                        "c": 4,
+                        "g": 413,
+                        "m": 167
+                    }
+                ]
+            },
+            {
+                "x": 8,
+                "y": 2,
+                "h": [
+                    {
+                        "n": "The Temple of Osamodas",
+                        "c": 1,
+                        "g": 20,
+                        "m": 490
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": 38,
+                "h": [
+                    {
+                        "n": "Smithmagi's Workshop",
+                        "c": 3,
+                        "g": 308,
+                        "m": 8756
+                    },
+                    {
+                        "n": "Rune Market",
+                        "c": 2,
+                        "g": 220,
+                        "m": 8756
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": 16,
+                "h": [
+                    {
+                        "n": "Alchemists' Workshop",
+                        "c": 3,
+                        "g": 301,
+                        "m": 643
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Grocery Store",
+                        "c": 4,
+                        "g": 425,
+                        "m": 7529
+                    }
+                ]
+            },
+            {
+                "x": -16,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 8785
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Osamodas Statue ",
+                        "c": 1,
+                        "g": 20,
+                        "m": 7545
+                    }
+                ]
+            },
+            {
+                "x": -19,
+                "y": 39,
+                "h": [
+                    {
+                        "n": "Arena",
+                        "c": 4,
+                        "g": 411,
+                        "m": 8493
+                    },
+                    {
+                        "n": "Soul Market",
+                        "c": 2,
+                        "g": 217,
+                        "m": 8493
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": -18,
+                "h": [
+                    {
+                        "n": "Alchemists' Market",
+                        "c": 2,
+                        "g": 201,
+                        "m": 7516
+                    }
+                ]
+            },
+            {
+                "x": 18,
+                "y": -39,
+                "h": [
+                    {
+                        "n": "Imp Carrier",
+                        "c": 4,
+                        "g": 412,
+                        "m": 8223
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": -18,
+                "h": [
+                    {
+                        "n": "Handymen's Market",
+                        "c": 2,
+                        "g": 222,
+                        "m": 7428
+                    }
+                ]
+            },
+            {
+                "x": -21,
+                "y": 39,
+                "h": [
+                    {
+                        "n": "Misery Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4612
+                    },
+                    {
+                        "n": "Carvers' Workshop",
+                        "c": 3,
+                        "g": 314,
+                        "m": 4612
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "The Temple of Xelor",
+                        "c": 1,
+                        "g": 50,
+                        "m": 50
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "Smiths' Workshop",
+                        "c": 3,
+                        "g": 309,
+                        "m": 1066
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": 39,
+                "h": [
+                    {
+                        "n": "Jewellers' Workshop",
+                        "c": 3,
+                        "g": 302,
+                        "m": 4620
+                    }
+                ]
+            },
+            {
+                "x": 26,
+                "y": -39,
+                "h": [
+                    {
+                        "n": "Pandawa Statue ",
+                        "c": 1,
+                        "g": 120,
+                        "m": 8035
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -18,
+                "h": [
+                    {
+                        "n": "Smiths' Market",
+                        "c": 2,
+                        "g": 208,
+                        "m": 7511
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 10304
+                    }
+                ]
+            },
+            {
+                "x": 30,
+                "y": -39,
+                "h": [
+                    {
+                        "n": "Lumberjacks' Workshop",
+                        "c": 3,
+                        "g": 305,
+                        "m": 8356
+                    }
+                ]
+            },
+            {
+                "x": -4,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "The Temple of Sram",
+                        "c": 1,
+                        "g": 40,
+                        "m": 690
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "Market Place",
+                        "c": 4,
+                        "g": 415,
+                        "m": 33
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -1,
+                "h": [
+                    {
+                        "n": "\"Rock, paper, scissors\" Emote",
+                        "c": 4,
+                        "g": 423,
+                        "m": 464
+                    },
+                    {
+                        "n": "Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 41
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 8,
+                "h": [
+                    {
+                        "n": "Imp Carrier",
+                        "c": 4,
+                        "g": 412,
+                        "m": 1669
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -18,
+                "h": [
+                    {
+                        "n": "Fishermen's Market",
+                        "c": 2,
+                        "g": 211,
+                        "m": 7348
+                    }
+                ]
+            },
+            {
+                "x": -9,
+                "y": -39,
+                "h": [
+                    {
+                        "n": "Market Place",
+                        "c": 4,
+                        "g": 415,
+                        "m": 3453
+                    }
+                ]
+            },
+            {
+                "x": 7,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "The Temple of Eniripsa",
+                        "c": 1,
+                        "g": 70,
+                        "m": 487
+                    }
+                ]
+            },
+            {
+                "x": -7,
+                "y": -1,
+                "h": [
+                    {
+                        "n": "Pet Sanctuary",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9052
+                    }
+                ]
+            },
+            {
+                "x": -23,
+                "y": 40,
+                "h": [
+                    {
+                        "n": "Bank",
+                        "c": 4,
+                        "g": 401,
+                        "m": 5332
+                    }
+                ]
+            },
+            {
+                "x": -22,
+                "y": 40,
+                "h": [
+                    {
+                        "n": "Carvers' Market",
+                        "c": 2,
+                        "g": 214,
+                        "m": 4618
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "Bakers' Workshop",
+                        "c": 3,
+                        "g": 304,
+                        "m": 49
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -1,
+                "h": [
+                    {
+                        "n": "Imp Carrier",
+                        "c": 4,
+                        "g": 412,
+                        "m": 188
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -18,
+                "h": [
+                    {
+                        "n": "Market Place",
+                        "c": 4,
+                        "g": 415,
+                        "m": 7396
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -9,
+                "h": [
+                    {
+                        "n": "Amakna Castle Rat Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9638
+                    }
+                ]
+            },
+            {
+                "x": -53,
+                "y": 20,
+                "h": [
+                    {
+                        "n": "The Tynril Lab",
+                        "c": 6,
+                        "g": 422,
+                        "m": 10807
+                    }
+                ]
+            },
+            {
+                "x": -50,
+                "y": 20,
+                "h": [
+                    {
+                        "n": "Farmers' Workshop",
+                        "c": 3,
+                        "g": 311,
+                        "m": 11245
+                    }
+                ]
+            },
+            {
+                "x": -25,
+                "y": 40,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 5295
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "Militia",
+                        "c": 4,
+                        "g": 407,
+                        "m": 10307
+                    },
+                    {
+                        "n": "Shoemakers' Workshop",
+                        "c": 3,
+                        "g": 307,
+                        "m": 55
+                    }
+                ]
+            },
+            {
+                "x": -24,
+                "y": 40,
+                "h": [
+                    {
+                        "n": "Fishermen and Fishmongers' Workshop",
+                        "c": 3,
+                        "g": 312,
+                        "m": 5334
+                    }
+                ]
+            },
+            {
+                "x": -12,
+                "y": -39,
+                "h": [
+                    {
+                        "n": "Gobbal Wheel",
+                        "c": 4,
+                        "g": 427,
+                        "m": 3336
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": -4,
+                "h": [
+                    {
+                        "n": "The Temple of Enutrof",
+                        "c": 1,
+                        "g": 30,
+                        "m": 686
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": 2,
+                "h": [
+                    {
+                        "n": "Jewellers' Workshop",
+                        "c": 3,
+                        "g": 302,
+                        "m": 34
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": 2,
+                "h": [
+                    {
+                        "n": "Tailors' Workshop",
+                        "c": 3,
+                        "g": 315,
+                        "m": 44
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 10114
+                    },
+                    {
+                        "n": "Kanojedo",
+                        "c": 4,
+                        "g": 406,
+                        "m": 32
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -2,
+                "h": [
+                    {
+                        "n": "Bank",
+                        "c": 4,
+                        "g": 401,
+                        "m": 40
+                    }
+                ]
+            },
+            {
+                "x": -2,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 951
+                    }
+                ]
+            },
+            {
+                "x": -28,
+                "y": 40,
+                "h": [
+                    {
+                        "n": "Burnt Cat Inn",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4623
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "\"Wave\" Emote",
+                        "c": 4,
+                        "g": 423,
+                        "m": 1665
+                    },
+                    {
+                        "n": "Library",
+                        "c": 4,
+                        "g": 417,
+                        "m": 51
+                    }
+                ]
+            }
+        ],
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 207,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "HIC",
+            "HI",
+            "HIN",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

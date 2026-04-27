@@ -1,22 +1,22 @@
+import { create } from "@bufbuild/protobuf";
 import { DofusPathfinding } from "@dofus/grid";
 
 import type { AudioManager } from "@/game/audio/audio-manager";
 import type { CellData } from "@/game/datacenter/cell";
 import type { MapData } from "@/game/datacenter/map";
-import { getMapTransitionDirection } from "@/game/input/map-coordinates";
 import type { Connection } from "@/game/network/connection";
 import type { MessageHandler } from "@/game/network/message-handler";
-import { create } from "@bufbuild/protobuf";
-
+import type { Battlefield } from "@/game/scene";
+import { getMapTransitionDirection } from "@/game/input/map-coordinates";
 import {
   encodeClient,
   GameActionAckSchema,
+  GameCreateRequestSchema,
   GameGetExtraInfoSchema,
   type GameMapData,
   type MapCell,
   type SpriteMovementEntry,
 } from "@/game/network/protocol";
-import type { Battlefield } from "@/game/scene";
 import { hudStore } from "@/game/stores";
 import { createLogger } from "@/utils/logger";
 
@@ -40,6 +40,21 @@ export class MapHandler {
   private pathfinding: DofusPathfinding | null = null;
   private isMoving = false;
   private mapLoadPromise: Promise<void> = Promise.resolve();
+  /**
+   * Fires when OUR OWN sprite finishes a movement animation. Used by
+   * the fight-mode reachable-range refresh: MP change frames land while
+   * the animation is still running, so we have to defer the overlay
+   * recompute until the sprite actually sits on its new cell.
+   */
+  private onSelfMoveComplete: (() => void) | null = null;
+  /**
+   * Fires the moment the server broadcasts OUR OWN move and the
+   * animation starts. Used to clear the blue "selected path" flash
+   * the client painted on click — matches GameActionsEx.as:163 where
+   * the original runs `unSelect(true)` right before playing the
+   * sprite move animation.
+   */
+  private onSelfMoveStart: (() => void) | null = null;
 
   // Messages that arrive before the Battlefield is ready are buffered and
   // replayed by `flushPending()` once the renderer attaches.
@@ -97,6 +112,14 @@ export class MapHandler {
     this.isMoving = moving;
   }
 
+  setOnSelfMoveComplete(cb: (() => void) | null): void {
+    this.onSelfMoveComplete = cb;
+  }
+
+  setOnSelfMoveStart(cb: (() => void) | null): void {
+    this.onSelfMoveStart = cb;
+  }
+
   private register(): void {
     this.messageHandler.on("gameMapData", (payload) => {
       void this.handleMapData(payload);
@@ -107,13 +130,23 @@ export class MapHandler {
     });
 
     this.messageHandler.on("gameAction", (payload) => {
-      if (
-        payload.actionType === 1 &&
-        payload.actionData.case === "movement"
-      ) {
+      if (payload.actionType === 1 && payload.actionData.case === "movement") {
         const spriteId = payload.spriteId;
         const path = payload.actionData.value.pathCells;
         void this.handleActorPath(spriteId, path, payload.sequenceId);
+      } else if (payload.actionType === 2) {
+        // ACTION_MAP_CHANGE — server moved us to a new map (edge transition,
+        // waypoint, scripted cell). Re-enter the game so the server populates
+        // presence + ships us the new map data + sprites.
+        log.info(
+          `map change → re-entering (target map in rawParams=${payload.rawParams})`
+        );
+        this.connection.send(
+          encodeClient(
+            "gameCreate",
+            create(GameCreateRequestSchema, { type: 1 })
+          )
+        );
       }
     });
   }
@@ -169,7 +202,9 @@ export class MapHandler {
   }
 
   private buildPathfinding(mapData: MapData): void {
-    const walkableIds = mapData.cells.filter((c) => c.walkable).map((c) => c.id);
+    const walkableIds = mapData.cells
+      .filter((c) => c.walkable)
+      .map((c) => c.id);
     this.pathfinding = new DofusPathfinding(
       mapData.width,
       mapData.height,
@@ -201,16 +236,27 @@ export class MapHandler {
       // ADD or UPDATE — both place/refresh the actor.
       const look = encodeLook(entry);
       const numeric = numericId(entry.spriteId);
+      const isMonsterGroup =
+        entry.spriteType === 3 /* SPRITE_TYPE_MONSTER_GROUP */;
+      const displayName = isMonsterGroup
+        ? `Groupe (${entry.monsters.length})`
+        : entry.name || `Actor ${entry.spriteId}`;
 
       await battlefield.addWorldActor({
         id: numeric,
-        name: entry.name || `Actor ${entry.spriteId}`,
+        name: displayName,
         cellId: entry.cellId,
         direction: entry.direction,
         look,
         isCurrentPlayer: isSelf,
         linkedChildren: [],
         mount: entry.mount,
+        // Server ships team on every SpriteMovementEntry (0 during
+        // roleplay, 0/1 during placement + combat). Passing it
+        // through lets the PlayerRenderer paint the right ring color
+        // as soon as fight-mode flips on.
+        team: entry.team,
+        ...(isMonsterGroup ? { monsterGroup: entry.monsters } : {}),
       });
 
       if (isSelf) {
@@ -234,6 +280,14 @@ export class MapHandler {
 
     if (isSelf && path.length > 0) {
       this.isMoving = true;
+      // Server echoed our move back — drop the blue "selected path"
+      // flash painted on click. Matches the original's unSelect(true)
+      // call in GameActionsEx.as:163 just before the walk animation.
+      try {
+        this.onSelfMoveStart?.();
+      } catch (err) {
+        log.warn(`onSelfMoveStart threw: ${String(err)}`);
+      }
     }
 
     await this.getBattlefield()?.moveWorldActor(numeric, path);
@@ -258,6 +312,15 @@ export class MapHandler {
           })
         )
       );
+      // Fire the move-complete hook AFTER currentCellId is updated so
+      // the fight UI recomputes the reachable range from the new cell,
+      // not the stale one. Any exception from the callback is isolated
+      // from the network loop.
+      try {
+        this.onSelfMoveComplete?.();
+      } catch (err) {
+        log.warn(`onSelfMoveComplete threw: ${String(err)}`);
+      }
     }
   }
 }
@@ -278,6 +341,9 @@ function mapDataFromPayload(payload: GameMapData): MapData {
   };
   if (payload.background > 0) {
     mapData.backgroundNum = payload.background;
+  }
+  if (payload.subareaId > 0) {
+    mapData.subareaId = payload.subareaId;
   }
   return mapData;
 }
@@ -305,23 +371,57 @@ function cellFromProto(c: MapCell): CellData {
 
 function numericId(spriteId: string): number {
   const n = Number(spriteId);
-  return Number.isFinite(n) ? n : 0;
+  if (Number.isFinite(n)) {
+    return n;
+  }
+  // Non-numeric sprite IDs — monster groups use "${mapId}_${groupIndex}"
+  // (enter-game.handler.ts). Hash to a stable NEGATIVE int so:
+  //   - distinct groups don't collide on 0,
+  //   - the legacy "< 0 = non-player" heuristic in picking.ts routes
+  //     the click to the cell pick-through branch (walk then auto-
+  //     trigger PvM), not the player context menu.
+  let h = 0;
+  for (let i = 0; i < spriteId.length; i++) {
+    h = (h * 31 + spriteId.charCodeAt(i)) | 0;
+  }
+  // Ensure a negative, non-zero value.
+  return -(Math.abs(h) || 1);
 }
 
 /**
  * Build the legacy look string (used by the sprite loader) from a proto
- * SpriteMovementEntry. Format: "gfxId|color1|color2|color3|accessories...".
+ * SpriteMovementEntry. Format: "gfxId|color1|color2|color3|acc1,acc2,acc3,acc4,acc5"
+ * where each `accN` is `type_gfxId` (empty when the slot is empty). The
+ * accessory array is sorted by `ordinal` so slot indices stay stable:
+ *   0 = weapon, 1 = hat, 2 = cape, 3 = pet, 4 = shield.
+ *
+ * Monster groups carry their colors on the leader member, not on
+ * `entry.colors`, so we read from `monsters[0]` when present.
  */
 function encodeLook(entry: SpriteMovementEntry): string {
+  const isMonsterGroup =
+    entry.spriteType === 3 /* SPRITE_TYPE_MONSTER_GROUP */ &&
+    entry.monsters.length > 0;
+  const leader = isMonsterGroup ? entry.monsters[0] : null;
   const c = entry.colors;
   const parts: string[] = [
-    String(entry.gfxId || 0),
-    String(c?.color1 ?? -1),
-    String(c?.color2 ?? -1),
-    String(c?.color3 ?? -1),
+    String((leader?.gfxId || entry.gfxId) ?? 0),
+    String(leader?.color1 ?? c?.color1 ?? -1),
+    String(leader?.color2 ?? c?.color2 ?? -1),
+    String(leader?.color3 ?? c?.color3 ?? -1),
   ];
-  for (const acc of entry.accessories) {
-    parts.push(`${acc.itemId}:${acc.skinId}:${acc.ordinal}`);
+  if (entry.accessories.length > 0) {
+    const maxOrdinal = Math.max(
+      ...entry.accessories.map((a) => a.ordinal ?? 0),
+      -1
+    );
+    const slots: string[] = Array(maxOrdinal + 1).fill("");
+    for (const acc of entry.accessories) {
+      const ord = acc.ordinal ?? 0;
+      // `item_id` carries the category (hat=16 etc.), `skin_id` the GFX.
+      slots[ord] = `${acc.itemId}_${acc.skinId}`;
+    }
+    parts.push(slots.join(","));
   }
   return parts.join("|");
 }

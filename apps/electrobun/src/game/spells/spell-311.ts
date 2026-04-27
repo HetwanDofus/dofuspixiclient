@@ -1,81 +1,136 @@
 /**
- * Spell 311 - (Earth/Feca spell)
+ * Spell 311 — (Iop/Feca lightning strike, "Foudre" family).
  *
- * A ground-targeted effect that plays at the target cell position.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/311/scripts/scripts/
  *
- * Components:
- * - sprite_21: Main animation at target cell position (99 frames)
- *   - Two sub-elements with per-frame alpha randomization and rotation
+ * displayType=11 (TargetCell). The sole authored timeline is sprite_21,
+ * a 99-frame composite that positions itself at _parent.cellTo on frame_1,
+ * signals hit at frame_70 (`this.end()`), and removes the parent at
+ * frame_97 (`_parent.removeMovieClip()`). No library symbols are
+ * registered (librarySymbols[] is empty in the manifest) — sprite_21 is
+ * the only animation and lives in animations[]. Its children (PlaceObject2
+ * clip-event holders DefineSprite_4 and DefineSprite_9) are baked into the
+ * authored SVG frames; their clip-event scripts drive purely cosmetic alpha
+ * flicker / rotation / xscale oscillation that is observable per-frame
+ * but has no logical side-effects on the spell lifecycle.
  *
- * Original AS timing:
- * - Frame 1 (sprite_21): Position at cellTo.x, cellTo.y
- * - Frame 70 (sprite_21): this.end() - signal hit
- * - Frame 97 (sprite_21): removeMovieClip() - animation ends (0-indexed: 96)
+ * Because the manifest has no librarySymbols, we treat sprite_21 as a
+ * top-level authored animation registered under its bare animation name
+ * (no "lib_" prefix). The harness for TargetCell places root at
+ * cellTo; sprite_21's frame_1 also sets _X/_Y = cellTo.x/y — in the
+ * TargetCell model the container origin IS cellTo, so those assignments
+ * are effectively no-ops (they produce 0,0 in container-local space),
+ * but we port them faithfully.
  *
- * Sub-element behaviors (per enterFrame):
- * - PlaceObject2_6_1: _alpha = 0 + random(120) each frame
- * - PlaceObject2_8_3: _alpha = random(100) + 90; _rotation += 10 each frame
- *   (These are baked into the composite sprite frames)
+ * Library symbols: none.
+ *
+ * Authored sub-clip clip-events (baked into sprite_21's children):
+ *   - DefineSprite_4 / PlaceObject2_2_1:
+ *       onLoad:       i = 0
+ *       onEnterFrame: _xscale = 100 * Math.sin(i += 0.1)
+ *   - DefineSprite_9 / PlaceObject2_6_1:
+ *       onEnterFrame: _alpha = 0 + random(120)
+ *   - DefineSprite_9 / PlaceObject2_8_3:
+ *       onEnterFrame: _alpha = random(100) + 90; this._rotation += 10
+ *
+ * These sub-clip effects are carried inside the per-frame SVG textures of
+ * sprite_21 (the extractor bakes them into the composite frames). We do
+ * not need to model them as separate SpellClip children — the SVG frames
+ * already capture the visual result. The frame-script logic (frame_70
+ * signalHit, frame_97 complete) is what we must port.
+ *
+ * Main timeline (frame_2/DoAction.as): stop(); — no sound, no attach.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const SPRITE_21_MANIFEST: SpriteManifest = {
+const SPRITE_21_BOUNDS = {
   width: 85.5,
   height: 461.3,
   offsetX: -43.85,
   offsetY: -456.05,
 };
 
-export class Spell311 extends BaseSpell {
+export class Spell311 extends RuntimeSpell {
   readonly spellId = 311;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  protected setup(
-    _context: SpellContext,
+  private sprite21Sym!: SymbolDefinition;
+
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const anchor = calculateAnchor(SPRITE_21_MANIFEST);
+    const sprite21Anchor = calculateAnchor(SPRITE_21_BOUNDS);
 
-    const mainAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_21"),
-        fps: 60,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-      })
-    );
+    // sprite_21 — 99-frame composite lightning impact at target cell.
+    // Sourced from animations[] (no librarySymbols entry), so textures
+    // key is the bare animation name with no "lib_" prefix.
+    this.sprite21Sym = {
+      name: "sprite_21",
+      totalFrames: 99,
+      frames: textures.getFrames("sprite_21"),
+      anchorX: sprite21Anchor.x,
+      anchorY: sprite21Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_21/frame_1/DoAction.as:
+            //   _X = _parent.cellTo.x;
+            //   _Y = _parent.cellTo.y;
+            // Container origin is already at cellTo (TargetCell anchor),
+            // so these resolve to 0,0 in local space.
+            const root = clip.parent;
+            const cellTo = root?.vars.cellTo as
+              | { x: number; y: number }
+              | undefined;
+            if (cellTo) {
+              clip.x = cellTo.x - (root?.vars.cellTo as { x: number }).x;
+              clip.y = cellTo.y - (root?.vars.cellTo as { y: number }).y;
+            }
+          },
+        ],
+        [
+          69,
+          () => {
+            // AS DefineSprite_21/frame_70/DoAction.as:
+            //   this.end();   ← canonical hit signal
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          96,
+          (clip) => {
+            // AS DefineSprite_21/frame_97/DoAction.as:
+            //   _parent.removeMovieClip();
+            clip.parent?.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // AS frame 1: _X = _parent.cellTo.x; _Y = _parent.cellTo.y;
-    // Position at target cell (relative to container which is at cellFrom)
-    mainAnim.sprite.position.set(init.targetX, init.targetY - init.casterY);
-
-    // AS frame 70 (0-indexed: 69): this.end() - signal hit
-    mainAnim.onFrame(69, () => this.signalHit());
-
-    // AS frame 97 (0-indexed: 96): removeMovieClip() - animation ends
-    mainAnim.stopAt(96);
-
-    this.container.addChild(mainAnim.sprite);
+    this.registry.register(this.sprite21Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-
-    if (this.anims.allStopped()) {
-      this.complete();
-    }
+  protected onSpellStart(
+    _callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // Main timeline frame_2/DoAction.as: stop(); — no sound.
+    // Attach sprite_21 so it starts ticking from the next runtime frame.
+    this.root.attach(this.sprite21Sym, "sprite21", 1, context);
   }
 }

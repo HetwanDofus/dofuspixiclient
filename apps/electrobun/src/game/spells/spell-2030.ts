@@ -1,156 +1,162 @@
 /**
- * Spell 2030 - Crockette (variant)
+ * Spell 2030 — Crockette (Sadida frog projectile).
  *
- * A projectile spell with a "shoot" animation at caster and a looping "move"
- * projectile that travels toward the target.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/2030/scripts/scripts/
  *
- * Components:
- * - shoot (DefineSprite_15_shoot): At caster position, rotated toward target.
- *   Frame 4 resets rotation to 0. Ends at frame 106 (removeMovieClip).
- * - move (DefineSprite_12): Multiple instances of a looping projectile.
- *   Each starts at a random frame, with random alpha and scale.
- *   Stops at frame 97.
- * - DefineSprite_8: A sprite with 1-in-5 chance to show alternate frame.
- *   Stops at frame 34 or 60.
- * - DefineSprite_14: A long animation that stops at frame 295.
+ * displayType=30 (ProjectileBallistic). The spell has `move` (6-frame animated
+ * frog projectile) and `shoot` (108-frame impact with a burn timeline) — the
+ * classic ballistic pattern. The harness attaches `move` at caster, drives it
+ * along a parabolic arc, then attaches `shoot` at the target on landing and
+ * calls signalHit automatically.
  *
- * Original AS timing:
- * - Frame 1 (main): Play sound 'crockette_206'
- * - Frame 4 (shoot): _rotation = 0
- * - Frame 106 (shoot): removeMovieClip / stop -> animation ends
- * - Frame 1 (move): gotoAndPlay(random(30) + 1), random alpha/scale
- * - Frame 97 (move): stop()
- * - Frame 1 (DefineSprite_8): if random(5) != 1 gotoAndStop(60); else continues
- * - Frame 34 (DefineSprite_8): stop()
+ * Library symbols / sprite timelines:
+ *
+ *   - `move`  — 6-frame animated frog in flight. No authored frame scripts
+ *               other than the loop implied by totalFrames=6. The harness
+ *               positions this along the arc.
+ *
+ *   - `shoot` — 108-frame impact composite (isComposite=true). Contains
+ *               authored child sprites driven by DefineSprite_8, _12, _14.
+ *               frame_4: `_rotation = 0` (canonical override of velocity angle).
+ *               frame_106: `_parent.removeMovieClip(); stop()` → complete().
+ *               The harness fires signalHit() automatically at landing for
+ *               displayType=30, so we do NOT call it again here.
+ *
+ *   - DefineSprite_8 — a sub-symbol used inside `shoot`. 34+ frames.
+ *               frame_1: `if(random(5) != 1) { gotoAndStop(60); }` — most
+ *                        instances jump to frame 60 (looping decoration).
+ *               frame_34: `stop()`.
+ *               This symbol is referenced as a child inside the `shoot`
+ *               composite but is not directly attachMovie'd by per-spell AS.
+ *               Since the manifest only provides `shoot` and `move` in
+ *               animations[] (no librarySymbols[]), DefineSprite_8 is an
+ *               internal authored child within the `shoot` composite frames.
+ *               We do not need to register it separately — the composite
+ *               frame textures already bake its appearance.
+ *
+ *   - DefineSprite_12 — sub-symbol inside `shoot` composite.
+ *               frame_1: gotoAndPlay(random(30)+1); _alpha=30+random(50);
+ *                        t=30+random(120); _xscale=t; _yscale=t/2.
+ *               frame_97: stop().
+ *               Like DefineSprite_8, this is baked into the `shoot` composite.
+ *
+ *   - DefineSprite_14 — sub-symbol inside `shoot` composite.
+ *               frame_295: stop(). Long fade-out.
+ *               Also baked into composite.
+ *
+ * Because `librarySymbols` is empty in the manifest, `move` and `shoot` are
+ * the only registered symbols. Their textures are loaded with the bare name
+ * (no `lib_` prefix). The `shoot` composite is 108 frames; only frame_4
+ * (_rotation=0 override) and frame_106 (removal/completion) need explicit
+ * frameScripts. All internal sub-sprite animation is baked into the composite
+ * frame textures.
+ *
+ * Main timeline: SOMA.playSound("crockette_206") — no stop(), no child attaches.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const SHOOT_MANIFEST: SpriteManifest = {
-  width: 63.6,
-  height: 30.2,
-  offsetX: -31.8,
-  offsetY: -14.75,
-};
-
-const MOVE_MANIFEST: SpriteManifest = {
+const MOVE_BOUNDS = {
   width: 15.5,
   height: 5.3,
   offsetX: -9.7,
   offsetY: -2.7,
 };
 
-// Number of "move" projectile instances to spawn
-const MOVE_INSTANCE_COUNT = 8;
+const SHOOT_BOUNDS = {
+  width: 63.6,
+  height: 30.2,
+  offsetX: -31.8,
+  offsetY: -14.75,
+};
 
-export class Spell2030 extends BaseSpell {
+export class Spell2030 extends RuntimeSpell {
   readonly spellId = 2030;
+  readonly displayType = SpellDisplayType.ProjectileBallistic;
 
-  private shootAnim!: FrameAnimatedSprite;
-  private moveAnims: FrameAnimatedSprite[] = [];
-
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext
   ): void {
-    // Play sound at frame 1 (0-indexed: 0)
-    this.callbacks.playSound("crockette_206");
+    const moveAnchor = calculateAnchor(MOVE_BOUNDS);
+    const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // ---- Shoot animation (DefineSprite_15_shoot) ----
-    // Positioned at caster, rotated toward target
-    const shootTextures = textures.getFrames("shoot");
-    const shootAnchor = calculateAnchor(SHOOT_MANIFEST);
+    // ---- move — 6-frame animated frog projectile in flight -------
+    // No authored frame scripts. The harness drives motion along the
+    // parabolic arc and removes this clip at landing.
+    // Texture key uses bare "move" (no lib_ prefix — not in librarySymbols[]).
+    const moveSym: SymbolDefinition = {
+      name: "move",
+      totalFrames: 6,
+      frames: textures.getFrames("move"),
+      anchorX: moveAnchor.x,
+      anchorY: moveAnchor.y,
+    };
 
-    this.shootAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: shootTextures,
-        anchorX: shootAnchor.x,
-        anchorY: shootAnchor.y,
-        scale: init.scale,
-      })
-    );
-    this.shootAnim.sprite.position.set(0, init.casterY);
-    this.shootAnim.sprite.rotation = init.angleRad;
+    // ---- shoot — 108-frame impact composite ----------------------
+    // AS scripts/DefineSprite_15_shoot/:
+    //   frame_4/DoAction.as:   _rotation = 0;
+    //   frame_106/DoAction.as: _parent.removeMovieClip(); stop();
+    //
+    // frame_4 overrides the harness-applied velocity-angle rotation so
+    // the impact frog lands upright (canonical pattern also seen in
+    // spell-103's shoot). frame_106 triggers spell completion.
+    //
+    // Note: harness fires signalHit() automatically at landing for
+    // displayType=30 — we must NOT call it here.
+    //
+    // Texture key uses bare "shoot" (no lib_ prefix — not in librarySymbols[]).
+    const shootSym: SymbolDefinition = {
+      name: "shoot",
+      totalFrames: 108,
+      frames: textures.getFrames("shoot"),
+      anchorX: shootAnchor.x,
+      anchorY: shootAnchor.y,
+      frameScripts: new Map([
+        [
+          3,
+          (clip) => {
+            // AS DefineSprite_15_shoot/frame_4/DoAction.as:
+            //   _rotation = 0;
+            // Cancels the velocity-angle rotation applied by the harness
+            // when attaching shoot, so the impact visual stands upright.
+            clip.rotation = 0;
+          },
+        ],
+        [
+          105,
+          (clip) => {
+            // AS DefineSprite_15_shoot/frame_106/DoAction.as:
+            //   _parent.removeMovieClip();
+            //   stop();
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // Frame 4 (AS) -> index 3: _rotation = 0
-    this.shootAnim.onFrame(3, () => {
-      this.shootAnim.sprite.rotation = 0;
-    });
-
-    // Frame 106 (AS) -> index 105: removeMovieClip / stop
-    this.shootAnim.stopAt(105);
-
-    this.container.addChild(this.shootAnim.sprite);
-
-    // ---- Move projectile instances (DefineSprite_12) ----
-    // Each instance starts at a random frame with random alpha and scale
-    const moveTextures = textures.getFrames("move");
-    const moveAnchor = calculateAnchor(MOVE_MANIFEST);
-
-    for (let i = 0; i < MOVE_INSTANCE_COUNT; i++) {
-      // AS: gotoAndPlay(random(30) + 1) -> 0-indexed start frame: Math.floor(Math.random() * 30)
-      const startFrame = Math.floor(Math.random() * 30);
-
-      // AS: _alpha = 30 + random(50)
-      const alpha = (30 + Math.floor(Math.random() * 50)) / 100;
-
-      // AS: t = 30 + random(120); _xscale = t; _yscale = t / 2
-      const t = 30 + Math.floor(Math.random() * 120);
-      const scaleX = (t / 100) * init.scale;
-      const scaleY = (t / 2 / 100) * init.scale;
-
-      const anim = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: moveTextures,
-          anchorX: moveAnchor.x,
-          anchorY: moveAnchor.y,
-          startFrame,
-          loop: true,
-        })
-      );
-
-      // Position along the path from caster to target with slight variation
-      const progress = (i + 1) / (MOVE_INSTANCE_COUNT + 1);
-      const px = init.targetX * progress;
-      const py = init.casterY + (init.targetY - init.casterY) * progress;
-
-      anim.sprite.position.set(px, py);
-      anim.sprite.rotation = init.angleRad;
-      anim.sprite.scale.set(scaleX, scaleY);
-      anim.sprite.alpha = alpha;
-
-      // AS frame 97 (0-indexed: 96): stop()
-      anim.stopAt(96);
-
-      // Signal hit when first move anim reaches stop frame
-      if (i === 0) {
-        anim.onFrame(96, () => {
-          this.signalHit();
-        });
-      }
-
-      this.container.addChild(anim.sprite);
-      this.moveAnims.push(anim);
-    }
+    this.registry.register(moveSym);
+    this.registry.register(shootSym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-
-    if (this.shootAnim.isStopped() || this.shootAnim.isComplete()) {
-      this.complete();
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    _context: SpellContext
+  ): void {
+    // AS scripts/frame_1/DoAction.as:
+    //   SOMA.playSound("crockette_206");
+    callbacks.playSound("crockette_206");
   }
 }

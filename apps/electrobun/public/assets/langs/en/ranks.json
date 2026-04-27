@@ -1,0 +1,200 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "R": {
+            "1": {
+                "n": "Leader",
+                "o": 1,
+                "i": 1
+            },
+            "2": {
+                "n": "Second in Command",
+                "o": 2,
+                "i": 2
+            },
+            "3": {
+                "n": "Treasurer",
+                "o": 3,
+                "i": 3
+            },
+            "4": {
+                "n": "Protector",
+                "o": 4,
+                "i": 4
+            },
+            "5": {
+                "n": "Craftsman",
+                "o": 5,
+                "i": 5
+            },
+            "6": {
+                "n": "Reservist",
+                "o": 6,
+                "i": 6
+            },
+            "8": {
+                "n": "Guard",
+                "o": 7,
+                "i": 8
+            },
+            "9": {
+                "n": "Scout",
+                "o": 8,
+                "i": 9
+            },
+            "10": {
+                "n": "Spy",
+                "o": 9,
+                "i": 10
+            },
+            "11": {
+                "n": "Diplomat",
+                "o": 10,
+                "i": 11
+            },
+            "12": {
+                "n": "Secretary",
+                "o": 11,
+                "i": 12
+            },
+            "33": {
+                "n": "Pet Killer",
+                "o": 82,
+                "i": 33
+            },
+            "31": {
+                "n": "Poacher",
+                "o": 84,
+                "i": 31
+            },
+            "30": {
+                "n": "Treasure Hunter",
+                "o": 85,
+                "i": 30
+            },
+            "29": {
+                "n": "Thief",
+                "o": 86,
+                "i": 29
+            },
+            "28": {
+                "n": "Initiate",
+                "o": 87,
+                "i": 28
+            },
+            "27": {
+                "n": "Murderer",
+                "o": 88,
+                "i": 27
+            },
+            "26": {
+                "n": "Governor",
+                "o": 89,
+                "i": 26
+            },
+            "25": {
+                "n": "Muse",
+                "o": 90,
+                "i": 25
+            },
+            "24": {
+                "n": "Counsellor",
+                "o": 91,
+                "i": 24
+            },
+            "23": {
+                "n": "Chosen One",
+                "o": 92,
+                "i": 23
+            },
+            "21": {
+                "n": "Guide",
+                "o": 93,
+                "i": 21
+            },
+            "22": {
+                "n": "Mentor",
+                "o": 94,
+                "i": 22
+            },
+            "20": {
+                "n": "Recruiting Officer",
+                "o": 95,
+                "i": 20
+            },
+            "19": {
+                "n": "Breeder",
+                "o": 96,
+                "i": 19
+            },
+            "18": {
+                "n": "Merchant",
+                "o": 97,
+                "i": 18
+            },
+            "17": {
+                "n": "Apprentice",
+                "o": 98,
+                "i": 17
+            },
+            "16": {
+                "n": "Torturer",
+                "o": 100,
+                "i": 16
+            },
+            "34": {
+                "n": "Mascot",
+                "o": 103,
+                "i": 34
+            },
+            "13": {
+                "n": "Penitent",
+                "o": 104,
+                "i": 13
+            },
+            "35": {
+                "n": "Perceptor Killer",
+                "o": 105,
+                "i": 35
+            },
+            "15": {
+                "n": "Deserter",
+                "o": 110,
+                "i": 15
+            },
+            "32": {
+                "n": "Traitor",
+                "o": 120,
+                "i": 32
+            },
+            "14": {
+                "n": "Nuisance",
+                "o": 150,
+                "i": 14
+            },
+            "7": {
+                "n": "Dogsbody",
+                "o": 200,
+                "i": 7
+            },
+            "0": {
+                "n": "On Trial",
+                "o": 999,
+                "i": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 49,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "R",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

@@ -1,0 +1,500 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1248,
+        "PT": {
+            "1": {
+                "t": "Gula di %1",
+                "c": 16777215,
+                "pt": 0
+            },
+            "2": {
+                "t": "Vampyro",
+                "c": 16777215,
+                "pt": 0
+            },
+            "3": {
+                "t": "Vampyro Sanguinante",
+                "c": 16777215,
+                "pt": 0
+            },
+            "4": {
+                "t": "Vampyro Malyedetto",
+                "c": 16777215,
+                "pt": 0
+            },
+            "5": {
+                "t": "Vampyro Ultymo",
+                "c": 16777215,
+                "pt": 0
+            },
+            "6": {
+                "t": "Vampyro Demonyaco",
+                "c": 16777215,
+                "pt": 0
+            },
+            "7": {
+                "t": "Vampyro Runyco",
+                "c": 16777215,
+                "pt": 0
+            },
+            "8": {
+                "t": "Fenditore di Bworker",
+                "c": 16777215,
+                "pt": 0
+            },
+            "9": {
+                "t": "Fenditore dello Sfinter Cell",
+                "c": 16777215,
+                "pt": 0
+            },
+            "10": {
+                "t": "Fenditore del Culosse",
+                "c": 16777215,
+                "pt": 0
+            },
+            "11": {
+                "t": "Fenditore del We Wabbit",
+                "c": 16777215,
+                "pt": 0
+            },
+            "12": {
+                "t": "Fenditore del Kimbo",
+                "c": 16777215,
+                "pt": 0
+            },
+            "13": {
+                "t": "Fenditore del Minotoror",
+                "c": 16777215,
+                "pt": 0
+            },
+            "14": {
+                "t": "Fenditore del Drago Maiale",
+                "c": 16777215,
+                "pt": 0
+            },
+            "15": {
+                "t": "Fenditore della Quercia Molle",
+                "c": 16777215,
+                "pt": 0
+            },
+            "16": {
+                "t": "Fenditore del Moon",
+                "c": 16777215,
+                "pt": 0
+            },
+            "17": {
+                "t": "Fenditore del Dark Vlad",
+                "c": 16777215,
+                "pt": 0
+            },
+            "18": {
+                "t": "Eroe Bicentenario",
+                "c": 16777215,
+                "pt": 0
+            },
+            "19": {
+                "t": "Cavaliere IspaÑico",
+                "c": 16777215,
+                "pt": 0
+            },
+            "20": {
+                "t": "Terror of the Peninsula",
+                "c": 16777215,
+                "pt": 0
+            },
+            "21": {
+                "t": "Sauroshell Smasher",
+                "c": 16777215,
+                "pt": 0
+            },
+            "22": {
+                "t": "Mastro Taglialegna",
+                "c": 16777215,
+                "pt": 0
+            },
+            "23": {
+                "t": "Mastro Forgiatore di Spade",
+                "c": 16777215,
+                "pt": 0
+            },
+            "24": {
+                "t": "Mastro Intagliatore di Archi",
+                "c": 16777215,
+                "pt": 0
+            },
+            "25": {
+                "t": "Mastro Forgiatore di Martelli",
+                "c": 16777215,
+                "pt": 0
+            },
+            "26": {
+                "t": "Mastro Ciabattino",
+                "c": 16777215,
+                "pt": 0
+            },
+            "27": {
+                "t": "Mastro Orefice",
+                "c": 16777215,
+                "pt": 0
+            },
+            "28": {
+                "t": "Mastro Forgiatore di Daghe",
+                "c": 16777215,
+                "pt": 0
+            },
+            "29": {
+                "t": "Mastro Intagliatore di Bastoni",
+                "c": 16777215,
+                "pt": 0
+            },
+            "30": {
+                "t": "Mastro Intagliatore di Bacchette",
+                "c": 16777215,
+                "pt": 0
+            },
+            "31": {
+                "t": "Mastro Forgiatore di Pale",
+                "c": 16777215,
+                "pt": 0
+            },
+            "32": {
+                "t": "Mastro Minatore",
+                "c": 16777215,
+                "pt": 0
+            },
+            "33": {
+                "t": "Mastro Panettiere",
+                "c": 16777215,
+                "pt": 0
+            },
+            "34": {
+                "t": "Mastro Alchimista",
+                "c": 16777215,
+                "pt": 0
+            },
+            "35": {
+                "t": "Mastro Sarto",
+                "c": 16777215,
+                "pt": 0
+            },
+            "36": {
+                "t": "Mastro Contadino",
+                "c": 16777215,
+                "pt": 0
+            },
+            "37": {
+                "t": "Mastro Forgiatore di Asce",
+                "c": 16777215,
+                "pt": 0
+            },
+            "38": {
+                "t": "Mastro Pescatore",
+                "c": 16777215,
+                "pt": 0
+            },
+            "39": {
+                "t": "Mastro Cacciatore",
+                "c": 16777215,
+                "pt": 0
+            },
+            "40": {
+                "t": "Mastro Forgimago di Daghe",
+                "c": 16777215,
+                "pt": 0
+            },
+            "41": {
+                "t": "Mastro Forgimago di Spade",
+                "c": 16777215,
+                "pt": 0
+            },
+            "42": {
+                "t": "Mastro Forgimago di Martelli",
+                "c": 16777215,
+                "pt": 0
+            },
+            "43": {
+                "t": "Mastro Forgimago di Pale",
+                "c": 16777215,
+                "pt": 0
+            },
+            "44": {
+                "t": "Mastro Forgimago di Asce",
+                "c": 16777215,
+                "pt": 0
+            },
+            "45": {
+                "t": "Mastro Intagliamago di Archi",
+                "c": 16777215,
+                "pt": 0
+            },
+            "46": {
+                "t": "Mastro Intagliamago di Bacchette",
+                "c": 16777215,
+                "pt": 0
+            },
+            "47": {
+                "t": "Mastro Intagliamago di Bastoni",
+                "c": 16777215,
+                "pt": 0
+            },
+            "48": {
+                "t": "Mastro Macellaio",
+                "c": 16777215,
+                "pt": 0
+            },
+            "49": {
+                "t": "Mastro Pescivendolo",
+                "c": 16777215,
+                "pt": 0
+            },
+            "50": {
+                "t": "Mastro Forgiatore di Scudi",
+                "c": 16777215,
+                "pt": 0
+            },
+            "51": {
+                "t": "Mastro Calzimago",
+                "c": 16777215,
+                "pt": 0
+            },
+            "52": {
+                "t": "Mastro Gioielmago",
+                "c": 16777215,
+                "pt": 0
+            },
+            "53": {
+                "t": "Mastro Vestimago",
+                "c": 16777215,
+                "pt": 0
+            },
+            "54": {
+                "t": "Mastro Tuttofare",
+                "c": 16777215,
+                "pt": 0
+            },
+            "55": {
+                "t": "Avventuriero dell'Avvento 651",
+                "c": 16777215,
+                "pt": 0
+            },
+            "56": {
+                "t": "Nawalista",
+                "c": 16777215,
+                "pt": 0
+            },
+            "57": {
+                "t": "Fenditore del Punzek",
+                "c": 16777215,
+                "pt": 0
+            },
+            "58": {
+                "t": "Fenditore di Babbo Nawal",
+                "c": 16777215,
+                "pt": 0
+            },
+            "59": {
+                "t": "Fenditore del Papy Pawty",
+                "c": 16777215,
+                "pt": 0
+            },
+            "60": {
+                "t": "A Pandi That Resists",
+                "c": 16777215,
+                "pt": 0
+            },
+            "61": {
+                "t": "Gran Maestro delle Carte",
+                "c": 16777215,
+                "pt": 0
+            },
+            "62": {
+                "t": "Signore delle Carte",
+                "c": 16777215,
+                "pt": 0
+            },
+            "63": {
+                "t": "Gladiatroollante Novizio",
+                "c": 16777215,
+                "pt": 0
+            },
+            "64": {
+                "t": "Gladiatroollante Esperto",
+                "c": 16777215,
+                "pt": 0
+            },
+            "65": {
+                "t": "Gladiatroollante Maestro",
+                "c": 16777215,
+                "pt": 0
+            },
+            "66": {
+                "t": "Avventuriero dell'Avvento 652",
+                "c": 16777215,
+                "pt": 0
+            },
+            "67": {
+                "t": "Avventuriero dell'Avvento 653",
+                "c": 16777215,
+                "pt": 0
+            },
+            "68": {
+                "t": "Avventuriero dell'Avvento 654",
+                "c": 16777215,
+                "pt": 0
+            },
+            "69": {
+                "t": "Timeless Krosplayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "70": {
+                "t": "Gran Maestro degli Elementi",
+                "c": 16777215,
+                "pt": 0
+            },
+            "71": {
+                "t": "Fenditore del Crocabulia",
+                "c": 16777215,
+                "pt": 0
+            },
+            "72": {
+                "t": "Bherb Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "73": {
+                "t": "Corrupted Black Rat Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "74": {
+                "t": "Ancestral Treechnid Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "75": {
+                "t": "Krollector Soft Oak Slayer",
+                "c": 14864002,
+                "pt": 0
+            },
+            "76": {
+                "t": "Krollector Dragon Pig Slayer",
+                "c": 14864002,
+                "pt": 0
+            },
+            "77": {
+                "t": "Music Superfan",
+                "c": 16777215,
+                "pt": 0
+            },
+            "78": {
+                "t": "Krollector Wa Wabbit Slayer",
+                "c": 14864002,
+                "pt": 0
+            },
+            "79": {
+                "t": "Krollector Koolich Slayer",
+                "c": 14864002,
+                "pt": 0
+            },
+            "80": {
+                "t": "Krollector Sphincter Cell Slayer",
+                "c": 14864002,
+                "pt": 0
+            },
+            "81": {
+                "t": "Krollector Bworker Slayer",
+                "c": 14864002,
+                "pt": 0
+            },
+            "85": {
+                "t": "Old-School",
+                "c": 16777215,
+                "pt": 0
+            },
+            "86": {
+                "t": "Dismayed Tynril Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "87": {
+                "t": "Disconcerted Tynril Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "88": {
+                "t": "Perfidious Tynril Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "89": {
+                "t": "Stunned Tynril Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "90": {
+                "t": "%1's Soulmate",
+                "c": 14516962,
+                "pt": 0
+            },
+            "91": {
+                "t": "Lonely Heart",
+                "c": 16777215,
+                "pt": 0
+            },
+            "92": {
+                "t": "Golden Scarabugly Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "93": {
+                "t": "Pourfendeur du Tanukouï San",
+                "c": 16777215,
+                "pt": 0
+            },
+            "94": {
+                "t": "Great Coralator Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "95": {
+                "t": "Moowolf Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "96": {
+                "t": "Bworkette Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "97": {
+                "t": "WAKFU S5 Producer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "98": {
+                "t": "Ankaffiliate\t",
+                "c": 16777215,
+                "pt": 0
+            },
+            "99": {
+                "t": "Gobbstock Grandstander",
+                "c": 16777215,
+                "pt": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 109,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "PT",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

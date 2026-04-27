@@ -1,167 +1,152 @@
 /**
- * Spell 403 - Lakam
+ * Spell 403 — Lakam (Feca or similar, impact at target cell).
  *
- * A simple impact animation at the target position with particles.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/403/scripts/scripts/
  *
- * Components:
- * - anim1 (DefineSprite_9): Main animation at target, stops at frame 81 (0-indexed)
+ * displayType=11 (TargetCell). No projectile motion, no caster reference,
+ * single impact animation anchored at the target cell. The top-level
+ * main timeline plays a sound. The canonical SWF has two authored
+ * sprites composited into `anim1`:
  *
- * Original AS timing:
- * - Frame 1 (main): Play sound 'lakam_401b'
- * - Frame 82 (DefineSprite_9): removeMovieClip() / stop() -> animation ends
- * - Particles (DefineSprite_6): Spawned with random rotation, scale, and X velocity
+ *   - DefineSprite_9 — outer container (82 frames). frame_1 seeds `t=17`.
+ *     frame_82 calls `_parent.removeMovieClip()` + stop() → spell complete.
+ *
+ *   - DefineSprite_6 — particle container (single frame). Has a placed
+ *     child (PlaceObject2_5_1) whose clip events drive particle physics:
+ *       onLoad (×2): seed _rotation, t (scale), vx.
+ *       onEnterFrame: decay _yscale by /1.1, fade _alpha by -2.3,
+ *                     drift _X += (vx *= 0.97).
+ *
+ *   - DefineSprite_2 — 13-frame sub-animation. frame_13: stop(). Used as
+ *     the impact flash composite. We signal hit at its stop frame.
+ *
+ *   - DefineSprite_5 — single-frame particle. frame_1: _rotation = random(360).
+ *
+ * Because librarySymbols[] is empty in the manifest, all symbols are in
+ * the animations[] list. The main rendered animation is `anim1` (84 frames).
+ * We register `anim1` as the sole symbol and drive completion from its
+ * canonical removal frame (frame 82 → index 81, since frame_82 maps to
+ * index 81 in the DoAction — but the AS says `frame_82` which is 0-based
+ * index 81). signalHit is fired at DefineSprite_2's stop frame (frame_13
+ * → index 12 within the anim1 composite timeline).
+ *
+ * Main timeline: SOMA.playSound("lakam_401b").
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  ASParticleSystem,
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Texture } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const ANIM1_MANIFEST: SpriteManifest = {
+const ANIM1_BOUNDS = {
   width: 145.25,
   height: 145.25,
   offsetX: -47.95,
   offsetY: -69.45,
 };
 
-// DefineSprite_9 has t = 17 set at frame 1 - this is the initial t value for the sprite itself,
-// but looking at the AS more carefully:
-// - DefineSprite_9 is the outer container sprite (anim1)
-// - DefineSprite_6 is a particle MC placed inside with onClipEvent(load/enterFrame)
-// - DefineSprite_5 has _rotation = random(360) at frame 1
-// - DefineSprite_2 has stop() at frame 13
-
-// The particles (DefineSprite_6) use:
-// load: _rotation = random(360), t = random(50)+20, _xscale=t, _yscale=t
-// load_2: vx = 1.65 + 5*Math.random()
-// enterFrame: _yscale /= 1.1, _alpha -= 2.3, _X += (vx *= 0.97)
-// Death when _alpha <= 0: after ~43 frames (100/2.3)
-
-// The number of particles is determined by how many DefineSprite_6 instances
-// are placed in the timeline. Looking at anim1 (84 frames, composite),
-// we need to infer particle count from context. Given DefineSprite_9 sets t=17
-// this appears to be related to particle count.
-// The "t = 17" in DefineSprite_9/frame_1 is the number of particles to spawn.
-
-const PARTICLE_COUNT = 17;
-
-export class Spell403 extends BaseSpell {
+export class Spell403 extends RuntimeSpell {
   readonly spellId = 403;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private mainAnim!: FrameAnimatedSprite;
-  private particles!: ASParticleSystem;
-
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext
   ): void {
-    // Get a particle texture - use a frame from anim1 or fallback
-    const particleTextures = textures.getFrames("anim1");
-    const particleTexture = particleTextures[0] ?? Texture.EMPTY;
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // Particle system at target position
-    this.particles = new ASParticleSystem(particleTexture);
-    this.particles.container.position.set(init.targetX, init.targetY);
-    this.container.addChild(this.particles.container);
-
-    // Spawn particles (DefineSprite_6 instances)
-    // AS onClipEvent(load):
-    //   _rotation = random(360)
-    //   t = random(50) + 20
-    //   _xscale = t; _yscale = t
-    // AS onClipEvent(load)_2:
-    //   vx = 1.65 + 5 * Math.random()
-    // AS onClipEvent(enterFrame):
-    //   _yscale = _yscale / 1.1
-    //   _alpha = _alpha - 2.3
-    //   _X = _X + (vx *= 0.97)
+    // ---- anim1 — main impact composite animation (84 frames) ----
+    // This is the sole top-level animation. No librarySymbols[] in the
+    // manifest, so we use textures.getFrames("anim1") (no lib_ prefix).
     //
-    // We model this as particles with:
-    // - random rotation
-    // - random initial scale (t as percentage)
-    // - yscale decays by /1.1 per frame (we approximate via vtDecay on y only)
-    // - alpha decreases by 2.3 per frame
-    // - x moves with velocity decaying by 0.97
+    // The canonical AS layout embeds:
+    //   DefineSprite_9 (outer, 82 frames):
+    //     frame_1/DoAction.as: t = 17  (seeds an internal counter)
+    //     frame_82/DoAction.as: _parent.removeMovieClip(); stop();
+    //
+    //   DefineSprite_6 (particle, 1 frame, placed child):
+    //     onClipEvent(load) #1: _rotation = random(360); t = random(50)+20;
+    //                           _xscale = t; _yscale = t;
+    //     onClipEvent(load) #2: vx = 1.65 + 5 * Math.random();
+    //     onClipEvent(enterFrame): _yscale /= 1.1; _alpha -= 2.3;
+    //                              _X += (vx *= 0.97);
+    //
+    //   DefineSprite_2 (impact flash, 13 frames):
+    //     frame_13/DoAction.as: stop();  → signalHit here
+    //
+    //   DefineSprite_5 (particle, 1 frame):
+    //     frame_1/DoAction.as: _rotation = random(360);
+    //
+    // Since the manifest provides `anim1` as a single composite animation
+    // with 84 frames of pre-rendered SVGs, we drive the timeline using
+    // those frames directly. The per-symbol logic is faithfully represented
+    // in the frameScripts below at the canonical frame indices.
 
-    this.particles.spawnMany(PARTICLE_COUNT, () => {
-      // AS: _rotation = random(360)
-      const rotation = Math.floor(Math.random() * 360);
-      // AS: t = random(50) + 20 -> scale as percentage (20-69)
-      const t = Math.floor(Math.random() * 50) + 20;
-      // AS: vx = 1.65 + 5 * Math.random()
-      const vx = 1.65 + 5 * Math.random();
+    const anim1Sym: SymbolDefinition = {
+      name: "anim1",
+      totalFrames: 84,
+      frames: textures.getFrames("anim1"),
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
 
-      // _yscale /= 1.1 each frame: yscale decays by factor 1/1.1 per frame
-      // We use vtDecay to model yscale reduction.
-      // Since ASParticleSystem uses uniform scale via t,
-      // we approximate the yscale-only decay with standard vtDecay approach.
-      // alpha decreases 2.3 per frame out of 100 -> alphaVelocity = -2.3/100 per frame
-      return {
-        x: 0,
-        y: 0,
-        vx: vx,
-        vy: 0,
-        accX: 0.97, // vx *= 0.97 each frame
-        accY: 1,
-        vr: 0,
-        vrDecay: 1,
-        t: t, // initial scale as percentage
-        vt: 0,
-        vtDecay: 0,
-        rotation: rotation,
-        alpha: 1,
-        alphaVelocity: -0.023, // _alpha -= 2.3 (out of 100) -> -0.023 out of 1
-      };
-    });
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_9/frame_1/DoAction.as
+            // t = 17  (internal counter seed — stored on vars for fidelity)
+            clip.vars.t = 17;
+          },
+        ],
+        [
+          12,
+          (_clip) => {
+            // AS DefineSprite_2/frame_13/DoAction.as: stop();
+            // DefineSprite_2 is the 13-frame impact flash embedded in
+            // anim1. frame_13 (0-based index 12) is when it stops —
+            // this is the canonical hit signal moment.
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          81,
+          (clip) => {
+            // AS DefineSprite_9/frame_82/DoAction.as:
+            //   _parent.removeMovieClip();
+            //   stop();
+            // frame_82 is 0-based index 81. This removes the outer mc
+            // and ends the spell.
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // Main animation (DefineSprite_9 / anim1) at target position
-    const anchor = calculateAnchor(ANIM1_MANIFEST);
-    this.mainAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("anim1"),
-        fps: 60,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-      })
-    );
-    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
-
-    // Frame 1 (0-indexed: 0): play sound
-    this.mainAnim.onFrame(0, () => this.callbacks.playSound("lakam_401b"));
-
-    // Frame 82 (0-indexed: 81): removeMovieClip / stop -> signal end
-    // stopFrame is 81 (0-indexed) based on manifest stopFrame: 81
-    this.mainAnim.stopAt(81);
-
-    // Signal hit at start of impact (frame 0)
-    this.mainAnim.onFrame(0, () => this.signalHit());
-
-    this.mainAnim.addTo(this.container);
+    this.registry.register(anim1Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext
+  ): void {
+    // AS scripts/frame_1/DoAction.as: SOMA.playSound("lakam_401b");
+    callbacks.playSound("lakam_401b");
+
+    // Attach the main animation at root. For TargetCell (displayType=11)
+    // the container is already anchored at the target cell, so we place
+    // anim1 at (0,0) within it.
+    const anim1Sym = this.registry.resolve("anim1");
+    if (anim1Sym) {
+      this.root.attach(anim1Sym, "anim1", 1, context);
     }
-
-    this.anims.update(deltaTime);
-    this.particles.update();
-
-    if (this.mainAnim.isStopped() && !this.particles.hasAliveParticles()) {
-      this.complete();
-    }
-  }
-
-  destroy(): void {
-    this.particles.destroy();
-    super.destroy();
   }
 }

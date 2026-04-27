@@ -35,6 +35,18 @@ export interface VelloAnimationInfo {
   baseZOrder: number;
 }
 
+/**
+ * Per-animation render meta at resolution 1.0 — uniform canvas size for every
+ * frame + anchor (Flash registration point within that canvas). Scales linearly
+ * with zoom at render time, so a single query per asset suffices.
+ */
+export interface VelloAnimationMeta {
+  width: number;
+  height: number;
+  anchorX: number;
+  anchorY: number;
+}
+
 let renderer: VelloRenderer | null = null;
 let gpu: VelloGpu | null = null;
 let maxTextureSize = 8192;
@@ -187,6 +199,25 @@ export function getAnimationInfo(
     assetId,
     animation
   ) as VelloAnimationInfo | null;
+}
+
+/**
+ * Get uniform canvas + anchor for an animation at 1x resolution. Cache the
+ * result per asset — scales linearly with zoom at render time. Walks path
+ * geometry on every call, so avoid hot paths.
+ */
+export function getAnimationMeta(
+  assetId: number,
+  animation: string
+): VelloAnimationMeta | null {
+  if (!renderer) {
+    return null;
+  }
+  return renderer.getAnimationMeta(
+    assetId,
+    animation,
+    1.0
+  ) as VelloAnimationMeta | null;
 }
 
 /**

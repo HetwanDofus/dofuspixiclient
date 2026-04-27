@@ -63,7 +63,9 @@ describe("overlay actors integrate with Scene", () => {
     const grid = new GridOverlay(parent);
     const cell = new CellHighlighter(parent);
 
-    // Grid is on top of cell highlights
-    expect(grid.zIndex).toBeGreaterThan(cell.zIndex);
+    // Cell tints (placement, reachable range, spell range, path)
+    // render ABOVE the grid, mirroring the original 1.29 ordering
+    // Grid=400 < Zone=500 in ExternalContainer.as.
+    expect(cell.zIndex).toBeGreaterThan(grid.zIndex);
   });
 });

@@ -1,0 +1,37 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "SUB": {
+            "8": {
+                "1": "En este Mundo, existen 6 talismanes\nque encierran poder y prosperidad.",
+                "2": "Seis huevos de dragón llamados Dofus,",
+                "3": "que fueron robados a sus guardianes...",
+                "4": "Entonces, los elementos se desencadenaron,\nLos monstruos se limaron los colmillos,",
+                "5": "Los aventureros alzaron sus armas,\n¡Y todo esto acabó en una feliz masacre!",
+                "6": "¡Pero el momento ha llegado!\nTu destino te llevará hasta Incarnam.",
+                "7": "Conviértete en caballero, en curandero, en invocador...",
+                "8": "Encuentra los Dofus,\n¡Y conviértete en el héroe que el Mundo espera!"
+            },
+            "14": {
+                "1": "[TR2]",
+                "2": "[TR2]",
+                "3": "[TR2]",
+                "4": "[TR2]",
+                "5": "[TR2]"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 19,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "SUB",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

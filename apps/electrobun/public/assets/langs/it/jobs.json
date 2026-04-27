@@ -1,0 +1,215 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "J": {
+            "1": {
+                "n": "-Base-",
+                "s": 0,
+                "g": -1
+            },
+            "2": {
+                "n": "Taglialegna",
+                "s": 0,
+                "g": 1
+            },
+            "11": {
+                "n": "Forgiatore di Spade",
+                "s": 0,
+                "g": 10
+            },
+            "13": {
+                "n": "Intagliatore di Archi",
+                "s": 0,
+                "g": 6
+            },
+            "14": {
+                "n": "Forgiatore di Martelli",
+                "s": 0,
+                "g": 11
+            },
+            "15": {
+                "n": "Ciabattino",
+                "s": 0,
+                "g": 5
+            },
+            "16": {
+                "n": "Orefice",
+                "s": 0,
+                "g": 15
+            },
+            "17": {
+                "n": "Forgiatore di Daghe",
+                "s": 0,
+                "g": 9
+            },
+            "18": {
+                "n": "Intagliatore di Bastoni",
+                "s": 0,
+                "g": 8
+            },
+            "19": {
+                "n": "Intagliatore di Bacchette",
+                "s": 0,
+                "g": 7
+            },
+            "20": {
+                "n": "Forgiatore di Pale",
+                "s": 0,
+                "g": 12
+            },
+            "24": {
+                "n": "Minatore",
+                "s": 0,
+                "g": 13
+            },
+            "25": {
+                "n": "Panettiere",
+                "s": 0,
+                "g": 3
+            },
+            "26": {
+                "n": "Alchimista",
+                "s": 0,
+                "g": 14
+            },
+            "27": {
+                "n": "Sarto",
+                "s": 0,
+                "g": 20
+            },
+            "28": {
+                "n": "Contadino",
+                "s": 0,
+                "g": 18
+            },
+            "31": {
+                "n": "Forgiatore di Asce",
+                "s": 0,
+                "g": 19
+            },
+            "36": {
+                "n": "Pescatore",
+                "s": 0,
+                "g": 30
+            },
+            "41": {
+                "n": "Cacciatore",
+                "s": 0,
+                "g": 32
+            },
+            "43": {
+                "n": "Forgimago di Daghe",
+                "s": 17,
+                "g": 21
+            },
+            "44": {
+                "n": "Forgimago di Spade",
+                "s": 11,
+                "g": 24
+            },
+            "45": {
+                "n": "Forgimago di Martelli",
+                "s": 14,
+                "g": 25
+            },
+            "46": {
+                "n": "Forgimago di Pale",
+                "s": 20,
+                "g": 26
+            },
+            "47": {
+                "n": "Forgimago di Asce",
+                "s": 31,
+                "g": 23
+            },
+            "48": {
+                "n": "Intagliamago di Archi",
+                "s": 13,
+                "g": 28
+            },
+            "49": {
+                "n": "Intagliamago di Bacchette",
+                "s": 19,
+                "g": 29
+            },
+            "50": {
+                "n": "Intagliamago di Bastoni",
+                "s": 18,
+                "g": 22
+            },
+            "56": {
+                "n": "Macellaio",
+                "s": 0,
+                "g": 33
+            },
+            "58": {
+                "n": "Pescivendolo",
+                "s": 0,
+                "g": 31
+            },
+            "60": {
+                "n": "Forgiatore di Scudi",
+                "s": 0,
+                "g": 40
+            },
+            "62": {
+                "n": "Calzimago",
+                "s": 15,
+                "g": 36
+            },
+            "63": {
+                "n": "Gioielmago",
+                "s": 16,
+                "g": 37
+            },
+            "64": {
+                "n": "Vestimago",
+                "s": 27,
+                "g": 35
+            },
+            "65": {
+                "n": "Tuttofare",
+                "s": 0,
+                "g": 34
+            },
+            "66": {
+                "n": "Gioielliere",
+                "s": 0,
+                "g": 0
+            },
+            "67": {
+                "n": "Orefice",
+                "s": 0,
+                "g": 0
+            },
+            "70": {
+                "n": "Contadino",
+                "s": 0,
+                "g": 0
+            },
+            "71": {
+                "n": "Contadino",
+                "s": 0,
+                "g": 0
+            },
+            "72": {
+                "n": "[NO TRAD]",
+                "s": 0,
+                "g": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 49,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "J",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

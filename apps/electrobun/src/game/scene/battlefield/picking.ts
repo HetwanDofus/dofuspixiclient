@@ -1,3 +1,4 @@
+import type { MonsterGroupMember } from "@dofus/proto";
 import type { Application, Sprite } from "pixi.js";
 
 import type { PickingSystem } from "@/game/render/picking-system";
@@ -7,6 +8,10 @@ import {
   hideContextMenu,
   showContextMenu,
 } from "@/game/stores/context-menu-store";
+import {
+  clearMonsterGroupHover,
+  setMonsterGroupHover,
+} from "@/hud/world/monster-group-hover-store";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("BattlefieldPicking");
@@ -19,6 +24,13 @@ export interface BattlefieldPickingDeps {
   interactiveObjects(): Map<number, InteractiveObjectData>;
   worldActorRenderer(): PlayerRenderer | null;
   app(): Application | null;
+  /**
+   * Fired when a clickable that resolves to a cell ID is clicked
+   * (currently used for monster-group sprites). The game client uses
+   * this to route a walk-to-cell request which trips the server-side
+   * PvM auto-trigger on cell arrival.
+   */
+  onCellPickThrough?: (cellId: number) => void;
 }
 
 interface InteractiveCallbacks {
@@ -39,6 +51,15 @@ export class BattlefieldPicking {
   private readonly pickableIdToPlayerId = new Map<number, number>();
   private readonly playerIdToPickableId = new Map<number, number>();
   private readonly callbacks = new Map<number, InteractiveCallbacks>();
+  // pickableId → monster-group roster, populated when a SPRITE_TYPE_
+  // MONSTER_GROUP actor is registered. The hover callback reads this
+  // and publishes to monsterGroupHoverStore so the React tooltip can
+  // render the member list.
+  private readonly pickableIdToMonsterGroup = new Map<
+    number,
+    MonsterGroupMember[]
+  >();
+  private readonly pickableIdToPlayerName = new Map<number, string>();
   private lastHoveredPickableId: number | undefined;
 
   constructor(private readonly deps: BattlefieldPickingDeps) {}
@@ -58,7 +79,11 @@ export class BattlefieldPicking {
   }
 
   /** Register a world actor's sprite so clicks/hovers route to it. */
-  registerPlayer(playerId: number, renderer: PlayerRenderer): void {
+  registerPlayer(
+    playerId: number,
+    renderer: PlayerRenderer,
+    monsterGroup?: MonsterGroupMember[]
+  ): void {
     const data = renderer.getPlayerPickingData(playerId);
     const pickingSystem = this.deps.pickingSystem();
 
@@ -77,8 +102,10 @@ export class BattlefieldPicking {
       onHover: (hovered) => {
         if (hovered) {
           renderer.showName(playerId);
+          this.publishMonsterGroupHover(pickableId, true);
         } else {
           renderer.hideName(playerId);
+          this.publishMonsterGroupHover(pickableId, false);
         }
       },
       onClick: null,
@@ -86,6 +113,47 @@ export class BattlefieldPicking {
 
     this.playerIdToPickableId.set(playerId, pickableId);
     this.pickableIdToPlayerId.set(pickableId, playerId);
+
+    const displayName = renderer.getPlayerName(playerId);
+    if (displayName) {
+      this.pickableIdToPlayerName.set(pickableId, displayName);
+    }
+    if (monsterGroup && monsterGroup.length > 0) {
+      this.pickableIdToMonsterGroup.set(pickableId, monsterGroup);
+    }
+  }
+
+  private publishMonsterGroupHover(pickableId: number, hovered: boolean): void {
+    if (!hovered) {
+      clearMonsterGroupHover();
+      return;
+    }
+    const members = this.pickableIdToMonsterGroup.get(pickableId);
+    if (!members || members.length === 0) {
+      return;
+    }
+    const playerId = this.pickableIdToPlayerId.get(pickableId) ?? 0;
+    // Approximate a cursor-space position from the last known screen
+    // coord if the picking system exposes one, else anchor the tip
+    // just above the sprite's container via its global transform.
+    const app = this.deps.app();
+    const canvas = app?.canvas;
+    const rect = canvas?.getBoundingClientRect();
+    const x = rect ? rect.left + rect.width / 2 : 0;
+    const y = rect ? rect.top + rect.height / 3 : 0;
+    setMonsterGroupHover({
+      spriteId: String(playerId),
+      members: members.map((m) => ({
+        templateId: m.templateId,
+        name:
+          this.pickableIdToPlayerName.get(pickableId) ??
+          `Monster ${m.templateId}`,
+        level: m.level,
+        gfxId: m.gfxId,
+      })),
+      x,
+      y,
+    });
   }
 
   unregisterPlayer(playerId: number): void {
@@ -99,6 +167,12 @@ export class BattlefieldPicking {
     this.callbacks.delete(pickableId);
     this.playerIdToPickableId.delete(playerId);
     this.pickableIdToPlayerId.delete(pickableId);
+    this.pickableIdToMonsterGroup.delete(pickableId);
+    this.pickableIdToPlayerName.delete(pickableId);
+    if (this.lastHoveredPickableId === pickableId) {
+      clearMonsterGroupHover();
+      this.lastHoveredPickableId = undefined;
+    }
   }
 
   /** Wipe all tile-level pickables (kept on map reload). */
@@ -120,6 +194,24 @@ export class BattlefieldPicking {
     const playerId = this.pickableIdToPlayerId.get(result.object.id);
 
     if (playerId !== undefined) {
+      // Monster groups: primary detection is the roster map populated
+      // at register-time from SpriteMovementEntry.monsters[]; we fall
+      // back to the legacy negative-id heuristic for pre-rework
+      // servers that still emit formatSpriteID(-groupID). Either
+      // branch routes the click to the cell pick-through so the
+      // player walks to the group's cell and trips the server-side
+      // PvM auto-trigger on arrival.
+      const isMonsterGroup =
+        this.pickableIdToMonsterGroup.has(result.object.id) || playerId < 0;
+      if (isMonsterGroup) {
+        const cellId = this.deps
+          .worldActorRenderer()
+          ?.getPlayerCell(playerId);
+        if (cellId !== undefined) {
+          this.deps.onCellPickThrough?.(cellId);
+        }
+        return;
+      }
       const name =
         this.deps.worldActorRenderer()?.getPlayerName(playerId) ?? "Player";
       this.showPlayerContextMenu(name, result.x, result.y);

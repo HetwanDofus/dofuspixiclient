@@ -1,0 +1,37 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "SUB": {
+            "8": {
+                "1": "Es gibt 6 Artefakte in dieser Welt,\ndie Macht und Reichtum versprechen.",
+                "2": "Die Rede ist von den sechs Dracheneiern.\n \"Dofus\" werden sie genannt.",
+                "3": "Sie wurden ihren Wächtern entrissen...",
+                "4": "Daraufhin wurden die Elemente entfesselt und \nalle Monster wetzten ihre Krallen.",
+                "5": "Die Abenteurer schärften ihre Klingen,\nund ein blutiges Gemetzel nahm seinen Lauf!",
+                "6": "Doch nun ist die Zeit des Wandels gekommen,\ndenn das Schicksal hat dich nach Incarnam geführt...",
+                "7": "Sei es als Ritter, Heiler oder Beschwörer.",
+                "8": "Finde die Dofus,\nund werde der Held, den die Welt erwartet!"
+            },
+            "14": {
+                "1": "[TR2]",
+                "2": "[TR2]",
+                "3": "[TR2]",
+                "4": "[TR2]",
+                "5": "[TR2]"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 22,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "SUB",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

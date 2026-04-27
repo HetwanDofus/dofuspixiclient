@@ -15,7 +15,7 @@ export type ConnectionEvent =
 export type ConnectionEventListener = (event: ConnectionEvent) => void;
 
 const DEFAULT_CONFIG: Required<ConnectionConfig> = {
-  url: "ws://localhost:4444",
+  url: "ws://localhost:8080",
   reconnectInterval: 3000,
   maxReconnectAttempts: 5,
 };

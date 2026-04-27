@@ -1,0 +1,100 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "EM": {
+            "1": {
+                "n": "Ausruhen",
+                "s": "sit"
+            },
+            "2": {
+                "n": "Winken",
+                "s": "bye"
+            },
+            "3": {
+                "n": "Klatschen",
+                "s": "appl"
+            },
+            "4": {
+                "n": "Wütend werden",
+                "s": "mad"
+            },
+            "5": {
+                "n": "Angst",
+                "s": "fear"
+            },
+            "6": {
+                "n": "Waffe präsentieren",
+                "s": "weap"
+            },
+            "7": {
+                "n": "Flöte spielen",
+                "s": "pipo"
+            },
+            "8": {
+                "n": "Einen fahren lassen",
+                "s": "oups"
+            },
+            "9": {
+                "n": "Grüßen",
+                "s": "hi"
+            },
+            "10": {
+                "n": "Kuss zuwerfen",
+                "s": "kiss"
+            },
+            "11": {
+                "n": "Stein",
+                "s": "pfc1"
+            },
+            "12": {
+                "n": "Blatt",
+                "s": "pfc2"
+            },
+            "13": {
+                "n": "Schere",
+                "s": "pfc3"
+            },
+            "14": {
+                "n": "Arme verschränken",
+                "s": "cross"
+            },
+            "15": {
+                "n": "Fingerzeig",
+                "s": "point"
+            },
+            "16": {
+                "n": ". . . . . ",
+                "s": "crow"
+            },
+            "19": {
+                "n": "Sich ausstrecken",
+                "s": "rest"
+            },
+            "21": {
+                "n": "Champion",
+                "s": "champ"
+            },
+            "22": {
+                "n": "Aura der Macht",
+                "s": "aura"
+            },
+            "23": {
+                "n": "Blutsaugaura",
+                "s": "bat"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 52,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "EM",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

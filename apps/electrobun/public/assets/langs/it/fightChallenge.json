@@ -1,0 +1,415 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "FC": {
+            "1": {
+                "n": "Zombie",
+                "d": "Usare un solo punto movimento ad ogni turno.",
+                "g": 11
+            },
+            "2": {
+                "n": "Statua",
+                "d": "Finire il proprio turno sulla stessa casella su cui è stato cominciato.",
+                "g": 9
+            },
+            "3": {
+                "n": "Membro volontario",
+                "d": "Uccidere per primo 1%.",
+                "g": 4
+            },
+            "4": {
+                "n": "Condizionale",
+                "d": "Uccidere per ultimo 1%.",
+                "g": 10
+            },
+            "5": {
+                "n": "Economo",
+                "d": "Tutti i personaggi devono usare solo una volta la stessa azione durante tutto il combattimento.",
+                "g": 3
+            },
+            "6": {
+                "n": "Versatile",
+                "d": "Durante il proprio turno ogni giocatore può effettuare solo una volta la stessa azione.",
+                "g": 12
+            },
+            "7": {
+                "n": "Giardiniere",
+                "d": "Durante tutto il combattimento piantare una Cawota ogni volta che l'incantesimo è disponibile.",
+                "g": 6
+            },
+            "8": {
+                "n": "Nomade",
+                "d": "Durante tutto il combattimento usare tutti i PM disponibili ad ogni turno.",
+                "g": 8
+            },
+            "9": {
+                "n": "Barbaro",
+                "d": "Durante tutto il combattimento non usare nessun incantesimo.",
+                "g": 1
+            },
+            "10": {
+                "n": "Crudele",
+                "d": "Gli avversari devono essere uccisi seguendo l'ordine crescente del loro livello.",
+                "g": 2
+            },
+            "11": {
+                "n": "Mistico",
+                "d": "Durante tutto il combattimento usare solo gli incantesimi.",
+                "g": 7
+            },
+            "12": {
+                "n": "Becchino",
+                "d": "Durante tutto il combattimento invocare uno Chafer Paz ogni volta che l'incantesimo è disponibile.",
+                "g": 5
+            },
+            "14": {
+                "n": "Casino Royal",
+                "d": "Lanciare l'incantesimo Roulette ogni volta che l'incantesimo è disponibile, per tutta la durata del combattimento.",
+                "g": 14
+            },
+            "15": {
+                "n": "Araknofilo",
+                "d": "Invocare un'Arakne ogni volta che l'incantesimo è disponibile, per tutta la durata del combattimento.",
+                "g": 15
+            },
+            "17": {
+                "n": "Intoccabile",
+                "d": "Non perdere punti di vita per tutta la durata del combattimento.",
+                "g": 17
+            },
+            "18": {
+                "n": "Incurabile",
+                "d": "Non curare per l'intera durata del combattimento.",
+                "g": 18
+            },
+            "19": {
+                "n": "Mani pulite",
+                "d": "Uccidere tutti i mostri senza provocare loro danni diretti per tutta la durata del combattimento. Si possono utilizzare le trappole, i Glifi, i veleni, i danni causati dagli spostamenti, le ripercussioni di danni così come gli attacchi delle Invocazioni.",
+                "g": 19
+            },
+            "20": {
+                "n": "Elementare",
+                "d": "Utilizzare lo stesso elemento d'attacco per tutta la durata del combattimento.",
+                "g": 20
+            },
+            "21": {
+                "n": "Circolare!",
+                "d": "Non togliere PM agli avversari per tutta la durata del combattimento.",
+                "g": 21
+            },
+            "22": {
+                "n": "Tempus Fugit",
+                "d": "Non togliere PA agli avversari per tutta la durata del combattimento.",
+                "g": 22
+            },
+            "23": {
+                "n": "Perso di vista",
+                "d": "Non togliere Portata agli avversari per tutta la durata del combattimento.",
+                "g": 23
+            },
+            "24": {
+                "n": "Limitato",
+                "d": "Utilizzare lo stesso incantesimo o lo stesso attacco nel corpo a corpo per tutta la durata del combattimento.",
+                "g": 24
+            },
+            "25": {
+                "n": "Ordinato",
+                "d": "Gli avversari devono essere finiti nell'ordine decrescente dei loro livelli.",
+                "g": 25
+            },
+            "28": {
+                "n": "Abbasso i niubbi, viva le donne!",
+                "d": "I personaggi di sesso maschile devono lasciare i personaggi di sesso femminile finire gli avversari per tutta la durata del combattimento.",
+                "g": 28
+            },
+            "29": {
+                "n": "Abbasso le niubbe, viva gli uomini!",
+                "d": "I personaggi di sesso femminile devono lasciare i personaggi di sesso maschile finire gli avversari per tutta la durata del combattimento.",
+                "g": 29
+            },
+            "30": {
+                "n": "Prima i bambini",
+                "d": "Il personaggio del livello più basso deve finire tutti gli avversari.",
+                "g": 30
+            },
+            "31": {
+                "n": "Focus",
+                "d": "Quando un avversario è attaccato, deve essere finito prima che un altro avversario sia attaccato.",
+                "g": 31
+            },
+            "32": {
+                "n": "Elitista",
+                "d": "Tutti gli attacchi devono essere concentrati su %1 fintanto che non muore.",
+                "g": 32
+            },
+            "33": {
+                "n": "Sopravvissuto",
+                "d": "Non deve morire nessun alleato.",
+                "g": 33
+            },
+            "34": {
+                "n": "Imprevedibile",
+                "d": "Tutti gli attacchi devono essere concentrati sul bersaglio indicato ad ogni nuovo turno di un personaggio.",
+                "g": 34
+            },
+            "35": {
+                "n": "Killer professionista",
+                "d": "Gli avversari devono essere uccisi nell'ordine indicato. Un nuovo Bersaglio è indicato ogni volta che il Bersaglio precedente viene ucciso.",
+                "g": 35
+            },
+            "36": {
+                "n": "Audace",
+                "d": "Finire il proprio turno su una cellula adiacente a quella di un avversario.",
+                "g": 36
+            },
+            "37": {
+                "n": "Appiccicoso",
+                "d": "Finire il proprio turno su una cellula adiacente a quella di un alleato.",
+                "g": 37
+            },
+            "38": {
+                "n": "Blitzkrieg",
+                "d": "Appena un avversario perde Punti Vita, deve essere ucciso prima dell'inizio del suo turno di gioco.",
+                "g": 38
+            },
+            "39": {
+                "n": "Anacoreta",
+                "d": "Non finire mai il proprio turno su una cellula adiacente a quella di un alleato.",
+                "g": 39
+            },
+            "40": {
+                "n": "Pusillanime",
+                "d": "Non finire mai il proprio turno su una cellula adiacente a quella di un avversario.",
+                "g": 40
+            },
+            "41": {
+                "n": "Impetuoso",
+                "d": "Utilizzare tutti i punti d'azione disponibili prima della fine del proprio turno di gioco.",
+                "g": 41
+            },
+            "42": {
+                "n": "Due al prezzo di uno",
+                "d": "Quando un personaggio finisce un avversario, deve obbligatoriamente finire un (e solo uno) secondo avversario durante il suo turno di gioco.",
+                "g": 42
+            },
+            "43": {
+                "n": "Abnegazione",
+                "d": "I personaggi non devono mai ricevere cure durante il loro turno di gioco.",
+                "g": 43
+            },
+            "44": {
+                "n": "Spartizione",
+                "d": "Durante il combattimento ogni personaggio deve aver ucciso almeno un avversario (che non sia un'Invocazione).",
+                "g": 44
+            },
+            "45": {
+                "n": "Duello",
+                "d": "Quando un personaggio attacca un avversario, nessun altro personaggio può attaccare questo avversario per tutta la durata del combattimento.",
+                "g": 51
+            },
+            "46": {
+                "n": "A ognuno il suo mostro",
+                "d": "Durante il combattimento ogni personaggio deve aver ucciso almeno un avversario (che non sia un'Invocazione) e, quando un personaggio attacca un avversario, nessun altro personaggio può attaccare questo avversario per tutta la durata del combattimento.",
+                "g": 46
+            },
+            "47": {
+                "n": "Contaminazione",
+                "d": "Appena un alleato perde Punti Vita, hai 3 turni di gioco per ucciderlo.",
+                "g": 47
+            },
+            "48": {
+                "n": "Prima i muli",
+                "d": "Il mulo del livello più debole deve finire tutti gli avversari (così impari a \"mulare\" come un Porkass).",
+                "g": 48
+            },
+            "49": {
+                "n": "Proteggi i tuoi muli",
+                "d": "Non devono morire né gli alleati, né i muli.",
+                "g": 49
+            },
+            "50": {
+                "n": "Il cheat degli svil",
+                "d": "Finisci questo combattimento per aggiudicarti la sfida. È risaputo, tutti gli sviluppatori sono dei cheaters.",
+                "g": 50
+            },
+            "51": {
+                "n": "Zombie",
+                "d": "Usare un solo punto movimento ad ogni turno.",
+                "g": 11
+            },
+            "52": {
+                "n": "Statua",
+                "d": "Finire il proprio turno sulla stessa casella su cui è stato cominciato.",
+                "g": 9
+            },
+            "53": {
+                "n": "Membro volontario",
+                "d": "Uccidere per primo 1%.",
+                "g": 4
+            },
+            "54": {
+                "n": "Condizionale",
+                "d": "Uccidere per ultimo 1%.",
+                "g": 10
+            },
+            "55": {
+                "n": "Versatile",
+                "d": "Durante il proprio turno ogni giocatore può effettuare solo una volta la stessa azione.",
+                "g": 12
+            },
+            "56": {
+                "n": "Giardiniere",
+                "d": "Durante tutto il combattimento piantare una Cawota ogni volta che l'incantesimo è disponibile.",
+                "g": 6
+            },
+            "57": {
+                "n": "Nomade",
+                "d": "Durante tutto il combattimento usare tutti i PM disponibili ad ogni turno.",
+                "g": 8
+            },
+            "59": {
+                "n": "Crudele",
+                "d": "Gli avversari devono essere uccisi seguendo l'ordine crescente del loro livello.",
+                "g": 2
+            },
+            "60": {
+                "n": "Mistico",
+                "d": "Durante tutto il combattimento usare solo gli incantesimi.",
+                "g": 7
+            },
+            "61": {
+                "n": "Becchino",
+                "d": "Durante tutto il combattimento invocare uno Chafer Paz ogni volta che l'incantesimo è disponibile.",
+                "g": 5
+            },
+            "63": {
+                "n": "Araknofilo",
+                "d": "Invocare un'Arakne ogni volta che l'incantesimo è disponibile, per tutta la durata del combattimento.",
+                "g": 15
+            },
+            "64": {
+                "n": "Intoccabile",
+                "d": "Non perdere punti di vita per tutta la durata del combattimento.",
+                "g": 17
+            },
+            "65": {
+                "n": "Incurabile",
+                "d": "Non curare per l'intera durata del combattimento.",
+                "g": 18
+            },
+            "66": {
+                "n": "Perso di vista",
+                "d": "Non togliere Portata agli avversari per tutta la durata del combattimento.",
+                "g": 23
+            },
+            "68": {
+                "n": "Ordinato",
+                "d": "Gli avversari devono essere finiti nell'ordine decrescente dei loro livelli.",
+                "g": 25
+            },
+            "69": {
+                "n": "Abbasso i niubbi, viva le donne!",
+                "d": "I personaggi di sesso maschile devono lasciare i personaggi di sesso femminile finire gli avversari per tutta la durata del combattimento.",
+                "g": 28
+            },
+            "70": {
+                "n": "Abbasso le niubbe, viva gli uomini!",
+                "d": "I personaggi di sesso femminile devono lasciare i personaggi di sesso maschile finire gli avversari per tutta la durata del combattimento.",
+                "g": 29
+            },
+            "71": {
+                "n": "Focus",
+                "d": "Quando un avversario è attaccato, deve essere finito prima che un altro avversario sia attaccato.",
+                "g": 31
+            },
+            "72": {
+                "n": "Elitista",
+                "d": "Tutti gli attacchi devono essere concentrati su %1 fintanto che non muore.",
+                "g": 32
+            },
+            "73": {
+                "n": "Sopravvissuto",
+                "d": "Non deve morire nessun alleato.",
+                "g": 33
+            },
+            "74": {
+                "n": "Imprevedibile",
+                "d": "Tutti gli attacchi devono essere concentrati sul bersaglio indicato ad ogni nuovo turno di un personaggio.",
+                "g": 34
+            },
+            "75": {
+                "n": "Killer professionista",
+                "d": "Gli avversari devono essere uccisi nell'ordine indicato. Un nuovo Bersaglio è indicato ogni volta che il Bersaglio precedente viene ucciso.",
+                "g": 35
+            },
+            "76": {
+                "n": "Audace",
+                "d": "Finire il proprio turno su una cellula adiacente a quella di un avversario.",
+                "g": 36
+            },
+            "77": {
+                "n": "Appiccicoso",
+                "d": "Finire il proprio turno su una cellula adiacente a quella di un alleato.",
+                "g": 37
+            },
+            "79": {
+                "n": "Anacoreta",
+                "d": "Non finire mai il proprio turno su una cellula adiacente a quella di un alleato.",
+                "g": 39
+            },
+            "80": {
+                "n": "Pusillanime",
+                "d": "Non finire mai il proprio turno su una cellula adiacente a quella di un avversario.",
+                "g": 40
+            },
+            "81": {
+                "n": "Impetuoso",
+                "d": "Utilizzare tutti i punti d'azione disponibili prima della fine del proprio turno di gioco.",
+                "g": 41
+            },
+            "82": {
+                "n": "Due al prezzo di uno",
+                "d": "Quando un personaggio finisce un avversario, deve obbligatoriamente finire un (e solo uno) secondo avversario durante il suo turno di gioco.",
+                "g": 42
+            },
+            "83": {
+                "n": "Abnegazione",
+                "d": "I personaggi non devono mai ricevere cure durante il loro turno di gioco.",
+                "g": 43
+            },
+            "84": {
+                "n": "Spartizione",
+                "d": "Durante il combattimento ogni personaggio deve aver ucciso almeno un avversario (che non sia un'Invocazione).",
+                "g": 44
+            },
+            "85": {
+                "n": "Duello",
+                "d": "Quando un personaggio attacca un avversario, nessun altro personaggio può attaccare questo avversario per tutta la durata del combattimento.",
+                "g": 51
+            },
+            "86": {
+                "n": "A ognuno il suo mostro",
+                "d": "Durante il combattimento ogni personaggio deve aver ucciso almeno un avversario (che non sia un'Invocazione) e, quando un personaggio attacca un avversario, nessun altro personaggio può attaccare questo avversario per tutta la durata del combattimento.",
+                "g": 46
+            },
+            "87": {
+                "n": "Contaminazione",
+                "d": "Appena un alleato perde Punti Vita, hai 3 turni di gioco per ucciderlo.",
+                "g": 47
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 108,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "FC",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

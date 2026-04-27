@@ -47,14 +47,27 @@ export class PlayerMovement {
   /** Kick off a path. Resolves when the last segment arrives. */
   start(player: ActivePlayer, path: number[]): Promise<void> {
     return new Promise((resolve) => {
-      if (path.length < 2) {
+      // Server broadcasts step-only paths (maps.path-codec.ts
+      // decodePath returns { direction, cell } starting at step 1 —
+      // the origin isn't on the wire). `startMovementSegment` reads
+      // `path[pathIndex]` as the anchor though, so we need a path
+      // that begins with the fighter's current cell. Prepend unless
+      // the caller already included it (client-side pathfinder does).
+      const normalized =
+        path.length > 0 && path[0] !== player.cellId
+          ? [player.cellId, ...path]
+          : path;
+
+      if (normalized.length < 2) {
         resolve();
         return;
       }
 
       // Mounted players always walk (mount speed); others pick walk/run by path length.
-      const useRun = player.isMounting ? false : shouldUseRun(path.length);
-      player.path = path;
+      const useRun = player.isMounting
+        ? false
+        : shouldUseRun(normalized.length);
+      player.path = normalized;
       player.pathIndex = 0;
       player.useRun = useRun;
       player.moving = true;
@@ -65,7 +78,7 @@ export class PlayerMovement {
       this.startSegment(player);
 
       if (player.linkedChildren.length > 0) {
-        const finalCell = path[path.length - 1];
+        const finalCell = normalized[normalized.length - 1];
         setTimeout(() => {
           for (const childId of player.linkedChildren) {
             this.moveLinkedChild(childId, finalCell, player.direction);
@@ -86,41 +99,65 @@ export class PlayerMovement {
   /**
    * Advance a player's movement for `deltaMs`. No-op when not moving.
    * Cell crossings trigger z-index recomputation + picking dirty + segment swap.
+   *
+   * Each frame's delta is carried across segment boundaries — a
+   * single frame can legitimately consume multiple cells on a fast
+   * run or after a framerate dip. Without carry-over the sprite
+   * paused one frame at every cell cross and the walk stutter-
+   * stepped from cell to cell.
    */
   advance(player: ActivePlayer, deltaMs: number): void {
     if (!player.moving || player.path.length === 0) {
       return;
     }
 
-    const clampedMs = getClampedDeltaMs(deltaMs);
-    const deltaPx = player.movePixelSpeed * clampedMs;
+    let remaining = player.movePixelSpeed * getClampedDeltaMs(deltaMs);
+    // Safety cap in case movement state wedges — a 60fps frame at a
+    // realistic run speed traverses at most ~2 cells.
+    let safety = 8;
 
-    const state = this.snapshotState(player);
-    const result = advanceMovement(
-      state,
-      deltaPx,
-      this.deps.mapWidth(),
-      this.deps.groundLevel(),
-      this.deps.cellDataMap()
-    );
+    while (remaining > 0 && player.moving && safety-- > 0) {
+      if (player.moveDistance > remaining) {
+        // Mid-segment advance by remaining.
+        const offset = getMovementOffset(this.snapshotState(player), remaining);
+        player.container.x += offset.x;
+        player.container.y += offset.y;
+        player.moveDistance -= remaining;
+        return;
+      }
 
-    player.pathIndex = state.pathIndex;
-    player.moving = state.moving;
+      // This tick reaches or overshoots the segment end. Apply the
+      // exact remaining segment offset, then hand off to the state
+      // machine to either cross into the next cell or finish.
+      const used = player.moveDistance;
+      const offset = getMovementOffset(this.snapshotState(player), used);
+      player.container.x += offset.x;
+      player.container.y += offset.y;
+      remaining -= used;
+      player.moveDistance = 0;
 
-    if (result.complete) {
-      this.finishPath(player);
-      return;
+      const state = this.snapshotState(player);
+      const result = advanceMovement(
+        state,
+        0,
+        this.deps.mapWidth(),
+        this.deps.groundLevel(),
+        this.deps.cellDataMap()
+      );
+      player.pathIndex = state.pathIndex;
+      player.moving = state.moving;
+
+      if (result.complete) {
+        this.finishPath(player);
+        return;
+      }
+      if (result.nextCell !== undefined) {
+        this.crossCell(player, result.nextCell);
+        // crossCell → startSegment initializes moveDistance for the
+        // new segment; the loop continues with whatever `remaining`
+        // pixels are left, walking along the new direction.
+      }
     }
-
-    if (result.nextCell !== undefined) {
-      this.crossCell(player, result.nextCell);
-      return;
-    }
-
-    const offset = getMovementOffset(state, deltaPx);
-    player.container.x += offset.x;
-    player.container.y += offset.y;
-    player.moveDistance -= deltaPx;
   }
 
   /**
@@ -222,6 +259,26 @@ export class PlayerMovement {
   }
 
   private finishPath(player: ActivePlayer): void {
+    // Snap cellId + container to the final cell. `crossCell` only
+    // runs for intermediate segments — the last segment hits
+    // `advanceMovement`'s `complete` branch, which never calls
+    // `crossCell`, so without this finisher `player.cellId` stays at
+    // the penultimate cell (or the origin, for a 1-step move) even
+    // though the container sits on the real final tile. Any
+    // subsequent move would then compute its first segment's
+    // direction vector from the stale cell id, making the sprite
+    // slide diagonally off its real position.
+    if (player.path.length > 0) {
+      const finalCell = player.path[player.path.length - 1];
+      if (typeof finalCell === "number") {
+        const finalPos = this.cellPos(finalCell);
+        player.cellId = finalCell;
+        player.container.x = finalPos.x;
+        player.container.y = finalPos.y;
+        player.container.zIndex = this.deps.calculateZIndex(finalCell);
+      }
+    }
+
     player.path = [];
     player.pathIndex = 0;
     player.moveDistance = 0;

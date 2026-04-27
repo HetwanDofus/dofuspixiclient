@@ -1,589 +1,596 @@
 /**
- * Spell 208 - Fléau de Crâ (Crow's Bane)
+ * Spell 208 — Boule de Feu / Renvoi de Sort (Osamodas rock throw).
  *
- * A projectile spell that shoots toward the target with a smoke trail.
- * At impact, feathers (plumes) and rocks (pierres) explode outward.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/208/scripts/scripts/
  *
- * Components:
- * - shoot (shoot frames): Projectile at caster, rotated toward target, 97 frames
- * - fumee (lib_fumee): Smoke particles spawned along projectile path each frame
- * - plumes (lib_plumes): 10 feather particles spawned at impact
- * - pierres (lib_pierres): Rock particles spawned at impact (2 per frame up to level*3)
+ * displayType=30 (ProjectileBallistic).
+ *   - Has both `move` and `shoot` symbols (harness expects them).
+ *   - `move` (DefineSprite_15) contains a PlaceObject2_14_8 child whose
+ *     onEnterFrame oscillates _yscale, plus a frame_1 DoAction that wires
+ *     an onEnterFrame callback on `move` itself to trail `fumee` smoke particles.
+ *   - `shoot` (DefineSprite_26) contains a PlaceObject2_25_1 child (sprite_25)
+ *     that spawns `plumes` feather particles and accumulates `pierres` stone chips.
+ *     frame_1 resets _rotation to -_parent.angle (upright override).
+ *     frame_97 removes _parent (outer mc) + stop → spell complete.
+ *   - The harness fires signalHit automatically at landing; do NOT call it again.
  *
- * Original AS timing:
- * - Frame 1 (shoot): _rotation = -_parent.angle
- * - Frame 97 (shoot): _parent.removeMovieClip(); stop(); -> end of projectile, signal hit
- * - DefineSprite_25 frame 20: stop() -> impact anim timer
- * - Smoke particles: spawned every enter-frame along path
- * - Plumes: 10 spawned immediately at impact (frame 1 of DefineSprite_25)
- * - Pierres: 2 per frame until c >= level*3 (DefineSprite_25 PlaceObject2_23_2 enterFrame)
+ * Library symbols:
+ *   - lib_fumee  (36-frame smoke puff) — frame_1 randomises rotation; frame_8
+ *     jumps forward random(7) frames; frame_36 removes self.
+ *   - lib_plumes (1-frame feather)     — onLoad seeds random drift; onEnterFrame
+ *     fades + drifts while _Y < 0, oscillating rotation.
+ *   - lib_pierres (1-frame stone chip) — onLoad seeds ballistic vars; onEnterFrame
+ *     drives outward scatter + angle-driven drift + alpha fade.
+ *
+ * Container symbols (no authored visual frames):
+ *   - move  (DefineSprite_15) — 1-frame container. frame_1 wires smoke trail.
+ *   - shoot (DefineSprite_26) — 97-frame container. frame_1 places sprite_25
+ *     inner composite; frame_97 completes.
+ *
+ * The inner sprite_25 (DefineSprite_25) is a sub-symbol that lives inside
+ * `shoot`. It has its own authored timeline (20 frames, stops at 20) and a
+ * PlaceObject2_23_2 clip that accumulates `pierres` over time. It also spawns
+ * 10 `plumes` on frame_1. We model it as a nested SymbolDefinition.
+ *
+ * Main timeline: no SOMA.playSound in the visible scripts; onSpellStart is
+ * minimal (the harness handles move/shoot attachment for displayType 30).
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Container, Sprite, Texture } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const SHOOT_MANIFEST: SpriteManifest = {
-  width: 102,
-  height: 102,
-  offsetX: -53,
-  offsetY: -93.7,
-};
+// ---------------------------------------------------------------------------
+// Manifest bounds for calculateAnchor
+// ---------------------------------------------------------------------------
 
-const FUMEE_MANIFEST: SpriteManifest = {
+const FUMEE_BOUNDS = {
   width: 20.15,
   height: 17.8,
   offsetX: -10.7,
   offsetY: -8.8,
 };
 
-const PLUMES_MANIFEST: SpriteManifest = {
+const PLUMES_BOUNDS = {
   width: 21.75,
   height: 6.65,
   offsetX: -14,
   offsetY: -34.45,
 };
 
-const PIERRES_MANIFEST: SpriteManifest = {
+const PIERRES_BOUNDS = {
   width: 16.15,
   height: 20.5,
   offsetX: -8.15,
   offsetY: -8.6,
 };
 
-interface SmokeParticle {
-  anim: FrameAnimatedSprite;
-  alive: boolean;
-}
-
-interface PlumesParticle {
-  sprite: Sprite;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  vch: number;
-  vr: number;
-  amp: number;
-  a: number;
-  time: number;
-  duree: number;
-  alpha: number;
-  alive: boolean;
-}
-
-interface PierresParticle {
-  sprite: Sprite;
-  px: number;
-  py: number;
-  lx: number;
-  ly: number;
-  vx: number;
-  vy: number;
-  vr: number;
-  v2x: number;
-  v2y: number;
-  v: number;
-  t: number;
-  tps: number;
-  vd: number;
-  alpha: number;
-  alive: boolean;
-}
-
-export class Spell208 extends BaseSpell {
+export class Spell208 extends RuntimeSpell {
   readonly spellId = 208;
+  readonly displayType = SpellDisplayType.ProjectileBallistic;
 
-  private shootAnim!: FrameAnimatedSprite;
+  // Keep references so nested symbol defs can cross-reference each other
+  private fumeeSym!: SymbolDefinition;
+  private plumesSym!: SymbolDefinition;
+  private pierresSym!: SymbolDefinition;
+  private sprite25Sym!: SymbolDefinition;
 
-  private smokeContainer!: Container;
-  private smokeParticles: SmokeParticle[] = [];
-  private fumeTextures: Texture[] = [];
-
-  private plumesContainer!: Container;
-  private plumesParticles: PlumesParticle[] = [];
-  private plumesTexture: Texture = Texture.EMPTY;
-
-  private pierresContainer!: Container;
-  private pierresParticles: PierresParticle[] = [];
-  private pierresTexture: Texture = Texture.EMPTY;
-  private pierresC = 0;
-
-  private level = 1;
-  private spellAngleRad = 0;
-
-  private projectileDone = false;
-  private impactSpawned = false;
-
-  private casterX = 0;
-  private casterY = 0;
-  private targetX2 = 0;
-  private targetY2 = 0;
-  private readonly shootTotalFrames = 97;
-
-  protected setup(
-    context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext
   ): void {
-    this.level = Math.max(1, Math.min(6, context?.level ?? 1));
-    // angleRad = context.angle * PI/180; used with Math.cos/sin for pierres direction
-    this.spellAngleRad = init.angleRad;
+    const fumeeAnchor = calculateAnchor(FUMEE_BOUNDS);
+    const plumesAnchor = calculateAnchor(PLUMES_BOUNDS);
+    const pierresAnchor = calculateAnchor(PIERRES_BOUNDS);
 
-    this.casterX = 0;
-    this.casterY = init.casterY;
-    this.targetX2 = init.targetX;
-    this.targetY2 = init.targetY;
-
-    // Load textures for particle systems
-    this.fumeTextures = textures.getFrames("lib_fumee");
-    this.plumesTexture = textures.getFrames("lib_plumes")[0] ?? Texture.EMPTY;
-    this.pierresTexture = textures.getFrames("lib_pierres")[0] ?? Texture.EMPTY;
-
-    // Smoke container (rendered below projectile)
-    this.smokeContainer = new Container();
-    this.container.addChild(this.smokeContainer);
-
-    // Shoot animation
-    // AS frame 1: _rotation = -_parent.angle
-    // AS frame 97: _parent.removeMovieClip(); stop();
-    const shootAnchor = calculateAnchor(SHOOT_MANIFEST);
-    this.shootAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("shoot"),
-        fps: 25,
-        anchorX: shootAnchor.x,
-        anchorY: shootAnchor.y,
-        scale: init.scale,
-      })
-    );
-    this.shootAnim.sprite.position.set(this.casterX, this.casterY);
-    // AS: _rotation = -_parent.angle (angle is in degrees in context, negated for AS rotation)
-    this.shootAnim.sprite.rotation = -((context?.angle ?? 0) * Math.PI) / 180;
-    this.container.addChild(this.shootAnim.sprite);
-
-    // Impact containers (hidden until projectile lands)
-    this.plumesContainer = new Container();
-    this.plumesContainer.position.set(init.targetX, init.targetY);
-    this.plumesContainer.visible = false;
-    this.container.addChild(this.plumesContainer);
-
-    this.pierresContainer = new Container();
-    this.pierresContainer.position.set(init.targetX, init.targetY);
-    this.pierresContainer.visible = false;
-    this.container.addChild(this.pierresContainer);
-  }
-
-  /**
-   * Get interpolated position of the projectile for the given frame index
-   */
-  private getProjectilePosition(frame: number): { x: number; y: number } {
-    const t =
-      this.shootTotalFrames <= 1
-        ? 1
-        : Math.min(1, frame / (this.shootTotalFrames - 1));
-    return {
-      x: this.casterX + (this.targetX2 - this.casterX) * t,
-      y: this.casterY + (this.targetY2 - this.casterY) * t,
-    };
-  }
-
-  /**
-   * Spawn a smoke particle at given position
-   * AS: DefineSprite_22_fumee
-   *   frame 1: _rotation = random(360)
-   *   frame 8: gotoAndPlay(_currentframe + random(7))
-   *   frame 36: removeMovieClip()
-   */
-  private spawnSmoke(x: number, y: number): void {
-    if (this.fumeTextures.length === 0) {
-      return;
-    }
-
-    const fumeeAnchor = calculateAnchor(FUMEE_MANIFEST);
-    const anim = new FrameAnimatedSprite({
-      textures: this.fumeTextures,
-      fps: 25,
+    // ---- lib_fumee — 36-frame smoke puff -------------------------------
+    // frame_1:  AS DefineSprite_22_fumee/frame_1/DoAction.as
+    //   _rotation = random(360);
+    // frame_8:  AS DefineSprite_22_fumee/frame_8/DoAction.as
+    //   gotoAndPlay(_currentframe + random(7));
+    // frame_36: AS DefineSprite_22_fumee/frame_36/DoAction.as
+    //   this.removeMovieClip();
+    this.fumeeSym = {
+      name: "fumee",
+      totalFrames: 36,
+      frames: textures.getFrames("lib_fumee"),
       anchorX: fumeeAnchor.x,
       anchorY: fumeeAnchor.y,
-      scale: 1,
-      startFrame: 0,
-    });
-
-    // AS frame 1: _rotation = random(360)  (1-indexed = index 0)
-    anim.sprite.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
-
-    // AS frame 8: gotoAndPlay(_currentframe + random(7))  (1-indexed = index 7)
-    anim.onFrame(7, () => {
-      const currentF = anim.getFrame();
-      const skip = Math.floor(Math.random() * 7);
-      const target = Math.min(currentF + skip, this.fumeTextures.length - 1);
-      anim.gotoFrame(target);
-    });
-
-    anim.sprite.position.set(x, y);
-    this.smokeContainer.addChild(anim.sprite);
-
-    this.smokeParticles.push({ anim, alive: true });
-  }
-
-  /**
-   * Spawn impact particles (plumes)
-   * AS: DefineSprite_25 frame_1/DoAction
-   */
-  private spawnImpact(): void {
-    this.plumesContainer.visible = true;
-    this.pierresContainer.visible = true;
-
-    // AS: p = 0; while(p < 10) { attachMovie("plumes", ...) }
-    for (let p = 0; p < 10; p++) {
-      this.spawnPlumes();
-    }
-  }
-
-  /**
-   * Spawn a single plumes (feather) particle
-   * AS: DefineSprite_18_plumes onClipEvent(load)
-   * Plus override from DefineSprite_25: vx/vy = 40 * (Math.random() - 0.5)
-   */
-  private spawnPlumes(): void {
-    const sprite = new Sprite(this.plumesTexture);
-    const anchor = calculateAnchor(PLUMES_MANIFEST);
-    sprite.anchor.set(anchor.x, anchor.y);
-
-    // AS: if(random(2) == 1) { _xscale = -_xscale; }
-    const flipX = Math.floor(Math.random() * 2) === 1;
-
-    // AS: t = 40 + random(60)
-    const t = 40 + Math.floor(Math.random() * 60);
-
-    // AS: duree = 40 + random(30)
-    const duree = 40 + Math.floor(Math.random() * 30);
-
-    // AS: _xscale = t; _yscale = t  (then flip xscale if needed)
-    let scaleX = t / 100;
-    if (flipX) {
-      scaleX = -scaleX;
-    }
-    sprite.scale.set(scaleX, t / 100);
-
-    // AS parent override (DefineSprite_25 frame 1):
-    // eval("this.plumes" + c).vx = 40 * (Math.random() - 0.5)
-    // eval("this.plumes" + c).vy = 40 * (Math.random() - 0.5)
-    // These are set after attachMovie so they override the load values
-    const vx = 40 * (Math.random() - 0.5);
-    const vy = 40 * (Math.random() - 0.5);
-
-    // AS: vch = 0.2 + 0.3 * Math.random()
-    const vch = 0.2 + 0.3 * Math.random();
-
-    // AS: vr = 0.1 + 0.3 * Math.random()
-    const vr = 0.1 + 0.3 * Math.random();
-
-    // AS: amp = 30 + random(70)
-    const amp = 30 + Math.floor(Math.random() * 70);
-
-    const particle: PlumesParticle = {
-      sprite,
-      x: 0,
-      y: 0,
-      vx,
-      vy,
-      vch,
-      vr,
-      amp,
-      a: 0,
-      time: 0,
-      duree,
-      alpha: 1,
-      alive: true,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_22_fumee/frame_1/DoAction.as
+            const deg = Math.floor(Math.random() * 360);
+            clip.rotation = (deg * Math.PI) / 180;
+          },
+        ],
+        [
+          7,
+          (clip) => {
+            // AS DefineSprite_22_fumee/frame_8/DoAction.as
+            // gotoAndPlay(_currentframe + random(7))
+            // _currentframe is 1-based in AS; here clip.currentFrame is 0-based.
+            // After tickOneFrame advances to frame index 7, currentFrame == 7.
+            // AS equivalent: gotoAndPlay(8 + random(7)) → gotoAndPlay(8..14)
+            // 0-based: gotoAndPlay(7 + random(7)) → indices 7..13
+            const jump = Math.floor(Math.random() * 7);
+            clip.gotoAndPlay(7 + jump);
+          },
+        ],
+        [
+          35,
+          (clip) => {
+            // AS DefineSprite_22_fumee/frame_36/DoAction.as
+            clip.remove();
+          },
+        ],
+      ]),
     };
 
-    this.plumesContainer.addChild(sprite);
-    this.plumesParticles.push(particle);
-  }
-
-  /**
-   * Spawn a single pierres (rock) particle
-   * AS: DefineSprite_6_pierres onClipEvent(load)
-   */
-  private spawnPierres(): void {
-    const sprite = new Sprite(this.pierresTexture);
-    const anchor = calculateAnchor(PIERRES_MANIFEST);
-    sprite.anchor.set(anchor.x, anchor.y);
-
-    // AS: vd = 30 + random(30)
-    const vd = 30 + Math.floor(Math.random() * 30);
-
-    // AS: vx = 15 * (Math.random() - 0.5)
-    const vx = 15 * (Math.random() - 0.5);
-
-    // AS: vy = 15 * (Math.random() - 0.5)
-    const vy = 15 * (Math.random() - 0.5);
-
-    // AS: an = _parent._parent._parent._parent._parent.angle + 3.1415
-    // The spell angle property is used directly with Math.cos/sin, so it is in radians
-    const an = this.spellAngleRad + Math.PI;
-
-    // AS: v2x = Math.cos(an) * 2
-    const v2x = Math.cos(an) * 2;
-
-    // AS: v2y = Math.sin(an) * 5
-    const v2y = Math.sin(an) * 5;
-
-    // AS: _parent._x = 20 * (Math.random() - 0.5)
-    const px = 20 * (Math.random() - 0.5);
-
-    // AS: _parent._y = 10 * (Math.random() - 0.5)
-    const py = 10 * (Math.random() - 0.5);
-
-    // AS: t = 60 + 40 * Math.random()
-    const t = 60 + 40 * Math.random();
-
-    // AS: v = -10
-    const v = -10;
-
-    // AS: _xscale = t; _yscale = t
-    sprite.scale.set(t / 100);
-
-    // AS: vr = 60 * (-0.5 + Math.random())
-    const vr = 60 * (-0.5 + Math.random());
-
-    const particle: PierresParticle = {
-      sprite,
-      px,
-      py,
-      lx: 0,
-      ly: 0,
-      vx,
-      vy,
-      vr,
-      v2x,
-      v2y,
-      v,
-      t,
-      tps: 0,
-      vd,
-      alpha: 1,
-      alive: true,
-    };
-
-    sprite.position.set(px, py);
-
-    this.pierresContainer.addChild(sprite);
-    this.pierresParticles.push(particle);
-  }
-
-  /**
-   * Update smoke particles
-   */
-  private updateSmoke(deltaTime: number): void {
-    for (const p of this.smokeParticles) {
-      if (!p.alive) {
-        continue;
-      }
-
-      p.anim.update(deltaTime);
-
-      if (p.anim.isComplete()) {
-        p.alive = false;
-        p.anim.sprite.visible = false;
-      }
-    }
-  }
-
-  /**
-   * Update plumes particles per frame
-   * AS: DefineSprite_18_plumes onClipEvent(enterFrame)
-   */
-  private updatePlumes(): void {
-    for (const p of this.plumesParticles) {
-      if (!p.alive) {
-        continue;
-      }
-
-      // AS: if(time++ > duree) { _alpha = _alpha - 10; }
-      // _alpha is 0-100 in AS; we store alpha as 0-1
-      if (p.time++ > p.duree) {
-        p.alpha -= 10 / 100;
-      }
-
-      // AS: if(_Y < 0) { ... }
-      if (p.y < 0) {
-        // AS: _Y = _Y + (vy += vch)
-        p.vy += p.vch;
-        p.y += p.vy;
-
-        // AS: _X = _X + vx
-        p.x += p.vx;
-
-        // AS: vy *= 0.9
-        p.vy *= 0.9;
-
-        // AS: vx *= 0.9
-        p.vx *= 0.9;
-
-        // AS: amp *= 0.98
-        p.amp *= 0.98;
-
-        // AS: _rotation = amp * Math.cos(a += vr)
-        p.a += p.vr;
-        p.sprite.rotation = (p.amp * Math.cos(p.a) * Math.PI) / 180;
-      }
-
-      p.sprite.position.set(p.x, p.y);
-      p.sprite.alpha = Math.max(0, p.alpha);
-
-      if (p.alpha <= 0) {
-        p.alive = false;
-        p.sprite.visible = false;
-      }
-    }
-  }
-
-  /**
-   * Update pierres particles per frame
-   * AS: DefineSprite_6_pierres onClipEvent(enterFrame)
-   */
-  private updatePierres(): void {
-    for (const p of this.pierresParticles) {
-      if (!p.alive) {
-        continue;
-      }
-
-      // AS: if(_alpha < 10) { removeMovieClip(_parent); }
-      if (p.alpha * 100 < 10) {
-        p.alive = false;
-        p.sprite.visible = false;
-        continue;
-      }
-
-      // AS: _parent._x += vx; _parent._y += vy
-      p.px += p.vx;
-      p.py += p.vy;
-
-      // AS: _rotation = _rotation + vr
-      p.sprite.rotation += (p.vr * Math.PI) / 180;
-
-      // AS: if(tps++ < vd) { vx /= 1.2; vy /= 1.2; v /= 1.2; }
-      // tps post-increments: compare with old value, then increment
-      if (p.tps++ < p.vd) {
-        p.vx /= 1.2;
-        p.vy /= 1.2;
-        p.v /= 1.2;
-      }
-
-      // AS: if(tps++ > vd) { ... }
-      // tps post-increments again: compare with old value, then increment
-      if (p.tps++ > p.vd) {
-        // AS: _Y = _Y + (v2y *= 1.2)
-        p.v2y *= 1.2;
-        p.ly += p.v2y;
-
-        // AS: _X = _X + (v2x *= 1.2)
-        p.v2x *= 1.2;
-        p.lx += p.v2x;
-
-        // AS: _alpha -= 10
-        p.alpha -= 10 / 100;
-      }
-
-      p.sprite.position.set(p.px + p.lx, p.py + p.ly);
-      p.sprite.alpha = Math.max(0, p.alpha);
-
-      if (p.alpha <= 0) {
-        p.alive = false;
-        p.sprite.visible = false;
-      }
-    }
-  }
-
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    if (!this.projectileDone) {
-      // Update shoot animation
-      this.anims.update(deltaTime);
-
-      const currentFrame = this.shootAnim.getFrame();
-      const pos = this.getProjectilePosition(currentFrame);
-
-      // Spawn smoke trail at current position
-      // AS: DefineSprite_15_move onEnterFrame - attachMovie("fumee", ...) each frame
-      this.spawnSmoke(pos.x, pos.y);
-
-      // Move shoot sprite along the path
-      this.shootAnim.sprite.position.set(pos.x, pos.y);
-
-      // Check if shoot animation completed (frame 97, index 96 = last frame)
-      if (this.shootAnim.isComplete()) {
-        this.projectileDone = true;
-        this.shootAnim.sprite.visible = false;
-
-        // Signal hit when projectile reaches target
-        this.signalHit();
-
-        if (!this.impactSpawned) {
-          this.impactSpawned = true;
-          this.spawnImpact();
+    // ---- lib_plumes — feather particle ---------------------------------
+    // AS DefineSprite_18_plumes/frame_1/PlaceObject2_17_1/
+    //   CLIPACTIONRECORD onClipEvent(load).as
+    //   CLIPACTIONRECORD onClipEvent(enterFrame).as
+    this.plumesSym = {
+      name: "plumes",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_plumes"),
+      anchorX: plumesAnchor.x,
+      anchorY: plumesAnchor.y,
+      onLoad: (clip) => {
+        // AS onClipEvent(load):
+        //   if(random(2) == 1) { _xscale = -_xscale; }
+        //   t = 40 + random(60);
+        //   _xscale = t;  _yscale = t;
+        //   duree = 40 + random(30);
+        //   vy = -5 - 15 * Math.random();
+        //   vx = -10 + 20 * Math.random();
+        //   vch = 0.2 + 0.3 * Math.random();
+        //   vr = 0.1 + 0.3 * Math.random();
+        //   amp = 30 + random(70);
+        //   time = 0;  a = 0;
+        if (Math.floor(Math.random() * 2) === 1) {
+          clip.scaleX = -clip.scaleX;
         }
-      }
-    }
+        const t = 40 + Math.floor(Math.random() * 60);
+        clip.scaleX = t / 100;
+        clip.scaleY = t / 100;
+        clip.vars.duree = 40 + Math.floor(Math.random() * 30);
+        clip.vars.vy = -5 - 15 * Math.random();
+        clip.vars.vx = -10 + 20 * Math.random();
+        clip.vars.vch = 0.2 + 0.3 * Math.random();
+        clip.vars.vr = 0.1 + 0.3 * Math.random();
+        clip.vars.amp = 30 + Math.floor(Math.random() * 70);
+        clip.vars.time = 0;
+        clip.vars.a = 0;
+      },
+      onEnterFrame: (clip) => {
+        // AS onClipEvent(enterFrame):
+        //   if(time++ > duree) { _alpha -= 10; }
+        //   if(_Y < 0) {
+        //     _Y = _Y + (vy += vch);
+        //     _X += vx;
+        //     vy *= 0.9;  vx *= 0.9;
+        //     amp *= 0.98;
+        //     _rotation = amp * Math.cos(a += vr);
+        //   }
+        let time = clip.vars.time as number;
+        const duree = clip.vars.duree as number;
+        if (time > duree) {
+          clip.alpha = Math.max(0, clip.alpha - 10 / 100);
+        }
+        clip.vars.time = time + 1;
 
-    // Update smoke particles
-    this.updateSmoke(deltaTime);
+        if (clip.y < 0) {
+          let vy = clip.vars.vy as number;
+          let vx = clip.vars.vx as number;
+          let amp = clip.vars.amp as number;
+          let a = clip.vars.a as number;
+          const vch = clip.vars.vch as number;
+          const vr = clip.vars.vr as number;
 
-    // Update impact particles
-    if (this.impactSpawned) {
-      this.updatePlumes();
-      this.updatePierres();
+          vy += vch;
+          clip.y = clip.y + vy;
+          clip.x = clip.x + vx;
+          vy *= 0.9;
+          vx *= 0.9;
+          amp *= 0.98;
+          a += vr;
+          // AS rotation in degrees → radians
+          clip.rotation = (amp * Math.cos(a) * Math.PI) / 180;
 
-      // AS: DefineSprite_25/PlaceObject2_23_2 onClipEvent(enterFrame):
-      // if(c < _parent._parent._parent.level * 3) { c++; attachMovie("pierres"...); c++; attachMovie("pierres"...); }
-      if (this.pierresC < this.level * 3) {
-        this.pierresC += 1;
-        this.spawnPierres();
-        this.pierresC += 1;
-        this.spawnPierres();
-      }
-    }
+          clip.vars.vy = vy;
+          clip.vars.vx = vx;
+          clip.vars.amp = amp;
+          clip.vars.a = a;
+        }
+      },
+    };
 
-    // Check completion: projectile done + all particles gone
-    if (this.projectileDone) {
-      const hasAliveSmoke = this.smokeParticles.some((p) => p.alive);
-      const hasAlivePlumes = this.plumesParticles.some((p) => p.alive);
-      const hasAlivePierres = this.pierresParticles.some((p) => p.alive);
+    // ---- lib_pierres — stone chip particle -----------------------------
+    // AS DefineSprite_6_pierres/frame_1/PlaceObject2_5_1/
+    //   CLIPACTIONRECORD onClipEvent(load).as
+    //   CLIPACTIONRECORD onClipEvent(enterFrame).as
+    //
+    // NOTE: The pierres clip is placed as PlaceObject2_5_1 inside
+    // DefineSprite_6_pierres. The parent traversal in the AS is deep:
+    //   _parent._parent._parent._parent._parent.angle
+    // Walking from the pierres clip:
+    //   pierres clip → pierres symbol wrapper (PlaceObject2 child of sprite_6)
+    //   → sprite_6 (pierres symbol instance inside sprite_25)
+    //   → sprite_25 (inside shoot)
+    //   → shoot (root child)
+    //   → root (has vars.angle set by harness)
+    // So we walk clip.parent?.parent?.parent?.parent to reach root.
+    this.pierresSym = {
+      name: "pierres",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_pierres"),
+      anchorX: pierresAnchor.x,
+      anchorY: pierresAnchor.y,
+      onLoad: (clip) => {
+        // AS onClipEvent(load):
+        //   vd = 30 + random(30);
+        //   gotoAndPlay(random(4) + 1);
+        //   vx = 15 * (Math.random() - 0.5);
+        //   vy = 15 * (Math.random() - 0.5);
+        //   an = _parent._parent._parent._parent._parent.angle + 3.1415;
+        //   v2x = Math.cos(an) * 2;
+        //   v2y = Math.sin(an) * 5;
+        //   _parent._x = 20 * (Math.random() - 0.5);
+        //   _parent._y = 10 * (Math.random() - 0.5);
+        //   t = 60 + 40 * Math.random();
+        //   v = -10;
+        //   _xscale = t;  _yscale = t;
+        //   vr = 60 * (-0.5 + Math.random());
+        //   tps = 0;
+        clip.vars.vd = 30 + Math.floor(Math.random() * 30);
+        // gotoAndPlay(random(4) + 1) → gotoAndPlay(1..4) → 0-based 0..3
+        clip.gotoAndPlay(Math.floor(Math.random() * 4));
+        clip.vars.vx = 15 * (Math.random() - 0.5);
+        clip.vars.vy = 15 * (Math.random() - 0.5);
+        // Walk up 5 levels to reach root.vars.angle (stored in degrees by harness)
+        const root =
+          clip.parent?.parent?.parent?.parent ??
+          clip.parent?.parent?.parent ??
+          clip.parent?.parent ??
+          clip.parent;
+        const angleDeg = (root?.vars.angle as number) ?? 0;
+        const an = (angleDeg * Math.PI) / 180 + Math.PI;
+        clip.vars.v2x = Math.cos(an) * 2;
+        clip.vars.v2y = Math.sin(an) * 5;
+        // _parent._x / _parent._y — scatter the pierres symbol container
+        if (clip.parent) {
+          clip.parent.x = 20 * (Math.random() - 0.5);
+          clip.parent.y = 10 * (Math.random() - 0.5);
+        }
+        const t = 60 + 40 * Math.random();
+        clip.scaleX = t / 100;
+        clip.scaleY = t / 100;
+        clip.vars.t = t;
+        clip.vars.v = -10;
+        clip.vars.vr = 60 * (-0.5 + Math.random());
+        clip.vars.tps = 0;
+      },
+      onEnterFrame: (clip) => {
+        // AS onClipEvent(enterFrame):
+        //   if(_alpha < 10) { removeMovieClip(_parent); }
+        //   _parent._x += vx;  _parent._y += vy;
+        //   _rotation = _rotation + vr;
+        //   if(tps++ < vd) { vx /= 1.2; vy /= 1.2; v /= 1.2; }
+        //   if(tps++ > vd) { _Y += (v2y *= 1.2); _X += (v2x *= 1.2); _alpha -= 10; }
+        if (clip.alpha < 10 / 100) {
+          if (clip.parent) {
+            clip.parent.remove();
+          }
+          return;
+        }
+        let vx = clip.vars.vx as number;
+        let vy = clip.vars.vy as number;
+        let v = clip.vars.v as number;
+        let v2x = clip.vars.v2x as number;
+        let v2y = clip.vars.v2y as number;
+        let tps = clip.vars.tps as number;
+        const vd = clip.vars.vd as number;
+        const vr = clip.vars.vr as number;
 
-      if (!hasAliveSmoke && !hasAlivePlumes && !hasAlivePierres) {
-        this.complete();
-      }
-    }
+        if (clip.parent) {
+          clip.parent.x += vx;
+          clip.parent.y += vy;
+        }
+        // AS rotation in degrees → delta in radians
+        clip.rotation += (vr * Math.PI) / 180;
+
+        // First tps++ < vd check
+        if (tps < vd) {
+          vx /= 1.2;
+          vy /= 1.2;
+          v /= 1.2;
+        }
+        tps++;
+        // Second tps++ > vd check (note: tps has already been incremented once above)
+        if (tps > vd) {
+          v2y *= 1.2;
+          v2x *= 1.2;
+          clip.y += v2y;
+          clip.x += v2x;
+          clip.alpha = Math.max(0, clip.alpha - 10 / 100);
+        }
+        tps++;
+
+        clip.vars.vx = vx;
+        clip.vars.vy = vy;
+        clip.vars.v = v;
+        clip.vars.v2x = v2x;
+        clip.vars.v2y = v2y;
+        clip.vars.tps = tps;
+      },
+    };
+
+    // ---- sprite_25 (DefineSprite_25) — inner impact composite ----------
+    // Lives inside `shoot`. Has:
+    //   frame_1 DoAction: spawn 10 plumes; init c=0, p=0.
+    //   frame_1 PlaceObject2_23_2 onEnterFrame: accumulate pierres particles.
+    //   frame_20 DoAction: stop().
+    //
+    // The PlaceObject2_23_2 child is an internal sub-clip whose onEnterFrame
+    // drives pierres spawning. We model this via a dedicated "inner_23" symbol
+    // that we attach in sprite_25's frame_1, whose onEnterFrame mirrors the
+    // PlaceObject2_23_2 clip event.
+    const inner23Sym: SymbolDefinition = {
+      name: "inner_23",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onEnterFrame: (clip, ctx) => {
+        // AS DefineSprite_25/frame_1/PlaceObject2_23_2/CLIPACTIONRECORD onClipEvent(enterFrame).as
+        // if(c < _parent._parent._parent.level * 3) {
+        //   c += 1;
+        //   this.attachMovie("pierres","pierres" + c, c);
+        //   c += 1;
+        //   this.attachMovie("pierres","pierres" + c, c);
+        // }
+        // _parent of inner_23 is sprite_25; _parent._parent is shoot; _parent._parent._parent is root
+        const root = clip.parent?.parent?.parent;
+        const level = (root?.vars.level as number) ?? 1;
+        let c = (clip.vars.c as number) ?? 0;
+        if (c < level * 3) {
+          c += 1;
+          clip.attach(this.pierresSym, `pierres${c}`, c, ctx);
+          c += 1;
+          clip.attach(this.pierresSym, `pierres${c}`, c, ctx);
+        }
+        clip.vars.c = c;
+      },
+    };
+
+    this.sprite25Sym = {
+      name: "sprite_25",
+      totalFrames: 20,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS DefineSprite_25/frame_1/DoAction.as
+            // c = 0; p = 0;
+            // while(p < 10) {
+            //   this.attachMovie("plumes","plumes" + c, c);
+            //   eval("this.plumes" + c).vx = 40 * (Math.random() - 0.5);
+            //   eval("this.plumes" + c).vy = 40 * (Math.random() - 0.5);
+            //   c++; p++;
+            // }
+            clip.vars.c_plumes = 0;
+            let c = 0;
+            for (let p = 0; p < 10; p++) {
+              const child = clip.attach(
+                this.plumesSym,
+                `plumes${c}`,
+                c,
+                ctx
+              );
+              child.vars.vx = 40 * (Math.random() - 0.5);
+              child.vars.vy = 40 * (Math.random() - 0.5);
+              c++;
+            }
+            // Also attach the inner_23 clip-event-bearing sub-clip
+            const inner = clip.attach(inner23Sym, "inner_23", 100, ctx);
+            inner.vars.c = 0;
+          },
+        ],
+        [
+          19,
+          (clip) => {
+            // AS DefineSprite_25/frame_20/DoAction.as: stop()
+            clip.stop();
+          },
+        ],
+      ]),
+    };
+
+    // ---- move — container for projectile flight --------------------
+    // AS DefineSprite_15_move/frame_1/DoAction.as:
+    //   xi = this._x;  yi = this._y;  nf = this._parent.level;
+    //   this.onEnterFrame = function() {
+    //     this._parent.attachMovie("fumee","fumee"+c, c+10);
+    //     _loc2_ = this._parent["fumee"+c];
+    //     _loc2_._x = this._x; _loc2_._y = this._y;
+    //     _loc2_.vx = ...; _loc2_.vy = ...;
+    //     c++; xi = this._x; yi = this._y;
+    //   }
+    //
+    // AS DefineSprite_15_move/frame_1/PlaceObject2_14_8/onClipEvent(enterFrame):
+    //   _yscale = 100 * Math.sin(i += Math.sin(a += 0.02));
+    //
+    // The inner PlaceObject2_14_8 sub-clip drives a yscale oscillation.
+    // We model it as an "inner_move_oscillator" symbol.
+    const innerMoveOscSym: SymbolDefinition = {
+      name: "inner_move_osc",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onLoad: (clip) => {
+        clip.vars.i = 0;
+        clip.vars.a = 0;
+      },
+      onEnterFrame: (clip) => {
+        // AS: _yscale = 100 * Math.sin(i += Math.sin(a += 0.02));
+        let a = clip.vars.a as number;
+        let i = clip.vars.i as number;
+        a += 0.02;
+        i += Math.sin(a);
+        // AS _yscale in percent → decimal; apply to parent (the move clip)
+        if (clip.parent) {
+          clip.parent.scaleY = Math.sin(i);
+        }
+        clip.vars.a = a;
+        clip.vars.i = i;
+      },
+    };
+
+    const moveSym: SymbolDefinition = {
+      name: "move",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS DefineSprite_15_move/frame_1/DoAction.as
+            // xi = this._x;  yi = this._y;
+            // this.onEnterFrame = function() { smoke trail ... }
+            clip.vars.xi = clip.x;
+            clip.vars.yi = clip.y;
+            clip.vars.c = 0;
+
+            // Attach the inner oscillator sub-clip
+            clip.attach(innerMoveOscSym, "osc", 8, ctx);
+
+            // Wire onEnterFrame directly on the move clip to trail fumee smoke
+            clip.onEnterFrame = (mv, mvCtx) => {
+              // AS this.onEnterFrame inside DefineSprite_15_move/frame_1/DoAction.as:
+              //   this._parent.attachMovie("fumee","fumee"+c, c+10);
+              //   _loc2_ = this._parent["fumee"+c];
+              //   _loc2_._x = this._x; _loc2_._y = this._y;
+              //   _loc2_.vx = this._x - xi + 20*(Math.random()-0.5);
+              //   _loc2_.vy = this._y - yi + 20*(Math.random()-0.5);
+              //   c++; xi = this._x; yi = this._y;
+              const parent = mv.parent;
+              if (!parent) {
+                return;
+              }
+              let c = mv.vars.c as number;
+              const xi = mv.vars.xi as number;
+              const yi = mv.vars.yi as number;
+
+              const smoke = parent.attach(
+                this.fumeeSym,
+                `fumee${c}`,
+                c + 10,
+                mvCtx
+              );
+              smoke.x = mv.x;
+              smoke.y = mv.y;
+              smoke.vars.vx = mv.x - xi + 20 * (Math.random() - 0.5);
+              smoke.vars.vy = mv.y - yi + 20 * (Math.random() - 0.5);
+
+              c++;
+              mv.vars.c = c;
+              mv.vars.xi = mv.x;
+              mv.vars.yi = mv.y;
+            };
+          },
+        ],
+      ]),
+    };
+
+    // ---- shoot — 97-frame impact composite at target ---------------
+    // AS DefineSprite_26_shoot/frame_1/DoAction.as:
+    //   _rotation = -_parent.angle;   (degrees → radians, negated)
+    // AS DefineSprite_26_shoot/frame_1/PlaceObject2_25_1/onClipEvent(load):
+    //   t = 60; _xscale = t; _yscale = t;
+    // AS DefineSprite_26_shoot/frame_97/DoAction.as:
+    //   _parent.removeMovieClip(); stop();
+    const shootSym: SymbolDefinition = {
+      name: "shoot",
+      totalFrames: 97,
+      frames: textures.getFrames("shoot"),
+      anchorX: calculateAnchor({
+        width: 102,
+        height: 102,
+        offsetX: -53,
+        offsetY: -93.7,
+      }).x,
+      anchorY: calculateAnchor({
+        width: 102,
+        height: 102,
+        offsetX: -53,
+        offsetY: -93.7,
+      }).y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS DefineSprite_26_shoot/frame_1/DoAction.as:
+            //   _rotation = -_parent.angle;
+            // _parent.angle is in degrees (harness stores degrees on root.vars.angle)
+            const root = clip.parent;
+            const angleDeg = (root?.vars.angle as number) ?? 0;
+            clip.rotation = ((-angleDeg) * Math.PI) / 180;
+
+            // AS DefineSprite_26_shoot/frame_1/PlaceObject2_25_1/onClipEvent(load):
+            //   t = 60; _xscale = t; _yscale = t;
+            // The PlaceObject2_25_1 is sprite_25 placed on shoot's timeline.
+            // Attach it here and apply its load-time transform.
+            const sp25 = clip.attach(this.sprite25Sym, "sprite_25", 1, ctx);
+            sp25.scaleX = 60 / 100;
+            sp25.scaleY = 60 / 100;
+          },
+        ],
+        [
+          96,
+          (clip) => {
+            // AS DefineSprite_26_shoot/frame_97/DoAction.as:
+            //   _parent.removeMovieClip(); stop();
+            clip.stop();
+            clip.parent?.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
+
+    this.registry.register(this.fumeeSym);
+    this.registry.register(this.plumesSym);
+    this.registry.register(this.pierresSym);
+    this.registry.register(this.sprite25Sym);
+    this.registry.register(innerMoveOscSym);
+    this.registry.register(moveSym);
+    this.registry.register(innerMoveOscSym);
+    this.registry.register(shootSym);
   }
 
-  destroy(): void {
-    for (const p of this.smokeParticles) {
-      p.anim.destroy();
-    }
-    this.smokeParticles = [];
-
-    for (const p of this.plumesParticles) {
-      p.sprite.destroy();
-    }
-    this.plumesParticles = [];
-
-    for (const p of this.pierresParticles) {
-      p.sprite.destroy();
-    }
-    this.pierresParticles = [];
-
-    super.destroy();
+  protected onSpellStart(
+    _callbacks: SpellCallbacks,
+    _context: SpellContext
+  ): void {
+    // No SOMA.playSound found in the extracted main timeline scripts.
+    // The harness (displayType=30) handles attaching move + shoot.
   }
 }

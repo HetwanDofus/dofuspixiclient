@@ -91,7 +91,7 @@ packages/
 
 tools/
   assets-exporter/    # SWF tile/sprite extraction (PHP)
-  svg-spritesheet/    # SVG to .dofasset compiler
+  asset-pipeline/     # Unified extract → compile → publish pipeline (frame-direct .dofasset)
   tile-classifier/    # Visual tile review tool
   ui-builder/         # Interactive UI panel designer
 ```

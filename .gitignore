@@ -30,6 +30,8 @@ dist-ssr
 assets/output
 assets/rasters
 assets/spritesheets
+assets/cache
+assets/dist
 *.import
 
 # Rust

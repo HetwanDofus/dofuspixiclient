@@ -1,0 +1,500 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1248,
+        "PT": {
+            "1": {
+                "t": "%1's Caveira",
+                "c": 16777215,
+                "pt": 0
+            },
+            "2": {
+                "t": "Vampiro",
+                "c": 16777215,
+                "pt": 0
+            },
+            "3": {
+                "t": "Vampiro Maléfico",
+                "c": 16777215,
+                "pt": 0
+            },
+            "4": {
+                "t": "Vampiro Amaldiçoado",
+                "c": 16777215,
+                "pt": 0
+            },
+            "5": {
+                "t": "Vampiro Superior",
+                "c": 16777215,
+                "pt": 0
+            },
+            "6": {
+                "t": "Vampiro Demoníaco",
+                "c": 16777215,
+                "pt": 0
+            },
+            "7": {
+                "t": "Vampiro Rúnico",
+                "c": 16777215,
+                "pt": 0
+            },
+            "8": {
+                "t": "Caçador de Bworker",
+                "c": 16777215,
+                "pt": 0
+            },
+            "9": {
+                "t": "Caçador de Sphinter Cell",
+                "c": 16777215,
+                "pt": 0
+            },
+            "10": {
+                "t": "Caçador de Koolich",
+                "c": 16777215,
+                "pt": 0
+            },
+            "11": {
+                "t": "Caçador de Wabbit",
+                "c": 16777215,
+                "pt": 0
+            },
+            "12": {
+                "t": "Caçador de Kimbo",
+                "c": 16777215,
+                "pt": 0
+            },
+            "13": {
+                "t": "Caçador de Minotoro",
+                "c": 16777215,
+                "pt": 0
+            },
+            "14": {
+                "t": "Caçador de Dragão Porco",
+                "c": 16777215,
+                "pt": 0
+            },
+            "15": {
+                "t": "Caçador de Carvalho",
+                "c": 16777215,
+                "pt": 0
+            },
+            "16": {
+                "t": "Caçador da Lua",
+                "c": 16777215,
+                "pt": 0
+            },
+            "17": {
+                "t": "Caçador de Vlad",
+                "c": 16777215,
+                "pt": 0
+            },
+            "18": {
+                "t": "Herói  Spamnico",
+                "c": 16777215,
+                "pt": 0
+            },
+            "19": {
+                "t": "Cavaleiro  Spamnico",
+                "c": 16777215,
+                "pt": 0
+            },
+            "20": {
+                "t": "Terror da Península",
+                "c": 16777215,
+                "pt": 0
+            },
+            "21": {
+                "t": "Esmagador de Conchas",
+                "c": 16777215,
+                "pt": 0
+            },
+            "22": {
+                "t": "Mestre Lenhador",
+                "c": 16777215,
+                "pt": 0
+            },
+            "23": {
+                "t": "Mestre Ferreiro",
+                "c": 16777215,
+                "pt": 0
+            },
+            "24": {
+                "t": "Mestre Escultor de Arco",
+                "c": 16777215,
+                "pt": 0
+            },
+            "25": {
+                "t": "Mestre Ferreiro de Pá",
+                "c": 16777215,
+                "pt": 0
+            },
+            "26": {
+                "t": "Mestre Sapateiro",
+                "c": 16777215,
+                "pt": 0
+            },
+            "27": {
+                "t": "Mestre Joalheiro",
+                "c": 16777215,
+                "pt": 0
+            },
+            "28": {
+                "t": "Mestre Ferreiro de Machado",
+                "c": 16777215,
+                "pt": 0
+            },
+            "29": {
+                "t": "Mestre Escultor de Cajado",
+                "c": 16777215,
+                "pt": 0
+            },
+            "30": {
+                "t": "Mestre Escultor de Varinha",
+                "c": 16777215,
+                "pt": 0
+            },
+            "31": {
+                "t": "Mestre Ferreiro de Espada",
+                "c": 16777215,
+                "pt": 0
+            },
+            "32": {
+                "t": "Mestre Minerador",
+                "c": 16777215,
+                "pt": 0
+            },
+            "33": {
+                "t": "Mestre Padeiro",
+                "c": 16777215,
+                "pt": 0
+            },
+            "34": {
+                "t": "Mestre Alquimista",
+                "c": 16777215,
+                "pt": 0
+            },
+            "35": {
+                "t": "Mestre Alfaiate",
+                "c": 16777215,
+                "pt": 0
+            },
+            "36": {
+                "t": "Mestre Fazendeiro",
+                "c": 16777215,
+                "pt": 0
+            },
+            "37": {
+                "t": "Mestre Ferreiro de Martelo",
+                "c": 16777215,
+                "pt": 0
+            },
+            "38": {
+                "t": "Mestre Pescador",
+                "c": 16777215,
+                "pt": 0
+            },
+            "39": {
+                "t": "Mestre Caçador",
+                "c": 16777215,
+                "pt": 0
+            },
+            "40": {
+                "t": "Mestre Ferreiro Mágico de Machado",
+                "c": 16777215,
+                "pt": 0
+            },
+            "41": {
+                "t": "Mestre Ferreiro Mágico de Adaga",
+                "c": 16777215,
+                "pt": 0
+            },
+            "42": {
+                "t": "Mestre Ferreiro Mágico de Pá",
+                "c": 16777215,
+                "pt": 0
+            },
+            "43": {
+                "t": "Mestre Ferreiro Mágico de Espada",
+                "c": 16777215,
+                "pt": 0
+            },
+            "44": {
+                "t": "Mestre Ferreiro Mágico de Martelo",
+                "c": 16777215,
+                "pt": 0
+            },
+            "45": {
+                "t": "Mestre Escultor Mágico de Arco",
+                "c": 16777215,
+                "pt": 0
+            },
+            "46": {
+                "t": "Mestre Escultor Mágico de Varinha",
+                "c": 16777215,
+                "pt": 0
+            },
+            "47": {
+                "t": "Mestre Escultor Mágico de Cajado",
+                "c": 16777215,
+                "pt": 0
+            },
+            "48": {
+                "t": "Mestre Açougueiro",
+                "c": 16777215,
+                "pt": 0
+            },
+            "49": {
+                "t": "Mestre Peixeiro",
+                "c": 16777215,
+                "pt": 0
+            },
+            "50": {
+                "t": "Mestre Ferreiro de Adaga",
+                "c": 16777215,
+                "pt": 0
+            },
+            "51": {
+                "t": "Mestre Sapateiro Mágico",
+                "c": 16777215,
+                "pt": 0
+            },
+            "52": {
+                "t": "Mestre Joalheiro Mágico",
+                "c": 16777215,
+                "pt": 0
+            },
+            "53": {
+                "t": "Mestre Alfaiate Mágico",
+                "c": 16777215,
+                "pt": 0
+            },
+            "54": {
+                "t": "Mestre Marceneiro",
+                "c": 16777215,
+                "pt": 0
+            },
+            "55": {
+                "t": "Aventureiro do Advento 651",
+                "c": 16777215,
+                "pt": 0
+            },
+            "56": {
+                "t": "Nowelista",
+                "c": 16777215,
+                "pt": 0
+            },
+            "57": {
+                "t": "Caçador da Spinho",
+                "c": 16777215,
+                "pt": 0
+            },
+            "58": {
+                "t": "Caçador de Papai Nowel",
+                "c": 16777215,
+                "pt": 0
+            },
+            "59": {
+                "t": "Caçador de Papai Cruel",
+                "c": 16777215,
+                "pt": 0
+            },
+            "60": {
+                "t": "Pandi faz resistência",
+                "c": 16777215,
+                "pt": 0
+            },
+            "61": {
+                "t": "Grande Mestre das Cartas",
+                "c": 16777215,
+                "pt": 0
+            },
+            "62": {
+                "t": "Mestre das Cartas",
+                "c": 16777215,
+                "pt": 0
+            },
+            "63": {
+                "t": "Gladiatroolador Novato",
+                "c": 16777215,
+                "pt": 0
+            },
+            "64": {
+                "t": "Gladiatroolador Especialista",
+                "c": 16777215,
+                "pt": 0
+            },
+            "65": {
+                "t": "Mestre Gladiatroolador",
+                "c": 16777215,
+                "pt": 0
+            },
+            "66": {
+                "t": "Aventureiro do Advento 652",
+                "c": 16777215,
+                "pt": 0
+            },
+            "67": {
+                "t": "Aventureiro do Advento 653",
+                "c": 16777215,
+                "pt": 0
+            },
+            "68": {
+                "t": "Aventureiro do Advento 654",
+                "c": 16777215,
+                "pt": 0
+            },
+            "69": {
+                "t": "Kosplayer Atemporal",
+                "c": 16777215,
+                "pt": 0
+            },
+            "70": {
+                "t": "Grande Mestre dos Elementos",
+                "c": 16777215,
+                "pt": 0
+            },
+            "71": {
+                "t": "Caçador de Crocabulia",
+                "c": 16777215,
+                "pt": 0
+            },
+            "72": {
+                "t": "Exterminador de Bherb",
+                "c": 16777215,
+                "pt": 0
+            },
+            "73": {
+                "t": "Caçador de Rato Preto Corrompido",
+                "c": 16777215,
+                "pt": 0
+            },
+            "74": {
+                "t": "Caçador de Treechnid Ancestral",
+                "c": 16777215,
+                "pt": 0
+            },
+            "75": {
+                "t": "Caçador de Carvalho Krollector",
+                "c": 14864002,
+                "pt": 0
+            },
+            "76": {
+                "t": "Caçador de Dragão Porco Krollector",
+                "c": 14864002,
+                "pt": 0
+            },
+            "77": {
+                "t": "Musicófilo em ascensão",
+                "c": 16777215,
+                "pt": 0
+            },
+            "78": {
+                "t": "Caçador de Wabbit Krollector",
+                "c": 14864002,
+                "pt": 0
+            },
+            "79": {
+                "t": "Caçador de Koolich",
+                "c": 14864002,
+                "pt": 0
+            },
+            "80": {
+                "t": "Caçador de Sphincter Cell",
+                "c": 14864002,
+                "pt": 0
+            },
+            "81": {
+                "t": "Caçador de Bworker",
+                "c": 14864002,
+                "pt": 0
+            },
+            "85": {
+                "t": "Das Antigas",
+                "c": 16777215,
+                "pt": 0
+            },
+            "86": {
+                "t": "Caçador de Tynril Desmaiado",
+                "c": 16777215,
+                "pt": 0
+            },
+            "87": {
+                "t": "Caçador de Tynril Desconcertado",
+                "c": 16777215,
+                "pt": 0
+            },
+            "88": {
+                "t": "Caçador de Perfidious Tynril",
+                "c": 16777215,
+                "pt": 0
+            },
+            "89": {
+                "t": "Caçador de Tynril Surpreso",
+                "c": 16777215,
+                "pt": 0
+            },
+            "90": {
+                "t": "Alma gêmea de %1",
+                "c": 14516962,
+                "pt": 0
+            },
+            "91": {
+                "t": "Coração solitário",
+                "c": 16777215,
+                "pt": 0
+            },
+            "92": {
+                "t": "Caçador de Escarafeio Dourado",
+                "c": 16777215,
+                "pt": 0
+            },
+            "93": {
+                "t": "Pourfendeur du Tanukouï San",
+                "c": 16777215,
+                "pt": 0
+            },
+            "94": {
+                "t": "Caçador de Grande Coralator",
+                "c": 16777215,
+                "pt": 0
+            },
+            "95": {
+                "t": "Caçador de Moolobo",
+                "c": 16777215,
+                "pt": 0
+            },
+            "96": {
+                "t": "Caçador de Bworka",
+                "c": 16777215,
+                "pt": 0
+            },
+            "97": {
+                "t": "WAKFU S5 Producer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "98": {
+                "t": "Ankafiliado",
+                "c": 16777215,
+                "pt": 0
+            },
+            "99": {
+                "t": "Fanfarrão da Fanfão",
+                "c": 16777215,
+                "pt": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 107,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "PT",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

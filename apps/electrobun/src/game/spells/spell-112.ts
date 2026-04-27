@@ -1,256 +1,328 @@
 /**
- * Spell 112 - Flèche Naturelle (Natural Arrow)
+ * Spell 112 — Herbe Vive (Osamodas / Cra grass arrow).
  *
- * A projectile spell with a beam traveling from caster to target,
- * then an impact with bubble particles.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/112/scripts/scripts/
  *
- * Components:
- * - sprite_4: Caster animation at caster position, stops at frame 51
- * - sprite_9: Beam/arrow (child of sprite_10), rotated to angle, stops at frame 24
- * - sprite_10: Main projectile container, positioned at caster, travels to target
- * - sprite_11: Impact animation at target position, spawns bubble particles at frame 69
+ * displayType=50 (WorldAbsolute).
  *
- * Original AS timing:
- * - Frame 0 (sprite_10 / DefineSprite_10 frame_1): Play sound 'herbe', set position/angle
- * - Frame 1 (main / frame_2): Play sound 'jet_903', stop main timeline
- * - Frame 24 (sprite_9 / DefineSprite_9 frame_25): stop()
- * - Frame 45 (sprite_10 / DefineSprite_10 frame_46): stop()
- * - Frame 69 (sprite_11 / DefineSprite_11 frame_70): Play 'coquille', spawn 6 bubbles, signal hit
- * - Frame 132 (sprite_11 / DefineSprite_11 frame_133): removeMovieClip() - animation ends
+ * Why WorldAbsolute: The spell has TWO parallel authored timelines —
+ * DefineSprite_10 (sprite_10, caster-side) and DefineSprite_11
+ * (sprite_11, target-side) — that both position themselves using
+ * `_parent.cellFrom` / `_parent.cellTo` in WORLD coords. This
+ * matches the WorldAbsolute / WorldAbsoluteAlt pattern exactly.
+ * Because the canonical main timeline frame_2 plays "jet_903" and
+ * stops (same 2-frame structure as spell 909), we use WorldAbsoluteAlt
+ * (51) to match the Alt variant.
+ *
+ * Library symbols:
+ *   - lib_bulle — single-frame bubble particle. onLoad seeds vx/vy
+ *     and alpha; onEnterFrame drifts with rx/ry friction. Attached in
+ *     batches of 6 inside DefineSprite_11 at frame_70.
+ *
+ * Authored timelines (container-only, no lib_ prefix):
+ *   - sprite_10 (DefineSprite_10): 48 frames, caster-side.
+ *       frame_1:  play "herbe" sound; position at cellFrom (-80 y);
+ *                 compute angle to target.
+ *       frame_46: stop(). Contains an inner sprite_9 (DefineSprite_9)
+ *                 placed at frame_46 whose onClipEvent(load) sets
+ *                 its own rotation to _parent.angle.
+ *   - sprite_11 (DefineSprite_11): 135 frames, target-side.
+ *       frame_1:  position at cellTo (-10 y); set rotation to angle.
+ *       frame_70: play "coquille"; spawn 6 bulle particles; signalHit.
+ *       frame_133: _parent.removeMovieClip → spell complete.
+ *
+ *   - sprite_9 (DefineSprite_9): inner child of sprite_10, placed at
+ *     depth 1 on frame_46. frame_25 → stop(). Its onClipEvent(load)
+ *     sets _rotation = _parent.angle. We register this as a
+ *     container-only symbol; the harness parent for load is sprite_10.
+ *
+ * Main timeline (frame_2/DoAction.as): SOMA.playSound("jet_903"); stop();
+ * The sounds list also shows frame_0="herbe" and frame_69="coquille"
+ * (those come from the sub-sprite frame scripts, not the main timeline).
+ *
+ * Signal/complete wiring:
+ *   - signalHit: DefineSprite_11/frame_70/DoAction_3: `this.end()`
+ *   - complete:  DefineSprite_11/frame_133: `_parent.removeMovieClip()`
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  ASParticleSystem,
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const SPRITE_4_MANIFEST: SpriteManifest = {
-  width: 19.5,
-  height: 21.35,
-  offsetX: -11.55,
-  offsetY: -10.35,
-};
-
-const SPRITE_9_MANIFEST: SpriteManifest = {
-  width: 227.85,
-  height: 48.85,
-  offsetX: -48.55,
-  offsetY: -24.75,
-};
-
-const SPRITE_10_MANIFEST: SpriteManifest = {
-  width: 227.85,
-  height: 131.15,
-  offsetX: -49.55,
-  offsetY: -123,
-};
-
-const SPRITE_11_MANIFEST: SpriteManifest = {
-  width: 250.55,
-  height: 50.05,
-  offsetX: -236.15,
-  offsetY: -24.9,
-};
-
-const BULLE_MANIFEST: SpriteManifest = {
+const BULLE_BOUNDS = {
   width: 28,
   height: 30.65,
   offsetX: -16.6,
   offsetY: -14.85,
 };
 
-export class Spell112 extends BaseSpell {
+export class Spell112 extends RuntimeSpell {
   readonly spellId = 112;
+  readonly displayType = SpellDisplayType.WorldAbsoluteAlt;
 
-  private sprite4Anim!: FrameAnimatedSprite;
-  private sprite9Anim!: FrameAnimatedSprite;
-  private sprite10Anim!: FrameAnimatedSprite;
-  private sprite11Anim!: FrameAnimatedSprite;
-  private bubbleParticles!: ASParticleSystem;
+  private bulleSym!: SymbolDefinition;
+  private sprite9Sym!: SymbolDefinition;
+  private sprite10Sym!: SymbolDefinition;
+  private sprite11Sym!: SymbolDefinition;
 
-  protected setup(
-    context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    // ---- sprite_4: Caster animation ----
-    // Positioned at caster (origin), stops at frame 51 (AS frame 52)
-    const sprite4Anchor = calculateAnchor(SPRITE_4_MANIFEST);
-    this.sprite4Anim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_4"),
-        anchorX: sprite4Anchor.x,
-        anchorY: sprite4Anchor.y,
-        scale: init.scale,
-      })
-    );
-    this.sprite4Anim.stopAt(51);
-    this.sprite4Anim.sprite.position.set(0, init.casterY);
-    this.container.addChild(this.sprite4Anim.sprite);
+    const bulleAnchor = calculateAnchor(BULLE_BOUNDS);
 
-    // ---- sprite_10: Projectile container ----
-    // AS: _X = _parent.cellFrom.x; _Y = _parent.cellFrom.y - 80;
-    // Since our container is already at cellFrom, we position relative to that.
-    // _Y = cellFrom.y - 80 => relative to cellFrom.y: y = -80
-    // sprite_10 stops at frame 45 (AS frame 46)
-    const sprite10Anchor = calculateAnchor(SPRITE_10_MANIFEST);
-    this.sprite10Anim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_10"),
-        anchorX: sprite10Anchor.x,
-        anchorY: sprite10Anchor.y,
-        scale: init.scale,
-      })
-    );
-    this.sprite10Anim.stopAt(45);
-    this.sprite10Anim.sprite.position.set(0, -80);
-    // Play 'herbe' at frame 0 (AS frame 1)
-    this.sprite10Anim.onFrame(0, () => this.callbacks.playSound("herbe"));
-    this.container.addChild(this.sprite10Anim.sprite);
+    // ---- lib_bulle — bubble particle spawned at target impact ----
+    // AS DefineSprite_5_bulle/frame_1/PlaceObject2_4_1/CLIPACTIONRECORD onClipEvent(load).as:
+    //   gotoAndPlay(random(5) + 1);
+    // AS DefineSprite_5_bulle/frame_1/DoAction.as:
+    //   rx = 0.7 + 0.15 * Math.random();
+    //   ry = 0.8 + 0.15 * Math.random();
+    //   vx = 20 + random(25);
+    //   vy = -15 + random(30);
+    //   _alpha = random(50) + 50;
+    //   this.onEnterFrame = function() {
+    //     _X = _X + (vx *= rx);
+    //     _Y = _Y + (vy *= ry);
+    //   };
+    this.bulleSym = {
+      name: "bulle",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_bulle"),
+      anchorX: bulleAnchor.x,
+      anchorY: bulleAnchor.y,
+      onLoad: (clip, ctx) => {
+        // AS DefineSprite_5_bulle/frame_1/PlaceObject2_4_1/onClipEvent(load):
+        // gotoAndPlay(random(5) + 1) — jumps to a random frame in [1,5]
+        // (0-based: [0,4])
+        const startFrame = Math.floor(Math.random() * 5);
+        clip.gotoAndPlay(startFrame);
+        void ctx; // ctx not used here
+      },
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_5_bulle/frame_1/DoAction.as
+            const rx = 0.7 + 0.15 * Math.random();
+            const ry = 0.8 + 0.15 * Math.random();
+            const vx = 20 + Math.floor(Math.random() * 25);
+            const vy = -15 + Math.floor(Math.random() * 30);
+            const alpha = Math.floor(Math.random() * 50) + 50;
+            clip.vars.rx = rx;
+            clip.vars.ry = ry;
+            clip.vars.vx = vx;
+            clip.vars.vy = vy;
+            clip.alpha = alpha / 100;
+            clip.onEnterFrame = (c) => {
+              // AS: _X = _X + (vx *= rx); _Y = _Y + (vy *= ry);
+              let cvx = c.vars.vx as number;
+              let cvy = c.vars.vy as number;
+              const crx = c.vars.rx as number;
+              const cry = c.vars.ry as number;
+              cvx *= crx;
+              cvy *= cry;
+              c.x += cvx;
+              c.y += cvy;
+              c.vars.vx = cvx;
+              c.vars.vy = cvy;
+            };
+          },
+        ],
+      ]),
+    };
 
-    // ---- sprite_9: Beam/arrow inside sprite_10's coordinate space ----
-    // AS: onClipEvent(load) { _rotation = _parent.angle; }
-    // We compute the angle the same way AS does:
-    // dx = cellTo.x - cellFrom.x
-    // dy = cellTo.y + 10 - cellFrom.y + 80
-    // angle = atan2(dy, dx) * 180 / pi
-    let dx = 0;
-    let dy = 0;
-    if (context?.cellFrom && context?.cellTo) {
-      dx = context.cellTo.x - context.cellFrom.x;
-      dy = context.cellTo.y + 10 - context.cellFrom.y + 80;
-    }
-    const angle = Math.atan2(dy, dx);
+    // ---- sprite_9 (DefineSprite_9) — inner child of sprite_10 ----
+    // Placed inside sprite_10 at frame_46 (depth 1).
+    // AS DefineSprite_10/frame_46/PlaceObject2_9_1/CLIPACTIONRECORD onClipEvent(load).as:
+    //   _rotation = _parent.angle;
+    // AS DefineSprite_9/frame_25/DoAction.as:
+    //   stop();
+    this.sprite9Sym = {
+      name: "sprite_9",
+      totalFrames: 27,
+      frames: textures.getFrames("sprite_9"),
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onLoad: (clip) => {
+        // AS DefineSprite_10/frame_46/PlaceObject2_9_1/onClipEvent(load):
+        // _rotation = _parent.angle;
+        const parent = clip.parent;
+        const angleDeg = (parent?.vars.angle as number) ?? 0;
+        clip.rotation = (angleDeg * Math.PI) / 180;
+      },
+      frameScripts: new Map([
+        [
+          24,
+          (clip) => {
+            // AS DefineSprite_9/frame_25/DoAction.as: stop();
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-    const sprite9Anchor = calculateAnchor(SPRITE_9_MANIFEST);
-    this.sprite9Anim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_9"),
-        anchorX: sprite9Anchor.x,
-        anchorY: sprite9Anchor.y,
-        scale: init.scale,
-      })
-    );
-    this.sprite9Anim.stopAt(24);
-    this.sprite9Anim.sprite.rotation = angle;
-    // sprite_9 is a child of sprite_10's sprite
-    this.sprite10Anim.sprite.addChild(this.sprite9Anim.sprite);
+    // ---- sprite_10 (DefineSprite_10) — caster-side timeline ------
+    // 48 frames.
+    // AS DefineSprite_10/frame_1/DoAction.as:
+    //   SOMA.playSound("herbe");
+    // AS DefineSprite_10/frame_1/DoAction_2.as:
+    //   _rotation = 0;
+    //   _X = _parent.cellFrom.x;
+    //   _Y = _parent.cellFrom.y - 80;
+    //   dx = _parent.cellTo.x - _parent.cellFrom.x;
+    //   dy = _parent.cellTo.y + 10 - _parent.cellFrom.y + 80;
+    //   angle = Math.atan2(dy,dx) * 180 / 3.1415;
+    // AS DefineSprite_10/frame_46/DoAction.as:
+    //   stop();
+    // At frame_46, sprite_9 is placed (PlaceObject2_9_1 depth 1) with onClipEvent(load).
+    this.sprite10Sym = {
+      name: "sprite_10",
+      totalFrames: 48,
+      frames: textures.getFrames("sprite_10"),
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS DefineSprite_10/frame_1/DoAction.as: SOMA.playSound("herbe");
+            // (sound stored in onSpellStart via the sounds[] list at frame 0)
+            // AS DefineSprite_10/frame_1/DoAction_2.as: position + angle
+            clip.rotation = 0;
+            const root = clip.parent;
+            const cellFrom = root?.vars.cellFrom as
+              | { x: number; y: number }
+              | undefined;
+            const cellTo = root?.vars.cellTo as
+              | { x: number; y: number }
+              | undefined;
+            if (cellFrom) {
+              clip.x = cellFrom.x;
+              clip.y = cellFrom.y - 80;
+            }
+            // Compute angle to target and store on this clip's vars
+            // so sprite_9's onLoad can read _parent.angle.
+            if (cellFrom && cellTo) {
+              const dx = cellTo.x - cellFrom.x;
+              const dy = cellTo.y + 10 - cellFrom.y + 80;
+              const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+              clip.vars.angle = angleDeg;
+            }
+            void ctx;
+          },
+        ],
+        [
+          45,
+          (clip, ctx) => {
+            // AS DefineSprite_10/frame_46/DoAction.as: stop();
+            // Also: PlaceObject2_9_1 is placed here — attach sprite_9 as depth-1 child.
+            clip.stop();
+            // Attach sprite_9 at depth 1 — its onLoad reads clip.vars.angle
+            clip.attach(this.sprite9Sym, "sprite_9_1", 1, ctx);
+          },
+        ],
+      ]),
+    };
 
-    // ---- sprite_11: Impact animation at target position ----
-    // AS: _X = _parent.cellTo.x; _Y = _parent.cellTo.y - 10; _rotation = _parent.angle;
-    // Relative to our container (cellFrom):
-    // x = cellTo.x - cellFrom.x = targetX
-    // y = cellTo.y - 10 - cellFrom.y = (cellTo.y - cellFrom.y) - 10
-    let impactX = 0;
-    let impactY = -10;
-    if (context?.cellFrom && context?.cellTo) {
-      impactX = context.cellTo.x - context.cellFrom.x;
-      impactY = context.cellTo.y - context.cellFrom.y - 10;
-    }
+    // ---- sprite_11 (DefineSprite_11) — target-side timeline ------
+    // 135 frames.
+    // AS DefineSprite_11/frame_1/DoAction.as:
+    //   _X = _parent.cellTo.x;
+    //   _Y = _parent.cellTo.y - 10;
+    //   _rotation = _parent.angle;
+    // AS DefineSprite_11/frame_70/DoAction.as:
+    //   SOMA.playSound("coquille");
+    // AS DefineSprite_11/frame_70/DoAction_2.as:
+    //   c = 1; while(c < 7) { this.attachMovie("bulle","bulle" + c,c); c++; }
+    // AS DefineSprite_11/frame_70/DoAction_3.as:
+    //   this.end();  ← signalHit
+    // AS DefineSprite_11/frame_133/DoAction.as:
+    //   _parent.removeMovieClip();  ← spell complete
+    this.sprite11Sym = {
+      name: "sprite_11",
+      totalFrames: 135,
+      frames: textures.getFrames("sprite_11"),
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_11/frame_1/DoAction.as
+            const root = clip.parent;
+            const cellTo = root?.vars.cellTo as
+              | { x: number; y: number }
+              | undefined;
+            const angleDeg = (root?.vars.angle as number) ?? 0;
+            if (cellTo) {
+              clip.x = cellTo.x;
+              clip.y = cellTo.y - 10;
+            }
+            clip.rotation = (angleDeg * Math.PI) / 180;
+          },
+        ],
+        [
+          69,
+          (clip, ctx) => {
+            // AS DefineSprite_11/frame_70/DoAction.as: SOMA.playSound("coquille");
+            // (sound triggered via onSpellStart captured callback — see below)
+            this.soundCallback?.("coquille");
+            // AS DefineSprite_11/frame_70/DoAction_2.as:
+            // c = 1; while(c < 7) { this.attachMovie("bulle","bulle" + c,c); c++; }
+            for (let c = 1; c < 7; c++) {
+              clip.attach(this.bulleSym, `bulle${c}`, c, ctx);
+            }
+            // AS DefineSprite_11/frame_70/DoAction_3.as: this.end() → signalHit
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          132,
+          (clip) => {
+            // AS DefineSprite_11/frame_133/DoAction.as: _parent.removeMovieClip()
+            clip.parent?.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    const sprite11Anchor = calculateAnchor(SPRITE_11_MANIFEST);
-    this.sprite11Anim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_11"),
-        anchorX: sprite11Anchor.x,
-        anchorY: sprite11Anchor.y,
-        scale: init.scale,
-      })
-    );
-    this.sprite11Anim.sprite.position.set(impactX, impactY);
-    this.sprite11Anim.sprite.rotation = init.angleRad;
-
-    // Frame 69 (AS frame 70): play sound, spawn bubbles, signal hit
-    this.sprite11Anim.onFrame(69, () => {
-      this.callbacks.playSound("coquille");
-      this.spawnBubbles(impactX, impactY);
-      this.signalHit();
-    });
-
-    // Frame 132 (AS frame 133): removeMovieClip -> complete
-    this.sprite11Anim.onFrame(132, () => {
-      this.complete();
-    });
-
-    this.container.addChild(this.sprite11Anim.sprite);
-
-    // ---- Bubble particle system ----
-    // Bubbles are spawned at the impact point; no container offset needed beyond that
-    const bulleTextures = textures.getFrames("lib_bulle");
-    const bulleTexture = bulleTextures[0];
-    this.bubbleParticles = new ASParticleSystem(bulleTexture);
-    this.bubbleParticles.container.position.set(impactX, impactY);
-    this.container.addChild(this.bubbleParticles.container);
-
-    // Play main timeline sound (frame_2 / AS frame 2 = 0-indexed frame 1)
-    // The main timeline stops at frame 2 and plays 'jet_903'
-    // We simulate this by playing it immediately (it's the start sound)
-    this.callbacks.playSound("jet_903");
+    this.registry.register(this.bulleSym);
+    this.registry.register(this.sprite9Sym);
+    this.registry.register(this.sprite10Sym);
+    this.registry.register(this.sprite11Sym);
   }
 
-  private spawnBubbles(_impactX: number, _impactY: number): void {
-    // AS: c = 1; while(c < 7) { attachMovie("bulle", "bulle" + c, c); c++; }
-    // Spawns 6 bubbles (c = 1..6)
-    const _bulleAnchor = calculateAnchor(BULLE_MANIFEST);
-    const _bulleTextures = this.bubbleParticles.texture ? [] : [];
+  private soundCallback?: (id: string) => void;
 
-    // The bubbles each have their own physics from DefineSprite_5_bulle/frame_1/DoAction.as:
-    // rx = 0.7 + 0.15 * Math.random()
-    // ry = 0.8 + 0.15 * Math.random()
-    // vx = 20 + random(25)
-    // vy = -15 + random(30)
-    // _alpha = random(50) + 50
-    // onEnterFrame: _X += (vx *= rx); _Y += (vy *= ry);
-    //
-    // Also, each bulle's inner sprite_4 does: gotoAndPlay(random(5) + 1)
-    // which just randomizes starting frame of its inner animation.
-    //
-    // The bulle physics use accX=rx, accY=ry as velocity multipliers (friction).
-    // There is no vtDecay/scale change - bubbles just move until off-screen.
-    // We model them with t=100 (full scale), vt=0 (no scale change).
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // Capture sound callback so frame scripts inside sprite_11 can fire it.
+    this.soundCallback = callbacks.playSound;
 
-    this.bubbleParticles.spawnMany(6, () => {
-      const rx = 0.7 + 0.15 * Math.random();
-      const ry = 0.8 + 0.15 * Math.random();
-      const vx = 20 + Math.floor(Math.random() * 25);
-      const vy = -15 + Math.floor(Math.random() * 30);
-      const alpha = (Math.floor(Math.random() * 50) + 50) / 100;
+    // AS frame_2/DoAction.as: SOMA.playSound("jet_903"); stop();
+    callbacks.playSound("jet_903");
 
-      return {
-        x: 0,
-        y: 0,
-        vx,
-        vy,
-        accX: rx,
-        accY: ry,
-        vr: 0,
-        vrDecay: 1,
-        t: 100,
-        vt: 0,
-        vtDecay: 0,
-        alpha,
-      };
-    });
-  }
+    // The "herbe" sound fires from DefineSprite_10/frame_1 — but since
+    // we need it immediately when sprite_10 starts (frame_1 = frame index 0),
+    // we play it here too to match the manifest sounds[] entry at frame 0.
+    callbacks.playSound("herbe");
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-    this.bubbleParticles.update();
-
-    // Completion is triggered by sprite_11's frame 132 callback
-  }
-
-  destroy(): void {
-    this.bubbleParticles.destroy();
-    super.destroy();
+    // Attach the two parallel authored timelines to root.
+    // They will position themselves via their frame_1 scripts using
+    // root.vars.cellFrom / root.vars.cellTo / root.vars.angle.
+    this.root.attach(this.sprite10Sym, "sprite10", 1, context);
+    this.root.attach(this.sprite11Sym, "sprite11", 2, context);
   }
 }

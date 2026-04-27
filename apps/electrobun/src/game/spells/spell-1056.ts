@@ -1,524 +1,758 @@
 /**
- * Spell 1056 - (Wabbit/CC spell)
+ * Spell 1056 — (Wabbit CC / Death animation).
  *
- * A complex multi-phase spell with several sprite animations.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/1056/scripts/scripts/
  *
- * Components:
- * - sprite_67: At target, plays sound 'death' at frame 1 (idx 0), stops at frame 10 (idx 9)
- * - sprite_61: At target, plays sound 'death' at frame 1 (idx 0), stops at frame 9 (idx 8)
- * - sprite_43: At target, stops at frame 9 (idx 8)
- * - sprite_55: At target, stops at frame 9 (idx 8)
- * - sprite_19: At target, stops at frame 14 (idx 13)
- * - sprite_34: At target, signals end at frame 24 (idx 23), alpha flicker from frame 9 (idx 8)
- * - sprite_35: At target, signals end at frame 24 (idx 23), alpha flicker from frame 9 (idx 8)
- * - sprite_27: At target, plays sound 'cc_wabbit' at frame 8 (idx 7), signals end at frame 9 (idx 8)
- * - sprite_30: At target, plays sound 'cc_wabbit' at frame 8 (idx 7), signals end at frame 9 (idx 8)
- * - sprite_48: At target, plays sound 'hit_defaut' at frame 3 (idx 2)
- * - sprite_51: At target, plays sound 'hit_defaut' at frame 3 (idx 2)
- * - sprite_21: At target, plays through 13 frames
- * - sprite_22: At target, plays through 13 frames
- * - sprite_23: At target, plays through 10 frames
- * - sprite_24: At target, plays through 10 frames
- * - sprite_56: At target, plays through 13 frames
- * - sprite_57: At target, plays through 13 frames
+ * displayType=11 (TargetCell). This spell has no projectile, no caster-side
+ * positioning logic, no dual-anchored WorldAbsolute pattern, and no move/shoot
+ * symbols. All animated content is authored timelines placed on the main
+ * timeline at specific frames (frame_15, frame_23, frame_31, frame_37) and
+ * referenced via PlaceObject2 clip events. The container is anchored at the
+ * target cell.
  *
- * Original AS timing:
- * - Frame 1 (main): var apparition = 1
- * - Frame 15 (main): apparition = 0 (PlaceObject2_21_1 load)
- * - Frame 23 (main): apparition = 0 (PlaceObject2_22_1 load)
- * - Frame 31 (main): PlaceObject2_12_1 load -> GAC.applyAnim(Appear) if apparition==1
- * - Frame 37 (main): PlaceObject2_16_1 load -> GAC.applyAnim(Appear) if apparition==1
+ * Main timeline:
+ *   frame_1:  var apparition = 1  (stored on root.vars)
+ *   frame_15: PlaceObject2_21_1 onClipEvent(load) → _parent.apparition = 0
+ *   frame_23: PlaceObject2_22_1 onClipEvent(load) → _parent.apparition = 0
+ *   frame_31: PlaceObject2_12_1 onClipEvent(load) → if apparition==1 GAC.applyAnim("Appear")
+ *   frame_37: PlaceObject2_16_1 onClipEvent(load) → if apparition==1 GAC.applyAnim("Appear")
  *
  * Sounds from manifest:
- * - Frame 0 (0-indexed): 'death'
- * - Frame 2 (0-indexed): 'hit_defaut'
- * - Frame 7 (0-indexed): 'cc_wabbit'
+ *   frame 0: "death"       (first frame)
+ *   frame 2: "hit_defaut"  (third frame)
+ *   frame 7: "cc_wabbit"   (eighth frame)
  *
- * Key events:
- * - DefineSprite_27/frame_9: GAC.applyEnd -> signalHit
- * - DefineSprite_30/frame_9: GAC.applyEnd -> signalHit
- * - DefineSprite_34/frame_24: GAC.applyEnd -> signalHit
- * - DefineSprite_35/frame_24: GAC.applyEnd -> signalHit
- * - DefineSprite_34/frame_9 & DefineSprite_35/frame_9: enterFrame alpha flicker (_alpha = random(100))
+ * Library symbols: none — all content is from animations[] only, no librarySymbols[].
+ *
+ * The canonical AS uses GAC.applyAnim / GAC.applyEnd which are game-engine
+ * calls that control fighter character animations. These have no visual effect
+ * in the spell animation layer itself; we model them as no-ops but preserve
+ * the structural frame timing. Sounds are played from within the sprite
+ * frameScripts.
+ *
+ * The sprite timelines:
+ *   sprite_19  (15f): frame_14 → stop()
+ *   sprite_21  (13f): frame_13 → GAC.applyAnim("Static") [no-op]
+ *   sprite_22  (13f): frame_13 → GAC.applyAnim("Static") [no-op]
+ *   sprite_23  (10f): no scripts
+ *   sprite_24  (10f): no scripts
+ *   sprite_27  (27f): frame_8  → playSound("cc_wabbit")
+ *                     frame_9  → GAC.applyEnd [no-op]
+ *                     frame_27 → GAC.applyAnim("Static") [no-op]
+ *   sprite_30  (23f): frame_8  → playSound("cc_wabbit")
+ *                     frame_9  → GAC.applyEnd [no-op]
+ *                     frame_23 → GAC.applyAnim("Static") [no-op]
+ *   sprite_34  (29f): frame_9  → PlaceObject2_32_19 onEnterFrame: _alpha = random(100)
+ *                     frame_24 → GAC.applyEnd [no-op]
+ *                     frame_29 → GAC.applyAnim("Static") [no-op]
+ *   sprite_35  (30f): frame_9  → PlaceObject2_32_16 onEnterFrame: _alpha = random(100)
+ *                     frame_24 → GAC.applyEnd [no-op]
+ *                     frame_30 → GAC.applyAnim("Static") [no-op]
+ *   sprite_43  (9f):  frame_9  → stop()
+ *   sprite_48  (12f): frame_3  → playSound("hit_defaut")
+ *                     frame_12 → _parent.gotoAndStop("StaticR") [no-op]
+ *   sprite_51  (12f): frame_3  → playSound("hit_defaut")
+ *                     frame_12 → _parent.gotoAndStop("StaticL") [no-op]
+ *   sprite_55  (9f):  frame_9  → stop()
+ *   sprite_56  (13f): frame_13 → GAC.applyAnim("Static") [no-op]
+ *   sprite_57  (13f): frame_13 → GAC.applyAnim("Static") [no-op]
+ *   sprite_61  (9f):  frame_1  → playSound("death")
+ *                     frame_9  → stop()
+ *   sprite_67  (10f): frame_1  → playSound("death")
+ *                     frame_10 → stop()
+ *
+ * Completion: The longest sprite is sprite_35 at 30 frames (then Static loop).
+ * We signal complete from sprite_35's frame_30 script (GAC.applyAnim("Static")
+ * marks the end of the authored animation). signalHit is fired from sprite_48
+ * and sprite_51 at their frame_3 ("hit_defaut" sound = impact moment).
+ * We use sprite_48's frame_3 as the canonical hit signal (first hit_defaut).
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const SPRITE_19_MANIFEST: SpriteManifest = {
+const SPRITE_19_BOUNDS = {
   width: 23.3,
   height: 35.5,
   offsetX: -11.45,
   offsetY: -18.3,
 };
-
-const SPRITE_21_MANIFEST: SpriteManifest = {
+const SPRITE_21_BOUNDS = {
   width: 33.5,
   height: 47.9,
   offsetX: -17.6,
   offsetY: -41.95,
 };
-
-const SPRITE_22_MANIFEST: SpriteManifest = {
+const SPRITE_22_BOUNDS = {
   width: 33.5,
   height: 44.9,
   offsetX: -15,
   offsetY: -38.75,
 };
-
-const SPRITE_23_MANIFEST: SpriteManifest = {
+const SPRITE_23_BOUNDS = {
   width: 36.1,
   height: 55.65,
   offsetX: -18.95,
   offsetY: -46,
 };
-
-const SPRITE_24_MANIFEST: SpriteManifest = {
+const SPRITE_24_BOUNDS = {
   width: 35.05,
   height: 53.3,
   offsetX: -16.75,
   offsetY: -43.35,
 };
-
-const SPRITE_27_MANIFEST: SpriteManifest = {
+const SPRITE_27_BOUNDS = {
   width: 45.9,
   height: 51.35,
   offsetX: -28.25,
   offsetY: -44.4,
 };
-
-const SPRITE_30_MANIFEST: SpriteManifest = {
+const SPRITE_30_BOUNDS = {
   width: 48.35,
   height: 49.6,
   offsetX: -19.35,
   offsetY: -43.85,
 };
-
-const SPRITE_34_MANIFEST: SpriteManifest = {
+const SPRITE_34_BOUNDS = {
   width: 41.35,
   height: 133.95,
   offsetX: -23.35,
   offsetY: -117.95,
 };
-
-const SPRITE_35_MANIFEST: SpriteManifest = {
+const SPRITE_35_BOUNDS = {
   width: 40.1,
   height: 125.8,
   offsetX: -16.65,
   offsetY: -118.5,
 };
-
-const SPRITE_43_MANIFEST: SpriteManifest = {
+const SPRITE_43_BOUNDS = {
   width: 52.2,
   height: 33.55,
   offsetX: -25.85,
   offsetY: -17.15,
 };
-
-const SPRITE_48_MANIFEST: SpriteManifest = {
+const SPRITE_48_BOUNDS = {
   width: 71.05,
   height: 75.75,
   offsetX: -52.25,
   offsetY: -71.45,
 };
-
-const SPRITE_51_MANIFEST: SpriteManifest = {
+const SPRITE_51_BOUNDS = {
   width: 85.45,
   height: 75.55,
   offsetX: -64.75,
   offsetY: -71.45,
 };
-
-const SPRITE_55_MANIFEST: SpriteManifest = {
+const SPRITE_55_BOUNDS = {
   width: 57.6,
   height: 40.1,
   offsetX: -28.55,
   offsetY: -20.35,
 };
-
-const SPRITE_56_MANIFEST: SpriteManifest = {
+const SPRITE_56_BOUNDS = {
   width: 72.55,
   height: 64.75,
   offsetX: -56.35,
   offsetY: -58.6,
 };
-
-const SPRITE_57_MANIFEST: SpriteManifest = {
+const SPRITE_57_BOUNDS = {
   width: 71.55,
   height: 64.55,
   offsetX: -56.35,
   offsetY: -58.6,
 };
-
-const SPRITE_61_MANIFEST: SpriteManifest = {
+const SPRITE_61_BOUNDS = {
   width: 67.15,
   height: 83.4,
   offsetX: -33.9,
   offsetY: -69.95,
 };
-
-const SPRITE_67_MANIFEST: SpriteManifest = {
+const SPRITE_67_BOUNDS = {
   width: 38.15,
   height: 87.05,
   offsetX: -19.1,
   offsetY: -69.1,
 };
 
-export class Spell1056 extends BaseSpell {
+export class Spell1056 extends RuntimeSpell {
   readonly spellId = 1056;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  // Flickering sprites that need alpha updates each frame
-  private sprite34Anim!: FrameAnimatedSprite;
-  private sprite35Anim!: FrameAnimatedSprite;
-  private sprite34Flickering = false;
-  private sprite35Flickering = false;
+  private soundCallback?: (id: string) => void;
+  private hitSignalledFromSprite = false;
 
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const tx = init.targetX;
-    const ty = init.targetY;
-    const sc = init.scale;
-
-    // --- sprite_67: plays sound 'death' at frame 0, stops at frame 9 ---
-    if (textures.hasTexture("sprite_67_0")) {
-      const anchor67 = calculateAnchor(SPRITE_67_MANIFEST);
-      const anim67 = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_67"),
-          fps: 25,
-          anchorX: anchor67.x,
-          anchorY: anchor67.y,
-          scale: sc,
-        })
-      );
-      anim67.sprite.position.set(tx, ty);
-      anim67.stopAt(9).onFrame(0, () => this.callbacks.playSound("death"));
-      this.container.addChild(anim67.sprite);
-    }
-
-    // --- sprite_61: plays sound 'death' at frame 0, stops at frame 8 ---
-    if (textures.hasTexture("sprite_61_0")) {
-      const anchor61 = calculateAnchor(SPRITE_61_MANIFEST);
-      const anim61 = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_61"),
-          fps: 25,
-          anchorX: anchor61.x,
-          anchorY: anchor61.y,
-          scale: sc,
-        })
-      );
-      anim61.sprite.position.set(tx, ty);
-      anim61.stopAt(8).onFrame(0, () => this.callbacks.playSound("death"));
-      this.container.addChild(anim61.sprite);
-    }
-
-    // --- sprite_43: stops at frame 8 ---
-    if (textures.hasTexture("sprite_43_0")) {
-      const anchor43 = calculateAnchor(SPRITE_43_MANIFEST);
-      const anim43 = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_43"),
-          fps: 25,
-          anchorX: anchor43.x,
-          anchorY: anchor43.y,
-          scale: sc,
-        })
-      );
-      anim43.sprite.position.set(tx, ty);
-      anim43.stopAt(8);
-      this.container.addChild(anim43.sprite);
-    }
-
-    // --- sprite_55: stops at frame 8 ---
-    if (textures.hasTexture("sprite_55_0")) {
-      const anchor55 = calculateAnchor(SPRITE_55_MANIFEST);
-      const anim55 = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_55"),
-          fps: 25,
-          anchorX: anchor55.x,
-          anchorY: anchor55.y,
-          scale: sc,
-        })
-      );
-      anim55.sprite.position.set(tx, ty);
-      anim55.stopAt(8);
-      this.container.addChild(anim55.sprite);
-    }
-
-    // --- sprite_19: stops at frame 13 ---
-    if (textures.hasTexture("sprite_19_0")) {
-      const anchor19 = calculateAnchor(SPRITE_19_MANIFEST);
-      const anim19 = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_19"),
-          fps: 25,
-          anchorX: anchor19.x,
-          anchorY: anchor19.y,
-          scale: sc,
-        })
-      );
-      anim19.sprite.position.set(tx, ty);
-      anim19.stopAt(13);
-      this.container.addChild(anim19.sprite);
-    }
-
-    // --- sprite_48: plays sound 'hit_defaut' at frame 2 (AS frame 3, 0-indexed) ---
-    if (textures.hasTexture("sprite_48_0")) {
-      const anchor48 = calculateAnchor(SPRITE_48_MANIFEST);
-      const anim48 = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_48"),
-          fps: 25,
-          anchorX: anchor48.x,
-          anchorY: anchor48.y,
-          scale: sc,
-        })
-      );
-      anim48.sprite.position.set(tx, ty);
-      anim48.onFrame(2, () => this.callbacks.playSound("hit_defaut"));
-      this.container.addChild(anim48.sprite);
-    }
-
-    // --- sprite_51: plays sound 'hit_defaut' at frame 2 (AS frame 3, 0-indexed) ---
-    if (textures.hasTexture("sprite_51_0")) {
-      const anchor51 = calculateAnchor(SPRITE_51_MANIFEST);
-      const anim51 = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_51"),
-          fps: 25,
-          anchorX: anchor51.x,
-          anchorY: anchor51.y,
-          scale: sc,
-        })
-      );
-      anim51.sprite.position.set(tx, ty);
-      anim51.onFrame(2, () => this.callbacks.playSound("hit_defaut"));
-      this.container.addChild(anim51.sprite);
-    }
-
-    // --- sprite_21: plays through 13 frames ---
-    if (textures.hasTexture("sprite_21_0")) {
-      const anchor21 = calculateAnchor(SPRITE_21_MANIFEST);
-      const anim21 = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_21"),
-          fps: 25,
-          anchorX: anchor21.x,
-          anchorY: anchor21.y,
-          scale: sc,
-        })
-      );
-      anim21.sprite.position.set(tx, ty);
-      this.container.addChild(anim21.sprite);
-    }
-
-    // --- sprite_22: plays through 13 frames ---
-    if (textures.hasTexture("sprite_22_0")) {
-      const anchor22 = calculateAnchor(SPRITE_22_MANIFEST);
-      const anim22 = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_22"),
-          fps: 25,
-          anchorX: anchor22.x,
-          anchorY: anchor22.y,
-          scale: sc,
-        })
-      );
-      anim22.sprite.position.set(tx, ty);
-      this.container.addChild(anim22.sprite);
-    }
-
-    // --- sprite_23: plays through 10 frames ---
-    if (textures.hasTexture("sprite_23_0")) {
-      const anchor23 = calculateAnchor(SPRITE_23_MANIFEST);
-      const anim23 = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_23"),
-          fps: 25,
-          anchorX: anchor23.x,
-          anchorY: anchor23.y,
-          scale: sc,
-        })
-      );
-      anim23.sprite.position.set(tx, ty);
-      this.container.addChild(anim23.sprite);
-    }
-
-    // --- sprite_24: plays through 10 frames ---
-    if (textures.hasTexture("sprite_24_0")) {
-      const anchor24 = calculateAnchor(SPRITE_24_MANIFEST);
-      const anim24 = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_24"),
-          fps: 25,
-          anchorX: anchor24.x,
-          anchorY: anchor24.y,
-          scale: sc,
-        })
-      );
-      anim24.sprite.position.set(tx, ty);
-      this.container.addChild(anim24.sprite);
-    }
-
-    // --- sprite_56: plays through 13 frames ---
-    if (textures.hasTexture("sprite_56_0")) {
-      const anchor56 = calculateAnchor(SPRITE_56_MANIFEST);
-      const anim56 = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_56"),
-          fps: 25,
-          anchorX: anchor56.x,
-          anchorY: anchor56.y,
-          scale: sc,
-        })
-      );
-      anim56.sprite.position.set(tx, ty);
-      this.container.addChild(anim56.sprite);
-    }
-
-    // --- sprite_57: plays through 13 frames ---
-    if (textures.hasTexture("sprite_57_0")) {
-      const anchor57 = calculateAnchor(SPRITE_57_MANIFEST);
-      const anim57 = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_57"),
-          fps: 25,
-          anchorX: anchor57.x,
-          anchorY: anchor57.y,
-          scale: sc,
-        })
-      );
-      anim57.sprite.position.set(tx, ty);
-      this.container.addChild(anim57.sprite);
-    }
-
-    // --- sprite_27: sound 'cc_wabbit' at frame 7 (AS frame 8), GAC.applyEnd at frame 8 (AS frame 9) ---
-    if (textures.hasTexture("sprite_27_0")) {
-      const anchor27 = calculateAnchor(SPRITE_27_MANIFEST);
-      const anim27 = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_27"),
-          fps: 25,
-          anchorX: anchor27.x,
-          anchorY: anchor27.y,
-          scale: sc,
-        })
-      );
-      anim27.sprite.position.set(tx, ty);
-      anim27
-        .onFrame(7, () => this.callbacks.playSound("cc_wabbit"))
-        .onFrame(8, () => this.signalHit());
-      this.container.addChild(anim27.sprite);
-    }
-
-    // --- sprite_30: sound 'cc_wabbit' at frame 7 (AS frame 8), GAC.applyEnd at frame 8 (AS frame 9) ---
-    if (textures.hasTexture("sprite_30_0")) {
-      const anchor30 = calculateAnchor(SPRITE_30_MANIFEST);
-      const anim30 = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_30"),
-          fps: 25,
-          anchorX: anchor30.x,
-          anchorY: anchor30.y,
-          scale: sc,
-        })
-      );
-      anim30.sprite.position.set(tx, ty);
-      anim30
-        .onFrame(7, () => this.callbacks.playSound("cc_wabbit"))
-        .onFrame(8, () => this.signalHit());
-      this.container.addChild(anim30.sprite);
-    }
-
-    // --- sprite_34: alpha flicker from frame 8 (AS frame 9), GAC.applyEnd at frame 23 (AS frame 24) ---
-    if (textures.hasTexture("sprite_34_0")) {
-      const anchor34 = calculateAnchor(SPRITE_34_MANIFEST);
-      this.sprite34Anim = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_34"),
-          fps: 25,
-          anchorX: anchor34.x,
-          anchorY: anchor34.y,
-          scale: sc,
-        })
-      );
-      this.sprite34Anim.sprite.position.set(tx, ty);
-      this.sprite34Anim
-        .onFrame(
-          8,
-          () => {
-            this.sprite34Flickering = true;
+    // ---- sprite_19 (15 frames) -----------------------------------
+    // AS DefineSprite_19/frame_14/DoAction.as: stop()
+    const sprite19Anchor = calculateAnchor(SPRITE_19_BOUNDS);
+    const sprite19Sym: SymbolDefinition = {
+      name: "sprite_19",
+      totalFrames: 15,
+      frames: textures.getFrames("sprite_19"),
+      anchorX: sprite19Anchor.x,
+      anchorY: sprite19Anchor.y,
+      frameScripts: new Map([
+        [
+          13,
+          (clip) => {
+            // AS DefineSprite_19/frame_14/DoAction.as: stop()
+            clip.stop();
           },
-          false
-        )
-        .onFrame(23, () => this.signalHit());
-      this.container.addChild(this.sprite34Anim.sprite);
-    }
+        ],
+      ]),
+    };
 
-    // --- sprite_35: alpha flicker from frame 8 (AS frame 9), GAC.applyEnd at frame 23 (AS frame 24) ---
-    if (textures.hasTexture("sprite_35_0")) {
-      const anchor35 = calculateAnchor(SPRITE_35_MANIFEST);
-      this.sprite35Anim = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: textures.getFrames("sprite_35"),
-          fps: 25,
-          anchorX: anchor35.x,
-          anchorY: anchor35.y,
-          scale: sc,
-        })
-      );
-      this.sprite35Anim.sprite.position.set(tx, ty);
-      this.sprite35Anim
-        .onFrame(
-          8,
-          () => {
-            this.sprite35Flickering = true;
+    // ---- sprite_21 (13 frames) -----------------------------------
+    // AS DefineSprite_21/frame_13/DoAction.as: GAC.applyAnim(this,"Static") [no-op]
+    const sprite21Anchor = calculateAnchor(SPRITE_21_BOUNDS);
+    const sprite21Sym: SymbolDefinition = {
+      name: "sprite_21",
+      totalFrames: 13,
+      frames: textures.getFrames("sprite_21"),
+      anchorX: sprite21Anchor.x,
+      anchorY: sprite21Anchor.y,
+      frameScripts: new Map([
+        [
+          12,
+          (_clip) => {
+            // AS DefineSprite_21/frame_13/DoAction.as: GAC.applyAnim(this,"Static") — no-op
           },
-          false
-        )
-        .onFrame(23, () => this.signalHit());
-      this.container.addChild(this.sprite35Anim.sprite);
-    }
+        ],
+      ]),
+    };
+
+    // ---- sprite_22 (13 frames) -----------------------------------
+    // AS DefineSprite_22/frame_13/DoAction.as: GAC.applyAnim(this,"Static") [no-op]
+    const sprite22Anchor = calculateAnchor(SPRITE_22_BOUNDS);
+    const sprite22Sym: SymbolDefinition = {
+      name: "sprite_22",
+      totalFrames: 13,
+      frames: textures.getFrames("sprite_22"),
+      anchorX: sprite22Anchor.x,
+      anchorY: sprite22Anchor.y,
+      frameScripts: new Map([
+        [
+          12,
+          (_clip) => {
+            // AS DefineSprite_22/frame_13/DoAction.as: GAC.applyAnim(this,"Static") — no-op
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_23 (10 frames) -----------------------------------
+    // No scripts in canonical AS.
+    const sprite23Anchor = calculateAnchor(SPRITE_23_BOUNDS);
+    const sprite23Sym: SymbolDefinition = {
+      name: "sprite_23",
+      totalFrames: 10,
+      frames: textures.getFrames("sprite_23"),
+      anchorX: sprite23Anchor.x,
+      anchorY: sprite23Anchor.y,
+    };
+
+    // ---- sprite_24 (10 frames) -----------------------------------
+    // No scripts in canonical AS.
+    const sprite24Anchor = calculateAnchor(SPRITE_24_BOUNDS);
+    const sprite24Sym: SymbolDefinition = {
+      name: "sprite_24",
+      totalFrames: 10,
+      frames: textures.getFrames("sprite_24"),
+      anchorX: sprite24Anchor.x,
+      anchorY: sprite24Anchor.y,
+    };
+
+    // ---- sprite_27 (27 frames) -----------------------------------
+    // AS DefineSprite_27/frame_8/DoAction.as:  SOMA.playSound("cc_wabbit")
+    // AS DefineSprite_27/frame_9/DoAction.as:  GAC.applyEnd(this) [no-op]
+    // AS DefineSprite_27/frame_27/DoAction.as: GAC.applyAnim(this,"Static") [no-op]
+    const sprite27Anchor = calculateAnchor(SPRITE_27_BOUNDS);
+    const sprite27Sym: SymbolDefinition = {
+      name: "sprite_27",
+      totalFrames: 27,
+      frames: textures.getFrames("sprite_27"),
+      anchorX: sprite27Anchor.x,
+      anchorY: sprite27Anchor.y,
+      frameScripts: new Map([
+        [
+          7,
+          (_clip) => {
+            // AS DefineSprite_27/frame_8/DoAction.as: SOMA.playSound("cc_wabbit")
+            this.soundCallback?.("cc_wabbit");
+          },
+        ],
+        [
+          8,
+          (_clip) => {
+            // AS DefineSprite_27/frame_9/DoAction.as: GAC.applyEnd(this) — no-op
+          },
+        ],
+        [
+          26,
+          (_clip) => {
+            // AS DefineSprite_27/frame_27/DoAction.as: GAC.applyAnim(this,"Static") — no-op
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_30 (23 frames) -----------------------------------
+    // AS DefineSprite_30/frame_8/DoAction.as:  SOMA.playSound("cc_wabbit")
+    // AS DefineSprite_30/frame_9/DoAction.as:  GAC.applyEnd(this) [no-op]
+    // AS DefineSprite_30/frame_23/DoAction.as: GAC.applyAnim(this,"Static") [no-op]
+    const sprite30Anchor = calculateAnchor(SPRITE_30_BOUNDS);
+    const sprite30Sym: SymbolDefinition = {
+      name: "sprite_30",
+      totalFrames: 23,
+      frames: textures.getFrames("sprite_30"),
+      anchorX: sprite30Anchor.x,
+      anchorY: sprite30Anchor.y,
+      frameScripts: new Map([
+        [
+          7,
+          (_clip) => {
+            // AS DefineSprite_30/frame_8/DoAction.as: SOMA.playSound("cc_wabbit")
+            this.soundCallback?.("cc_wabbit");
+          },
+        ],
+        [
+          8,
+          (_clip) => {
+            // AS DefineSprite_30/frame_9/DoAction.as: GAC.applyEnd(this) — no-op
+          },
+        ],
+        [
+          22,
+          (_clip) => {
+            // AS DefineSprite_30/frame_23/DoAction.as: GAC.applyAnim(this,"Static") — no-op
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_34 (29 frames) -----------------------------------
+    // AS DefineSprite_34/frame_9/PlaceObject2_32_19/CLIPACTIONRECORD onClipEvent(enterFrame).as:
+    //   _alpha = random(100)
+    // This clip event is on a child PlaceObject placed at frame_9. We model
+    // it as an onEnterFrame on sprite_34 itself that starts randomising alpha
+    // after the sprite has reached frame 9 (i.e. after frame index 8).
+    // AS DefineSprite_34/frame_24/DoAction.as: GAC.applyEnd(this) [no-op]
+    // AS DefineSprite_34/frame_29/DoAction.as: GAC.applyAnim(this,"Static") [no-op]
+    const sprite34Anchor = calculateAnchor(SPRITE_34_BOUNDS);
+    const sprite34Sym: SymbolDefinition = {
+      name: "sprite_34",
+      totalFrames: 29,
+      frames: textures.getFrames("sprite_34"),
+      anchorX: sprite34Anchor.x,
+      anchorY: sprite34Anchor.y,
+      onEnterFrame: (clip) => {
+        // AS DefineSprite_34/frame_9/PlaceObject2_32_19/CLIPACTIONRECORD onClipEvent(enterFrame).as:
+        // _alpha = random(100) — active once the PlaceObject at frame_9 is placed.
+        // We gate this on currentFrame >= 8 (0-based frame 8 = AS frame_9).
+        if (clip.currentFrame >= 8) {
+          clip.alpha = Math.floor(Math.random() * 100) / 100;
+        }
+      },
+      frameScripts: new Map([
+        [
+          23,
+          (_clip) => {
+            // AS DefineSprite_34/frame_24/DoAction.as: GAC.applyEnd(this) — no-op
+          },
+        ],
+        [
+          28,
+          (_clip) => {
+            // AS DefineSprite_34/frame_29/DoAction.as: GAC.applyAnim(this,"Static") — no-op
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_35 (30 frames) -----------------------------------
+    // AS DefineSprite_35/frame_9/PlaceObject2_32_16/CLIPACTIONRECORD onClipEvent(enterFrame).as:
+    //   _alpha = random(100)
+    // AS DefineSprite_35/frame_24/DoAction.as: GAC.applyEnd(this) [no-op]
+    // AS DefineSprite_35/frame_30/DoAction.as: GAC.applyAnim(this,"Static") [no-op]
+    // sprite_35 is the longest timeline at 30 frames → signals spell completion.
+    const sprite35Anchor = calculateAnchor(SPRITE_35_BOUNDS);
+    const sprite35Sym: SymbolDefinition = {
+      name: "sprite_35",
+      totalFrames: 30,
+      frames: textures.getFrames("sprite_35"),
+      anchorX: sprite35Anchor.x,
+      anchorY: sprite35Anchor.y,
+      onEnterFrame: (clip) => {
+        // AS DefineSprite_35/frame_9/PlaceObject2_32_16/CLIPACTIONRECORD onClipEvent(enterFrame).as:
+        // _alpha = random(100) — active once the PlaceObject at frame_9 is placed.
+        if (clip.currentFrame >= 8) {
+          clip.alpha = Math.floor(Math.random() * 100) / 100;
+        }
+      },
+      frameScripts: new Map([
+        [
+          23,
+          (_clip) => {
+            // AS DefineSprite_35/frame_24/DoAction.as: GAC.applyEnd(this) — no-op
+          },
+        ],
+        [
+          29,
+          (clip) => {
+            // AS DefineSprite_35/frame_30/DoAction.as: GAC.applyAnim(this,"Static")
+            // This is the end of the authored animation — signal completion.
+            clip.stop();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_43 (9 frames) ------------------------------------
+    // AS DefineSprite_43/frame_9/DoAction.as: stop()
+    const sprite43Anchor = calculateAnchor(SPRITE_43_BOUNDS);
+    const sprite43Sym: SymbolDefinition = {
+      name: "sprite_43",
+      totalFrames: 9,
+      frames: textures.getFrames("sprite_43"),
+      anchorX: sprite43Anchor.x,
+      anchorY: sprite43Anchor.y,
+      frameScripts: new Map([
+        [
+          8,
+          (clip) => {
+            // AS DefineSprite_43/frame_9/DoAction.as: stop()
+            clip.stop();
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_48 (12 frames) -----------------------------------
+    // AS DefineSprite_48/frame_3/DoAction.as:  SOMA.playSound("hit_defaut")
+    // AS DefineSprite_48/frame_12/DoAction.as: _parent.gotoAndStop("StaticR") [no-op]
+    // frame_3 is the impact sound → canonical signalHit.
+    const sprite48Anchor = calculateAnchor(SPRITE_48_BOUNDS);
+    const sprite48Sym: SymbolDefinition = {
+      name: "sprite_48",
+      totalFrames: 12,
+      frames: textures.getFrames("sprite_48"),
+      anchorX: sprite48Anchor.x,
+      anchorY: sprite48Anchor.y,
+      frameScripts: new Map([
+        [
+          2,
+          (_clip) => {
+            // AS DefineSprite_48/frame_3/DoAction.as: SOMA.playSound("hit_defaut")
+            this.soundCallback?.("hit_defaut");
+            // Signal hit at first impact sound (canonical hit moment).
+            if (!this.hitSignalledFromSprite) {
+              this.hitSignalledFromSprite = true;
+              this.runtime.signalHit();
+            }
+          },
+        ],
+        [
+          11,
+          (_clip) => {
+            // AS DefineSprite_48/frame_12/DoAction.as: _parent.gotoAndStop("StaticR") — no-op
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_51 (12 frames) -----------------------------------
+    // AS DefineSprite_51/frame_3/DoAction.as:  SOMA.playSound("hit_defaut")
+    // AS DefineSprite_51/frame_12/DoAction.as: _parent.gotoAndStop("StaticL") [no-op]
+    const sprite51Anchor = calculateAnchor(SPRITE_51_BOUNDS);
+    const sprite51Sym: SymbolDefinition = {
+      name: "sprite_51",
+      totalFrames: 12,
+      frames: textures.getFrames("sprite_51"),
+      anchorX: sprite51Anchor.x,
+      anchorY: sprite51Anchor.y,
+      frameScripts: new Map([
+        [
+          2,
+          (_clip) => {
+            // AS DefineSprite_51/frame_3/DoAction.as: SOMA.playSound("hit_defaut")
+            this.soundCallback?.("hit_defaut");
+            // Guard: only signal hit once (sprite_48 fires first).
+            if (!this.hitSignalledFromSprite) {
+              this.hitSignalledFromSprite = true;
+              this.runtime.signalHit();
+            }
+          },
+        ],
+        [
+          11,
+          (_clip) => {
+            // AS DefineSprite_51/frame_12/DoAction.as: _parent.gotoAndStop("StaticL") — no-op
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_55 (9 frames) ------------------------------------
+    // AS DefineSprite_55/frame_9/DoAction.as: stop()
+    const sprite55Anchor = calculateAnchor(SPRITE_55_BOUNDS);
+    const sprite55Sym: SymbolDefinition = {
+      name: "sprite_55",
+      totalFrames: 9,
+      frames: textures.getFrames("sprite_55"),
+      anchorX: sprite55Anchor.x,
+      anchorY: sprite55Anchor.y,
+      frameScripts: new Map([
+        [
+          8,
+          (clip) => {
+            // AS DefineSprite_55/frame_9/DoAction.as: stop()
+            clip.stop();
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_56 (13 frames) -----------------------------------
+    // AS DefineSprite_56/frame_13/DoAction.as: GAC.applyAnim(this,"Static") [no-op]
+    const sprite56Anchor = calculateAnchor(SPRITE_56_BOUNDS);
+    const sprite56Sym: SymbolDefinition = {
+      name: "sprite_56",
+      totalFrames: 13,
+      frames: textures.getFrames("sprite_56"),
+      anchorX: sprite56Anchor.x,
+      anchorY: sprite56Anchor.y,
+      frameScripts: new Map([
+        [
+          12,
+          (_clip) => {
+            // AS DefineSprite_56/frame_13/DoAction.as: GAC.applyAnim(this,"Static") — no-op
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_57 (13 frames) -----------------------------------
+    // AS DefineSprite_57/frame_13/DoAction.as: GAC.applyAnim(this,"Static") [no-op]
+    const sprite57Anchor = calculateAnchor(SPRITE_57_BOUNDS);
+    const sprite57Sym: SymbolDefinition = {
+      name: "sprite_57",
+      totalFrames: 13,
+      frames: textures.getFrames("sprite_57"),
+      anchorX: sprite57Anchor.x,
+      anchorY: sprite57Anchor.y,
+      frameScripts: new Map([
+        [
+          12,
+          (_clip) => {
+            // AS DefineSprite_57/frame_13/DoAction.as: GAC.applyAnim(this,"Static") — no-op
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_61 (9 frames) ------------------------------------
+    // AS DefineSprite_61/frame_1/DoAction.as: SOMA.playSound("death")
+    // AS DefineSprite_61/frame_9/DoAction.as: stop()
+    const sprite61Anchor = calculateAnchor(SPRITE_61_BOUNDS);
+    const sprite61Sym: SymbolDefinition = {
+      name: "sprite_61",
+      totalFrames: 9,
+      frames: textures.getFrames("sprite_61"),
+      anchorX: sprite61Anchor.x,
+      anchorY: sprite61Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (_clip) => {
+            // AS DefineSprite_61/frame_1/DoAction.as: SOMA.playSound("death")
+            this.soundCallback?.("death");
+          },
+        ],
+        [
+          8,
+          (clip) => {
+            // AS DefineSprite_61/frame_9/DoAction.as: stop()
+            clip.stop();
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_67 (10 frames) -----------------------------------
+    // AS DefineSprite_67/frame_1/DoAction.as:  SOMA.playSound("death")
+    // AS DefineSprite_67/frame_10/DoAction.as: stop()
+    const sprite67Anchor = calculateAnchor(SPRITE_67_BOUNDS);
+    const sprite67Sym: SymbolDefinition = {
+      name: "sprite_67",
+      totalFrames: 10,
+      frames: textures.getFrames("sprite_67"),
+      anchorX: sprite67Anchor.x,
+      anchorY: sprite67Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (_clip) => {
+            // AS DefineSprite_67/frame_1/DoAction.as: SOMA.playSound("death")
+            this.soundCallback?.("death");
+          },
+        ],
+        [
+          9,
+          (clip) => {
+            // AS DefineSprite_67/frame_10/DoAction.as: stop()
+            clip.stop();
+          },
+        ],
+      ]),
+    };
+
+    this.registry.register(sprite19Sym);
+    this.registry.register(sprite21Sym);
+    this.registry.register(sprite22Sym);
+    this.registry.register(sprite23Sym);
+    this.registry.register(sprite24Sym);
+    this.registry.register(sprite27Sym);
+    this.registry.register(sprite30Sym);
+    this.registry.register(sprite34Sym);
+    this.registry.register(sprite35Sym);
+    this.registry.register(sprite43Sym);
+    this.registry.register(sprite48Sym);
+    this.registry.register(sprite51Sym);
+    this.registry.register(sprite55Sym);
+    this.registry.register(sprite56Sym);
+    this.registry.register(sprite57Sym);
+    this.registry.register(sprite61Sym);
+    this.registry.register(sprite67Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // Capture sound callback for use inside frameScripts.
+    this.soundCallback = callbacks.playSound;
+
+    // AS scripts/frame_1/DoAction.as: var apparition = 1;
+    // Store on root.vars so PlaceObject clip-event logic can read it.
+    this.root.vars.apparition = 1;
+
+    // The main timeline places multiple sprites at various frames via
+    // PlaceObject2. The canonical clip events fire on those placed
+    // objects' onClipEvent(load). We attach all registered sprites now
+    // so they start ticking. The manifested PlaceObject2 clip events
+    // that set/read `apparition` are modelled inline here:
+    //
+    //   frame_15: PlaceObject2_21_1 onClipEvent(load) → _parent.apparition = 0
+    //   frame_23: PlaceObject2_22_1 onClipEvent(load) → _parent.apparition = 0
+    //   frame_31: PlaceObject2_12_1 onClipEvent(load) → if apparition==1 GAC.applyAnim("Appear")
+    //   frame_37: PlaceObject2_16_1 onClipEvent(load) → if apparition==1 GAC.applyAnim("Appear")
+    //
+    // GAC.applyAnim / GAC.applyEnd are fighter-character animation calls
+    // with no visual effect in the spell layer — they are no-ops here.
+    // The apparition flag only gates those GAC calls, so the flag logic
+    // itself is also effectively a no-op for our purposes.
+    //
+    // We attach all sprite symbols at root so they play their authored
+    // timelines in parallel, matching the canonical Flash PlaceObject2
+    // behaviour (each placed at different depths on the main timeline).
+
+    const sprite19Sym = this.registry.resolve("sprite_19");
+    if (sprite19Sym) {
+      this.root.attach(sprite19Sym, "sprite_19", 1, context);
     }
 
-    this.anims.update(deltaTime);
-
-    // Apply alpha flicker for sprite_34 (AS: _alpha = random(100))
-    if (
-      this.sprite34Anim &&
-      this.sprite34Flickering &&
-      !this.sprite34Anim.isComplete()
-    ) {
-      this.sprite34Anim.sprite.alpha = Math.floor(Math.random() * 100) / 100;
+    const sprite21Sym = this.registry.resolve("sprite_21");
+    if (sprite21Sym) {
+      this.root.attach(sprite21Sym, "sprite_21", 2, context);
     }
 
-    // Apply alpha flicker for sprite_35 (AS: _alpha = random(100))
-    if (
-      this.sprite35Anim &&
-      this.sprite35Flickering &&
-      !this.sprite35Anim.isComplete()
-    ) {
-      this.sprite35Anim.sprite.alpha = Math.floor(Math.random() * 100) / 100;
+    const sprite22Sym = this.registry.resolve("sprite_22");
+    if (sprite22Sym) {
+      this.root.attach(sprite22Sym, "sprite_22", 3, context);
     }
 
-    if (this.anims.allComplete()) {
-      this.complete();
+    const sprite23Sym = this.registry.resolve("sprite_23");
+    if (sprite23Sym) {
+      this.root.attach(sprite23Sym, "sprite_23", 4, context);
+    }
+
+    const sprite24Sym = this.registry.resolve("sprite_24");
+    if (sprite24Sym) {
+      this.root.attach(sprite24Sym, "sprite_24", 5, context);
+    }
+
+    const sprite27Sym = this.registry.resolve("sprite_27");
+    if (sprite27Sym) {
+      this.root.attach(sprite27Sym, "sprite_27", 6, context);
+    }
+
+    const sprite30Sym = this.registry.resolve("sprite_30");
+    if (sprite30Sym) {
+      this.root.attach(sprite30Sym, "sprite_30", 7, context);
+    }
+
+    const sprite34Sym = this.registry.resolve("sprite_34");
+    if (sprite34Sym) {
+      this.root.attach(sprite34Sym, "sprite_34", 8, context);
+    }
+
+    const sprite35Sym = this.registry.resolve("sprite_35");
+    if (sprite35Sym) {
+      this.root.attach(sprite35Sym, "sprite_35", 9, context);
+    }
+
+    const sprite43Sym = this.registry.resolve("sprite_43");
+    if (sprite43Sym) {
+      this.root.attach(sprite43Sym, "sprite_43", 10, context);
+    }
+
+    const sprite48Sym = this.registry.resolve("sprite_48");
+    if (sprite48Sym) {
+      this.root.attach(sprite48Sym, "sprite_48", 11, context);
+    }
+
+    const sprite51Sym = this.registry.resolve("sprite_51");
+    if (sprite51Sym) {
+      this.root.attach(sprite51Sym, "sprite_51", 12, context);
+    }
+
+    const sprite55Sym = this.registry.resolve("sprite_55");
+    if (sprite55Sym) {
+      this.root.attach(sprite55Sym, "sprite_55", 13, context);
+    }
+
+    const sprite56Sym = this.registry.resolve("sprite_56");
+    if (sprite56Sym) {
+      this.root.attach(sprite56Sym, "sprite_56", 14, context);
+    }
+
+    const sprite57Sym = this.registry.resolve("sprite_57");
+    if (sprite57Sym) {
+      this.root.attach(sprite57Sym, "sprite_57", 15, context);
+    }
+
+    const sprite61Sym = this.registry.resolve("sprite_61");
+    if (sprite61Sym) {
+      this.root.attach(sprite61Sym, "sprite_61", 16, context);
+    }
+
+    const sprite67Sym = this.registry.resolve("sprite_67");
+    if (sprite67Sym) {
+      this.root.attach(sprite67Sym, "sprite_67", 17, context);
     }
   }
 }

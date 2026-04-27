@@ -1,94 +1,136 @@
 /**
- * Spell 314
+ * Spell 314 — (Iop/Sacrier impact effect, likely "Fléau" or similar).
  *
- * A composite animation effect at the target position.
- * Contains 6 sub-animations (DefineSprite_17 instances) placed within
- * a container (DefineSprite_18), each starting at a random frame offset.
- * The outer container (DefineSprite_20) removes itself at frame 82.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/314/scripts/scripts/
  *
- * Components:
- * - anim1 (composite): 6 sub-instances at target, each with random start frame
- *   - 5 instances: random(20) start frame (0-19)
- *   - 1 instance (PlaceObject2_17_7): random(30) start frame (0-29)
+ * displayType=11 (TargetCell). This spell has no projectile motion, no
+ * caster-side anchoring, no dual timelines — it is a single impact animation
+ * at the target cell. The manifest has no librarySymbols[] (empty), so all
+ * content comes from the single `animations: ["anim1"]` entry.
  *
- * Each sub-instance (DefineSprite_17) has an onEnterFrame that accelerates
- * playback: starts at t=0, every 20 frames increments t, jumping ahead t frames
- * each tick. This acceleration effect is baked into the composite anim1 frames.
+ * AS layout:
+ *   - DefineSprite_17 — the inner looping sprite (the "anim1" visual).
+ *       frame_1/DoAction.as: installs an onEnterFrame that accelerates
+ *       playback by incrementing a speed counter `t` every 20 frames,
+ *       jumping forward `f = currentFrame + t` each tick.
+ *       This is the canonical Dofus 1.29 "speed-ramp" pattern used on
+ *       many impact composites.
  *
- * Original AS timing:
- * - Frame 82 (DefineSprite_20): removeMovieClip() -> animation ends
- * - Hit signal: at start (frame 0) since it's an instant area effect
+ *   - DefineSprite_18 — composite container holding six pre-placed
+ *       DefineSprite_17 instances at depths 1, 7, 13, 19, 25, 31.
+ *       Each instance has a CLIPACTIONRECORD onClipEvent(load) that calls
+ *       gotoAndPlay(random(20)) or gotoAndPlay(random(30)) to stagger
+ *       their playheads so the six copies don't all animate in lockstep.
+ *       There are no authored frame scripts on DefineSprite_18 itself.
+ *
+ *   - DefineSprite_20 — 82-frame outer wrapper/container.
+ *       frame_82/DoAction.as: _parent.removeMovieClip() → signals completion.
+ *
+ * The manifest's single `animations: [{name: "anim1", frameCount: 84}]`
+ * entry corresponds to the baked composite of DefineSprite_20 (the full
+ * 82-frame outer wrapper with its children). We register it as the "anim1"
+ * symbol consumed by onSpellStart.
+ *
+ * Because librarySymbols[] is empty in the manifest, there is NO lib_ prefix
+ * anywhere — all textures come from `textures.getFrames("anim1")`.
+ *
+ * signalHit: fired at the mid-point of the animation (frame 12, canonical
+ * impact flash). Since there is no authored hit-frame marker in the AS, we
+ * use the first "acceleration starts" window (~frame 12) as the conventional
+ * hit signal for this pattern.
+ *
+ * Actually, reviewing the AS more carefully: there is no explicit `this.end()`
+ * or signalHit marker in any of the scripts. The canonical approach for a
+ * simple impact-at-target spell with no explicit hit marker is to signal hit
+ * on frame 1 (immediate) since the entire animation is the impact. We follow
+ * that convention.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const ANIM1_MANIFEST: SpriteManifest = {
+const ANIM1_BOUNDS = {
   width: 193.45,
   height: 186.35,
   offsetX: -95.55,
   offsetY: -149.35,
 };
 
-// 6 sub-instances placed in DefineSprite_18 frame 1:
-// PlaceObject2_17_1, _7, _13, _19, _25, _31
-// _7 uses random(30), all others use random(20)
-const INSTANCE_RANDOM_RANGES = [20, 30, 20, 20, 20, 20];
-
-export class Spell314 extends BaseSpell {
+export class Spell314 extends RuntimeSpell {
   readonly spellId = 314;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  protected setup(
-    _context: SpellContext,
+  private anim1Sym!: SymbolDefinition;
+
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const anchor = calculateAnchor(ANIM1_MANIFEST);
-    const anim1Textures = textures.getFrames("anim1");
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // Signal hit immediately (instant effect at target)
-    this.signalHit();
+    // ---- anim1 — 84-frame outer composite (DefineSprite_20 baked) ----
+    // The manifest bakes the full DefineSprite_20 hierarchy into "anim1"
+    // (84 frames, which covers the 82-frame authored timeline plus
+    // trailing padding). We model this as a single animated symbol.
+    //
+    // AS DefineSprite_20/frame_82/DoAction.as:
+    //   _parent.removeMovieClip()
+    // → fire complete() at frame index 81 (0-based).
+    //
+    // The inner DefineSprite_17 speed-ramp logic and the six staggered
+    // DefineSprite_18 children are baked into the per-frame SVG textures
+    // by the exporter — we do not need to replicate the runtime AS logic
+    // because the visual output is already composited into the anim1 frames.
+    // We only need to replicate the LIFECYCLE signals (signalHit, complete).
+    this.anim1Sym = {
+      name: "anim1",
+      totalFrames: 84,
+      frames: textures.getFrames("anim1"),
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (_clip) => {
+            // Frame 1 — animation starts; signal hit immediately since
+            // this is an impact-at-target spell with no explicit hit-frame
+            // marker in the canonical AS.
+            // AS: no explicit hit signal — conventional: signal on first frame.
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          81,
+          (clip) => {
+            // AS DefineSprite_20/frame_82/DoAction.as:
+            //   _parent.removeMovieClip()
+            // This is the outer mc removal → spell complete.
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // Create 6 sub-instances of the anim1 animation, each with a random start frame
-    // matching the DefineSprite_17 instances in DefineSprite_18
-    for (let i = 0; i < INSTANCE_RANDOM_RANGES.length; i++) {
-      const range = INSTANCE_RANDOM_RANGES[i];
-      // AS: gotoAndPlay(random(N)) -> 0-indexed start frame 0..N-1
-      const startFrame = Math.floor(Math.random() * range);
-
-      const anim = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: anim1Textures,
-          anchorX: anchor.x,
-          anchorY: anchor.y,
-          scale: init.scale,
-          startFrame,
-          // DefineSprite_20 removes itself at frame 82 (0-indexed: 81)
-          stopFrame: 81,
-          loop: true,
-        })
-      );
-
-      anim.sprite.position.set(init.targetX, init.targetY);
-      this.container.addChild(anim.sprite);
-    }
+    this.registry.register(this.anim1Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-
-    if (this.anims.allStopped()) {
-      this.complete();
-    }
+  protected onSpellStart(
+    _callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // Main timeline frame_1: no SOMA.playSound in the canonical AS scripts
+    // provided. Attach the anim1 composite at the root.
+    this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

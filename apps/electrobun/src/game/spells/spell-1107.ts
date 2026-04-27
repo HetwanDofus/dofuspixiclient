@@ -1,163 +1,199 @@
 /**
- * Spell 1107 - Autre
+ * Spell 1107 — (Unknown spell, likely a self-buff or aura effect).
  *
- * A target-position effect using sprite_5 (background loop) and
- * multiple sprite_18 instances (small randomized looping effects).
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/1107/scripts/scripts/
  *
- * Components:
- * - sprite_5: 210-frame animation at target position, signals hit at frame 204 (AS frame 205)
- * - sprite_18 instances: each starts at a random frame (0-29), loops back to frame 5 at frame 36 (AS frame 37)
+ * displayType=11 (TargetCell). No projectile symbols (move/shoot/duplicate),
+ * no _parent.cellFrom / _parent.cellTo positioning, no caster-side anchor.
+ * The spell places its content at the target cell. The main timeline runs
+ * 238 frames total; frame_205 calls `this.end()` (signalHit) and frame_238
+ * calls `this.removeMovieClip()` (complete).
  *
- * Original AS timing:
- * - Frame 1 (main): Play sound 'autre_1107'
- * - Frame 205 (main): this.end() -> signal hit
- * - Frame 238 (main): removeMovieClip() -> complete
- * - DefineSprite_18 frame_1: gotoAndPlay(random(30)) -> random start 0-29
- * - DefineSprite_18 frame_37: gotoAndPlay(6) -> loop back to frame 5 (0-indexed)
+ * The manifest has NO librarySymbols[], so there are no `lib_` prefixed
+ * textures. Two animations are present:
+ *   - sprite_5  — 210-frame outer visual (the main aura/impact ring)
+ *   - sprite_18 — 39-frame looping inner detail; frame_1 jumps to a random
+ *                 frame in [0,29] for varied phase; frame_37 loops back to
+ *                 frame 6 (AS `gotoAndPlay(6)` → 0-based frame 5).
  *
- * The main timeline has 238 frames total (removeMovieClip at 238).
- * sprite_5 has 210 frames (plays fully then the remaining frames are blank/hold).
- * sprite_18 has 39 frames, loops at frame 36->6 (0-indexed: 35->5).
+ * The outer main timeline uses sprite_5 directly as its authored visual
+ * (210 frames placed on the main 238-frame timeline). sprite_18 is a
+ * separately authored DefineSprite placed inside the composition.
  *
- * Number of sprite_18 instances: not explicitly stated in AS, but the manifest
- * shows one sprite_18 symbol. Looking at the main timeline, sprite_18 instances
- * are attached. Based on typical Dofus spell patterns and the manifest having
- * sprite_18 as a separate animation, we spawn a set of them at the target.
+ * Since there are no librarySymbols[] and both animations appear in the
+ * top-level animations[] list, textures are accessed without the `lib_`
+ * prefix. Both symbols are attached in onSpellStart, mirroring their
+ * implicit placement on the canonical main timeline frame_1.
  *
- * Since the AS only shows DefineSprite_18 behavior (random start + loop),
- * and the main timeline controls count via attachMovie or timeline placement,
- * we use a reasonable count. The main timeline frame count is 238.
- * sprite_5 runs 210 frames. The remaining 28 frames (211-238) are for the
- * sprite_18 loop to finish. We'll use 5 sprite_18 instances as a typical
- * Dofus particle decoration count (the AS doesn't specify exact count in
- * provided scripts, so we use what's visually standard).
+ * Main timeline script summary:
+ *   frame_1/DoAction.as   : SOMA.playSound("autre_1107")
+ *   frame_205/DoAction.as : this.end()             → signalHit
+ *   frame_238/DoAction.as : this.removeMovieClip() → complete
  *
- * Actually, re-reading: the manifest only lists sprite_5 and sprite_18 animations.
- * The main timeline places these. Since no explicit count is given, we use 1
- * of each as placed on the timeline. But sprite_18's random start suggests
- * multiple instances. We'll use 6 instances based on typical usage.
+ * DefineSprite_18 scripts:
+ *   frame_1/DoAction.as   : gotoAndPlay(random(30))   → random start phase
+ *   frame_37/DoAction.as  : gotoAndPlay(6)            → loop from frame 6
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const SPRITE_5_MANIFEST: SpriteManifest = {
+const SPRITE_5_BOUNDS = {
   width: 125.7,
   height: 125.7,
   offsetX: -72.15,
   offsetY: -66.05,
 };
 
-const SPRITE_18_MANIFEST: SpriteManifest = {
+const SPRITE_18_BOUNDS = {
   width: 63.55,
   height: 43.9,
   offsetX: -28.55,
   offsetY: -25.6,
 };
 
-// Number of sprite_18 instances to place at the target
-const SPRITE_18_COUNT = 6;
-
-export class Spell1107 extends BaseSpell {
+export class Spell1107 extends RuntimeSpell {
   readonly spellId = 1107;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  protected setup(
-    _context: SpellContext,
+  private sprite5Sym!: SymbolDefinition;
+  private sprite18Sym!: SymbolDefinition;
+
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const sprite5Textures = textures.getFrames("sprite_5");
-    const sprite18Textures = textures.getFrames("sprite_18");
+    const sprite5Anchor = calculateAnchor(SPRITE_5_BOUNDS);
+    const sprite18Anchor = calculateAnchor(SPRITE_18_BOUNDS);
 
-    const sprite5Anchor = calculateAnchor(SPRITE_5_MANIFEST);
-    const sprite18Anchor = calculateAnchor(SPRITE_18_MANIFEST);
+    // ---- sprite_18 — looping inner detail (39 frames) ------------
+    // AS DefineSprite_18/frame_1/DoAction.as:
+    //   gotoAndPlay(random(30));
+    // AS DefineSprite_18/frame_37/DoAction.as:
+    //   gotoAndPlay(6);
+    this.sprite18Sym = {
+      name: "sprite_18",
+      totalFrames: 39,
+      frames: textures.getFrames("sprite_18"),
+      anchorX: sprite18Anchor.x,
+      anchorY: sprite18Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_18/frame_1/DoAction.as: gotoAndPlay(random(30))
+            // random(30) → [0, 29] → gotoAndPlay target is 1-based in AS
+            // so result in [1, 30] → 0-based [0, 29]
+            const targetAS = Math.floor(Math.random() * 30) + 1;
+            clip.gotoAndPlay(targetAS - 1);
+          },
+        ],
+        [
+          36,
+          (clip) => {
+            // AS DefineSprite_18/frame_37/DoAction.as: gotoAndPlay(6)
+            clip.gotoAndPlay(5);
+          },
+        ],
+      ]),
+    };
 
-    // Play sound at frame 0 (AS frame 1)
-    this.callbacks.playSound("autre_1107");
+    // ---- sprite_5 — main 210-frame outer visual ------------------
+    // The main timeline's frame_205 and frame_238 scripts are handled
+    // at the root level (via the sprite_5 symbol's frameScripts), since
+    // sprite_5 is the primary authored content placed on the timeline.
+    // frame_205: this.end()             → signalHit
+    // frame_238 is beyond sprite_5's 210 frames, so it is handled on
+    // the root container's own timeline by attaching sprite_5 as a
+    // child and wiring a wrapper symbol that covers the full 238 frames.
+    //
+    // However, since the outer main timeline IS the spell's root clip
+    // (not a child symbol), we model it differently: sprite_5 covers
+    // frames 0-209 (210 total). The main timeline's frame_205 and
+    // frame_238 live outside sprite_5's authored length, meaning they
+    // belong to the root's own timeline orchestration.
+    //
+    // We model this as a root-level wrapper symbol (sprite_5 used as a
+    // 210-frame sub-clip attached at root) plus a separate root-timeline
+    // symbol that carries the completion scripts at frames 204 and 237.
+    // The simplest correct approach: use sprite_5 as the visual, and
+    // attach a separate "root_timeline" container symbol to the root
+    // that drives signalHit at frame 204 (AS frame_205) and complete
+    // at frame 237 (AS frame_238).
+    //
+    // AS frame_205/DoAction.as: this.end() → signalHit
+    // AS frame_238/DoAction.as: this.removeMovieClip() → complete
+    this.sprite5Sym = {
+      name: "sprite_5",
+      totalFrames: 210,
+      frames: textures.getFrames("sprite_5"),
+      anchorX: sprite5Anchor.x,
+      anchorY: sprite5Anchor.y,
+    };
 
-    // sprite_5: main effect at target position
-    // AS frame 205 = 0-indexed frame 204 -> signal hit
-    // sprite_5 has 210 frames (0-209), plays through completely
-    const mainAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: sprite5Textures,
-        fps: 60,
-        anchorX: sprite5Anchor.x,
-        anchorY: sprite5Anchor.y,
-        scale: init.scale,
-      })
-    );
-    mainAnim.sprite.position.set(init.targetX, init.targetY);
-    mainAnim.onFrame(204, () => this.signalHit());
-    this.container.addChild(mainAnim.sprite);
+    // ---- root_timeline — 238-frame container with completion scripts
+    // This symbol mirrors the canonical main SWF timeline which is
+    // 238 frames long. It carries no visual content of its own —
+    // sprite_5 and sprite_18 are children. Its frameScripts handle the
+    // canonical frame_205 (signalHit) and frame_238 (complete) actions.
+    const rootTimelineSym: SymbolDefinition = {
+      name: "root_timeline",
+      totalFrames: 238,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          204,
+          (_clip) => {
+            // AS scripts/frame_205/DoAction.as: this.end()
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          237,
+          (clip) => {
+            // AS scripts/frame_238/DoAction.as: this.removeMovieClip()
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // sprite_18 instances: small looping decorations at target position
-    // Each starts at random frame (AS: gotoAndPlay(random(30)) -> 0-indexed: 0-29)
-    // Loops: at frame 36 (AS frame 37), gotoAndPlay(6) -> 0-indexed: frame 5
-    for (let i = 0; i < SPRITE_18_COUNT; i++) {
-      const startFrame = Math.floor(Math.random() * 30);
-
-      const anim = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: sprite18Textures,
-          fps: 60,
-          anchorX: sprite18Anchor.x,
-          anchorY: sprite18Anchor.y,
-          scale: init.scale,
-          startFrame,
-          loop: false,
-        })
-      );
-
-      // Loop back to frame 5 (0-indexed) when reaching frame 36 (0-indexed, AS frame 37)
-      anim.onFrame(
-        36,
-        () => {
-          anim.gotoFrame(5);
-        },
-        false
-      );
-
-      // Position slightly randomized around target for visual variety
-      const offsetX = (Math.random() - 0.5) * 40 * init.scale;
-      const offsetY = (Math.random() - 0.5) * 20 * init.scale;
-      anim.sprite.position.set(init.targetX + offsetX, init.targetY + offsetY);
-
-      this.container.addChild(anim.sprite);
-    }
+    this.registry.register(this.sprite18Sym);
+    this.registry.register(this.sprite5Sym);
+    this.registry.register(rootTimelineSym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // AS scripts/frame_1/DoAction.as: SOMA.playSound("autre_1107")
+    callbacks.playSound("autre_1107");
+
+    // Attach the root timeline container which drives signalHit + complete.
+    // Then attach sprite_5 (main visual) and sprite_18 (looping detail)
+    // as children of the root, mirroring their implicit placement on the
+    // canonical main timeline frame_1.
+    const rootTimelineSym = this.registry.resolve("root_timeline");
+    if (rootTimelineSym) {
+      const rootTl = this.root.attach(rootTimelineSym, "root_timeline", 1, context);
+      // Attach the main visual inside the root timeline container.
+      rootTl.attach(this.sprite5Sym, "sprite_5", 1, context);
+      // Attach the looping inner detail inside the root timeline container.
+      rootTl.attach(this.sprite18Sym, "sprite_18", 2, context);
     }
-
-    this.anims.update(deltaTime);
-
-    // Complete when main sprite_5 animation finishes
-    // sprite_5 has 210 frames; once it completes, we're done
-    // The sprite_18 instances loop so we check only the main anim (first registered)
-    // We track completion via the sprite_5 animation completing
-    // allComplete() won't work because sprite_18 loops; check manually
-    const mainAnim = this.getMainAnim();
-    if (mainAnim?.isComplete()) {
-      this.complete();
-    }
-  }
-
-  private mainAnimRef: FrameAnimatedSprite | null = null;
-
-  protected setup_storeMain(anim: FrameAnimatedSprite): void {
-    this.mainAnimRef = anim;
-  }
-
-  private getMainAnim(): FrameAnimatedSprite | null {
-    return this.mainAnimRef;
   }
 }

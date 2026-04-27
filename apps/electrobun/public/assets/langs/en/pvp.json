@@ -1,0 +1,180 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "PP": {
+            "hp": [
+                18000,
+                17500,
+                15000,
+                12500,
+                10000,
+                7500,
+                5000,
+                3000,
+                1500,
+                500,
+                0
+            ],
+            "maxdp": 500,
+            "grds": [
+                [
+                    {
+                        "nc": "-",
+                        "nl": "Hero"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Commander"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Strategist"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Conqueror"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Champion"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Knight"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Defender"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Sentry"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Candidate"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Recruit"
+                    },
+                    {
+                        "nc": " ",
+                        "nl": " "
+                    }
+                ],
+                [
+                    {
+                        "nc": "-",
+                        "nl": "Hero"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Commander"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Strategist"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Conqueror"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Champion"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Knight"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Defender"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Sentry"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Candidate"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Recruit"
+                    },
+                    {
+                        "nc": " ",
+                        "nl": " "
+                    }
+                ],
+                [
+                    {
+                        "nc": "-",
+                        "nl": "Hero"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Commander"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Strategist"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Conqueror"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Champion"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Knight"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Defender"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Sentry"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Candidate"
+                    },
+                    {
+                        "nc": "-",
+                        "nl": "Recruit"
+                    },
+                    {
+                        "nc": " ",
+                        "nl": " "
+                    }
+                ],
+                [
+                    {
+                        "nc": "-",
+                        "nl": "Neutral"
+                    }
+                ]
+            ]
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 28,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "PP",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

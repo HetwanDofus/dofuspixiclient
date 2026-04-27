@@ -1,10 +1,21 @@
 export type { CharacterStats } from "@/game/types/stats";
 
 export type { CharacterState } from "./character-store";
+export type { ChatEntry, ChatState } from "./chat-store";
 export type { ContextMenuOption, ContextMenuState } from "./context-menu-store";
 export type { FightMode, FightState } from "./fight-store";
 export type { HudState, PanelName } from "./hud-store";
 export { characterStore } from "./character-store";
+export {
+  appendChatMessage,
+  appendInfoMessage,
+  chatStore,
+  clearChat,
+  setChannelVisible,
+  setChatPrefix,
+  setChatSide,
+  toggleChatOpen,
+} from "./chat-store";
 export {
   contextMenuStore,
   hideContextMenu,

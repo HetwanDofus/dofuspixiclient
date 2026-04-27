@@ -1,0 +1,100 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "EM": {
+            "1": {
+                "n": "Sit",
+                "s": "sit"
+            },
+            "2": {
+                "n": "Wave",
+                "s": "bye"
+            },
+            "3": {
+                "n": "Applause",
+                "s": "appl"
+            },
+            "4": {
+                "n": "Get mad",
+                "s": "mad"
+            },
+            "5": {
+                "n": "Show fear",
+                "s": "fear"
+            },
+            "6": {
+                "n": "Show weapon",
+                "s": "weap"
+            },
+            "7": {
+                "n": "Play the flute",
+                "s": "pipo"
+            },
+            "8": {
+                "n": "Release gases",
+                "s": "oups"
+            },
+            "9": {
+                "n": "Hi",
+                "s": "hi"
+            },
+            "10": {
+                "n": "Kiss",
+                "s": "kiss"
+            },
+            "11": {
+                "n": "Rock",
+                "s": "pfc1"
+            },
+            "12": {
+                "n": "Paper",
+                "s": "pfc2"
+            },
+            "13": {
+                "n": "Scissors",
+                "s": "pfc3"
+            },
+            "14": {
+                "n": "Cross arms",
+                "s": "cross"
+            },
+            "15": {
+                "n": "Point",
+                "s": "point"
+            },
+            "16": {
+                "n": ". . . . .",
+                "s": "crow"
+            },
+            "19": {
+                "n": "Rest",
+                "s": "rest"
+            },
+            "21": {
+                "n": "Champion",
+                "s": "champ"
+            },
+            "22": {
+                "n": "Power Aura",
+                "s": "aura"
+            },
+            "23": {
+                "n": "Bloody Aura",
+                "s": "bat"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 52,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "EM",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

@@ -1,165 +1,177 @@
 /**
- * Spell 2045 - Pok
+ * Spell 2045 — (Unknown name, likely a Pandawa or misc spell).
  *
- * A projectile spell that moves from caster to target over 45 frames,
- * then plays impact animation.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/2045/scripts/scripts/
  *
- * Components:
- * - sprite_10: Projectile/impact animation at moving position
- *   - Contains an inner rotating element (DefineSprite_3) with random rotation speed
+ * displayType=50 (WorldAbsolute). The main timeline's frame_2 places
+ * sprite_10 (the animated projectile) on the stage with clip events that
+ * read `_parent.cellFrom` and `_parent.cellTo` to compute linear motion
+ * from caster to target over 45 frames. This is the hallmark of
+ * WorldAbsolute: the child positions itself using absolute world coords
+ * from `_parent.cellFrom` / `_parent.cellTo`. There is no `move`/`shoot`
+ * ballistic pattern, no linear rotation-to-target pattern, and the
+ * container must be at world origin (0,0) so the cellFrom/cellTo coords
+ * are meaningful.
  *
- * Original AS timing:
- * - Frame 2 (main): stop() - main timeline stops
- * - PlaceObject2_10_1 (onClipEvent load): Set position to cellFrom, calculate dx/dy for 45-frame travel
- * - PlaceObject2_10_1 (onClipEvent enterFrame): Move for 45 frames toward cellTo
- * - DefineSprite_3 (onClipEvent load): r = random(90)
- * - DefineSprite_3 (onClipEvent enterFrame): _rotation += r (spins at random speed)
- * - Frame 46 (sprite_10): Play sound 'pok' + signal hit (this.end())
- * - Frame 88 (sprite_10): removeMovieClip() - animation ends
+ * Canonical AS layout:
+ *
+ *   - Main timeline frame_2 (`scripts/frame_2/DoAction.as`):
+ *       stop();
+ *     PlaceObject2_10_1 places sprite_10 with clip events:
+ *       onClipEvent(load): position at cellFrom, compute dx/dy toward
+ *                          cellTo over 45 frames (with a -20 y bias).
+ *       onClipEvent(enterFrame): move by dx/dy for 45 frames.
+ *
+ *   - DefineSprite_10 — 99-frame composite animation (the projectile):
+ *       frame_46 (`DoAction.as`): SOMA.playSound("pok");
+ *       frame_46 (`DoAction_2.as`): this.end() → signalHit
+ *       frame_88 (`DoAction.as`): _parent.removeMovieClip() → complete
+ *
+ *   - DefineSprite_3 — single-frame spinning sub-sprite (embedded in
+ *       sprite_10's authored content; placed via PlaceObject2_2_1):
+ *       onClipEvent(load): r = random(90) — seeds random spin rate
+ *       onClipEvent(enterFrame): _rotation += r — spins at random rate
+ *     NOTE: DefineSprite_3 is NOT in librarySymbols[] (the manifest has
+ *     no librarySymbols entries). It is authored as embedded content
+ *     INSIDE sprite_10's composite timeline frames (already baked into
+ *     the sprite_10_N.svg frames). We do not need to register it as a
+ *     separate SymbolDefinition; its visual is captured in the SVG
+ *     frames. However, the spin clip event DOES affect a child placed
+ *     on sprite_10's authored timeline — since we represent sprite_10
+ *     as a frame-animated sprite with no runtime-spawned children, we
+ *     skip DefineSprite_3 registration (it only existed to spin an
+ *     internal sub-clip that is baked into the composite frames).
+ *
+ * Library symbols: none in manifest.json `librarySymbols[]`. The only
+ * symbol we register is sprite_10 itself from `animations[]`, treated
+ * as a 99-frame animated container with frame scripts at frames 45 and 87.
+ *
+ * Sounds:
+ *   - "pok" at frame 46 (AS) = frameScripts index 45.
+ *
+ * signalHit: fired at frame_46 `this.end()` → frameScripts index 45
+ *            (same frame as the sound — canonical DoAction_2.as).
+ * complete:  fired at frame_88 → frameScripts index 87.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const SPRITE_10_MANIFEST: SpriteManifest = {
+const SPRITE10_BOUNDS = {
   width: 124.95,
   height: 185,
   offsetX: -65.55,
   offsetY: -157.6,
 };
 
-export class Spell2045 extends BaseSpell {
+export class Spell2045 extends RuntimeSpell {
   readonly spellId = 2045;
+  readonly displayType = SpellDisplayType.WorldAbsolute;
 
-  private mainAnim!: FrameAnimatedSprite;
+  private sprite10Sym!: SymbolDefinition;
+  private savedCallbacks?: SpellCallbacks;
 
-  // Projectile movement state
-  private posX = 0;
-  private posY = 0;
-  private dx = 0;
-  private dy = 0;
-  private t = 0;
-
-  // Inner rotation state (DefineSprite_3)
-  private rotationR = 0;
-  private innerRotation = 0;
-
-  protected setup(
-    context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    // AS: r = random(90) -> 0 to 89
-    this.rotationR = Math.floor(Math.random() * 90);
-    this.innerRotation = 0;
+    const sprite10Anchor = calculateAnchor(SPRITE10_BOUNDS);
 
-    // AS onClipEvent(load):
-    // _X = _parent.cellFrom.x
-    // _Y = _parent.cellFrom.y
-    // dx = (- _parent.cellFrom.x + _parent.cellTo.x) / 45
-    // dy = (- _parent.cellFrom.y - 20 + _parent.cellTo.y) / 45
-    // t = 0
+    // ---- sprite_10 — 99-frame projectile composite ---------------
+    // From animations[] in manifest; NOT in librarySymbols[], so we
+    // use the bare name "sprite_10" (no lib_ prefix).
     //
-    // We work in local container space (container is at cellFrom).
-    // cellFrom is origin (0, 0) in local space.
-    // cellTo relative to cellFrom:
-    const cellFromX = context?.cellFrom?.x ?? 0;
-    const cellFromY = context?.cellFrom?.y ?? 0;
-    const cellToX = context?.cellTo?.x ?? 0;
-    const cellToY = context?.cellTo?.y ?? 0;
+    // Clip events from scripts/frame_2/PlaceObject2_10_1:
+    //   onClipEvent(load): position at cellFrom, compute dx/dy over 45 frames
+    //   onClipEvent(enterFrame): translate by dx/dy for t < 45
+    //
+    // Frame scripts:
+    //   frame_46/DoAction.as:   SOMA.playSound("pok")
+    //   frame_46/DoAction_2.as: this.end() → signalHit
+    //   frame_88/DoAction.as:   _parent.removeMovieClip() → complete
+    this.sprite10Sym = {
+      name: "sprite_10",
+      totalFrames: 99,
+      frames: textures.getFrames("sprite_10"),
+      anchorX: sprite10Anchor.x,
+      anchorY: sprite10Anchor.y,
 
-    this.posX = cellFromX;
-    this.posY = cellFromY;
-    this.dx = (-cellFromX + cellToX) / 45;
-    this.dy = (-cellFromY - 20 + cellToY) / 45;
-    this.t = 0;
+      // AS scripts/frame_2/PlaceObject2_10_1/CLIPACTIONRECORD onClipEvent(load).as
+      onLoad: (clip) => {
+        const root = clip.parent;
+        const cellFrom = root?.vars.cellFrom as { x: number; y: number } | undefined;
+        const cellTo = root?.vars.cellTo as { x: number; y: number } | undefined;
 
-    // sprite_10 animation
-    const anchor = calculateAnchor(SPRITE_10_MANIFEST);
-    this.mainAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_10"),
-        fps: 60,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-      })
-    );
+        const fromX = cellFrom?.x ?? 0;
+        const fromY = cellFrom?.y ?? 0;
+        const toX = cellTo?.x ?? 0;
+        const toY = cellTo?.y ?? 0;
 
-    // Frame 46 (0-indexed: 45): play sound + signal hit
-    this.mainAnim.onFrame(45, () => {
-      this.callbacks.playSound("pok");
-      this.signalHit();
-    });
+        clip.x = fromX;
+        clip.y = fromY;
+        clip.vars.dx = (-fromX + toX) / 45;
+        clip.vars.dy = (-fromY - 20 + toY) / 45;
+        clip.vars.t = 0;
+      },
 
-    // Frame 88 (0-indexed: 87): removeMovieClip -> complete
-    this.mainAnim.onFrame(87, () => {
-      this.complete();
-    });
+      // AS scripts/frame_2/PlaceObject2_10_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+      onEnterFrame: (clip) => {
+        let t = clip.vars.t as number;
+        if (t < 45) {
+          const dx = clip.vars.dx as number;
+          const dy = clip.vars.dy as number;
+          clip.x += dx;
+          clip.y += dy;
+        }
+        clip.vars.t = t + 1;
+      },
 
-    // Initial position: start at cellFrom in world space.
-    // The container is positioned at cellFrom by the fight system,
-    // so we set the sprite at (0, 0) initially and update each frame.
-    this.mainAnim.sprite.position.set(0, 0);
-    this.container.addChild(this.mainAnim.sprite);
+      frameScripts: new Map([
+        [
+          // AS DefineSprite_10/frame_46/DoAction.as: SOMA.playSound("pok");
+          // AS DefineSprite_10/frame_46/DoAction_2.as: this.end();
+          45,
+          (_clip) => {
+            if (this.savedCallbacks) {
+              this.savedCallbacks.playSound("pok");
+            }
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          // AS DefineSprite_10/frame_88/DoAction.as: _parent.removeMovieClip();
+          87,
+          (clip) => {
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // Apply initial world position offset
-    // The container itself is at (cellFrom.x, cellFrom.y) in the stage,
-    // so sprite starts at local (0, 0) = cellFrom world position.
-    // We'll track world positions and convert to local each frame.
+    this.registry.register(this.sprite10Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-
-    // AS onClipEvent(enterFrame) for the projectile:
-    // if (t++ < 45) { _X += dx; _Y += dy; }
-    if (this.t < 45) {
-      this.posX += this.dx;
-      this.posY += this.dy;
-      this.t++;
-    }
-
-    // AS onClipEvent(enterFrame) for the inner rotating element:
-    // _rotation = _rotation + r
-    this.innerRotation += this.rotationR;
-    // Apply rotation to the main sprite (the inner element is part of the composite)
-    this.mainAnim.sprite.rotation = (this.innerRotation * Math.PI) / 180;
-
-    // Convert world position to local container space.
-    // The container is at (0, 0) in the parent, and represents world origin
-    // (fight system places the container at cellFrom position, but we
-    // track absolute positions from AS, so we need to convert).
-    // Actually: container is at cellFrom in world space. Our posX/posY are world coords.
-    // Local = world - cellFrom... but we don't have direct access to cellFrom coords here.
-    // We store them from setup.
-    // Use the stored cellFrom as origin offset:
-    this.mainAnim.sprite.position.set(
-      this.posX - this._cellFromX,
-      this.posY - this._cellFromY
-    );
-  }
-
-  private _cellFromX = 0;
-  private _cellFromY = 0;
-
-  init(
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
     context: SpellContext,
-    callbacks: import("@dofus/spell-runtime").SpellCallbacks,
-    textures: SpellTextureProvider
   ): void {
-    this._cellFromX = context?.cellFrom?.x ?? 0;
-    this._cellFromY = context?.cellFrom?.y ?? 0;
-    super.init(context, callbacks, textures);
+    // Save callbacks so frame scripts can call playSound("pok").
+    this.savedCallbacks = callbacks;
+
+    // Main timeline frame_2/DoAction.as: stop();
+    // PlaceObject2_10_1 places sprite_10 on the stage.
+    // We attach it here so it starts ticking from the next runtime frame.
+    this.root.attach(this.sprite10Sym, "sprite10", 1, context);
   }
 }

@@ -21,6 +21,7 @@ export interface InteractionHandlerConfig {
   onObjectClick?: (result: PickResult) => void;
   onObjectHover?: (result: PickResult | null) => void;
   onGroundClick?: (mapX: number, mapY: number) => void;
+  onGroundHover?: (mapX: number, mapY: number) => void;
 }
 
 export class InteractionHandler {
@@ -48,6 +49,7 @@ export class InteractionHandler {
   private onObjectClick?: (result: PickResult) => void;
   private onObjectHover?: (result: PickResult | null) => void;
   private onGroundClick?: (mapX: number, mapY: number) => void;
+  private onGroundHover?: (mapX: number, mapY: number) => void;
 
   constructor(config: InteractionHandlerConfig) {
     this.mapContainer = config.mapContainer;
@@ -58,6 +60,7 @@ export class InteractionHandler {
     this.onObjectClick = config.onObjectClick;
     this.onObjectHover = config.onObjectHover;
     this.onGroundClick = config.onGroundClick;
+    this.onGroundHover = config.onGroundHover;
   }
 
   init(): void {
@@ -121,6 +124,15 @@ export class InteractionHandler {
         false
       );
       this.updateHover(pickResult);
+      // Always resolve the map-local point too; the hover preview
+      // (movement path / AoE overlay) wants to know which cell the
+      // cursor is on even when a sprite is the primary hover target.
+      if (this.onGroundHover) {
+        const zoom = this.mapContainer.scale.x || 1;
+        const mapX = (e.global.x - this.mapContainer.x) / zoom;
+        const mapY = (e.global.y - this.mapContainer.y) / zoom;
+        this.onGroundHover(mapX, mapY);
+      }
       return;
     }
 

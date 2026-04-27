@@ -1,0 +1,420 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "FC": {
+            "1": {
+                "n": "Zombie",
+                "d": "Gebruik precies één MP per beurt.",
+                "g": 11
+            },
+            "2": {
+                "n": "Standbeeld",
+                "d": "Eindig bij elke beurt op hetzelfde hokje als waar je op begonnen bent.",
+                "g": 9
+            },
+            "3": {
+                "n": "Onvrijwillige vrijwilliger",
+                "d": "Vermoord %1 als eerste.",
+                "g": 4
+            },
+            "4": {
+                "n": "Uitstel",
+                "d": "Vermoord %1 als laatste.",
+                "g": 10
+            },
+            "5": {
+                "n": "Schaars",
+                "d": "Elke speler mag dezelfde actie slechts één keer gebruiken, zolang als het gevecht duurt.",
+                "g": 3
+            },
+            "6": {
+                "n": "Afwisseling",
+                "d": "Elke speler mag dezelfde actie slechts één keer gebruiken, bij elke beurt zolang het gevecht duurt.",
+                "g": 12
+            },
+            "7": {
+                "n": "Tuinman",
+                "d": "Plant een Wowtel elke keer dat de spreuk beschikbaar is, zolang als het gevecht duurt.",
+                "g": 6
+            },
+            "8": {
+                "n": "Zwerver",
+                "d": "Gebruik alle MP die beschikbaar is, zolang het gevecht duurt.",
+                "g": 8
+            },
+            "9": {
+                "n": "Barbaar",
+                "d": "Gebruik geen enkele spreuk tijdens dit gevecht.",
+                "g": 1
+            },
+            "10": {
+                "n": "Gemeen",
+                "d": "Je moet je vijanden vermoorden in de volgorde van hun ranks in stijgende volgorde.",
+                "g": 2
+            },
+            "11": {
+                "n": "Occult",
+                "d": "Gebruik alleen spreuken tijdens dit gevecht.",
+                "g": 7
+            },
+            "12": {
+                "n": "Grafdelver",
+                "d": "Bezweer een Chaferfu elke keer dat de spreuk beschikbaar is, zolang het gevecht duurt.",
+                "g": 5
+            },
+            "14": {
+                "n": "Koninklijk Casino",
+                "d": "Gebruik de spreuk Roulette iedere keer dat de spreuk beschikbaar is gedurende het gehele gevecht.",
+                "g": 14
+            },
+            "15": {
+                "n": "Araklover",
+                "d": "Bezweer een Arachnee iedere keer dat de spreuk beschikbaar is gedurende het gehele gevecht.",
+                "g": 15
+            },
+            "16": {
+                "n": "Entomoloog",
+                "d": "Bezweer een Vliegende Vonk elke keer dat de spreuk beschikbaar is tijdens het gevecht.",
+                "g": 16
+            },
+            "17": {
+                "n": "Onbereikbaar",
+                "d": "Verlies geen enkel HP tijdens het gevecht.",
+                "g": 17
+            },
+            "18": {
+                "n": "Ongeneeslijk",
+                "d": "Heel niet tijdens het gevecht.",
+                "g": 18
+            },
+            "19": {
+                "n": "Schone handen",
+                "d": "Vermoord alle monsters zonder directe schade toe te brengen tijdens het gevecht. Vallen, glyphs, vergif, schade toegebracht door bewegen alsmede door bezweringen mogen allemaal gebruikt worden.",
+                "g": 19
+            },
+            "20": {
+                "n": "Grondbeginselen, schat!",
+                "d": "Gebruik hetzelfde element om aan te vallen tijdens het gevecht.",
+                "g": 20
+            },
+            "21": {
+                "n": "Blijf bewegen!",
+                "d": "Steel geen MP van je vijanden tijdens het gevecht.",
+                "g": 21
+            },
+            "22": {
+                "n": "Tijd Vliegt",
+                "d": "Steel geen AP van je vijanden tijdens het gevecht.",
+                "g": 22
+            },
+            "23": {
+                "n": "Aanschouwing",
+                "d": "Verlaag het bereik van je vijanden niet tijdens het gevecht.",
+                "g": 23
+            },
+            "24": {
+                "n": "Pighead",
+                "d": "Gebruik dezelfde spreuk of dezelfde aanval tijdens het gevecht.",
+                "g": 24
+            },
+            "25": {
+                "n": "Maniak",
+                "d": "Vijanden moeten op aflopende volgorde van niveau vermoord worden.",
+                "g": 25
+            },
+            "28": {
+                "n": "Geen Piwin en geen concessie",
+                "d": "Mannelijke spelers moeten de vrouwelijke spelers de genadeklap laten toebrengen aan de vijanden tijdens het gevecht.",
+                "g": 28
+            },
+            "29": {
+                "n": "Geen Piwi en geen concessie",
+                "d": "Vrouwelijke spellers moeten de mannelijke spelers de genadeklap laten toebrengen aan vijanden tijdens het gevecht.",
+                "g": 29
+            },
+            "30": {
+                "n": "Lage levels eerst!",
+                "d": "De speler met de minste XP moet de genadeklap aan alle vijanden toebrengen.",
+                "g": 30
+            },
+            "31": {
+                "n": "Focus",
+                "d": "Wanneer een vijand wordt aangevallen, moet deze afgemaakt worden voordat één van de andere vijanden wordt aangevallen.",
+                "g": 31
+            },
+            "32": {
+                "n": "Elitist",
+                "d": "Alle aanvallen moeten uitsluitend op %1 gemaakt worden tot ze dood gaan.",
+                "g": 32
+            },
+            "33": {
+                "n": "Overlevende",
+                "d": "Alle bondgenoten moeten nog in leven zijn aan het einde van het gevecht.",
+                "g": 33
+            },
+            "34": {
+                "n": "Onvoorspelbaar",
+                "d": "Alle aanvallen moeten uitsluitend op het doel worden gericht die door een karakter geselecteerd wordt bij iedere nieuwe beurt.",
+                "g": 34
+            },
+            "35": {
+                "n": "Contract Moordenaar",
+                "d": "Je vijanden moeten vermoord worden in de aangegeven volgorde. Een nieuw doelwit zal geselecteerd worden wanneer de voorganger vermoord is.",
+                "g": 35
+            },
+            "36": {
+                "n": "Brutaliteit",
+                "d": "Voltooi je beurt op een vakje naast een vijand.",
+                "g": 36
+            },
+            "37": {
+                "n": "Strak",
+                "d": "Voltooi je beurt op een vakje naast die van een bondgenoot.",
+                "g": 37
+            },
+            "38": {
+                "n": "Blitzkrieg",
+                "d": "Wanneer een tegenstander wordt aangevallen, moet deze vermoord worden voor zijn volgende beurt.",
+                "g": 38
+            },
+            "39": {
+                "n": "Hermit",
+                "d": "Voltooi je beurt nooit op een vakje naast een bondgenoot.",
+                "g": 39
+            },
+            "40": {
+                "n": "Kreupele Pols",
+                "d": "Voltooi je beurt nooit op een vakje naast een vijand.",
+                "g": 40
+            },
+            "41": {
+                "n": "Uitbundig",
+                "d": "Gebruik al je actie punten voor het einde van je beurt.",
+                "g": 41
+            },
+            "42": {
+                "n": "Twee voor de prijs van een",
+                "d": "Wanneer iemand een tegenstander vermoordt, moet diegene één (en slechts één) andere vijand vermoorden tijdens de beurt van die vijand.",
+                "g": 42
+            },
+            "43": {
+                "n": "Zelfopoffering",
+                "d": "Karakters mogen niet genezen worden tijdens hun beurt.",
+                "g": 43
+            },
+            "44": {
+                "n": "Delen",
+                "d": "Elk karakter moet tenminste één vijand afmaken tijdens het gevecht (vijandelijke bezweringen tellen niet).",
+                "g": 44
+            },
+            "45": {
+                "n": "Duel",
+                "d": "Wanneer iemand een vijand aanvalt, mag niemand anders deze vijand aanvallen tijdens het gevecht.",
+                "g": 51
+            },
+            "46": {
+                "n": "Ieder zijn eigen",
+                "d": "Ieder karakter moet tenminste een vijand vermoorden (vijandelijke bezweringen tellen niet) tijdens het gevecht en wanneer iemand een bepaalde vijand aanvalt, mogen de anderen deze vijand tijdens dat gevecht niet aanvallen.",
+                "g": 46
+            },
+            "47": {
+                "n": "Bedorven",
+                "d": "Indien een bondgenoot HP verliest, heb je 3 beurten om je bondgenoot te vermoorden.",
+                "g": 47
+            },
+            "48": {
+                "n": "Eerst de ezels",
+                "d": "De slapste ezel moet alle vijanden afmaken (dat zal je leren om de 'ezel' uit te hangen).",
+                "g": 48
+            },
+            "49": {
+                "n": "Bescherm de ezels",
+                "d": "Al je bondgenoten en je ezels moeten levend zijn aan het einde van het gevecht.",
+                "g": 49
+            },
+            "50": {
+                "n": "Duistere ontwikkelaars",
+                "d": "Maak dit gevecht af en je hebt de uitdaging gewonnen! Wij ontwikkelaars zijn een vreemd volk, weet je.",
+                "g": 50
+            },
+            "51": {
+                "n": "Zombie",
+                "d": "Gebruik precies één MP per beurt.",
+                "g": 11
+            },
+            "52": {
+                "n": "Standbeeld",
+                "d": "Eindig bij elke beurt op hetzelfde hokje als waar je op begonnen bent.",
+                "g": 9
+            },
+            "53": {
+                "n": "Onvrijwillige vrijwilliger",
+                "d": "Vermoord %1 als eerste.",
+                "g": 4
+            },
+            "54": {
+                "n": "Uitstel",
+                "d": "Vermoord %1 als laatste.",
+                "g": 10
+            },
+            "55": {
+                "n": "Afwisseling",
+                "d": "Elke speler mag dezelfde actie slechts één keer gebruiken, bij elke beurt zolang het gevecht duurt.",
+                "g": 12
+            },
+            "56": {
+                "n": "Tuinman",
+                "d": "Plant een Wowtel elke keer dat de spreuk beschikbaar is, zolang als het gevecht duurt.",
+                "g": 6
+            },
+            "57": {
+                "n": "Zwerver",
+                "d": "Gebruik alle MP die beschikbaar is, zolang het gevecht duurt.",
+                "g": 8
+            },
+            "59": {
+                "n": "Gemeen",
+                "d": "Je moet je vijanden vermoorden in de volgorde van hun ranks in stijgende volgorde.",
+                "g": 2
+            },
+            "60": {
+                "n": "Occult",
+                "d": "Gebruik alleen spreuken tijdens dit gevecht.",
+                "g": 7
+            },
+            "61": {
+                "n": "Grafdelver",
+                "d": "Bezweer een Chaferfu elke keer dat de spreuk beschikbaar is, zolang het gevecht duurt.",
+                "g": 5
+            },
+            "63": {
+                "n": "Araklover",
+                "d": "Bezweer een Arachnee iedere keer dat de spreuk beschikbaar is gedurende het gehele gevecht.",
+                "g": 15
+            },
+            "64": {
+                "n": "Onbereikbaar",
+                "d": "Verlies geen enkel HP tijdens het gevecht.",
+                "g": 17
+            },
+            "65": {
+                "n": "Ongeneeslijk",
+                "d": "Heel niet tijdens het gevecht.",
+                "g": 18
+            },
+            "66": {
+                "n": "Aanschouwing",
+                "d": "Verlaag het bereik van je vijanden niet tijdens het gevecht.",
+                "g": 23
+            },
+            "68": {
+                "n": "Maniak",
+                "d": "Vijanden moeten op aflopende volgorde van niveau vermoord worden.",
+                "g": 25
+            },
+            "69": {
+                "n": "Geen Piwin en geen concessie",
+                "d": "Mannelijke spelers moeten de vrouwelijke spelers de genadeklap laten toebrengen aan de vijanden tijdens het gevecht.",
+                "g": 28
+            },
+            "70": {
+                "n": "Geen Piwi en geen concessie",
+                "d": "Vrouwelijke spellers moeten de mannelijke spelers de genadeklap laten toebrengen aan vijanden tijdens het gevecht.",
+                "g": 29
+            },
+            "71": {
+                "n": "Focus",
+                "d": "Wanneer een vijand wordt aangevallen, moet deze afgemaakt worden voordat één van de andere vijanden wordt aangevallen.",
+                "g": 31
+            },
+            "72": {
+                "n": "Elitist",
+                "d": "Alle aanvallen moeten uitsluitend op %1 gemaakt worden tot ze dood gaan.",
+                "g": 32
+            },
+            "73": {
+                "n": "Overlevende",
+                "d": "Alle bondgenoten moeten nog in leven zijn aan het einde van het gevecht.",
+                "g": 33
+            },
+            "74": {
+                "n": "Onvoorspelbaar",
+                "d": "Alle aanvallen moeten uitsluitend op het doel worden gericht die door een karakter geselecteerd wordt bij iedere nieuwe beurt.",
+                "g": 34
+            },
+            "75": {
+                "n": "Contract Moordenaar",
+                "d": "Je vijanden moeten vermoord worden in de aangegeven volgorde. Een nieuw doelwit zal geselecteerd worden wanneer de voorganger vermoord is.",
+                "g": 35
+            },
+            "76": {
+                "n": "Brutaliteit",
+                "d": "Voltooi je beurt op een vakje naast een vijand.",
+                "g": 36
+            },
+            "77": {
+                "n": "Strak",
+                "d": "Voltooi je beurt op een vakje naast die van een bondgenoot.",
+                "g": 37
+            },
+            "79": {
+                "n": "Hermit",
+                "d": "Voltooi je beurt nooit op een vakje naast een bondgenoot.",
+                "g": 39
+            },
+            "80": {
+                "n": "Kreupele Pols",
+                "d": "Voltooi je beurt nooit op een vakje naast een vijand.",
+                "g": 40
+            },
+            "81": {
+                "n": "Uitbundig",
+                "d": "Gebruik al je actie punten voor het einde van je beurt.",
+                "g": 41
+            },
+            "82": {
+                "n": "Twee voor de prijs van een",
+                "d": "Wanneer iemand een tegenstander vermoordt, moet diegene één (en slechts één) andere vijand vermoorden tijdens de beurt van die vijand.",
+                "g": 42
+            },
+            "83": {
+                "n": "Zelfopoffering",
+                "d": "Karakters mogen niet genezen worden tijdens hun beurt.",
+                "g": 43
+            },
+            "84": {
+                "n": "Delen",
+                "d": "Elk karakter moet tenminste één vijand afmaken tijdens het gevecht (vijandelijke bezweringen tellen niet).",
+                "g": 44
+            },
+            "85": {
+                "n": "Duel",
+                "d": "Wanneer iemand een vijand aanvalt, mag niemand anders deze vijand aanvallen tijdens het gevecht.",
+                "g": 51
+            },
+            "86": {
+                "n": "Ieder zijn eigen",
+                "d": "Ieder karakter moet tenminste een vijand vermoorden (vijandelijke bezweringen tellen niet) tijdens het gevecht en wanneer iemand een bepaalde vijand aanvalt, mogen de anderen deze vijand tijdens dat gevecht niet aanvallen.",
+                "g": 46
+            },
+            "87": {
+                "n": "Bedorven",
+                "d": "Indien een bondgenoot HP verliest, heb je 3 beurten om je bondgenoot te vermoorden.",
+                "g": 47
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 107,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "FC",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

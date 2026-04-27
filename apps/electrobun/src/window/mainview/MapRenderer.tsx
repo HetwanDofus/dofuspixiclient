@@ -1,15 +1,23 @@
 import type { Application } from "pixi.js";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import type { GameClient } from "@/game/game-client";
 import { getLoadProgress } from "@/game/render/load-progress";
 import { Battlefield } from "@/game/scene";
 import {
+  chatStore,
   closeAllPanels,
   hudStore,
   togglePanel,
   toggleWorldMap,
 } from "@/game/stores";
+import { SideChatContainer } from "@/hud/chat/SideChatContainer";
 import { GameClientContext } from "@/hud/contexts/GameClientContext";
 import { PixiAppContext } from "@/hud/contexts/PixiAppContext";
 import { Keybindings } from "@/hud/core/keybindings";
@@ -32,6 +40,11 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
   const [pixiApp, setPixiApp] = useState<Application | null>(null);
   const [baseZoom, setBaseZoom] = useState(2);
   const [canvasRect, setCanvasRect] = useState({ left: 0, top: 0, w: 0, h: 0 });
+  const [containerWidth, setContainerWidth] = useState(0);
+  const { side: chatSide, isOpen: chatOpen } = useSyncExternalStore(
+    chatStore.subscribe,
+    chatStore.getSnapshot,
+  );
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -181,7 +194,7 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
         keybindings.attach();
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Failed to initialize renderer"
+          err instanceof Error ? err.message : "Failed to initialize renderer",
         );
         console.error("Initialization error:", err);
         onReady?.();
@@ -231,6 +244,7 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
         w: cr.width,
         h: cr.height,
       });
+      setContainerWidth(pr.width);
     }
     sync();
     const ro = new ResizeObserver(sync);
@@ -273,7 +287,50 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
             {connected ? "Connected" : "Offline"}
           </div>
 
-          <HudOverlay baseZoom={baseZoom} canvasRect={canvasRect} />
+          <HudOverlay
+            baseZoom={baseZoom}
+            canvasRect={canvasRect}
+            gameClient={gameClientRef.current}
+          />
+
+          {/*
+            Side chat panel — fills the space between the game canvas edge
+            and the screen edge on whichever side is selected. Hidden when
+            the available side-space falls below 350 px (the minimum width
+            at which the filter row + action buttons still lay out cleanly).
+            The `left` / `width` come from measured DOM rects so they must
+            be inlined; everything else lives in Tailwind classes.
+          */}
+          {(() => {
+            if (!chatOpen || canvasRect.w <= 0) {
+              return null;
+            }
+            const rightWidth =
+              containerWidth - (canvasRect.left + canvasRect.w);
+            const sideWidth =
+              chatSide === "right" ? rightWidth : canvasRect.left;
+            if (sideWidth < 350) {
+              return null;
+            }
+            return chatSide === "right" ? (
+              <div
+                className="absolute top-0 bottom-0 pointer-events-auto z-20"
+                style={{
+                  left: canvasRect.left + canvasRect.w,
+                  width: sideWidth,
+                }}
+              >
+                <SideChatContainer />
+              </div>
+            ) : (
+              <div
+                className="absolute top-0 bottom-0 left-0 pointer-events-auto z-20"
+                style={{ width: sideWidth }}
+              >
+                <SideChatContainer />
+              </div>
+            );
+          })()}
 
           <style>{`
         .map-renderer {
@@ -290,8 +347,7 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
         .map-renderer canvas {
           display: block;
           transition: filter 0.15s ease-out;
-          image-rendering: pixelated;
-          image-rendering: crisp-edges;
+          image-rendering: optimizeQuality;
         }
         .map-renderer.resizing canvas {
           filter: blur(2px);

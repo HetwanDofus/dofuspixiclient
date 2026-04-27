@@ -1,0 +1,228 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "SR": {
+            "612": {
+                "n": "Boune",
+                "d": "Ihr habt sie vielleicht in der Nähe von Incarnam schon mal gesehen. Diese kleine blaue Fellkugel, die durch die Gegend hüpft, um die Aufmerksamkeit der frisch inkarnierten Seelen zu erregen, und die die verlorenen Reisenden mit guten Ratschlägen überschüttet. Aber kennt ihr die Geschichte von Boune? Es gibt zahlreiche Gerüchte über ihn. Das hartnäckigste Gerücht: Boune ist das „Lieblingsplüschtier“ von Osamodas. Diese Aussage wird natürlich vom Hauptbeteiligten vehement abgestritten, aber seine Gleichgesinnten lassen es sich nicht nehmen, ihn damit aufzuziehen ...",
+                "l": "en",
+                "p": "0",
+                "t": 5,
+                "c": "2",
+                "date": "1611705600000",
+                "rlng": {}
+            },
+            "649": {
+                "n": "Fallanster",
+                "d": "Connu pour sa droiture et son courage, Fallanster est une personnalité emblématique de la cité d'Astrub. En bon frère du roi Allister, il n'a de cesse d'œuvrer pour la justice. Il occupe le poste de Chef du Conseil des Douze d'Astrub depuis de nombreuses années maintenant et est également le fondateur de la guilde Féca d'Astrub. Aux dernières nouvelles, les entraves Têtes à Clic et à Clac, ces menottes magiques qui ont permis à Allister d'emprisonner le démon Uk'Not'Allag après qu'il eut envahi Amakna et réduit sa population en esclavage, sont en sa possession.",
+                "l": "en",
+                "p": "0",
+                "t": 3,
+                "c": "2",
+                "date": "1706054400000",
+                "rlng": {}
+            },
+            "650": {
+                "n": "Allisteria",
+                "d": "Fille de Fallanster et nièce d'Allister, Allisteria est une bergère féca qui apprécie la compagnie des bêtes plus que celle des Douziens. Elle passe d'ailleurs le plus clair de son temps auprès de son troupeau familial de bouftous. Parmi eux, Greg et Fidel sont ses petits chouchous ! Allisteria fait également partie du conseil des Fécas, un groupe de disciples où chacun s'efforce de protéger son prochain. Sa présence y est grandement appréciée, aussi en raison des délicieux petits plats qu'elle prend parfois plaisir à préparer ! ",
+                "l": "en",
+                "p": "0",
+                "t": 4,
+                "c": "2",
+                "date": "1706054400000",
+                "rlng": {}
+            },
+            "651": {
+                "n": "Tournament",
+                "d": "This server is sometimes available for scheduled tournaments",
+                "l": "en",
+                "p": "0",
+                "t": 4,
+                "c": "2",
+                "date": "1710806400000",
+                "rlng": {}
+            }
+        },
+        "SRP": {
+            "0": "Empfohlen",
+            "1": "Mittel",
+            "2": "Hoch",
+            "3": "Erscheint demnächst",
+            "4": "Voll",
+            "5": "New"
+        },
+        "SRPW": {
+            "0": 1,
+            "1": 2,
+            "2": 3,
+            "3": 99,
+            "4": 4,
+            "5": 5
+        },
+        "SRC": {
+            "0": {
+                "n": "Französischsprachig",
+                "d": true,
+                "i": 0,
+                "c": [
+                    "LU",
+                    "BE",
+                    "CH",
+                    "FR"
+                ]
+            },
+            "1": {
+                "n": "Großbritannien & Irland",
+                "d": true,
+                "i": 1,
+                "c": [
+                    "GB",
+                    "IE",
+                    "UK"
+                ]
+            },
+            "2": {
+                "n": "International",
+                "d": true,
+                "i": 2,
+                "c": [
+                    "XX"
+                ]
+            },
+            "3": {
+                "n": "Deutschsprachig",
+                "d": true,
+                "i": 3,
+                "c": [
+                    "LI",
+                    "AT",
+                    "DE"
+                ]
+            },
+            "4": {
+                "n": "Spanischsprachig",
+                "d": true,
+                "i": 4,
+                "c": [
+                    "MX",
+                    "CK",
+                    "AR",
+                    "AD",
+                    "ES"
+                ]
+            },
+            "5": {
+                "n": "Russischsprachig",
+                "d": true,
+                "i": 5,
+                "c": [
+                    "RU"
+                ]
+            },
+            "6": {
+                "n": "Brasilien",
+                "d": true,
+                "i": 6,
+                "c": [
+                    "BR",
+                    "PT"
+                ]
+            },
+            "7": {
+                "n": "Niederlande",
+                "d": true,
+                "i": 7,
+                "c": [
+                    "NL"
+                ]
+            },
+            "9": {
+                "n": "Italienisch",
+                "d": true,
+                "i": 9,
+                "c": [
+                    "IT"
+                ]
+            },
+            "10": {
+                "n": "Japanisch",
+                "d": true,
+                "i": 10,
+                "c": [
+                    "JP"
+                ]
+            },
+            "99": {
+                "n": "Debug",
+                "d": false,
+                "i": 99,
+                "c": {}
+            }
+        },
+        "SRVT": {
+            "1": {
+                "l": "MERCENARY_CLAN",
+                "d": "Söldnerclan"
+            },
+            "2": {
+                "l": "MERCENARY_LEADER",
+                "d": "Marcel Heunair"
+            },
+            "3": {
+                "l": "MERCENARY_INTRONIZER",
+                "d": "Beförderung zum"
+            },
+            "4": {
+                "l": "MERCENARY_SHORT_NAME",
+                "d": "Söldner"
+            },
+            "31": {
+                "l": "EVENT_HOUSE_NAME",
+                "d": "Etage zu vermieten"
+            }
+        },
+        "SRVC": {
+            "1|2": "Clan der Samoulais",
+            "2|2": "(Ne pas traduire)",
+            "1|6": "Clan von Nedora Riem",
+            "1|1": "Sériane-Kerm-Clan",
+            "1|5": "Clan der Seleniten",
+            "1|3": "Stere-Clan",
+            "31|3": "Zooooooornal Etage",
+            "4|6": "Nedora",
+            "3|6": "Nedorisator",
+            "3|5": "Selenisator",
+            "4|5": "Selenit",
+            "4|4": "Nephthys",
+            "1|4": "Der Nephthys Transport",
+            "3|4": "Nephthysator",
+            "3|2": "Samoulaiser",
+            "4|2": "Samoulai",
+            "3|3": "Sterisator",
+            "1|666": "SHADOW DOOM HELL§§§",
+            "4|3": "Stere",
+            "3|1": "Serianisierer",
+            "2|1": "Kawet",
+            "4|1": "Seriane",
+            "4|666": "von Nimaoh"
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 134,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "SR",
+            "SRP",
+            "SRPW",
+            "SRC",
+            "SRVT",
+            "SRVC",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

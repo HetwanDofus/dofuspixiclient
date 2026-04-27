@@ -1,0 +1,200 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "R": {
+            "1": {
+                "n": "Gildenoberster",
+                "o": 1,
+                "i": 1
+            },
+            "2": {
+                "n": "Rechte Hand",
+                "o": 2,
+                "i": 2
+            },
+            "3": {
+                "n": "Schatzmeister",
+                "o": 3,
+                "i": 3
+            },
+            "4": {
+                "n": "Beschützer",
+                "o": 4,
+                "i": 4
+            },
+            "5": {
+                "n": "Handwerksmeister",
+                "o": 5,
+                "i": 5
+            },
+            "6": {
+                "n": "Reservist",
+                "o": 6,
+                "i": 6
+            },
+            "8": {
+                "n": "Wächter",
+                "o": 7,
+                "i": 8
+            },
+            "9": {
+                "n": "Aufklärer",
+                "o": 8,
+                "i": 9
+            },
+            "10": {
+                "n": "Spion",
+                "o": 9,
+                "i": 10
+            },
+            "11": {
+                "n": "Diplomat",
+                "o": 10,
+                "i": 11
+            },
+            "12": {
+                "n": "Sekretär",
+                "o": 11,
+                "i": 12
+            },
+            "33": {
+                "n": "Vertrautenmörder",
+                "o": 82,
+                "i": 33
+            },
+            "31": {
+                "n": "Wilderer",
+                "o": 84,
+                "i": 31
+            },
+            "30": {
+                "n": "Schatzsucher",
+                "o": 85,
+                "i": 30
+            },
+            "29": {
+                "n": "Dieb",
+                "o": 86,
+                "i": 29
+            },
+            "28": {
+                "n": "Initiat",
+                "o": 87,
+                "i": 28
+            },
+            "27": {
+                "n": "Meuchler",
+                "o": 88,
+                "i": 27
+            },
+            "26": {
+                "n": "Gouverneur",
+                "o": 89,
+                "i": 26
+            },
+            "25": {
+                "n": "Muse",
+                "o": 90,
+                "i": 25
+            },
+            "24": {
+                "n": "Berater",
+                "o": 91,
+                "i": 24
+            },
+            "23": {
+                "n": "Erwählter",
+                "o": 92,
+                "i": 23
+            },
+            "21": {
+                "n": "Reiseleiter",
+                "o": 93,
+                "i": 21
+            },
+            "22": {
+                "n": "Mentor",
+                "o": 94,
+                "i": 22
+            },
+            "20": {
+                "n": "Rekrutierer",
+                "o": 95,
+                "i": 20
+            },
+            "19": {
+                "n": "Züchter",
+                "o": 96,
+                "i": 19
+            },
+            "18": {
+                "n": "Händler",
+                "o": 97,
+                "i": 18
+            },
+            "17": {
+                "n": "Lehrling",
+                "o": 98,
+                "i": 17
+            },
+            "16": {
+                "n": "Folterknecht",
+                "o": 100,
+                "i": 16
+            },
+            "34": {
+                "n": "Maskottchen",
+                "o": 103,
+                "i": 34
+            },
+            "13": {
+                "n": "Büßer",
+                "o": 104,
+                "i": 13
+            },
+            "35": {
+                "n": "Perzeptauruskiller",
+                "o": 105,
+                "i": 35
+            },
+            "15": {
+                "n": "Deserteur",
+                "o": 110,
+                "i": 15
+            },
+            "32": {
+                "n": "Verräter",
+                "o": 120,
+                "i": 32
+            },
+            "14": {
+                "n": "Nerv",
+                "o": 150,
+                "i": 14
+            },
+            "7": {
+                "n": "Lakai",
+                "o": 200,
+                "i": 7
+            },
+            "0": {
+                "n": "Auf Probe",
+                "o": 999,
+                "i": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 49,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "R",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

@@ -1,0 +1,500 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1248,
+        "PT": {
+            "1": {
+                "t": "%1's Ghoul",
+                "c": 16777215,
+                "pt": 0
+            },
+            "2": {
+                "t": "Vampier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "3": {
+                "t": "Bloedige Vampier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "4": {
+                "t": "Vervloekte Vampier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "5": {
+                "t": "Ultieme Vampier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "6": {
+                "t": "Demonische Vampier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "7": {
+                "t": "Runische Vampier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "8": {
+                "t": "Bworker Slachter",
+                "c": 16777215,
+                "pt": 0
+            },
+            "9": {
+                "t": "Sphincter Cell Slachter",
+                "c": 16777215,
+                "pt": 0
+            },
+            "10": {
+                "t": "Koolich Slachter",
+                "c": 16777215,
+                "pt": 0
+            },
+            "11": {
+                "t": "Wa Wabbit Slachter",
+                "c": 16777215,
+                "pt": 0
+            },
+            "12": {
+                "t": "Kimbo Slachter",
+                "c": 16777215,
+                "pt": 0
+            },
+            "13": {
+                "t": "Minotoror Slachter",
+                "c": 16777215,
+                "pt": 0
+            },
+            "14": {
+                "t": "Dragon Pig Slachter",
+                "c": 16777215,
+                "pt": 0
+            },
+            "15": {
+                "t": "Zachte Eik Slachter",
+                "c": 16777215,
+                "pt": 0
+            },
+            "16": {
+                "t": "Moon Slachter",
+                "c": 16777215,
+                "pt": 0
+            },
+            "17": {
+                "t": "Dark Vlad Slachter",
+                "c": 16777215,
+                "pt": 0
+            },
+            "18": {
+                "t": "Tweehonderderdjarige Held",
+                "c": 16777215,
+                "pt": 0
+            },
+            "19": {
+                "t": "Hispaniaanse Ridder",
+                "c": 16777215,
+                "pt": 0
+            },
+            "20": {
+                "t": "Vrees van de Peninsula",
+                "c": 16777215,
+                "pt": 0
+            },
+            "21": {
+                "t": "Sauroshell Smasher",
+                "c": 16777215,
+                "pt": 0
+            },
+            "22": {
+                "t": "Meester Houthakker",
+                "c": 16777215,
+                "pt": 0
+            },
+            "23": {
+                "t": "Meester Smid",
+                "c": 16777215,
+                "pt": 0
+            },
+            "24": {
+                "t": "Meester Boog Snijder",
+                "c": 16777215,
+                "pt": 0
+            },
+            "25": {
+                "t": "Meester Schep Smid",
+                "c": 16777215,
+                "pt": 0
+            },
+            "26": {
+                "t": "Meester Schoenmaker",
+                "c": 16777215,
+                "pt": 0
+            },
+            "27": {
+                "t": "Meester Juwelier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "28": {
+                "t": "Meester Bijl Smit",
+                "c": 16777215,
+                "pt": 0
+            },
+            "29": {
+                "t": "Meester Staf Snijder",
+                "c": 16777215,
+                "pt": 0
+            },
+            "30": {
+                "t": "Meester Wand Snijder",
+                "c": 16777215,
+                "pt": 0
+            },
+            "31": {
+                "t": "Meester Zwaard Smid",
+                "c": 16777215,
+                "pt": 0
+            },
+            "32": {
+                "t": "Meester Mijnwerker",
+                "c": 16777215,
+                "pt": 0
+            },
+            "33": {
+                "t": "Meester Bakker",
+                "c": 16777215,
+                "pt": 0
+            },
+            "34": {
+                "t": "Meester Alchemist",
+                "c": 16777215,
+                "pt": 0
+            },
+            "35": {
+                "t": "Meester Kleermaker",
+                "c": 16777215,
+                "pt": 0
+            },
+            "36": {
+                "t": "Meester Boer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "37": {
+                "t": "Meester Hamer Smid",
+                "c": 16777215,
+                "pt": 0
+            },
+            "38": {
+                "t": "Meester Visser",
+                "c": 16777215,
+                "pt": 0
+            },
+            "39": {
+                "t": "Meester Jager",
+                "c": 16777215,
+                "pt": 0
+            },
+            "40": {
+                "t": "Meester Bijl Smitmagier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "41": {
+                "t": "Meester Dolken Smitmagier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "42": {
+                "t": "Meester Schep Smidmagier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "43": {
+                "t": "Meester Zwaard Smidmagier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "44": {
+                "t": "Meester Hamer Smidmagier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "45": {
+                "t": "Meester Boog Snijmagier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "46": {
+                "t": "Meester Wand Snijmagier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "47": {
+                "t": "Meester Stafsnijmagier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "48": {
+                "t": "Meester Slager",
+                "c": 16777215,
+                "pt": 0
+            },
+            "49": {
+                "t": "Meester Vishandelaar",
+                "c": 16777215,
+                "pt": 0
+            },
+            "50": {
+                "t": "Meester Dolken Smit",
+                "c": 16777215,
+                "pt": 0
+            },
+            "51": {
+                "t": "Meester Schoenmagier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "52": {
+                "t": "Meester Juweelmagier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "53": {
+                "t": "Meester Kostumagier",
+                "c": 16777215,
+                "pt": 0
+            },
+            "54": {
+                "t": "Meester Klusjesman",
+                "c": 16777215,
+                "pt": 0
+            },
+            "55": {
+                "t": "Advent 651 Adventurer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "56": {
+                "t": "Kwismas Nutcracker",
+                "c": 16777215,
+                "pt": 0
+            },
+            "57": {
+                "t": "Itzting Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "58": {
+                "t": "Father Kwismas Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "59": {
+                "t": "Father Whupper Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "60": {
+                "t": "A Pandi That Resists",
+                "c": 16777215,
+                "pt": 0
+            },
+            "61": {
+                "t": "Grand Master of Cards",
+                "c": 16777215,
+                "pt": 0
+            },
+            "62": {
+                "t": "Master of Cards",
+                "c": 16777215,
+                "pt": 0
+            },
+            "63": {
+                "t": "Novice Gladiatrooler",
+                "c": 16777215,
+                "pt": 0
+            },
+            "64": {
+                "t": "Expert Gladiatrooler",
+                "c": 16777215,
+                "pt": 0
+            },
+            "65": {
+                "t": "Master Gladiatrooler",
+                "c": 16777215,
+                "pt": 0
+            },
+            "66": {
+                "t": "Advent 652 Adventurer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "67": {
+                "t": "Advent 653 Adventurer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "68": {
+                "t": "Advent 654 Adventurer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "69": {
+                "t": "Timeless Krosplayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "70": {
+                "t": "Grand Master of the Elements",
+                "c": 16777215,
+                "pt": 0
+            },
+            "71": {
+                "t": "Crocabulia Slachter",
+                "c": 16777215,
+                "pt": 0
+            },
+            "72": {
+                "t": "Bherb Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "73": {
+                "t": "Corrupted Black Rat Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "74": {
+                "t": "Ancestral Treechnid Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "75": {
+                "t": "Krollector Soft Oak Slayer",
+                "c": 14864002,
+                "pt": 0
+            },
+            "76": {
+                "t": "Krollector Dragon Pig Slayer",
+                "c": 14864002,
+                "pt": 0
+            },
+            "77": {
+                "t": "Music Superfan",
+                "c": 16777215,
+                "pt": 0
+            },
+            "78": {
+                "t": "Krollector Wa Wabbit Slayer",
+                "c": 14864002,
+                "pt": 0
+            },
+            "79": {
+                "t": "Krollector Koolich Slayer",
+                "c": 14864002,
+                "pt": 0
+            },
+            "80": {
+                "t": "Krollector Sphincter Cell Slayer",
+                "c": 14864002,
+                "pt": 0
+            },
+            "81": {
+                "t": "Krollector Bworker Slayer",
+                "c": 14864002,
+                "pt": 0
+            },
+            "85": {
+                "t": "Old-School",
+                "c": 16777215,
+                "pt": 0
+            },
+            "86": {
+                "t": "Dismayed Tynril Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "87": {
+                "t": "Disconcerted Tynril Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "88": {
+                "t": "Perfidious Tynril Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "89": {
+                "t": "Stunned Tynril Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "90": {
+                "t": "%1's Soulmate",
+                "c": 14516962,
+                "pt": 0
+            },
+            "91": {
+                "t": "Lonely Heart",
+                "c": 16777215,
+                "pt": 0
+            },
+            "92": {
+                "t": "Golden Scarabugly Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "93": {
+                "t": "Pourfendeur du Tanukouï San",
+                "c": 16777215,
+                "pt": 0
+            },
+            "94": {
+                "t": "Great Coralator Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "95": {
+                "t": "Moowolf Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "96": {
+                "t": "Bworkette Slayer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "97": {
+                "t": "WAKFU S5 Producer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "98": {
+                "t": "Ankaffiliate\t",
+                "c": 16777215,
+                "pt": 0
+            },
+            "99": {
+                "t": "Gobbstock Grandstander",
+                "c": 16777215,
+                "pt": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 109,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "PT",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

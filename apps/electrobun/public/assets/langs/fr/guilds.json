@@ -1,0 +1,73 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1258,
+        "GU": {
+            "b": {
+                "w": [
+                    [
+                        20,
+                        1,
+                        0
+                    ]
+                ],
+                "p": [
+                    [
+                        1,
+                        1,
+                        0
+                    ]
+                ],
+                "c": [
+                    [
+                        1,
+                        10,
+                        0
+                    ]
+                ],
+                "x": [
+                    [
+                        1,
+                        1,
+                        0
+                    ]
+                ],
+                "s": [
+                    [
+                        5,
+                        4
+                    ],
+                    [
+                        5,
+                        2
+                    ],
+                    [
+                        5,
+                        1
+                    ],
+                    [
+                        5,
+                        0
+                    ]
+                ],
+                "wm": 5000,
+                "pm": 500,
+                "cm": 50,
+                "xm": 400,
+                "sm": 5
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 21,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "GU",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

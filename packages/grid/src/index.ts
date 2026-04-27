@@ -32,3 +32,16 @@ export {
 export { findOppositeEdgeCell, getEdgeTransitionDir } from "./edge.ts";
 export { getNeighbors, isValidDirection } from "./neighbors.ts";
 export { DofusPathfinding } from "./pathfinding.ts";
+export {
+  AreaKind,
+  cellsInArea,
+  fightDistance,
+  type FightMapDims,
+  type FightMapLos,
+  hasLineOfSight,
+} from "./area.ts";
+export {
+  type DecodedZone,
+  decodeZonePair,
+  decodeZones,
+} from "./zones.ts";

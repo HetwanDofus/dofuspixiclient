@@ -1,317 +1,344 @@
 /**
- * Spell 2046 - Fulminant (variant)
+ * Spell 2046 — (Cra-class fire arrow variant, likely "Flèche Explosive" or similar).
  *
- * A beam spell with smoke and particle effects.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/2046/scripts/scripts/
  *
- * Components:
- * - shoot (sprite): Main shoot animation at caster position, 159 frames
- * - DefineSprite_36: Container for particles and hit logic
- *   - Frame 1: Play sound 'vol'
- *   - Frame 7: Spawn 4 cercle particles (nb=5, c starts at 1, spawns nb-1=4)
- *   - Frame 67: Signal hit (this.end())
- *   - Frame 139: removeMovieClip (animation ends)
- * - fumee particles: Smoke puffs with velocity/deceleration physics
- * - cercle particles: Standard beam particles (same as spell 909)
+ * displayType=11 (TargetCell). The spell has a single top-level authored
+ * timeline (DefineSprite_36) that plays at the target cell. It contains:
+ *   - A "shoot" animation (159 frames, isComposite, in animations[]).
+ *   - A "fumee" smoke particle symbol (DefineSprite_21_fumee, 36 frames).
+ *   - A "cercle" library symbol (DefineSprite_24_cercle) spawned from frame_7
+ *     of DefineSprite_36 inside itself.
  *
- * Original AS timing:
- * - Frame 1 (main): Play sound 'jet_903'
- * - Frame 1 (DefineSprite_36): Play sound 'vol'
- * - Frame 7 (DefineSprite_36): Spawn 4 cercle particles
- * - Frame 67 (DefineSprite_36): this.end() -> signalHit
- * - Frame 157 (shoot): removeMovieClip
- * - Frame 139 (DefineSprite_36): removeMovieClip
+ * There is no projectile motion (no "move" symbol), no caster-side content,
+ * and no dual-anchored placement. The outer sprite (DefineSprite_36) is placed
+ * at the target cell, plays through 139 frames, and then calls
+ * `_parent.removeMovieClip()` to end the spell.
  *
- * The shoot animation plays at caster, rotated toward target.
- * DefineSprite_36 appears to be a separate effect sprite at the target/beam area.
- * Looking at the structure: DefineSprite_36 contains fumee (smoke) clips and cercle particles.
- * The shoot animation (DefineSprite_17_shoot) stops being used after frame 157 (0-indexed: 156).
+ * AS layout:
+ *   - frame_1/DoAction.as: SOMA.playSound("jet_903") on main timeline.
+ *   - DefineSprite_36/frame_1: SOMA.playSound("vol").
+ *   - DefineSprite_36/frame_7: spawn 5 cercle particles.
+ *   - DefineSprite_36/frame_67: this.end() → signalHit.
+ *   - DefineSprite_36/frame_139: _parent.removeMovieClip() → complete.
+ *   - DefineSprite_17_shoot/frame_157: _parent.removeMovieClip() (shoot
+ *     symbol removes itself — the outer mc removal at frame_139 of
+ *     DefineSprite_36 is the authoritative completion signal).
  *
- * Structure analysis:
- * - Main timeline frame 1: plays 'jet_903', has DefineSprite_36 child
- * - DefineSprite_36: has fumee sprites and handles cercle particles
- * - DefineSprite_33: has 'a=20' load, contains fumee smoke sprites
- * - DefineSprite_32: has random xscale on load, stops at frame 34
- * - DefineSprite_21_fumee: smoke puff with velocity physics, dies at frame 31
- * - DefineSprite_24_cercle: beam particle with AS physics
+ * Library symbols:
+ *   - lib_cercle — single-frame orange spark particle. onLoad seeds physics:
+ *     d (distance based on level), accx, x start pos, sr (side), t (scale
+ *     accumulator), va, vr, vt, vx. onEnterFrame integrates rotation decay,
+ *     X drift, scale growth via vt; removes when t < 0.
  *
- * The shoot animation (159 frames) is the main beam visual at caster, rotated.
- * The fumee smoke sprites are spawned by DefineSprite_36.
- * The cercle particles use the same physics as spell 909.
+ * Container symbols (no authored frame textures, drive logic only):
+ *   - shoot  — 159-frame composite animation at target. frame_157 removes self.
+ *   - fumee  — 36-frame smoke puff composite. frame_1 seeds physics (vx/vy/
+ *              deceleration from parent rotate._rotation). Inner sprite_20
+ *              has onLoad/onEnterFrame for rotation + alpha fade. frame_31
+ *              removes self.
+ *   - sprite_36 — outer container for the whole spell at target. Drives
+ *                 sound, cercle spawning, signalHit, and completion.
+ *
+ * Note on DefineSprite_32 / DefineSprite_33: these are internal sub-symbols
+ * within the fumee composite (a rotating smoke sprite with random scale).
+ * DefineSprite_33 is the inner smoke shape (onLoad sets a=20). DefineSprite_32
+ * has an inner clip with random _xscale on load, and stops at frame_34. These
+ * are authored into the fumee frames themselves and are not separately
+ * attachMovie'd by our spell scripts, so they are handled implicitly by the
+ * fumee composite frame textures.
+ *
+ * Main timeline: SOMA.playSound("jet_903"); (no stop — DefineSprite_36 runs).
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  ASParticleSystem,
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Texture } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const SHOOT_MANIFEST: SpriteManifest = {
-  width: 174.3,
-  height: 155.4,
-  offsetX: -89.35,
-  offsetY: -92.8,
-};
-
-const _FUMEE_MANIFEST: SpriteManifest = {
-  width: 32.35,
-  height: 33,
-  offsetX: -14.35,
-  offsetY: -18.65,
-};
-
-const _CERCLE_MANIFEST: SpriteManifest = {
+const CERCLE_BOUNDS = {
   width: 17.4,
   height: 17.45,
   offsetX: -8.8,
   offsetY: -8.9,
 };
 
-export class Spell2046 extends BaseSpell {
+const SHOOT_BOUNDS = {
+  width: 174.3,
+  height: 155.4,
+  offsetX: -89.35,
+  offsetY: -92.8,
+};
+
+const FUMEE_BOUNDS = {
+  width: 32.35,
+  height: 33,
+  offsetX: -14.35,
+  offsetY: -18.65,
+};
+
+export class Spell2046 extends RuntimeSpell {
   readonly spellId = 2046;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private shootAnim!: FrameAnimatedSprite;
-  private cercleParticles!: ASParticleSystem;
-  private fumeeParticles!: ASParticleSystem;
-  private level = 1;
-  private angleRad = 0;
-  private fumeeAngleRad = 0;
+  private cercleSym!: SymbolDefinition;
+  private fumeeSym!: SymbolDefinition;
+  private shootSym!: SymbolDefinition;
+  private sprite36Sym!: SymbolDefinition;
 
-  protected setup(
-    context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    this.level = Math.max(1, Math.min(6, context?.level ?? 1));
-    this.angleRad = init.angleRad;
-    // fumee uses _parent._parent._parent.rotate._rotation * 0.017453 which is the angle in radians
-    this.fumeeAngleRad = init.angleRad;
+    const cercleAnchor = calculateAnchor(CERCLE_BOUNDS);
+    const fumeeAnchor = calculateAnchor(FUMEE_BOUNDS);
+    const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // Main shoot animation at caster position, rotated toward target
-    this.shootAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("shoot"),
-        ...calculateAnchor(SHOOT_MANIFEST),
-        scale: init.scale,
-      })
-    );
-    this.shootAnim.sprite.position.set(0, init.casterY);
-    this.shootAnim.sprite.rotation = init.angleRad;
-    // Frame 1 (0-indexed: 0): play 'jet_903'
-    this.shootAnim.onFrame(0, () => this.callbacks.playSound("jet_903"));
-    // Frame 157 (0-indexed: 156): shoot removeMovieClip - animation effectively ends
-    this.container.addChild(this.shootAnim.sprite);
+    // ---- lib_cercle — orange spark particle at target ---------------
+    // AS: DefineSprite_24_cercle/frame_1/PlaceObject2_23_1/
+    //     CLIPACTIONRECORD onClipEvent(load).as
+    //     CLIPACTIONRECORD onClipEvent(enterFrame).as
+    this.cercleSym = {
+      name: "cercle",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_cercle"),
+      anchorX: cercleAnchor.x,
+      anchorY: cercleAnchor.y,
+      onLoad: (clip) => {
+        // AS DefineSprite_24_cercle/frame_1/PlaceObject2_23_1/onClipEvent(load).as
+        // _parent._parent._parent.level — cercle's _parent is sprite_36 (the
+        // outer container attached at root). Walk: clip → sprite_36 → root.
+        const root = clip.parent?.parent ?? clip.parent;
+        const level = (root?.vars.level as number) ?? 1;
+        const d = 120 + (level - 1) * 32;
+        clip.vars.d = d;
+        clip.vars.accx = 0.8 + 0.12 * Math.random();
+        const xStart = d * Math.random();
+        clip.vars.x = xStart;
+        let yStart: number;
+        let sr: number;
+        if (Math.floor(Math.random() * 2) === 1) {
+          yStart = 5;
+          sr = -1;
+        } else {
+          sr = 1;
+          yStart = -5;
+        }
+        clip.scaleX = 0;
+        clip.scaleY = 0;
+        clip.vars.t = 5;
+        clip.x = xStart;
+        clip.y = yStart;
+        clip.vars.va = 5 + 10 * Math.random();
+        clip.vars.vr = (20 + 40 * Math.random()) * sr;
+        // Note: canonical AS uses `vt = (0.3 + random(1)) * ((d - x) / d)`
+        // random(1) always returns 0, so the range is always [0.3, 0.3].
+        clip.vars.vt = (0.3 + Math.floor(Math.random() * 1)) * ((d - xStart) / d);
+        clip.vars.vx = 5 + 10 * Math.random();
+      },
+      onEnterFrame: (clip) => {
+        // AS DefineSprite_24_cercle/frame_1/PlaceObject2_23_1/onClipEvent(enterFrame).as
+        let vr = clip.vars.vr as number;
+        let vx = clip.vars.vx as number;
+        let vt = clip.vars.vt as number;
+        let t = clip.vars.t as number;
+        const accx = clip.vars.accx as number;
 
-    // Cercle particle system (beam particles) - positioned at caster, rotated toward target
-    // Same as spell 909: positioned along the beam direction
-    const cercleTexture = textures.getFrames("lib_cercle")[0] ?? Texture.EMPTY;
-    this.cercleParticles = new ASParticleSystem(cercleTexture);
-    this.cercleParticles.container.position.set(0, init.casterY);
-    this.cercleParticles.container.rotation = init.angleRad;
-    this.container.addChildAt(this.cercleParticles.container, 0);
+        vr *= 0.97;
+        // AS: _rotation = _rotation - vr (degrees) → subtract vr converted to radians
+        clip.rotation -= (vr * Math.PI) / 180;
+        vx *= accx;
+        clip.x += vx;
+        vt -= 0.03;
+        t += vt;
+        // AS: _xscale = t; _yscale = t (percent → decimal)
+        clip.scaleX = t / 100;
+        clip.scaleY = t / 100;
 
-    // Fumee (smoke) particle system - at caster position
-    // fumee sprites use the fumee animation frames and physics
-    const fumeeTexture = textures.getFrames("fumee")[0] ?? Texture.EMPTY;
-    this.fumeeParticles = new ASParticleSystem(fumeeTexture);
-    this.fumeeParticles.container.position.set(0, init.casterY);
-    this.container.addChildAt(this.fumeeParticles.container, 0);
+        clip.vars.vr = vr;
+        clip.vars.vx = vx;
+        clip.vars.vt = vt;
+        clip.vars.t = t;
 
-    // DefineSprite_36 behavior is embedded in the shoot animation timing:
-    // Frame 1 (0-indexed: 0): play 'vol'
-    // Frame 7 (0-indexed: 6): spawn cercle particles (nb=5, loop c=1..nb-1 = 4 particles)
-    // Frame 67 (0-indexed: 66): signal hit
-    // Frame 139 (0-indexed: 138): complete
-    // We attach these callbacks to the shootAnim since it drives the main timeline
+        if (t < 0) {
+          // AS: _parent.removeMovieClip()
+          clip.remove();
+        }
+      },
+    };
 
-    this.shootAnim.onFrame(0, () => this.callbacks.playSound("vol"));
-    this.shootAnim.onFrame(6, () => this.spawnCercleParticles());
-    this.shootAnim.onFrame(6, () => this.spawnFumeeParticles());
-    this.shootAnim.onFrame(66, () => this.signalHit());
-    this.shootAnim.onFrame(138, () => this.complete());
+    // ---- fumee — 36-frame smoke puff composite ----------------------
+    // AS: DefineSprite_21_fumee/frame_1/DoAction.as
+    //     DefineSprite_21_fumee/frame_1/PlaceObject2_20_2/onClipEvent(load).as
+    //     DefineSprite_21_fumee/frame_1/PlaceObject2_20_2/onClipEvent(enterFrame).as
+    //     DefineSprite_21_fumee/frame_31/DoAction.as
+    //
+    // The fumee symbol reads `_parent._parent._parent.rotate._rotation` to
+    // get the launch angle. In the canonical AS, fumee is attached inside
+    // sprite_36 (the outer container). So:
+    //   fumee._parent = sprite_36
+    //   fumee._parent._parent = root
+    //   fumee._parent._parent._parent = ??? (would be the outer mc above root)
+    // In practice for displayType=11, root IS the container; there is no
+    // outer parent above root that has a "rotate" child. The canonical AS
+    // reads the rotation of a "rotate" sub-clip. For this runtime we fall
+    // back gracefully: if the rotate reference is unavailable we use angle
+    // from root.vars (the caster-to-target angle stored by the harness).
+    this.fumeeSym = {
+      name: "fumee",
+      totalFrames: 36,
+      frames: textures.getFrames("fumee"),
+      anchorX: fumeeAnchor.x,
+      anchorY: fumeeAnchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_21_fumee/frame_1/DoAction.as
+            // a = _parent._parent._parent.rotate._rotation * 0.017453...
+            // Walk up: clip → sprite_36 → root; read angle from root.vars.
+            const root = clip.parent?.parent ?? clip.parent;
+            const angleDeg = (root?.vars.angle as number) ?? 0;
+            const a = angleDeg * 0.017453292519943295;
+            const t = 80 * Math.random() + 50;
+            clip.scaleX = t / 100;
+            clip.scaleY = t / 100;
+            clip.x = 20 * (Math.random() - 0.5);
+            clip.y = 20 * (Math.random() - 0.5);
+            clip.vars.vx = 20 * Math.cos(a);
+            clip.vars.vy = 20 * Math.sin(a);
+            clip.vars.deceleration = 1.2 + Math.random();
+          },
+        ],
+        [
+          30,
+          (clip) => {
+            // AS DefineSprite_21_fumee/frame_31/DoAction.as
+            // this.removeMovieClip()
+            clip.remove();
+          },
+        ],
+      ]),
+      onEnterFrame: (clip) => {
+        // AS DefineSprite_21_fumee/frame_1/DoAction.as inline onEnterFrame:
+        // _X += vx; _Y += vy; vx /= deceleration; vy /= deceleration;
+        let vx = clip.vars.vx as number;
+        let vy = clip.vars.vy as number;
+        const deceleration = clip.vars.deceleration as number;
+        clip.x += vx;
+        clip.y += vy;
+        vx /= deceleration;
+        vy /= deceleration;
+        clip.vars.vx = vx;
+        clip.vars.vy = vy;
+      },
+    };
+
+    // ---- shoot — 159-frame composite animation at target ------------
+    // AS: DefineSprite_17_shoot/frame_157/DoAction.as
+    //   _parent.removeMovieClip()  → shoot removes its own parent
+    //   However, the authoritative completion is sprite_36/frame_139.
+    //   We register shoot's frame_157 to remove itself only (not complete).
+    this.shootSym = {
+      name: "shoot",
+      totalFrames: 159,
+      frames: textures.getFrames("shoot"),
+      anchorX: shootAnchor.x,
+      anchorY: shootAnchor.y,
+      frameScripts: new Map([
+        [
+          156,
+          (clip) => {
+            // AS DefineSprite_17_shoot/frame_157/DoAction.as
+            // _parent.removeMovieClip() — shoot removes itself
+            clip.remove();
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_36 — outer container driving the whole spell --------
+    // AS: DefineSprite_36/frame_1, frame_7, frame_67, frame_139
+    // This is an unnamed sprite placed on the main timeline. It is NOT in
+    // librarySymbols[] (no attachMovie for it). We attach it from onSpellStart
+    // at depth 1 on the root.
+    this.sprite36Sym = {
+      name: "sprite_36",
+      totalFrames: 139,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS DefineSprite_36/frame_1/DoAction.as
+            // SOMA.playSound("vol") — played via stored callbacks ref
+            this.soundCallback?.("vol");
+            // Also attach the shoot animation at depth 1 inside sprite_36
+            clip.attach(this.shootSym, "shoot", 1, ctx);
+          },
+        ],
+        [
+          6,
+          (clip, ctx) => {
+            // AS DefineSprite_36/frame_7/DoAction.as
+            // nb = 5; c = 1; while (c < nb) { attachMovie("cercle",...) }
+            // Note: c starts at 1 and loops while c < 5, so spawns cercle1..4
+            // (4 particles). The canonical AS sets c=0 then c=1 before the
+            // loop, so the effective range is c in [1,4].
+            const nb = 5;
+            for (let c = 1; c < nb; c++) {
+              clip.attach(this.cercleSym, `cercle${c}`, c, ctx);
+            }
+          },
+        ],
+        [
+          66,
+          () => {
+            // AS DefineSprite_36/frame_67/DoAction.as
+            // this.end() → signalHit (damage popup at target)
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          138,
+          (clip) => {
+            // AS DefineSprite_36/frame_139/DoAction.as
+            // this._parent.removeMovieClip() → spell complete
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
+
+    this.registry.register(this.cercleSym);
+    this.registry.register(this.fumeeSym);
+    this.registry.register(this.shootSym);
+    this.registry.register(this.sprite36Sym);
   }
 
-  private spawnCercleParticles(): void {
-    // AS: nb = 5; c = 0; c = 1; while(c < nb) -> spawns 4 particles (c=1,2,3,4)
-    const nb = 5;
+  private soundCallback?: (id: string) => void;
 
-    this.cercleParticles.spawnMany(nb - 1, () => {
-      // AS onClipEvent(load) for cercle:
-      // d = 120 + (_parent._parent._parent.level - 1) * 32
-      const d = 120 + (this.level - 1) * 32;
-
-      // accx = 0.8 + 0.12 * Math.random()
-      const accX = 0.8 + 0.12 * Math.random();
-
-      // x = d * Math.random()
-      const x = d * Math.random();
-
-      // if(random(2) == 1) { _Y = 5; sr = -1; } else { sr = 1; _Y = -5; }
-      let sr: number;
-      let y: number;
-      if (Math.floor(Math.random() * 2) === 1) {
-        y = 5;
-        sr = -1;
-      } else {
-        sr = 1;
-        y = -5;
-      }
-
-      // _xscale = 0; _yscale = 0; t = 5; _X = x;
-      // va = 5 + 10 * Math.random()  (not used in enterFrame, likely unused)
-      // vr = (20 + 40 * Math.random()) * sr
-      const vr = (20 + 40 * Math.random()) * sr;
-
-      // vt = (0.3 + random(1)) * ((d - x) / d)
-      // random(1) always returns 0 in AS
-      const vt = (0.3 + Math.floor(Math.random() * 1)) * ((d - x) / d);
-
-      // vx = 5 + 10 * Math.random()
-      const vx = 5 + 10 * Math.random();
-
-      // enterFrame:
-      // _rotation -= (vr *= 0.97)
-      // _X += (vx *= accx)
-      // t += vt -= 0.03   -> vtDecay = 0.03
-      // _xscale = t; _yscale = t
-      // if (t < 0) removeMovieClip
-
-      return {
-        x,
-        y,
-        vx,
-        accX,
-        vr,
-        vrDecay: 0.97,
-        t: 5,
-        vt,
-        vtDecay: 0.03,
-      };
-    });
-  }
-
-  private spawnFumeeParticles(): void {
-    // DefineSprite_21_fumee frame_1/DoAction:
-    // a = _parent._parent._parent.rotate._rotation * 0.017453292519943295 (angle in radians)
-    // t = 80 * Math.random() + 50
-    // _xscale = t; _yscale = t
-    // _X = 20 * (Math.random() - 0.5)
-    // _Y = 20 * (Math.random() - 0.5)
-    // vx = 20 * Math.cos(a)
-    // vy = 20 * Math.sin(a)
-    // deceleration = 1.2 + Math.random()
-    // onEnterFrame: _X += vx; _Y += vy; vx /= deceleration; vy /= deceleration
-
-    // The fumee child sprite (DefineSprite_20 inside fumee):
-    // v = random(20) + 0  (rotation speed)
-    // _rotation = random(360)
-    // _alpha = 10 + random(90)
-    // enterFrame: _rotation += v; _alpha -= 20
-    // fumee dies at frame 31 (0-indexed: 30)
-
-    // DefineSprite_33 wraps fumee and has 'a = 20' on load
-    // DefineSprite_32 inside has random xscale and stops at frame 34
-
-    // We simulate the fumee physics using ASParticleSystem
-    // The fumee moves along the beam direction with deceleration
-
-    const a = this.fumeeAngleRad;
-
-    // Spawn multiple fumee puffs - looking at the AS structure,
-    // DefineSprite_36 contains fumee clips. The exact count isn't in the scripts shown
-    // but based on DefineSprite_33 (which wraps fumee) having 'a=20',
-    // and DefineSprite_32 having random xscale, these appear to be individual smoke puffs.
-    // We'll spawn a reasonable number matching typical Dofus smoke patterns.
-    // Given the structure, it appears about 5 fumee instances are created (similar to cercle).
-
-    const fumeeCount = 5;
-
-    this.fumeeParticles.spawnMany(fumeeCount, () => {
-      // t = 80 * Math.random() + 50  (scale as percentage)
-      const t = 80 * Math.random() + 50;
-
-      // _X = 20 * (Math.random() - 0.5)
-      const x = 20 * (Math.random() - 0.5);
-
-      // _Y = 20 * (Math.random() - 0.5)
-      const y = 20 * (Math.random() - 0.5);
-
-      // vx = 20 * Math.cos(a)
-      const vx = 20 * Math.cos(a);
-
-      // vy = 20 * Math.sin(a)
-      const vy = 20 * Math.sin(a);
-
-      // deceleration = 1.2 + Math.random()
-      // In AS: vx /= deceleration each frame
-      // ASParticleSystem uses accX as multiplier: vx *= accX
-      // So accX = 1 / deceleration ... but deceleration varies per particle
-      // We compute it here and store as accX = 1 / deceleration
-      const deceleration = 1.2 + Math.random();
-      const accX = 1 / deceleration;
-      const accY = 1 / deceleration;
-
-      // _rotation = random(360) (child sprite rotation, approximate with particle rotation)
-      const rotation = Math.floor(Math.random() * 360);
-
-      // _alpha = 10 + random(90)  -> (10 to 99)
-      const alpha = (10 + Math.floor(Math.random() * 90)) / 100;
-
-      // v = random(20) + 0 (rotation velocity of child)
-      const vr = Math.floor(Math.random() * 20);
-
-      // The fumee dies at frame 31 (frame_31/DoAction: removeMovieClip)
-      // At 60fps, 30 frames = 500ms. The smoke fades via _alpha -= 20 per frame on the inner sprite.
-      // We use alphaVelocity to fade: starting alpha ~55%, fading by ~20/100 per frame = 0.2/frame
-      // But the alpha decrease is on the inner child sprite, not the fumee container itself.
-      // We approximate by fading the particle over ~5 frames (alpha starts ~55% average)
-      // alphaVelocity = -alpha / 5 frames approximate
-      // Actually the inner sprite fades: starting alpha = 10+random(90) average ~55%
-      // decreasing by 20 per frame in percentage terms = -0.20 per frame
-      // After 3 frames: 55% - 60% = gone. Let's use alphaVelocity = -0.15
-
-      return {
-        x,
-        y,
-        vx,
-        vy,
-        accX,
-        accY,
-        vr,
-        vrDecay: 1, // rotation doesn't decay in AS (v is constant)
-        t,
-        vt: 0,
-        vtDecay: 0,
-        rotation,
-        alpha,
-        alphaVelocity: -0.15,
-      };
-    });
-  }
-
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-    this.cercleParticles.update();
-    this.fumeeParticles.update();
-
-    // Completion is triggered via onFrame(138) callback -> this.complete()
-    // But also check if shoot is complete as fallback
-    if (this.shootAnim.isComplete()) {
-      this.complete();
-    }
-  }
-
-  destroy(): void {
-    this.cercleParticles.destroy();
-    this.fumeeParticles.destroy();
-    super.destroy();
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // AS frame_1/DoAction.as: SOMA.playSound("jet_903")
+    callbacks.playSound("jet_903");
+    // Store sound callback so sprite_36's frame_1 script can fire "vol"
+    this.soundCallback = callbacks.playSound;
+    // Attach the outer sprite_36 container at root depth 1; it drives
+    // everything from here — shoot, cercle, signalHit, and completion.
+    this.root.attach(this.sprite36Sym, "sprite36", 1, context);
   }
 }

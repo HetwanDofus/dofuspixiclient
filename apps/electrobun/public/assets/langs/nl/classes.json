@@ -1,0 +1,1833 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1258,
+        "G": {
+            "1": {
+                "sn": "Feca",
+                "ln": "Feca's Schild",
+                "ep": 1,
+                "d": "De Fecas zijn loyale Beschermers. Ze worden ze bijzonder gewaardeerd bij de groepen avonturiers vanwege hun beschermende krachten, maar ook omdat ze als geen ander de staf hanteren. Al generaties lang zijn Fecas buitengewoon trots op hun beschermende rol. De Wijzen hebben hen de meest waardevolle voorwerpen toevertrouwd.",
+                "sd": "Als beschermers verlaagt hun uitrusting de schade die toegebracht wordt aan hun bondgenoten.",
+                "di": false,
+                "s": [
+                    1901,
+                    13,
+                    15,
+                    7,
+                    10,
+                    11,
+                    12,
+                    8,
+                    16,
+                    5,
+                    19,
+                    14,
+                    20,
+                    18,
+                    9,
+                    1,
+                    2,
+                    4,
+                    17,
+                    3,
+                    6
+                ],
+                "pt": "Offensive Defence",
+                "pd": "Each armour adds its own bonus. Their duration is reduced by one turn.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        250
+                    ],
+                    [
+                        4,
+                        150
+                    ],
+                    [
+                        3,
+                        50
+                    ],
+                    [
+                        2,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "2": {
+                "sn": "Osamodas",
+                "ln": "Osamodas' Zweep",
+                "ep": 1,
+                "d": "De Osamodas zijn geboren Bezweerders! Ze hebben de macht om wezens te bezweren en ze zijn opmerkelijke africhters. Het gerucht gaat dat ze hun kleding maken van de huid van hun vijanden, maar ga ze dus maar vragen of het zo is... Je zult 't meemaken als je je leven beëindigd als  laars of als bontmuts.",
+                "sd": "Als bezweerders gebruiken ze bezweringen om van een afstand te vechten.",
+                "di": true,
+                "s": [
+                    1902,
+                    31,
+                    40,
+                    39,
+                    29,
+                    32,
+                    36,
+                    38,
+                    25,
+                    33,
+                    24,
+                    27,
+                    30,
+                    37,
+                    28,
+                    35,
+                    22,
+                    26,
+                    34,
+                    21,
+                    23
+                ],
+                "pt": "Sharing",
+                "pd": "Some of the Osamodas's characteristics are transferred to their summons.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        250
+                    ],
+                    [
+                        4,
+                        150
+                    ],
+                    [
+                        3,
+                        50
+                    ],
+                    [
+                        2,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "3": {
+                "sn": "Enutrof",
+                "ln": "Enutrofs Vingers",
+                "ep": 1,
+                "d": "De Enutrofs zijn verstokte Schatjagers! Ze hebben interesse in alle voedingsmiddelen, voorwerpen of wezens waar ze kama's mee kunnen verdienen. Het eerste wat een Enutrof doet als hij een andere avonturier ontmoet, is hem afwegend aankijken. Het is waar: in de ogen van een Enutrof is een avonturier een wezen bepakt met waren en beladen met voorwerpen... die weer te verkopen zijn!",
+                "sd": "Als schatjagers weten ze hoe ze spreuken ongedaan kunnen maken en kunnen ze de bewegingen van hun vijanden af te remmen.",
+                "di": true,
+                "s": [
+                    1903,
+                    60,
+                    57,
+                    59,
+                    58,
+                    56,
+                    55,
+                    54,
+                    50,
+                    44,
+                    52,
+                    46,
+                    53,
+                    45,
+                    48,
+                    47,
+                    42,
+                    49,
+                    41,
+                    51,
+                    43
+                ],
+                "pt": "Fountain of Youth",
+                "pd": "For each MP used, the Enutrof receives a damage boost.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        350
+                    ],
+                    [
+                        4,
+                        250
+                    ],
+                    [
+                        3,
+                        150
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        330
+                    ],
+                    [
+                        4,
+                        230
+                    ],
+                    [
+                        3,
+                        150
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        150
+                    ],
+                    [
+                        4,
+                        100
+                    ],
+                    [
+                        3,
+                        60
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "4": {
+                "sn": "Sram",
+                "ln": "Sram's Schaduw",
+                "ep": 1,
+                "d": "De Srams zijn Moordenaars die gek zijn op geldbuidels, bij voorkeur goed gevulde. Ze tillen de slipp op van een tuniek, voelen diep in een zak, zijn vingervlug, strijken gewilde juwelen op en zetten dodelijke valstrikken. Ziedaar het leven van een Sram discipel!",
+                "sd": "Als moordenaars kunnen ze zichzelf onzichtbaar maken en vallen zetten om hun vijanden te verrassen.",
+                "di": true,
+                "s": [
+                    1904,
+                    80,
+                    76,
+                    75,
+                    70,
+                    67,
+                    73,
+                    77,
+                    69,
+                    62,
+                    71,
+                    78,
+                    79,
+                    64,
+                    74,
+                    63,
+                    68,
+                    66,
+                    65,
+                    61,
+                    72
+                ],
+                "pt": "Target Acquired",
+                "pd": "When the Sram attacks an enemy, they apply the Targeted state to the enemy and lower their resistances by 25% (deactivates if another enemy is attacked).",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        250
+                    ],
+                    [
+                        4,
+                        150
+                    ],
+                    [
+                        3,
+                        50
+                    ],
+                    [
+                        2,
+                        0
+                    ]
+                ]
+            },
+            "5": {
+                "sn": "Xelor",
+                "ln": "Xelor's Zandloper",
+                "ep": 1,
+                "d": "De Xelors zijn Magiers die de tijd en alle mechaniek die het uur aangeven, beheersen: carillons, klokken en pendules dansen naar hun pijpen. De Xelors spelen dus met de tijd om een vijand af te remmen of om zich te teleporteren naar waar ze maar willen.",
+                "sd": "Als magiërs gebruiken ze hun spreuken om hun vijanden af te remmen en te voorkomen dat ze spelen.",
+                "di": true,
+                "s": [
+                    1905,
+                    97,
+                    91,
+                    95,
+                    99,
+                    94,
+                    87,
+                    90,
+                    89,
+                    86,
+                    98,
+                    96,
+                    85,
+                    93,
+                    88,
+                    92,
+                    100,
+                    84,
+                    82,
+                    83,
+                    81
+                ],
+                "pt": "Time Delay",
+                "pd": "Applies extra damage based on the number of AP used.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        250
+                    ],
+                    [
+                        4,
+                        150
+                    ],
+                    [
+                        3,
+                        50
+                    ],
+                    [
+                        2,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "6": {
+                "sn": "Ecaflip",
+                "ln": "Ecaflip's Munt",
+                "ep": 1,
+                "d": "De Ecaflips zijn speelse Krijgers die op plekken zijn waar veel te verdienen valt, en veel te verliezen... Een fatsoenlijke Ecaflip speelt onophoudelijk, voor alles en voor niets. Maar pas op, hij neemt het spel serieus en zal zelfs met dobbelen zijn leven op het spel zetten om een gevecht te winnen...",
+                "sd": "Als speelse krijgers baseren ze hun meeste aanvallen op kansen.",
+                "di": false,
+                "s": [
+                    1906,
+                    120,
+                    114,
+                    112,
+                    110,
+                    118,
+                    115,
+                    108,
+                    117,
+                    106,
+                    116,
+                    107,
+                    101,
+                    119,
+                    104,
+                    111,
+                    113,
+                    109,
+                    102,
+                    105,
+                    103
+                ],
+                "pt": "Winning Bet",
+                "pd": "Starting at level 1, all spells have a 50/50 chance of getting a critical hit.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        200
+                    ],
+                    [
+                        4,
+                        150
+                    ],
+                    [
+                        3,
+                        100
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "7": {
+                "sn": "Eniripsa",
+                "ln": "Eniripsa's Handen",
+                "ep": 1,
+                "d": "De Eniripsas zijn Verzorgers die met een simpel Woord kunnen genezen. Ze gebruiken ze vooral om hun bondgenoten te verzorgen, maar soms ook om hun vijanden te verwonden. Onder hen zijn zelfs woordenjagers, werkwoordmeters, of zwervers van vergeten talen.",
+                "sd": "Als verzorgers gebruiken ze hun spreuken om hun bondgenoten te genezen.",
+                "di": false,
+                "s": [
+                    1907,
+                    140,
+                    139,
+                    138,
+                    137,
+                    136,
+                    129,
+                    135,
+                    134,
+                    133,
+                    132,
+                    131,
+                    130,
+                    123,
+                    127,
+                    126,
+                    122,
+                    124,
+                    121,
+                    128,
+                    125
+                ],
+                "pt": "Damage Dealer",
+                "pd": "Heals apply a damage bonus and their AP cost is lowered.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        250
+                    ],
+                    [
+                        4,
+                        150
+                    ],
+                    [
+                        3,
+                        50
+                    ],
+                    [
+                        2,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "8": {
+                "sn": "Iop",
+                "ln": "Iop's Hart",
+                "ep": 1,
+                "d": "De Iops zijn aanvallende ongenaakbare Krijgers! Een ding is zeker: de Iops weten hoe ze de wapen moeten hanteren. Trouwens, voor hen is minstens één keer per dag bloed vergieten een teken van goede gezondheid. Hun onstuimige temperament maakt Iops tot voorvechters van het extreme, en zijn in staat tot het beste... en het slechtste!",
+                "sd": "Als krijgers gebruiken ze hun gewelddadige spreuken om grote schade toe te brengen.",
+                "di": false,
+                "s": [
+                    1908,
+                    159,
+                    160,
+                    158,
+                    157,
+                    156,
+                    149,
+                    153,
+                    152,
+                    155,
+                    151,
+                    150,
+                    154,
+                    148,
+                    147,
+                    146,
+                    145,
+                    144,
+                    143,
+                    141,
+                    142
+                ],
+                "pt": "Devastating Barrage",
+                "pd": "Adds a damage line for each attack spell.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "9": {
+                "sn": "Cra",
+                "ln": "Cra's Bereik",
+                "ep": 1,
+                "d": "De Cras zijn zowel trotse als nauwkeurige Boogschutters! Het zijn waardevolle bondgenoten in de strijd van het echte gevecht. Ze blijven op afstand, geven hun gevederde steken onder water bij de geringste opening. Ze zijn meester in het toebrengen van schade!",
+                "sd": "Als boogschutters zijn ze gespecialiseerd in lange-afstands aanvallen.",
+                "di": false,
+                "s": [
+                    1909,
+                    180,
+                    179,
+                    177,
+                    178,
+                    175,
+                    176,
+                    174,
+                    173,
+                    166,
+                    171,
+                    170,
+                    162,
+                    168,
+                    167,
+                    172,
+                    165,
+                    163,
+                    161,
+                    164,
+                    169
+                ],
+                "pt": "Charged Attack",
+                "pd": "Every 3 attacks, grants a +25% bonus to final damage dealt.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        350
+                    ],
+                    [
+                        4,
+                        250
+                    ],
+                    [
+                        3,
+                        150
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        200
+                    ],
+                    [
+                        4,
+                        150
+                    ],
+                    [
+                        3,
+                        100
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        350
+                    ],
+                    [
+                        4,
+                        250
+                    ],
+                    [
+                        3,
+                        150
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "10": {
+                "sn": "Sadida",
+                "ln": "Sadida's Schoen",
+                "ep": 1,
+                "d": "De Sadidas zijn Bezweerders die zalfjes maken en vreselijk vergif! Ze richten Braamstruiken af om er huiveringwekkende wapens van te maken, vervaardigen oorlogs- en verzorgingspoppen. Daar schept een Sadida discipel, die deze naam waardig is, vreugde in.",
+                "sd": "Als bezweerders gebruiken ze handgemaakte poppen om met hun vijanden te vechten en hun spreuken ongedaan te maken.",
+                "di": true,
+                "s": [
+                    1910,
+                    187,
+                    188,
+                    184,
+                    185,
+                    194,
+                    190,
+                    196,
+                    186,
+                    191,
+                    199,
+                    181,
+                    189,
+                    197,
+                    192,
+                    182,
+                    195,
+                    198,
+                    200,
+                    193,
+                    183
+                ],
+                "pt": "Latent Poison",
+                "pd": "Each spell applies a stackable poison on the targeted enemy in the attack element.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        250
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "11": {
+                "sn": "Sacrier",
+                "ln": "Sacrier's Bloed",
+                "ep": 1,
+                "d": "De Sacriers zijn Berserkers die hun krachten kunnen vertienvoudigen zodra ze geraakt worden! Ze zijn niet bang om slagen te incasseren, noch om verwondingen op te lopen. Ze zijn vaak te vinden in de voorste linie en daardoor erg gewaardeerd bij groepen avonturiers! De Sacrier is echt de ideale partner voor lange oorlogszuchtige avonden...",
+                "sd": "Als beschermers zijn ze extreem sterk en kunnen ze aanvallen op hun bondgenoten op zich nemen.",
+                "di": false,
+                "s": [
+                    1911,
+                    450,
+                    435,
+                    448,
+                    447,
+                    446,
+                    438,
+                    445,
+                    441,
+                    442,
+                    440,
+                    443,
+                    433,
+                    439,
+                    437,
+                    436,
+                    449,
+                    444,
+                    432,
+                    434,
+                    431
+                ],
+                "pt": "Blood Bath",
+                "pd": "Increases the vitality threshold (1 for 3) and modifies punishments (more characteristics given and damage suffered).",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        150
+                    ],
+                    [
+                        4,
+                        100
+                    ],
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        2,
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        150
+                    ],
+                    [
+                        4,
+                        100
+                    ],
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        150
+                    ],
+                    [
+                        4,
+                        100
+                    ],
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        150
+                    ],
+                    [
+                        4,
+                        100
+                    ],
+                    [
+                        3,
+                        0
+                    ]
+                ]
+            },
+            "12": {
+                "sn": "Pandawa",
+                "ln": "Pandawa's Pint",
+                "ep": 18,
+                "d": "Pandawa's zijn Sherpa Warriors die weten wat ze uit hun lichaam kunnen halen! En uit die van anderen... Inderdaad, Pandawa' s aarzelen niet om hun vrienden op te tillen om ze te beschermen of hun vijanden om ze pijn te doen!",
+                "sd": "Als Sherpa krijgers worden ze gesterkt door hun drinken, het zorgt ervoor dat ze hun bondgenoten kunnen dragen.",
+                "di": true,
+                "s": [
+                    1912,
+                    705,
+                    704,
+                    703,
+                    702,
+                    701,
+                    700,
+                    699,
+                    698,
+                    697,
+                    696,
+                    695,
+                    694,
+                    693,
+                    688,
+                    691,
+                    690,
+                    689,
+                    686,
+                    692,
+                    687
+                ],
+                "pt": "Moderate Inebriation",
+                "pd": "Applies a bonus of 2 AP and 2 MP in the Drunk state, and +35% final damage dealt in the Sober state.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 98,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "G",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

@@ -1,0 +1,608 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1248,
+        "ST": {
+            "72": {
+                "n": "[wip]Rayonnement 3 boss",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "73": {
+                "n": "Turbado",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "0": {
+                "n": "Neutro",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "53": {
+                "n": "Punição Espiritual",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "55": {
+                "n": "Afastado",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "66": {
+                "n": "[wip]Rayonnement 1 joueur",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "40": {
+                "n": "Corrompido",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "46": {
+                "n": "Feliz",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "29": {
+                "n": "Glifo Velho",
+                "p": 0,
+                "d": true,
+                "s": "Odd G."
+            },
+            "52": {
+                "n": "Punição Audaciosa",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "78": {
+                "n": "Copas",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "107": {
+                "n": "Tac",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "27": {
+                "n": "Leopardo",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "33": {
+                "n": "Terceira Tinta",
+                "p": 0,
+                "d": true,
+                "s": "Tertiaire"
+            },
+            "97": {
+                "n": "Sofrimento III",
+                "p": 0,
+                "d": true,
+                "s": "Sofrim. III"
+            },
+            "47": {
+                "n": "Irritado",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "50": {
+                "n": "Punição Forçada",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "4": {
+                "n": "Covarde",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "36": {
+                "n": "Desejando Paralisar",
+                "p": 0,
+                "d": true,
+                "s": "Paralisar"
+            },
+            "32": {
+                "n": "Secundária Tinta",
+                "p": 0,
+                "d": true,
+                "s": "Secundária"
+            },
+            "8": {
+                "n": "Carregado",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "84": {
+                "n": "Trevo",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "108": {
+                "n": "Caçador",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "39": {
+                "n": "Estremecido",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "96": {
+                "n": "Sofrimento II",
+                "p": 0,
+                "d": true,
+                "s": "Sofrim. II"
+            },
+            "7": {
+                "n": "Gravidade",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "94": {
+                "n": "Incurável",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "90": {
+                "n": "Ouros",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "18": {
+                "n": "Congelado",
+                "p": 1,
+                "d": true,
+                "s": ""
+            },
+            "11": {
+                "n": "Montado",
+                "p": 0,
+                "d": true,
+                "s": "Chevauch."
+            },
+            "41": {
+                "n": "Silencioso",
+                "p": 1,
+                "d": true,
+                "s": ""
+            },
+            "28": {
+                "n": "Livre",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "79": {
+                "n": "Copas",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "12": {
+                "n": "Incontrolável",
+                "p": 0,
+                "d": true,
+                "s": "Incontrol."
+            },
+            "89": {
+                "n": "Ouros",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "61": {
+                "n": "Agressivo",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "71": {
+                "n": "[wip]Rayonnement 2 boss",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "42": {
+                "n": "Enfraquecido",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "10": {
+                "n": "Dominando",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "65": {
+                "n": "[wip]Rayonnement bloqué",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "35": {
+                "n": "Desejando Matar",
+                "p": 0,
+                "d": true,
+                "s": "Matar"
+            },
+            "98": {
+                "n": "Predação",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "69": {
+                "n": "[wip]Rayonnement 4 joueur",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "88": {
+                "n": "Espadas",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "13": {
+                "n": "Extremamente Incontrolável",
+                "p": 0,
+                "d": true,
+                "s": "E. Incont."
+            },
+            "105": {
+                "n": "Eufórico",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "30": {
+                "n": "Glifo Par",
+                "p": 0,
+                "d": true,
+                "s": "Even G."
+            },
+            "82": {
+                "n": "Trevo",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "102": {
+                "n": "Revigorado",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "103": {
+                "n": "Avareza",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "67": {
+                "n": "[wip]Rayonnement 2 joueur",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "54": {
+                "n": "Punição Vital",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "93": {
+                "n": "Ataraxia",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "99": {
+                "n": "Satisfeito",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "101": {
+                "n": "Maestria",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "19": {
+                "n": "Rachado",
+                "p": 1,
+                "d": true,
+                "s": ""
+            },
+            "83": {
+                "n": "Trevo",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "60": {
+                "n": "Devotado",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "49": {
+                "n": "Zumbificar",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "37": {
+                "n": "Desejando Almaldiçoar",
+                "p": 0,
+                "d": true,
+                "s": "Almaldiçoar"
+            },
+            "9": {
+                "n": "Motivação Silvestre",
+                "p": 0,
+                "d": true,
+                "s": "M.Silvestre"
+            },
+            "87": {
+                "n": "Espadas",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "51": {
+                "n": "Punição Ligeira",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "106": {
+                "n": "Tic",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "58": {
+                "n": "Contagem Regressiva - 1",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "63": {
+                "n": "[wip]Lourd",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "26": {
+                "n": "Adormecido",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "80": {
+                "n": "Copas",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "91": {
+                "n": "Ouros",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "5": {
+                "n": "Desorientado",
+                "p": 0,
+                "d": true,
+                "s": "Disorient."
+            },
+            "70": {
+                "n": "[wip]Rayonnement 1 boss",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "43": {
+                "n": "OVNI",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "56": {
+                "n": "Invulnerável",
+                "p": 0,
+                "d": true,
+                "s": "Invulneráv."
+            },
+            "17": {
+                "n": "Separado",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "81": {
+                "n": "Trevo",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "15": {
+                "n": "Acordado",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "1": {
+                "n": "Eufórico",
+                "p": 1,
+                "d": true,
+                "s": ""
+            },
+            "6": {
+                "n": "Enraizado",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "104": {
+                "n": "Contaminado",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "3": {
+                "n": "Carregando",
+                "p": 1,
+                "d": true,
+                "s": ""
+            },
+            "68": {
+                "n": "[wip]Rayonnement 3 joueur",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "75": {
+                "n": "Imbloqueável",
+                "p": 0,
+                "d": true,
+                "s": "Imbloqueáv."
+            },
+            "64": {
+                "n": "[wip]Glyphe nom provisoire",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "85": {
+                "n": "Espadas",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "38": {
+                "n": "Desejando Envenenar",
+                "p": 0,
+                "d": true,
+                "s": "Envenenar"
+            },
+            "95": {
+                "n": "Sofrimento I",
+                "p": 0,
+                "d": true,
+                "s": "Sofrim. I"
+            },
+            "77": {
+                "n": "Copas",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "14": {
+                "n": "Coberto de Neve",
+                "p": 0,
+                "d": true,
+                "s": "Cober. Neve"
+            },
+            "16": {
+                "n": "Vulnerável",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "57": {
+                "n": "Contagem Regressiva - 2",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "31": {
+                "n": "Primeira Tinta",
+                "p": 0,
+                "d": true,
+                "s": "Primeira"
+            },
+            "92": {
+                "n": "Ouros",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "76": {
+                "n": "Caçado",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "86": {
+                "n": "Espadas",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "44": {
+                "n": "Infeliz",
+                "p": 0,
+                "d": false,
+                "s": ""
+            },
+            "48": {
+                "n": "Confuso",
+                "p": 0,
+                "d": true,
+                "s": ""
+            },
+            "34": {
+                "n": "Quarta Tinta",
+                "p": 0,
+                "d": true,
+                "s": "Quarta"
+            },
+            "2": {
+                "n": "Caçador de Almas",
+                "p": 0,
+                "d": true,
+                "s": "Caçador"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 121,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "ST",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

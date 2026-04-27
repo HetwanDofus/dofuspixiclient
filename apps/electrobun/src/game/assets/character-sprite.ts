@@ -98,6 +98,9 @@ interface VelloAnimInfo {
   frameHeight: number;
 }
 
+/** Per-(gfxId, animName) → 0-based applyEnd frame index. */
+type ApplyEndCache = Map<string, number>;
+
 export class CharacterSpriteLoader {
   private cache = new Map<string, CharacterAnimation>();
   private pending = new Map<string, Promise<CharacterAnimation | null>>();
@@ -107,6 +110,19 @@ export class CharacterSpriteLoader {
   private atlas: FrameAtlas | null = null;
   private readonly assets = new VelloAssetRegistry();
   private maxTextureSize = 8192;
+  // applyEnd map per gfxId, populated lazily from
+  // /assets/spritesheets/sprites/<gfxId>/metadata.json. The PHP
+  // sprite-metadata extractor walks each animation's wrapper → inner
+  // timeline and records the 0-based frame index where AS calls
+  // `GAC.applyEnd(this)` (canonical "advance the blocking sequencer
+  // step" hook used by SpriteHandler.as:782 to fire the spell visual).
+  // PlayerRenderer reads this to fire its one-shot completion at the
+  // canonical frame instead of the last frame.
+  private readonly applyEndByGfx = new Map<number, ApplyEndCache | null>();
+  private readonly applyEndPending = new Map<
+    number,
+    Promise<ApplyEndCache | null>
+  >();
 
   setVelloRenderer(
     vello: VelloRenderer,
@@ -137,6 +153,77 @@ export class CharacterSpriteLoader {
 
   getAtlas(): FrameAtlas | null {
     return this.atlas;
+  }
+
+  /**
+   * Lazily fetch the per-class metadata.json and cache its applyEndFrames
+   * map. The PHP `ExtractSpriteMetadataCommand` walks each animation's
+   * inner timeline and records the 0-based frame index at which AS calls
+   * `GAC.applyEnd(this)` — the canonical hook
+   * `GlobalSpriteHandler.applyEnd → sequencer.onActionEnd()` uses to
+   * advance past the blocking setAnim before SpriteHandler.as:782 fires
+   * the spell's addEffect step.
+   *
+   * Resolves to `null` if the metadata is unreachable or doesn't contain
+   * applyEndFrames (older extractions). The cache value of `null` is
+   * sticky so we don't re-fetch on every miss.
+   */
+  async loadApplyEnd(gfxId: number): Promise<ApplyEndCache | null> {
+    if (this.applyEndByGfx.has(gfxId)) {
+      return this.applyEndByGfx.get(gfxId) ?? null;
+    }
+    const pending = this.applyEndPending.get(gfxId);
+    if (pending) {
+      return pending;
+    }
+    const promise = (async () => {
+      try {
+        const res = await fetch(
+          `/assets/spritesheets/sprites/${gfxId}/metadata.json`
+        );
+        if (!res.ok) {
+          this.applyEndByGfx.set(gfxId, null);
+          return null;
+        }
+        const json = (await res.json()) as {
+          applyEndFrames?: Record<string, number>;
+        };
+        const frames = json.applyEndFrames;
+        if (!frames || typeof frames !== "object") {
+          this.applyEndByGfx.set(gfxId, null);
+          return null;
+        }
+        const map: ApplyEndCache = new Map();
+        for (const [animName, frameIdx] of Object.entries(frames)) {
+          if (typeof frameIdx === "number" && Number.isFinite(frameIdx)) {
+            map.set(animName, frameIdx);
+          }
+        }
+        this.applyEndByGfx.set(gfxId, map);
+        return map;
+      } catch {
+        this.applyEndByGfx.set(gfxId, null);
+        return null;
+      } finally {
+        this.applyEndPending.delete(gfxId);
+      }
+    })();
+    this.applyEndPending.set(gfxId, promise);
+    return promise;
+  }
+
+  /**
+   * Synchronous lookup — returns null if metadata isn't loaded yet OR
+   * the animation doesn't have an applyEnd entry. Callers should treat
+   * null as "fall back to last-frame completion" so the cast pose still
+   * wraps up gracefully even before metadata arrives.
+   */
+  getApplyEndFrame(gfxId: number, animName: string): number | null {
+    const cache = this.applyEndByGfx.get(gfxId);
+    if (!cache) {
+      return null;
+    }
+    return cache.get(animName) ?? null;
   }
 
   /**

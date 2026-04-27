@@ -1,244 +1,243 @@
 /**
- * Spell 306 - Lakam
+ * Spell 306 — Lakam (Earth/Rock impact spell).
  *
- * A spell with a shoot animation and stone particles spawned at the target.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/306/scripts/scripts/
  *
- * Components:
- * - shoot (sprite_6_shoot): Main animation at target position, 75 frames
- *   - Stops at frame 73 (AS frame 73 → index 72)
- *   - DefineSprite_23: signals hit at frame 16 (index 15), stops at frame 115 (index 114)
+ * displayType=11 (TargetCell). The spell is a single animated composite
+ * `shoot` timeline (75 frames) placed at the target cell with no projectile
+ * motion and no caster-side content. The main timeline sets level=5 and plays
+ * the "lakam_405" sound. The `shoot` symbol contains:
  *
- * Original AS timing:
- * - Frame 1 (main): Play sound 'lakam_405'
- * - Frame 16 (DefineSprite_23): this.end() → signal hit
- * - Frame 73 (DefineSprite_6_shoot): removeMovieClip / stop
- * - Frame 115 (DefineSprite_23): stop
+ *   - An internal sub-sprite (DefineSprite_5) that runs an onLoad/onEnterFrame
+ *     loop spawning up to 6 `pierres` (rock) library-symbol particles over 6
+ *     frames. Each `pierres` particle has full ballistic physics: random launch
+ *     velocity, gravity integration, and a bounce/friction landing.
+ *   - Several internal stop()-only sub-sprites (DefineSprite_2, 16, 20, 21, 22,
+ *     23) that are authored timeline content within the composite `shoot`
+ *     asset — their frame scripts are baked into the exported composite frames
+ *     and do not need to be wired separately in TypeScript, EXCEPT for:
+ *       • DefineSprite_6_shoot/frame_73: `_parent.removeMovieClip(); stop();`
+ *         → this is the outer `shoot` clip's own frame_73 (AS 1-based =
+ *         runtime frame index 72), which removes itself and completes the spell.
+ *       • DefineSprite_23/frame_16: `this.end();` → signalHit (damage popup).
+ *         DefineSprite_23 is nested inside `shoot`; its frame_16 (index 15)
+ *         maps to approximately shoot's frame_16. We fire signalHit from
+ *         shoot's frame_15 (AS frame_16) to match canonical timing.
  *
- * Particles (DefineSprite_5 spawner):
- * - A spawner inside the shoot clip attaches up to 6 "pierres" instances
- *   (one per frame for 6 frames)
- * - Each pierre has random position offset, velocity, gravity, and bounce physics
+ * The `pierres` library symbol is the only attachMovie target referenced in AS.
+ * DefineSprite_5 (the spawner container) is authored inside the composite
+ * `shoot` asset; we do not need to register it separately — but we DO need to
+ * register `pierres` so that the onEnterFrame inside the composite can attach it.
+ *
+ * NOTE on DefineSprite_5 / pierres spawner:
+ *   The composite `shoot` frames already include the authored rendered content
+ *   for sub-sprites. However, the runtime-spawned `pierres` particles (via
+ *   attachMovie in DefineSprite_5's onEnterFrame) are DYNAMIC — they must be
+ *   registered and driven by clip events. We wire a synthetic onEnterFrame on
+ *   the `shoot` clip to replicate the DefineSprite_5 spawner logic (c starts
+ *   at 0, increments by 1 per frame for 6 frames, attaching a `pierres` child
+ *   each time), because DefineSprite_5 is a sub-sprite of `shoot` and its
+ *   onClipEvent fires within shoot's lifetime.
+ *
+ * displayType=11 — single impact at target cell, no projectile, no caster
+ * reference in any AS script.
+ *
+ * Library symbols:
+ *   - lib_pierres — rock particle. onLoad seeds position scatter, velocity
+ *     vx/vy (random launch), lim (bounce floor), rotation to match launch
+ *     angle. onEnterFrame integrates gravity (vy += 0.3), bounces at lim
+ *     with vy *= -0.6, vx *= 0.6.
+ *
+ * Main timeline (frame_1/DoAction.as):
+ *   SOMA.playSound("lakam_405");
+ *   level = 5;   ← sets root.vars.level (already set by harness from context,
+ *                   but AS hardcodes 5 here; we honour it in onSpellStart)
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  ASParticleSystem,
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Texture } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const SHOOT_MANIFEST: SpriteManifest = {
-  width: 65.9,
-  height: 65.9,
-  offsetX: -39.4,
-  offsetY: -52.95,
-};
-
-const PIERRES_MANIFEST: SpriteManifest = {
+const PIERRES_BOUNDS = {
   width: 40.2,
   height: 14.95,
   offsetX: 45.75,
   offsetY: -4.7,
 };
 
-export class Spell306 extends BaseSpell {
+const SHOOT_BOUNDS = {
+  width: 65.9,
+  height: 65.9,
+  offsetX: -39.4,
+  offsetY: -52.95,
+};
+
+export class Spell306 extends RuntimeSpell {
   readonly spellId = 306;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private shootAnim!: FrameAnimatedSprite;
-  private particles!: ASParticleSystem;
+  private pierresSym!: SymbolDefinition;
+  private shootSym!: SymbolDefinition;
 
-  // Particle spawner state
-  private spawnCount = 0;
-  private maxSpawns = 6;
-  private particleSpawnFrameAccum = 0;
-  private particleFrameTime = 1000 / 60;
-  private spawningDone = false;
-
-  // Per-particle physics state (AS enterFrame simulation)
-  private particleStates: Array<{
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    lim: number;
-    rotation: number;
-  }> = [];
-
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    // Main shoot animation at target position
-    const shootAnchor = calculateAnchor(SHOOT_MANIFEST);
-    this.shootAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("shoot"),
-        fps: 60,
-        anchorX: shootAnchor.x,
-        anchorY: shootAnchor.y,
-        scale: init.scale,
-      })
-    );
-    this.shootAnim.sprite.position.set(init.targetX, init.targetY);
+    const pierresAnchor = calculateAnchor(PIERRES_BOUNDS);
+    const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // Sound at frame 0 (AS frame 1)
-    this.shootAnim.onFrame(0, () => {
-      this.callbacks.playSound("lakam_405");
-    });
+    // ---- lib_pierres — rock particle with ballistic physics ------
+    // AS: DefineSprite_17_pierres/frame_1/PlaceObject2_16_1/
+    //     CLIPACTIONRECORD onClipEvent(load).as
+    //   _X = (Math.random() - 0.5) * 10
+    //   _Y = (Math.random() - 0.5) * 10
+    //   vx = (Math.random() - 0.5) * 3.5
+    //   vy = (-Math.random()) * 7.5
+    //   lim = 50 + (Math.random() - 0.5) * 20
+    //   _rotation = Math.atan2(vy, vx) * 57.29746936176985  (degrees)
+    //
+    // AS: DefineSprite_17_pierres/frame_1/PlaceObject2_16_1/
+    //     CLIPACTIONRECORD onClipEvent(enterFrame).as
+    //   _X = _X + vx
+    //   _Y = _Y + (vy += 0.3)
+    //   if (_Y > lim) { _Y = lim; vy = (-vy) * 0.6; vx *= 0.6 }
+    this.pierresSym = {
+      name: "pierres",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_pierres"),
+      anchorX: pierresAnchor.x,
+      anchorY: pierresAnchor.y,
+      onLoad: (clip) => {
+        // AS: DefineSprite_17_pierres/.../onClipEvent(load)
+        clip.x = (Math.random() - 0.5) * 10;
+        clip.y = (Math.random() - 0.5) * 10;
+        clip.vars.vx = (Math.random() - 0.5) * 3.5;
+        clip.vars.vy = (-Math.random()) * 7.5;
+        clip.vars.lim = 50 + (Math.random() - 0.5) * 20;
+        // AS stores rotation in degrees via atan2 * 57.297...
+        // Convert to radians for Pixi: (degrees * PI/180) = radians
+        // atan2(vy,vx) * 57.297... * PI/180 = atan2(vy,vx) — so just use atan2 directly.
+        const vx = clip.vars.vx as number;
+        const vy = clip.vars.vy as number;
+        clip.rotation = Math.atan2(vy, vx);
+      },
+      onEnterFrame: (clip) => {
+        // AS: DefineSprite_17_pierres/.../onClipEvent(enterFrame)
+        const vx = clip.vars.vx as number;
+        let vy = clip.vars.vy as number;
+        const lim = clip.vars.lim as number;
 
-    // Hit signal at frame 15 (AS DefineSprite_23 frame 16 → this.end())
-    this.shootAnim.onFrame(15, () => {
-      this.signalHit();
-    });
+        vy += 0.3;
+        clip.x += vx;
+        clip.y += vy;
 
-    // Stop at frame 72 (AS frame 73 → removeMovieClip/stop)
-    this.shootAnim.stopAt(72);
+        if (clip.y > lim) {
+          clip.y = lim;
+          vy = (-vy) * 0.6;
+          clip.vars.vx = vx * 0.6;
+        }
 
-    this.container.addChild(this.shootAnim.sprite);
+        clip.vars.vy = vy;
+      },
+    };
 
-    // Particle system for "pierres" stones
-    const pierresTexture = textures.hasTexture("lib_pierres_0")
-      ? textures.getTexture("lib_pierres_0")
-      : (textures.getFrames("lib_pierres")[0] ?? Texture.EMPTY);
+    // ---- shoot — 75-frame composite impact at target -------------
+    // The composite asset contains all authored sub-sprite rendering.
+    // We drive two runtime behaviours from frameScripts:
+    //
+    //   1. A synthetic pierres-spawner replicating DefineSprite_5's
+    //      onLoad/onEnterFrame (c starts at 0 in onLoad, increments by 1
+    //      per frame for 6 frames, attaching a `pierres` child each time).
+    //      We implement this as shoot's own onLoad (seeds vars.c = 0) and
+    //      onEnterFrame (spawns one pierres per frame until c >= 6).
+    //
+    //   2. DefineSprite_23/frame_16/DoAction.as: `this.end();`
+    //      → signalHit at shoot's frame 16 (AS 1-based) = runtime index 15.
+    //
+    //   3. DefineSprite_6_shoot/frame_73/DoAction.as:
+    //      `_parent.removeMovieClip(); stop();`
+    //      → at shoot's frame 73 (AS 1-based) = runtime index 72,
+    //        remove shoot and complete the spell.
+    //
+    // Note: DefineSprite_2/frame_1 (_rotation = random(360)) is authored
+    // content inside the composite and fires within the baked asset —
+    // no separate registration needed for the rotation-only sub-sprite.
+    // DefineSprite_16/frame_10, DefineSprite_20/frame_19,
+    // DefineSprite_21/frame_13, DefineSprite_22/frame_31,
+    // DefineSprite_23/frame_115 are all stop() calls on authored
+    // sub-sprites that are baked into the composite frames.
+    this.shootSym = {
+      name: "shoot",
+      totalFrames: 75,
+      frames: textures.getFrames("shoot"),
+      anchorX: shootAnchor.x,
+      anchorY: shootAnchor.y,
+      onLoad: (clip) => {
+        // Synthetic: mirrors DefineSprite_5/frame_1/PlaceObject2_3_3/
+        // CLIPACTIONRECORD onClipEvent(load).as
+        //   c = 0;
+        clip.vars.c = 0;
+      },
+      onEnterFrame: (clip, ctx) => {
+        // Synthetic: mirrors DefineSprite_5/frame_1/PlaceObject2_3_3/
+        // CLIPACTIONRECORD onClipEvent(enterFrame).as
+        //   if (c < 6) { c += 1; this.attachMovie("pierres","pierres"+c,c); }
+        const c = clip.vars.c as number;
+        if (c < 6) {
+          const next = c + 1;
+          clip.attach(this.pierresSym, `pierres${next}`, next, ctx);
+          clip.vars.c = next;
+        }
+      },
+      frameScripts: new Map([
+        [
+          15,
+          () => {
+            // AS: DefineSprite_23/frame_16/DoAction.as → this.end()
+            // Fires signalHit (damage popup at target).
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          72,
+          (clip) => {
+            // AS: DefineSprite_6_shoot/frame_73/DoAction.as
+            //   _parent.removeMovieClip(); stop();
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    this.particles = new ASParticleSystem(pierresTexture);
-    this.particles.container.position.set(init.targetX, init.targetY);
-    this.container.addChild(this.particles.container);
+    this.registry.register(this.pierresSym);
+    this.registry.register(this.shootSym);
   }
 
-  /**
-   * Spawn a single "pierres" particle with AS physics
-   *
-   * AS onClipEvent(load):
-   *   _X = (Math.random() - 0.5) * 10;
-   *   _Y = (Math.random() - 0.5) * 10;
-   *   vx = (Math.random() - 0.5) * 3.5;
-   *   vy = (-Math.random()) * 7.5;
-   *   lim = 50 + (Math.random() - 0.5) * 20;
-   *   _rotation = Math.atan2(vy, vx) * 57.29746936176985;
-   */
-  private spawnPierre(): void {
-    const pierresAnchor = calculateAnchor(PIERRES_MANIFEST);
-    const x = (Math.random() - 0.5) * 10;
-    const y = (Math.random() - 0.5) * 10;
-    const vx = (Math.random() - 0.5) * 3.5;
-    const vy = -Math.random() * 7.5;
-    const lim = 50 + (Math.random() - 0.5) * 20;
-    const rotation = Math.atan2(vy, vx) * 57.29746936176985;
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // AS: scripts/frame_1/DoAction.as
+    //   SOMA.playSound("lakam_405");
+    //   level = 5;
+    callbacks.playSound("lakam_405");
+    // level=5 is hardcoded in the canonical AS main timeline — store on
+    // root.vars so any descendant traversal for `_parent.level` finds it.
+    this.root.vars.level = 5;
 
-    // Track state for this particle (index = this.particleStates.length)
-    this.particleStates.push({ x, y, vx, vy, lim, rotation });
-
-    // Spawn via ASParticleSystem with initial position
-    // We'll manage physics manually each frame (AS enterFrame)
-    this.particles.spawn({
-      x,
-      y,
-      vx: 0,
-      vy: 0,
-      accX: 1,
-      accY: 1,
-      vr: 0,
-      vrDecay: 1,
-      t:
-        100 *
-        (1 /
-          Math.max(
-            (-pierresAnchor.x * PIERRES_MANIFEST.width) /
-              PIERRES_MANIFEST.width,
-            0.01
-          )),
-      vt: 0,
-      vtDecay: 0,
-      rotation,
-      alpha: 1,
-    });
-
-    // Override the particle's initial scale using anchor-based approach
-    // The sprite was just spawned as the last particle - set it up directly
-    // We'll handle position/rotation manually in updateParticles
-  }
-
-  /**
-   * Update particle physics per AS onClipEvent(enterFrame):
-   *   _X = _X + vx;
-   *   _Y = _Y + (vy += 0.3);
-   *   if(_Y > lim) {
-   *     _Y = lim;
-   *     vy = (-vy) * 0.6;
-   *     vx *= 0.6;
-   *   }
-   */
-  private updateParticles(): void {
-    // Access internal particles via the container children
-    const children = this.particles.container.children;
-
-    for (let i = 0; i < this.particleStates.length; i++) {
-      const state = this.particleStates[i];
-      const child = children[i];
-
-      if (!child) {
-        continue;
-      }
-
-      // AS enterFrame physics
-      state.vy += 0.3;
-      state.x += state.vx;
-      state.y += state.vy;
-
-      if (state.y > state.lim) {
-        state.y = state.lim;
-        state.vy = -state.vy * 0.6;
-        state.vx *= 0.6;
-      }
-
-      child.position.set(state.x, state.y);
-      child.rotation = (state.rotation * Math.PI) / 180;
-    }
-  }
-
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-
-    // Particle spawner: spawn one pierre per frame for 6 frames
-    // AS DefineSprite_5 onClipEvent(enterFrame): if(c < 6) { c += 1; attachMovie(...) }
-    if (!this.spawningDone) {
-      this.particleSpawnFrameAccum += deltaTime;
-
-      while (
-        this.particleSpawnFrameAccum >= this.particleFrameTime &&
-        this.spawnCount < this.maxSpawns
-      ) {
-        this.spawnCount += 1;
-        this.spawnPierre();
-        this.particleSpawnFrameAccum -= this.particleFrameTime;
-      }
-
-      if (this.spawnCount >= this.maxSpawns) {
-        this.spawningDone = true;
-      }
-    }
-
-    // Update pierre physics manually each frame
-    this.updateParticles();
-
-    // Complete when shoot animation stops
-    if (this.shootAnim.isStopped() || this.shootAnim.isComplete()) {
-      this.complete();
-    }
-  }
-
-  destroy(): void {
-    this.particles.destroy();
-    super.destroy();
+    // The `shoot` symbol is the single top-level authored timeline for this
+    // spell (displayType=11, target cell). Attach it at the root so it
+    // starts ticking from the next runtime frame.
+    this.root.attach(this.shootSym, "shoot", 1, context);
   }
 }

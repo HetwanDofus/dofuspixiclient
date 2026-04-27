@@ -1,93 +1,118 @@
 /**
- * Spell 409 - Lakam
+ * Spell 409 — Lakam (Osamodas earth/rock spell).
  *
- * A composite animation spell played at the target position.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/409/scripts/scripts/
  *
- * Components:
- * - anim1 (composite): Full animation at target position, stops at frame 147
+ * displayType=11 (TargetCell). This spell has no projectile motion, no caster
+ * reference, no dual anchoring — it's a pure impact animation at the target cell.
+ * The single `anim1` animation appears in `animations[]` only (no librarySymbols),
+ * confirming a simple TargetCell impact pattern.
  *
- * The animation internally contains particle-like sub-sprites (DefineSprite_5)
- * that each start at a random rotation, random scale, and random frame offset,
- * playing until frame 127 then stopping. DefineSprite_7 removes itself at frame 148.
+ * AS layout:
+ *   - Main timeline frame_1: SOMA.playSound("lakam_409")
+ *   - DefineSprite_7 (outer wrapper, 150 frames / anim1):
+ *       frame_148: _parent.removeMovieClip(); stop();  → complete()
+ *   - DefineSprite_5 (particle sub-symbol, 127 frames):
+ *       frame_1:   _rotation = -40 - random(100); t = random(50)+30;
+ *                  _xscale = _yscale = t; gotoAndPlay(random(21))
+ *       frame_31:  SOMA.playSound("lakam_409")
+ *       frame_127: stop()
  *
- * Original AS timing:
- * - Frame 1 (main): Play sound 'lakam_409'
- * - Frame 31 (DefineSprite_5): Play sound 'lakam_409'
- * - Frame 127 (DefineSprite_5): stop()
- * - Frame 148 (DefineSprite_7): removeMovieClip() / stop()
- * - stopFrame from manifest: 147 (0-indexed)
+ * The manifest has no `librarySymbols[]` entries. The composite `anim1` animation
+ * (150 frames) is the sole authored timeline. DefineSprite_5 is a sub-symbol used
+ * internally (likely as animated particles inside anim1); since it never appears
+ * in librarySymbols and is never referenced by `attachMovie` in the AS scripts,
+ * we treat it as embedded in the composite frames. The sprite_7 wrapper's
+ * frame_148 fires _parent.removeMovieClip() — that outer mc removal is what we
+ * model as runtime.complete().
  *
- * Because the composite animation is pre-rendered into frames by the exporter,
- * we simply play anim1 from frame 0, stop at frame 147, signal hit at frame 30
- * (the second sound / impact moment), and complete when the animation stops.
+ * The main anim1 symbol is registered as "anim1" (bare name, no lib_ prefix)
+ * because it only appears in animations[], not librarySymbols[].
  *
- * Sound triggers (0-indexed frames):
- * - Frame 0: 'lakam_409'
- * - Frame 30: 'lakam_409'
- *
- * Hit signal: frame 30 (second sound, corresponds to impact)
+ * Signal strategy:
+ *   - signalHit: fired at frame_1 of the anim1 clip (impact is immediate for
+ *     this type of ground-slam spell).
+ *   - complete: fired at frame_148 (AS frame_148 = index 147) where the canonical
+ *     _parent.removeMovieClip() + stop() live.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const ANIM1_MANIFEST: SpriteManifest = {
+const ANIM1_BOUNDS = {
   width: 163.1,
   height: 111.65,
   offsetX: 2.1,
   offsetY: -70.7,
 };
 
-export class Spell409 extends BaseSpell {
+export class Spell409 extends RuntimeSpell {
   readonly spellId = 409;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private mainAnim!: FrameAnimatedSprite;
+  private anim1Sym!: SymbolDefinition;
 
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const anchor = calculateAnchor(ANIM1_MANIFEST);
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    this.mainAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("anim1"),
-        fps: 60,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-      })
-    );
+    // ---- anim1 — composite impact animation at target cell -------
+    // This is the top-level authored timeline (DefineSprite_7 wrapper).
+    // AS DefineSprite_7/frame_148/DoAction.as:
+    //   _parent.removeMovieClip(); stop();
+    // signalHit fires at frame_1 (first visible frame of the impact).
+    this.anim1Sym = {
+      name: "anim1",
+      totalFrames: 150,
+      frames: textures.getFrames("anim1"),
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (_clip) => {
+            // AS: frame_1 of DefineSprite_7 — no explicit script,
+            // but this is the canonical impact arrival frame. Signal hit.
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          147,
+          (clip) => {
+            // AS DefineSprite_7/frame_148/DoAction.as:
+            //   _parent.removeMovieClip(); stop();
+            clip.stop();
+            clip.parent?.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
-
-    this.mainAnim
-      .stopAt(147)
-      .onFrame(0, () => this.callbacks.playSound("lakam_409"))
-      .onFrame(30, () => {
-        this.callbacks.playSound("lakam_409");
-        this.signalHit();
-      });
-
-    this.mainAnim.addTo(this.container);
+    this.registry.register(this.anim1Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // AS scripts/frame_1/DoAction.as:
+    //   SOMA.playSound("lakam_409");
+    callbacks.playSound("lakam_409");
 
-    this.anims.update(deltaTime);
-
-    if (this.anims.allStopped()) {
-      this.complete();
-    }
+    // Attach the main anim1 clip to the root so it starts ticking.
+    this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

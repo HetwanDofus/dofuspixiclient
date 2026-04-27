@@ -23,6 +23,7 @@
       "apps/*",
       "packages/*",
       "services/*",
+      "tools/asset-pipeline",
       "tools/combat-exporter",
       "tools/combat-exporter/test-player"
     ],

@@ -1,3 +1,4 @@
+import { readTileExtras, type TileExtras } from "@dofus/dofasset-format";
 import type { Renderer, Texture } from "pixi.js";
 import type { VelloRenderer } from "vello-wasm";
 
@@ -22,12 +23,10 @@ export class AtlasLoader {
     string,
     Promise<CachedTileData | null>
   >();
-  private readonly basePath: string;
   private currentZoom = 1;
   private readonly velloRenderer: TileVelloRenderer;
 
   constructor(renderer: Renderer, basePath = "/assets/spritesheets") {
-    this.basePath = basePath;
     this.velloRenderer = new TileVelloRenderer(renderer, basePath);
   }
 
@@ -75,32 +74,49 @@ export class AtlasLoader {
   private async doLoadTileData(
     tileKey: string
   ): Promise<CachedTileData | null> {
-    const [type, idStr] = tileKey.split("_");
-    const tilePath = `${this.basePath}/tiles/${type}/${idStr}`;
-
-    try {
-      const res = await fetch(`${tilePath}/manifest.json`);
-
-      if (!res.ok) {
-        return null;
-      }
-
-      const manifest: SpritesheetManifest = await res.json();
-      const animName = Object.keys(manifest.animations)[0];
-      const atlas = manifest.animations[animName] as AtlasManifest;
-
-      const data: CachedTileData = {
-        manifest,
-        atlas,
-        baseTextures: new Map(),
-      };
-
-      this.cache.setTileData(tileKey, data);
-      return data;
-    } catch (e) {
-      log.warn(`Failed to load tile data for ${tileKey}:`, e);
+    // Ensure the .dofasset is in Vello (triggers the single fetch that also
+    // gives us the Extras section — no more sidecar manifest.json fetch).
+    await this.velloRenderer.loadAsset(tileKey);
+    const bytes = this.velloRenderer.getAssetBytes(tileKey);
+    if (!bytes) {
       return null;
     }
+
+    const extras = readTileExtras(bytes);
+    if (!extras) {
+      log.warn(`Tile ${tileKey} .dofasset missing Extras section`);
+      return null;
+    }
+
+    const manifest = spritesheetManifestFromExtras(extras);
+    const animName = Object.keys(manifest.animations)[0];
+    if (!animName) {
+      return null;
+    }
+    const atlas = manifest.animations[animName] as AtlasManifest;
+
+    // Single Vello path-walk per tile, cached forever. Anchor + canvas scale
+    // linearly with zoom, so no re-query on zoom changes.
+    const meta = this.velloRenderer.getAnimationMeta(tileKey);
+    if (!meta) {
+      log.warn(`Tile ${tileKey} Vello animation meta unavailable`);
+      return null;
+    }
+
+    const data: CachedTileData = {
+      manifest,
+      atlas,
+      renderMeta: {
+        width: meta.width,
+        height: meta.height,
+        anchorX: meta.anchorX,
+        anchorY: meta.anchorY,
+      },
+      baseTextures: new Map(),
+    };
+
+    this.cache.setTileData(tileKey, data);
+    return data;
   }
 
   /** Rounded zoom key for cache bucketing (avoids excessive cache entries). */
@@ -128,7 +144,7 @@ export class AtlasLoader {
     const [type] = tileKey.split("_");
     const tileManifest = convertToTileManifest(
       data,
-      type as "ground" | "objects"
+      type as "ground" | "objects" | "tactic" | "cell"
     );
     this.cache.setTileManifest(tileKey, tileManifest);
     return tileManifest;
@@ -205,7 +221,7 @@ export class AtlasLoader {
     const [type] = tileKey.split("_");
     const tileManifest = convertToTileManifest(
       data,
-      type as "ground" | "objects"
+      type as "ground" | "objects" | "tactic" | "cell"
     );
 
     this.cache.setTileManifest(tileKey, tileManifest);
@@ -310,4 +326,42 @@ export class AtlasLoader {
   clearZoomCache(zoom: number): void {
     this.cache.clearZoomLevel(zoom);
   }
+}
+
+/**
+ * Rebuild the legacy SpritesheetManifest shape from the Extras section that
+ * replaces manifest.json. Existing downstream code (convertToTileManifest,
+ * tile-vello-renderer) keeps working unchanged.
+ */
+function spritesheetManifestFromExtras(
+  extras: TileExtras
+): SpritesheetManifest {
+  const animations: SpritesheetManifest["animations"] = {};
+  for (const [name, a] of Object.entries(extras.animations ?? {})) {
+    animations[name] = {
+      file: `${name}/atlas.svg`,
+      version: extras.version ?? 1,
+      animation: name,
+      width: a.width,
+      height: a.height,
+      offsetX: a.offsetX,
+      offsetY: a.offsetY,
+      frames: a.frames ?? [],
+      frameOrder: a.frameOrder ?? [],
+      duplicates: a.duplicates ?? {},
+      fps: a.fps,
+      baseFrame: a.baseFrame,
+      baseZOrder: a.baseZOrder,
+      pages: a.pages,
+    };
+  }
+  return {
+    version: extras.version ?? 1,
+    spriteId: extras.spriteId,
+    behavior: extras.behavior,
+    fps_hint: extras.fpsHint,
+    autoplay: extras.autoplay,
+    loop: extras.loop,
+    animations,
+  };
 }

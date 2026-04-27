@@ -1,227 +1,279 @@
 /**
- * Spell 2056
+ * Spell 2056 — (Unknown name, likely a Cra/projectile spell).
  *
- * A two-part spell animation:
- * - sprite_3: Projectile/cast animation at caster position, rotated toward target, stops at frame 21
- * - sprite_8: Impact animation at target position, signals hit at frame 1 (this.end()),
- *   fades out starting at frame 109, removes at frame 142
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/2056/scripts/scripts/
  *
- * Original AS timing:
- * - sprite_3 frame_1: Set rotation and position at caster
- * - sprite_3 frame_22: stop() -> stopAt(21)
- * - sprite_8 frame_1: this.end() (signal hit), position at target
- * - sprite_8 frame_109: onClipEvent enterFrame -> alpha -= 10 each frame (fade out)
- * - sprite_8 frame_142: removeMovieClip(), stop() -> completion
+ * displayType=51 (WorldAbsoluteAlt). Two parallel authored timelines:
+ *   - sprite_3 (24 frames): caster-side arrow/beam. frame_1 positions at cellFrom,
+ *     rotates to angle. frame_22 stops.
+ *   - sprite_8 (144 frames): target-side impact. frame_1 calls this.end() (signalHit)
+ *     and positions at cellTo. frame_7 places a sub-sprite (PlaceObject2_5_1) with
+ *     bounce physics. frame_109 places a sub-sprite (PlaceObject2_7_3) that fades
+ *     the parent. frame_142 removes parent and stops (spell complete).
  *
- * The sprite_8 bounce physics (frame_7 PlaceObject2_5_1) are part of a child clip
- * inside sprite_8 - the composite sprite handles that internally via its frames.
+ * The harness for WorldAbsoluteAlt only seeds root.vars (cellFrom, cellTo, angle,
+ * level). Both sprite_3 and sprite_8 position themselves at world coords via
+ * _parent.cellFrom / _parent.cellTo. signalHit is called from sprite_8's frame_1
+ * (this.end()). complete() is called from sprite_8's frame_142.
+ *
+ * Library symbols: none (librarySymbols[] is empty in the manifest).
+ * Both sprite_3 and sprite_8 are in animations[] only — no lib_ prefix.
+ *
+ * The sub-sprite at PlaceObject2_5_1 (frame_7 of sprite_8) has bounce physics:
+ *   onLoad: seed g, amp, vx, vy, f, vrot
+ *   onEnterFrame: bounce on Y=0 with friction, move parent
+ *
+ * The sub-sprite at PlaceObject2_7_3 (frame_109 of sprite_8) fades:
+ *   onEnterFrame: _parent._alpha -= 10 (i.e. sprite_8's alpha decreases 10/100 per frame)
+ *
+ * Main timeline: frame_2/DoAction.as → stop(). No sound in the canonical AS.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const CAST_MANIFEST: SpriteManifest = {
+// sprite_3 bounds from manifest animations[]
+const SPRITE_3_BOUNDS = {
   width: 105.95,
   height: 0.1,
   offsetX: 0,
   offsetY: -0.1,
 };
 
-const IMPACT_MANIFEST: SpriteManifest = {
+// sprite_8 bounds from manifest animations[]
+const SPRITE_8_BOUNDS = {
   width: 66.4,
   height: 15.4,
   offsetX: -48.25,
   offsetY: -50.1,
 };
 
-export class Spell2056 extends BaseSpell {
+export class Spell2056 extends RuntimeSpell {
   readonly spellId = 2056;
+  readonly displayType = SpellDisplayType.WorldAbsoluteAlt;
 
-  protected setup(
-    _context: SpellContext,
+  private sprite3Sym!: SymbolDefinition;
+  private sprite8Sym!: SymbolDefinition;
+
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext
   ): void {
-    // sprite_3: Cast animation at caster position, rotated toward target
-    const castAnchor = calculateAnchor(CAST_MANIFEST);
-    const castAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_3"),
-        fps: 40,
-        anchorX: castAnchor.x,
-        anchorY: castAnchor.y,
-        scale: init.scale,
-      })
-    );
-    castAnim.sprite.position.set(0, init.casterY);
-    castAnim.sprite.rotation = init.angleRad;
-    // AS: frame_22/DoAction.as -> stop() (1-indexed 22 = 0-indexed 21)
-    castAnim.stopAt(21);
-    this.container.addChild(castAnim.sprite);
+    const sprite3Anchor = calculateAnchor(SPRITE_3_BOUNDS);
+    const sprite8Anchor = calculateAnchor(SPRITE_8_BOUNDS);
 
-    // sprite_8: Impact animation at target position
-    // AS frame_1: this.end() -> signal hit immediately on first frame
-    const impactAnchor = calculateAnchor(IMPACT_MANIFEST);
-    const impactAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_8"),
-        fps: 40,
-        anchorX: impactAnchor.x,
-        anchorY: impactAnchor.y,
-        scale: init.scale,
-      })
-    );
-    impactAnim.sprite.position.set(init.targetX, init.targetY);
-    // AS frame_1 DoAction: this.end() -> signal hit (1-indexed 1 = 0-indexed 0)
-    impactAnim.onFrame(0, () => this.signalHit());
-    // AS frame_109 PlaceObject2_7_3 onClipEvent(enterFrame): _parent._alpha -= 10 each frame
-    // We simulate this by fading 10% per frame starting at frame 108 (0-indexed)
-    // We'll handle this in update() by tracking when we pass frame 108
-    // AS frame_142 DoAction: removeMovieClip(), stop() (1-indexed 142 = 0-indexed 141)
-    impactAnim.stopAt(141);
-    this.container.addChild(impactAnim.sprite);
+    // ---- sub-sprite for bounce physics (PlaceObject2_5_1 inside sprite_8 frame_7) ----
+    // This is an inline clip placed by sprite_8's frame_7 with clip events.
+    // We model it as a registered symbol so sprite_8's frameScripts can attach it.
+    // It has no authored textures (container-only), physics driven by onLoad/onEnterFrame.
+    const bounceSym: SymbolDefinition = {
+      name: "_bounce_particle",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      // AS: DefineSprite_8/frame_7/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as
+      onLoad: (clip) => {
+        clip.vars.g = 0.83;
+        clip.vars.amp = 2.5;
+        clip.vars.vx = 2 * 2.5 * (-0.5 + Math.random());
+        clip.vars.vy = 2.5 * (-0.5 + Math.random());
+        clip.vars.f = -5 - Math.floor(Math.random() * 5);
+        clip.vars.vrot = -100 + Math.floor(Math.random() * 200);
+      },
+      // AS: DefineSprite_8/frame_7/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+      onEnterFrame: (clip) => {
+        const g = clip.vars.g as number;
+        let amp = clip.vars.amp as number;
+        let vx = clip.vars.vx as number;
+        let vy = clip.vars.vy as number;
+        let f = clip.vars.f as number;
+        const vrot = clip.vars.vrot as number;
+
+        // AS: _rotation == vrot  (note: == not = in canonical AS, this is a no-op comparison)
+        // Per canonical AS this is a comparison (==), not assignment. No-op — intentionally skip.
+
+        // AS: _parent._x += vx; _parent._y += vy;
+        // _parent here is sprite_8 (the outer clip that contains this bounce particle)
+        const parent = clip.parent;
+        if (parent) {
+          parent.x += vx;
+          parent.y += vy;
+        }
+
+        // AS: _Y = _Y + (f += g)
+        f += g;
+        clip.y = clip.y + f;
+        clip.vars.f = f;
+
+        // AS: if(_Y > 0) { bounce }
+        if (clip.y > 0) {
+          // AS: vrot *= 0.5 (but vrot is a local var, not reassigned back — canonical quirk, skip)
+          // AS: _Y = 0
+          clip.y = 0;
+          // AS: f = (-f) / 2
+          clip.vars.f = (-f) / 2;
+          // AS: amp *= 0.6
+          amp *= 0.6;
+          clip.vars.amp = amp;
+          // AS: vx = amp * (-0.5 + Math.random())
+          vx = amp * (-0.5 + Math.random());
+          clip.vars.vx = vx;
+          // AS: vy = amp * (-0.5 + Math.random())
+          vy = amp * (-0.5 + Math.random());
+          clip.vars.vy = vy;
+        } else {
+          clip.vars.vx = vx;
+          clip.vars.vy = vy;
+        }
+      },
+    };
+
+    // ---- sub-sprite for fade (PlaceObject2_7_3 inside sprite_8 frame_109) ----
+    // Container-only clip; onEnterFrame decrements parent alpha by 10 each frame.
+    const fadeSym: SymbolDefinition = {
+      name: "_fade_controller",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      // AS: DefineSprite_8/frame_109/PlaceObject2_7_3/CLIPACTIONRECORD onClipEvent(enterFrame).as
+      onEnterFrame: (clip) => {
+        // AS: _parent._alpha -= 10  (parent is sprite_8)
+        const parent = clip.parent;
+        if (parent) {
+          parent.alpha = Math.max(0, parent.alpha - 10 / 100);
+        }
+      },
+    };
+
+    // ---- sprite_3 — caster-side arrow/beam (24 frames) ----------
+    // frame_1: position at cellFrom, rotate to angle
+    // frame_22: stop()
+    this.sprite3Sym = {
+      name: "sprite_3",
+      totalFrames: 24,
+      frames: textures.getFrames("sprite_3"),
+      anchorX: sprite3Anchor.x,
+      anchorY: sprite3Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: DefineSprite_3/frame_1/DoAction.as
+            // _rotation = _parent.angle;
+            // _X = _parent.cellFrom.x;
+            // _Y = _parent.cellFrom.y;
+            const root = clip.parent;
+            const angleDeg = (root?.vars.angle as number) ?? 0;
+            const cellFrom = root?.vars.cellFrom as
+              | { x: number; y: number }
+              | undefined;
+            clip.rotation = (angleDeg * Math.PI) / 180;
+            if (cellFrom) {
+              clip.x = cellFrom.x;
+              clip.y = cellFrom.y;
+            }
+          },
+        ],
+        [
+          21,
+          (clip) => {
+            // AS: DefineSprite_3/frame_22/DoAction.as
+            // stop();
+            clip.stop();
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_8 — target-side impact (144 frames) -------------
+    // frame_1: this.end() → signalHit; position at cellTo
+    // frame_7: attach bounce particle sub-sprite
+    // frame_109: attach fade controller sub-sprite
+    // frame_142: _parent.removeMovieClip(); stop() → complete()
+    this.sprite8Sym = {
+      name: "sprite_8",
+      totalFrames: 144,
+      frames: textures.getFrames("sprite_8"),
+      anchorX: sprite8Anchor.x,
+      anchorY: sprite8Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: DefineSprite_8/frame_1/DoAction.as
+            // this.end();
+            // _X = _parent.cellTo.x;
+            // _Y = _parent.cellTo.y;
+            this.runtime.signalHit();
+            const root = clip.parent;
+            const cellTo = root?.vars.cellTo as
+              | { x: number; y: number }
+              | undefined;
+            if (cellTo) {
+              clip.x = cellTo.x;
+              clip.y = cellTo.y;
+            }
+          },
+        ],
+        [
+          6,
+          (clip, ctx) => {
+            // AS: DefineSprite_8/frame_7 — PlaceObject2_5_1 placed with clipEvents
+            // This is the frame where the bounce particle is placed on sprite_8.
+            clip.attach(bounceSym, "_bounce_particle_1", 5, ctx);
+          },
+        ],
+        [
+          108,
+          (clip, ctx) => {
+            // AS: DefineSprite_8/frame_109 — PlaceObject2_7_3 placed with clipEvents
+            // This is the frame where the fade controller is placed on sprite_8.
+            clip.attach(fadeSym, "_fade_controller_3", 7, ctx);
+          },
+        ],
+        [
+          141,
+          (clip) => {
+            // AS: DefineSprite_8/frame_142/DoAction.as
+            // _parent.removeMovieClip();
+            // stop();
+            clip.stop();
+            const parent = clip.parent;
+            if (parent) {
+              parent.remove();
+            }
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
+
+    this.registry.register(bounceSym);
+    this.registry.register(fadeSym);
+    this.registry.register(this.sprite3Sym);
+    this.registry.register(this.sprite8Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-
-    // Apply fade-out logic for sprite_8 starting at frame 109 (0-indexed: 108)
-    // The impact anim is the second registered animation (index 1)
-    // We access it via the anims manager - but we need a reference
-    // Since we can't access private state, we stored impactAnim reference below
-    this._applyImpactFade(deltaTime);
-
-    if (this.anims.allStopped()) {
-      this.complete();
-    }
-  }
-
-  // We need to keep a reference to impactAnim for the fade logic
-  // Re-architect: store impactAnim as a field
-  private _impactAnim?: FrameAnimatedSprite;
-  private _fadeStarted = false;
-
-  protected setupWithRef(
-    _context: SpellContext,
-    _textures: SpellTextureProvider,
-    _init: SpellInitContext
+  protected onSpellStart(
+    _callbacks: SpellCallbacks,
+    context: SpellContext
   ): void {
-    // This method is not used - see setup() override pattern below
-  }
-
-  private _applyImpactFade(deltaTime: number): void {
-    if (!this._impactAnim) {
-      return;
-    }
-
-    // AS: frame_109 onClipEvent(enterFrame): _parent._alpha -= 10
-    // 0-indexed frame 108 onwards
-    const currentFrame = this._impactAnim.getFrame();
-    if (currentFrame >= 108) {
-      if (!this._fadeStarted) {
-        this._fadeStarted = true;
-      }
-      // Each update at/past frame 108 reduce alpha by 10 per frame equivalent
-      // The fade is applied per frame in AS, so we simulate it by reducing alpha
-      // proportionally. Since update is called once per tick with deltaTime,
-      // and fps=40, one frame = 25ms, we reduce by 10/100 = 0.1 per frame.
-      // We apply it as a rate: 0.1 per frame * (deltaTime / frameTime)
-      const frameTime = 1000 / 40;
-      const frameDelta = deltaTime / frameTime;
-      this._impactAnim.sprite.alpha = Math.max(
-        0,
-        this._impactAnim.sprite.alpha - 0.1 * frameDelta
-      );
-    }
-  }
-}
-
-// Override setup to also capture impactAnim reference
-// We need to restructure to properly hold the reference
-
-// Re-export the properly structured class
-export { Spell2056 as default };
-
-// Actual implementation with proper field reference:
-export class Spell2056Impl extends BaseSpell {
-  readonly spellId = 2056;
-
-  private impactAnim!: FrameAnimatedSprite;
-  private fadeStartFrame = 108; // 0-indexed frame 108 (AS frame 109)
-
-  protected setup(
-    _context: SpellContext,
-    textures: SpellTextureProvider,
-    init: SpellInitContext
-  ): void {
-    // sprite_3: Cast animation at caster position, rotated toward target
-    const castAnchor = calculateAnchor(CAST_MANIFEST);
-    const castAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_3"),
-        fps: 40,
-        anchorX: castAnchor.x,
-        anchorY: castAnchor.y,
-        scale: init.scale,
-      })
-    );
-    castAnim.sprite.position.set(0, init.casterY);
-    castAnim.sprite.rotation = init.angleRad;
-    // AS frame_22 DoAction: stop() -> 0-indexed 21
-    castAnim.stopAt(21);
-    this.container.addChild(castAnim.sprite);
-
-    // sprite_8: Impact animation at target position
-    const impactAnchor = calculateAnchor(IMPACT_MANIFEST);
-    this.impactAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_8"),
-        fps: 40,
-        anchorX: impactAnchor.x,
-        anchorY: impactAnchor.y,
-        scale: init.scale,
-      })
-    );
-    this.impactAnim.sprite.position.set(init.targetX, init.targetY);
-    // AS frame_1 DoAction: this.end() -> signal hit at 0-indexed frame 0
-    this.impactAnim.onFrame(0, () => this.signalHit());
-    // AS frame_142 DoAction: removeMovieClip(), stop() -> 0-indexed 141
-    this.impactAnim.stopAt(141);
-    this.container.addChild(this.impactAnim.sprite);
-  }
-
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-
-    // AS frame_109 PlaceObject2_7_3 onClipEvent(enterFrame): _parent._alpha -= 10 per frame
-    // 0-indexed: frame 108 onwards
-    // In AS, _alpha is 0-100, so -= 10 means 10% reduction per frame
-    // We convert: alpha in PixiJS is 0-1, so each frame reduces by 0.1
-    if (this.impactAnim && this.impactAnim.getFrame() >= this.fadeStartFrame) {
-      const frameTime = 1000 / 40;
-      const frameDelta = deltaTime / frameTime;
-      this.impactAnim.sprite.alpha = Math.max(
-        0,
-        this.impactAnim.sprite.alpha - 0.1 * frameDelta
-      );
-    }
-
-    if (this.anims.allStopped()) {
-      this.complete();
-    }
+    // AS: scripts/frame_2/DoAction.as → stop()
+    // No sound in the canonical main timeline.
+    // Attach both authored timelines to root so they start ticking immediately.
+    this.root.attach(this.sprite3Sym, "sprite_3", 1, context);
+    this.root.attach(this.sprite8Sym, "sprite_8", 2, context);
   }
 }

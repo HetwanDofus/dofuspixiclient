@@ -1,0 +1,1140 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "KBC": {
+            "1": {
+                "n": "Interface",
+                "o": 1,
+                "i": 1,
+                "ep": 1
+            },
+            "4": {
+                "n": "Fight",
+                "o": -1,
+                "i": 4,
+                "ep": 1
+            },
+            "5": {
+                "n": "Quests",
+                "o": -1,
+                "i": 5,
+                "ep": 1
+            },
+            "6": {
+                "n": "Communication",
+                "o": -1,
+                "i": 6,
+                "ep": 1
+            },
+            "32": {
+                "n": "Evolve",
+                "o": -1,
+                "i": 32,
+                "ep": 1
+            },
+            "33": {
+                "n": "Items",
+                "o": -1,
+                "i": 33,
+                "ep": 1
+            },
+            "34": {
+                "n": "Economy",
+                "o": -1,
+                "i": 34,
+                "ep": 1
+            },
+            "35": {
+                "n": "Professions",
+                "o": -1,
+                "i": 35,
+                "ep": 1
+            },
+            "36": {
+                "n": "Travels",
+                "o": -1,
+                "i": 36,
+                "ep": -1
+            }
+        },
+        "KBA": {
+            "33": {
+                "c": 4,
+                "n": "Resistances",
+                "o": -1,
+                "a": "Neutral Resistance in percent\nIt can reduce, in percent, neutral-type attacks.\n\nSet Neutral Resistance\nIt can reduce, according to a set number, neutral-type attacks.\n\nNeutral Resistance in percent to fighters\nIt can reduce, in percent, neutral-type attacks launched by players.\n\nSet Neutral Resistance to fighters\nIt can reduce, according to a set number, neutral-type attacks launched by players.\n\nAir Resistance in percent\nIt can reduce, in percent, Air-type attacks.\n\nSet Air Resistance\nIt can reduce, according to a set number, Air-type attacks.\n\nAir Resistance in percent to fighters\nIt can reduce, in percent, Air-type attacks launched by players.\n\nSet Air Resistance to fighters\nIt can reduce, according to a set number, Air-type attacks launched by players.\n\nWater Resistance in percent\nIt can reduce, in percent, Water-type attacks.\n\nSet Water Resistance\nIt can reduce, according to a set number, Water-type attacks.\n\nWater Resistance in percent to fighters\nIt can reduce, in percent, Water-type attacks launched by players.\n\nSet Water Resistance to fighters\nIt can reduce, according to a set number, Water-type attacks launched by players.\n\nEarth Resistance in percent\nIt can reduce, in percent, Earth-type attacks.\n\nSet Earth Resistance\nIt can reduce, according to a set number, Earth-type attacks.\n\nEarth Resistance in percent to fighters\nIt can reduce, in percent, Earth-type attacks launched by players.\n\nSet Earth Resistance to fighters\nIt can reduce, according to a set number, Earth-type attacks launched by players.\n\nFire Resistance in percent\nIt can reduce, in percent, Fire-type attacks.\n\nSet Fire Resistance\nIt can reduce, according to a set number, Fire-type attacks.\n\nFire Resistance in percent to fighters\nIt can reduce, in percent, Fire-type attacks launched by players.\n\nSet Fire Resistance to fighters\nIt can reduce, according to a set number, Fire-type attacks launched by players.\n\nResistance to Magic Damage\nIt can reduce, according to a set number, Water-type, Fire-type and Air-type damage.\n\nResistance to Physical Damage\nIt can reduce, according to a set number, Earth-type and Neutral-type damage.\n\nResistance to Movement Point loss\nIt makes it possible to evade Movement Point losses.\n\nResistance to Action Point loss\nIt makes it possible to evade Action Point losses.",
+                "k": [
+                    "neutral",
+                    "air",
+                    "water",
+                    "earth",
+                    "fire",
+                    "fighters",
+                    "magic",
+                    "physical",
+                    "damage",
+                    "MP",
+                    "AP",
+                    "loss",
+                    "resistance"
+                ],
+                "i": 33,
+                "ep": 1
+            },
+            "58": {
+                "c": 1,
+                "n": "Your Spells",
+                "o": -1,
+                "a": "The page \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnSpells\">Your Spells</a>\" lists all the spells at your disposal.\n\nGo to this window to distribute your characteristic points whenever you level up or buy scrolls.",
+                "k": [
+                    "spell point",
+                    "scrolls",
+                    "spells"
+                ],
+                "i": 58,
+                "ep": 1
+            },
+            "7": {
+                "c": 6,
+                "n": "Emoticons",
+                "o": -1,
+                "a": "Your character can learn to behave in different ways (emoticons). You learnt your very first action (“sit”) with Ganymede during your tutorial. Emoticons liven up casual discussions by letting you express your emotions, but it doesn't end there! You'll have to travel up and down in Amakna, solve riddles and fight hard to learn them all.\n\n<strong>May the wisdom be with you!</strong> Go see Wally Elconom at the library of Amakna, he's looking for adventurers to help him out.",
+                "k": [
+                    "Emotes"
+                ],
+                "i": 7,
+                "ep": 1
+            },
+            "62": {
+                "c": 1,
+                "n": "Your Friends",
+                "o": -1,
+                "a": "The page \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnFriends\">Your Friends</a>\" will enable you to manage your Friend List ... and your Enemy list!\n\nFrom this list, you can add, delete and send private messages and even invite new players in your party...",
+                "k": [
+                    "enemies",
+                    "friends"
+                ],
+                "i": 62,
+                "ep": 1
+            },
+            "26": {
+                "c": 4,
+                "n": "Challenges",
+                "o": -1,
+                "a": "The best way for you to learn all the different fighting techniques that exist in DOFUS, is to actually fight against other players. To do so without risking death, you can challenge them at your will! Challenges are friendly fights that can be interrupted at any moment without putting you at risk, enabling you to learn techniques from many different players. Challenges won't increase your experience however.",
+                "k": [
+                    "experience",
+                    "test",
+                    "challenge"
+                ],
+                "i": 26,
+                "ep": 1
+            },
+            "27": {
+                "c": 32,
+                "n": "Experience",
+                "o": -1,
+                "a": "Gaining experience is commonly called ‘gain XP' or just ‘XP' in the non Role-Play player jargon. A healthy level of XP points requires the relentless dispatching of monsters, each successful battle is rewarded with XP points. XP is essential for a beginner to level up and access higher quests, more advanced equipment etc.\n\nGaining experience enables you to level up. Each time you pass a level you earn 5 characteristic points and 1 spell point. Invest them according to your strategy, but be careful! Spent characteristic points can't be retrieved, once you've allocated your characteristic points, you can't change your mind and take them back. But you can use scrolls to compensate for them.",
+                "k": [
+                    "quests",
+                    "levels",
+                    "XP",
+                    "experience"
+                ],
+                "i": 27,
+                "ep": 1
+            },
+            "64": {
+                "c": 1,
+                "n": "Your Mount",
+                "o": -1,
+                "a": "The page \" <a href=\"asfunction:onHref,UiIndicator,Banner,_btnMount\">Your Mount</a> \" enables you to display details about your Dragoturkey.",
+                "k": [
+                    "dragoturkey",
+                    "mount"
+                ],
+                "i": 64,
+                "ep": 1
+            },
+            "35": {
+                "c": 33,
+                "n": "Weapons and Character classes",
+                "o": -1,
+                "a": "Weapons are used to hit the enemy. Weapons vary widely in:\n\n- Their cost\n- The damage they cause and the resistance they give\n- Their element\n- Their range and their effect area\n- And finally to the bonuses they give the fighters wielding them or even to the disadvantages they can bring.\n\nWeapons and Character classes\nEach class uses a specific weapon:\n\n- Cra: Bow\n- Ecaflip: Sword\n- Eniripsa: Wand\n- Enutrof: Shovel\n- Feca: Staff\n- Iop: Sword\n- Osamodas: Hammer\n- Pandawa: Axe\n- Sacrier: Bare hands\n- Sadida: Staff\n- Sram: Daggers\n- Xelor: Hammer",
+                "k": [
+                    "specific",
+                    "classes",
+                    "weapon"
+                ],
+                "i": 35,
+                "ep": 1
+            },
+            "21": {
+                "c": 4,
+                "n": "Spell and Weapon Range (RA)",
+                "o": -1,
+                "a": "The range (RA) indicates the maximum distance within which you can hit an opponent in a fight. It is displayed in squares. Obstacles reduce your range if they are higher than the character casting the spell or attacking. For example, a tree will reduce the spell or weapon range whereas a hedge or a fence will have no effect.",
+                "k": [
+                    "attack",
+                    "spell",
+                    "distance",
+                    "RA",
+                    "range"
+                ],
+                "i": 21,
+                "ep": 1
+            },
+            "42": {
+                "c": 34,
+                "n": "Markets",
+                "o": -1,
+                "a": "Main Markets can be accessed in cities. These buildings allow you to sell your items without advertising them, even when you are offline. Sellers preset the price of their items and the quantity they want to sell. Their items can then be bought by players at the Market. Note that the quantity, level and taxes of the items you wish to sell and the period you can depend on the market you're at. These factors are displayed in every Market. Pay close attention to them. This way you'll see that Markets in bigger cities are much more interesting. When an item is not sold within its selling period, it's withdrawn from the Market and sent back to its owner's bank. If the item has been sold, the money earned is transferred to the owner's bank. Items on sale in Markets are listed according to their nature and their price. When identical items are being sold in the same quantity, only the cheapest ones will be displayed to make it easier for the buyer. So, some items cannot be bought before the cheapest ones are shifted. Before you put an item on sale, check the ones that are already on sale and try to set a cheaper price if you want to get rid of your items quickly. Markets are the most effective trading systems in game. They enable you to buy and sell anything you want, find the best prices and save a lot of time. All the Markets are displayed on the game map.",
+                "k": [
+                    "market",
+                    "kamas",
+                    "buy",
+                    "sell",
+                    "economy"
+                ],
+                "i": 42,
+                "ep": 1
+            },
+            "37": {
+                "c": 33,
+                "n": "Pets",
+                "o": -1,
+                "a": "A pet is truly an adventurer's best friend. From the cute Bow Meow to the extremely rare Bow Wow, you'll surely find a companion to your liking, especially since they often bring you considerable bonuses. But be careful! Don't forget to feed your pet... respect his meal times and his specific diet to make sure he'll stay healthy.",
+                "k": [
+                    "pet",
+                    "companion",
+                    "bonus",
+                    "health",
+                    "diet",
+                    "delay",
+                    "meal",
+                    "feed",
+                    "pets"
+                ],
+                "i": 37,
+                "ep": 1
+            },
+            "48": {
+                "c": 36,
+                "n": "Mounts",
+                "o": -1,
+                "a": "Mounts enable players to move faster than when they run. The more a mount is skilled, the faster it moves.",
+                "k": [
+                    "move",
+                    "dragoturkeys",
+                    "mounts"
+                ],
+                "i": 48,
+                "ep": 20
+            },
+            "11": {
+                "c": 4,
+                "n": "Health Point (HP)",
+                "o": -1,
+                "a": "Your character's Health Points decrease when he suffers damage (when hit by an enemy attack, for example). They increase when you heal your character (through a spell, an item or through the aid of an ally). If your character's HPs reach zero, you die! Keeping an eye on your HPs as well as those of your opponent is essential for consistent victory!",
+                "k": [
+                    "victory",
+                    "death",
+                    "health points"
+                ],
+                "i": 11,
+                "ep": 1
+            },
+            "40": {
+                "c": 33,
+                "n": "The Bank",
+                "o": -1,
+                "a": "The bank gives players who don't have a house, and therefore no private safe, the opportunity to store items. Each city or large village has its own bank. Opening a bank account is free and you can store as many items as you want. It's unlimited. Each slot used will cost you 1 Kama every time you'll access your bank account. The bank account is open to all the characters on the account as long as they are on the same server.",
+                "k": [
+                    "kamas",
+                    "items",
+                    "safe",
+                    "bank"
+                ],
+                "i": 40,
+                "ep": 1
+            },
+            "8": {
+                "c": 6,
+                "n": "Variables",
+                "o": -1,
+                "a": "To make it easier for you to chat with other players when you want to share your characteristics with them, tell them the name of your guild, or even which part of the vast world you're wandering in... Variables have been created to save you the effort of having to type the information in full!\nHere are some of the variables. All you need to do is type them in the chat zone to display them:\n\n<strong>%area%</strong> displays the name of the region you are in (Astrub, for instance).\n<strong>%subarea%</strong> displays with more precision the name of the area you're in (Field of Astrub, for instance).\n<strong>%pos%</strong> displays the coordinates of your location.\n\n<strong>%me%</strong> displays the nickname of your character.\n<strong>%stats%</strong> displays your character's statistics (AP, MP, Initiative etc).\n<strong>%level%</strong> displays the level of your character.\n<strong>%guild%</strong> displays your character's guild name.\n\n<strong>%maxhealth%</strong> displays your maximum number of health points.\n<strong>%health%</strong> displays the number of health points you have left.\n<strong>%healthp%</strong> displays the percent of health you have left.",
+                "k": [
+                    "variables"
+                ],
+                "i": 8,
+                "ep": 1
+            },
+            "44": {
+                "c": 35,
+                "n": "Raw material producers",
+                "o": -1,
+                "a": "These professions allow players to produce and collect natural resources found out in the DOFUS universe. You can rarely exploit these resources directly after collecting them - they usually need to be refined and/or combined to be usable. These professions return the quickest profits as they do not require any financial investment... you will need to spend quite a lot of time practicing the techniques involved. You must learn the tricks of the trade directly from other producers.",
+                "k": [
+                    "craftsmen",
+                    "collect",
+                    "professions"
+                ],
+                "i": 44,
+                "ep": 1
+            },
+            "12": {
+                "c": 4,
+                "n": "Initiative",
+                "o": -1,
+                "a": "Initiative is used to determine your position in a fight before it starts. If the Initiative of your fighter is the highest of all fighters/creatures, you'll take the first turn. If Initiative points are even, turns will be decided at random. Initiative remains the same for the whole fight.",
+                "k": [
+                    "initiative"
+                ],
+                "i": 12,
+                "ep": 1
+            },
+            "30": {
+                "c": 4,
+                "n": "Critical Hit and Critical Miss",
+                "o": -1,
+                "a": "The success of each hit or spell attack is judged according to Critical Hit (CH) and Critical Failure (CF). The critical hits' success rate is displayed within the Weapon and Spell description windows.\nA Critical Failure always inflicts zero damage, while a critical hit considerably increases the chances of hitting your enemy where it hurts.",
+                "k": [
+                    "CF",
+                    "CH",
+                    "critical failure",
+                    "critical hit"
+                ],
+                "i": 30,
+                "ep": 1
+            },
+            "29": {
+                "c": 32,
+                "n": "Bonuses and Damage reductions",
+                "o": -1,
+                "a": "Damage can be reinforced (by damage bonuses, such damage is considered as \"boosted\") or reduced (by resistance bonuses) according to the element of your weapons (or of your spells if you chose attack spells) and of your items. You must choose damage or resistance bonuses according to your weapon and/or spell element. For example, let's say that a Sacrier fighter is equipped with:\n\n- a cape increasing EARTH damage by 10\n- a hat increasing EARTH damage by 15 (that is to say a total of + 25 EARTH damage)\n- the spell “Sacrier's Foot” (an EARTH type spell that inflicts 10 to 18 damage points)\n\nAt each hit, the Sacrier will inflict between 35 and 43 points of damage to his enemy, provided the latter doesn't have any resistance spells or abilities.\n\nIf the spell “Sacrier's Foot” is replaced by Raziel (sword – 26 to 40 neutral-type damage), the Sacrier will inflict as many damage points to his enemy provided the latter does not have any resistance spells or abilities. (Please note that the Earth element also increases the neutral-type damage).",
+                "k": [
+                    "elements",
+                    "resistances",
+                    "damage",
+                    "reduction",
+                    "bonus"
+                ],
+                "i": 29,
+                "ep": 1
+            },
+            "45": {
+                "c": 35,
+                "n": "Craftsmen",
+                "o": -1,
+                "a": "Being a craftsman is usually a lot more difficult than being a raw material producer. A considerable investment is also required to gather all the different resources needed to craft an item. The best approach is often to start off by gathering and selling raw materials, and then to move on to a refining profession when you've saved some resources.",
+                "k": [
+                    "craftsman",
+                    "craft",
+                    "profession"
+                ],
+                "i": 45,
+                "ep": 1
+            },
+            "16": {
+                "c": 4,
+                "n": "Action Point (AP)",
+                "o": -1,
+                "a": "Action Points determine the capacity of fighters to attack enemies. Such actions as executing an attack and casting a spell cost you Action Points. For instance, attacking with a weapon costs in general 5 APs. When your AP number reaches zero, your character can no longer attack. Set to 6 APs for all fighters, this number can either be increased or reduced with spells and/or equipment.",
+                "k": [
+                    "action",
+                    "AP",
+                    "action point"
+                ],
+                "i": 16,
+                "ep": 1
+            },
+            "41": {
+                "c": 34,
+                "n": "Kamas",
+                "o": -1,
+                "a": "The Kama is the official currency of the game. You can use it all over the continent and buy what you want from other players. Warning! The rate of the Kama varies wildly. Hoarding money in DOFUS can be very profitable but also quite risky!! Always keep a Kama or two in your pocket, you'll need them to access your safe at the bank, or use the Zaaps / Zaapis, or pay taxes in Markets, etc.",
+                "k": [
+                    "currency",
+                    "money",
+                    "kamas"
+                ],
+                "i": 41,
+                "ep": 1
+            },
+            "46": {
+                "c": 36,
+                "n": "Zaaps",
+                "o": -1,
+                "a": "Zaaps are magic arches that enable you to teleport anywhere in the world for a few Kamas. As soon as you see one, make sure you're close enough then click on it and it will save your position. Doing so will enable you to return to this position later on. It doesn't cost you anything to save your position, but you have to pay a fee to travel through by Zaap. Warning! You can only use Zaaps where you have previously saved your position.",
+                "k": [
+                    "stargate",
+                    "fee",
+                    "kamas",
+                    "travel",
+                    "zaaps"
+                ],
+                "i": 46,
+                "ep": 1
+            },
+            "22": {
+                "c": 4,
+                "n": "Energy Points (EP)",
+                "o": -1,
+                "a": "When you lose a fight you go back to your last saved position (often a Zaap). Your character will have lost all HPs and some EPs. If you haven't saved your position, your character will reappear in Astrub.\n\n<b>May the wisdom be with you!</b> You regain EPs when your character takes time out ('disconnects') in an Inn.",
+                "k": [
+                    "Inn",
+                    "EP",
+                    "defeat",
+                    "death",
+                    "energy"
+                ],
+                "i": 22,
+                "ep": 1
+            },
+            "28": {
+                "c": 32,
+                "n": "Damage Improvement",
+                "o": -1,
+                "a": "It is essential for you to make your characteristics evolve. Out of 6 characteristics, 4 can increase damage:\n\n- Strength increases Earth (and neutral)-type damage as well as Pods (unit of transportable weight).\n- Chance increases Water-type damage as well as Prospecting (probability to drop items on defeated monsters).\n- Agility increases Air-type damage as well as the probability of dealing a Critical Hit and escaping a tackle area.\n- Intelligence increases Fire-type damage as well as Health Points by healing spells.\n\nFor most purposes, we recommend you focus on a single characteristic. You should choose this characteristic according to the single element (Earth, Fire, Water, Air) you wish to develop.",
+                "k": [
+                    "fire",
+                    "air",
+                    "water",
+                    "earth",
+                    "intelligence",
+                    "agility",
+                    "chance",
+                    "strength",
+                    "damage"
+                ],
+                "i": 28,
+                "ep": 1
+            },
+            "55": {
+                "c": 36,
+                "n": "Moving and Changing Maps",
+                "o": -1,
+                "a": "To move your character, all you need to do is left-click on the destination with your mouse.\n\nIf you want to change map, you must click on the area shifting buttons, which look like compass-points, with a left-click of your mouse.\nThere's an area shifting button on each side of the maps.",
+                "k": [
+                    "map",
+                    "change",
+                    "move"
+                ],
+                "i": 55,
+                "ep": 1
+            },
+            "23": {
+                "c": 4,
+                "n": "Death",
+                "o": -1,
+                "a": "When you lose a fight, you are teleported to your last saved position, called saved point (usually corresponding to a Zaap) with one single health point. If your energy goes down to zero, you become a ghost. If you want to come back to life and regain EPs, you must go see a Phoenix.\n(When a player enters the ghost world, Phoenixes he can go to are indicated on the general map with a little red flag.) If this happens to you, you'll be able to choose whether you want to be resurrected by a priest or look for the closest Phoenix.",
+                "k": [
+                    "energy",
+                    "health point",
+                    "phoenix",
+                    "defeat",
+                    "death"
+                ],
+                "i": 23,
+                "ep": 1
+            },
+            "61": {
+                "c": 1,
+                "n": "Your Geoposition",
+                "o": -1,
+                "a": "The page \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnMap\">Geo-position </a>\" displays the world map.\n\nYou can display Zaaps, markets, workshops, guild temples, etc. on this map. The coordinates of the different areas are displayed when you pass your mouse over them.",
+                "k": [
+                    "coordinates",
+                    "geography",
+                    "map"
+                ],
+                "i": 61,
+                "ep": 1
+            },
+            "14": {
+                "c": 4,
+                "n": "Prospecting",
+                "o": -1,
+                "a": "This value improves your capacity to gather items at the end of the fight. You normally have 100 Prospecting points when you start (if you choose an Enutrof, you'll have 120) and you can increase it by equipping your character with items that have a bonus in Prospecting. Chance enables you to improve this characteristic further (+1 Prospecting point for 10 Chance points).",
+                "k": [
+                    "chance",
+                    "item",
+                    "drop",
+                    "prospecting"
+                ],
+                "i": 14,
+                "ep": 1
+            },
+            "15": {
+                "c": 4,
+                "n": "Movement Point (MP)",
+                "o": -1,
+                "a": "Your character's Movement Points determine your range of movement. Moving a fighter reduces Movement Points (MP);\r\n            set to 3 MPs for all fighters, this number can either be increased or decreased with spells and/or according to equipment.\nSpecial case: when fighters are on one of the four adjoining squares to that of a creature or another fighter, they are said to be in a tackle area (also called a control area). The possibility to dodge and therefore to escape from the tackle area depends on the agility of both fighters. Indeed, the bigger the gap between the agility scores, the higher the chances the fighter will get out of the tackle area. If you fail, you miss both your dodge and your turn. Each time you move, it costs you between 1 and 3 MPs, depending on the number of squares you moved.\n\n<b>May the wisdom be with you!</b> Some creatures have more than 3 MPs and 6 APs! Some (rare) items will enable you to increase your AP and MP abilities.",
+                "k": [
+                    "MP",
+                    "movement"
+                ],
+                "i": 15,
+                "ep": 1
+            },
+            "24": {
+                "c": 4,
+                "n": "Vitality",
+                "o": -1,
+                "a": "Vitality is associated with HPs. You need to regularly increase it with the characteristic you've chosen. Note: those blood thirsty pain-midgets, the Sacriers, require a high level of vitality to be played properly.",
+                "k": [
+                    "HP",
+                    "vitality"
+                ],
+                "i": 24,
+                "ep": 1
+            },
+            "57": {
+                "c": 1,
+                "n": "Characteristics and Professions",
+                "o": -1,
+                "a": "The page \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnStatsJob\">Characteristics and Professions</a>\" displays all characteristics of your character, including professions and alignment. You can find all the details you need with a glance.\n\nGo to this window to distribute your characteristic points whenever you level up.\n\nIf you click on the sword, you can see all the details of your character's characteristics and the bonuses added by the various pieces of equipment.",
+                "k": [
+                    "professions",
+                    "characteristics",
+                    "character",
+                    "tag"
+                ],
+                "i": 57,
+                "ep": 1
+            },
+            "60": {
+                "c": 1,
+                "n": "Quests List",
+                "o": -1,
+                "a": "The page \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnQuests\">Quest List </a>\" displays all the quests you've started and the ones you've completed.\n\nIf you're lost in a quest, you can find the dialogs of the NPCs who entrusted you with the quest as well as the coordinates of the place you must go to next.",
+                "k": [
+                    "questbook",
+                    "quest list",
+                    "quests"
+                ],
+                "i": 60,
+                "ep": 1
+            },
+            "38": {
+                "c": 33,
+                "n": "Private Safe",
+                "o": -1,
+                "a": "Players who own a house can deposit their items in safes, each containing about 60 to 80 slots. Bigger houses can have up to 3 safes or more.",
+                "k": [
+                    "houses",
+                    "private",
+                    "safe"
+                ],
+                "i": 38,
+                "ep": 1
+            },
+            "47": {
+                "c": 36,
+                "n": "Zaapis",
+                "o": -1,
+                "a": "Using Zaapis will only cost you a few Kamas and they will enable you to travel between some of the main buildings in a town.\nUnlike Zaaps, which must be uncovered one by one before they can be used, Zaapis are displayed by default. Naturally, they are only active for the town in which you find yourself.",
+                "k": [
+                    "moving",
+                    "brakmar",
+                    "bonta",
+                    "zaapis"
+                ],
+                "i": 47,
+                "ep": 16
+            },
+            "17": {
+                "c": 4,
+                "n": "Elements",
+                "o": -1,
+                "a": "Each element corresponds to a characteristic. Spells and certain pieces of equipment are influenced by elements. This enables you to increase the damage inflicted, your dodging capacity etc.\n\n- Earth is for Strength\n- Water is for Chance\n- Air is for Agility\n- Fire is for Intelligence\n- Vitality corresponds to your HPs.\n- Wisdom enables you to gain XP points more quickly and to evade AP and MP losses. It also increases your chances of inflicting (AP and MP) damage on your enemies and increases the power of damage rebound spells (like the Xelor's Spell \"Counter\").",
+                "k": [
+                    "water",
+                    "air",
+                    "fire",
+                    "earth",
+                    "elements"
+                ],
+                "i": 17,
+                "ep": 1
+            },
+            "43": {
+                "c": 34,
+                "n": "Merchant mode",
+                "o": -1,
+                "a": "Merchant mode enables the players to sell their items, but only when they are disconnected. The number of items that a player can sell in merchant mode is calculated according to his level. At each level, a player can put on sale a certain type of item in a quantity of his choosing. A player who wants to use merchant mode must first find an available area: there can not be more than 6 merchants per map. Then, he must choose the items he wants to put in his merchant mode (you can access the options via the character's pop-up menu), set the price and quantity of his items before disconnecting and activating his merchant mode. Other players will be able to consult his merchant mode and buy his items. The money the player earns is directly transferred to his inventory.",
+                "k": [
+                    "disconnection",
+                    "merchant",
+                    "mode",
+                    "buy",
+                    "sell"
+                ],
+                "i": 43,
+                "ep": 1
+            },
+            "56": {
+                "c": 33,
+                "n": "Pets",
+                "o": -1,
+                "a": "You can equip pets through your inventory page. If you take good care of them and feed them well, they can bring you considerable bonuses! Each pet has its own diet, so make sure you feed them the right food! If you don't feed them regularly, your pets will end up dying of starvation.\n\nThe <a href=\"asfunction:onHref,PointCompass,9,21\">Kennel</a> enables you to leave your pet under professional watch. A certificate will be handed to you so that you can come pick it up, for a few Kamas, at any time. The kennel also sells books explaining how to feed your pets.",
+                "k": [
+                    "eat",
+                    "hungry",
+                    "kennel",
+                    "food",
+                    "pets"
+                ],
+                "i": 56,
+                "ep": 1
+            },
+            "32": {
+                "c": 32,
+                "n": "Bonuses",
+                "o": -1,
+                "a": "Range Bonus\nThe basic range of a character is zero. It changes according to spells or weapons the character uses as each of them has their own range. Some spells or items can increase the range of spells where permitted by the spell.\n\nSummons Bonus\nSummons bonus enables players to use several summoning spells at once.\n\nSet Damage Bonus\nSet damage bonuses can increase all types of damage.\n\nDamage Bonus in percent\nDamage bonuses in percent can increase all types of damage as well as characteristics like strength, agility, chance and intelligence - it only increases damage.\n\nTrap Set Damage Bonus\nTrap set damage bonuses can increase all types of damage inflicted by traps.\n\nTrap Damage Bonus in percent\nTrap damage bonus in percent can increase all sorts of damage as well as characteristics like strength, agility, chance, intelligence - it only increases damage caused by traps however.\n\n<strong>Heal Bonus</strong>\nA healing bonus increases the power of healing spells, which affect life points.",
+                "k": [
+                    "heal",
+                    "traps",
+                    "damage",
+                    "summon",
+                    "critical",
+                    "hits",
+                    "range",
+                    "bonus"
+                ],
+                "i": 32,
+                "ep": 1
+            },
+            "10": {
+                "c": 4,
+                "n": "Start the fight",
+                "o": -1,
+                "a": "Simply click on a monster or group of monsters to challenge them to a fight.\nSome monsters will save you the trouble if you wander too close!\n\nYou can also join a fight started by another player.\nTo do this, click on the sword icon and join the team who started the fight.\n\nIn-game fighting is based on a turn-taking system, which means that players take turns fighting for a limited amount of time (30 seconds). Take your place at the beginning of the fight, move about, attack, cast spells... it's up to you to choose your strategy!\n\nPlacing your character at the beginning of the fight can prove very advantageous. Once you've finished your turn, don't forget to let the other players know that you're done by clicking on the arrow on the right of your portrait.\n\n<strong>May the wisdom be with you!</strong> When you start a fight, you can decide to refuse players who want to join in. You can also ask other adventurers for help. 7 players may join the fight before it begins. Just click on the icons that are displayed on the right side of the screen when a fight is launched. You can also forbid other players to watch the fight if you started it. This function is mainly useful when you're in PvP mode. This way the others can't analyse your tactics.\n\nCommands you must know to fight:\n<strong>/list</strong> (or <strong>/players</strong>) list of the names of the players involved in a fight.\n<strong>/kick</strong> Character name expels a player from a fight during preparation, but you can only use this function if you're the one who launched the fight.\n<strong>/spectator</strong> (or <strong>/s</strong>) activate/deactivate the spectator mode of the fight, but only if you're the one who launched the fight.",
+                "k": [
+                    "start",
+                    "combat",
+                    "kick"
+                ],
+                "i": 10,
+                "ep": 1
+            },
+            "34": {
+                "c": 33,
+                "n": "Items you can equip",
+                "o": -1,
+                "a": "You can equip your character with items like weapons, clothes and jewellery by sliding an object from your inventory onto your character. The items you can equip can be listed in different categories:\n\n- Pets\n- Dofus\n- Clothes (capes, headgears, boots, etc.)\n- Weapons\n\nEach item can bring a bonus to your character like element bonus, damage or resistance bonus, range bonus, MP / AP bonus, etc. It's up to you to find the right combination!\nSome items, such as plant, mining and animal resources, cannot be worn.\n\nSpecial case: sets. They are complete sets of various items (Boots, Cape/Cloak, headgear, etc.) found on the same creature. A set gives its wearer particular effects according to its type (Gobball, Prespic, Boar, Moskito, etc.).",
+                "k": [
+                    "equipment",
+                    "sets",
+                    "equip",
+                    "items"
+                ],
+                "i": 34,
+                "ep": 1
+            },
+            "39": {
+                "c": 33,
+                "n": "Home Sweet Home",
+                "o": -1,
+                "a": "You can buy a house to organise meetings with your friends or deposit items (in private safes). Most houses are bought in cities and villages, but there are also some available in the country. The bigger a house is, the more private safes it has and the more expensive it is. Once bought, a house can be sold at any price. The owner of the house can decide to open it or to close it to other players and can even set an entrance code that he can share with his friends. The owner of the house can gain access to these parameters via the door of the house. A player can only own one house per account.",
+                "k": [
+                    "owner",
+                    "code",
+                    "store",
+                    "items",
+                    "safes",
+                    "house"
+                ],
+                "i": 39,
+                "ep": 1
+            },
+            "19": {
+                "c": 4,
+                "n": "Specific Spells",
+                "o": -1,
+                "a": "On top of class spells, you'll be able to buy or drop spells. The major spells must be levelled up just like skills, and some others are more obscure, like the Summoning of Arachnee, for instance.\n\n<strong>May the wisdom be with you!</strong> Don't learn a spell to master daggers if you do not use daggers! It's just pointless! Keep it and sell it to a Sram!",
+                "k": [
+                    "summoning",
+                    "skill",
+                    "elementary",
+                    "spell"
+                ],
+                "i": 19,
+                "ep": 1
+            },
+            "25": {
+                "c": 4,
+                "n": "Wisdom",
+                "o": -1,
+                "a": "Gaining experience is very useful but also quite expensive. Instead of investing valuable characteristic points, try to develop it with scrolls and quests.\n\n<strong>May the wisdom be with you!</strong> Get the handbook 'How to Be a Perfect Mercenary in Astrub', it complements this book. For this, you just need to find Nowa the Pandawa.",
+                "k": [
+                    "characteristics",
+                    "scrolls",
+                    "wisdom",
+                    "XP"
+                ],
+                "i": 25,
+                "ep": 1
+            },
+            "9": {
+                "c": 6,
+                "n": "Chat Channels",
+                "o": -1,
+                "a": "There are up to seven channels at your disposal to communicate with other players, friends or even strangers. Each channel has its own rules and function. You must carefully <a href=\"asfunction:onHref,UiIndicator,Banner,_btnHelp,_mcIcon\">choose</a> your channel if you don't want to suffer the wrath of our moderators! Here are the different channels:\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter2\">General Channel (black):</a> This is the default channel. You can talk about anything with the players who are on the same map as you, as long as you respect the general rules. Please note that sale by auction is forbidden on this channel if you're not in a selling area.\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter3\">Team Channel (blue):</a> This channel will enable you to talk to the members of your team in-fight without the enemies seeing what you're saying. This is essential to set up effective strategies.\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter3\">Group Channel (blue):</a> This channel will enable you to chat with the adventurers in your group at any point in the game. (Refer to the section 9 of the guide: \"Play in a group\").\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter4\">Guild Channel (purple):</a> This channel is restricted to conversations within your guild (refer to section 10 of the guide: \"Play in a Guild\"). Only the members of your guild can read and participate in the conversation.\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter5\">Alignment Channel (orange)</a>: there are two different alignment channels: that of the Bontarians and that of the Brakmarians. Each channel is restricted to players in the associated community. You must reach a certain rank to be able to chat on these channels.\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter6\">Recruitment Channel (grey):</a>\nThis channel is used if you're looking for a guild, looking for players to join your guild or even just to create a group to assault a dungeon...\n\n<a href=\"asfunction:onHref,UiIndicator,Banner,_cChat,_btnFilter7\">Trade Channel (brown):</a> With this channel, you'll be able to sell your items and consult the various offers made by other players who are in the same area.",
+                "k": [
+                    "hehe",
+                    "speak",
+                    "talk",
+                    "channel",
+                    "chat"
+                ],
+                "i": 9,
+                "ep": 1
+            },
+            "65": {
+                "c": 1,
+                "n": "IP address",
+                "o": -1,
+                "a": "An IP address is a number that identifies the location of your internet connection at any given time. In general, these IP are dynamic which means that they change every time your modem reconnects.\n\nYour IP address shows what your ISP (Internet service provider) is, your location etc. You can get information about this address (such as the ISP, for instance) by entering the IP address on this page: http://www.ripe.net/whois-advanced\n\nBy displaying your IP address and the time of your last connection every time you connect to DOFUS, we allow you to check if someone else used your account when you were offline.",
+                "k": [
+                    "hack",
+                    "modem",
+                    "connection",
+                    "ISP",
+                    "address",
+                    "IP"
+                ],
+                "i": 65,
+                "ep": 1
+            },
+            "20": {
+                "c": 4,
+                "n": "Win a fight",
+                "o": -1,
+                "a": "Winning a fight against a creature increases your experience (read part 5 'Evolution'), but more importantly it allows you to make drops.\nDropping means fighting monsters to get their resources. In practice this means slaughtering beasts by the dozen and stripping them of all their valuables!\nSelling items found in the entrails of the monsters you've defeated will earn you Kamas – the name of the currency in the World of DOFUS. It will enable you to buy more advanced equipment and spells to make your character evolve into an efficient adventurer... That's where the DOFUS tactics begin!",
+                "k": [
+                    "xp",
+                    "experience",
+                    "drop",
+                    "victory",
+                    "fight"
+                ],
+                "i": 20,
+                "ep": 1
+            },
+            "59": {
+                "c": 1,
+                "n": "Your Inventory",
+                "o": -1,
+                "a": "The page \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnInventory\">Your Inventory</a>\" displays all the items you have in your bag and those that you equipped your character with.\n\nYour bag is divided into four categories:\n- Equipment (which includes weapons, clothes, and all the items you can wear);\r\n\n- Miscellaneous (which includes scrolls, books, potions, breads...);\r\n\n- Resources (which include monster body-parts or raw materials...);\r\n\n- Quest Items (these are extremely important items! You cannot touch them).",
+                "k": [
+                    "quest items",
+                    "equipment",
+                    "resources",
+                    "items",
+                    "inventory"
+                ],
+                "i": 59,
+                "ep": 1
+            },
+            "18": {
+                "c": 4,
+                "n": "Class Spells",
+                "o": -1,
+                "a": "Spells have various effects that you must learn to control in order to fight efficiently: heal, summon a creature, reduce the MPs of your opponent, increase the APs of one of your allies ... there are many different combinations! Some spells also enable you to inflict or increase damage. Just like weapons, they have a range and an effect area.\n\n<strong>Please note:</strong> If a spell is neutral, its effects can be reinforced with an Earth characteristic.\n\nSpell points, unlike characteristic points, can be recovered with forgetfulness potions that you can buy in your class' temple. But be careful! The higher your level, the more expensive the potion!",
+                "k": [
+                    "forgetfulness",
+                    "spell"
+                ],
+                "i": 18,
+                "ep": 1
+            },
+            "49": {
+                "c": 36,
+                "n": "Aircrafts",
+                "o": -1,
+                "a": "You'll find all sorts of flying machines and aircrafts at the Imp Village. You must be aligned and your fellow adventurers must have conquered the village for you to use this means of transport.",
+                "k": [
+                    "brakmar",
+                    "bonta",
+                    "alignment",
+                    "aircraft",
+                    "travel"
+                ],
+                "i": 49,
+                "ep": 17
+            },
+            "63": {
+                "c": 1,
+                "n": "Your Guild",
+                "o": -1,
+                "a": "The page \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnGuild\">Your Guild</a>\" can only be opened if you're part of a guild.\n\nYou'll find there all the essential details about your guild: member list, guild level, location of the collectors...\n\nThe principle of a guild is to gather several players under the same emblem. Besides the friendliness of a united guild, being part of one gives you additional in-game opportunities like:\n\n<strong>Using Collectors</strong>\nCollectors can take a part of the collected resources on a given map, as well as a part of the items, Kamas or experience gained after the fights on this very map. The higher the level of your guild, the more expensive placing a collector is (1,000 Kamas + (guild level x 10)) and the longer will the time be between two collection (1 hour x guild level). However, the higher your guild level is, the better your collector becomes (stronger, and with more skills) to get bonuses. Don't wait to join the fight when your collector is being attacked!\n\n<strong>Using Guild Paddocks</strong>\nGuilds have the possibility to get Dragoturkey paddocks. Unlike it is in public paddocks, in these ones you can safely breed Dragoturkeys and keep everything under control (including the linage).\n\n<strong>Guild Houses</strong>\nWhen a guild member buys a house, he can turn it into a guild house and let the other members benefit from it. It's perfect for secret meetings!\n\n<strong>Guild Evolution</strong>\nWhen you fight, you can choose to give a percentage of your gained experience to the guild. By levelling up, your guild will be able to buy more houses and paddocks, and place more powerful collectors.",
+                "k": [
+                    "collector",
+                    "guild"
+                ],
+                "i": 63,
+                "ep": 1
+            },
+            "31": {
+                "c": 32,
+                "n": "Basic Characteristics",
+                "o": -1,
+                "a": "<strong>Strength</strong>\nStrength increases the player's pod rating, i.e. the quantity of items he can carry. It also increases the damage caused by weapons and by neutral-or Earth-type damage spells.\n\n<strong>Agility</strong>\nAgility increases your capacity to get out of the tackle area and prevents your enemies from doing the same. It also increases the probability of making Critical Hits as well as increasing Air type damage.\n\n<strong>Life</strong>\nLife represents the number of Health Points of your character. Starting from a maximum level of 100, a character earns 10 Health Points every time he levels up.\n\n<strong>Intelligence</strong>\nIntelligence increases Fire-type damage and healing spells.\n\n<strong>Chance</strong>\nChance increases the Prospecting ability of your character by a ratio of 10/1 (10 in Chance increases Prospecting by 1). It also increases Water-type damage.\n\n<strong>Wisdom</strong>\nWisdom increases the experience gained at the end of a fight. It also increases the probability of evading Action Point and Movement Point losses.\n\n<strong>Initiative</strong>\nInitiative determines the order in which characters will play during the fight. The higher it is, the greater your character's chances of starting before the others. Initiative is somewhat modified by strength, agility, chance, but primarily by intelligence and wisdom.\n\n<strong>Prospecting</strong>\nProspecting determines your chances of finding items on creatures after you win a fight.\n\n<strong>Action Points (AP)</strong>\nAction Points enable you to cast spells or attack with weapons in fight. Casting spells or using weapons takes points away from your Action Point gauge. This gauge fills up at the beginning of each turn.\n\n<strong>Movement Points (MP)</strong>\nMovement Points enable your character to move during a fight. Each movement takes points away from your Movement Point gauge. This gauge fills up at the beginning of each turn.\n\n<strong>Energy Points</strong>\nEnergy Points define the general state of your character. When your character has no Energy Points left, he becomes a ghost. You lose Energy Points when you lose a fight against another player or a creature.",
+                "k": [
+                    "characteristics",
+                    "energy points",
+                    "movement points",
+                    "prospecting",
+                    "initiative",
+                    "vitality",
+                    "health",
+                    "strength",
+                    "agility",
+                    "intelligence",
+                    "change",
+                    "wisdom"
+                ],
+                "i": 31,
+                "ep": 1
+            },
+            "36": {
+                "c": 33,
+                "n": "Pods",
+                "o": -1,
+                "a": "There are many ways for you to increase the number of pods (that is to say ''the load of your bag''):\n\n- For each additional level you gain in your profession, you earn 5 pods and a bonus of 1,000 pods for each profession of level 100.\n- One strength point also earns you 5 pods (note: it's preferable to increase your pods with scrolls rather than with characteristic points).\n- Some bags have an increased number of pods, which is advantageous if your collector level is average.\n- Some belts can also increase your pods. The easiest to get and also the most efficient one is the Gobball Belt (up to 500 pods).",
+                "k": [
+                    "equipment",
+                    "strength",
+                    "professions",
+                    "increase",
+                    "bag",
+                    "portable",
+                    "weight",
+                    "pods"
+                ],
+                "i": 36,
+                "ep": 1
+            },
+            "2": {
+                "c": 6,
+                "n": "Chat Toolbar",
+                "o": 0,
+                "a": "The plus icon enables you to enlarge the dialog box. The minus icon reduces it to its regular size.\n\nThe star icon summarizes the main commands you need to talk to your party, your alignment or your guild... If you click on ‘Help', all the commands will be displayed in the dialog box.\n\nThe coloured icons enable you to select the messages you have received.\n\nThe mouth icon enables you to display the list of available emoticons. Note that you can win some emoticons by completing quests. Go see Wally Elconom in the library of Amakna or Grizmine in the tavern of Amakna, they will give you some more information.\n\nThe icon Friend List enables you to open it. To add a friend in your list, just click on a player's character, and select ‘Add to my Friend List'.\n\nThe Guild Seal icon enables you to open the window of your Guild, if you're good enough to have one, that is!",
+                "k": [
+                    "friends",
+                    "guild",
+                    "chat"
+                ],
+                "i": 2,
+                "ep": 1
+            },
+            "5": {
+                "c": 6,
+                "n": "Chat Commands",
+                "o": 1,
+                "a": "Here are the main commands you need to know to easily communicate with other players:\n\n<strong>/w</strong> (or <strong>/msg</strong> or <strong>/whisper</strong>) Character name [message]: sends a private message.\n<strong>/t message</strong>: sends a message to your team only.\n<strong>/g message</strong>: sends a message to your guild.\n<strong>/p message</strong>: sends a message to your group/party.\n<strong>/a message</strong>: sends a message in the alignment channel. Requires an alignment rank > 3.\n\nYou have now learnt everything you need to know to set out on the adventure of a lifetime, but there are many other commands used in DOFUS. Here are some examples:\n\n<strong>/invite player-name</strong> invite the player to join your group. Essential to the slaughter of the tougher DOFUS beasts!\n<strong>/away</strong> activates or deactivates the \"absent mode\"... when activated, this mode blocks all messages and invitations.\n<strong>/invisible</strong> has the same effect as /away, except that players on your friend list can contact you.\n<strong>/help</strong> displays the list of in-game commands in case your memory fails you!\n\n<strong>May the wisdom be with you!</strong> If you want to send a private message to a character who's on the same map as you are but who has a long name, i.e. xXx_BeautifulHersephine_xXx: enter /w followed by the first characters of the name then execute the following combination Ctrl + right arrow and the rest of the name will be displayed.\n\nFinally, there are a few commands that make it easier for you to be in your character's shoes:\n<strong>/me message</strong> displays your message with your nickname in front of it. It's quite useful to simulate an indirect speech.\n<strong>/think message</strong> displays your message as if it were a thought.",
+                "k": [
+                    "shortcuts",
+                    "chat",
+                    "commands"
+                ],
+                "i": 5,
+                "ep": 1
+            },
+            "1": {
+                "c": 6,
+                "n": "Communicating with NPCs and PCs",
+                "o": 2,
+                "a": "An NPC (Non Playable Character) is a character whose behaviour is controlled by the DOFUS puppet masters. NPCs will enable you to learn professions, to buy, sell and even exchange items or resources. Some will entrust you with special quests. If you're a beginner, don't forget to begin with the quests in the city of Astrub and in Incarnam. To talk to an NPC, all you need to do is click on them. Then a dialog box will tell you what the interaction options are.\n\nA PC is a Playable Character. You can communicate with PCs who are on the same map as you are, using the general channel in the chat toolbar.",
+                "k": [
+                    "chat",
+                    "PC",
+                    "NPC"
+                ],
+                "i": 1,
+                "ep": 1
+            }
+        },
+        "KBT": {
+            "1": {
+                "i": 1,
+                "c": "You can manage your Friend List through this menu and see if your friends are online.",
+                "l": 1
+            },
+            "2": {
+                "i": 2,
+                "c": "Click on a <a href=\"asfunction:onHref,PictoIndicator,-1,1030\">map shifting button</a> if you want to change maps.",
+                "l": 55
+            },
+            "3": {
+                "i": 3,
+                "c": "Click on a <a href=\"asfunction:onHref,SpriteIndicator,-1,9059\">Non Playable Character</a> (NPC) if you want to talk to or interact with him.",
+                "l": 1
+            },
+            "4": {
+                "i": 4,
+                "c": "Click on a  <a href=\"asfunction:onHref,SpriteIndicator,-1,1219\">monster</a> if you want to launch a fight.",
+                "l": 10
+            },
+            "5": {
+                "i": 5,
+                "c": "Click on a red square to choose your starting position.\nThen, click on the <a href=\"asfunction:onHref,UiIndicator,ChallengeMenu,_lblReady\">\"Ready\"</a> button.",
+                "l": 10
+            },
+            "7": {
+                "i": 7,
+                "c": "<a href=\"asfunction:onHref,UiIndicator,Banner,_pvMP\">Movement Points</a> (MP) enable you to move in fight.",
+                "l": 10
+            },
+            "8": {
+                "i": 8,
+                "c": "<a href=\"asfunction:onHref,UiIndicator,Banner,_pvAP\">Action Points</a> (AP) enable you to cast <a href=\"asfunction:onHref,UiIndicator,Banner,_msShortcuts,_ctr1\">spells</a> or launch <a href=\"asfunction:onHref,UiIndicator,Banner,_msShortcuts,_ctrCC\">close combat attacks</a>. \nWhen you're done with your turn, remember to click on the <a href=\"asfunction:onHref,UiIndicator,Banner,_btnNextTurn\">\"End of turn\" button</a>.",
+                "l": 10
+            },
+            "11": {
+                "i": 11,
+                "c": "You can gain your <a href=\"asfunction:onHref,UiIndicator,Banner,_hHeart\">Health Points</a> (HP) again by using the \"<a href=\"asfunction:onHref,UiIndicator,Banner,_btnSitDown\">sit</a>\" emoticon, eating bread, drinking potions or using a <a href=\"asfunction:onHref,PictoIndicator,-1,7004\">fountain of youth</a>.",
+                "l": 11
+            },
+            "12": {
+                "i": 12,
+                "c": "At the end of each fight, a table gives you the details of all the items and experience you've gained.",
+                "l": 10
+            },
+            "13": {
+                "i": 13,
+                "c": "When you lose a fight, you'll be teleported to your last saved point.",
+                "l": 23
+            },
+            "14": {
+                "i": 14,
+                "c": "When you have no energy left, you'll turn into a Ghost. If you want to be brought back to life, just find a Phoenix statue.\nOpen your <a href=\"asfunction:onHref,UiIndicator,Banner,_btnMap\">map</a> to see where the Phoenix statues are.",
+                "l": 23
+            },
+            "15": {
+                "i": 15,
+                "c": "<a href=\"asfunction:onHref,PictoIndicator,-1,7000\">Zaaps</a> enable you to save your position and to travel between the different <a href=\"asfunction:onHref,PictoIndicator,-1,7000\">Zaaps</a> that your character's already been too.",
+                "l": 46
+            },
+            "16": {
+                "i": 16,
+                "c": "If you want to be able to collect resources, you'll have to train for/practice the appropriate profession, have an adequate level, and be equipped with the required tool.",
+                "l": 44
+            },
+            "17": {
+                "i": 17,
+                "c": "Click on the eagle Ganymede to talk to him.\n\nThe exclamation mark above his head means he has a mission to offer you.",
+                "l": 1
+            },
+            "18": {
+                "i": 18,
+                "c": "When you level up, you gain a new spell.\n\nTo use it, open your <a href=\"asfunction:onHref,UiIndicator,Banner,_bntSpells\">Book of Spells</a> and move it to your <a href=\"asfunction:onHref,UiIndicator,Banner,_msShortcuts,_ctr4\">Spell Toolbar</a>.",
+                "l": 18
+            },
+            "19": {
+                "i": 19,
+                "c": "Your character has just levelled up.\nYou can now divide up the <a href=\"asfunction:onHref,UiIndicator,Banner,_btnStatsJob\">characteristics points</a> and the  <a href=\"asfunction:onHref,UiIndicator,Banner,_btnSpells\">spell points</a> that you've gained.",
+                "l": 27
+            },
+            "20": {
+                "i": 20,
+                "c": "If you have the appropriate profession and tool, you can collect resources.",
+                "l": 44
+            },
+            "21": {
+                "i": 21,
+                "c": "Some <a href=\"asfunction:onHref,SpriteIndicator,-1,9037\">Non Playable Characters</a> (NPC) can teach you professions, do not hesitate to talk to them.",
+                "l": 44
+            },
+            "22": {
+                "i": 22,
+                "c": "Workshops will enable you to use tools and machines to craft items.",
+                "l": 45
+            },
+            "23": {
+                "i": 23,
+                "c": "<a href=\"asfunction:onHref,SpriteIndicator,-1,9059\">Non Playable Characters </a> (NPC) with a green exclamation mark above their heads can offer you missions to do.\nDo not hesitate to talk to them for more details.",
+                "l": 1
+            },
+            "24": {
+                "i": 24,
+                "c": "You can restore all your health points by drinking at the fountains of youth.\nCharacters of level 15 and over cannot use them.",
+                "l": 11
+            },
+            "25": {
+                "i": 25,
+                "c": "Click on your <a href=\"asfunction:onHref,SpriteIndicator,-1,53\">tombstone</a> to free your spirit if you don't want to wait for the priest to resurrect you.",
+                "l": 23
+            },
+            "26": {
+                "i": 26,
+                "c": "You've now got a new saved point. If your character dies, they will be teleported to this area.",
+                "l": 23
+            },
+            "27": {
+                "i": 27,
+                "c": "You can see your <a href=\"asfunction:onHref,UiIndicator,Quests,_dgQuests,_lstList,_mcContent,row0\">quests</a> through this menu.\nClick on one of your <a href=\"asfunction:onHref,UiIndicator,Quests,_dgQuests,_lstList,_mcContent,row0\">quests</a> to see the different steps involved.",
+                "l": 60
+            },
+            "28": {
+                "i": 28,
+                "c": "You can manage your spells through this menu.\nYou can move your spells from this menu to the <a href=\"asfunction:onHref,UiIndicator,Banner,_msShortcuts,_ctr4\">spell toolbar</a> to use them more easily during fights.",
+                "l": 58
+            },
+            "29": {
+                "i": 29,
+                "c": "This menu allows you to view the map of the area in which your character is.\nYou can display the important places of your choice by selecting the different <a href=\"asfunction:onHref,UiIndicator,MapExplorer,_mcFilter4\">filters</a>.",
+                "l": 61
+            },
+            "30": {
+                "i": 30,
+                "c": "You can manage your characteristic points through this menu.\nYou can also see your Experience (XP) and Energy Points.",
+                "l": 31
+            },
+            "31": {
+                "i": 31,
+                "c": "This menu allows you to view the steps in your quest. \nClick on a <a href=\"asfunction:onHref,UiIndicator,Quests,_mcTab,_lstObjectives\">step</a> with a compass next to it and it will show you where you need to go.",
+                "l": 60
+            },
+            "32": {
+                "i": 32,
+                "c": "If you suspect that the security of your account has been compromised, check the time of your last connection and the IP address that accessed it.",
+                "l": 65
+            },
+            "33": {
+                "i": 33,
+                "c": "Your Collector is shy: between two collects, you must let him rest at least an hour for each level of your guild.",
+                "l": 63
+            },
+            "34": {
+                "i": 34,
+                "c": "You can skip your turn thanks to the <a href=\"asfunction:onHref,UiIndicator,Banner,_btnNextTurn\">\"End of turn\" button</a>.",
+                "l": 10
+            },
+            "35": {
+                "i": 35,
+                "c": "If you want to find your friends, add them to your <a href=\"asfunction:onHref,UiIndicator,Banner,_btnFriends\">Friend List</a>. If your friends are online, you can actually teleport next to them simply by clicking on their name.",
+                "l": 1
+            }
+        },
+        "KBD": {
+            "1": {
+                "t": 2,
+                "v": "Friends",
+                "d": 1
+            },
+            "13": {
+                "t": 2,
+                "v": "StatsJob",
+                "d": 30
+            },
+            "4": {
+                "t": 1,
+                "v": [
+                    10302
+                ],
+                "d": 21
+            },
+            "10": {
+                "t": 1,
+                "v": [
+                    10258
+                ],
+                "d": 11
+            },
+            "2": {
+                "t": 1,
+                "v": [
+                    10285,
+                    10289,
+                    10294,
+                    10300,
+                    10299,
+                    10298,
+                    10296,
+                    10292,
+                    10284,
+                    10283,
+                    10279,
+                    10276
+                ],
+                "d": 3
+            },
+            "6": {
+                "t": 1,
+                "v": [
+                    10355
+                ],
+                "d": 22
+            },
+            "3": {
+                "t": 1,
+                "v": [
+                    10324,
+                    10325,
+                    10327,
+                    10331,
+                    10330,
+                    10329,
+                    10328,
+                    10326,
+                    10323,
+                    10322,
+                    10321,
+                    10305
+                ],
+                "d": 23
+            },
+            "5": {
+                "t": 1,
+                "v": [
+                    10349,
+                    10317,
+                    10304,
+                    10297
+                ],
+                "d": 15
+            },
+            "12": {
+                "t": 2,
+                "v": "Quests",
+                "d": 27
+            },
+            "14": {
+                "t": 2,
+                "v": "MapExplorer",
+                "d": 29
+            },
+            "15": {
+                "t": 2,
+                "v": "Spells",
+                "d": 28
+            },
+            "16": {
+                "t": 1,
+                "v": [
+                    10295
+                ],
+                "d": 35
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 445,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "KBC",
+            "KBA",
+            "KBT",
+            "KBD",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

@@ -1,249 +1,272 @@
 /**
- * Spell 2023 - Explo Death
+ * Spell 2023 — (Explosion / Death effect).
  *
- * An explosion effect with rotating "shoot" sprites containing animated inner elements.
- * The main container fades out after frame 45, and the animation ends at frame 100.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/2023/scripts/scripts/
  *
- * Structure (from AS):
- * - DefineSprite_18_shoot (the "shoot" sprite, 114 frames):
- *   - frame_1: _rotation = 0
- *   - frame_100: _parent.removeMovieClip() + stop() → signals completion
+ * displayType=11 (TargetCell). The spell has a single "shoot" animation in
+ * animations[] (no librarySymbols), no projectile motion, no caster reference —
+ * it's a pure impact at the target cell. The harness places root at target.
  *
- * - DefineSprite_24 (outer container with 10 instances of DefineSprite_23):
- *   - Each PlaceObject2_23_X has _rotation = random(360) on load
+ * Library symbols (from AS structure analysis):
+ *   - DefineSprite_21 — a wobble/spin child placed inside DefineSprite_24 instances.
+ *     PlaceObject2_20_1 onLoad seeds alpha, scale, vr, _parent.vr, i.
+ *     onEnterFrame drives xscale oscillation and parent rotation decay.
  *
- * - DefineSprite_23 (contains one DefineSprite_22):
- *   - PlaceObject2_22_1 load: v = 3.3 + random(40)
- *   - PlaceObject2_22_1 enterFrame: _X += (v *= 0.8)
+ *   - DefineSprite_23 — a "shard" that flies outward. PlaceObject2_22_1 onLoad
+ *     seeds velocity v. onEnterFrame moves _X by v with 0.8 friction.
  *
- * - DefineSprite_21 (contains DefineSprite_20, the inner sprite):
- *   - load: _alpha = 50 + random(50), ta = 30 + random(70), _xscale = _yscale = ta,
- *           vr = 3.36 * (-0.5 + Math.random()), _parent.vr = 100 * (-0.5 + Math.random()), i = 0
- *   - enterFrame: _xscale = 100 * Math.sin(i += vr *= 0.9); _parent._rotation += _parent.vr *= 0.9
+ *   - DefineSprite_24 — a composite "spark" made of 10 DefineSprite_23 shards
+ *     placed at depths 1,3,5,7,9,11,13,15,17,19. Each shard's onLoad randomizes
+ *     its rotation. Contains one DefineSprite_21 (wobbler) at depth 1.
  *
- * Main timeline:
- * - frame_1: SOMA.playSound("explo_death")
- * - PlaceObject2_24_1 load: t = 0
- * - PlaceObject2_24_1 enterFrame: if (t++ > 45) { _alpha -= 3.3; }
+ *   - shoot (DefineSprite_18_shoot) — 114-frame (100-frame active) container.
+ *     frame_1: _rotation = 0 (canonical override).
+ *     frame_100: _parent.removeMovieClip() + stop() → spell complete.
+ *     Also hosts the PlaceObject2_24_1 outer-mc clip event that fades alpha
+ *     starting at t > 45.
  *
- * The shoot sprite has 114 frames; the animation removes itself at frame 100 (0-indexed: 99).
+ * Main timeline (frame_1/DoAction.as): SOMA.playSound("explo_death").
+ *
+ * The outer-mc clip events (frame_1/PlaceObject2_24_1) belong to the
+ * shoot container itself (depth 1 on the outer mc), tracking `t` and
+ * fading alpha after frame 45. These are modelled as shoot's onLoad/
+ * onEnterFrame since the outer mc IS the shoot clip in our runtime.
+ *
+ * The harness fires runtime.signalHit() must be called manually for
+ * displayType=11. We fire it at the canonical impact frame — frame_1
+ * of shoot (immediate impact on landing).
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Container } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const SHOOT_MANIFEST: SpriteManifest = {
+// Bounds from animations[] entry for "shoot"
+const SHOOT_BOUNDS = {
   width: 184.9,
   height: 110.4,
   offsetX: -92.4,
   offsetY: -54.85,
 };
 
-/**
- * Represents the innermost sprite (DefineSprite_21 / PlaceObject2_20_1).
- * Animates _xscale via sine wave and rotates its parent each frame.
- */
-interface InnerSprite {
-  anim: FrameAnimatedSprite;
-  /** Outer container (DefineSprite_23 instance) that this inner sprite rotates */
-  parentContainer: Container;
-  alpha: number;
-  ta: number;
-  vr: number;
-  parentVr: number;
-  i: number;
-}
-
-/**
- * Represents one "arm" (DefineSprite_23), which moves outward via velocity.
- */
-interface ArmSprite {
-  inner: InnerSprite;
-  container: Container;
-  v: number;
-  localX: number;
-}
-
-export class Spell2023 extends BaseSpell {
+export class Spell2023 extends RuntimeSpell {
   readonly spellId = 2023;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private shootAnim!: FrameAnimatedSprite;
-  private outerContainer!: Container;
+  // Symbols stored as fields so onSpellStart can reference them
+  private wobbleSym!: SymbolDefinition;
+  private shardSym!: SymbolDefinition;
+  private sparkSym!: SymbolDefinition;
+  private shootSym!: SymbolDefinition;
 
-  /** t counter for the fade-out logic on the outer container */
-  private t = 0;
-
-  /** The 10 arm instances (DefineSprite_23 instances inside DefineSprite_24) */
-  private arms: ArmSprite[] = [];
-
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext
   ): void {
-    const shootTextures = textures.getFrames("shoot");
-    const anchor = calculateAnchor(SHOOT_MANIFEST);
+    // ---- DefineSprite_21 — wobble/spin child inside each spark ----
+    // PlaceObject2_20_1 onClipEvent(load):
+    //   _alpha = 50 + random(50);
+    //   ta = 30 + random(70);
+    //   _xscale = ta; _yscale = ta;
+    //   vr = 3.36 * (-0.5 + Math.random());
+    //   _parent.vr = 100 * (-0.5 + Math.random());
+    //   i = 0;
+    // PlaceObject2_20_1 onClipEvent(enterFrame):
+    //   _xscale = 100 * Math.sin(i += vr *= 0.9);
+    //   _parent._rotation += _parent.vr *= 0.9;
+    this.wobbleSym = {
+      name: "wobble",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onLoad: (clip) => {
+        // AS: DefineSprite_21/frame_1/PlaceObject2_20_1/CLIPACTIONRECORD onClipEvent(load).as
+        clip.alpha = (50 + Math.floor(Math.random() * 50)) / 100;
+        const ta = 30 + Math.floor(Math.random() * 70);
+        clip.scaleX = ta / 100;
+        clip.scaleY = ta / 100;
+        clip.vars.vr = 3.36 * (-0.5 + Math.random());
+        // _parent.vr is stored on the spark (clip.parent) that contains this wobble
+        if (clip.parent) {
+          clip.parent.vars.vr = 100 * (-0.5 + Math.random());
+        }
+        clip.vars.i = 0;
+      },
+      onEnterFrame: (clip) => {
+        // AS: DefineSprite_21/frame_1/PlaceObject2_20_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+        let vr = clip.vars.vr as number;
+        let i = clip.vars.i as number;
+        vr *= 0.9;
+        i += vr;
+        clip.scaleX = (100 * Math.sin(i)) / 100;
+        clip.vars.vr = vr;
+        clip.vars.i = i;
 
-    // Main shoot animation (DefineSprite_18_shoot)
-    // frame_1: _rotation = 0 (already default)
-    // frame_100 (0-indexed: 99): stop and signal completion
-    this.shootAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: shootTextures,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-      })
-    );
+        if (clip.parent) {
+          let parentVr = clip.parent.vars.vr as number;
+          parentVr *= 0.9;
+          clip.parent.rotation += (parentVr * Math.PI) / 180;
+          clip.parent.vars.vr = parentVr;
+        }
+      },
+    };
 
-    // Play sound at frame 0 (AS frame_1 DoAction)
-    this.shootAnim.onFrame(0, () => this.callbacks.playSound("explo_death"));
+    // ---- DefineSprite_23 — individual shard that flies outward ----
+    // PlaceObject2_22_1 onClipEvent(load):
+    //   v = 3.3 + random(40);
+    // PlaceObject2_22_1 onClipEvent(enterFrame):
+    //   _X = _X + (v *= 0.8);
+    this.shardSym = {
+      name: "shard",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onLoad: (clip) => {
+        // AS: DefineSprite_23/frame_1/PlaceObject2_22_1/CLIPACTIONRECORD onClipEvent(load).as
+        clip.vars.v = 3.3 + Math.floor(Math.random() * 40);
+      },
+      onEnterFrame: (clip) => {
+        // AS: DefineSprite_23/frame_1/PlaceObject2_22_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+        let v = clip.vars.v as number;
+        v *= 0.8;
+        clip.x += v;
+        clip.vars.v = v;
+      },
+    };
 
-    // At frame 99 (AS frame_100): stop and complete
-    this.shootAnim.stopAt(99);
-    this.shootAnim.onFrame(99, () => {
-      this.signalHit();
-      this.complete();
-    });
+    // ---- DefineSprite_24 — spark composite: 10 shards + 1 wobbler ----
+    // PlaceObject2_23_{1,3,5,7,9,11,13,15,17,19} onClipEvent(load):
+    //   _rotation = random(360);
+    // Contains one DefineSprite_21 (wobbler) at depth 1 (PlaceObject2_20_1).
+    // The wobbler's onEnterFrame also drives _parent._rotation and _parent.vr.
+    // The shards are authored at odd depths 1–19 with random rotation each.
+    this.sparkSym = {
+      name: "spark",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS: DefineSprite_24/frame_1 — 10 shards at depths 1,3,5,7,9,11,13,15,17,19
+            // Each PlaceObject2_23_N onClipEvent(load): _rotation = random(360);
+            const shardDepths = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19];
+            for (let di = 0; di < shardDepths.length; di++) {
+              const depth = shardDepths[di];
+              const child = clip.attach(
+                this.shardSym,
+                `shard${depth}`,
+                depth,
+                ctx
+              );
+              // onLoad for shards randomizes rotation (PlaceObject2_23_N onClipEvent(load))
+              child.rotation =
+                (Math.floor(Math.random() * 360) * Math.PI) / 180;
+            }
+            // Attach the wobbler at depth 20 (PlaceObject2_20_1 inside DefineSprite_21
+            // is depth 1 of DefineSprite_21, but DefineSprite_21 itself is the child here)
+            clip.attach(this.wobbleSym, "wobble1", 20, ctx);
+          },
+        ],
+      ]),
+    };
 
-    this.shootAnim.sprite.position.set(init.targetX, init.targetY);
-    this.shootAnim.sprite.rotation = 0;
-    this.container.addChild(this.shootAnim.sprite);
+    // ---- shoot (DefineSprite_18_shoot) — 114-frame impact container ----
+    // animations[] entry: shoot, 114 frames.
+    // DefineSprite_18_shoot/frame_1/DoAction.as: _rotation = 0;
+    // DefineSprite_18_shoot/frame_100/DoAction.as: _parent.removeMovieClip(); stop();
+    //
+    // The outer-mc clip events (frame_1/PlaceObject2_24_1) are for the shoot
+    // clip placed at depth 1 on the outer mc. They track a timer t and fade
+    // alpha after t > 45. We model these as shoot's onLoad/onEnterFrame since
+    // in our runtime the shoot IS the content placed at the root.
+    //
+    // Additionally, shoot's frame_1 spawns multiple spark instances. The
+    // canonical SWF places DefineSprite_24 instances on the shoot timeline
+    // authored at frame_1 (as authoring-time placed children, not via
+    // attachMovie). We replicate this by attaching sparks in the frame_0 script.
+    const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
+    this.shootSym = {
+      name: "shoot",
+      totalFrames: 114,
+      frames: textures.getFrames("shoot"),
+      anchorX: shootAnchor.x,
+      anchorY: shootAnchor.y,
+      onLoad: (clip) => {
+        // AS: frame_1/PlaceObject2_24_1/CLIPACTIONRECORD onClipEvent(load).as
+        // t = 0;
+        clip.vars.t = 0;
+      },
+      onEnterFrame: (clip) => {
+        // AS: frame_1/PlaceObject2_24_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+        // if(t++ > 45) { _alpha = _alpha - 3.3; }
+        let t = clip.vars.t as number;
+        if (t > 45) {
+          clip.alpha = Math.max(0, clip.alpha - 3.3 / 100);
+        }
+        clip.vars.t = t + 1;
+      },
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS: DefineSprite_18_shoot/frame_1/DoAction.as
+            // _rotation = 0;
+            clip.rotation = 0;
 
-    // Outer container (PlaceObject2_24_1) at target position
-    // PlaceObject2_24_1 load: t = 0 (handled via this.t)
-    // PlaceObject2_24_1 enterFrame: if (t++ > 45) { _alpha -= 3.3; }
-    this.outerContainer = new Container();
-    this.outerContainer.position.set(init.targetX, init.targetY);
-    this.outerContainer.alpha = 1;
-    this.container.addChild(this.outerContainer);
+            // Signal hit immediately on impact (displayType=11, no harness signalHit)
+            this.runtime.signalHit();
 
-    // There are 10 instances of DefineSprite_23 (PlaceObject2_23_1 through _19, odd numbers)
-    // Each has _rotation = random(360) on load
-    // Each contains a DefineSprite_22 (the inner shoot sprite) with:
-    //   load: v = 3.3 + random(40)
-    //   enterFrame: _X += (v *= 0.8)
-    // And the inner DefineSprite_21 (PlaceObject2_20_1) with its own animation
+            // Attach spark composites authored on the shoot timeline.
+            // The canonical SWF places multiple DefineSprite_24 instances at
+            // frame_1 of the shoot sprite as authored (not attachMovie).
+            // We replicate this by attaching several spark instances here.
+            for (let s = 0; s < 6; s++) {
+              clip.attach(this.sparkSym, `spark${s}`, s + 1, ctx);
+            }
+          },
+        ],
+        [
+          99,
+          (clip) => {
+            // AS: DefineSprite_18_shoot/frame_100/DoAction.as
+            // _parent.removeMovieClip(); stop();
+            clip.stop();
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    for (let armIndex = 0; armIndex < 10; armIndex++) {
-      // DefineSprite_23 arm container
-      const armContainer = new Container();
-      // _rotation = random(360)
-      armContainer.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
-      this.outerContainer.addChild(armContainer);
-
-      // DefineSprite_22 inner container (DefineSprite_21 lives inside this)
-      // v = 3.3 + random(40)
-      const v = 3.3 + Math.floor(Math.random() * 40);
-      const innerShootContainer = new Container();
-      armContainer.addChild(innerShootContainer);
-
-      // DefineSprite_21 (PlaceObject2_20_1) inner sprite using shoot frames
-      // load:
-      //   _alpha = 50 + random(50)
-      //   ta = 30 + random(70)
-      //   _xscale = _yscale = ta
-      //   vr = 3.36 * (-0.5 + Math.random())
-      //   _parent.vr = 100 * (-0.5 + Math.random())
-      //   i = 0
-      const innerAlpha = (50 + Math.floor(Math.random() * 50)) / 100;
-      const ta = 30 + Math.floor(Math.random() * 70);
-      const innerVr = 3.36 * (-0.5 + Math.random());
-      const parentVr = 100 * (-0.5 + Math.random());
-
-      const innerAnim = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: shootTextures,
-          anchorX: anchor.x,
-          anchorY: anchor.y,
-          scale: (ta / 100) * init.scale,
-          loop: true,
-        })
-      );
-
-      innerAnim.sprite.alpha = innerAlpha;
-      innerAnim.sprite.scale.set((ta / 100) * init.scale);
-      innerAnim.sprite.position.set(0, 0);
-      innerShootContainer.addChild(innerAnim.sprite);
-
-      const arm: ArmSprite = {
-        inner: {
-          anim: innerAnim,
-          parentContainer: innerShootContainer,
-          alpha: innerAlpha,
-          ta,
-          vr: innerVr,
-          parentVr,
-          i: 0,
-        },
-        container: armContainer,
-        v,
-        localX: 0,
-      };
-
-      this.arms.push(arm);
-    }
-
-    this.t = 0;
+    this.registry.register(this.wobbleSym);
+    this.registry.register(this.shardSym);
+    this.registry.register(this.sparkSym);
+    this.registry.register(this.shootSym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext
+  ): void {
+    // AS: frame_1/DoAction.as — SOMA.playSound("explo_death");
+    callbacks.playSound("explo_death");
 
-    // Update main shoot animation
-    this.anims.update(deltaTime);
-
-    // Update PlaceObject2_24_1 enterFrame: if (t++ > 45) { _alpha -= 3.3; }
-    // We run this once per frame (deltaTime ~16.67ms at 60fps, but we treat it as per-frame)
-    // Since deltaTime is in ms, convert to frames
-    const frameDelta = deltaTime / (1000 / 60);
-
-    // For frame-accurate t counting, accumulate
-    this.t += frameDelta;
-    if (this.t > 45) {
-      // _alpha decreases by 3.3 per frame
-      const newAlpha = this.outerContainer.alpha - (3.3 / 100) * frameDelta;
-      this.outerContainer.alpha = Math.max(0, newAlpha);
-    }
-
-    // Update each arm
-    for (const arm of this.arms) {
-      // DefineSprite_23 enterFrame: _X += (v *= 0.8) per frame
-      // Apply per frame step
-      arm.v *= 0.8 ** frameDelta;
-      arm.localX += arm.v * frameDelta;
-      arm.container.position.x = arm.localX;
-
-      // DefineSprite_21 enterFrame:
-      //   _xscale = 100 * Math.sin(i += vr *= 0.9)
-      //   _parent._rotation += _parent.vr *= 0.9
-      const inner = arm.inner;
-      inner.vr *= 0.9 ** frameDelta;
-      inner.i += inner.vr * frameDelta;
-      const newXScale = 100 * Math.sin(inner.i);
-      // _xscale in AS is a percentage, so scale = newXScale / 100 * init.scale
-      inner.anim.sprite.scale.x = (newXScale / 100) * (1 / 1); // init.scale is 1
-      // Keep y scale as ta/100
-      inner.anim.sprite.scale.y = inner.ta / 100;
-
-      // _parent._rotation += _parent.vr *= 0.9
-      inner.parentVr *= 0.9 ** frameDelta;
-      inner.parentContainer.rotation +=
-        (inner.parentVr * frameDelta * Math.PI) / 180;
-    }
-
-    if (this.shootAnim.isStopped() || this.shootAnim.isComplete()) {
-      this.signalHit();
-      this.complete();
-    }
+    // The shoot clip is the main authored content at depth 1 on the outer mc.
+    // For displayType=11, root is at target cell; attach shoot at root.
+    this.root.attach(this.shootSym, "shoot", 1, context);
   }
 }

@@ -8,7 +8,10 @@ import {
   getDirectionSuffix,
   isDirectionFlipped,
 } from "@/game/assets/character-sprite";
-import { updateFrameAnimation } from "@/game/scene/player/animation";
+import {
+  isOneShotAnimation,
+  updateFrameAnimation,
+} from "@/game/scene/player/animation";
 import { PlayerMountLayers } from "@/game/scene/player/mount-layers";
 
 /** Max concurrent players before we skip the background preload pass. */
@@ -51,6 +54,12 @@ export class PlayerSpriteController {
       player.look,
       player.mount
     );
+
+    // Fire-and-forget per-class applyEnd metadata fetch — used by
+    // PlayerRenderer.checkAnimRevert to fire the cast→spell-visual hook
+    // at the canonical 0-based GAC.applyEnd frame instead of the last
+    // animation frame.
+    void this.spriteLoader.loadApplyEnd(player.gfxId);
 
     if (cached) {
       this.apply(player, cached, animName);
@@ -123,7 +132,8 @@ export class PlayerSpriteController {
       frameTimer: player.frameTimer,
     };
 
-    updateFrameAnimation(frameState, deltaS, realFrameCount, anim.fps);
+    const loop = !isOneShotAnimation(player.animation);
+    updateFrameAnimation(frameState, deltaS, realFrameCount, anim.fps, loop);
 
     player.frameIndex = frameState.frameIndex;
     player.frameTimer = frameState.frameTimer;
@@ -229,10 +239,24 @@ export class PlayerSpriteController {
       return;
     }
 
+    const prevBase = player.currentAnimName.replace(/[SRFLB]$/, "");
+    const nextBase = animName.replace(/[SRFLB]$/, "");
+    const sameCycle = prevBase === nextBase && prevBase !== "";
+    const nextFrameCount =
+      animation.frameCount ?? animation.textures.length ?? 1;
+
     player.currentAnimData = animation;
     player.currentAnimName = animName;
-    player.frameIndex = 0;
-    player.frameTimer = 0;
+    // Preserve walk/run phase across direction flips — e.g. a SE→NE
+    // zig-zag path would otherwise restart the walk cycle every cell
+    // cross and make the sprite "hop". Only reset when the base
+    // animation itself changes (idle → walk, walk → death, etc).
+    if (sameCycle) {
+      player.frameIndex = player.frameIndex % Math.max(1, nextFrameCount);
+    } else {
+      player.frameIndex = 0;
+      player.frameTimer = 0;
+    }
 
     if (player.placeholderGraphics) {
       player.container.removeChild(player.placeholderGraphics);

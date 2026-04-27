@@ -1,272 +1,451 @@
 /**
- * Spell 3000 - Multi-element spell (Turquoise Dofus / Soft Oak / etc.)
+ * Spell 3000 — Triade / Multi-Element (Xelor / Eliotrope composite).
  *
- * A multi-element effect that shows particle sprites based on params (fire, water, earth, air).
- * Each element spawns its own set of particle instances.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/3000/scripts/scripts/
  *
- * Components:
- * - sprite_4 (fire): Rotating looping particles at target, stops at frame 60
- * - sprite_12 (water): Simple particles at target, stops at frame 30
- * - sprite_15 (earth): Simple particles at target, stops at frame 30
- * - sprite_26 (air): Simple particles at target, stops at frame 39
- * - sprite_29: Container/coordinator that removes itself at frame 57
+ * displayType=11 (TargetCell). The spell has no caster reference, no
+ * projectile motion, no beam line — it is a pure impact at the target
+ * cell. The main timeline has a single `stop()` on frame_2 (no sound).
  *
- * Original AS timing:
- * - sprite_4 frame_1: random rotation, scale, position, start frame (random(15)+1), rotation decay
- * - sprite_12 frame_1: random rotation, position, start frame (random(10)+1)
- * - sprite_12 frame_31: stop()
- * - sprite_15 frame_1: random rotation, scale, position, start frame (random(10)+1)
- * - sprite_15 frame_31: stop()
- * - sprite_26 frame_1: random rotation, scale, position, start frame (random(5)+1)
- * - sprite_26 frame_40: stop()
- * - sprite_4 frame_61: stop()
- * - sprite_29 frame_58: removeMovieClip / animation ends
+ * Layout:
+ *   - sprite_4   (63-frame composite)   — per-particle rotating fire
+ *       burst. frame_1 seeds random rotation/scale/position, sets a
+ *       spinning onEnterFrame (vr decays by 0.9). frame_61 stops.
+ *   - sprite_12  (33-frame)             — air/water element hit.
+ *       frame_1 seeds random rotation/position/phase.
+ *       frame_31 stops.
+ *   - sprite_15  (33-frame)             — earth element hit.
+ *       frame_1 seeds random rotation/scale/position/phase.
+ *       frame_31 stops.
+ *   - sprite_26  (42-frame)             — fire slash streak.
+ *       frame_1 seeds random rotation/scale/position/phase.
+ *       frame_40 stops.
+ *   - sprite_29  (60-frame, composite)  — outer controller driving
+ *       element particle spawning. frame_1 onClipEvent(load) reads
+ *       _parent._parent.params to determine which element particles
+ *       to attach (part_f / part_w / part_e / part_a). frame_58
+ *       does _parent.removeMovieClip() + stop() → spell complete.
  *
- * The sprite_29 onClipEvent(load) spawns:
- *   n = 14 - 3*fire - 3*water - 3*earth - 3*air particles per active element
- *   Each active element gets n particle instances
+ * Library symbols (used by sprite_29's onClipEvent(load)):
+ *   - part_f  — fire particle    (single frame)
+ *   - part_w  — water particle   (single frame)
+ *   - part_e  — earth particle   (single frame)
+ *   - part_a  — air particle     (single frame)
+ *
+ * The sprite_29 container is the outermost timeline; its frame_58
+ * removes the parent (the outer mc) and signals completion.
+ * signalHit is fired from sprite_29 frame_1 onLoad (once particles
+ * are spawned — canonical impact point).
+ *
+ * Main timeline: frame_2/DoAction.as → stop() only. No sound.
+ * All four display sprites (sprite_4, sprite_12, sprite_15, sprite_26,
+ * sprite_29) are attached from onSpellStart at the canonical root.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Container } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const SPRITE_4_MANIFEST: SpriteManifest = {
+// ---- Manifest bounds for library symbols ----
+const PART_F_BOUNDS = {
+  width: 29.35,
+  height: 27.6,
+  offsetX: -4.5,
+  offsetY: -18,
+};
+const PART_W_BOUNDS = {
+  width: 49.75,
+  height: 48.4,
+  offsetX: -14,
+  offsetY: -35.05,
+};
+const PART_E_BOUNDS = {
+  width: 61.75,
+  height: 60.6,
+  offsetX: -16.3,
+  offsetY: -25.95,
+};
+const PART_A_BOUNDS = {
+  width: 32.2,
+  height: 37.45,
+  offsetX: -29,
+  offsetY: -37.45,
+};
+
+// ---- Manifest bounds for animation symbols ----
+const SPRITE_4_BOUNDS = {
   width: 78.3,
   height: 101,
   offsetX: -41.15,
   offsetY: -94.25,
 };
-
-const SPRITE_12_MANIFEST: SpriteManifest = {
+const SPRITE_12_BOUNDS = {
   width: 37.2,
   height: 66.85,
   offsetX: -11,
   offsetY: -62.55,
 };
-
-const SPRITE_15_MANIFEST: SpriteManifest = {
+const SPRITE_15_BOUNDS = {
   width: 102.25,
   height: 121.35,
   offsetX: -16.8,
   offsetY: -87.3,
 };
-
-const SPRITE_26_MANIFEST: SpriteManifest = {
+const SPRITE_26_BOUNDS = {
   width: 108.45,
   height: 18.75,
   offsetX: -110.35,
   offsetY: -18.3,
 };
+const SPRITE_29_BOUNDS = {
+  width: 0,
+  height: 0,
+  offsetX: 0,
+  offsetY: -17,
+};
 
-interface ParticleAnimState {
-  anim: FrameAnimatedSprite;
-  vr: number;
-  useRotationDecay: boolean;
-}
-
-export class Spell3000 extends BaseSpell {
+export class Spell3000 extends RuntimeSpell {
   readonly spellId = 3000;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private particleStates: ParticleAnimState[] = [];
-  private effectContainer!: Container;
+  private sprite4Sym!: SymbolDefinition;
+  private sprite12Sym!: SymbolDefinition;
+  private sprite15Sym!: SymbolDefinition;
+  private sprite26Sym!: SymbolDefinition;
+  private sprite29Sym!: SymbolDefinition;
 
-  protected setup(
-    context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const params = context?.params ?? {
-      fire: false,
-      water: false,
-      earth: false,
-      air: false,
+    // ---- Library symbol anchors ----
+    const partFAnchor = calculateAnchor(PART_F_BOUNDS);
+    const partWAnchor = calculateAnchor(PART_W_BOUNDS);
+    const partEAnchor = calculateAnchor(PART_E_BOUNDS);
+    const partAAnchor = calculateAnchor(PART_A_BOUNDS);
+
+    // ---- Animation symbol anchors ----
+    const sprite4Anchor = calculateAnchor(SPRITE_4_BOUNDS);
+    const sprite12Anchor = calculateAnchor(SPRITE_12_BOUNDS);
+    const sprite15Anchor = calculateAnchor(SPRITE_15_BOUNDS);
+    const sprite26Anchor = calculateAnchor(SPRITE_26_BOUNDS);
+
+    // ---- part_f — fire particle (single frame) ----
+    // No frame scripts or clip events — pure visual.
+    const partFSym: SymbolDefinition = {
+      name: "part_f",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_part_f"),
+      anchorX: partFAnchor.x,
+      anchorY: partFAnchor.y,
     };
 
-    const fireFl = params.fire ? 1 : 0;
-    const waterFl = params.water ? 1 : 0;
-    const earthFl = params.earth ? 1 : 0;
-    const airFl = params.air ? 1 : 0;
+    // ---- part_w — water particle (single frame) ----
+    const partWSym: SymbolDefinition = {
+      name: "part_w",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_part_w"),
+      anchorX: partWAnchor.x,
+      anchorY: partWAnchor.y,
+    };
 
-    // n = 14 - 3*fire - 3*water - 3*earth - 3*air
-    const n = 14 - 3 * fireFl - 3 * waterFl - 3 * earthFl - 3 * airFl;
+    // ---- part_e — earth particle (single frame) ----
+    const partESym: SymbolDefinition = {
+      name: "part_e",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_part_e"),
+      anchorX: partEAnchor.x,
+      anchorY: partEAnchor.y,
+    };
 
-    // Container at target position (sprite_29 position offset by offsetY = -17)
-    this.effectContainer = new Container();
-    this.effectContainer.position.set(
-      init.targetX,
-      init.targetY - 17 * init.scale
-    );
-    this.container.addChild(this.effectContainer);
+    // ---- part_a — air particle (single frame) ----
+    const partASym: SymbolDefinition = {
+      name: "part_a",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_part_a"),
+      anchorX: partAAnchor.x,
+      anchorY: partAAnchor.y,
+    };
 
-    // Fire particles (part_f -> sprite_4 logic)
-    if (params.fire) {
-      const fireTextures = textures.getFrames("sprite_4");
-      const anchor = calculateAnchor(SPRITE_4_MANIFEST);
+    // ---- sprite_4 — rotating element composite (63 frames) ----
+    // AS DefineSprite_4/frame_1/DoAction.as:
+    //   _rotation = random(360);
+    //   t = 20 + 60 * Math.random();
+    //   _xscale = t; _yscale = t;
+    //   _X = 20 * (Math.random() - 0.5); _Y = 20 * (Math.random() - 0.5);
+    //   gotoAndPlay(random(15) + 1);
+    //   vr = random(10);
+    //   this.onEnterFrame = function() { _rotation = _rotation + (vr *= 0.9); };
+    //
+    // AS DefineSprite_4/frame_61/DoAction.as: stop();
+    this.sprite4Sym = {
+      name: "sprite_4",
+      totalFrames: 63,
+      frames: textures.getFrames("sprite_4"),
+      anchorX: sprite4Anchor.x,
+      anchorY: sprite4Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_4/frame_1/DoAction.as
+            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+            const t = 20 + 60 * Math.random();
+            clip.scaleX = t / 100;
+            clip.scaleY = t / 100;
+            clip.x = 20 * (Math.random() - 0.5);
+            clip.y = 20 * (Math.random() - 0.5);
+            clip.gotoAndPlay(Math.floor(Math.random() * 15));
+            clip.vars.vr = Math.floor(Math.random() * 10);
+            clip.onEnterFrame = (c) => {
+              // AS: _rotation = _rotation + (vr *= 0.9)
+              let vr = c.vars.vr as number;
+              vr *= 0.9;
+              c.vars.vr = vr;
+              c.rotation += (vr * Math.PI) / 180;
+            };
+          },
+        ],
+        [
+          60,
+          (clip) => {
+            // AS DefineSprite_4/frame_61/DoAction.as: stop()
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-      for (let i = 0; i < n; i++) {
-        // AS: _rotation = random(360)
-        const rotation = Math.floor(Math.random() * 360);
-        // AS: t = 20 + 60 * Math.random()
-        const t = 20 + 60 * Math.random();
-        // AS: _X = 20 * (Math.random() - 0.5), _Y = 20 * (Math.random() - 0.5)
-        const x = 20 * (Math.random() - 0.5);
-        const y = 20 * (Math.random() - 0.5);
-        // AS: gotoAndPlay(random(15) + 1) -> 0-indexed: random(15)
-        const startFrame = Math.floor(Math.random() * 15);
-        // AS: vr = random(10)
-        const vr = Math.floor(Math.random() * 10);
+    // ---- sprite_12 — element hit (33 frames) ----
+    // AS DefineSprite_12/frame_1/DoAction.as:
+    //   _rotation = random(360);
+    //   _X = 20 * (Math.random() - 0.5); _Y = 20 * (Math.random() - 0.5);
+    //   gotoAndPlay(random(10) + 1);
+    //
+    // AS DefineSprite_12/frame_31/DoAction.as: stop();
+    this.sprite12Sym = {
+      name: "sprite_12",
+      totalFrames: 33,
+      frames: textures.getFrames("sprite_12"),
+      anchorX: sprite12Anchor.x,
+      anchorY: sprite12Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_12/frame_1/DoAction.as
+            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+            clip.x = 20 * (Math.random() - 0.5);
+            clip.y = 20 * (Math.random() - 0.5);
+            clip.gotoAndPlay(Math.floor(Math.random() * 10));
+          },
+        ],
+        [
+          30,
+          (clip) => {
+            // AS DefineSprite_12/frame_31/DoAction.as: stop()
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-        const anim = this.anims.add(
-          new FrameAnimatedSprite({
-            textures: fireTextures,
-            anchorX: anchor.x,
-            anchorY: anchor.y,
-            scale: init.scale,
-            startFrame,
-          })
-        );
-        anim.sprite.rotation = (rotation * Math.PI) / 180;
-        anim.sprite.scale.set((t / 100) * init.scale);
-        anim.sprite.position.set(x * init.scale, y * init.scale);
-        anim.stopAt(60);
-        this.effectContainer.addChild(anim.sprite);
+    // ---- sprite_15 — earth element hit (33 frames) ----
+    // AS DefineSprite_15/frame_1/DoAction.as:
+    //   _rotation = random(360);
+    //   _X = 20 * (Math.random() - 0.5); _Y = 20 * (Math.random() - 0.5);
+    //   t = 60 * Math.random();
+    //   _xscale = t; _yscale = t;
+    //   gotoAndPlay(random(10) + 1);
+    //
+    // AS DefineSprite_15/frame_31/DoAction.as: stop();
+    this.sprite15Sym = {
+      name: "sprite_15",
+      totalFrames: 33,
+      frames: textures.getFrames("sprite_15"),
+      anchorX: sprite15Anchor.x,
+      anchorY: sprite15Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_15/frame_1/DoAction.as
+            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+            clip.x = 20 * (Math.random() - 0.5);
+            clip.y = 20 * (Math.random() - 0.5);
+            const t = 60 * Math.random();
+            clip.scaleX = t / 100;
+            clip.scaleY = t / 100;
+            clip.gotoAndPlay(Math.floor(Math.random() * 10));
+          },
+        ],
+        [
+          30,
+          (clip) => {
+            // AS DefineSprite_15/frame_31/DoAction.as: stop()
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-        this.particleStates.push({ anim, vr, useRotationDecay: true });
-      }
-    }
+    // ---- sprite_26 — fire slash streak (42 frames) ----
+    // AS DefineSprite_26/frame_1/DoAction.as:
+    //   _rotation = random(360);
+    //   _X = 20 * (Math.random() - 0.5); _Y = 20 * (Math.random() - 0.5);
+    //   t = 60 * Math.random();
+    //   _xscale = t; _yscale = t;
+    //   gotoAndPlay(random(5) + 1);
+    //
+    // AS DefineSprite_26/frame_40/DoAction.as: stop();
+    this.sprite26Sym = {
+      name: "sprite_26",
+      totalFrames: 42,
+      frames: textures.getFrames("sprite_26"),
+      anchorX: sprite26Anchor.x,
+      anchorY: sprite26Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_26/frame_1/DoAction.as
+            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+            clip.x = 20 * (Math.random() - 0.5);
+            clip.y = 20 * (Math.random() - 0.5);
+            const t = 60 * Math.random();
+            clip.scaleX = t / 100;
+            clip.scaleY = t / 100;
+            clip.gotoAndPlay(Math.floor(Math.random() * 5));
+          },
+        ],
+        [
+          39,
+          (clip) => {
+            // AS DefineSprite_26/frame_40/DoAction.as: stop()
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-    // Water particles (part_w -> sprite_12 logic)
-    if (params.water) {
-      const waterTextures = textures.getFrames("sprite_12");
-      const anchor = calculateAnchor(SPRITE_12_MANIFEST);
+    // ---- sprite_29 — outer controller (60 frames) ----
+    // AS DefineSprite_29/frame_1/PlaceObject2_28_1/CLIPACTIONRECORD onClipEvent(load).as:
+    //   Reads _parent._parent.params.{fire,water,earth,air} to determine
+    //   which element particles to spawn, and how many (14 - 3*fire - 3*water
+    //   - 3*earth - 3*air), attaches part_f / part_w / part_e / part_a.
+    //
+    // AS DefineSprite_29/frame_58/DoAction.as:
+    //   _parent.removeMovieClip(); stop();
+    //
+    // The onClipEvent(load) is implemented as onLoad on the symbol
+    // definition. The inner PlaceObject2_28_1 is the clip that carries
+    // the load event — it's a child placed inside sprite_29 at frame_1.
+    // Since we treat sprite_29 as a single SpellClip, we fire the load
+    // logic from the sprite_29 onLoad handler, which runs when sprite_29
+    // is attached (matching canonical Flash behaviour: child clips with
+    // load events fire on the same tick the parent is placed).
+    this.sprite29Sym = {
+      name: "sprite_29",
+      totalFrames: 60,
+      frames: textures.getFrames("sprite_29"),
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onLoad: (clip, ctx) => {
+        // AS DefineSprite_29/frame_1/PlaceObject2_28_1/CLIPACTIONRECORD onClipEvent(load).as
+        // _parent._parent refers to the outer mc (root) which holds params.
+        // In our tree: clip (sprite_29) → parent (root).
+        const params = ctx.params;
+        const fire = params?.fire ? 1 : 0;
+        const water = params?.water ? 1 : 0;
+        const earth = params?.earth ? 1 : 0;
+        const air = params?.air ? 1 : 0;
+        const n = 14 - 3 * fire - 3 * water - 3 * earth - 3 * air;
 
-      for (let i = 0; i < n; i++) {
-        // AS: _rotation = random(360)
-        const rotation = Math.floor(Math.random() * 360);
-        // AS: _X = 20 * (Math.random() - 0.5), _Y = 20 * (Math.random() - 0.5)
-        const x = 20 * (Math.random() - 0.5);
-        const y = 20 * (Math.random() - 0.5);
-        // AS: gotoAndPlay(random(10) + 1) -> 0-indexed: random(10)
-        const startFrame = Math.floor(Math.random() * 10);
+        let c2 = 100;
 
-        const anim = this.anims.add(
-          new FrameAnimatedSprite({
-            textures: waterTextures,
-            anchorX: anchor.x,
-            anchorY: anchor.y,
-            scale: init.scale,
-            startFrame,
-          })
-        );
-        anim.sprite.rotation = (rotation * Math.PI) / 180;
-        anim.sprite.position.set(x * init.scale, y * init.scale);
-        anim.stopAt(30);
-        this.effectContainer.addChild(anim.sprite);
+        if (fire === 1) {
+          let c = c2;
+          while (c < c2 + n) {
+            clip.attach(partFSym, "part_f" + c, c, ctx);
+            c++;
+          }
+          c2++;
+        }
+        if (water === 1) {
+          let c = c2;
+          while (c < c2 + n) {
+            clip.attach(partWSym, "part_w" + c, c, ctx);
+            c++;
+          }
+          c2++;
+        }
+        if (earth === 1) {
+          let c = c2;
+          while (c < c2 + n) {
+            clip.attach(partESym, "part_e" + c, c, ctx);
+            c++;
+          }
+          c2++;
+        }
+        if (air === 1) {
+          let c = c2;
+          while (c < c2 + n) {
+            clip.attach(partASym, "part_a" + c, c, ctx);
+            c++;
+          }
+          c2++;
+        }
 
-        this.particleStates.push({ anim, vr: 0, useRotationDecay: false });
-      }
-    }
+        // Signal hit when particles are spawned (canonical impact point).
+        this.runtime.signalHit();
+      },
+      frameScripts: new Map([
+        [
+          57,
+          (clip) => {
+            // AS DefineSprite_29/frame_58/DoAction.as:
+            //   _parent.removeMovieClip(); stop();
+            clip.parent?.remove();
+            clip.stop();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // Earth particles (part_e -> sprite_15 logic)
-    if (params.earth) {
-      const earthTextures = textures.getFrames("sprite_15");
-      const anchor = calculateAnchor(SPRITE_15_MANIFEST);
-
-      for (let i = 0; i < n; i++) {
-        // AS: _rotation = random(360)
-        const rotation = Math.floor(Math.random() * 360);
-        // AS: _X = 20 * (Math.random() - 0.5), _Y = 20 * (Math.random() - 0.5)
-        const x = 20 * (Math.random() - 0.5);
-        const y = 20 * (Math.random() - 0.5);
-        // AS: t = 60 * Math.random()
-        const t = 60 * Math.random();
-        // AS: gotoAndPlay(random(10) + 1) -> 0-indexed: random(10)
-        const startFrame = Math.floor(Math.random() * 10);
-
-        const anim = this.anims.add(
-          new FrameAnimatedSprite({
-            textures: earthTextures,
-            anchorX: anchor.x,
-            anchorY: anchor.y,
-            scale: init.scale,
-            startFrame,
-          })
-        );
-        anim.sprite.rotation = (rotation * Math.PI) / 180;
-        anim.sprite.scale.set((t / 100) * init.scale);
-        anim.sprite.position.set(x * init.scale, y * init.scale);
-        anim.stopAt(30);
-        this.effectContainer.addChild(anim.sprite);
-
-        this.particleStates.push({ anim, vr: 0, useRotationDecay: false });
-      }
-    }
-
-    // Air particles (part_a -> sprite_26 logic)
-    if (params.air) {
-      const airTextures = textures.getFrames("sprite_26");
-      const anchor = calculateAnchor(SPRITE_26_MANIFEST);
-
-      for (let i = 0; i < n; i++) {
-        // AS: _rotation = random(360)
-        const rotation = Math.floor(Math.random() * 360);
-        // AS: _X = 20 * (Math.random() - 0.5), _Y = 20 * (Math.random() - 0.5)
-        const x = 20 * (Math.random() - 0.5);
-        const y = 20 * (Math.random() - 0.5);
-        // AS: t = 60 * Math.random()
-        const t = 60 * Math.random();
-        // AS: gotoAndPlay(random(5) + 1) -> 0-indexed: random(5)
-        const startFrame = Math.floor(Math.random() * 5);
-
-        const anim = this.anims.add(
-          new FrameAnimatedSprite({
-            textures: airTextures,
-            anchorX: anchor.x,
-            anchorY: anchor.y,
-            scale: init.scale,
-            startFrame,
-          })
-        );
-        anim.sprite.rotation = (rotation * Math.PI) / 180;
-        anim.sprite.scale.set((t / 100) * init.scale);
-        anim.sprite.position.set(x * init.scale, y * init.scale);
-        anim.stopAt(39);
-        this.effectContainer.addChild(anim.sprite);
-
-        this.particleStates.push({ anim, vr: 0, useRotationDecay: false });
-      }
-    }
-
-    // Signal hit immediately (no explicit hit frame in AS - the effect is the hit)
-    this.signalHit();
+    this.registry.register(partFSym);
+    this.registry.register(partWSym);
+    this.registry.register(partESym);
+    this.registry.register(partASym);
+    this.registry.register(this.sprite4Sym);
+    this.registry.register(this.sprite12Sym);
+    this.registry.register(this.sprite15Sym);
+    this.registry.register(this.sprite26Sym);
+    this.registry.register(this.sprite29Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    // Update all animations
-    this.anims.update(deltaTime);
-
-    // Apply rotation decay for fire particles (sprite_4 onEnterFrame)
-    // AS: _rotation = _rotation + (vr *= 0.9)
-    for (const state of this.particleStates) {
-      if (state.useRotationDecay && state.vr !== 0) {
-        state.vr *= 0.9;
-        state.anim.sprite.rotation += (state.vr * Math.PI) / 180;
-      }
-    }
-
-    if (this.anims.allStopped()) {
-      this.complete();
-    }
+  protected onSpellStart(
+    _callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // AS frame_2/DoAction.as: stop() — no sound on main timeline.
+    // Attach the authored timeline children at the root so they start
+    // ticking from the next runtime frame.
+    // The canonical SWF places sprite_4, sprite_12, sprite_15, sprite_26,
+    // and sprite_29 on the main timeline at frame_1.
+    this.root.attach(this.sprite4Sym, "sprite4", 1, context);
+    this.root.attach(this.sprite12Sym, "sprite12", 2, context);
+    this.root.attach(this.sprite15Sym, "sprite15", 3, context);
+    this.root.attach(this.sprite26Sym, "sprite26", 4, context);
+    this.root.attach(this.sprite29Sym, "sprite29", 5, context);
   }
 }

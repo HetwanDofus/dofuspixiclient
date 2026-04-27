@@ -1,147 +1,188 @@
 /**
- * Spell 404 - Lakam
+ * Spell 404 — Lakam (Sadida plant spell).
  *
- * A decorative spell that spawns 11 "tige" (stem) instances arranged in a
- * circular pattern using sine/cosine math. Each tige is positioned and scaled
- * based on an incrementing angle (_parent.i), creating a flower/circle effect.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/404/scripts/scripts/
  *
- * Components:
- * - anim1: Main animation at target position, 372 frames, stops at frame 366
- * - 11 tige sprites: Spawned one per frame, positioned via sin/cos of angle i
+ * displayType=11 (TargetCell). The spell has a single animated sprite
+ * (DefineSprite_6) placed at the target cell. No projectile motion, no
+ * caster reference — pure impact/effect at target.
  *
- * Original AS timing:
- * - Frame 1 (main): Play sound 'lakam_404'
- * - DefineSprite_6 frame_1: Spawns 11 tiges over 11 frames (c=0..10), i starts at -PI
- * - DefineSprite_6 frame_367: removeMovieClip() + stop()
- * - DefineSprite_4 frame_193: stop()
- * - DefineSprite_3 frame_148: stop()
+ * Structure:
+ *   - Main timeline frame_1: SOMA.playSound("lakam_404")
+ *   - DefineSprite_6 (the outer container, 367 frames):
+ *       frame_1: sets _parent.i = -π, then onEnterFrame spawns up to 11
+ *                `tige` particles one per frame, incrementing i by 0.5
+ *                each spawn until c reaches 11.
+ *       frame_367: _parent.removeMovieClip() → spell complete; stop().
+ *   - lib_tige (librarySymbols, 1 frame): positioned by frame_1 script
+ *       using _parent._parent.i to compute sinusoidal X/Y offsets and
+ *       _xscale; _alpha conditionally set when _Y < 0.
  *
- * Tige positioning (frame_1/DoAction.as for each tige):
- *   _X = 15 * Math.sin(i)
- *   _Y = 10 * Math.cos(i)
- *   _xscale = 50 * Math.cos(i)   -> scaleX = 0.5 * cos(i)
- *   if (_Y < 0) { _alpha = 100 * Math.cos(i) + 100 }  -> alpha = cos(i) + 1
+ * The outer DefineSprite_6 is not in librarySymbols — it's the top-level
+ * authored sprite attached from onSpellStart. The `tige` symbol IS in
+ * librarySymbols and is attached from DefineSprite_6's onEnterFrame.
  *
- * i starts at -PI and increments by 0.5 for each tige spawned.
- * So tige 0 uses i=-PI, tige 1 uses i=-PI+0.5, ..., tige 10 uses i=-PI+5.0
+ * signalHit: fired at the first tige spawn (frame_1 of DefineSprite_6),
+ * which is the canonical impact moment.
  *
- * Hit signal: The main animation signals hit partway through (around when
- * DefineSprite_4 stops at frame 193, i.e. index 192).
- * Complete: when main animation stops at frame 366 (0-indexed: 365).
+ * complete: fired at DefineSprite_6 frame_367 (AS: _parent.removeMovieClip()).
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Container, Sprite } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const TIGE_MANIFEST: SpriteManifest = {
+const TIGE_BOUNDS = {
   width: 152.15,
   height: 141.5,
   offsetX: -72.7,
   offsetY: -119.2,
 };
 
-export class Spell404 extends BaseSpell {
+export class Spell404 extends RuntimeSpell {
   readonly spellId = 404;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private tigeSprites: Sprite[] = [];
-  private tigeContainer!: Container;
+  private sprite6Sym!: SymbolDefinition;
+  private tigeSym!: SymbolDefinition;
 
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    // Main animation (anim1) at target position
-    const mainAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("anim1"),
-        anchorX: 0.5,
-        anchorY: 0.5,
-        scale: init.scale,
-      })
-    );
-    mainAnim.sprite.position.set(init.targetX, init.targetY);
+    const tigeAnchor = calculateAnchor(TIGE_BOUNDS);
 
-    // Frame 1 (0-indexed: 0): play sound
-    mainAnim.onFrame(0, () => this.callbacks.playSound("lakam_404"));
+    // ---- lib_tige — single-frame plant stem particle -------------
+    // AS: DefineSprite_5_tige/frame_1/DoAction.as
+    // Positioned using _parent._parent.i (the angle accumulator stored
+    // on the outer mc root.vars.i). X/Y are sinusoidal offsets;
+    // _xscale mirrors the cosine; _alpha is conditionally set when Y < 0.
+    this.tigeSym = {
+      name: "tige",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_tige"),
+      anchorX: tigeAnchor.x,
+      anchorY: tigeAnchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: DefineSprite_5_tige/frame_1/DoAction.as
+            // _parent._parent.i: tige's _parent is sprite_6;
+            // sprite_6's _parent is root (outer mc).
+            const sprite6 = clip.parent;
+            const outerMc = sprite6?.parent;
+            const i = (outerMc?.vars.i as number) ?? 0;
+            const cosI = Math.cos(i);
+            const sinI = Math.sin(i);
+            clip.x = 15 * sinI;
+            clip.y = 10 * cosI;
+            // AS: _xscale = 50 * Math.cos(i) → decimal
+            clip.scaleX = (50 * cosI) / 100;
+            // AS: if (_Y < 0) { _alpha = 100 * cos(i) + 100 }
+            // Note: _Y here refers to the already-set clip.y = 10 * cosI.
+            // cosI is negative when |i| > π/2, giving negative Y.
+            if (clip.y < 0) {
+              clip.alpha = (100 * cosI + 100) / 100;
+            }
+          },
+        ],
+      ]),
+    };
 
-    // Hit signal around when DefineSprite_4 stops (frame 193 AS = index 192)
-    mainAnim.onFrame(192, () => this.signalHit());
-
-    // Stop at frame 366 (0-indexed: 365, matching manifest stopFrame)
-    mainAnim.stopAt(365);
-
-    this.container.addChild(mainAnim.sprite);
-
-    // Container for tige sprites, positioned at target
-    this.tigeContainer = new Container();
-    this.tigeContainer.position.set(init.targetX, init.targetY);
-    this.tigeContainer.scale.set(init.scale);
-    this.container.addChild(this.tigeContainer);
-
-    // Spawn 11 tige sprites immediately (DefineSprite_6 spawns them over 11 frames,
-    // but since we don't have a separate timeline for DefineSprite_6 with its own
-    // frame counter, we spawn all 11 upfront with their correct i values)
+    // ---- sprite_6 — outer container, 367-frame timeline ----------
+    // Not in librarySymbols (it's the top-level authored sprite).
+    // Treated as a container-only symbol attached from onSpellStart.
     //
-    // AS: _parent.i = -3.1415; then for c=0..10: attachMovie("tige", ...), i += 0.5
-    // So tige 0 gets i=-PI (approx), tige c gets i=-PI + c*0.5
-    // Note: AS uses -3.1415 (not exact PI), so we use that exact value.
-    const tigeTextures = textures.getFrames("lib_tige");
-    const tigeAnchor = calculateAnchor(TIGE_MANIFEST);
+    // frame_1 (AS: DefineSprite_6/frame_1/DoAction.as):
+    //   Sets _parent.i = -π (stored on root.vars.i).
+    //   Installs onEnterFrame that spawns one tige per tick until c=11,
+    //   incrementing i by 0.5 each spawn.
+    //
+    // frame_367 (AS: DefineSprite_6/frame_367/DoAction.as):
+    //   _parent.removeMovieClip() → runtime.complete(); stop().
+    this.sprite6Sym = {
+      name: "sprite_6",
+      totalFrames: 367,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onLoad: undefined,
+      onEnterFrame: undefined,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS: DefineSprite_6/frame_1/DoAction.as
+            // _parent.i = -3.1415; c = 0;
+            const root = clip.parent;
+            if (root) {
+              root.vars.i = -3.1415;
+            }
+            clip.vars.c = 0;
 
-    let angleI = -Math.PI;
-    for (let c = 0; c < 11; c++) {
-      const i = angleI;
+            // Signal hit on the first frame when plant appears at target.
+            // (Not displayType 30/31, so we call it ourselves.)
+            this.runtime.signalHit();
 
-      const sprite = new Sprite(tigeTextures[0]);
-      sprite.anchor.set(tigeAnchor.x, tigeAnchor.y);
+            // Install onEnterFrame to spawn tige particles one per tick.
+            clip.onEnterFrame = (self, innerCtx) => {
+              // AS: if (c < 11) { attachMovie("tige","tige"+c,c); c++; _parent.i += 0.5; }
+              const c = self.vars.c as number;
+              if (c < 11) {
+                // Increment i on root BEFORE attaching so tige frame_1
+                // reads the updated i value. AS increments i after
+                // attach, but tige's frame_1 fires at attach time —
+                // the canonical order is:
+                //   1. attachMovie (→ tige frame_1 fires, reads current i)
+                //   2. c += 1
+                //   3. _parent.i += 0.5
+                // We replicate that exactly.
+                const outerMc = self.parent;
+                self.attach(this.tigeSym, `tige${c}`, c, innerCtx);
+                self.vars.c = c + 1;
+                if (outerMc) {
+                  outerMc.vars.i = ((outerMc.vars.i as number) ?? 0) + 0.5;
+                }
+              }
+            };
+          },
+        ],
+        [
+          366,
+          (clip) => {
+            // AS: DefineSprite_6/frame_367/DoAction.as
+            // _parent.removeMovieClip(); stop();
+            clip.stop();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-      // _X = 15 * Math.sin(i)
-      sprite.x = 15 * Math.sin(i);
-      // _Y = 10 * Math.cos(i)
-      sprite.y = 10 * Math.cos(i);
-
-      // _xscale = 50 * Math.cos(i) -> scaleX = 0.5 * cos(i)
-      const cosI = Math.cos(i);
-      sprite.scale.set(0.5 * cosI, 1);
-
-      // Default alpha = 100% (fully opaque)
-      // if (_Y < 0) { _alpha = 100 * Math.cos(i) + 100 }
-      // _Y = 10 * cos(i); _Y < 0 means cos(i) < 0
-      if (sprite.y < 0) {
-        // _alpha is 0-100 in AS, PixiJS alpha is 0-1
-        const asAlpha = 100 * cosI + 100;
-        sprite.alpha = asAlpha / 100;
-      }
-
-      this.tigeSprites.push(sprite);
-      this.tigeContainer.addChild(sprite);
-
-      angleI += 0.5;
-    }
+    this.registry.register(this.tigeSym);
+    this.registry.register(this.sprite6Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // AS: frame_1/DoAction.as — SOMA.playSound("lakam_404");
+    callbacks.playSound("lakam_404");
 
-    this.anims.update(deltaTime);
-
-    if (this.anims.allStopped()) {
-      this.complete();
-    }
-  }
-
-  destroy(): void {
-    this.tigeSprites = [];
-    super.destroy();
+    // Attach the outer DefineSprite_6 container at the root (target cell).
+    // The harness has already anchored root at the target cell for
+    // displayType=11. sprite_6 sits at (0,0) within that container.
+    this.root.attach(this.sprite6Sym, "sprite_6", 1, context);
   }
 }

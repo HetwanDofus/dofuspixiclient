@@ -1,0 +1,215 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "J": {
+            "1": {
+                "n": "-Basis-",
+                "s": 0,
+                "g": -1
+            },
+            "2": {
+                "n": "Houthakker",
+                "s": 0,
+                "g": 1
+            },
+            "11": {
+                "n": "Zwaardsmid",
+                "s": 0,
+                "g": 10
+            },
+            "13": {
+                "n": "Houtsnijder",
+                "s": 0,
+                "g": 6
+            },
+            "14": {
+                "n": "Hamersmid",
+                "s": 0,
+                "g": 11
+            },
+            "15": {
+                "n": "Schoenmaker",
+                "s": 0,
+                "g": 5
+            },
+            "16": {
+                "n": "Juwelier",
+                "s": 0,
+                "g": 15
+            },
+            "17": {
+                "n": "Dolksmid",
+                "s": 0,
+                "g": 9
+            },
+            "18": {
+                "n": "Stafsnijder",
+                "s": 0,
+                "g": 8
+            },
+            "19": {
+                "n": "Stoksnijder",
+                "s": 0,
+                "g": 7
+            },
+            "20": {
+                "n": "Schopsmid",
+                "s": 0,
+                "g": 12
+            },
+            "24": {
+                "n": "Mijnwerker",
+                "s": 0,
+                "g": 13
+            },
+            "25": {
+                "n": "Bakker",
+                "s": 0,
+                "g": 3
+            },
+            "26": {
+                "n": "Alchemist",
+                "s": 0,
+                "g": 14
+            },
+            "27": {
+                "n": "Kleermaker",
+                "s": 0,
+                "g": 20
+            },
+            "28": {
+                "n": "Boer",
+                "s": 0,
+                "g": 18
+            },
+            "31": {
+                "n": "Bijlsmid",
+                "s": 0,
+                "g": 19
+            },
+            "36": {
+                "n": "Visser",
+                "s": 0,
+                "g": 30
+            },
+            "41": {
+                "n": "Jager",
+                "s": 0,
+                "g": 32
+            },
+            "43": {
+                "n": "Dolksmid Magiër",
+                "s": 17,
+                "g": 21
+            },
+            "44": {
+                "n": "Zwaardsmid Magiër",
+                "s": 11,
+                "g": 24
+            },
+            "45": {
+                "n": "Hamersmid Magiër",
+                "s": 14,
+                "g": 25
+            },
+            "46": {
+                "n": "Schopsmid Magiër",
+                "s": 20,
+                "g": 26
+            },
+            "47": {
+                "n": "Bijlsmid Magiër",
+                "s": 31,
+                "g": 23
+            },
+            "48": {
+                "n": "Boogsnijder Magiër",
+                "s": 13,
+                "g": 28
+            },
+            "49": {
+                "n": "Stoksnijder Magiër",
+                "s": 19,
+                "g": 29
+            },
+            "50": {
+                "n": "Opper Stafsnijder",
+                "s": 18,
+                "g": 22
+            },
+            "56": {
+                "n": "Slager",
+                "s": 0,
+                "g": 33
+            },
+            "58": {
+                "n": "Visboer",
+                "s": 0,
+                "g": 31
+            },
+            "60": {
+                "n": "Schildsmid",
+                "s": 0,
+                "g": 40
+            },
+            "62": {
+                "n": "Schoenmagus",
+                "s": 15,
+                "g": 36
+            },
+            "63": {
+                "n": "Juweliemagus",
+                "s": 16,
+                "g": 37
+            },
+            "64": {
+                "n": "Kostumagus",
+                "s": 27,
+                "g": 35
+            },
+            "65": {
+                "n": "Doe-het-zelver",
+                "s": 0,
+                "g": 34
+            },
+            "66": {
+                "n": "Juwelier",
+                "s": 0,
+                "g": 0
+            },
+            "67": {
+                "n": "Juwelier",
+                "s": 0,
+                "g": 0
+            },
+            "70": {
+                "n": "farmer",
+                "s": 0,
+                "g": 0
+            },
+            "71": {
+                "n": "farmer",
+                "s": 0,
+                "g": 0
+            },
+            "72": {
+                "n": "[NO TRAD]",
+                "s": 0,
+                "g": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 49,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "J",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

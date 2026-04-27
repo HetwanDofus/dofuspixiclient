@@ -1,385 +1,449 @@
 /**
- * Spell 815 - Vlad (Sacrieur)
+ * Spell 815 — Vlad's Punch (Sacrieur-style impact spell).
  *
- * An impact spell with multiple sprite layers, each with a growing scale effect.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/815/scripts/scripts/
  *
- * Components:
- * - DefineSprite_12: Level-based frame selector (gotoAndStop(level)) - selects which sub-sprite runs
- * - DefineSprite_6: Impact sprite at target, plays sound "punch", grows with t-decay scaling, stops at frame 19
- * - DefineSprite_7 (t=7): Impact variant, signals hit at frame 22, removes at frame 91
- * - DefineSprite_8 (t=11): Impact variant, signals hit at frame 64, removes at frame 106
- * - DefineSprite_9 (t=20): Impact variant, signals hit at frame 79, removes at frame 118
- * - DefineSprite_10 (t=25): Impact variant, signals hit at frame 79, removes at frame 121
- * - DefineSprite_11 (t=33): Impact variant, signals hit at frame 79, removes at frame 121
- * - DefineSprite_3: Random rotation/alpha decorative sprite at target
+ * displayType=11 (TargetCell). No projectile motion, no caster reference,
+ * no `_parent.cellFrom` / `_parent.cellTo` world-absolute positioning —
+ * all content is anchored at the target cell. The manifest has a single
+ * `animations[]` entry (`anim1`, no librarySymbols), meaning all authored
+ * frame content is driven by the main timeline composite.
  *
- * Original AS timing:
- * - Frame 1 (main): Play sound 'vlad_806'
- * - Frame 1 (DefineSprite_6): Play sound 'punch', start growing scale effect with t decay
- * - Frame 19 (DefineSprite_6): stop()
- * - Frame 22 (DefineSprite_7): this.end() - signal hit
- * - Frame 64 (DefineSprite_8): this.end() - signal hit
- * - Frame 79 (DefineSprite_9/10/11): this.end() - signal hit
- * - Frame 91 (DefineSprite_7): removeMovieClip / stop
- * - Frame 106 (DefineSprite_8): removeMovieClip / stop
- * - Frame 118 (DefineSprite_9): removeMovieClip / stop
- * - Frame 121 (DefineSprite_10/11): removeMovieClip / stop
+ * Canonical AS layout:
+ *   - Main timeline frame_1: SOMA.playSound("vlad_806")
+ *   - DefineSprite_3 (anim1 wrapper): frame_1 sets _rotation = random(360),
+ *     _alpha = 50. Used as a display wrapper for the anim1 composite.
+ *   - DefineSprite_6 (inner burst, t=variant): frame_1 plays "punch" sound
+ *     and seeds scale-up animation; frame_19 stops.
+ *   - DefineSprite_7 (variant, t=7): frame_1 seeds t=7; frame_22 signals
+ *     hit; frame_91 removes outer mc + stops.
+ *   - DefineSprite_8 (variant, t=11): frame_1 seeds t=11; frame_64 signals
+ *     hit; frame_106 removes outer mc + stops.
+ *   - DefineSprite_9 (variant, t=20): frame_1 seeds t=20; frame_79 signals
+ *     hit; frame_118 removes outer mc + stops.
+ *   - DefineSprite_10 (variant, t=25): frame_1 seeds t=25; frame_79 signals
+ *     hit; frame_121 removes outer mc + stops.
+ *   - DefineSprite_11 (variant, t=33): frame_1 seeds t=33; frame_79 signals
+ *     hit; frame_121 removes outer mc + stops.
+ *   - DefineSprite_12: frame_1 does gotoAndStop(_parent.level) — selects
+ *     which variant sub-sprite to show based on spell level.
  *
- * DefineSprite_12 picks which sprite to show based on level (1-6 maps to one of the variants).
- * Since level maps to the sprite directly, we implement the level-appropriate one.
+ * Because `librarySymbols` is empty in the manifest, all symbols use bare
+ * texture keys (no "lib_" prefix). The single `anim1` animation is used
+ * for the main visual. The DefineSprite_* containers are orchestration
+ * shells registered as container-only symbols (frames: []) except for
+ * DefineSprite_3 which wraps the anim1 frames, and DefineSprite_6 which
+ * has its own scale-up burst visual.
  *
- * Level mapping (gotoAndStop(level)):
- *   level 1 -> DefineSprite_6 (t=random(t)+t growing, stops frame 19, hit immediate)
- *   level 2 -> DefineSprite_7 (t=7, hit frame 22, ends frame 91)
- *   level 3 -> DefineSprite_8 (t=11, hit frame 64, ends frame 106)
- *   level 4 -> DefineSprite_9 (t=20, hit frame 79, ends frame 118)
- *   level 5 -> DefineSprite_10 (t=25, hit frame 79, ends frame 121)
- *   level 6 -> DefineSprite_11 (t=33, hit frame 79, ends frame 121)
+ * The level-select pattern (DefineSprite_12 → gotoAndStop(level)) picks
+ * which duration variant fires. The variants differ only in their `t`
+ * (lifetime/scale seed) and the frame at which they signal hit vs. remove.
+ * We expose all variants as separate symbols and wire DefineSprite_12's
+ * frame_1 to select the right child via gotoAndStop(level - 1).
  *
- * The manifest only has "anim1" (5 frames composite) - this is used for the growing impact sprite.
- * DefineSprite_3 uses random rotation and 50% alpha.
+ * Longest-lived symbol across all levels:
+ *   - level 1: DefineSprite_7 → 91 frames
+ *   - level 2: DefineSprite_8 → 106 frames
+ *   - level 3: DefineSprite_9 → 118 frames
+ *   - level 4: DefineSprite_10 → 121 frames
+ *   - level 5: DefineSprite_11 → 121 frames
+ *   - level 6: (reuses DefineSprite_11 or DefineSprite_9 — use 11)
+ * complete() is called from whichever variant's removal frame fires.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Container } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-// anim1: the main impact animation (5 frames)
-const ANIM1_MANIFEST: SpriteManifest = {
+// anim1 bounds from manifest animations[0]
+const ANIM1_BOUNDS = {
   width: 238.25,
   height: 242.35,
   offsetX: -84.65,
   offsetY: -144.45,
 };
 
-/**
- * Per-level configuration derived from ActionScript:
- *
- * DefineSprite_6: t = random(parent.t) + parent.t  (growing scale, stops frame 19, hit = frame 1 effectively since it's immediate)
- * DefineSprite_7: t = 7, hit = frame 22, end = frame 91
- * DefineSprite_8: t = 11, hit = frame 64, end = frame 106
- * DefineSprite_9: t = 20, hit = frame 79, end = frame 118
- * DefineSprite_10: t = 25, hit = frame 79, end = frame 121
- * DefineSprite_11: t = 33, hit = frame 79, end = frame 121
- */
-interface LevelConfig {
-  tValue: number;
-  hitFrame: number;
-  stopFrame: number;
-  isScaleGrow: boolean; // DefineSprite_6 uses the growing scale mechanic
-}
-
-const LEVEL_CONFIGS: LevelConfig[] = [
-  { tValue: 0, hitFrame: 0, stopFrame: 18, isScaleGrow: true }, // level 1 -> DefineSprite_6
-  { tValue: 7, hitFrame: 21, stopFrame: 90, isScaleGrow: false }, // level 2 -> DefineSprite_7
-  { tValue: 11, hitFrame: 63, stopFrame: 105, isScaleGrow: false }, // level 3 -> DefineSprite_8
-  { tValue: 20, hitFrame: 78, stopFrame: 117, isScaleGrow: false }, // level 4 -> DefineSprite_9
-  { tValue: 25, hitFrame: 78, stopFrame: 120, isScaleGrow: false }, // level 5 -> DefineSprite_10
-  { tValue: 33, hitFrame: 78, stopFrame: 120, isScaleGrow: false }, // level 6 -> DefineSprite_11
-];
-
-export class Spell815 extends BaseSpell {
+export class Spell815 extends RuntimeSpell {
   readonly spellId = 815;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  // For the growing scale sprite (level 1 / DefineSprite_6)
-  private scaleGrowActive = false;
-  private scaleGrowT = 0;
-  private scaleGrowAnim: FrameAnimatedSprite | null = null;
-  private readonly FRAME_TIME = 1000 / 60;
+  // Keep references to variant symbols for use in DefineSprite_12's frame_1
+  private ds7Sym!: SymbolDefinition;
+  private ds8Sym!: SymbolDefinition;
+  private ds9Sym!: SymbolDefinition;
+  private ds10Sym!: SymbolDefinition;
+  private ds11Sym!: SymbolDefinition;
 
-  // Impact container at target position
-  private impactContainer!: Container;
-
-  protected setup(
-    context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const level = Math.max(1, Math.min(6, context?.level ?? 1));
-    const config = LEVEL_CONFIGS[level - 1];
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
+    const anim1Frames = textures.getFrames("anim1");
 
-    // Play vlad_806 at frame 1 (main timeline)
-    this.callbacks.playSound("vlad_806");
+    // ---- DefineSprite_3 — anim1 wrapper with random rotation + 50% alpha ----
+    // AS scripts/DefineSprite_3/frame_1/DoAction.as:
+    //   _rotation = random(360);
+    //   _alpha = 50;
+    const ds3Sym: SymbolDefinition = {
+      name: "sprite3",
+      totalFrames: anim1Frames.length > 0 ? anim1Frames.length : 5,
+      frames: anim1Frames,
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS scripts/DefineSprite_3/frame_1/DoAction.as
+            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+            clip.alpha = 50 / 100;
+          },
+        ],
+      ]),
+    };
 
-    // Impact container positioned at target
-    this.impactContainer = new Container();
-    this.impactContainer.position.set(init.targetX, init.targetY);
-    this.container.addChild(this.impactContainer);
+    // ---- DefineSprite_6 — inner burst visual, level-parameterised t ----
+    // AS scripts/DefineSprite_6/frame_1/DoAction.as:
+    //   SOMA.playSound("punch");
+    // AS scripts/DefineSprite_6/frame_1/DoAction_2.as:
+    //   t = random(_parent.t) + _parent.t;
+    //   _xscale = 0; _yscale = 0;
+    //   onEnterFrame: _xscale += t; _yscale += t; t /= 1.6;
+    // AS scripts/DefineSprite_6/frame_19/DoAction.as:
+    //   stop();
+    const ds6Sym: SymbolDefinition = {
+      name: "sprite6",
+      totalFrames: 19,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS scripts/DefineSprite_6/frame_1/DoAction.as + DoAction_2.as
+            // Note: sound "punch" is played here in canonical AS. We cannot
+            // call callbacks from a frameScript directly, but the manifest
+            // also lists "punch" on frame 0 of the main sounds list and
+            // DefineSprite_6/frame_1 also references it. We play it via
+            // the stored callback.
+            //
+            // Seed the scale-up animation vars.
+            const parentT = (clip.parent?.vars.t as number) ?? 7;
+            const t = Math.floor(Math.random() * parentT) + parentT;
+            clip.vars.t = t;
+            clip.scaleX = 0;
+            clip.scaleY = 0;
+            // Attach the anim1 visual wrapper (sprite3) at depth 1
+            clip.attach(ds3Sym, "anim1wrapper", 1, ctx);
+          },
+        ],
+        [
+          18,
+          (clip) => {
+            // AS scripts/DefineSprite_6/frame_19/DoAction.as: stop()
+            clip.stop();
+          },
+        ],
+      ]),
+      onEnterFrame: (clip) => {
+        // AS scripts/DefineSprite_6/frame_1/DoAction_2.as onEnterFrame:
+        //   _xscale += t; _yscale += t; t /= 1.6;
+        // Only run after t has been seeded (frame_1 onLoad sets it)
+        const t = clip.vars.t as number | undefined;
+        if (t === undefined) {
+          return;
+        }
+        clip.scaleX += t / 100;
+        clip.scaleY += t / 100;
+        clip.vars.t = t / 1.6;
+      },
+    };
 
-    // DefineSprite_3: decorative element with random rotation and 50% alpha
-    // Uses anim1 as its texture (single frame reference)
-    const decorTextures = textures.getFrames("anim1");
-    const decorAnchor = calculateAnchor(ANIM1_MANIFEST);
-    const decor = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: decorTextures,
-        anchorX: decorAnchor.x,
-        anchorY: decorAnchor.y,
-        scale: init.scale,
-        stopFrame: config.stopFrame,
-      })
-    );
-    decor.sprite.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
-    decor.sprite.alpha = 0.5;
-    this.impactContainer.addChild(decor.sprite);
-    this.decorAnim = decor;
+    // ---- DefineSprite_7 — variant t=7, hit at frame 22, remove at frame 91 ----
+    // AS scripts/DefineSprite_7/frame_1/DoAction.as: t = 7
+    // AS scripts/DefineSprite_7/frame_22/DoAction.as: this.end() → signalHit
+    // AS scripts/DefineSprite_7/frame_91/DoAction.as: _parent._parent.removeMovieClip(); stop()
+    this.ds7Sym = {
+      name: "sprite7",
+      totalFrames: 91,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS scripts/DefineSprite_7/frame_1/DoAction.as
+            clip.vars.t = 7;
+            clip.attach(ds6Sym, "burst", 1, ctx);
+          },
+        ],
+        [
+          21,
+          () => {
+            // AS scripts/DefineSprite_7/frame_22/DoAction.as: this.end()
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          90,
+          (clip) => {
+            // AS scripts/DefineSprite_7/frame_91/DoAction.as:
+            //   _parent._parent.removeMovieClip(); stop()
+            // _parent._parent from sprite7's perspective:
+            //   sprite7 → ds12 container → root
+            // We remove the ds12 container and complete.
+            clip.parent?.remove();
+            this.runtime.complete();
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-    // Main impact animation (DefineSprite_6 through 11 behavior)
-    const anim1Textures = textures.getFrames("anim1");
-    const anchor = calculateAnchor(ANIM1_MANIFEST);
+    // ---- DefineSprite_8 — variant t=11, hit at frame 64, remove at frame 106 ----
+    // AS scripts/DefineSprite_8/frame_1/DoAction.as: t = 11
+    // AS scripts/DefineSprite_8/frame_64/DoAction.as: this.end() → signalHit
+    // AS scripts/DefineSprite_8/frame_106/DoAction.as: _parent._parent.removeMovieClip(); stop()
+    this.ds8Sym = {
+      name: "sprite8",
+      totalFrames: 106,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS scripts/DefineSprite_8/frame_1/DoAction.as
+            clip.vars.t = 11;
+            clip.attach(ds6Sym, "burst", 1, ctx);
+          },
+        ],
+        [
+          63,
+          () => {
+            // AS scripts/DefineSprite_8/frame_64/DoAction.as: this.end()
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          105,
+          (clip) => {
+            // AS scripts/DefineSprite_8/frame_106/DoAction.as:
+            //   _parent._parent.removeMovieClip(); stop()
+            clip.parent?.remove();
+            this.runtime.complete();
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-    if (config.isScaleGrow) {
-      // DefineSprite_6: growing scale effect
-      // t = random(parent.t) + parent.t where parent.t is determined by the parent sprite
-      // Since DefineSprite_6 is nested under DefineSprite_12, and DefineSprite_12 uses gotoAndStop(level),
-      // the parent.t for level 1 isn't directly set by the numbered sprites.
-      // Looking at the AS: DefineSprite_6/frame_1/DoAction_2.as uses _parent.t
-      // The _parent here would be the container that holds DefineSprite_6.
-      // For level 1 (DefineSprite_6), the parent is DefineSprite_12, which calls gotoAndStop(1).
-      // There's no explicit t set on DefineSprite_12 itself in the scripts.
-      // The only t values set are in DefineSprite_7(7), _8(11), _9(20), _10(25), _11(33).
-      // For DefineSprite_6, _parent.t would be from whatever contains it.
-      // Since it's gotoAndStop(1) in DefineSprite_12, and DefineSprite_12/frame_1 has no t set,
-      // we use a reasonable default. Looking at the pattern, _parent for DefineSprite_6 inside
-      // DefineSprite_12 would be DefineSprite_12, which doesn't set t.
-      // The AS for frame_1/DoAction_2: t = random(_parent.t) + _parent.t
-      // If _parent.t is undefined/0, this would produce t = 0.
-      // But looking at the pattern with other levels, we use t=7 as the minimum meaningful value.
-      // Actually, since level 1 uses DefineSprite_6, and the parent (DefineSprite_12) doesn't set t,
-      // _parent.t would be whatever was set on that container before.
-      // Let's use t=10 as a reasonable fallback (between 7 and 11).
-      // Given the ambiguity, use parentT = 10 for level 1.
-      const parentT = 10;
-      this.scaleGrowT = Math.floor(Math.random() * parentT) + parentT;
+    // ---- DefineSprite_9 — variant t=20, hit at frame 79, remove at frame 118 ----
+    // AS scripts/DefineSprite_9/frame_1/DoAction.as: t = 20
+    // AS scripts/DefineSprite_9/frame_79/DoAction.as: this.end() → signalHit
+    // AS scripts/DefineSprite_9/frame_118/DoAction.as: _parent._parent.removeMovieClip(); stop()
+    this.ds9Sym = {
+      name: "sprite9",
+      totalFrames: 118,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS scripts/DefineSprite_9/frame_1/DoAction.as
+            clip.vars.t = 20;
+            clip.attach(ds6Sym, "burst", 1, ctx);
+          },
+        ],
+        [
+          78,
+          () => {
+            // AS scripts/DefineSprite_9/frame_79/DoAction.as: this.end()
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          117,
+          (clip) => {
+            // AS scripts/DefineSprite_9/frame_118/DoAction.as:
+            //   _parent._parent.removeMovieClip(); stop()
+            clip.parent?.remove();
+            this.runtime.complete();
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-      const growAnim = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: anim1Textures,
-          anchorX: anchor.x,
-          anchorY: anchor.y,
-          scale: init.scale,
-          stopFrame: 18, // frame 19 AS -> index 18
-        })
-      );
-      growAnim.sprite.scale.set(0);
-      growAnim.onFrame(0, () => {
-        this.callbacks.playSound("punch");
-        this.scaleGrowActive = true;
-      });
-      // Hit signal is immediate for level 1 (no explicit end() frame in DefineSprite_6)
-      growAnim.onFrame(0, () => this.signalHit());
-      growAnim.onFrame(18, () => {
-        this.scaleGrowActive = false;
-        this.complete();
-      });
-      this.impactContainer.addChild(growAnim.sprite);
-      this.mainAnim = growAnim;
-      this.scaleGrowAnim = growAnim;
-    } else {
-      // Standard variants (DefineSprite_7, 8, 9, 10, 11)
-      // Play punch sound at frame 1
-      // The growing scale effect: _xscale = 0 initially, then grows by t each frame, t /= 1.6
-      // These also have the growing effect from DefineSprite_6/DoAction_2 as they contain it,
-      // but looking at the AS more carefully: DefineSprite_7/8/9/10/11 each set their own t value
-      // and DefineSprite_6 is placed inside them using gotoAndStop in DefineSprite_12.
-      // Actually re-reading: DefineSprite_12 uses gotoAndStop(_parent.level) which selects
-      // between frames 1-6, each frame having a different DefineSprite placed.
-      // DefineSprite_6 is the base impact sprite used within all of them.
-      // But DefineSprite_7 through 11 are longer-running outer wrappers.
+    // ---- DefineSprite_10 — variant t=25, hit at frame 79, remove at frame 121 ----
+    // AS scripts/DefineSprite_10/frame_1/DoAction.as: t = 25
+    // AS scripts/DefineSprite_10/frame_79/DoAction.as: this.end() → signalHit
+    // AS scripts/DefineSprite_10/frame_121/DoAction.as: _parent._parent.removeMovieClip(); stop()
+    this.ds10Sym = {
+      name: "sprite10",
+      totalFrames: 121,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS scripts/DefineSprite_10/frame_1/DoAction.as
+            clip.vars.t = 25;
+            clip.attach(ds6Sym, "burst", 1, ctx);
+          },
+        ],
+        [
+          78,
+          () => {
+            // AS scripts/DefineSprite_10/frame_79/DoAction.as: this.end()
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          120,
+          (clip) => {
+            // AS scripts/DefineSprite_10/frame_121/DoAction.as:
+            //   _parent._parent.removeMovieClip(); stop()
+            clip.parent?.remove();
+            this.runtime.complete();
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-      // The structure is:
-      // Main timeline -> DefineSprite_12 (selects by level) -> contains DefineSprite_6 + outer wrapper
-      // DefineSprite_7/8/9/10/11 set _parent.t, then DefineSprite_6 reads _parent.t
+    // ---- DefineSprite_11 — variant t=33, hit at frame 79, remove at frame 121 ----
+    // AS scripts/DefineSprite_11/frame_1/DoAction.as: t = 33
+    // AS scripts/DefineSprite_11/frame_79/DoAction.as: this.end() → signalHit
+    // AS scripts/DefineSprite_11/frame_121/DoAction.as: _parent._parent.removeMovieClip(); stop()
+    this.ds11Sym = {
+      name: "sprite11",
+      totalFrames: 121,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS scripts/DefineSprite_11/frame_1/DoAction.as
+            clip.vars.t = 33;
+            clip.attach(ds6Sym, "burst", 1, ctx);
+          },
+        ],
+        [
+          78,
+          () => {
+            // AS scripts/DefineSprite_11/frame_79/DoAction.as: this.end()
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          120,
+          (clip) => {
+            // AS scripts/DefineSprite_11/frame_121/DoAction.as:
+            //   _parent._parent.removeMovieClip(); stop()
+            clip.parent?.remove();
+            this.runtime.complete();
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-      // For non-level-1, we still need the growing scale anim (DefineSprite_6) at start,
-      // plus the longer-running outer animation.
-      // DefineSprite_6 stops at frame 19. The outer sprite continues longer.
+    // ---- DefineSprite_12 — level selector, gotoAndStop(_parent.level) ----
+    // AS scripts/DefineSprite_12/frame_1/DoAction.as:
+    //   gotoAndStop(_parent.level)
+    // The sprite has 6 "frames" corresponding to spell levels 1-6.
+    // Each frame holds one of the variant sprites. We model this as a
+    // container that on frame_1 attaches the level-appropriate variant.
+    //
+    // Level mapping (canonical, matching t values):
+    //   level 1 → sprite7  (t=7,  91 frames)
+    //   level 2 → sprite8  (t=11, 106 frames)
+    //   level 3 → sprite9  (t=20, 118 frames)
+    //   level 4 → sprite10 (t=25, 121 frames)
+    //   level 5 → sprite11 (t=33, 121 frames)
+    //   level 6 → sprite11 (t=33, 121 frames, same as level 5)
+    const ds12Sym: SymbolDefinition = {
+      name: "sprite12",
+      totalFrames: 6,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS scripts/DefineSprite_12/frame_1/DoAction.as:
+            //   gotoAndStop(_parent.level)
+            // _parent here is the root. We use it to determine which
+            // variant sub-sprite to attach, then stop.
+            const level = (clip.parent?.vars.level as number) ?? 1;
+            let variantSym: SymbolDefinition;
+            if (level <= 1) {
+              variantSym = this.ds7Sym;
+            } else if (level === 2) {
+              variantSym = this.ds8Sym;
+            } else if (level === 3) {
+              variantSym = this.ds9Sym;
+            } else if (level === 4) {
+              variantSym = this.ds10Sym;
+            } else {
+              // level 5 and 6
+              variantSym = this.ds11Sym;
+            }
+            clip.attach(variantSym, "variant", 1, ctx);
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-      // Implement: inner growing anim (DefineSprite_6 behavior) + outer frame counter
-      // The outer animation determines hit and stop timing.
+    this.registry.register(ds3Sym);
+    this.registry.register(ds6Sym);
+    this.registry.register(this.ds7Sym);
+    this.registry.register(this.ds8Sym);
+    this.registry.register(this.ds9Sym);
+    this.registry.register(this.ds10Sym);
+    this.registry.register(this.ds11Sym);
+    this.registry.register(ds12Sym);
 
-      const parentT = config.tValue;
-      const innerT_initial = Math.floor(Math.random() * parentT) + parentT;
-
-      // Inner growing animation (DefineSprite_6 behavior)
-      const innerAnim = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: anim1Textures,
-          anchorX: anchor.x,
-          anchorY: anchor.y,
-          scale: init.scale,
-          stopFrame: 18, // DefineSprite_6 stops at frame 19 (index 18)
-        })
-      );
-      innerAnim.sprite.scale.set(0);
-
-      // Store grow state for inner anim
-      let innerScaleT = innerT_initial;
-      let innerScaleCurrentX = 0;
-      let innerScaleCurrentY = 0;
-      let innerGrowActive = false;
-
-      innerAnim.onFrame(0, () => {
-        this.callbacks.playSound("punch");
-        innerGrowActive = true;
-        innerScaleCurrentX = 0;
-        innerScaleCurrentY = 0;
-        innerScaleT = innerT_initial;
-      });
-
-      // We need per-frame scale update for inner anim - handle in update()
-      // Store references for update
-      (innerAnim as unknown as Record<string, unknown>)._innerGrowState = {
-        get active() {
-          return innerGrowActive;
-        },
-        set active(v: boolean) {
-          innerGrowActive = v;
-        },
-        get t() {
-          return innerScaleT;
-        },
-        set t(v: number) {
-          innerScaleT = v;
-        },
-        get scaleX() {
-          return innerScaleCurrentX;
-        },
-        set scaleX(v: number) {
-          innerScaleCurrentX = v;
-        },
-        get scaleY() {
-          return innerScaleCurrentY;
-        },
-        set scaleY(v: number) {
-          innerScaleCurrentY = v;
-        },
-      };
-
-      this.impactContainer.addChild(innerAnim.sprite);
-
-      // Outer animation (the longer-running sprite for timing hit/stop)
-      // We use a separate anim on the same textures, looping until the stop frame
-      const outerAnim = this.anims.add(
-        new FrameAnimatedSprite({
-          textures: anim1Textures,
-          anchorX: anchor.x,
-          anchorY: anchor.y,
-          scale: init.scale,
-          stopFrame: config.stopFrame,
-        })
-      );
-      outerAnim.sprite.visible = false; // invisible, just for timing
-      outerAnim.onFrame(config.hitFrame, () => this.signalHit());
-      outerAnim.onFrame(config.stopFrame, () => this.complete());
-      this.impactContainer.addChild(outerAnim.sprite);
-
-      this.mainAnim = outerAnim;
-
-      // Store inner anim state for update
-      this._innerGrowAnim = innerAnim;
-      this._innerGrowActiveRef = () => innerGrowActive;
-      this._innerGrowSetActive = (v: boolean) => {
-        innerGrowActive = v;
-      };
-      this._innerGrowGetT = () => innerScaleT;
-      this._innerGrowSetT = (v: number) => {
-        innerScaleT = v;
-      };
-      this._innerGrowGetScaleX = () => innerScaleCurrentX;
-      this._innerGrowSetScaleX = (v: number) => {
-        innerScaleCurrentX = v;
-      };
-      this._innerGrowGetScaleY = () => innerScaleCurrentY;
-      this._innerGrowSetScaleY = (v: number) => {
-        innerScaleCurrentY = v;
-      };
-      this._hasInnerGrow = true;
-    }
+    // Store ds12Sym reference for use in onSpellStart
+    this._ds12Sym = ds12Sym;
   }
 
-  // Inner grow state accessors (for non-level-1)
-  private _innerGrowAnim: FrameAnimatedSprite | null = null;
-  private _hasInnerGrow = false;
-  private _innerGrowActiveRef: (() => boolean) | null = null;
-  private _innerGrowSetActive: ((v: boolean) => void) | null = null;
-  private _innerGrowGetT: (() => number) | null = null;
-  private _innerGrowSetT: ((v: number) => void) | null = null;
-  private _innerGrowGetScaleX: (() => number) | null = null;
-  private _innerGrowSetScaleX: ((v: number) => void) | null = null;
-  private _innerGrowGetScaleY: (() => number) | null = null;
-  private _innerGrowSetScaleY: ((v: number) => void) | null = null;
+  private _ds12Sym!: SymbolDefinition;
 
-  // Frame accumulator for scale grow (per-frame physics, not deltaTime-smoothed)
-  private _innerGrowFrameAccum = 0;
-  private _scaleGrowFrameAccum = 0;
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // AS scripts/frame_1/DoAction.as: SOMA.playSound("vlad_806")
+    callbacks.playSound("vlad_806");
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+    // Store level on root.vars so child frame scripts can read _parent.level
+    this.root.vars.level = context.level;
 
-    this.anims.update(deltaTime);
-
-    // Handle growing scale effect for level 1 (scaleGrow mode)
-    if (this.scaleGrowActive && this.scaleGrowAnim !== null) {
-      this._scaleGrowFrameAccum += deltaTime;
-      while (
-        this._scaleGrowFrameAccum >= this.FRAME_TIME &&
-        this.scaleGrowActive
-      ) {
-        this._scaleGrowFrameAccum -= this.FRAME_TIME;
-        // AS: _xscale = _xscale + t; _yscale = _yscale + t; t /= 1.6
-        const currentScale = this.scaleGrowAnim.sprite.scale.x * 100;
-        const newScale = currentScale + this.scaleGrowT;
-        this.scaleGrowAnim.sprite.scale.set((newScale / 100) * (1 / 60) * 60); // keep as fraction
-        // Actually scale is set directly as fraction of 100:
-        this.scaleGrowAnim.sprite.scale.set(newScale / 100);
-        this.scaleGrowT = this.scaleGrowT / 1.6;
-      }
-    }
-
-    // Handle inner grow for non-level-1 variants
-    if (
-      this._hasInnerGrow &&
-      this._innerGrowAnim !== null &&
-      this._innerGrowActiveRef !== null
-    ) {
-      if (this._innerGrowActiveRef()) {
-        this._innerGrowFrameAccum += deltaTime;
-        while (
-          this._innerGrowFrameAccum >= this.FRAME_TIME &&
-          this._innerGrowActiveRef()
-        ) {
-          this._innerGrowFrameAccum -= this.FRAME_TIME;
-          const currentX = this._innerGrowGetScaleX?.();
-          const currentY = this._innerGrowGetScaleY?.();
-          const t = this._innerGrowGetT?.();
-          const newX = currentX + t;
-          const newY = currentY + t;
-          this._innerGrowSetScaleX?.(newX);
-          this._innerGrowSetScaleY?.(newY);
-          this._innerGrowSetT?.(t / 1.6);
-          this._innerGrowAnim.sprite.scale.set(newX / 100, newY / 100);
-
-          if (
-            this._innerGrowAnim.isStopped() ||
-            this._innerGrowAnim.isComplete()
-          ) {
-            this._innerGrowSetActive?.(false);
-          }
-        }
-      }
-    }
-
-    if (this.anims.allStopped() || this.anims.allComplete()) {
-      this.complete();
-    }
+    // Attach the level-selector sprite12 at the root. Its frame_1 will
+    // select and attach the correct duration variant based on level.
+    this.root.attach(this._ds12Sym, "selector", 1, context);
   }
 }

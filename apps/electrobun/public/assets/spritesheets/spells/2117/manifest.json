@@ -1,0 +1,1 @@
+{"version":1,"spriteId":"2117","animations":{"anim1":{"file":"atlas.svg","width":573,"height":1058,"offsetX":-143.2,"offsetY":-74.6,"fps":60,"frames":[],"frameOrder":[],"duplicates":{}}},"spell":{"id":2117,"fps":40,"mainTimelineScale":1,"requiresTypeScript":false,"sounds":[],"librarySymbols":[],"animationMeta":{"anim1":{"stopFrame":15,"fadingFrame":14,"isComposite":false}}}}

@@ -1,0 +1,231 @@
+import type { LiveMonsterGroup } from "@modules/monsters/map-monster.service";
+import type { HandlerContext } from "@shared/gateway-adapter/ws-router";
+import { create } from "@bufbuild/protobuf";
+import { CharacterColorsSchema, SpriteType } from "@dofus/proto/common_pb";
+import {
+  type GameCreateRequest,
+  GameCreateRequestSchema,
+  GameCreateSchema,
+  GameMovementSchema,
+  MonsterGroupMemberSchema,
+  type SpriteMovementEntry,
+  SpriteMovementEntry_Operation,
+  SpriteMovementEntrySchema,
+} from "@dofus/proto/game_pb";
+import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
+import { SpellListSchema } from "@dofus/proto/spells_pb";
+import { AccessoriesService } from "@modules/inventory/accessories.service";
+import { buildMapData } from "@modules/maps/maps.build-data";
+import { MapsRepository } from "@modules/maps/maps.repository";
+import { MapMonsterService } from "@modules/monsters/map-monster.service";
+import { PlayerPresenceService } from "@modules/player-presence/player-presence.service";
+import { toSpriteEntry } from "@modules/player-presence/player-presence.sprite-entry";
+import { PlayersRepository } from "@modules/players/players.repository";
+import { SpellsService } from "@modules/spells/spells.service";
+import { StatsService } from "@modules/stats/stats.service";
+import { Injectable, Logger } from "@nestjs/common";
+import { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
+import { MessageHandler } from "@shared/gateway-adapter/message-handler.decorator";
+import { SessionRegistry } from "@shared/gateway-adapter/session-registry";
+
+const DEFAULT_COLOR = -1;
+const DEFAULT_SCALE = 100;
+
+@Injectable()
+export class EnterGameHandler {
+  private readonly logger = new Logger(EnterGameHandler.name);
+
+  constructor(
+    private readonly players: PlayersRepository,
+    private readonly maps: MapsRepository,
+    private readonly mapMonsters: MapMonsterService,
+    private readonly presence: PlayerPresenceService,
+    private readonly sessions: SessionRegistry,
+    private readonly frames: GatewayFrameService,
+    private readonly stats: StatsService,
+    private readonly spells: SpellsService,
+    private readonly accessories: AccessoriesService
+  ) {}
+
+  @MessageHandler(GameCreateRequestSchema)
+  async handle(ctx: HandlerContext, msg: GameCreateRequest): Promise<void> {
+    const session = this.sessions.get(ctx.sessionId);
+
+    if (!session?.characterId) {
+      this.logger.warn(`enter-game: no character on session=${ctx.sessionId}`);
+      return this.reject(ctx, msg.type);
+    }
+
+    const player = await this.players.loadPresence(session.characterId);
+
+    if (!player) {
+      this.logger.warn(
+        `enter-game: player not found id=${session.characterId}`
+      );
+      return this.reject(ctx, msg.type);
+    }
+
+    const map = await this.maps.findById(player.mapId);
+
+    if (!map) {
+      this.logger.warn(`enter-game: map not found id=${player.mapId}`);
+      return this.reject(ctx, msg.type);
+    }
+
+    const tStart = performance.now();
+    const accessories = await this.accessories.buildPresence(player.id);
+    const tAcc = performance.now();
+
+    const entering = {
+      sessionId: ctx.sessionId,
+      characterId: player.id,
+      mapId: player.mapId,
+      cellId: player.cellId,
+      direction: player.direction,
+      name: player.name,
+      level: player.level,
+      sex: player.sex,
+      gfx: player.gfx,
+      color1: player.color1 ?? DEFAULT_COLOR,
+      color2: player.color2 ?? DEFAULT_COLOR,
+      color3: player.color3 ?? DEFAULT_COLOR,
+      accessories,
+    };
+
+    const peers = this.presence.sessionsOnMap(player.mapId, player.id);
+    const existing = this.presence.onMap(player.mapId);
+
+    this.presence.enter(entering);
+
+    this.frames.broadcast(
+      [ctx.sessionId],
+      create(DofusMessageSchema, {
+        payload: {
+          case: "gameCreate",
+          value: create(GameCreateSchema, { success: true, state: msg.type }),
+        },
+      })
+    );
+
+    this.frames.broadcast(
+      [ctx.sessionId],
+      create(DofusMessageSchema, {
+        payload: { case: "gameMapData", value: buildMapData(map) },
+      })
+    );
+
+    await this.stats.sendStats(ctx.sessionId, session.characterId);
+    const tStats = performance.now();
+
+    const spellData = await this.spells.buildSpellList(session.characterId);
+    const tSpells = performance.now();
+    this.frames.broadcast(
+      [ctx.sessionId],
+      create(DofusMessageSchema, {
+        payload: {
+          case: "spellList",
+          value: create(SpellListSchema, { spells: spellData }),
+        },
+      })
+    );
+
+    const selfAdd = toSpriteEntry(entering, SpriteMovementEntry_Operation.ADD);
+    let monsterEntries: SpriteMovementEntry[] = [];
+    try {
+      const monsterGroups = await this.mapMonsters.ensureSpawned(player.mapId);
+      monsterEntries = monsterGroups.map(groupToSpriteEntry);
+    } catch (err) {
+      this.logger.error(
+        `failed to spawn monsters on map=${player.mapId}: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+    const tMonsters = performance.now();
+
+    this.logger.log(
+      `enter-game timing: acc=${(tAcc - tStart).toFixed(0)}ms ` +
+        `stats=${(tStats - tAcc).toFixed(0)}ms ` +
+        `spells=${(tSpells - tStats).toFixed(0)}ms ` +
+        `monsters=${(tMonsters - tSpells).toFixed(0)}ms ` +
+        `total=${(tMonsters - tStart).toFixed(0)}ms (accs=${accessories.length})`
+    );
+
+    this.logger.log(
+      `sending GM: self=${entering.characterId} cell=${entering.cellId} gfx=${entering.gfx} + ${existing.length} peers + ${monsterEntries.length} monster groups`
+    );
+
+    this.frames.broadcast(
+      [ctx.sessionId],
+      create(DofusMessageSchema, {
+        payload: {
+          case: "gameMovement",
+          value: create(GameMovementSchema, {
+            entries: [
+              ...existing.map((p) =>
+                toSpriteEntry(p, SpriteMovementEntry_Operation.ADD)
+              ),
+              selfAdd,
+              ...monsterEntries,
+            ],
+          }),
+        },
+      })
+    );
+
+    if (peers.length > 0) {
+      this.frames.broadcast(
+        peers,
+        create(DofusMessageSchema, {
+          payload: {
+            case: "gameMovement",
+            value: create(GameMovementSchema, { entries: [selfAdd] }),
+          },
+        })
+      );
+    }
+
+    this.logger.log(
+      `enter-game: character=${session.characterId} map=${map.id} peers=${peers.length}`
+    );
+  }
+
+  private reject(ctx: HandlerContext, state: number): void {
+    this.frames.broadcast(
+      [ctx.sessionId],
+      create(DofusMessageSchema, {
+        payload: {
+          case: "gameCreate",
+          value: create(GameCreateSchema, { success: false, state }),
+        },
+      })
+    );
+  }
+}
+
+function groupToSpriteEntry(group: LiveMonsterGroup): SpriteMovementEntry {
+  const leader = group.members[0];
+  return create(SpriteMovementEntrySchema, {
+    operation: SpriteMovementEntry_Operation.ADD,
+    spriteType: SpriteType.MONSTER_GROUP,
+    spriteId: String(group.id),
+    cellId: group.cellId,
+    direction: group.direction,
+    gfxId: leader?.gfx ?? 0,
+    scaleX: DEFAULT_SCALE,
+    scaleY: DEFAULT_SCALE,
+    colors: create(CharacterColorsSchema, {
+      color1: leader?.color1 ?? DEFAULT_COLOR,
+      color2: leader?.color2 ?? DEFAULT_COLOR,
+      color3: leader?.color3 ?? DEFAULT_COLOR,
+    }),
+    monsters: group.members.map((m) =>
+      create(MonsterGroupMemberSchema, {
+        templateId: m.templateId,
+        level: m.level,
+        gfxId: m.gfx,
+        color1: m.color1,
+        color2: m.color2,
+        color3: m.color3,
+      })
+    ),
+  });
+}

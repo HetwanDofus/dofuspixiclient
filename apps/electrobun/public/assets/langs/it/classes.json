@@ -1,0 +1,1833 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1258,
+        "G": {
+            "1": {
+                "sn": "Feca",
+                "ln": "Lo scudo Feca",
+                "ep": 1,
+                "d": "I Feca sono dei Protettori leali. Sono molto apprezzati dai gruppi di avventurieri per i loro poteri protettivi, ma anche perché sanno servirsi del bastone come nessun altro. Tutti i Feca sono fieri di essere protettori fuori dal comune, per questo i Saggi affidano loro i più importanti oggetti, dandogli piena fiducia.",
+                "sd": "Una classe di protettori. Le loro armature riducono i danni inflitti agli alleati.",
+                "di": false,
+                "s": [
+                    1901,
+                    13,
+                    15,
+                    7,
+                    10,
+                    11,
+                    12,
+                    8,
+                    16,
+                    5,
+                    19,
+                    14,
+                    20,
+                    18,
+                    9,
+                    1,
+                    2,
+                    4,
+                    17,
+                    3,
+                    6
+                ],
+                "pt": "Difesa offensiva",
+                "pd": "ogni armatura aggiunge un proprio bonus. La loro durata è ridotta di un turno.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        250
+                    ],
+                    [
+                        4,
+                        150
+                    ],
+                    [
+                        3,
+                        50
+                    ],
+                    [
+                        2,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "2": {
+                "sn": "Osamodas",
+                "ln": "La frusta di Osamodas",
+                "ep": 1,
+                "d": "Gli Osamodas sono degli Invocatori nati! Hanno il potere di invocare delle creature e sono dei notevoli ammaestratori. Si dice che si fabbrichino i vestiti con la pelle dei nemici. Prova a chiederglielo... e scoprirai se finirai i tuoi giorni sotto forma di stivale o di cappello imbottito.",
+                "sd": "Una classe di invocatori. Usano le invocazioni per combattere a distanza.",
+                "di": true,
+                "s": [
+                    1902,
+                    31,
+                    40,
+                    39,
+                    29,
+                    32,
+                    36,
+                    38,
+                    25,
+                    33,
+                    24,
+                    27,
+                    30,
+                    37,
+                    28,
+                    35,
+                    22,
+                    26,
+                    34,
+                    21,
+                    23
+                ],
+                "pt": "Condivisione",
+                "pd": "una parte delle caratteristiche dell'Osamodas è trasmessa alle sue invocazion",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        250
+                    ],
+                    [
+                        4,
+                        150
+                    ],
+                    [
+                        3,
+                        50
+                    ],
+                    [
+                        2,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "3": {
+                "sn": "Anutrof",
+                "ln": "Le dita di Anutrof",
+                "ep": 1,
+                "d": "Gli Anutrof sono degli incalliti Cacciatori di tesori! Sono interessati da ogni derrata, oggetto, o creatura che possa fargli guadagnare dei kama. La prima cosa che fa un Anutrof quando incontra un altro avventuriero è di squadrarlo. È proprio così: agli occhi di un Anutrof, un avventuriero non è altro che una creatura carica di cibo, e ricca di oggetti... da rivendere!",
+                "sd": "Una classe di cacciatori di tesori. Sanno annullare gli incantesimi e rallentare gli spostamenti dei nemici.",
+                "di": true,
+                "s": [
+                    1903,
+                    60,
+                    57,
+                    59,
+                    58,
+                    56,
+                    55,
+                    54,
+                    50,
+                    44,
+                    52,
+                    46,
+                    53,
+                    45,
+                    48,
+                    47,
+                    42,
+                    49,
+                    41,
+                    51,
+                    43
+                ],
+                "pt": "Fontana della giovinezza",
+                "pd": "per ogni PM utilizzato, gli Anutrof beneficiano di un boost ai danni.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        350
+                    ],
+                    [
+                        4,
+                        250
+                    ],
+                    [
+                        3,
+                        150
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        330
+                    ],
+                    [
+                        4,
+                        230
+                    ],
+                    [
+                        3,
+                        150
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        150
+                    ],
+                    [
+                        4,
+                        100
+                    ],
+                    [
+                        3,
+                        60
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "4": {
+                "sn": "Etram",
+                "ln": "L'ombra di Etram",
+                "ep": 1,
+                "d": "Gli Etram sono degli Assassini che amano gli zaini, preferibilmente pieni. Sollevare la falda di una tunica, frugare in fondo ad una tasca, dare prova di destrezza, impadronirsi di gioielli a lungo bramati, piazzare trappole mortali, questa è la vita di un discepolo di Etram!",
+                "sd": "Una classe di Ladrurbi. Grazie all'invisibilità e alle loro trappole, attaccano i nemici alle spalle.",
+                "di": true,
+                "s": [
+                    1904,
+                    80,
+                    76,
+                    75,
+                    70,
+                    67,
+                    73,
+                    77,
+                    69,
+                    62,
+                    71,
+                    78,
+                    79,
+                    64,
+                    74,
+                    63,
+                    68,
+                    66,
+                    65,
+                    61,
+                    72
+                ],
+                "pt": "Preso come bersaglio",
+                "pd": "quando attacca un nemico, l'Etram gli applica lo stato di \"selezionato\" e riduce le sue resistenze del 25% (si disattiva se viene attaccato un altro nemico).",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        250
+                    ],
+                    [
+                        4,
+                        150
+                    ],
+                    [
+                        3,
+                        50
+                    ],
+                    [
+                        2,
+                        0
+                    ]
+                ]
+            },
+            "5": {
+                "sn": "Xelor",
+                "ln": "La clessidra di Xelor",
+                "ep": 1,
+                "d": "Gli Xelor sono dei Maghi che controllano il tempo e tutti i meccanismi che segnano l'ora: i carillon, gli orologi, e i pendoli gli obbediscono al tatto e allo sguardo. Gli Xelor possono quindi giocare con il tempo per rallentare un nemico o teletrasportarsi dove meglio credono.",
+                "sd": "Una classe di maghi. Usano i loro incantesimi per rallentare i nemici e impedirgli di giocare.",
+                "di": true,
+                "s": [
+                    1905,
+                    97,
+                    91,
+                    95,
+                    99,
+                    94,
+                    87,
+                    90,
+                    89,
+                    86,
+                    98,
+                    96,
+                    85,
+                    93,
+                    88,
+                    92,
+                    100,
+                    84,
+                    82,
+                    83,
+                    81
+                ],
+                "pt": "A ritardamento",
+                "pd": "applica dei danni aggiuntivi in funzione del numero dei PA utilizzati.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        250
+                    ],
+                    [
+                        4,
+                        150
+                    ],
+                    [
+                        3,
+                        50
+                    ],
+                    [
+                        2,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "6": {
+                "sn": "Ecaflip",
+                "ln": "La moneta di Ecaflip",
+                "ep": 1,
+                "d": "Gli Ecaflip sono dei Guerrieri giocatori che frequentano tutti i luoghi dove si può vincere molto, ma anche perdere... Un Ecaflip che si rispetti gioca sempre, per tutto e per niente. Ma attenzione, prende il gioco molto sul serio e per vincere un combattimento rischierebbe la propria vita con un tiro di dadi...",
+                "sd": "Una classe di guerrieri giocatori. I loro attacchi si basano principalmente sulla casualità.",
+                "di": false,
+                "s": [
+                    1906,
+                    120,
+                    114,
+                    112,
+                    110,
+                    118,
+                    115,
+                    108,
+                    117,
+                    106,
+                    116,
+                    107,
+                    101,
+                    119,
+                    104,
+                    111,
+                    113,
+                    109,
+                    102,
+                    105,
+                    103
+                ],
+                "pt": "Scommessa vincente",
+                "pd": "dal livello 1, tutti gli incantesimi hanno 1 possibilità su 2 di mandare a segno un Colpo Critico.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        200
+                    ],
+                    [
+                        4,
+                        150
+                    ],
+                    [
+                        3,
+                        100
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "7": {
+                "sn": "Aniripsa",
+                "ln": "Le mani di Aniripsa",
+                "ep": 1,
+                "d": "Gli Aniripsa sono dei Guaritori che curano con una semplici Parole. Le utilizzano per curare gli alleati, ma a volte anche per ferire i nemici. Alcuni di loro sono diventati persino cacciatori di parole, esperti del verbo o esploratori delle lingue dimenticate.",
+                "sd": "Una classe di guaritori. Usano i loro incantesimi per curare gli alleati.",
+                "di": false,
+                "s": [
+                    1907,
+                    140,
+                    139,
+                    138,
+                    137,
+                    136,
+                    129,
+                    135,
+                    134,
+                    133,
+                    132,
+                    131,
+                    130,
+                    123,
+                    127,
+                    126,
+                    122,
+                    124,
+                    121,
+                    128,
+                    125
+                ],
+                "pt": "Marcante dei danni",
+                "pd": "le cure applicano un bonus di danni, mentre il loro costo in PA è ridotto.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        250
+                    ],
+                    [
+                        4,
+                        150
+                    ],
+                    [
+                        3,
+                        50
+                    ],
+                    [
+                        2,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "8": {
+                "sn": "Yop",
+                "ln": "Il cuore di Yop",
+                "ep": 1,
+                "d": "Gli Yop sono dei Guerrieri risoluti e senza paura! Una cosa è sicura: gli Yop sanno fare parlare le armi. Infatti, spargere sangue almeno una volta al giorno è per loro segno di buona salute. Il temperamento impetuoso fa degli Yop i paladini dell'estremo, capaci del meglio... come del peggio!",
+                "sd": "Una classe di guerrieri. I loro incantesimi offensivi gli permettono di causare enormi danni.",
+                "di": false,
+                "s": [
+                    1908,
+                    159,
+                    160,
+                    158,
+                    157,
+                    156,
+                    149,
+                    153,
+                    152,
+                    155,
+                    151,
+                    150,
+                    154,
+                    148,
+                    147,
+                    146,
+                    145,
+                    144,
+                    143,
+                    141,
+                    142
+                ],
+                "pt": "Pioggia di danni",
+                "pd": "aggiungi una linea di danni a ogni incantesimo di attacco.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "9": {
+                "sn": "Ocra",
+                "ln": "La portata di Ocra",
+                "ep": 1,
+                "d": "I discepoli Ocra sono degli Arcieri fieri e precisi! Possono rivelarsi alleati preziosissimi contro gli specialisti del combattimento corpo a corpo. Da lontano scoccano frecce capaci di raggiungere anche il più piccolo bersaglio, causando enormi danni ovviamente!",
+                "sd": "Una classe di arcieri. Sono specializzati negli attacchi a distanza.",
+                "di": false,
+                "s": [
+                    1909,
+                    180,
+                    179,
+                    177,
+                    178,
+                    175,
+                    176,
+                    174,
+                    173,
+                    166,
+                    171,
+                    170,
+                    162,
+                    168,
+                    167,
+                    172,
+                    165,
+                    163,
+                    161,
+                    164,
+                    169
+                ],
+                "pt": "Attacco caricato",
+                "pd": "tutti i 3 attacchi conferiscono un bonus di +25% di danni finali causati.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        350
+                    ],
+                    [
+                        4,
+                        250
+                    ],
+                    [
+                        3,
+                        150
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        200
+                    ],
+                    [
+                        4,
+                        150
+                    ],
+                    [
+                        3,
+                        100
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        350
+                    ],
+                    [
+                        4,
+                        250
+                    ],
+                    [
+                        3,
+                        150
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "10": {
+                "sn": "Sadida",
+                "ln": "Il sandalo di Sadida",
+                "ep": 1,
+                "d": "I Sadida sono degli Invocatori che fabbricano unguenti e veleni pericolosissimi! Addomesticare i rovi per farne armi terrificanti, confezionare bambole di guerra e di cura, ecco ciò che soddisfa ogni discepolo di Sadida degno di questo nome!",
+                "sd": "Una classe di stregoni. Usano bambole per combattere e ammaliare i nemici.",
+                "di": true,
+                "s": [
+                    1910,
+                    187,
+                    188,
+                    184,
+                    185,
+                    194,
+                    190,
+                    196,
+                    186,
+                    191,
+                    199,
+                    181,
+                    189,
+                    197,
+                    192,
+                    182,
+                    195,
+                    198,
+                    200,
+                    193,
+                    183
+                ],
+                "pt": "Veleno latente",
+                "pd": "ciascun incantesimo applica del veleno cumulabile sul nemico selezionato, nell'elemento d'attacco.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        250
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        80
+                    ],
+                    [
+                        4,
+                        60
+                    ],
+                    [
+                        3,
+                        40
+                    ],
+                    [
+                        2,
+                        20
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        400
+                    ],
+                    [
+                        4,
+                        300
+                    ],
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        100
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "11": {
+                "sn": "Sàcrido",
+                "ln": "Il sangue di Sàcrido",
+                "ep": 1,
+                "d": "I Sàcrido sono dei Berzerker cui le forze si moltiplicano quando sono colpiti! Non temeno colpi né ferite, per questo sono spesso in prima linea, e quindi molto apprezzati dai gruppi di avventurieri! Il Sàcrido è davvero il compagno ideale per le tue lunghe serate guerresche...",
+                "sd": "Una classe di protettori. Hanno molta resistenza e incassano i colpi al posto degli alleati.",
+                "di": false,
+                "s": [
+                    1911,
+                    450,
+                    435,
+                    448,
+                    447,
+                    446,
+                    438,
+                    445,
+                    441,
+                    442,
+                    440,
+                    443,
+                    433,
+                    439,
+                    437,
+                    436,
+                    449,
+                    444,
+                    432,
+                    434,
+                    431
+                ],
+                "pt": "Bagno di Sangue",
+                "pd": "aumenta il livello di vitalità (1 per 3) e modifica i castighi (più caratteristiche date e danni subiti).",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        5,
+                        150
+                    ],
+                    [
+                        4,
+                        100
+                    ],
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        2,
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        5,
+                        150
+                    ],
+                    [
+                        4,
+                        100
+                    ],
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        5,
+                        150
+                    ],
+                    [
+                        4,
+                        100
+                    ],
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        5,
+                        150
+                    ],
+                    [
+                        4,
+                        100
+                    ],
+                    [
+                        3,
+                        0
+                    ]
+                ]
+            },
+            "12": {
+                "sn": "Pandawa",
+                "ln": "La pinta di Pandawa",
+                "ep": 18,
+                "d": "I Pandawa sono Guerrieri portatori che sanno fare cose incredibili con il proprio corpo... ma anche con il corpo degli altri! Infatti, i Pandawa sollevano gli alleati per proteggerli, e mandano in aria i nemici per ferirli.",
+                "sd": "Una classe di guerrieri portatori. La birra li rende più forti, possono sollevare gli alleati.",
+                "di": true,
+                "s": [
+                    1912,
+                    705,
+                    704,
+                    703,
+                    702,
+                    701,
+                    700,
+                    699,
+                    698,
+                    697,
+                    696,
+                    695,
+                    694,
+                    693,
+                    688,
+                    691,
+                    690,
+                    689,
+                    686,
+                    692,
+                    687
+                ],
+                "pt": "Ebbrezza misurata",
+                "pd": "applica un bonus di 2 PA e di 2 PM allo stato Ubriaco e +35% di danni finali causati allo stato Sobrio.",
+                "cc": [
+                    [
+                        42,
+                        18,
+                        3,
+                        1
+                    ],
+                    {},
+                    false,
+                    false,
+                    50,
+                    20,
+                    1,
+                    1,
+                    4,
+                    3,
+                    [
+                        [
+                            1,
+                            5,
+                            1,
+                            100
+                        ]
+                    ]
+                ],
+                "b10": [
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b11": [
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b12": [
+                    [
+                        3,
+                        0
+                    ]
+                ],
+                "b13": [
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b14": [
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                "b15": [
+                    [
+                        3,
+                        200
+                    ],
+                    [
+                        2,
+                        50
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 101,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "G",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

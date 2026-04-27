@@ -1,0 +1,1 @@
+{"version":1,"spriteId":"2023","animations":{"shoot":{"file":"atlas.svg","width":931,"height":897,"offsetX":-92.4,"offsetY":-54.85,"fps":60,"frames":[],"frameOrder":[],"duplicates":{}}},"spell":{"id":2023,"fps":60,"mainTimelineScale":1,"requiresTypeScript":true,"sounds":[{"frame":0,"soundId":"explo_death"}],"librarySymbols":[],"animationMeta":{"shoot":{"isComposite":false}}}}

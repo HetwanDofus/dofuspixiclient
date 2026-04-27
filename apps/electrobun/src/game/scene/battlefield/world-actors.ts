@@ -1,5 +1,5 @@
 import type { DofusPathfinding } from "@dofus/grid";
-import type { MountDisplay } from "@dofus/proto";
+import type { MonsterGroupMember, MountDisplay } from "@dofus/proto";
 import { Container } from "pixi.js";
 
 import type { CharacterSpriteLoader } from "@/game/assets/character-sprite";
@@ -19,6 +19,19 @@ export interface WorldActorData {
   isCurrentPlayer: boolean;
   linkedChildren?: Array<{ gfxId: number; childIndex: number }>;
   mount?: MountDisplay;
+  /**
+   * For SPRITE_TYPE_MONSTER_GROUP sprites: the per-member roster so the
+   * world-map hover tooltip can show name / level / gfx of each
+   * monster in the group before the player engages.
+   */
+  monsterGroup?: MonsterGroupMember[];
+  /**
+   * Server-authoritative team (0 = defender/red, 1 = attacker/blue).
+   * Absent during roleplay (no team concept); passed through from
+   * SpriteMovementEntry.team during fight placement / combat so the
+   * team-colored ground ring reads correctly per fighter.
+   */
+  team?: number;
 }
 
 export interface BattlefieldWorldActorsDeps {
@@ -33,7 +46,11 @@ export interface BattlefieldWorldActorsDeps {
   currentMapWidth(): number;
   transparencyEnabled(): boolean;
   applyTransparency(): void;
-  registerPlayerForPicking(playerId: number, renderer: PlayerRenderer): void;
+  registerPlayerForPicking(
+    playerId: number,
+    renderer: PlayerRenderer,
+    monsterGroup?: MonsterGroupMember[]
+  ): void;
   unregisterPlayerFromPicking(playerId: number): void;
   markPickingDirty(): void;
 }
@@ -63,11 +80,17 @@ export class BattlefieldWorldActors {
       this.init();
     }
 
+    // Prefer the server's authoritative team (fight mode sets it from
+    // SpriteMovementEntry.team). In roleplay no team is shipped, so we
+    // fall back to the original "blue for self, red for others"
+    // heuristic — it only affects the placeholder swatch, which is
+    // hidden the moment the real sprite loads.
+    const team = data.team ?? (data.isCurrentPlayer ? 1 : 0);
+
     await (this.renderer?.addPlayer({
       id: data.id,
       name: data.name,
-      // Blue for self, red for others.
-      team: data.isCurrentPlayer ? 1 : 0,
+      team,
       cellId: data.cellId,
       direction: data.direction,
       look: data.look,
@@ -78,8 +101,20 @@ export class BattlefieldWorldActors {
       mount: data.mount,
     }) ?? Promise.resolve());
 
+    // If the player already existed (addPlayer short-circuits on
+    // duplicate ids), make sure the team mirrors whatever the server
+    // just told us — team can legitimately change when a roleplay
+    // actor transitions into a fight sprite.
+    if (data.team !== undefined) {
+      this.renderer?.updatePlayerTeam(data.id, data.team);
+    }
+
     if (this.renderer) {
-      this.deps.registerPlayerForPicking(data.id, this.renderer);
+      this.deps.registerPlayerForPicking(
+        data.id,
+        this.renderer,
+        data.monsterGroup
+      );
     }
 
     this.deps.markPickingDirty();

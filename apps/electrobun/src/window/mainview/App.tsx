@@ -14,7 +14,7 @@ export function App() {
   // session alive across the AuthFlow → MapRenderer swap.
   const clientRef = useRef<GameClient | null>(null);
   if (!clientRef.current) {
-    clientRef.current = new GameClient();
+    clientRef.current = new GameClient({ serverUrl: "ws://localhost:8080/auth" });
     clientRef.current.connect();
   }
   const client = clientRef.current;

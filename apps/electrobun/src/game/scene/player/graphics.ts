@@ -7,6 +7,36 @@ const PLACEHOLDER_BODY_COLOR_BLUE = 0x4444ff;
 const DIRECTION_ANGLES_DEG = [0, 45, 90, 135, 180, 225, 270, 315];
 
 /**
+ * Under-foot team ring drawn below every fighter sprite during combat.
+ * Dimensions mirror the original circle.swf / circle_0.svg extracted
+ * from the 1.29 client (37.1×18.9, centered on the sprite's feet).
+ * Colors come straight from dofus.Constants.TEAMS_COLOR
+ *   = [16711680, 255] → [0xFF0000, 0x0000FF]
+ * so team 0 reads red, team 1 reads blue regardless of whose
+ * perspective is viewing — matches the original's absolute coloring.
+ */
+const FIGHTER_CIRCLE_RADIUS_X = 18.55;
+const FIGHTER_CIRCLE_RADIUS_Y = 9.45;
+
+export function drawFighterGroundCircle(
+  graphics: Graphics,
+  team: number
+): void {
+  graphics.clear();
+  const color = team === PlayerTeam.RED ? 0xff0000 : 0x0000ff;
+
+  // Identical underfoot ring for every fighter — mirrors the original
+  // `addSpriteExtraClip(..., CIRCLE_FILE, TEAMS_COLOR[Team])` in
+  // GameIn.as:1298. The "active turn" indicator in 1.29 lives on the
+  // sprite itself (Sprite.as:98 color transform), not on this ring,
+  // so we don't vary it by turn state.
+  graphics.ellipse(0, 0, FIGHTER_CIRCLE_RADIUS_X, FIGHTER_CIRCLE_RADIUS_Y);
+  graphics.fill({ color, alpha: 0.18 });
+  graphics.ellipse(0, 0, FIGHTER_CIRCLE_RADIUS_X, FIGHTER_CIRCLE_RADIUS_Y);
+  graphics.stroke({ color, width: 2, alpha: 1 });
+}
+
+/**
  * Stand-in sprite shown while the real character atlas loads.
  * Colored by team with a direction indicator that prevents UI "blank" flicker.
  */

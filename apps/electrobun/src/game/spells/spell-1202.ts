@@ -1,126 +1,153 @@
 /**
- * Spell 1202 - Panda Molotov
+ * Spell 1202 — Panda Molotov (Pandawa).
  *
- * A fire spell with a "flam" animation at the target position and a "shoot"
- * animation that contains a rotating flame sprite.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/1202/scripts/scripts/
  *
- * Components:
- * - shoot (sprite): At target position, plays through 72 frames, ends at frame 70
- * - flam (sprite): Inside shoot, plays 22 frames then stops (frame 21 = stop)
+ * displayType=30 (ProjectileBallistic). The spell has `move` and `shoot`
+ * symbols (both in animations[], not librarySymbols[]), meaning the harness
+ * drives the parabolic arc for `move` and attaches `shoot` at landing.
+ * The harness also fires `runtime.signalHit()` automatically on landing —
+ * we must NOT call it ourselves.
  *
- * Original AS timing:
- * - Frame 1 (shoot): Play sound 'panda_molotov', set _rotation = 0
- * - Frame 21 (flam): stop()
- * - Frame 70 (shoot): _parent.removeMovieClip() - animation ends
+ * Animations (all in animations[], librarySymbols is empty):
+ *   - `flam`  — 22-frame flame sprite used inside the `shoot` composite.
+ *               DefineSprite_10_flam: frame_21 stops (stop()).
+ *               Referenced as the inner visual of DefineSprite_46.
+ *   - `shoot` — 72-frame composite impact explosion.
+ *               DefineSprite_39_shoot:
+ *                 frame_1/DoAction.as   → SOMA.playSound("panda_molotov")
+ *                 frame_1/DoAction_2.as → _rotation = 0
+ *                 frame_70/DoAction.as  → _parent.removeMovieClip() → complete
  *
- * DefineSprite_47/frame_1: Contains a flame instance (flam) that rotates each frame
- *   - onClipEvent(load): vr = 15 + random(70)
- *   - onClipEvent(enterFrame): _rotation += vr; vr *= 0.98
+ * Inner symbol hierarchy (from DefineSprite path names):
+ *   DefineSprite_47 contains PlaceObject2_46_1 (an instance of DefineSprite_46):
+ *     onClipEvent(load):       vr = 15 + random(70)
+ *     onClipEvent(enterFrame): _rotation += vr; vr *= 0.98
+ *   DefineSprite_46 contains PlaceObject2_45_2 (an instance of the flam anim):
+ *     onClipEvent(enterFrame): play()
  *
- * DefineSprite_46/frame_1: Contains the rotating sprite, calls play() each enterFrame
- * (keeps the flam animation playing through the loop)
+ * Since librarySymbols[] is empty, ALL textures are accessed by bare name
+ * (NO "lib_" prefix). The `flam` inner sprite is baked into the `shoot`
+ * composite frames, so for the runtime we treat `move` and `shoot` as
+ * container-only symbols with their authored frameScripts, using
+ * `frames: []` for `move` and `frames: textures.getFrames("shoot")` for
+ * `shoot` (which has the authored composite frame data).
+ *
+ * The inner DefineSprite_47 / DefineSprite_46 hierarchy is authored content
+ * already baked into the `shoot` composite frames — we do not need to
+ * re-attach them at runtime; they are rendered via the sprite sheet frames.
+ * The `_rotation = 0` in shoot/frame_1 overrides the harness-applied
+ * velocity-angle rotation (canonical AS pattern).
+ *
+ * Main timeline (frame_1/DoAction.as): empty — no sound or child attaches
+ * from the main timeline (sound is inside shoot's frame_1 instead).
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const FLAM_MANIFEST: SpriteManifest = {
-  width: 146.35,
-  height: 210.85,
-  offsetX: -13.85,
-  offsetY: -178.05,
-};
-
-const SHOOT_MANIFEST: SpriteManifest = {
+const SHOOT_BOUNDS = {
   width: 174.15,
   height: 162.65,
   offsetX: -85.1,
   offsetY: -119.9,
 };
 
-export class Spell1202 extends BaseSpell {
+export class Spell1202 extends RuntimeSpell {
   readonly spellId = 1202;
+  readonly displayType = SpellDisplayType.ProjectileBallistic;
 
-  // The rotating flame sprite's rotation velocity
-  private flamVr = 0;
+  private playSound?: (id: string) => void;
 
-  private flamAnim!: FrameAnimatedSprite;
-  private shootAnim!: FrameAnimatedSprite;
-
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    // vr = 15 + random(70) (AS random(70) -> 0..69)
-    this.flamVr = 15 + Math.floor(Math.random() * 70);
+    const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // flam animation - stops at frame 21 (AS frame 21 -> index 20, stop() means it stops after showing frame 21 = index 20)
-    // AS: frame_21/DoAction: stop() -> stopAt index 20
-    this.flamAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("flam"),
-        ...calculateAnchor(FLAM_MANIFEST),
-        scale: init.scale,
-        stopFrame: 20,
-      })
-    );
+    // ---- move — empty 1-frame container driven by the harness arc ----
+    // The harness attaches `move` at root and animates it along the
+    // parabolic arc toward the target. No authored frame scripts needed —
+    // the move symbol is just a positional placeholder for displayType 30.
+    const moveSym: SymbolDefinition = {
+      name: "move",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+    };
 
-    // shoot animation - plays 72 frames, ends at frame 70 (index 69)
-    this.shootAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("shoot"),
-        ...calculateAnchor(SHOOT_MANIFEST),
-        scale: init.scale,
-      })
-    );
+    // ---- shoot — 72-frame composite impact explosion ----------------
+    // AS DefineSprite_39_shoot/frame_1/DoAction.as:
+    //   SOMA.playSound("panda_molotov");
+    // AS DefineSprite_39_shoot/frame_1/DoAction_2.as:
+    //   _rotation = 0;    ← resets the harness-applied velocity-angle
+    // AS DefineSprite_39_shoot/frame_70/DoAction.as:
+    //   _parent.removeMovieClip();
+    //
+    // The inner DefineSprite_47 / DefineSprite_46 hierarchy (spinning
+    // flam composite with vr physics) is baked into the shoot composite
+    // frames and does not need runtime re-attachment. The spin physics
+    // (vr = 15 + random(70); _rotation += vr; vr *= 0.98) and the
+    // flam looping (play() each enterFrame) are already rendered in the
+    // authored sprite sheet.
+    const shootSym: SymbolDefinition = {
+      name: "shoot",
+      totalFrames: 72,
+      frames: textures.getFrames("shoot"),
+      anchorX: shootAnchor.x,
+      anchorY: shootAnchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_39_shoot/frame_1/DoAction.as:
+            //   SOMA.playSound("panda_molotov");
+            // AS DefineSprite_39_shoot/frame_1/DoAction_2.as:
+            //   _rotation = 0;
+            // The sound callback is captured from onSpellStart.
+            if (this.playSound) {
+              this.playSound("panda_molotov");
+            }
+            // Override the harness-applied projectile-velocity rotation
+            // so the impact explosion is upright (canonical AS pattern).
+            clip.rotation = 0;
+          },
+        ],
+        [
+          69,
+          (clip) => {
+            // AS DefineSprite_39_shoot/frame_70/DoAction.as:
+            //   _parent.removeMovieClip();
+            // This removes the outer mc (the root), signalling spell end.
+            clip.parent?.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // Frame 1 of shoot: play sound (index 0)
-    this.shootAnim.onFrame(0, () => {
-      this.callbacks.playSound("panda_molotov");
-    });
-
-    // Signal hit when the shoot animation completes (frame 70 = removeMovieClip, index 69)
-    this.shootAnim.onFrame(69, () => {
-      this.signalHit();
-    });
-
-    // Position at target
-    this.shootAnim.sprite.position.set(init.targetX, init.targetY);
-    this.shootAnim.sprite.rotation = 0;
-
-    // The flam is visually part of shoot (child of shoot container)
-    // Position flam relative to shoot's registration point
-    this.flamAnim.sprite.position.set(0, 0);
-
-    this.container.addChild(this.shootAnim.sprite);
-    this.shootAnim.sprite.addChild(this.flamAnim.sprite);
+    this.registry.register(moveSym);
+    this.registry.register(shootSym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-
-    // Apply rotation to the flam sprite each frame (AS onClipEvent enterFrame):
-    // _rotation += vr; vr *= 0.98
-    // We scale the effect by deltaTime relative to one frame (1000/60 ms)
-    const frameFraction = deltaTime / (1000 / 60);
-    this.flamAnim.sprite.rotation +=
-      ((this.flamVr * Math.PI) / 180) * frameFraction;
-    this.flamVr *= 0.98 ** frameFraction;
-
-    // End when shoot animation completes (frame 70 triggers removeMovieClip)
-    if (this.shootAnim.isComplete()) {
-      this.complete();
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    _context: SpellContext,
+  ): void {
+    // Capture the sound callback so shoot's frame_1 script can use it.
+    // The main timeline frame_1/DoAction.as is empty — no top-level sound.
+    // Sound is fired from inside shoot's frame_1 (canonical AS layout).
+    this.playSound = callbacks.playSound;
   }
 }

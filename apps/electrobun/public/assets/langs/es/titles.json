@@ -1,0 +1,500 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1248,
+        "PT": {
+            "1": {
+                "t": "Ghul de %1",
+                "c": 16777215,
+                "pt": 0
+            },
+            "2": {
+                "t": "Vampyro",
+                "c": 16777215,
+                "pt": 0
+            },
+            "3": {
+                "t": "Vampyro Sangryento",
+                "c": 16777215,
+                "pt": 0
+            },
+            "4": {
+                "t": "Vampyro Maldyto",
+                "c": 16777215,
+                "pt": 0
+            },
+            "5": {
+                "t": "Vampyro Suprym",
+                "c": 16777215,
+                "pt": 0
+            },
+            "6": {
+                "t": "Vampyro Demonýaco",
+                "c": 16777215,
+                "pt": 0
+            },
+            "7": {
+                "t": "Vampyro Rúnyco",
+                "c": 16777215,
+                "pt": 0
+            },
+            "8": {
+                "t": "Asesino de Bworker",
+                "c": 16777215,
+                "pt": 0
+            },
+            "9": {
+                "t": "Asesino de Sfinter Cell",
+                "c": 16777215,
+                "pt": 0
+            },
+            "10": {
+                "t": "Asesino del Trankitronko",
+                "c": 16777215,
+                "pt": 0
+            },
+            "11": {
+                "t": "Asesino del Wey Wabbit",
+                "c": 16777215,
+                "pt": 0
+            },
+            "12": {
+                "t": "Asesino del Kimbo",
+                "c": 16777215,
+                "pt": 0
+            },
+            "13": {
+                "t": "Asesino del Minotauroro",
+                "c": 16777215,
+                "pt": 0
+            },
+            "14": {
+                "t": "Asesino del Dragocerdo",
+                "c": 16777215,
+                "pt": 0
+            },
+            "15": {
+                "t": "Asesino del Roble Blando",
+                "c": 16777215,
+                "pt": 0
+            },
+            "16": {
+                "t": "Asesino de Moon",
+                "c": 16777215,
+                "pt": 0
+            },
+            "17": {
+                "t": "Asesino de Dark Vlad",
+                "c": 16777215,
+                "pt": 0
+            },
+            "18": {
+                "t": "Héroe Bicentenario",
+                "c": 16777215,
+                "pt": 0
+            },
+            "19": {
+                "t": "Caballero HispáÑico",
+                "c": 16777215,
+                "pt": 0
+            },
+            "20": {
+                "t": "Matasaurio",
+                "c": 16777215,
+                "pt": 0
+            },
+            "21": {
+                "t": "Cascador",
+                "c": 16777215,
+                "pt": 0
+            },
+            "22": {
+                "t": "Leñador primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "23": {
+                "t": "Herrero de espadas primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "24": {
+                "t": "Escultor de arcos primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "25": {
+                "t": "Herrero de martillos primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "26": {
+                "t": "Zapatero primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "27": {
+                "t": "Joyero primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "28": {
+                "t": "Herrero de dagas primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "29": {
+                "t": "Escultor de bastones primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "30": {
+                "t": "Escultor de varitas primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "31": {
+                "t": "Herrero de palas primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "32": {
+                "t": "Minero primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "33": {
+                "t": "Panadero primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "34": {
+                "t": "Alquimista primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "35": {
+                "t": "Sastre primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "36": {
+                "t": "Campesino primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "37": {
+                "t": "Herrero de hachas primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "38": {
+                "t": "Pescador primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "39": {
+                "t": "Cazador primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "40": {
+                "t": "Forjamago de dagas primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "41": {
+                "t": "Forjamago de espadas primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "42": {
+                "t": "Forjamago de martillos primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "43": {
+                "t": "Forjamago de palas primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "44": {
+                "t": "Forjamago de hachas primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "45": {
+                "t": "Escultomago de arcos primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "46": {
+                "t": "Escultomago de varitas primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "47": {
+                "t": "Escultomago de bastones primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "48": {
+                "t": "Carnicero primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "49": {
+                "t": "Pescadero primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "50": {
+                "t": "Herrero de escudos primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "51": {
+                "t": "Zapateromago primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "52": {
+                "t": "Joyeromago primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "53": {
+                "t": "Sastremago primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "54": {
+                "t": "Manitas primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "55": {
+                "t": "Advienturero de Nawidad 651",
+                "c": 16777215,
+                "pt": 0
+            },
+            "56": {
+                "t": "Nawidista",
+                "c": 16777215,
+                "pt": 0
+            },
+            "57": {
+                "t": "Asesino del Pikabeto",
+                "c": 16777215,
+                "pt": 0
+            },
+            "58": {
+                "t": "Asesino del Chanta Klaus",
+                "c": 16777215,
+                "pt": 0
+            },
+            "59": {
+                "t": "Asesino del Papa No-es",
+                "c": 16777215,
+                "pt": 0
+            },
+            "60": {
+                "t": "El pandi se resiste",
+                "c": 16777215,
+                "pt": 0
+            },
+            "61": {
+                "t": "Gran maestro de las cartas",
+                "c": 16777215,
+                "pt": 0
+            },
+            "62": {
+                "t": "Maestro de las cartas",
+                "c": 16777215,
+                "pt": 0
+            },
+            "63": {
+                "t": "Gladiatrooleador novato",
+                "c": 16777215,
+                "pt": 0
+            },
+            "64": {
+                "t": "Gladiatrooleador experto",
+                "c": 16777215,
+                "pt": 0
+            },
+            "65": {
+                "t": "Maestro gladiatrooleador",
+                "c": 16777215,
+                "pt": 0
+            },
+            "66": {
+                "t": "Advienturero de Nawidad 652",
+                "c": 16777215,
+                "pt": 0
+            },
+            "67": {
+                "t": "Advienturero de Nawidad 653",
+                "c": 16777215,
+                "pt": 0
+            },
+            "68": {
+                "t": "Advienturero de Nawidad 654",
+                "c": 16777215,
+                "pt": 0
+            },
+            "69": {
+                "t": "Krosplayer intemporal",
+                "c": 16777215,
+                "pt": 0
+            },
+            "70": {
+                "t": "Gran maestro de los elementos",
+                "c": 16777215,
+                "pt": 0
+            },
+            "71": {
+                "t": "Asesino de Crocabulia",
+                "c": 16777215,
+                "pt": 0
+            },
+            "72": {
+                "t": "Asesino de Rasgabola",
+                "c": 16777215,
+                "pt": 0
+            },
+            "73": {
+                "t": "Asesino de Rata Negra Corrupto",
+                "c": 16777215,
+                "pt": 0
+            },
+            "74": {
+                "t": "Asesino de Abráknido Ancestral",
+                "c": 16777215,
+                "pt": 0
+            },
+            "75": {
+                "t": "Asesino del Roble Blando Krollector",
+                "c": 14864002,
+                "pt": 0
+            },
+            "76": {
+                "t": "Asesino del Dragocerdo Krollector",
+                "c": 14864002,
+                "pt": 0
+            },
+            "77": {
+                "t": "Melómano en potencia",
+                "c": 16777215,
+                "pt": 0
+            },
+            "78": {
+                "t": "Asesino del Wey Wabbit Krollector",
+                "c": 14864002,
+                "pt": 0
+            },
+            "79": {
+                "t": "Asesino del Trankitronko Krollector",
+                "c": 14864002,
+                "pt": 0
+            },
+            "80": {
+                "t": "Asesino de Sfincter Cell Krollector",
+                "c": 14864002,
+                "pt": 0
+            },
+            "81": {
+                "t": "Asesino del Bworker Krollector",
+                "c": 14864002,
+                "pt": 0
+            },
+            "85": {
+                "t": "A la antigua",
+                "c": 16777215,
+                "pt": 0
+            },
+            "86": {
+                "t": "Asesino del Tynril Estupefacto",
+                "c": 16777215,
+                "pt": 0
+            },
+            "87": {
+                "t": "Asesino del Tynril Absorto",
+                "c": 16777215,
+                "pt": 0
+            },
+            "88": {
+                "t": "Asesino del Tynril Pérfido",
+                "c": 16777215,
+                "pt": 0
+            },
+            "89": {
+                "t": "Asesino del Tynril Atónito",
+                "c": 16777215,
+                "pt": 0
+            },
+            "90": {
+                "t": "Alma gemela de %1",
+                "c": 14516962,
+                "pt": 0
+            },
+            "91": {
+                "t": "Corazón solitario",
+                "c": 16777215,
+                "pt": 0
+            },
+            "92": {
+                "t": "Asesino del Escarajefe Dorado",
+                "c": 16777215,
+                "pt": 0
+            },
+            "93": {
+                "t": "Pourfendeur du Tanukouï San",
+                "c": 16777215,
+                "pt": 0
+            },
+            "94": {
+                "t": "Asesino del Coralador Magistral",
+                "c": 16777215,
+                "pt": 0
+            },
+            "95": {
+                "t": "Asesino del Maxilubo",
+                "c": 16777215,
+                "pt": 0
+            },
+            "96": {
+                "t": "Asesino de Bworka",
+                "c": 16777215,
+                "pt": 0
+            },
+            "97": {
+                "t": "WAKFU S5 Producer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "98": {
+                "t": "Ankafiliado",
+                "c": 16777215,
+                "pt": 0
+            },
+            "99": {
+                "t": "Fanfarrón del Do de Pecho",
+                "c": 16777215,
+                "pt": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 109,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "PT",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

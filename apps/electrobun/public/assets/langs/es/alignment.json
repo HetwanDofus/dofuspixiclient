@@ -1,0 +1,1112 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "A": {
+            "a": {
+                "0": {
+                    "n": "Neutral",
+                    "c": true
+                },
+                "1": {
+                    "n": "Bontariano",
+                    "c": true
+                },
+                "2": {
+                    "n": "Brakmariano",
+                    "c": true
+                },
+                "3": {
+                    "n": "Mercenario",
+                    "c": false
+                }
+            },
+            "o": {
+                "0": {
+                    "n": "Neutral",
+                    "a": 0
+                },
+                "1": {
+                    "n": "Nuevos reclutas de Bonta",
+                    "a": 1
+                },
+                "2": {
+                    "n": "Orden del Corazón Valiente",
+                    "a": 1
+                },
+                "3": {
+                    "n": "Orden del Espíritu de la Salvación",
+                    "a": 1
+                },
+                "4": {
+                    "n": "Orden del Ojo Atento",
+                    "a": 1
+                },
+                "5": {
+                    "n": "Nuevos reclutas de Brakmar",
+                    "a": 2
+                },
+                "6": {
+                    "n": "Orden del Corazón Sangriento",
+                    "a": 2
+                },
+                "7": {
+                    "n": "Orden del Espíritu Maligno",
+                    "a": 2
+                },
+                "8": {
+                    "n": "Orden del Ojo Putrefacto",
+                    "a": 2
+                },
+                "9": {
+                    "n": "Clan de Serian-Kerm",
+                    "a": 3
+                }
+            },
+            "jo": {
+                "0": [
+                    false,
+                    false,
+                    false,
+                    true
+                ],
+                "1": [
+                    true,
+                    false,
+                    true,
+                    true
+                ],
+                "2": [
+                    true,
+                    true,
+                    false,
+                    true
+                ],
+                "3": [
+                    true,
+                    true,
+                    true,
+                    true
+                ]
+            },
+            "at": {
+                "0": [
+                    false,
+                    false,
+                    false,
+                    false
+                ],
+                "1": [
+                    true,
+                    true,
+                    false,
+                    true
+                ],
+                "2": [
+                    true,
+                    false,
+                    true,
+                    true
+                ],
+                "3": [
+                    true,
+                    true,
+                    true,
+                    true
+                ]
+            },
+            "f": {
+                "1": {
+                    "n": "Eficacia",
+                    "g": 1,
+                    "e": 10
+                },
+                "2": {
+                    "n": "Iniciativa",
+                    "g": 2,
+                    "e": 2
+                },
+                "3": {
+                    "n": "Resistencia a la tierra",
+                    "g": 3,
+                    "e": 17
+                },
+                "4": {
+                    "n": "Resistencia al fuego",
+                    "g": 4,
+                    "e": 18
+                },
+                "5": {
+                    "n": "Resistencia al agua",
+                    "g": 5,
+                    "e": 19
+                },
+                "6": {
+                    "n": "Resistencia al aire",
+                    "g": 6,
+                    "e": 20
+                },
+                "7": {
+                    "n": "Resistencia neutral",
+                    "g": 7,
+                    "e": 21
+                },
+                "8": {
+                    "n": "Robusteza",
+                    "g": 8,
+                    "e": 4
+                },
+                "9": {
+                    "n": "Resistencia",
+                    "g": 9,
+                    "e": 22
+                },
+                "10": {
+                    "n": "Arte del camuflaje",
+                    "g": 10,
+                    "e": 0
+                },
+                "11": {
+                    "n": "Conocimiento de los pergaminos",
+                    "g": 11,
+                    "e": 0
+                },
+                "12": {
+                    "n": "Facultad de resurrección",
+                    "g": 12,
+                    "e": 0
+                },
+                "13": {
+                    "n": "Pérdida de energía suplementaria",
+                    "g": 12,
+                    "e": 23
+                },
+                "15": {
+                    "n": "Resistencia a los luchadores tierra",
+                    "g": 3,
+                    "e": 29
+                },
+                "16": {
+                    "n": "Resistencia a los luchadores agua",
+                    "g": 5,
+                    "e": 31
+                },
+                "17": {
+                    "n": "Resistencia a los luchadores aire",
+                    "g": 6,
+                    "e": 32
+                },
+                "18": {
+                    "n": "Resistencia a los luchadores neutrales",
+                    "g": 7,
+                    "e": 33
+                },
+                "19": {
+                    "n": "Resistencia a los luchadores fuego",
+                    "g": 4,
+                    "e": 30
+                },
+                "20": {
+                    "n": "Prospección",
+                    "g": 13,
+                    "e": 40
+                },
+                "21": {
+                    "n": "Guarda",
+                    "g": 1,
+                    "e": 0
+                },
+                "22": {
+                    "n": "Debilitamiento",
+                    "g": 12,
+                    "e": 23
+                },
+                "23": {
+                    "n": "Conociemiento de pociones",
+                    "g": 11,
+                    "e": 0
+                }
+            },
+            "fe": {
+                "1": "+#1 en alcance",
+                "2": "+#1 en iniciativa",
+                "3": "+#1 en daños",
+                "4": "+#1 en vitalidad",
+                "6": "+#1 en inteligencia",
+                "7": "+#1 en fuerza",
+                "8": "+#1 en agilidad",
+                "9": "+#1 en suerte",
+                "10": "+#1 en golpes críticos",
+                "11": "+#1 PA",
+                "12": "+#1 PM",
+                "13": "+#1 en sabiduría",
+                "14": "+#1% en resistencia a la pérdida de PA",
+                "15": "+#1% en resistencia a la pérdida de PM",
+                "16": "#1% de descuento en la tienda",
+                "17": "+#1% en resistencia a los daños de Tierra",
+                "18": "+#1% en resistencia a los daños de Fuego",
+                "19": "+#1% en resistencia a los daños de Agua",
+                "20": "+#1% en resistencia a los daños de Aire",
+                "21": "+#1% en resistencia a los daños Neutrales",
+                "22": "+#1 en energía",
+                "23": "+#1 en energía perdida",
+                "24": "+#1 en resistencia a los daños de Tierra",
+                "25": "+#1 en resistencia a los daños de Fuego",
+                "26": "+#1 en resistencia a los daños de Agua",
+                "27": "+#1 en resistencia a los daños de Aire",
+                "28": "+#1 en resistencia a los daños Neutrales",
+                "29": "#1% en resistencia a los daños de los luchadores Tierra",
+                "30": "#1% en resistencia a los daños de los luchadores Fuego",
+                "31": "#1% en resistencia a los daños de los luchadores Agua",
+                "32": "#1% en resistencia a los daños de los luchadores Aire",
+                "33": "#1% en resistencia a los daños de los luchadores Neutrales",
+                "34": "+#1 en resistencia a los daños de luchadores Tierra",
+                "35": "+#1 en resistencia a los daños de luchadores Fuego",
+                "36": "+#1 en resistencia a los daños de luchadores Agua",
+                "37": "+#1 en resistencia a los daños de luchadores Aire",
+                "38": "+#1 en resistencia a los daños de luchadores Neutrales",
+                "39": "+#1 en curas",
+                "40": "+#1 en prospección"
+            },
+            "b": {
+                "0": {
+                    "s": 0,
+                    "e": 10,
+                    "n": "Réquiem",
+                    "d": "Tu alineamiento es tan débil que su supervivencia está amenazada"
+                },
+                "1": {
+                    "s": 10,
+                    "e": 20,
+                    "n": "Superviviente",
+                    "d": "Tu alineamiento sobrevive con dificultad en un entorno muy hostil."
+                },
+                "2": {
+                    "s": 20,
+                    "e": 30,
+                    "n": "Guerrilla",
+                    "d": "¡Tu alineamiento resiste perfectamente a cualquier invasor!"
+                },
+                "3": {
+                    "s": 30,
+                    "e": 40,
+                    "n": "Minoría",
+                    "d": "Tu alineamiento está de rodillas pero no tardará en levantarse de nuevo."
+                },
+                "4": {
+                    "s": 40,
+                    "e": 50,
+                    "n": "Cohabitación",
+                    "d": "El equilibrio del mundo perjudica tu alineamiento."
+                },
+                "5": {
+                    "s": 50,
+                    "e": 60,
+                    "n": "Status quo",
+                    "d": "Tu alineamiento domina por poco la balanza del mundo."
+                },
+                "6": {
+                    "s": 60,
+                    "e": 70,
+                    "n": "Dominación",
+                    "d": "Tus enemigos no se atreven a salir de casa, tu alineamiento domina."
+                },
+                "7": {
+                    "s": 70,
+                    "e": 80,
+                    "n": "Tiranía",
+                    "d": "El poder de tu alineamiento es tal que dudas de la existencia de tus enemigos."
+                },
+                "8": {
+                    "s": 80,
+                    "e": 90,
+                    "n": "Conquistador",
+                    "d": "Tu alineamiento ya no tiene depredador y la guerra está a casi ganada."
+                },
+                "9": {
+                    "s": 90,
+                    "e": 100,
+                    "n": "Apogeo",
+                    "d": "Tu alineamiento está en la cumbre y (probablemente) tus enemigos ya no existen."
+                }
+            },
+            "g": {
+                "0": [
+                    false,
+                    false,
+                    false,
+                    false
+                ],
+                "1": [
+                    false,
+                    true,
+                    true,
+                    false
+                ],
+                "2": [
+                    false,
+                    true,
+                    true,
+                    false
+                ],
+                "3": [
+                    true,
+                    false,
+                    false,
+                    false
+                ]
+            },
+            "s": {
+                "0": {
+                    "n": "Neutral",
+                    "d": "-",
+                    "o": 0,
+                    "av": 0,
+                    "f": {}
+                },
+                "1": {
+                    "n": "Neófito",
+                    "d": "Los nuevos reclutas han elegido proteger la viuda y el huérfano. Sin embargo, ya que su formación acaba justo de empezar, todavía no han elegido una especialización. Su motivación y sus aptitudes les permitirán orientarse más tarde.",
+                    "o": 1,
+                    "av": 0,
+                    "f": {}
+                },
+                "2": {
+                    "n": "Discípulo de Menalt",
+                    "d": "Con el afán de desarrollar sus aptitudes guerreras, los discípulos de Menalt han de demostrar su valentía y su fuerza durante largos y dolorosos entrenamientos.",
+                    "o": 2,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            21
+                        ],
+                        [
+                            [
+                                200
+                            ],
+                            1,
+                            22
+                        ]
+                    ]
+                },
+                "3": {
+                    "n": "Escudero",
+                    "d": "Un escudero digno de su condición no se preocupa por sus agujetas. Lo demostrará cada día a lo largo de entrenamientos muy largos y muy dolorosos.",
+                    "o": 2,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            21
+                        ],
+                        [
+                            [
+                                400
+                            ],
+                            2,
+                            22
+                        ]
+                    ]
+                },
+                "4": {
+                    "n": "Caballero de la Esperanza",
+                    "d": "-",
+                    "o": 2,
+                    "av": 60,
+                    "f": [
+                        [
+                            [
+                                600
+                            ],
+                            3,
+                            22
+                        ],
+                        [
+                            3,
+                            21
+                        ]
+                    ]
+                },
+                "5": {
+                    "n": "Campeón Maravilloso",
+                    "d": "-",
+                    "o": 2,
+                    "av": 80,
+                    "f": [
+                        [
+                            4,
+                            21
+                        ],
+                        [
+                            [
+                                800
+                            ],
+                            4,
+                            22
+                        ]
+                    ]
+                },
+                "6": {
+                    "n": "Héroe Legendario",
+                    "d": "-",
+                    "o": 2,
+                    "av": 100,
+                    "f": [
+                        [
+                            5,
+                            21
+                        ],
+                        [
+                            [
+                                1000
+                            ],
+                            5,
+                            22
+                        ]
+                    ]
+                },
+                "7": {
+                    "n": "Discípulo de Jiva",
+                    "d": "Con el afán de desarrollar sus poderes mágicos, los discípulos de Jiva han de descubrir en ellos mismos la fuerza espiritual que les guiará a lo largo de su aprendizaje de la magia.",
+                    "o": 3,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            23
+                        ]
+                    ]
+                },
+                "8": {
+                    "n": "Aprendiz",
+                    "d": "Aquel o aquella de se reivindique Aprendiz tendrá que merecer este honorífico título curando a heridos incluso cuando la batalla esté en su punto más elevado de violencia.",
+                    "o": 3,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            23
+                        ]
+                    ]
+                },
+                "9": {
+                    "n": "Adepto a las Escrituras",
+                    "d": "-",
+                    "o": 3,
+                    "av": 60,
+                    "f": [
+                        [
+                            3,
+                            23
+                        ]
+                    ]
+                },
+                "10": {
+                    "n": "Maestro de los Pergaminos",
+                    "d": "-",
+                    "o": 3,
+                    "av": 80,
+                    "f": [
+                        [
+                            4,
+                            23
+                        ]
+                    ]
+                },
+                "11": {
+                    "n": "Guardian del Conocimiento",
+                    "d": "-",
+                    "o": 3,
+                    "av": 100,
+                    "f": [
+                        [
+                            5,
+                            23
+                        ]
+                    ]
+                },
+                "13": {
+                    "n": "Discípulo de Silvosse",
+                    "d": "Con el afán de desarrollar sus facultades como espía, los discípulos de Silvosse han de aprender a colectar informaciones útiles sin ser descubiertos.",
+                    "o": 4,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            10
+                        ]
+                    ]
+                },
+                "14": {
+                    "n": "Espía",
+                    "d": "Proclamarse espía no es nada. Inmóvil como el roble, silencioso como la piedra, sólo un espía experimentado oirá todo lo que se pueda contar por la comarca.",
+                    "o": 4,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            10
+                        ]
+                    ]
+                },
+                "15": {
+                    "n": "Cazador de Renegados",
+                    "d": "-",
+                    "o": 4,
+                    "av": 60,
+                    "f": [
+                        [
+                            3,
+                            10
+                        ]
+                    ]
+                },
+                "16": {
+                    "n": "Asesino Supremo",
+                    "d": "-",
+                    "o": 4,
+                    "av": 80,
+                    "f": [
+                        [
+                            4,
+                            10
+                        ]
+                    ]
+                },
+                "17": {
+                    "n": "Maestro de los Espejismos",
+                    "d": "-",
+                    "o": 4,
+                    "av": 100,
+                    "f": [
+                        [
+                            5,
+                            10
+                        ]
+                    ]
+                },
+                "18": {
+                    "n": "Neófito",
+                    "d": "Los nuevos reclutas forman parte de la escoria más inmunda de Amakna. Aunque su falsedad ya es notoria, su cobardía hace que no sean unos temibles enemigos. La formación y las especializaciones que van a seguir deberían solucionar el problema.",
+                    "o": 5,
+                    "av": 0,
+                    "f": {}
+                },
+                "19": {
+                    "n": "Discípulo de Djaul",
+                    "d": "Animados por el amor al odio, los discípulos de Djaul han de aprender que en la lucha no hay enemigos sino cabezas para machacar.",
+                    "o": 6,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            21
+                        ],
+                        [
+                            [
+                                200
+                            ],
+                            1,
+                            22
+                        ]
+                    ]
+                },
+                "20": {
+                    "n": "Destripador",
+                    "d": "Ser un Destripador al servicio de Djaul requiere grandes cualidades físicas y una inmoralidad a toda prueba.",
+                    "o": 6,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            21
+                        ],
+                        [
+                            [
+                                400
+                            ],
+                            2,
+                            22
+                        ]
+                    ]
+                },
+                "21": {
+                    "n": "Caballero de la Desesperación",
+                    "d": "-",
+                    "o": 6,
+                    "av": 60,
+                    "f": [
+                        [
+                            3,
+                            21
+                        ],
+                        [
+                            [
+                                600
+                            ],
+                            3,
+                            22
+                        ]
+                    ]
+                },
+                "22": {
+                    "n": "Campeón del Caos",
+                    "d": "-",
+                    "o": 6,
+                    "av": 80,
+                    "f": [
+                        [
+                            [
+                                800
+                            ],
+                            4,
+                            22
+                        ],
+                        [
+                            4,
+                            21
+                        ]
+                    ]
+                },
+                "23": {
+                    "n": "Héroe del Apocalipsis",
+                    "d": "-",
+                    "o": 6,
+                    "av": 100,
+                    "f": [
+                        [
+                            [
+                                1000
+                            ],
+                            5,
+                            22
+                        ],
+                        [
+                            5,
+                            21
+                        ]
+                    ]
+                },
+                "24": {
+                    "n": "Discípulo de Hécate",
+                    "d": "Animados por el vicio, los discípulos de Hécate deben demostrar su capacidad par colectar informaciones y para desinformar.",
+                    "o": 7,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            23
+                        ]
+                    ]
+                },
+                "25": {
+                    "n": "Aprendiz Oscuro",
+                    "d": "Aquel o aquella de se reivindique Aprendiz tendrá que merecer este honorífico título embrujando a los vivos a los muertos e incluso a los muertos-vivos.",
+                    "o": 7,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            23
+                        ]
+                    ]
+                },
+                "26": {
+                    "n": "Adepto a los Dolores",
+                    "d": "-",
+                    "o": 7,
+                    "av": 60,
+                    "f": [
+                        [
+                            3,
+                            23
+                        ]
+                    ]
+                },
+                "27": {
+                    "n": "Maestros de los Estragos",
+                    "d": "-",
+                    "o": 7,
+                    "av": 80,
+                    "f": [
+                        [
+                            4,
+                            23
+                        ]
+                    ]
+                },
+                "28": {
+                    "n": "Guardián de las Torturas",
+                    "d": "-",
+                    "o": 7,
+                    "av": 100,
+                    "f": [
+                        [
+                            5,
+                            23
+                        ]
+                    ]
+                },
+                "29": {
+                    "n": "Discípulo de Brumario",
+                    "d": "Animados por un pronunciado gusto por lo tétrico, los discípulos de Brumario deben demostrar sus conocimientos en la mezcla de ingredientes mortíferos. ",
+                    "o": 8,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            10
+                        ]
+                    ]
+                },
+                "30": {
+                    "n": "Espía Oscuro",
+                    "d": "Envuelto en su manto de las tinieblas, el Espía oscuro hará que caigan lágrimas y que sangren las espadas.",
+                    "o": 8,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            10
+                        ]
+                    ]
+                },
+                "31": {
+                    "n": "Cazador de Almas",
+                    "d": "-",
+                    "o": 8,
+                    "av": 60,
+                    "f": [
+                        [
+                            3,
+                            10
+                        ]
+                    ]
+                },
+                "32": {
+                    "n": "Psicópata",
+                    "d": "-",
+                    "o": 8,
+                    "av": 80,
+                    "f": [
+                        [
+                            4,
+                            10
+                        ]
+                    ]
+                },
+                "33": {
+                    "n": "Maestro de las Sombras",
+                    "d": "-",
+                    "o": 8,
+                    "av": 100,
+                    "f": [
+                        [
+                            5,
+                            10
+                        ]
+                    ]
+                },
+                "34": {
+                    "n": "Neófito",
+                    "d": "-",
+                    "o": 9,
+                    "av": 0,
+                    "f": {}
+                },
+                "36": {
+                    "n": "Aprendiz mercenario",
+                    "d": "-",
+                    "o": 9,
+                    "av": 20,
+                    "f": [
+                        [
+                            [
+                                1
+                            ],
+                            1,
+                            3
+                        ],
+                        [
+                            [
+                                1
+                            ],
+                            1,
+                            6
+                        ],
+                        [
+                            [
+                                50
+                            ],
+                            1,
+                            2
+                        ],
+                        [
+                            [
+                                1500
+                            ],
+                            1,
+                            13
+                        ],
+                        [
+                            [
+                                1
+                            ],
+                            1,
+                            4
+                        ],
+                        [
+                            [
+                                1
+                            ],
+                            1,
+                            5
+                        ]
+                    ]
+                },
+                "37": {
+                    "n": "Mercenario",
+                    "d": "-",
+                    "o": 9,
+                    "av": 40,
+                    "f": [
+                        [
+                            [
+                                100
+                            ],
+                            2,
+                            2
+                        ],
+                        [
+                            [
+                                2
+                            ],
+                            2,
+                            3
+                        ],
+                        [
+                            [
+                                2
+                            ],
+                            2,
+                            5
+                        ],
+                        [
+                            [
+                                2
+                            ],
+                            2,
+                            4
+                        ],
+                        [
+                            [
+                                3500
+                            ],
+                            2,
+                            13
+                        ],
+                        [
+                            [
+                                2
+                            ],
+                            2,
+                            6
+                        ]
+                    ]
+                },
+                "38": {
+                    "n": "Gran mercenario",
+                    "d": "-",
+                    "o": 9,
+                    "av": 60,
+                    "f": [
+                        [
+                            [
+                                3
+                            ],
+                            3,
+                            6
+                        ],
+                        [
+                            [
+                                3
+                            ],
+                            3,
+                            3
+                        ],
+                        [
+                            [
+                                5500
+                            ],
+                            3,
+                            13
+                        ],
+                        [
+                            [
+                                3
+                            ],
+                            3,
+                            4
+                        ],
+                        [
+                            [
+                                150
+                            ],
+                            3,
+                            2
+                        ],
+                        [
+                            [
+                                50
+                            ],
+                            3,
+                            8
+                        ],
+                        [
+                            [
+                                3
+                            ],
+                            3,
+                            5
+                        ]
+                    ]
+                },
+                "39": {
+                    "n": "Maestro mercenario",
+                    "d": "-",
+                    "o": 9,
+                    "av": 80,
+                    "f": [
+                        [
+                            [
+                                100
+                            ],
+                            4,
+                            8
+                        ],
+                        [
+                            [
+                                4
+                            ],
+                            4,
+                            6
+                        ],
+                        [
+                            1,
+                            11
+                        ],
+                        [
+                            [
+                                4
+                            ],
+                            4,
+                            5
+                        ],
+                        [
+                            [
+                                7500
+                            ],
+                            4,
+                            13
+                        ],
+                        [
+                            [
+                                4
+                            ],
+                            4,
+                            4
+                        ],
+                        [
+                            [
+                                4
+                            ],
+                            4,
+                            3
+                        ],
+                        [
+                            [
+                                200
+                            ],
+                            4,
+                            2
+                        ]
+                    ]
+                },
+                "40": {
+                    "n": "Gran maestro mercenario",
+                    "d": "-",
+                    "o": 9,
+                    "av": 100,
+                    "f": [
+                        [
+                            [
+                                5
+                            ],
+                            5,
+                            5
+                        ],
+                        [
+                            1,
+                            11
+                        ],
+                        [
+                            [
+                                250
+                            ],
+                            5,
+                            2
+                        ],
+                        [
+                            [
+                                5
+                            ],
+                            5,
+                            4
+                        ],
+                        [
+                            [
+                                5
+                            ],
+                            5,
+                            6
+                        ],
+                        [
+                            [
+                                5
+                            ],
+                            5,
+                            3
+                        ],
+                        [
+                            [
+                                9500
+                            ],
+                            5,
+                            13
+                        ],
+                        [
+                            [
+                                150
+                            ],
+                            5,
+                            8
+                        ]
+                    ]
+                }
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 168,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "A",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

@@ -1,0 +1,6404 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "HIC": {
+            "1": {
+                "n": "Gebäude der Klassen",
+                "c": "Orange"
+            },
+            "2": {
+                "n": "Verkaufsstände",
+                "c": "Blue"
+            },
+            "3": {
+                "n": "Werkstätten",
+                "c": "Green"
+            },
+            "4": {
+                "n": "Verschiedenes",
+                "c": "Beige"
+            },
+            "5": {
+                "n": "Eroberbare Gebiete",
+                "c": "Red"
+            },
+            "6": {
+                "n": "Dungeons",
+                "c": "Violet"
+            }
+        },
+        "HI": [
+            {
+                "n": "Heiligtum von Pandala",
+                "c": 6,
+                "g": 422,
+                "m": 12280
+            },
+            {
+                "n": "Shilf-Engpass",
+                "c": 6,
+                "g": 422,
+                "m": 11260
+            },
+            {
+                "n": "Blätterdach des Kimbo",
+                "c": 6,
+                "g": 422,
+                "m": 11136
+            },
+            {
+                "n": "Otomaïs Arche",
+                "c": 6,
+                "g": 422,
+                "m": 11066
+            },
+            {
+                "n": "Tynril-Labyrinth",
+                "c": 6,
+                "g": 422,
+                "m": 10807
+            },
+            {
+                "n": "Aggrotte",
+                "c": 6,
+                "g": 422,
+                "m": 10722
+            },
+            {
+                "n": "Riesen-Krakamor-Höhle",
+                "c": 6,
+                "g": 422,
+                "m": 10700
+            },
+            {
+                "n": "Incarnam-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 10359
+            },
+            {
+                "n": "Versandetes Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 10155
+            },
+            {
+                "n": "Weißnachtsdungeon",
+                "c": 6,
+                "g": 422,
+                "m": 9946
+            },
+            {
+                "n": "Heiligtum der Dracheier",
+                "c": 6,
+                "g": 422,
+                "m": 9788
+            },
+            {
+                "n": "Canidae-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 9787
+            },
+            {
+                "n": "Rattendungeon des Schlosses von Amakna",
+                "c": 6,
+                "g": 422,
+                "m": 9638
+            },
+            {
+                "n": "Minotoror- und Minotot-Labyrinth",
+                "c": 6,
+                "g": 422,
+                "m": 9538
+            },
+            {
+                "n": "Unterschlupf des Skeunks",
+                "c": 6,
+                "g": 422,
+                "m": 9503
+            },
+            {
+                "n": "Bwork-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 9470
+            },
+            {
+                "n": "Astaknyden-Dungeon und Weich-Eich-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 9127
+            },
+            {
+                "n": "Heiligtum der Vertrauten",
+                "c": 6,
+                "g": 422,
+                "m": 9052
+            },
+            {
+                "n": "Kuhloss-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 8905
+            },
+            {
+                "n": "Feuerfux-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 8467
+            },
+            {
+                "n": "Bulbi-Höhle",
+                "c": 6,
+                "g": 422,
+                "m": 8244
+            },
+            {
+                "n": "Kitsoune-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 8236
+            },
+            {
+                "n": "Unterschlupf der Pandikaze",
+                "c": 6,
+                "g": 422,
+                "m": 8167
+            },
+            {
+                "n": "Dungeon der Felder",
+                "c": 6,
+                "g": 422,
+                "m": 7453
+            },
+            {
+                "n": "Rattendungeon von Brâkmar",
+                "c": 6,
+                "g": 422,
+                "m": 6738
+            },
+            {
+                "n": "Larven-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 6684
+            },
+            {
+                "n": "Rattendungeon von Bonta",
+                "c": 6,
+                "g": 422,
+                "m": 6536
+            },
+            {
+                "n": "Pilz-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 5044
+            },
+            {
+                "n": "Heiligtum von Qu'Tan",
+                "c": 6,
+                "g": 422,
+                "m": 4919
+            },
+            {
+                "n": "Bworker-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 4786
+            },
+            {
+                "n": "Blob-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 4416
+            },
+            {
+                "n": "Dungeon von Ilyzaelle",
+                "c": 6,
+                "g": 422,
+                "m": 4383
+            },
+            {
+                "n": "Meister Rabs Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 2985
+            },
+            {
+                "n": "Fresssack-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 1856
+            },
+            {
+                "n": "Dungeon von Moon",
+                "c": 6,
+                "g": 422,
+                "m": 1764
+            },
+            {
+                "n": "Wabbit-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 1763
+            },
+            {
+                "n": "Unterschlupf des Schweinedrachens",
+                "c": 6,
+                "g": 422,
+                "m": 1399
+            },
+            {
+                "n": "Tofu-Dungeon und Dungeon des Königlichen Tofus",
+                "c": 6,
+                "g": 422,
+                "m": 1384
+            },
+            {
+                "n": "Scarablatt-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 1298
+            },
+            {
+                "n": "Skelett-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 1186
+            },
+            {
+                "n": "Dungeon der Schattenschmiede",
+                "c": 6,
+                "g": 422,
+                "m": 1130
+            },
+            {
+                "n": "Wabbitschloss",
+                "c": 6,
+                "g": 422,
+                "m": 822
+            },
+            {
+                "n": "Krachler-Dungeon",
+                "c": 6,
+                "g": 422,
+                "m": 749
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 11210
+            },
+            {
+                "n": "Scaraschwirrlinge",
+                "c": 4,
+                "g": 428,
+                "m": 11193
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 11170
+            },
+            {
+                "n": "Transport der Brigandinern",
+                "c": 4,
+                "g": 412,
+                "m": 11157
+            },
+            {
+                "n": "Schiff nach Sufokia",
+                "c": 4,
+                "g": 413,
+                "m": 10836
+            },
+            {
+                "n": "Bankn",
+                "c": 4,
+                "g": 401,
+                "m": 10746
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 10643
+            },
+            {
+                "n": "Scaraschwirrlinge",
+                "c": 4,
+                "g": 428,
+                "m": 10626
+            },
+            {
+                "n": "Scaraschwirrlinge",
+                "c": 4,
+                "g": 428,
+                "m": 10531
+            },
+            {
+                "n": "Scaraschwirrlinge",
+                "c": 4,
+                "g": 428,
+                "m": 10476
+            },
+            {
+                "n": "Transport der Brigandiner",
+                "c": 4,
+                "g": 412,
+                "m": 10365
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 10349
+            },
+            {
+                "n": "Transport nach Astrub",
+                "c": 4,
+                "g": 412,
+                "m": 10318
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 10317
+            },
+            {
+                "n": "Miliz",
+                "c": 4,
+                "g": 407,
+                "m": 10307
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 10304
+            },
+            {
+                "n": "Gasthaus",
+                "c": 4,
+                "g": 408,
+                "m": 10302
+            },
+            {
+                "n": "Marktplatz",
+                "c": 4,
+                "g": 415,
+                "m": 10301
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 10297
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 10114
+            },
+            {
+                "n": "Schiff zum Hafen von Madrestam",
+                "c": 4,
+                "g": 413,
+                "m": 9979
+            },
+            {
+                "n": "Transport der Brigandiner",
+                "c": 4,
+                "g": 412,
+                "m": 9550
+            },
+            {
+                "n": "Schiff zur Cania-Bucht",
+                "c": 4,
+                "g": 413,
+                "m": 9541
+            },
+            {
+                "n": "Schiff zur Minotoror-Insel",
+                "c": 4,
+                "g": 413,
+                "m": 9520
+            },
+            {
+                "n": "Boot zur Weißnachtsinsel",
+                "c": 4,
+                "g": 413,
+                "m": 9468
+            },
+            {
+                "n": "Miliz",
+                "c": 4,
+                "g": 407,
+                "m": 9458
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 9454
+            },
+            {
+                "n": "Schiff zur Otomaïs Insel",
+                "c": 4,
+                "g": 413,
+                "m": 9402
+            },
+            {
+                "n": "Öffentliche Koppel",
+                "c": 4,
+                "g": 419,
+                "m": 8851
+            },
+            {
+                "n": "Öffentliche Koppel",
+                "c": 4,
+                "g": 419,
+                "m": 8848
+            },
+            {
+                "n": "Bank",
+                "c": 4,
+                "g": 401,
+                "m": 8800
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 8785
+            },
+            {
+                "n": "Bibliothek",
+                "c": 4,
+                "g": 417,
+                "m": 8760
+            },
+            {
+                "n": "Berufsberatungszentrum",
+                "c": 4,
+                "g": 418,
+                "m": 8758
+            },
+            {
+                "n": "Berufsberatungszentrum",
+                "c": 4,
+                "g": 418,
+                "m": 8755
+            },
+            {
+                "n": "Bibliothek",
+                "c": 4,
+                "g": 417,
+                "m": 8754
+            },
+            {
+                "n": "Öffentliche Koppel",
+                "c": 4,
+                "g": 419,
+                "m": 8752
+            },
+            {
+                "n": "Öffentliche Koppel",
+                "c": 4,
+                "g": 419,
+                "m": 8751
+            },
+            {
+                "n": "Öffentliche Koppel",
+                "c": 4,
+                "g": 419,
+                "m": 8750
+            },
+            {
+                "n": "Öffentliche Koppel",
+                "c": 4,
+                "g": 419,
+                "m": 8749
+            },
+            {
+                "n": "Öffentliche Koppel",
+                "c": 4,
+                "g": 419,
+                "m": 8748
+            },
+            {
+                "n": "Öffentliche Koppel",
+                "c": 4,
+                "g": 419,
+                "m": 8747
+            },
+            {
+                "n": "Öffentliche Koppel",
+                "c": 4,
+                "g": 419,
+                "m": 8746
+            },
+            {
+                "n": "Öffentliche Koppel",
+                "c": 4,
+                "g": 419,
+                "m": 8745
+            },
+            {
+                "n": "Öffentliche Koppel",
+                "c": 4,
+                "g": 419,
+                "m": 8744
+            },
+            {
+                "n": "Öffentliche Koppel",
+                "c": 4,
+                "g": 419,
+                "m": 8743
+            },
+            {
+                "n": "\"Arme verschränken\"",
+                "c": 4,
+                "g": 423,
+                "m": 8538
+            },
+            {
+                "n": "Boot zur Heiligtum von Pandala",
+                "c": 4,
+                "g": 413,
+                "m": 8506
+            },
+            {
+                "n": "Arena",
+                "c": 4,
+                "g": 411,
+                "m": 8493
+            },
+            {
+                "n": "Arena",
+                "c": 4,
+                "g": 411,
+                "m": 8478
+            },
+            {
+                "n": "Dojo",
+                "c": 4,
+                "g": 414,
+                "m": 8471
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 8437
+            },
+            {
+                "n": "Transport der Brigandiner",
+                "c": 4,
+                "g": 412,
+                "m": 8223
+            },
+            {
+                "n": "Schiff zum Hafen von Madrestam",
+                "c": 4,
+                "g": 413,
+                "m": 8182
+            },
+            {
+                "n": "Dojo",
+                "c": 4,
+                "g": 414,
+                "m": 8170
+            },
+            {
+                "n": "\"Fingerzeig\"",
+                "c": 4,
+                "g": 423,
+                "m": 8167
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 8163
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 8125
+            },
+            {
+                "n": "Dojo",
+                "c": 4,
+                "g": 414,
+                "m": 8109
+            },
+            {
+                "n": "Dojo",
+                "c": 4,
+                "g": 414,
+                "m": 8090
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 8088
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 8037
+            },
+            {
+                "n": "Marktplatz",
+                "c": 4,
+                "g": 415,
+                "m": 8036
+            },
+            {
+                "n": "Dojo",
+                "c": 4,
+                "g": 414,
+                "m": 8027
+            },
+            {
+                "n": "Taverne zum betrunkenen Pandawa",
+                "c": 4,
+                "g": 408,
+                "m": 8026
+            },
+            {
+                "n": "Bibliothek",
+                "c": 4,
+                "g": 417,
+                "m": 8014
+            },
+            {
+                "n": "Bank",
+                "c": 4,
+                "g": 401,
+                "m": 8012
+            },
+            {
+                "n": "Dofus-Behälter",
+                "c": 4,
+                "g": 429,
+                "m": 7893
+            },
+            {
+                "n": "Kaufladen",
+                "c": 4,
+                "g": 425,
+                "m": 7529
+            },
+            {
+                "n": "Gasthaus",
+                "c": 4,
+                "g": 408,
+                "m": 7429
+            },
+            {
+                "n": "Bank",
+                "c": 4,
+                "g": 401,
+                "m": 7414
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 7411
+            },
+            {
+                "n": "Mercenaries' Lair",
+                "c": 4,
+                "g": 430,
+                "m": 7409
+            },
+            {
+                "n": "Marktplatz",
+                "c": 4,
+                "g": 415,
+                "m": 7396
+            },
+            {
+                "n": "Berufsberatungszentrum",
+                "c": 4,
+                "g": 418,
+                "m": 7362
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 6954
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 6855
+            },
+            {
+                "n": "Transport der Brigandiner",
+                "c": 4,
+                "g": 412,
+                "m": 6850
+            },
+            {
+                "n": "Mercenaries' Residence",
+                "c": 4,
+                "g": 430,
+                "m": 6175
+            },
+            {
+                "n": "Miliz",
+                "c": 4,
+                "g": 407,
+                "m": 6159
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 6137
+            },
+            {
+                "n": "Bank",
+                "c": 4,
+                "g": 401,
+                "m": 5332
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 5295
+            },
+            {
+                "n": "Miliz",
+                "c": 4,
+                "g": 407,
+                "m": 5116
+            },
+            {
+                "n": "Transport der Brigandiner",
+                "c": 4,
+                "g": 412,
+                "m": 5015
+            },
+            {
+                "n": "Turm von Gisgoul",
+                "c": 4,
+                "g": 416,
+                "m": 4908
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 4739
+            },
+            {
+                "n": "Taverne des \"Betrunkenen Bworks\"",
+                "c": 4,
+                "g": 408,
+                "m": 4637
+            },
+            {
+                "n": "Gasthaus \"Zur Brennenden Katze\"",
+                "c": 4,
+                "g": 408,
+                "m": 4623
+            },
+            {
+                "n": "Taverne zur Misere",
+                "c": 4,
+                "g": 408,
+                "m": 4612
+            },
+            {
+                "n": "Atolmond-Taverne",
+                "c": 4,
+                "g": 408,
+                "m": 4604
+            },
+            {
+                "n": "Marktplatz",
+                "c": 4,
+                "g": 415,
+                "m": 4601
+            },
+            {
+                "n": "Kaufladen",
+                "c": 4,
+                "g": 425,
+                "m": 4582
+            },
+            {
+                "n": "Gasthaus \"Bei Djaul\"",
+                "c": 4,
+                "g": 408,
+                "m": 4579
+            },
+            {
+                "n": "Turm von Brâkmar",
+                "c": 4,
+                "g": 416,
+                "m": 4551
+            },
+            {
+                "n": "Transport der Brigandiner",
+                "c": 4,
+                "g": 412,
+                "m": 4413
+            },
+            {
+                "n": "Bank",
+                "c": 4,
+                "g": 401,
+                "m": 4308
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 4263
+            },
+            {
+                "n": "Marktplatz",
+                "c": 4,
+                "g": 415,
+                "m": 4259
+            },
+            {
+                "n": "Kneipe \"Zum Knüppel\"",
+                "c": 4,
+                "g": 408,
+                "m": 4238
+            },
+            {
+                "n": "Das \"Eisenbeiß\"",
+                "c": 4,
+                "g": 408,
+                "m": 4229
+            },
+            {
+                "n": "Befehlsturm",
+                "c": 4,
+                "g": 416,
+                "m": 4223
+            },
+            {
+                "n": "Bagrutt-Taverne",
+                "c": 4,
+                "g": 408,
+                "m": 4218
+            },
+            {
+                "n": "Kaufladen",
+                "c": 4,
+                "g": 425,
+                "m": 4207
+            },
+            {
+                "n": "Der \"Hohlzkrug\"",
+                "c": 4,
+                "g": 408,
+                "m": 4174
+            },
+            {
+                "n": "Das \"Alakarte\"",
+                "c": 4,
+                "g": 408,
+                "m": 4172
+            },
+            {
+                "n": "Feubuk-Brauerei",
+                "c": 4,
+                "g": 408,
+                "m": 4090
+            },
+            {
+                "n": "Marktplatz",
+                "c": 4,
+                "g": 415,
+                "m": 3453
+            },
+            {
+                "n": "Gladiatrool",
+                "c": 4,
+                "g": 411,
+                "m": 3451
+            },
+            {
+                "n": "Fresssack-Roulette",
+                "c": 4,
+                "g": 427,
+                "m": 3336
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 3250
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 3022
+            },
+            {
+                "n": "Taverne \"Das G'smörtnbröd\"",
+                "c": 4,
+                "g": 408,
+                "m": 2214
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 2191
+            },
+            {
+                "n": "Arena",
+                "c": 4,
+                "g": 411,
+                "m": 2184
+            },
+            {
+                "n": "Gildentempel",
+                "c": 4,
+                "g": 405,
+                "m": 2056
+            },
+            {
+                "n": "Kanojedo",
+                "c": 4,
+                "g": 406,
+                "m": 2021
+            },
+            {
+                "n": "Bank",
+                "c": 4,
+                "g": 401,
+                "m": 1886
+            },
+            {
+                "n": "\"Angst\"",
+                "c": 4,
+                "g": 423,
+                "m": 1884
+            },
+            {
+                "n": "Die Ripaten-Kneipe",
+                "c": 4,
+                "g": 408,
+                "m": 1878
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 1841
+            },
+            {
+                "n": "Transport der Brigandiner",
+                "c": 4,
+                "g": 412,
+                "m": 1669
+            },
+            {
+                "n": "\"Winken\"",
+                "c": 4,
+                "g": 423,
+                "m": 1665
+            },
+            {
+                "n": "\"Waffe präsentieren\"",
+                "c": 4,
+                "g": 423,
+                "m": 1663
+            },
+            {
+                "n": "Kanojedo",
+                "c": 4,
+                "g": 406,
+                "m": 1269
+            },
+            {
+                "n": "Transport der Brigandiner",
+                "c": 4,
+                "g": 412,
+                "m": 1246
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 1242
+            },
+            {
+                "n": "\"Wutanfall\"",
+                "c": 4,
+                "g": 423,
+                "m": 1213
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 1158
+            },
+            {
+                "n": "Tierheim",
+                "c": 4,
+                "g": 404,
+                "m": 1140
+            },
+            {
+                "n": "Transport der Brigandiner",
+                "c": 4,
+                "g": 412,
+                "m": 1116
+            },
+            {
+                "n": "Kanone zur Moon-Insel",
+                "c": 4,
+                "g": 402,
+                "m": 1014
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 951
+            },
+            {
+                "n": "Geheimtunnel nach Brâkmar",
+                "c": 4,
+                "g": 424,
+                "m": 936
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 935
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 844
+            },
+            {
+                "n": "Schiff zum Hafen von Madrestam",
+                "c": 4,
+                "g": 413,
+                "m": 833
+            },
+            {
+                "n": "Transport der Brigandiner",
+                "c": 4,
+                "g": 412,
+                "m": 819
+            },
+            {
+                "n": "\"Klatschen\"",
+                "c": 4,
+                "g": 423,
+                "m": 736
+            },
+            {
+                "n": "KEK Factory",
+                "c": 4,
+                "g": 409,
+                "m": 709
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 528
+            },
+            {
+                "n": "Kirche",
+                "c": 4,
+                "g": 403,
+                "m": 494
+            },
+            {
+                "n": "\"Schere, Stein, Papier\"",
+                "c": 4,
+                "g": 423,
+                "m": 464
+            },
+            {
+                "n": "Transport der Brigandiner",
+                "c": 4,
+                "g": 412,
+                "m": 188
+            },
+            {
+                "n": "Schiff zur Wabbit-Insel",
+                "c": 4,
+                "g": 413,
+                "m": 167
+            },
+            {
+                "n": "Zaap",
+                "c": 4,
+                "g": 410,
+                "m": 164
+            },
+            {
+                "n": "Bibliothek",
+                "c": 4,
+                "g": 417,
+                "m": 51
+            },
+            {
+                "n": "Gasthaus",
+                "c": 4,
+                "g": 408,
+                "m": 41
+            },
+            {
+                "n": "Bank",
+                "c": 4,
+                "g": 401,
+                "m": 40
+            },
+            {
+                "n": "Marktplatz",
+                "c": 4,
+                "g": 415,
+                "m": 38
+            },
+            {
+                "n": "Kaufladen",
+                "c": 4,
+                "g": 425,
+                "m": 38
+            },
+            {
+                "n": "\"Kuss zuwerfen\"",
+                "c": 4,
+                "g": 423,
+                "m": 37
+            },
+            {
+                "n": "Marktplatz",
+                "c": 4,
+                "g": 415,
+                "m": 33
+            },
+            {
+                "n": "Kanojedo",
+                "c": 4,
+                "g": 406,
+                "m": 32
+            },
+            {
+                "n": "Werkstatt der Bauern",
+                "c": 3,
+                "g": 311,
+                "m": 11246
+            },
+            {
+                "n": "Werkstatt der Bauern",
+                "c": 3,
+                "g": 311,
+                "m": 11245
+            },
+            {
+                "n": "Werkstatt der Alchemisten",
+                "c": 3,
+                "g": 301,
+                "m": 11243
+            },
+            {
+                "n": "Werkstatt der Alchemisten",
+                "c": 3,
+                "g": 301,
+                "m": 11093
+            },
+            {
+                "n": "Werkstatt der Metzger",
+                "c": 3,
+                "g": 303,
+                "m": 10243
+            },
+            {
+                "n": "Werkstatt der Schmiedmagier",
+                "c": 3,
+                "g": 308,
+                "m": 8757
+            },
+            {
+                "n": "Werkstatt der Schmiedmagier",
+                "c": 3,
+                "g": 308,
+                "m": 8756
+            },
+            {
+                "n": "Werkstatt der Holzfäller",
+                "c": 3,
+                "g": 305,
+                "m": 8359
+            },
+            {
+                "n": "Werkstatt der Holzfäller",
+                "c": 3,
+                "g": 305,
+                "m": 8356
+            },
+            {
+                "n": "Werkstatt der Holzfäller",
+                "c": 3,
+                "g": 305,
+                "m": 8337
+            },
+            {
+                "n": "Werkstatt der Schildschmiede",
+                "c": 3,
+                "g": 316,
+                "m": 8160
+            },
+            {
+                "n": "Werkstatt der Schildschmiede",
+                "c": 3,
+                "g": 316,
+                "m": 8117
+            },
+            {
+                "n": "Werkstatt der Schildschmiede",
+                "c": 3,
+                "g": 316,
+                "m": 8089
+            },
+            {
+                "n": "Werkstatt der Holzfällern",
+                "c": 3,
+                "g": 305,
+                "m": 8038
+            },
+            {
+                "n": "Werkstatt der Bergleute",
+                "c": 3,
+                "g": 310,
+                "m": 7458
+            },
+            {
+                "n": "Werkstatt der Bauern",
+                "c": 3,
+                "g": 311,
+                "m": 7453
+            },
+            {
+                "n": "Werkstatt der Schmiede",
+                "c": 3,
+                "g": 309,
+                "m": 7441
+            },
+            {
+                "n": "Werkstatt der Juweliere",
+                "c": 3,
+                "g": 302,
+                "m": 7430
+            },
+            {
+                "n": "Werkstatt der Alchemisten",
+                "c": 3,
+                "g": 301,
+                "m": 7426
+            },
+            {
+                "n": "Werkstatt der Bäcker",
+                "c": 3,
+                "g": 304,
+                "m": 7382
+            },
+            {
+                "n": "Werkstatt der Schnitzer",
+                "c": 3,
+                "g": 314,
+                "m": 7377
+            },
+            {
+                "n": "Werkstatt der Fischer und Fischhändler",
+                "c": 3,
+                "g": 312,
+                "m": 7364
+            },
+            {
+                "n": "Werkstatt der Schneider",
+                "c": 3,
+                "g": 315,
+                "m": 7360
+            },
+            {
+                "n": "Werkstatt der Holzfäller",
+                "c": 3,
+                "g": 305,
+                "m": 7357
+            },
+            {
+                "n": "Werkstatt der Jäger und Metzger",
+                "c": 3,
+                "g": 303,
+                "m": 7351
+            },
+            {
+                "n": "Werkstatt der Schuhmacher",
+                "c": 3,
+                "g": 307,
+                "m": 7345
+            },
+            {
+                "n": "Werkstatt der Feenwerker",
+                "c": 3,
+                "g": 318,
+                "m": 6860
+            },
+            {
+                "n": "Werkstatt der Fischhändler",
+                "c": 3,
+                "g": 312,
+                "m": 6146
+            },
+            {
+                "n": "Werkstatt der Schmiede",
+                "c": 3,
+                "g": 309,
+                "m": 6117
+            },
+            {
+                "n": "Werkstatt der Fischer und Fischhändler",
+                "c": 3,
+                "g": 312,
+                "m": 5334
+            },
+            {
+                "n": "Werkstatt der Bergleute",
+                "c": 3,
+                "g": 310,
+                "m": 5304
+            },
+            {
+                "n": "Werkstatt der Schmiede",
+                "c": 3,
+                "g": 309,
+                "m": 5277
+            },
+            {
+                "n": "Werkstatt der Alchemisten",
+                "c": 3,
+                "g": 301,
+                "m": 4930
+            },
+            {
+                "n": "Werkstatt der Bäcker",
+                "c": 3,
+                "g": 304,
+                "m": 4639
+            },
+            {
+                "n": "Werkstatt der Bastler",
+                "c": 3,
+                "g": 317,
+                "m": 4627
+            },
+            {
+                "n": "Werkstatt der Juweliere",
+                "c": 3,
+                "g": 302,
+                "m": 4620
+            },
+            {
+                "n": "Werkstatt der Schnitzer",
+                "c": 3,
+                "g": 314,
+                "m": 4612
+            },
+            {
+                "n": "Werkstatt der Metzger",
+                "c": 3,
+                "g": 303,
+                "m": 4604
+            },
+            {
+                "n": "Werkstatt der Schuhmacher",
+                "c": 3,
+                "g": 307,
+                "m": 4579
+            },
+            {
+                "n": "Werkstatt der Schneider",
+                "c": 3,
+                "g": 315,
+                "m": 4549
+            },
+            {
+                "n": "Werkstatt der Holzfäller",
+                "c": 3,
+                "g": 305,
+                "m": 4313
+            },
+            {
+                "n": "Werkstatt der Schuhmacher",
+                "c": 3,
+                "g": 307,
+                "m": 4300
+            },
+            {
+                "n": "Werkstatt der Alchemisten",
+                "c": 3,
+                "g": 301,
+                "m": 4272
+            },
+            {
+                "n": "Werkstatt der Fischer und Fischhändlern",
+                "c": 3,
+                "g": 312,
+                "m": 4250
+            },
+            {
+                "n": "Werkstatt der Metzger",
+                "c": 3,
+                "g": 303,
+                "m": 4240
+            },
+            {
+                "n": "Werkstatt der Bastler",
+                "c": 3,
+                "g": 317,
+                "m": 4232
+            },
+            {
+                "n": "Werkstatt der Juweliere",
+                "c": 3,
+                "g": 302,
+                "m": 4217
+            },
+            {
+                "n": "Werkstatt der Schnitzer",
+                "c": 3,
+                "g": 314,
+                "m": 4181
+            },
+            {
+                "n": "Werkstatt der Bergleute",
+                "c": 3,
+                "g": 310,
+                "m": 4180
+            },
+            {
+                "n": "Werkstatt der Schneider",
+                "c": 3,
+                "g": 315,
+                "m": 4106
+            },
+            {
+                "n": "Werkstatt der Schmiede",
+                "c": 3,
+                "g": 309,
+                "m": 4074
+            },
+            {
+                "n": "Kartenwerkstatt",
+                "c": 3,
+                "g": 319,
+                "m": 3455
+            },
+            {
+                "n": "Werkstatt der Bauern",
+                "c": 3,
+                "g": 311,
+                "m": 2672
+            },
+            {
+                "n": "Werkstatt der Bäcker",
+                "c": 3,
+                "g": 304,
+                "m": 2214
+            },
+            {
+                "n": "Werkstatt der Schmiedmagier",
+                "c": 3,
+                "g": 308,
+                "m": 2187
+            },
+            {
+                "n": "Werkstatt der Fischer und Fischhändler",
+                "c": 3,
+                "g": 312,
+                "m": 1888
+            },
+            {
+                "n": "Werkstatt der Juweliere",
+                "c": 3,
+                "g": 302,
+                "m": 1684
+            },
+            {
+                "n": "Werkstatt der Juweliere",
+                "c": 3,
+                "g": 302,
+                "m": 1398
+            },
+            {
+                "n": "Werkstatt der Bergleute",
+                "c": 3,
+                "g": 310,
+                "m": 1397
+            },
+            {
+                "n": "Werkstatt der Schmiede",
+                "c": 3,
+                "g": 309,
+                "m": 1397
+            },
+            {
+                "n": "Werkstatt der Schnitzer",
+                "c": 3,
+                "g": 314,
+                "m": 1392
+            },
+            {
+                "n": "Werkstatt der Bergleute",
+                "c": 3,
+                "g": 310,
+                "m": 1388
+            },
+            {
+                "n": "Werkstatt der Bäcker",
+                "c": 3,
+                "g": 304,
+                "m": 1369
+            },
+            {
+                "n": "Werkstatt der Bäcker",
+                "c": 3,
+                "g": 304,
+                "m": 1356
+            },
+            {
+                "n": "Werkstatt der Bauern",
+                "c": 3,
+                "g": 311,
+                "m": 1355
+            },
+            {
+                "n": "Werkstatt der Bauern",
+                "c": 3,
+                "g": 311,
+                "m": 1339
+            },
+            {
+                "n": "Werkstatt der Holzfäller",
+                "c": 3,
+                "g": 305,
+                "m": 1314
+            },
+            {
+                "n": "Werkstatt der Schnitzer",
+                "c": 3,
+                "g": 314,
+                "m": 1299
+            },
+            {
+                "n": "Werkstatt der Schnitzer",
+                "c": 3,
+                "g": 314,
+                "m": 1109
+            },
+            {
+                "n": "Werkstatt der Holzfäller",
+                "c": 3,
+                "g": 305,
+                "m": 1070
+            },
+            {
+                "n": "Werkstatt der Schmiede",
+                "c": 3,
+                "g": 309,
+                "m": 1066
+            },
+            {
+                "n": "Werkstatt der Schmiede",
+                "c": 3,
+                "g": 309,
+                "m": 942
+            },
+            {
+                "n": "Werkstatt der Bergleute",
+                "c": 3,
+                "g": 310,
+                "m": 933
+            },
+            {
+                "n": "Werkstatt der Fischer",
+                "c": 3,
+                "g": 312,
+                "m": 766
+            },
+            {
+                "n": "Werkstatt der Bergleute",
+                "c": 3,
+                "g": 310,
+                "m": 714
+            },
+            {
+                "n": "Werkstatt der Alchemisten",
+                "c": 3,
+                "g": 301,
+                "m": 643
+            },
+            {
+                "n": "Werkstatt der Jäger",
+                "c": 3,
+                "g": 306,
+                "m": 618
+            },
+            {
+                "n": "Werkstatt der Bäcker",
+                "c": 3,
+                "g": 304,
+                "m": 579
+            },
+            {
+                "n": "Werkstatt der Schnitzer",
+                "c": 3,
+                "g": 314,
+                "m": 577
+            },
+            {
+                "n": "Werkstatt der Holzfäller",
+                "c": 3,
+                "g": 305,
+                "m": 531
+            },
+            {
+                "n": "Werkstatt der Bauern",
+                "c": 3,
+                "g": 311,
+                "m": 524
+            },
+            {
+                "n": "Werkstatt der Schuhmacher",
+                "c": 3,
+                "g": 307,
+                "m": 55
+            },
+            {
+                "n": "Werkstatt der Bäcker",
+                "c": 3,
+                "g": 304,
+                "m": 49
+            },
+            {
+                "n": "Werkstatt der Schneider",
+                "c": 3,
+                "g": 315,
+                "m": 44
+            },
+            {
+                "n": "Werkstatt der Juweliere",
+                "c": 3,
+                "g": 302,
+                "m": 34
+            },
+            {
+                "n": "Verkaufsraum für Schriftstücke",
+                "c": 2,
+                "g": 221,
+                "m": 8760
+            },
+            {
+                "n": "Verkaufsraum für Tiere",
+                "c": 2,
+                "g": 218,
+                "m": 8759
+            },
+            {
+                "n": "Verkaufsraum für Runen",
+                "c": 2,
+                "g": 220,
+                "m": 8757
+            },
+            {
+                "n": "Verkaufsraum für Runen",
+                "c": 2,
+                "g": 220,
+                "m": 8756
+            },
+            {
+                "n": "Verkaufsraum für Schriftstücke",
+                "c": 2,
+                "g": 221,
+                "m": 8754
+            },
+            {
+                "n": "Verkaufsraum für Tiere",
+                "c": 2,
+                "g": 218,
+                "m": 8753
+            },
+            {
+                "n": "Verkaufsraum für gefangene Seelen",
+                "c": 2,
+                "g": 217,
+                "m": 8493
+            },
+            {
+                "n": "Verkaufsraum für gefangene Seelen",
+                "c": 2,
+                "g": 217,
+                "m": 8478
+            },
+            {
+                "n": "Verkaufsraum für Schilde",
+                "c": 2,
+                "g": 216,
+                "m": 8039
+            },
+            {
+                "n": "Verkaufsraum der Schuhmacher",
+                "c": 2,
+                "g": 207,
+                "m": 7602
+            },
+            {
+                "n": "Verkaufsraum der Alchemisten",
+                "c": 2,
+                "g": 201,
+                "m": 7516
+            },
+            {
+                "n": "Verkaufsraum der Metzger",
+                "c": 2,
+                "g": 203,
+                "m": 7515
+            },
+            {
+                "n": "Verkaufsraum der Juweliere",
+                "c": 2,
+                "g": 202,
+                "m": 7514
+            },
+            {
+                "n": "Verkaufsraum der Schneider",
+                "c": 2,
+                "g": 215,
+                "m": 7513
+            },
+            {
+                "n": "Verkaufsraum der Schnitzer",
+                "c": 2,
+                "g": 214,
+                "m": 7512
+            },
+            {
+                "n": "Verkaufsraum der Schmiede",
+                "c": 2,
+                "g": 208,
+                "m": 7511
+            },
+            {
+                "n": "Verkaufsraum der Bäcker",
+                "c": 2,
+                "g": 204,
+                "m": 7510
+            },
+            {
+                "n": "Verkaufsraum der Fischhändler",
+                "c": 2,
+                "g": 212,
+                "m": 7501
+            },
+            {
+                "n": "Verkaufsraum der Bergleute",
+                "c": 2,
+                "g": 209,
+                "m": 7443
+            },
+            {
+                "n": "Verkaufsraum der Bastler",
+                "c": 2,
+                "g": 222,
+                "m": 7428
+            },
+            {
+                "n": "Verkaufsraum der Ressourcen",
+                "c": 2,
+                "g": 213,
+                "m": 7413
+            },
+            {
+                "n": "Verkaufsraum der Bauern",
+                "c": 2,
+                "g": 210,
+                "m": 7397
+            },
+            {
+                "n": "Verkaufsraum der Jäger",
+                "c": 2,
+                "g": 206,
+                "m": 7350
+            },
+            {
+                "n": "Verkaufsraum der Fischer",
+                "c": 2,
+                "g": 211,
+                "m": 7348
+            },
+            {
+                "n": "Verkaufsraum der Holzfäller",
+                "c": 2,
+                "g": 205,
+                "m": 7289
+            },
+            {
+                "n": "Verkaufsraum für Schriftrollen des Findens",
+                "c": 2,
+                "g": 219,
+                "m": 6167
+            },
+            {
+                "n": "Verkaufsraum für Schriftrollen des Findens",
+                "c": 2,
+                "g": 219,
+                "m": 6159
+            },
+            {
+                "n": "Verkaufsraum der Schmiede",
+                "c": 2,
+                "g": 208,
+                "m": 5317
+            },
+            {
+                "n": "Verkaufsraum der Bergleute",
+                "c": 2,
+                "g": 209,
+                "m": 5311
+            },
+            {
+                "n": "Verkaufsraum der Holzfäller",
+                "c": 2,
+                "g": 205,
+                "m": 5112
+            },
+            {
+                "n": "Verkaufsraum der Ressourcen",
+                "c": 2,
+                "g": 213,
+                "m": 4646
+            },
+            {
+                "n": "Verkaufsraum der Bäcker",
+                "c": 2,
+                "g": 204,
+                "m": 4630
+            },
+            {
+                "n": "Verkaufsraum der Bauern",
+                "c": 2,
+                "g": 210,
+                "m": 4629
+            },
+            {
+                "n": "Verkaufsraum der Bastler",
+                "c": 2,
+                "g": 222,
+                "m": 4627
+            },
+            {
+                "n": "Verkaufsraum der Juweliere",
+                "c": 2,
+                "g": 202,
+                "m": 4622
+            },
+            {
+                "n": "Verkaufsraum der Schnitzer",
+                "c": 2,
+                "g": 214,
+                "m": 4618
+            },
+            {
+                "n": "Verkaufsraum der Fischer und Fischhändler",
+                "c": 2,
+                "g": 212,
+                "m": 4615
+            },
+            {
+                "n": "Verkaufsraum der Alchemisten",
+                "c": 2,
+                "g": 201,
+                "m": 4607
+            },
+            {
+                "n": "Verkaufsraum der Metzger und Jäger",
+                "c": 2,
+                "g": 203,
+                "m": 4595
+            },
+            {
+                "n": "Verkaufsraum der Schneider",
+                "c": 2,
+                "g": 215,
+                "m": 4588
+            },
+            {
+                "n": "Verkaufsraum der Schuhmacher",
+                "c": 2,
+                "g": 207,
+                "m": 4562
+            },
+            {
+                "n": "Verkaufsraum der Bauern",
+                "c": 2,
+                "g": 210,
+                "m": 4299
+            },
+            {
+                "n": "Verkaufsraum der Metzger und Jäger",
+                "c": 2,
+                "g": 203,
+                "m": 4287
+            },
+            {
+                "n": "Verkaufsraum der Alchemisten",
+                "c": 2,
+                "g": 201,
+                "m": 4271
+            },
+            {
+                "n": "Verkaufsraum der Ressourcen",
+                "c": 2,
+                "g": 213,
+                "m": 4262
+            },
+            {
+                "n": "Verkaufsraum der Fischer und Fischhändler",
+                "c": 2,
+                "g": 212,
+                "m": 4247
+            },
+            {
+                "n": "Verkaufsraum der Bastler",
+                "c": 2,
+                "g": 222,
+                "m": 4232
+            },
+            {
+                "n": "Verkaufsraum der Juweliere",
+                "c": 2,
+                "g": 202,
+                "m": 4216
+            },
+            {
+                "n": "Verkaufsraum der Schuhmacher",
+                "c": 2,
+                "g": 207,
+                "m": 4183
+            },
+            {
+                "n": "Verkaufsraum der Bergleute",
+                "c": 2,
+                "g": 209,
+                "m": 4179
+            },
+            {
+                "n": "Verkaufsraum der Holzfäller",
+                "c": 2,
+                "g": 205,
+                "m": 4178
+            },
+            {
+                "n": "Verkaufsraum der Schnitzer",
+                "c": 2,
+                "g": 214,
+                "m": 4174
+            },
+            {
+                "n": "Verkaufsraum der Schneider",
+                "c": 2,
+                "g": 215,
+                "m": 4172
+            },
+            {
+                "n": "Verkaufsraum der Schmiede",
+                "c": 2,
+                "g": 208,
+                "m": 4098
+            },
+            {
+                "n": "Verkaufsraum für Feenwerk",
+                "c": 2,
+                "g": 223,
+                "m": 3412
+            },
+            {
+                "n": "Verkaufsraum der Bäcker",
+                "c": 2,
+                "g": 204,
+                "m": 2221
+            },
+            {
+                "n": "Pandawa-Tempel",
+                "c": 1,
+                "g": 120,
+                "m": 8207
+            },
+            {
+                "n": "Pandawa-Statue",
+                "c": 1,
+                "g": 120,
+                "m": 8035
+            },
+            {
+                "n": "Osamodas-Statue",
+                "c": 1,
+                "g": 20,
+                "m": 7545
+            },
+            {
+                "n": "Ecaflip-Statue",
+                "c": 1,
+                "g": 60,
+                "m": 7446
+            },
+            {
+                "n": "Enutrof-Statue",
+                "c": 1,
+                "g": 30,
+                "m": 7442
+            },
+            {
+                "n": "Iop-Statue",
+                "c": 1,
+                "g": 80,
+                "m": 7427
+            },
+            {
+                "n": "Féca-Statue",
+                "c": 1,
+                "g": 10,
+                "m": 7398
+            },
+            {
+                "n": "Sadida-Statue",
+                "c": 1,
+                "g": 100,
+                "m": 7395
+            },
+            {
+                "n": "Sram-Statue",
+                "c": 1,
+                "g": 40,
+                "m": 7392
+            },
+            {
+                "n": "Crâ-Statue",
+                "c": 1,
+                "g": 90,
+                "m": 7378
+            },
+            {
+                "n": "Eniripsa-Statue",
+                "c": 1,
+                "g": 70,
+                "m": 7361
+            },
+            {
+                "n": "Sacrieur-Statue",
+                "c": 1,
+                "g": 110,
+                "m": 7336
+            },
+            {
+                "n": "Xélor-Statue",
+                "c": 1,
+                "g": 50,
+                "m": 7332
+            },
+            {
+                "n": "Sacrieur-Tempel",
+                "c": 1,
+                "g": 110,
+                "m": 2061
+            },
+            {
+                "n": "Ecaflip-Tempel",
+                "c": 1,
+                "g": 60,
+                "m": 744
+            },
+            {
+                "n": "Sram-Tempel",
+                "c": 1,
+                "g": 40,
+                "m": 690
+            },
+            {
+                "n": "Enutrof-Tempel",
+                "c": 1,
+                "g": 30,
+                "m": 686
+            },
+            {
+                "n": "Sadida-Tempel",
+                "c": 1,
+                "g": 100,
+                "m": 684
+            },
+            {
+                "n": "Crâ-Tempel",
+                "c": 1,
+                "g": 90,
+                "m": 540
+            },
+            {
+                "n": "Iop-Tempel",
+                "c": 1,
+                "g": 80,
+                "m": 518
+            },
+            {
+                "n": "Osamodas-Tempel",
+                "c": 1,
+                "g": 20,
+                "m": 490
+            },
+            {
+                "n": "Eniripsa-Tempel",
+                "c": 1,
+                "g": 70,
+                "m": 487
+            },
+            {
+                "n": "Féca-Tempel",
+                "c": 1,
+                "g": 10,
+                "m": 177
+            },
+            {
+                "n": "Xélor-Tempel",
+                "c": 1,
+                "g": 50,
+                "m": 50
+            }
+        ],
+        "HIN": [
+            {
+                "x": 4,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Ressourcen",
+                        "c": 2,
+                        "g": 213,
+                        "m": 7413
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": 32,
+                "h": [
+                    {
+                        "n": "Atolmond-Taverne",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4604
+                    },
+                    {
+                        "n": "Werkstatt der Metzger",
+                        "c": 3,
+                        "g": 303,
+                        "m": 4604
+                    }
+                ]
+            },
+            {
+                "x": 18,
+                "y": -33,
+                "h": [
+                    {
+                        "n": "Dojo",
+                        "c": 4,
+                        "g": 414,
+                        "m": 8170
+                    }
+                ]
+            },
+            {
+                "x": -14,
+                "y": 16,
+                "h": [
+                    {
+                        "n": "Heiligtum von Qu'Tan",
+                        "c": 6,
+                        "g": 422,
+                        "m": 4919
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": 32,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Metzger und Jäger",
+                        "c": 2,
+                        "g": 203,
+                        "m": 4595
+                    }
+                ]
+            },
+            {
+                "x": -20,
+                "y": 33,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bergleute",
+                        "c": 3,
+                        "g": 310,
+                        "m": 5304
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Gasthaus",
+                        "c": 4,
+                        "g": 408,
+                        "m": 7429
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": 32,
+                "h": [
+                    {
+                        "n": "Marktplatz",
+                        "c": 4,
+                        "g": 415,
+                        "m": 4601
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Juweliere",
+                        "c": 2,
+                        "g": 202,
+                        "m": 7514
+                    }
+                ]
+            },
+            {
+                "x": -25,
+                "y": 33,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Ressourcen",
+                        "c": 2,
+                        "g": 213,
+                        "m": 4646
+                    }
+                ]
+            },
+            {
+                "x": -22,
+                "y": 32,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bäcker",
+                        "c": 3,
+                        "g": 304,
+                        "m": 4639
+                    }
+                ]
+            },
+            {
+                "x": -5,
+                "y": -8,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 2191
+                    }
+                ]
+            },
+            {
+                "x": 17,
+                "y": -32,
+                "h": [
+                    {
+                        "n": "Werkstatt der Holzfäller",
+                        "c": 3,
+                        "g": 305,
+                        "m": 8337
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": 8,
+                "h": [
+                    {
+                        "n": "Werkstatt der Holzfäller",
+                        "c": 3,
+                        "g": 305,
+                        "m": 531
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 2,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schmiede",
+                        "c": 3,
+                        "g": 309,
+                        "m": 942
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "\"Kuss zuwerfen\"",
+                        "c": 4,
+                        "g": 423,
+                        "m": 37
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": -2,
+                "h": [
+                    {
+                        "n": "KEK Factory",
+                        "c": 4,
+                        "g": 409,
+                        "m": 709
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Fischhändler",
+                        "c": 2,
+                        "g": 212,
+                        "m": 7501
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Werkstatt der Fischer und Fischhändler",
+                        "c": 3,
+                        "g": 312,
+                        "m": 7364
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 9,
+                "h": [
+                    {
+                        "n": "Sadida-Tempel",
+                        "c": 1,
+                        "g": 100,
+                        "m": 684
+                    }
+                ]
+            },
+            {
+                "x": 17,
+                "y": -34,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schildschmiede",
+                        "c": 3,
+                        "g": 316,
+                        "m": 8160
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -9,
+                "h": [
+                    {
+                        "n": "Gildentempel",
+                        "c": 4,
+                        "g": 405,
+                        "m": 2056
+                    }
+                ]
+            },
+            {
+                "x": 7,
+                "y": -4,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 164
+                    }
+                ]
+            },
+            {
+                "x": 7,
+                "y": 4,
+                "h": [
+                    {
+                        "n": "Transport nach Astrub",
+                        "c": 4,
+                        "g": 412,
+                        "m": 10318
+                    }
+                ]
+            },
+            {
+                "x": -20,
+                "y": 34,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Bergleute",
+                        "c": 2,
+                        "g": 209,
+                        "m": 5311
+                    }
+                ]
+            },
+            {
+                "x": -21,
+                "y": 34,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schmiede",
+                        "c": 3,
+                        "g": 309,
+                        "m": 5277
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": 4,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 10317
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Bauern",
+                        "c": 2,
+                        "g": 210,
+                        "m": 7397
+                    }
+                ]
+            },
+            {
+                "x": 24,
+                "y": -34,
+                "h": [
+                    {
+                        "n": "Bibliothek",
+                        "c": 4,
+                        "g": 417,
+                        "m": 8014
+                    }
+                ]
+            },
+            {
+                "x": 25,
+                "y": -34,
+                "h": [
+                    {
+                        "n": "Dojo",
+                        "c": 4,
+                        "g": 414,
+                        "m": 8027
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": 34,
+                "h": [
+                    {
+                        "n": "Kaufladen",
+                        "c": 4,
+                        "g": 425,
+                        "m": 4582
+                    }
+                ]
+            },
+            {
+                "x": -2,
+                "y": -8,
+                "h": [
+                    {
+                        "n": "Sacrieur-Tempel",
+                        "c": 1,
+                        "g": 110,
+                        "m": 2061
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "Marktplatz",
+                        "c": 4,
+                        "g": 415,
+                        "m": 38
+                    },
+                    {
+                        "n": "Kaufladen",
+                        "c": 4,
+                        "g": 425,
+                        "m": 38
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": 4,
+                "h": [
+                    {
+                        "n": "Kanojedo",
+                        "c": 4,
+                        "g": 406,
+                        "m": 2021
+                    }
+                ]
+            },
+            {
+                "x": 31,
+                "y": 8,
+                "h": [
+                    {
+                        "n": "Dungeon von Moon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1764
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -34,
+                "h": [
+                    {
+                        "n": "Fresssack-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1856
+                    }
+                ]
+            },
+            {
+                "x": -59,
+                "y": 15,
+                "h": [
+                    {
+                        "n": "Aggrotte",
+                        "c": 6,
+                        "g": 422,
+                        "m": 10722
+                    }
+                ]
+            },
+            {
+                "x": -21,
+                "y": 35,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Schmiede",
+                        "c": 2,
+                        "g": 208,
+                        "m": 5317
+                    }
+                ]
+            },
+            {
+                "x": -23,
+                "y": 35,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Schneider",
+                        "c": 2,
+                        "g": 215,
+                        "m": 4588
+                    }
+                ]
+            },
+            {
+                "x": -55,
+                "y": 15,
+                "h": [
+                    {
+                        "n": "Werkstatt der Alchemisten",
+                        "c": 3,
+                        "g": 301,
+                        "m": 11243
+                    }
+                ]
+            },
+            {
+                "x": -54,
+                "y": 15,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 11170
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Féca-Statue",
+                        "c": 1,
+                        "g": 10,
+                        "m": 7398
+                    }
+                ]
+            },
+            {
+                "x": -53,
+                "y": 15,
+                "h": [
+                    {
+                        "n": "Transport der Brigandinern",
+                        "c": 4,
+                        "g": 412,
+                        "m": 11157
+                    }
+                ]
+            },
+            {
+                "x": 25,
+                "y": -35,
+                "h": [
+                    {
+                        "n": "Taverne zum betrunkenen Pandawa",
+                        "c": 4,
+                        "g": 408,
+                        "m": 8026
+                    }
+                ]
+            },
+            {
+                "x": -24,
+                "y": 35,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schneider",
+                        "c": 3,
+                        "g": 315,
+                        "m": 4549
+                    }
+                ]
+            },
+            {
+                "x": -25,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Blob-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 4416
+                    }
+                ]
+            },
+            {
+                "x": 26,
+                "y": -35,
+                "h": [
+                    {
+                        "n": "Verkaufsraum für Schilde",
+                        "c": 2,
+                        "g": 216,
+                        "m": 8039
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": 35,
+                "h": [
+                    {
+                        "n": "Turm von Brâkmar",
+                        "c": 4,
+                        "g": 416,
+                        "m": 4551
+                    }
+                ]
+            },
+            {
+                "x": -28,
+                "y": 35,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bastler",
+                        "c": 3,
+                        "g": 317,
+                        "m": 4627
+                    },
+                    {
+                        "n": "Verkaufsraum der Bastler",
+                        "c": 2,
+                        "g": 222,
+                        "m": 4627
+                    }
+                ]
+            },
+            {
+                "x": -17,
+                "y": 8,
+                "h": [
+                    {
+                        "n": "Kuhloss-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 8905
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Jäger",
+                        "c": 2,
+                        "g": 206,
+                        "m": 7350
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bäcker",
+                        "c": 3,
+                        "g": 304,
+                        "m": 7382
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": 35,
+                "h": [
+                    {
+                        "n": "Öffentliche Koppel",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8851
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": 33,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bergleute",
+                        "c": 3,
+                        "g": 310,
+                        "m": 1388
+                    }
+                ]
+            },
+            {
+                "x": 18,
+                "y": -36,
+                "h": [
+                    {
+                        "n": "Unterschlupf der Pandikaze",
+                        "c": 6,
+                        "g": 422,
+                        "m": 8167
+                    },
+                    {
+                        "n": "\"Fingerzeig\"",
+                        "c": 4,
+                        "g": 423,
+                        "m": 8167
+                    }
+                ]
+            },
+            {
+                "x": -20,
+                "y": 36,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schmiede",
+                        "c": 3,
+                        "g": 309,
+                        "m": 6117
+                    }
+                ]
+            },
+            {
+                "x": -23,
+                "y": 36,
+                "h": [
+                    {
+                        "n": "Gasthaus \"Bei Djaul\"",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4579
+                    },
+                    {
+                        "n": "Werkstatt der Schuhmacher",
+                        "c": 3,
+                        "g": 307,
+                        "m": 4579
+                    }
+                ]
+            },
+            {
+                "x": 25,
+                "y": -4,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 844
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Ecaflip-Statue",
+                        "c": 1,
+                        "g": 60,
+                        "m": 7446
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": 16,
+                "h": [
+                    {
+                        "n": "Werkstatt der Holzfäller",
+                        "c": 3,
+                        "g": 305,
+                        "m": 1070
+                    }
+                ]
+            },
+            {
+                "x": -24,
+                "y": 36,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Schuhmacher",
+                        "c": 2,
+                        "g": 207,
+                        "m": 4562
+                    }
+                ]
+            },
+            {
+                "x": 24,
+                "y": -36,
+                "h": [
+                    {
+                        "n": "Bank",
+                        "c": 4,
+                        "g": 401,
+                        "m": 8012
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": 36,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Alchemisten",
+                        "c": 2,
+                        "g": 201,
+                        "m": 4607
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Werkstatt der Juweliere",
+                        "c": 3,
+                        "g": 302,
+                        "m": 7430
+                    }
+                ]
+            },
+            {
+                "x": 26,
+                "y": -36,
+                "h": [
+                    {
+                        "n": "Werkstatt der Holzfällern",
+                        "c": 3,
+                        "g": 305,
+                        "m": 8038
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": 36,
+                "h": [
+                    {
+                        "n": "Öffentliche Koppel",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8748
+                    }
+                ]
+            },
+            {
+                "x": -31,
+                "y": 36,
+                "h": [
+                    {
+                        "n": "Öffentliche Koppel",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8750
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": 32,
+                "h": [
+                    {
+                        "n": "Werkstatt der Juweliere",
+                        "c": 3,
+                        "g": 302,
+                        "m": 1684
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Bank",
+                        "c": 4,
+                        "g": 401,
+                        "m": 7414
+                    }
+                ]
+            },
+            {
+                "x": 30,
+                "y": -36,
+                "h": [
+                    {
+                        "n": "Dojo",
+                        "c": 4,
+                        "g": 414,
+                        "m": 8090
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": 36,
+                "h": [
+                    {
+                        "n": "Öffentliche Koppel",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8749
+                    }
+                ]
+            },
+            {
+                "x": -16,
+                "y": 4,
+                "h": [
+                    {
+                        "n": "Bank",
+                        "c": 4,
+                        "g": 401,
+                        "m": 8800
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Berufsberatungszentrum",
+                        "c": 4,
+                        "g": 418,
+                        "m": 7362
+                    }
+                ]
+            },
+            {
+                "x": -57,
+                "y": 4,
+                "h": [
+                    {
+                        "n": "Scaraschwirrlinge",
+                        "c": 4,
+                        "g": 428,
+                        "m": 10626
+                    }
+                ]
+            },
+            {
+                "x": -55,
+                "y": -4,
+                "h": [
+                    {
+                        "n": "Otomaïs Arche",
+                        "c": 6,
+                        "g": 422,
+                        "m": 11066
+                    }
+                ]
+            },
+            {
+                "x": 10,
+                "y": 15,
+                "h": [
+                    {
+                        "n": "Skelett-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1186
+                    }
+                ]
+            },
+            {
+                "x": 35,
+                "y": 4,
+                "h": [
+                    {
+                        "n": "Transport der Brigandiner",
+                        "c": 4,
+                        "g": 412,
+                        "m": 1116
+                    }
+                ]
+            },
+            {
+                "x": -60,
+                "y": -8,
+                "h": [
+                    {
+                        "n": "Riesen-Krakamor-Höhle",
+                        "c": 6,
+                        "g": 422,
+                        "m": 10700
+                    }
+                ]
+            },
+            {
+                "x": -42,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Minotoror- und Minotot-Labyrinth",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9538
+                    }
+                ]
+            },
+            {
+                "x": -20,
+                "y": -62,
+                "h": [
+                    {
+                        "n": "Meister Rabs Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 2985
+                    }
+                ]
+            },
+            {
+                "x": 11,
+                "y": 30,
+                "h": [
+                    {
+                        "n": "Transport der Brigandiner",
+                        "c": 4,
+                        "g": 412,
+                        "m": 10365
+                    }
+                ]
+            },
+            {
+                "x": -34,
+                "y": -8,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 6137
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -5,
+                "h": [
+                    {
+                        "n": "Ecaflip-Tempel",
+                        "c": 1,
+                        "g": 60,
+                        "m": 744
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 5,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bergleute",
+                        "c": 3,
+                        "g": 310,
+                        "m": 933
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -21,
+                "h": [
+                    {
+                        "n": "Eniripsa-Statue",
+                        "c": 1,
+                        "g": 70,
+                        "m": 7361
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": 31,
+                "h": [
+                    {
+                        "n": "Rattendungeon von Brâkmar",
+                        "c": 6,
+                        "g": 422,
+                        "m": 6738
+                    }
+                ]
+            },
+            {
+                "x": -54,
+                "y": 16,
+                "h": [
+                    {
+                        "n": "Blätterdach des Kimbo",
+                        "c": 6,
+                        "g": 422,
+                        "m": 11136
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -15,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Bäcker",
+                        "c": 2,
+                        "g": 204,
+                        "m": 7510
+                    }
+                ]
+            },
+            {
+                "x": -24,
+                "y": 31,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Bäcker",
+                        "c": 2,
+                        "g": 204,
+                        "m": 4630
+                    }
+                ]
+            },
+            {
+                "x": -25,
+                "y": 31,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Bauern",
+                        "c": 2,
+                        "g": 210,
+                        "m": 4629
+                    }
+                ]
+            },
+            {
+                "x": -22,
+                "y": 31,
+                "h": [
+                    {
+                        "n": "Taverne des \"Betrunkenen Bworks\"",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4637
+                    }
+                ]
+            },
+            {
+                "x": -43,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Schiff zur Cania-Bucht",
+                        "c": 4,
+                        "g": 413,
+                        "m": 9541
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": 30,
+                "h": [
+                    {
+                        "n": "Werkstatt der Holzfäller",
+                        "c": 3,
+                        "g": 305,
+                        "m": 1314
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -15,
+                "h": [
+                    {
+                        "n": "Werkstatt der Jäger und Metzger",
+                        "c": 3,
+                        "g": 303,
+                        "m": 7351
+                    }
+                ]
+            },
+            {
+                "x": 17,
+                "y": -31,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 8163
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": 30,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schnitzer",
+                        "c": 3,
+                        "g": 314,
+                        "m": 1299
+                    }
+                ]
+            },
+            {
+                "x": -28,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bergleute",
+                        "c": 3,
+                        "g": 310,
+                        "m": 4180
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Schuhmacher",
+                        "c": 2,
+                        "g": 207,
+                        "m": 4183
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schuhmacher",
+                        "c": 3,
+                        "g": 307,
+                        "m": 4300
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -22,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schneider",
+                        "c": 3,
+                        "g": 315,
+                        "m": 7360
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": 29,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schnitzer",
+                        "c": 3,
+                        "g": 314,
+                        "m": 1392
+                    }
+                ]
+            },
+            {
+                "x": -38,
+                "y": -56,
+                "h": [
+                    {
+                        "n": "Öffentliche Koppel",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8745
+                    }
+                ]
+            },
+            {
+                "x": -36,
+                "y": -56,
+                "h": [
+                    {
+                        "n": "Bibliothek",
+                        "c": 4,
+                        "g": 417,
+                        "m": 8760
+                    },
+                    {
+                        "n": "Verkaufsraum für Schriftstücke",
+                        "c": 2,
+                        "g": 221,
+                        "m": 8760
+                    }
+                ]
+            },
+            {
+                "x": -37,
+                "y": -56,
+                "h": [
+                    {
+                        "n": "Öffentliche Koppel",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8746
+                    }
+                ]
+            },
+            {
+                "x": -18,
+                "y": 28,
+                "h": [
+                    {
+                        "n": "Pilz-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 5044
+                    }
+                ]
+            },
+            {
+                "x": -9,
+                "y": -14,
+                "h": [
+                    {
+                        "n": "Astaknyden-Dungeon und Weich-Eich-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9127
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": 7,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 528
+                    }
+                ]
+            },
+            {
+                "x": -28,
+                "y": -58,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Bergleute",
+                        "c": 2,
+                        "g": 209,
+                        "m": 4179
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": -58,
+                "h": [
+                    {
+                        "n": "Bank",
+                        "c": 4,
+                        "g": 401,
+                        "m": 4308
+                    }
+                ]
+            },
+            {
+                "x": 13,
+                "y": -28,
+                "h": [
+                    {
+                        "n": "Versandetes Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 10155
+                    }
+                ]
+            },
+            {
+                "x": -3,
+                "y": -7,
+                "h": [
+                    {
+                        "n": "Krachler-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 749
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": 29,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bergleute",
+                        "c": 3,
+                        "g": 310,
+                        "m": 1397
+                    },
+                    {
+                        "n": "Werkstatt der Schmiede",
+                        "c": 3,
+                        "g": 309,
+                        "m": 1397
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": -58,
+                "h": [
+                    {
+                        "n": "Das \"Eisenbeiß\"",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4229
+                    }
+                ]
+            },
+            {
+                "x": -38,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schmiedmagier",
+                        "c": 3,
+                        "g": 308,
+                        "m": 8757
+                    },
+                    {
+                        "n": "Verkaufsraum für Runen",
+                        "c": 2,
+                        "g": 220,
+                        "m": 8757
+                    }
+                ]
+            },
+            {
+                "x": -36,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Verkaufsraum für Tiere",
+                        "c": 2,
+                        "g": 218,
+                        "m": 8759
+                    }
+                ]
+            },
+            {
+                "x": -37,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Berufsberatungszentrum",
+                        "c": 4,
+                        "g": 418,
+                        "m": 8758
+                    }
+                ]
+            },
+            {
+                "x": -35,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Fischer und Fischhändler",
+                        "c": 2,
+                        "g": 212,
+                        "m": 4247
+                    }
+                ]
+            },
+            {
+                "x": -33,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Alchemisten",
+                        "c": 2,
+                        "g": 201,
+                        "m": 4271
+                    }
+                ]
+            },
+            {
+                "x": -32,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Werkstatt der Alchemisten",
+                        "c": 3,
+                        "g": 301,
+                        "m": 4272
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": 29,
+                "h": [
+                    {
+                        "n": "Werkstatt der Juweliere",
+                        "c": 3,
+                        "g": 302,
+                        "m": 1398
+                    }
+                ]
+            },
+            {
+                "x": 28,
+                "y": -59,
+                "h": [
+                    {
+                        "n": "Heiligtum von Pandala",
+                        "c": 6,
+                        "g": 422,
+                        "m": 12280
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -59,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schnitzer",
+                        "c": 3,
+                        "g": 314,
+                        "m": 4181
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": -59,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bastler",
+                        "c": 3,
+                        "g": 317,
+                        "m": 4232
+                    },
+                    {
+                        "n": "Verkaufsraum der Bastler",
+                        "c": 2,
+                        "g": 222,
+                        "m": 4232
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": 23,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bauern",
+                        "c": 3,
+                        "g": 311,
+                        "m": 1355
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 23,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bäcker",
+                        "c": 3,
+                        "g": 304,
+                        "m": 1356
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": 29,
+                "h": [
+                    {
+                        "n": "Transport der Brigandiner",
+                        "c": 4,
+                        "g": 412,
+                        "m": 5015
+                    }
+                ]
+            },
+            {
+                "x": -21,
+                "y": -29,
+                "h": [
+                    {
+                        "n": "Dungeon von Ilyzaelle",
+                        "c": 6,
+                        "g": 422,
+                        "m": 4383
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -14,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Metzger",
+                        "c": 2,
+                        "g": 203,
+                        "m": 7515
+                    }
+                ]
+            },
+            {
+                "x": -35,
+                "y": -54,
+                "h": [
+                    {
+                        "n": "Werkstatt der Fischer und Fischhändlern",
+                        "c": 3,
+                        "g": 312,
+                        "m": 4250
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": -60,
+                "h": [
+                    {
+                        "n": "Der \"Hohlzkrug\"",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4174
+                    },
+                    {
+                        "n": "Verkaufsraum der Schnitzer",
+                        "c": 2,
+                        "g": 214,
+                        "m": 4174
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -60,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Holzfäller",
+                        "c": 2,
+                        "g": 205,
+                        "m": 4178
+                    }
+                ]
+            },
+            {
+                "x": 12,
+                "y": 29,
+                "h": [
+                    {
+                        "n": "Schiff zur Otomaïs Insel",
+                        "c": 4,
+                        "g": 413,
+                        "m": 9402
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": -60,
+                "h": [
+                    {
+                        "n": "Arena",
+                        "c": 4,
+                        "g": 411,
+                        "m": 8478
+                    },
+                    {
+                        "n": "Verkaufsraum für gefangene Seelen",
+                        "c": 2,
+                        "g": 217,
+                        "m": 8478
+                    }
+                ]
+            },
+            {
+                "x": -36,
+                "y": -53,
+                "h": [
+                    {
+                        "n": "Werkstatt der Metzger",
+                        "c": 3,
+                        "g": 303,
+                        "m": 10243
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -53,
+                "h": [
+                    {
+                        "n": "Befehlsturm",
+                        "c": 4,
+                        "g": 416,
+                        "m": 4223
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 24,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 1242
+                    }
+                ]
+            },
+            {
+                "x": -17,
+                "y": -26,
+                "h": [
+                    {
+                        "n": "Transport der Brigandiner",
+                        "c": 4,
+                        "g": 412,
+                        "m": 6850
+                    }
+                ]
+            },
+            {
+                "x": -18,
+                "y": -26,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 6855
+                    }
+                ]
+            },
+            {
+                "x": -33,
+                "y": -60,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Juweliere",
+                        "c": 2,
+                        "g": 202,
+                        "m": 4216
+                    }
+                ]
+            },
+            {
+                "x": -32,
+                "y": -60,
+                "h": [
+                    {
+                        "n": "Bagrutt-Taverne",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4218
+                    }
+                ]
+            },
+            {
+                "x": 24,
+                "y": -13,
+                "h": [
+                    {
+                        "n": "Wabbitschloss",
+                        "c": 6,
+                        "g": 422,
+                        "m": 822
+                    }
+                ]
+            },
+            {
+                "x": -3,
+                "y": 27,
+                "h": [
+                    {
+                        "n": "Transport der Brigandiner",
+                        "c": 4,
+                        "g": 412,
+                        "m": 1246
+                    }
+                ]
+            },
+            {
+                "x": 14,
+                "y": 26,
+                "h": [
+                    {
+                        "n": "Werkstatt der Fischer und Fischhändler",
+                        "c": 3,
+                        "g": 312,
+                        "m": 1888
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": -54,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Bauern",
+                        "c": 2,
+                        "g": 210,
+                        "m": 4299
+                    }
+                ]
+            },
+            {
+                "x": -35,
+                "y": -59,
+                "h": [
+                    {
+                        "n": "Rattendungeon von Bonta",
+                        "c": 6,
+                        "g": 422,
+                        "m": 6536
+                    },
+                    {
+                        "n": "Kaufladen",
+                        "c": 4,
+                        "g": 425,
+                        "m": 4207
+                    }
+                ]
+            },
+            {
+                "x": -33,
+                "y": -59,
+                "h": [
+                    {
+                        "n": "Werkstatt der Juweliere",
+                        "c": 3,
+                        "g": 302,
+                        "m": 4217
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schmiede",
+                        "c": 3,
+                        "g": 309,
+                        "m": 4074
+                    }
+                ]
+            },
+            {
+                "x": -49,
+                "y": 14,
+                "h": [
+                    {
+                        "n": "Scaraschwirrlinge",
+                        "c": 4,
+                        "g": 428,
+                        "m": 10531
+                    }
+                ]
+            },
+            {
+                "x": -31,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schneider",
+                        "c": 3,
+                        "g": 315,
+                        "m": 4106
+                    }
+                ]
+            },
+            {
+                "x": -28,
+                "y": -55,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Schmiede",
+                        "c": 2,
+                        "g": 208,
+                        "m": 4098
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -25,
+                "h": [
+                    {
+                        "n": "Werkstatt der Holzfäller",
+                        "c": 3,
+                        "g": 305,
+                        "m": 7357
+                    }
+                ]
+            },
+            {
+                "x": -2,
+                "y": 13,
+                "h": [
+                    {
+                        "n": "Geheimtunnel nach Brâkmar",
+                        "c": 4,
+                        "g": 424,
+                        "m": 936
+                    }
+                ]
+            },
+            {
+                "x": -32,
+                "y": -58,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 4263
+                    }
+                ]
+            },
+            {
+                "x": -37,
+                "y": -58,
+                "h": [
+                    {
+                        "n": "Öffentliche Koppel",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8848
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": -56,
+                "h": [
+                    {
+                        "n": "Feubuk-Brauerei",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4090
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -56,
+                "h": [
+                    {
+                        "n": "Das \"Alakarte\"",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4172
+                    },
+                    {
+                        "n": "Verkaufsraum der Schneider",
+                        "c": 2,
+                        "g": 215,
+                        "m": 4172
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": 3,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 10297
+                    },
+                    {
+                        "n": "Iop-Tempel",
+                        "c": 1,
+                        "g": 80,
+                        "m": 518
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": 13,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bäcker",
+                        "c": 3,
+                        "g": 304,
+                        "m": 579
+                    }
+                ]
+            },
+            {
+                "x": -32,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Ressourcen",
+                        "c": 2,
+                        "g": 213,
+                        "m": 4262
+                    }
+                ]
+            },
+            {
+                "x": -33,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Miliz",
+                        "c": 4,
+                        "g": 407,
+                        "m": 6159
+                    },
+                    {
+                        "n": "Verkaufsraum für Schriftrollen des Findens",
+                        "c": 2,
+                        "g": 219,
+                        "m": 6159
+                    }
+                ]
+            },
+            {
+                "x": -23,
+                "y": -56,
+                "h": [
+                    {
+                        "n": "Werkstatt der Holzfäller",
+                        "c": 3,
+                        "g": 305,
+                        "m": 4313
+                    }
+                ]
+            },
+            {
+                "x": -37,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Öffentliche Koppel",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8744
+                    }
+                ]
+            },
+            {
+                "x": -36,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Öffentliche Koppel",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8747
+                    }
+                ]
+            },
+            {
+                "x": -38,
+                "y": -57,
+                "h": [
+                    {
+                        "n": "Öffentliche Koppel",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8743
+                    }
+                ]
+            },
+            {
+                "x": 21,
+                "y": -24,
+                "h": [
+                    {
+                        "n": "Dojo",
+                        "c": 4,
+                        "g": 414,
+                        "m": 8109
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": 6,
+                "h": [
+                    {
+                        "n": "Tofu-Dungeon und Dungeon des Königlichen Tofus",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1384
+                    },
+                    {
+                        "n": "Werkstatt der Bauern",
+                        "c": 3,
+                        "g": 311,
+                        "m": 524
+                    }
+                ]
+            },
+            {
+                "x": 7,
+                "y": -25,
+                "h": [
+                    {
+                        "n": "Dungeon der Felder",
+                        "c": 6,
+                        "g": 422,
+                        "m": 7453
+                    },
+                    {
+                        "n": "Werkstatt der Bauern",
+                        "c": 3,
+                        "g": 311,
+                        "m": 7453
+                    }
+                ]
+            },
+            {
+                "x": 19,
+                "y": 24,
+                "h": [
+                    {
+                        "n": "\"Angst\"",
+                        "c": 4,
+                        "g": 423,
+                        "m": 1884
+                    }
+                ]
+            },
+            {
+                "x": 29,
+                "y": -49,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 8437
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": 3,
+                "h": [
+                    {
+                        "n": "Crâ-Tempel",
+                        "c": 1,
+                        "g": 90,
+                        "m": 540
+                    }
+                ]
+            },
+            {
+                "x": -2,
+                "y": -3,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bergleute",
+                        "c": 3,
+                        "g": 310,
+                        "m": 714
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": -6,
+                "h": [
+                    {
+                        "n": "Miliz",
+                        "c": 4,
+                        "g": 407,
+                        "m": 9458
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": 3,
+                "h": [
+                    {
+                        "n": "Marktplatz",
+                        "c": 4,
+                        "g": 415,
+                        "m": 10301
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": 26,
+                "h": [
+                    {
+                        "n": "Scarablatt-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1298
+                    }
+                ]
+            },
+            {
+                "x": -58,
+                "y": -99,
+                "h": [
+                    {
+                        "n": "Schiff zum Hafen von Madrestam",
+                        "c": 4,
+                        "g": 413,
+                        "m": 9979
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": 3,
+                "h": [
+                    {
+                        "n": "Gasthaus",
+                        "c": 4,
+                        "g": 408,
+                        "m": 10302
+                    }
+                ]
+            },
+            {
+                "x": -21,
+                "y": 12,
+                "h": [
+                    {
+                        "n": "Bworker-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 4786
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": -50,
+                "h": [
+                    {
+                        "n": "Taverne \"Das G'smörtnbröd\"",
+                        "c": 4,
+                        "g": 408,
+                        "m": 2214
+                    },
+                    {
+                        "n": "Werkstatt der Bäcker",
+                        "c": 3,
+                        "g": 304,
+                        "m": 2214
+                    }
+                ]
+            },
+            {
+                "x": 10,
+                "y": -24,
+                "h": [
+                    {
+                        "n": "\"Arme verschränken\"",
+                        "c": 4,
+                        "g": 423,
+                        "m": 8538
+                    }
+                ]
+            },
+            {
+                "x": 29,
+                "y": -50,
+                "h": [
+                    {
+                        "n": "Dojo",
+                        "c": 4,
+                        "g": 414,
+                        "m": 8471
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -50,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Metzger und Jäger",
+                        "c": 2,
+                        "g": 203,
+                        "m": 4287
+                    }
+                ]
+            },
+            {
+                "x": -2,
+                "y": -6,
+                "h": [
+                    {
+                        "n": "\"Klatschen\"",
+                        "c": 4,
+                        "g": 423,
+                        "m": 736
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": 6,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 10349
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": 25,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bauern",
+                        "c": 3,
+                        "g": 311,
+                        "m": 1339
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": 13,
+                "h": [
+                    {
+                        "n": "Werkstatt der Jäger",
+                        "c": 3,
+                        "g": 306,
+                        "m": 618
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 13,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 935
+                    }
+                ]
+            },
+            {
+                "x": 28,
+                "y": -12,
+                "h": [
+                    {
+                        "n": "Wabbit-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1763
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": 3,
+                "h": [
+                    {
+                        "n": "Kirche",
+                        "c": 4,
+                        "g": 403,
+                        "m": 494
+                    }
+                ]
+            },
+            {
+                "x": 12,
+                "y": 24,
+                "h": [
+                    {
+                        "n": "Die Ripaten-Kneipe",
+                        "c": 4,
+                        "g": 408,
+                        "m": 1878
+                    }
+                ]
+            },
+            {
+                "x": -24,
+                "y": 12,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 4739
+                    }
+                ]
+            },
+            {
+                "x": 24,
+                "y": -25,
+                "h": [
+                    {
+                        "n": "Werkstatt der Holzfäller",
+                        "c": 3,
+                        "g": 305,
+                        "m": 8359
+                    }
+                ]
+            },
+            {
+                "x": -4,
+                "y": 24,
+                "h": [
+                    {
+                        "n": "Kanojedo",
+                        "c": 4,
+                        "g": 406,
+                        "m": 1269
+                    }
+                ]
+            },
+            {
+                "x": -57,
+                "y": 11,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bauern",
+                        "c": 3,
+                        "g": 311,
+                        "m": 11246
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": 12,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schnitzer",
+                        "c": 3,
+                        "g": 314,
+                        "m": 577
+                    }
+                ]
+            },
+            {
+                "x": -6,
+                "y": 24,
+                "h": [
+                    {
+                        "n": "\"Wutanfall\"",
+                        "c": 4,
+                        "g": 423,
+                        "m": 1213
+                    }
+                ]
+            },
+            {
+                "x": 23,
+                "y": -3,
+                "h": [
+                    {
+                        "n": "Transport der Brigandiner",
+                        "c": 4,
+                        "g": 412,
+                        "m": 819
+                    }
+                ]
+            },
+            {
+                "x": -23,
+                "y": -3,
+                "h": [
+                    {
+                        "n": "Mercenaries' Residence",
+                        "c": 4,
+                        "g": 430,
+                        "m": 6175
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": -52,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Bäcker",
+                        "c": 2,
+                        "g": 204,
+                        "m": 2221
+                    }
+                ]
+            },
+            {
+                "x": -5,
+                "y": -12,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schmiedmagier",
+                        "c": 3,
+                        "g": 308,
+                        "m": 2187
+                    }
+                ]
+            },
+            {
+                "x": 14,
+                "y": 25,
+                "h": [
+                    {
+                        "n": "Bank",
+                        "c": 4,
+                        "g": 401,
+                        "m": 1886
+                    }
+                ]
+            },
+            {
+                "x": 28,
+                "y": -52,
+                "h": [
+                    {
+                        "n": "Feuerfux-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 8467
+                    }
+                ]
+            },
+            {
+                "x": 31,
+                "y": -52,
+                "h": [
+                    {
+                        "n": "Boot zur Heiligtum von Pandala",
+                        "c": 4,
+                        "g": 413,
+                        "m": 8506
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -52,
+                "h": [
+                    {
+                        "n": "Marktplatz",
+                        "c": 4,
+                        "g": 415,
+                        "m": 4259
+                    }
+                ]
+            },
+            {
+                "x": -56,
+                "y": 22,
+                "h": [
+                    {
+                        "n": "Scaraschwirrlinge",
+                        "c": 4,
+                        "g": 428,
+                        "m": 10476
+                    }
+                ]
+            },
+            {
+                "x": -3,
+                "y": 24,
+                "h": [
+                    {
+                        "n": "Heiligtum der Dracheier",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9788
+                    }
+                ]
+            },
+            {
+                "x": 23,
+                "y": -22,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 8125
+                    }
+                ]
+            },
+            {
+                "x": 19,
+                "y": -22,
+                "h": [
+                    {
+                        "n": "Bulbi-Höhle",
+                        "c": 6,
+                        "g": 422,
+                        "m": 8244
+                    }
+                ]
+            },
+            {
+                "x": 10,
+                "y": 22,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 1158
+                    }
+                ]
+            },
+            {
+                "x": -32,
+                "y": -51,
+                "h": [
+                    {
+                        "n": "Kneipe \"Zum Knüppel\"",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4238
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": -14,
+                "h": [
+                    {
+                        "n": "Sacrieur-Statue",
+                        "c": 1,
+                        "g": 110,
+                        "m": 7336
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": 23,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bäcker",
+                        "c": 3,
+                        "g": 304,
+                        "m": 1369
+                    }
+                ]
+            },
+            {
+                "x": 22,
+                "y": -23,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schildschmiede",
+                        "c": 3,
+                        "g": 316,
+                        "m": 8117
+                    }
+                ]
+            },
+            {
+                "x": -16,
+                "y": -23,
+                "h": [
+                    {
+                        "n": "Werkstatt der Feenwerker",
+                        "c": 3,
+                        "g": 318,
+                        "m": 6860
+                    }
+                ]
+            },
+            {
+                "x": 35,
+                "y": 12,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 1841
+                    }
+                ]
+            },
+            {
+                "x": -32,
+                "y": -50,
+                "h": [
+                    {
+                        "n": "Werkstatt der Metzger",
+                        "c": 3,
+                        "g": 303,
+                        "m": 4240
+                    }
+                ]
+            },
+            {
+                "x": 26,
+                "y": -47,
+                "h": [
+                    {
+                        "n": "Dofus-Behälter",
+                        "c": 4,
+                        "g": 429,
+                        "m": 7893
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -22,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Schneider",
+                        "c": 2,
+                        "g": 215,
+                        "m": 7513
+                    }
+                ]
+            },
+            {
+                "x": -63,
+                "y": -100,
+                "h": [
+                    {
+                        "n": "Weißnachtsdungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9946
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -48,
+                "h": [
+                    {
+                        "n": "Transport der Brigandiner",
+                        "c": 4,
+                        "g": 412,
+                        "m": 4413
+                    }
+                ]
+            },
+            {
+                "x": -14,
+                "y": -47,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 3250
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -22,
+                "h": [
+                    {
+                        "n": "Sram-Statue",
+                        "c": 1,
+                        "g": 40,
+                        "m": 7392
+                    }
+                ]
+            },
+            {
+                "x": -6,
+                "y": -11,
+                "h": [
+                    {
+                        "n": "Arena",
+                        "c": 4,
+                        "g": 411,
+                        "m": 2184
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": -21,
+                "h": [
+                    {
+                        "n": "Mercenaries' Lair",
+                        "c": 4,
+                        "g": 430,
+                        "m": 7409
+                    }
+                ]
+            },
+            {
+                "x": 11,
+                "y": 10,
+                "h": [
+                    {
+                        "n": "Kanone zur Moon-Insel",
+                        "c": 4,
+                        "g": 402,
+                        "m": 1014
+                    }
+                ]
+            },
+            {
+                "x": -20,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 3022
+                    }
+                ]
+            },
+            {
+                "x": -6,
+                "y": 5,
+                "h": [
+                    {
+                        "n": "\"Waffe präsentieren\"",
+                        "c": 4,
+                        "g": 423,
+                        "m": 1663
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": 5,
+                "h": [
+                    {
+                        "n": "Incarnam-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 10359
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -21,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schmiede",
+                        "c": 3,
+                        "g": 309,
+                        "m": 7441
+                    }
+                ]
+            },
+            {
+                "x": -10,
+                "y": -41,
+                "h": [
+                    {
+                        "n": "Verkaufsraum für Feenwerk",
+                        "c": 2,
+                        "g": 223,
+                        "m": 3412
+                    }
+                ]
+            },
+            {
+                "x": -2,
+                "y": -5,
+                "h": [
+                    {
+                        "n": "Larven-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 6684
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -21,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schuhmacher",
+                        "c": 3,
+                        "g": 307,
+                        "m": 7345
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -21,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schnitzer",
+                        "c": 3,
+                        "g": 314,
+                        "m": 7377
+                    }
+                ]
+            },
+            {
+                "x": -9,
+                "y": -41,
+                "h": [
+                    {
+                        "n": "Gladiatrool",
+                        "c": 4,
+                        "g": 411,
+                        "m": 3451
+                    }
+                ]
+            },
+            {
+                "x": -20,
+                "y": 10,
+                "h": [
+                    {
+                        "n": "Unterschlupf des Skeunks",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9503
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": -42,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bauern",
+                        "c": 3,
+                        "g": 311,
+                        "m": 2672
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -5,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 9454
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -21,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Holzfäller",
+                        "c": 2,
+                        "g": 205,
+                        "m": 7289
+                    }
+                ]
+            },
+            {
+                "x": -57,
+                "y": 19,
+                "h": [
+                    {
+                        "n": "Werkstatt der Alchemisten",
+                        "c": 3,
+                        "g": 301,
+                        "m": 11093
+                    }
+                ]
+            },
+            {
+                "x": 14,
+                "y": 20,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schnitzer",
+                        "c": 3,
+                        "g": 314,
+                        "m": 1109
+                    }
+                ]
+            },
+            {
+                "x": 32,
+                "y": -38,
+                "h": [
+                    {
+                        "n": "Kitsoune-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 8236
+                    }
+                ]
+            },
+            {
+                "x": -36,
+                "y": -9,
+                "h": [
+                    {
+                        "n": "Schiff zur Minotoror-Insel",
+                        "c": 4,
+                        "g": 413,
+                        "m": 9520
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": 20,
+                "h": [
+                    {
+                        "n": "Pandawa-Tempel",
+                        "c": 1,
+                        "g": 120,
+                        "m": 8207
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Werkstatt der Alchemisten",
+                        "c": 3,
+                        "g": 301,
+                        "m": 7426
+                    }
+                ]
+            },
+            {
+                "x": -51,
+                "y": 9,
+                "h": [
+                    {
+                        "n": "Shilf-Engpass",
+                        "c": 6,
+                        "g": 422,
+                        "m": 11260
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Enutrof-Statue",
+                        "c": 1,
+                        "g": 30,
+                        "m": 7442
+                    }
+                ]
+            },
+            {
+                "x": 7,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bergleute",
+                        "c": 3,
+                        "g": 310,
+                        "m": 7458
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Crâ-Statue",
+                        "c": 1,
+                        "g": 90,
+                        "m": 7378
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Schuhmacher",
+                        "c": 2,
+                        "g": 207,
+                        "m": 7602
+                    }
+                ]
+            },
+            {
+                "x": 8,
+                "y": -5,
+                "h": [
+                    {
+                        "n": "Boot zur Weißnachtsinsel",
+                        "c": 4,
+                        "g": 413,
+                        "m": 9468
+                    }
+                ]
+            },
+            {
+                "x": -41,
+                "y": -18,
+                "h": [
+                    {
+                        "n": "Transport der Brigandiner",
+                        "c": 4,
+                        "g": 412,
+                        "m": 9550
+                    }
+                ]
+            },
+            {
+                "x": 9,
+                "y": 21,
+                "h": [
+                    {
+                        "n": "Tierheim",
+                        "c": 4,
+                        "g": 404,
+                        "m": 1140
+                    }
+                ]
+            },
+            {
+                "x": -46,
+                "y": 18,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 10643
+                    }
+                ]
+            },
+            {
+                "x": -5,
+                "y": 10,
+                "h": [
+                    {
+                        "n": "Bwork-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9470
+                    }
+                ]
+            },
+            {
+                "x": -54,
+                "y": 18,
+                "h": [
+                    {
+                        "n": "Scaraschwirrlinge",
+                        "c": 4,
+                        "g": 428,
+                        "m": 11193
+                    }
+                ]
+            },
+            {
+                "x": 12,
+                "y": 5,
+                "h": [
+                    {
+                        "n": "Féca-Tempel",
+                        "c": 1,
+                        "g": 10,
+                        "m": 177
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -20,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Schnitzer",
+                        "c": 2,
+                        "g": 214,
+                        "m": 7512
+                    }
+                ]
+            },
+            {
+                "x": -53,
+                "y": 18,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 11210
+                    }
+                ]
+            },
+            {
+                "x": 13,
+                "y": 21,
+                "h": [
+                    {
+                        "n": "Dungeon der Schattenschmiede",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1130
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 33,
+                "h": [
+                    {
+                        "n": "Unterschlupf des Schweinedrachens",
+                        "c": 6,
+                        "g": 422,
+                        "m": 1399
+                    }
+                ]
+            },
+            {
+                "x": -16,
+                "y": 18,
+                "h": [
+                    {
+                        "n": "Turm von Gisgoul",
+                        "c": 4,
+                        "g": 416,
+                        "m": 4908
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": -19,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 7411
+                    }
+                ]
+            },
+            {
+                "x": -22,
+                "y": 37,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Holzfäller",
+                        "c": 2,
+                        "g": 205,
+                        "m": 5112
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": -19,
+                "h": [
+                    {
+                        "n": "Iop-Statue",
+                        "c": 1,
+                        "g": 80,
+                        "m": 7427
+                    }
+                ]
+            },
+            {
+                "x": 12,
+                "y": -1,
+                "h": [
+                    {
+                        "n": "Werkstatt der Fischhändler",
+                        "c": 3,
+                        "g": 312,
+                        "m": 6146
+                    }
+                ]
+            },
+            {
+                "x": 24,
+                "y": -2,
+                "h": [
+                    {
+                        "n": "Schiff zum Hafen von Madrestam",
+                        "c": 4,
+                        "g": 413,
+                        "m": 833
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": 37,
+                "h": [
+                    {
+                        "n": "Werkstatt der Alchemisten",
+                        "c": 3,
+                        "g": 301,
+                        "m": 4930
+                    }
+                ]
+            },
+            {
+                "x": 26,
+                "y": -37,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 8037
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": 37,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Fischer und Fischhändler",
+                        "c": 2,
+                        "g": 212,
+                        "m": 4615
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -19,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Bergleute",
+                        "c": 2,
+                        "g": 209,
+                        "m": 7443
+                    }
+                ]
+            },
+            {
+                "x": 30,
+                "y": -37,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schildschmiede",
+                        "c": 3,
+                        "g": 316,
+                        "m": 8089
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": 37,
+                "h": [
+                    {
+                        "n": "Öffentliche Koppel",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8752
+                    }
+                ]
+            },
+            {
+                "x": -31,
+                "y": 37,
+                "h": [
+                    {
+                        "n": "Verkaufsraum für Tiere",
+                        "c": 2,
+                        "g": 218,
+                        "m": 8753
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -32,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 6954
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": 37,
+                "h": [
+                    {
+                        "n": "Öffentliche Koppel",
+                        "c": 4,
+                        "g": 419,
+                        "m": 8751
+                    }
+                ]
+            },
+            {
+                "x": -9,
+                "y": -37,
+                "h": [
+                    {
+                        "n": "Kartenwerkstatt",
+                        "c": 3,
+                        "g": 319,
+                        "m": 3455
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -19,
+                "h": [
+                    {
+                        "n": "Xélor-Statue",
+                        "c": 1,
+                        "g": 50,
+                        "m": 7332
+                    }
+                ]
+            },
+            {
+                "x": -44,
+                "y": 21,
+                "h": [
+                    {
+                        "n": "Schiff nach Sufokia",
+                        "c": 4,
+                        "g": 413,
+                        "m": 10836
+                    }
+                ]
+            },
+            {
+                "x": -47,
+                "y": 21,
+                "h": [
+                    {
+                        "n": "Bankn",
+                        "c": 4,
+                        "g": 401,
+                        "m": 10746
+                    }
+                ]
+            },
+            {
+                "x": -23,
+                "y": 38,
+                "h": [
+                    {
+                        "n": "Miliz",
+                        "c": 4,
+                        "g": 407,
+                        "m": 5116
+                    },
+                    {
+                        "n": "Verkaufsraum für Schriftrollen des Findens",
+                        "c": 2,
+                        "g": 219,
+                        "m": 6167
+                    }
+                ]
+            },
+            {
+                "x": -24,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "Canidae-Dungeon",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9787
+                    }
+                ]
+            },
+            {
+                "x": -26,
+                "y": 38,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Juweliere",
+                        "c": 2,
+                        "g": 202,
+                        "m": 4622
+                    }
+                ]
+            },
+            {
+                "x": 26,
+                "y": -38,
+                "h": [
+                    {
+                        "n": "Marktplatz",
+                        "c": 4,
+                        "g": 415,
+                        "m": 8036
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -19,
+                "h": [
+                    {
+                        "n": "Sadida-Statue",
+                        "c": 1,
+                        "g": 100,
+                        "m": 7395
+                    }
+                ]
+            },
+            {
+                "x": 24,
+                "y": -38,
+                "h": [
+                    {
+                        "n": "Schiff zum Hafen von Madrestam",
+                        "c": 4,
+                        "g": 413,
+                        "m": 8182
+                    }
+                ]
+            },
+            {
+                "x": 30,
+                "y": -38,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 8088
+                    }
+                ]
+            },
+            {
+                "x": -30,
+                "y": 38,
+                "h": [
+                    {
+                        "n": "Berufsberatungszentrum",
+                        "c": 4,
+                        "g": 418,
+                        "m": 8755
+                    }
+                ]
+            },
+            {
+                "x": -31,
+                "y": 38,
+                "h": [
+                    {
+                        "n": "Bibliothek",
+                        "c": 4,
+                        "g": 417,
+                        "m": 8754
+                    },
+                    {
+                        "n": "Verkaufsraum für Schriftstücke",
+                        "c": 2,
+                        "g": 221,
+                        "m": 8754
+                    }
+                ]
+            },
+            {
+                "x": 9,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "Werkstatt der Fischer",
+                        "c": 3,
+                        "g": 312,
+                        "m": 766
+                    }
+                ]
+            },
+            {
+                "x": 9,
+                "y": -2,
+                "h": [
+                    {
+                        "n": "Schiff zur Wabbit-Insel",
+                        "c": 4,
+                        "g": 413,
+                        "m": 167
+                    }
+                ]
+            },
+            {
+                "x": 8,
+                "y": 2,
+                "h": [
+                    {
+                        "n": "Osamodas-Tempel",
+                        "c": 1,
+                        "g": 20,
+                        "m": 490
+                    }
+                ]
+            },
+            {
+                "x": -29,
+                "y": 38,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schmiedmagier",
+                        "c": 3,
+                        "g": 308,
+                        "m": 8756
+                    },
+                    {
+                        "n": "Verkaufsraum für Runen",
+                        "c": 2,
+                        "g": 220,
+                        "m": 8756
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": 16,
+                "h": [
+                    {
+                        "n": "Werkstatt der Alchemisten",
+                        "c": 3,
+                        "g": 301,
+                        "m": 643
+                    }
+                ]
+            },
+            {
+                "x": 1,
+                "y": -16,
+                "h": [
+                    {
+                        "n": "Kaufladen",
+                        "c": 4,
+                        "g": 425,
+                        "m": 7529
+                    }
+                ]
+            },
+            {
+                "x": -16,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 8785
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": -17,
+                "h": [
+                    {
+                        "n": "Osamodas-Statue",
+                        "c": 1,
+                        "g": 20,
+                        "m": 7545
+                    }
+                ]
+            },
+            {
+                "x": -19,
+                "y": 39,
+                "h": [
+                    {
+                        "n": "Arena",
+                        "c": 4,
+                        "g": 411,
+                        "m": 8493
+                    },
+                    {
+                        "n": "Verkaufsraum für gefangene Seelen",
+                        "c": 2,
+                        "g": 217,
+                        "m": 8493
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": -18,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Alchemisten",
+                        "c": 2,
+                        "g": 201,
+                        "m": 7516
+                    }
+                ]
+            },
+            {
+                "x": 18,
+                "y": -39,
+                "h": [
+                    {
+                        "n": "Transport der Brigandiner",
+                        "c": 4,
+                        "g": 412,
+                        "m": 8223
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": -18,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Bastler",
+                        "c": 2,
+                        "g": 222,
+                        "m": 7428
+                    }
+                ]
+            },
+            {
+                "x": -21,
+                "y": 39,
+                "h": [
+                    {
+                        "n": "Taverne zur Misere",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4612
+                    },
+                    {
+                        "n": "Werkstatt der Schnitzer",
+                        "c": 3,
+                        "g": 314,
+                        "m": 4612
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "Xélor-Tempel",
+                        "c": 1,
+                        "g": 50,
+                        "m": 50
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schmiede",
+                        "c": 3,
+                        "g": 309,
+                        "m": 1066
+                    }
+                ]
+            },
+            {
+                "x": -27,
+                "y": 39,
+                "h": [
+                    {
+                        "n": "Werkstatt der Juweliere",
+                        "c": 3,
+                        "g": 302,
+                        "m": 4620
+                    }
+                ]
+            },
+            {
+                "x": 26,
+                "y": -39,
+                "h": [
+                    {
+                        "n": "Pandawa-Statue",
+                        "c": 1,
+                        "g": 120,
+                        "m": 8035
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -18,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Schmiede",
+                        "c": 2,
+                        "g": 208,
+                        "m": 7511
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 10304
+                    }
+                ]
+            },
+            {
+                "x": 30,
+                "y": -39,
+                "h": [
+                    {
+                        "n": "Werkstatt der Holzfäller",
+                        "c": 3,
+                        "g": 305,
+                        "m": 8356
+                    }
+                ]
+            },
+            {
+                "x": -4,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "Sram-Tempel",
+                        "c": 1,
+                        "g": 40,
+                        "m": 690
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "Marktplatz",
+                        "c": 4,
+                        "g": 415,
+                        "m": 33
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -1,
+                "h": [
+                    {
+                        "n": "\"Schere, Stein, Papier\"",
+                        "c": 4,
+                        "g": 423,
+                        "m": 464
+                    },
+                    {
+                        "n": "Gasthaus",
+                        "c": 4,
+                        "g": 408,
+                        "m": 41
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": 8,
+                "h": [
+                    {
+                        "n": "Transport der Brigandiner",
+                        "c": 4,
+                        "g": 412,
+                        "m": 1669
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": -18,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Fischer",
+                        "c": 2,
+                        "g": 211,
+                        "m": 7348
+                    }
+                ]
+            },
+            {
+                "x": -9,
+                "y": -39,
+                "h": [
+                    {
+                        "n": "Marktplatz",
+                        "c": 4,
+                        "g": 415,
+                        "m": 3453
+                    }
+                ]
+            },
+            {
+                "x": 7,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "Eniripsa-Tempel",
+                        "c": 1,
+                        "g": 70,
+                        "m": 487
+                    }
+                ]
+            },
+            {
+                "x": -7,
+                "y": -1,
+                "h": [
+                    {
+                        "n": "Heiligtum der Vertrauten",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9052
+                    }
+                ]
+            },
+            {
+                "x": -23,
+                "y": 40,
+                "h": [
+                    {
+                        "n": "Bank",
+                        "c": 4,
+                        "g": 401,
+                        "m": 5332
+                    }
+                ]
+            },
+            {
+                "x": -22,
+                "y": 40,
+                "h": [
+                    {
+                        "n": "Verkaufsraum der Schnitzer",
+                        "c": 2,
+                        "g": 214,
+                        "m": 4618
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bäcker",
+                        "c": 3,
+                        "g": 304,
+                        "m": 49
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -1,
+                "h": [
+                    {
+                        "n": "Transport der Brigandiner",
+                        "c": 4,
+                        "g": 412,
+                        "m": 188
+                    }
+                ]
+            },
+            {
+                "x": 3,
+                "y": -18,
+                "h": [
+                    {
+                        "n": "Marktplatz",
+                        "c": 4,
+                        "g": 415,
+                        "m": 7396
+                    }
+                ]
+            },
+            {
+                "x": 6,
+                "y": -9,
+                "h": [
+                    {
+                        "n": "Rattendungeon des Schlosses von Amakna",
+                        "c": 6,
+                        "g": 422,
+                        "m": 9638
+                    }
+                ]
+            },
+            {
+                "x": -53,
+                "y": 20,
+                "h": [
+                    {
+                        "n": "Tynril-Labyrinth",
+                        "c": 6,
+                        "g": 422,
+                        "m": 10807
+                    }
+                ]
+            },
+            {
+                "x": -50,
+                "y": 20,
+                "h": [
+                    {
+                        "n": "Werkstatt der Bauern",
+                        "c": 3,
+                        "g": 311,
+                        "m": 11245
+                    }
+                ]
+            },
+            {
+                "x": -25,
+                "y": 40,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 5295
+                    }
+                ]
+            },
+            {
+                "x": 5,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "Miliz",
+                        "c": 4,
+                        "g": 407,
+                        "m": 10307
+                    },
+                    {
+                        "n": "Werkstatt der Schuhmacher",
+                        "c": 3,
+                        "g": 307,
+                        "m": 55
+                    }
+                ]
+            },
+            {
+                "x": -24,
+                "y": 40,
+                "h": [
+                    {
+                        "n": "Werkstatt der Fischer und Fischhändler",
+                        "c": 3,
+                        "g": 312,
+                        "m": 5334
+                    }
+                ]
+            },
+            {
+                "x": -12,
+                "y": -39,
+                "h": [
+                    {
+                        "n": "Fresssack-Roulette",
+                        "c": 4,
+                        "g": 427,
+                        "m": 3336
+                    }
+                ]
+            },
+            {
+                "x": -1,
+                "y": -4,
+                "h": [
+                    {
+                        "n": "Enutrof-Tempel",
+                        "c": 1,
+                        "g": 30,
+                        "m": 686
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": 2,
+                "h": [
+                    {
+                        "n": "Werkstatt der Juweliere",
+                        "c": 3,
+                        "g": 302,
+                        "m": 34
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": 2,
+                "h": [
+                    {
+                        "n": "Werkstatt der Schneider",
+                        "c": 3,
+                        "g": 315,
+                        "m": 44
+                    }
+                ]
+            },
+            {
+                "x": 0,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 10114
+                    },
+                    {
+                        "n": "Kanojedo",
+                        "c": 4,
+                        "g": 406,
+                        "m": 32
+                    }
+                ]
+            },
+            {
+                "x": 2,
+                "y": -2,
+                "h": [
+                    {
+                        "n": "Bank",
+                        "c": 4,
+                        "g": 401,
+                        "m": 40
+                    }
+                ]
+            },
+            {
+                "x": -2,
+                "y": 0,
+                "h": [
+                    {
+                        "n": "Zaap",
+                        "c": 4,
+                        "g": 410,
+                        "m": 951
+                    }
+                ]
+            },
+            {
+                "x": -28,
+                "y": 40,
+                "h": [
+                    {
+                        "n": "Gasthaus \"Zur Brennenden Katze\"",
+                        "c": 4,
+                        "g": 408,
+                        "m": 4623
+                    }
+                ]
+            },
+            {
+                "x": 4,
+                "y": 1,
+                "h": [
+                    {
+                        "n": "\"Winken\"",
+                        "c": 4,
+                        "g": 423,
+                        "m": 1665
+                    },
+                    {
+                        "n": "Bibliothek",
+                        "c": 4,
+                        "g": 417,
+                        "m": 51
+                    }
+                ]
+            }
+        ],
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 216,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "HIC",
+            "HI",
+            "HIN",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

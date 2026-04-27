@@ -68,11 +68,29 @@ export interface AtlasManifest {
 }
 
 /**
+ * Per-animation uniform canvas + anchor at 1x resolution, fetched from Vello
+ * once at asset load. Scales linearly with zoom at render time — avoids a
+ * path-walk on every tile draw.
+ */
+export interface TileRenderMeta {
+  /** Canvas width in SVG units (multiply by zoom for texture px). */
+  width: number;
+  /** Canvas height in SVG units. */
+  height: number;
+  /** Flash registration point X within the canvas (SVG units). */
+  anchorX: number;
+  /** Flash registration point Y within the canvas (SVG units). */
+  anchorY: number;
+}
+
+/**
  * Cached tile data
  */
 export interface CachedTileData {
   manifest: SpritesheetManifest;
   atlas: AtlasManifest;
+  /** Vello's authoritative canvas + anchor, queried once per tile on load. */
+  renderMeta: TileRenderMeta;
   /** Base textures keyed by zoom level. Array has one entry per page (single-page = [texture]). */
   baseTextures: Map<number, Texture[]>;
 }

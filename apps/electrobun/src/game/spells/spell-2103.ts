@@ -1,169 +1,263 @@
 /**
- * Spell 2103 - Fulminant (variant)
+ * Spell 2103 — (Cra fire arrow variant, likely "Flèche Enflammée" / similar Cra spell).
  *
- * A beam spell with particles that travels from caster to target.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/2103/scripts/scripts/
  *
- * Components:
- * - Beam (sprite_19): At caster position, rotated toward target, stops at frame 69
- * - Particles (cercle): Spawned at frame 6 of beam animation (AS frame 7)
- * - Impact (sprite_33): At target position, signals hit at frame 12 (AS frame 13)
+ * displayType=51 (WorldAbsoluteAlt). Detection reasoning:
+ *   - Two parallel authored timelines: sprite_19 (caster-side, 72 frames) and
+ *     sprite_33 (target-side, 84 frames).
+ *   - sprite_19/frame_1 reads `_parent.cellFrom` and positions itself there.
+ *   - sprite_33/frame_1 reads `_parent.cellTo` and positions itself there.
+ *   - Both read `_parent.angle` for rotation.
+ *   - This is the canonical dual-anchored WorldAbsolute pattern (50/51).
+ *   - No `move`/`shoot`/`duplicate` symbols → not a projectile or beam type.
+ *   - Main timeline has a frame_2 sound+stop → WorldAbsoluteAlt (51), matching spell 909.
  *
- * Original AS timing:
- * - Frame 2 (main): Play sound 'jet_903'
- * - Frame 7 (sprite_19): Spawn nb = 10 + level * 3 particles
- * - Frame 13 (sprite_33): Signal hit (this.end())
- * - Frame 70 (sprite_19): stop()
- * - Frame 67 (sprite_33): removeMovieClip() - animation ends
+ * Library symbols:
+ *   - lib_cercle — single-frame orange particle. onLoad seeds d, accx, x, sr, vr, vt, vx, va, t.
+ *                  onEnterFrame rotates (vr decays 0.97×), X drifts (vx grows by accx factor),
+ *                  scale ramps via t+vt, removes when t < 0.
+ *
+ * Authored timelines (animations[], NOT librarySymbols[]):
+ *   - sprite_19 — caster-side, 72 frames. frame_1: position at cellFrom, rotate to angle.
+ *                 frame_7: spawn 10 + level*3 cercle particles. frame_70: stop().
+ *   - sprite_33 — target-side, 84 frames. frame_1: position at cellTo, rotate to angle.
+ *                 frame_13: signalHit (this.end()). frame_67: _parent.removeMovieClip() → complete().
+ *
+ * Main timeline (frame_2/DoAction.as): SOMA.playSound("jet_903"); stop();
+ * onSpellStart attaches sprite_19 and sprite_33 to root, then plays the sound.
+ *
+ * NOTE: signalHit is called from sprite_33's frame_13 (not harness-driven, since
+ * displayType is not 30/31). complete() is called from sprite_33's frame_67.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  ASParticleSystem,
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Texture } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const BEAM_MANIFEST: SpriteManifest = {
-  width: 171.35,
-  height: 28,
-  offsetX: -36.35,
-  offsetY: -14.9,
+const CERCLE_BOUNDS = {
+  width: 34.75,
+  height: 34.4,
+  offsetX: -17.2,
+  offsetY: -17.3,
 };
 
-const IMPACT_MANIFEST: SpriteManifest = {
-  width: 224.15,
-  height: 88.25,
-  offsetX: -59.4,
-  offsetY: -47.3,
-};
-
-export class Spell2103 extends BaseSpell {
+export class Spell2103 extends RuntimeSpell {
   readonly spellId = 2103;
+  readonly displayType = SpellDisplayType.WorldAbsoluteAlt;
 
-  private beamAnim!: FrameAnimatedSprite;
-  private impactAnim!: FrameAnimatedSprite;
-  private particles!: ASParticleSystem;
-  private level = 1;
+  private cercleSym!: SymbolDefinition;
+  private sprite19Sym!: SymbolDefinition;
+  private sprite33Sym!: SymbolDefinition;
 
-  protected setup(
-    context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext
   ): void {
-    this.level = Math.max(1, Math.min(6, context?.level ?? 1));
+    const cercleAnchor = calculateAnchor(CERCLE_BOUNDS);
 
-    // Beam animation (sprite_19) at caster position
-    // AS frame 1: _X = cellFrom.x, _Y = cellFrom.y - 50, _rotation = angle
-    // AS frame 7: spawn particles (0-indexed: 6)
-    // AS frame 70: stop() (0-indexed: 69)
-    this.beamAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_19"),
-        ...calculateAnchor(BEAM_MANIFEST),
-        scale: init.scale,
-      })
-    );
-    this.beamAnim.sprite.position.set(0, init.casterY);
-    this.beamAnim.sprite.rotation = init.angleRad;
-    this.beamAnim
-      .stopAt(69)
-      .onFrame(0, () => this.callbacks.playSound("jet_903"))
-      .onFrame(6, () => this.spawnParticles());
-    this.container.addChild(this.beamAnim.sprite);
+    // ---- lib_cercle — orange particle spawned from caster-side sprite_19 ----
+    // AS: DefineSprite_3_cercle/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
+    // AS: DefineSprite_3_cercle/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    this.cercleSym = {
+      name: "cercle",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_cercle"),
+      anchorX: cercleAnchor.x,
+      anchorY: cercleAnchor.y,
+      onLoad: (clip) => {
+        // AS: onClipEvent(load)
+        // _parent._parent._parent.level:
+        //   cercle's _parent is sprite_19, sprite_19's _parent is root.
+        //   So: clip → sprite_19 → root. We collapse to clip.parent?.parent.
+        const root = clip.parent?.parent ?? clip.parent;
+        const level = (root?.vars.level as number) ?? 1;
+        const d = 120 + (level - 1) * 32;
+        clip.vars.d = d;
+        clip.vars.accx = 0.8 + 0.12 * Math.random();
+        const xStart = d * Math.random();
+        let yStart: number;
+        let sr: number;
+        // AS: if(random(4) == 1) — note: 1/4 chance (not 1/2 as in spell 909)
+        if (Math.floor(Math.random() * 4) === 1) {
+          yStart = 5;
+          sr = -1;
+        } else {
+          sr = 1;
+          yStart = -5;
+        }
+        clip.scaleX = 0;
+        clip.scaleY = 0;
+        clip.vars.t = 5;
+        clip.x = xStart;
+        clip.y = yStart;
+        clip.vars.va = 5 + 10 * Math.random();
+        clip.vars.vr = (20 + 40 * Math.random()) * sr;
+        // AS: vt = (1 + random(1)) * ((d - x) / d)
+        clip.vars.vt = (1 + Math.floor(Math.random() * 1)) * ((d - xStart) / d);
+        clip.vars.vx = 5 + 10 * Math.random();
+      },
+      onEnterFrame: (clip) => {
+        // AS: onClipEvent(enterFrame)
+        let vr = clip.vars.vr as number;
+        let vx = clip.vars.vx as number;
+        let vt = clip.vars.vt as number;
+        let t = clip.vars.t as number;
+        const accx = clip.vars.accx as number;
 
-    // Particle system - positioned at caster, rotated toward target
-    const particleTexture =
-      textures.getFrames("lib_cercle")[0] ?? Texture.EMPTY;
-    this.particles = new ASParticleSystem(particleTexture);
-    this.particles.container.position.set(0, init.casterY);
-    this.particles.container.rotation = init.angleRad;
-    this.container.addChildAt(this.particles.container, 0);
+        // AS: _rotation = _rotation - (vr *= 0.97)
+        vr *= 0.97;
+        clip.rotation -= (vr * Math.PI) / 180;
 
-    // Impact animation (sprite_33) at target position
-    // AS frame 1: _X = cellTo.x, _Y = cellTo.y - 50, _rotation = angle
-    // AS frame 13: this.end() -> signalHit (0-indexed: 12)
-    // AS frame 67: removeMovieClip() (0-indexed: 66)
-    this.impactAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_33"),
-        ...calculateAnchor(IMPACT_MANIFEST),
-        scale: init.scale,
-      })
-    );
-    this.impactAnim.sprite.position.set(init.targetX, init.targetY);
-    this.impactAnim.sprite.rotation = init.angleRad;
-    this.impactAnim.onFrame(12, () => this.signalHit());
-    this.container.addChild(this.impactAnim.sprite);
+        // AS: _X = _X + (vx *= accx)
+        vx *= accx;
+        clip.x += vx;
+
+        // AS: t += vt -= 0.1
+        vt -= 0.1;
+        t += vt;
+
+        // AS: _xscale = t; _yscale = t
+        clip.scaleX = t / 100;
+        clip.scaleY = t / 100;
+
+        clip.vars.vr = vr;
+        clip.vars.vx = vx;
+        clip.vars.vt = vt;
+        clip.vars.t = t;
+
+        // AS: if(t < 0) { _parent.removeMovieClip(); }
+        if (t < 0) {
+          clip.remove();
+        }
+      },
+    };
+
+    // ---- sprite_19 — caster-side timeline (72 frames) ----
+    // Positions at cellFrom, rotates to angle, spawns cercle particles at frame 7,
+    // stops at frame 70.
+    this.sprite19Sym = {
+      name: "sprite_19",
+      totalFrames: 72,
+      frames: textures.getFrames("sprite_19"),
+      anchorX: calculateAnchor({ width: 171.35, height: 28, offsetX: -36.35, offsetY: -14.9 }).x,
+      anchorY: calculateAnchor({ width: 171.35, height: 28, offsetX: -36.35, offsetY: -14.9 }).y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: DefineSprite_19/frame_1/DoAction.as
+            // _X = _parent.cellFrom.x;
+            // _Y = _parent.cellFrom.y - 50;
+            // _rotation = _parent.angle;
+            const root = clip.parent;
+            const cellFrom = root?.vars.cellFrom as { x: number; y: number } | undefined;
+            const angleDeg = (root?.vars.angle as number) ?? 0;
+            if (cellFrom) {
+              clip.x = cellFrom.x;
+              clip.y = cellFrom.y - 50;
+            }
+            clip.rotation = (angleDeg * Math.PI) / 180;
+          },
+        ],
+        [
+          6,
+          (clip, ctx) => {
+            // AS: DefineSprite_19/frame_7/DoAction.as
+            // nb = 10 + _parent.level * 3;
+            // c = 1; while(c < nb) { this.attachMovie("cercle","cercle"+c,c); c++; }
+            const root = clip.parent;
+            const level = (root?.vars.level as number) ?? 1;
+            const nb = 10 + level * 3;
+            for (let c = 1; c < nb; c++) {
+              clip.attach(this.cercleSym, `cercle${c}`, c, ctx);
+            }
+          },
+        ],
+        [
+          69,
+          (clip) => {
+            // AS: DefineSprite_19/frame_70/DoAction.as
+            // stop();
+            clip.stop();
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_33 — target-side timeline (84 frames) ----
+    // Positions at cellTo, rotates to angle.
+    // frame_13: this.end() → signalHit.
+    // frame_67: _parent.removeMovieClip() → complete.
+    this.sprite33Sym = {
+      name: "sprite_33",
+      totalFrames: 84,
+      frames: textures.getFrames("sprite_33"),
+      anchorX: calculateAnchor({ width: 224.15, height: 88.25, offsetX: -59.4, offsetY: -47.3 }).x,
+      anchorY: calculateAnchor({ width: 224.15, height: 88.25, offsetX: -59.4, offsetY: -47.3 }).y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: DefineSprite_33/frame_1/DoAction.as
+            // _X = _parent.cellTo.x;
+            // _Y = _parent.cellTo.y - 50;
+            // _rotation = _parent.angle;
+            const root = clip.parent;
+            const cellTo = root?.vars.cellTo as { x: number; y: number } | undefined;
+            const angleDeg = (root?.vars.angle as number) ?? 0;
+            if (cellTo) {
+              clip.x = cellTo.x;
+              clip.y = cellTo.y - 50;
+            }
+            clip.rotation = (angleDeg * Math.PI) / 180;
+          },
+        ],
+        [
+          12,
+          () => {
+            // AS: DefineSprite_33/frame_13/DoAction.as
+            // this.end() → damage popup at target
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          66,
+          (clip) => {
+            // AS: DefineSprite_33/frame_67/DoAction.as
+            // _parent.removeMovieClip() → spell complete
+            clip.parent?.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
+
+    this.registry.register(this.cercleSym);
+    this.registry.register(this.sprite19Sym);
+    this.registry.register(this.sprite33Sym);
   }
 
-  private spawnParticles(): void {
-    // AS: nb = 10 + _parent.level * 3; c = 1; while(c < nb) -> spawns nb-1 particles
-    const nb = 10 + this.level * 3;
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext
+  ): void {
+    // AS: frame_2/DoAction.as
+    // SOMA.playSound("jet_903"); stop();
+    callbacks.playSound("jet_903");
 
-    this.particles.spawnMany(nb - 1, () => {
-      // AS: d = 120 + (_parent._parent._parent.level - 1) * 32
-      const d = 120 + (this.level - 1) * 32;
-
-      // AS: accx = 0.8 + 0.12 * Math.random()
-      const accX = 0.8 + 0.12 * Math.random();
-
-      // AS: x = d * Math.random()
-      const x = d * Math.random();
-
-      // AS: if(random(4) == 1) { _Y = 5; sr = -1; } else { sr = 1; _Y = -5; }
-      let sr: number;
-      let y: number;
-      if (Math.floor(Math.random() * 4) === 1) {
-        y = 5;
-        sr = -1;
-      } else {
-        sr = 1;
-        y = -5;
-      }
-
-      // AS: vr = (20 + 40 * Math.random()) * sr
-      const vr = (20 + 40 * Math.random()) * sr;
-
-      // AS: vt = (1 + random(1)) * ((d - x) / d)
-      // random(1) always returns 0 in AS (random(N) returns 0..N-1)
-      const vt = (1 + Math.floor(Math.random() * 1)) * ((d - x) / d);
-
-      // AS: vx = 5 + 10 * Math.random()
-      const vx = 5 + 10 * Math.random();
-
-      return {
-        x,
-        y,
-        vx,
-        accX,
-        vr,
-        vrDecay: 0.97,
-        t: 5,
-        vt,
-        vtDecay: 0.1,
-      };
-    });
-  }
-
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-    this.particles.update();
-
-    if (this.impactAnim.isComplete() && !this.particles.hasAliveParticles()) {
-      this.complete();
-    }
-  }
-
-  destroy(): void {
-    this.particles.destroy();
-    super.destroy();
+    // Implicit frame_1 placement of sprite_19 + sprite_33 on the main timeline.
+    // Attach them so they start ticking from the next runtime frame.
+    this.root.attach(this.sprite19Sym, "sprite19", 1, context);
+    this.root.attach(this.sprite33Sym, "sprite33", 2, context);
   }
 }

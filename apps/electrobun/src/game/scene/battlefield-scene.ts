@@ -12,6 +12,7 @@ import type { AdjacentMapCache } from "@/game/assets/adjacent-map-cache";
 import type { InteractionHandler } from "@/game/input/interaction-handler";
 import type { AtlasLoader } from "@/game/render/atlas-loader";
 import type { PickingSystem } from "@/game/render/picking-system";
+import type { SpellVelloRenderer } from "@/game/render/spell-vello-renderer";
 import type { SpellAnimationConfig } from "@/game/scene/fight/spell-view";
 import type {
   MapTransition,
@@ -21,7 +22,6 @@ import type { DebugOverlay } from "@/game/scene/overlays/debug";
 import type { GridOverlay } from "@/game/scene/overlays/grid";
 import type { PlayerRenderer } from "@/game/scene/player/renderer";
 import type { InteractiveObjectData } from "@/game/types";
-import type { FightUI } from "@/hud/fight/fight-ui";
 import {
   type CharacterSpriteLoader,
   initCharacterSpriteLoader,
@@ -48,6 +48,12 @@ import { BattlefieldZoom } from "@/game/scene/battlefield/zoom";
 import { MapHandler } from "@/game/scene/map/handler";
 import { Scene } from "@/game/scene/scene";
 import { hideContextMenu } from "@/game/stores/context-menu-store";
+import { fightActor } from "@/game/stores/fight-store";
+import { FightUI } from "@/hud/fight/fight-ui";
+import {
+  setTacticalMode as setTacticalModeStore,
+  tacticalModeStore,
+} from "@/hud/fight/tactical-mode-store";
 import { loadTheme } from "@/themes";
 import { createLogger } from "@/utils/logger";
 
@@ -73,17 +79,37 @@ export interface BattlefieldConfig {
 
 const log = createLogger("Battlefield");
 
+function projectFightMode(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value && typeof value === "object" && "fighting" in value) {
+    return "fighting";
+  }
+  return "none";
+}
+
 export class Battlefield {
   private engine: Engine;
   private app: Application | null = null;
   private mapContainer: Container | null = null;
   private atlasLoader: AtlasLoader | null = null;
+  /**
+   * Shared Vello renderer for spell .dofasset binaries. Populated by
+   * `initPickingAndAtlas` via the bootstrap context; FightUI pulls it
+   * out of the battlefield to hand to its SpellRenderer.
+   */
+  private spellVelloRenderer: SpellVelloRenderer | null = null;
   private mapHandler: MapHandler | null = null;
   private interactionHandler: InteractionHandler | null = null;
   private pickingSystem: PickingSystem | null = null;
   private characterSpriteLoader: CharacterSpriteLoader;
 
   private fightUI: FightUI | null = null;
+  private fightActorUnsubscribe: (() => void) | null = null;
+  private tacticalUnsubscribe: (() => void) | null = null;
+  private lastFightMode: string = "none";
+  private tacticalMode = false;
 
   private currentMapData: MapData | null = null;
   private cellDataMap: Map<number, CellData> = new Map();
@@ -108,6 +134,8 @@ export class Battlefield {
   private rendererRegistry = new RendererRegistry();
 
   private onCellClickCallback?: (cellId: number) => void;
+  private onCellHoverCallback?: (cellId: number | null) => void;
+  private lastHoveredCellId: number | null = null;
   private onResizeStartCallback?: () => void;
   private onResizeEndCallback?: () => void;
 
@@ -116,6 +144,7 @@ export class Battlefield {
     interactiveObjects: () => this.interactiveObjectsData,
     worldActorRenderer: () => this.worldActors.getRenderer(),
     app: () => this.app,
+    onCellPickThrough: (cellId) => this.onCellClickCallback?.(cellId),
   });
 
   private readonly worldActors = new BattlefieldWorldActors({
@@ -130,8 +159,8 @@ export class Battlefield {
     currentMapWidth: () => this.currentMapData?.width ?? 15,
     transparencyEnabled: () => this.transparencyMode,
     applyTransparency: () => this.applyTransparencyMode(),
-    registerPlayerForPicking: (id, renderer) =>
-      this.picking.registerPlayer(id, renderer),
+    registerPlayerForPicking: (id, renderer, monsterGroup) =>
+      this.picking.registerPlayer(id, renderer, monsterGroup),
     unregisterPlayerFromPicking: (id) => this.picking.unregisterPlayer(id),
     markPickingDirty: () => this.pickingSystem?.markDirty(),
   });
@@ -221,6 +250,159 @@ export class Battlefield {
     initInteraction(ctx);
     initOverlays(ctx);
     startSceneTicker(ctx);
+
+    // Drive fight overlay lifecycle off the XState fightActor. The actor
+    // receives FIGHT_INIT / FIGHT_END from the gameserver via FightHandler;
+    // we only react to mode transitions and pass the canvas in/out of
+    // fight-overlay state.
+    this.fightActorUnsubscribe = fightActor.subscribe((snap) => {
+      const mode = projectFightMode(snap.value);
+      if (mode !== this.lastFightMode) {
+        this.lastFightMode = mode;
+        if (
+          mode === "placement" ||
+          mode === "fighting" ||
+          mode === "spectating"
+        ) {
+          this.enterFightMode(mode);
+        } else {
+          this.exitFightMode();
+        }
+      }
+
+      // Active-turn ring: redraw the current-turn fighter's ground
+      // circle in the "glow" variant whenever the server shifts the
+      // turn baton. Only meaningful once we're actually in combat —
+      // context.currentTurnSpriteId is meaningful mid-fight, but the
+      // ring layer is hidden during placement anyway.
+      let turnId: number | null = null;
+      if (mode === "fighting" && snap.context.currentTurnSpriteId) {
+        const parsed = Number(snap.context.currentTurnSpriteId);
+        turnId = Number.isFinite(parsed) ? parsed : null;
+      }
+      this.worldActors.getRenderer()?.setActiveTurnPlayer(turnId);
+    }).unsubscribe;
+
+    this.tacticalUnsubscribe = tacticalModeStore.subscribe(() => {
+      // setTacticalMode is async (it re-renders the whole map); the store
+      // change is the "intent" — we fire-and-forget and let the internal
+      // tacticalMode guard dedupe repeated calls.
+      void this.setTacticalMode(tacticalModeStore.getSnapshot().tactical);
+    });
+  }
+
+  /**
+   * Lazily create FightUI and bring up cell highlight / damage / spell
+   * overlays on top of the existing world rendering. Idempotent.
+   *
+   * Team-colored ground rings are NOT enabled here — they turn on only
+   * when the active state flips to "fighting" (below). During
+   * placement the original client shows unadorned sprites; the rings
+   * appear the moment combat actually starts.
+   */
+  enterFightMode(mode: string): void {
+    // Circles appear once combat actually starts; during placement we
+    // show the unadorned sprites like the original client. Spectators
+    // always drop into an in-progress fight, so they keep the rings.
+    this.worldActors
+      .getRenderer()
+      ?.setFightMode(mode === "fighting" || mode === "spectating");
+
+    if (!this.fightUI) {
+      this.fightUI = new FightUI(
+        this.mapContainer,
+        this.cellDataMap,
+        this.pickingSystem,
+        this.rendererRegistry,
+        this.currentMapData
+          ? {
+              width: this.currentMapData.width,
+              height: this.currentMapData.height,
+            }
+          : null,
+        this.characterSpriteLoader,
+        this.scene,
+        // Spell FX get attached into objectLayer2 per-cell so sprites
+        // on closer cells still occlude effects on farther ones, same
+        // as VisualEffectHandler.as:35 in the original (effects live
+        // inside Object2 at `cellNum*100+50±idx`).
+        this.mapHandler?.getObjectLayer2() ?? null,
+        this.spellVelloRenderer
+      );
+    }
+    this.fightUI.enterFightMode(mode);
+
+    // SpellRenderer + its asset loader are constructed inside
+    // enterFightMode, so the rasterizer's resolution starts at its
+    // default (1×). Sync it to the current zoom now — without this
+    // the first spell cast renders at half the supersample density
+    // of the rest of the canvas and looks blurry next to characters.
+    const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
+    this.fightUI.getSpellRenderer()?.getAssetLoader().setResolution(zoom);
+  }
+
+  exitFightMode(): void {
+    const renderer = this.worldActors.getRenderer();
+    renderer?.setActiveTurnPlayer(null);
+    renderer?.setFightMode(false);
+    this.fightUI?.exitFightMode();
+    // Reset tactical mode so the next fight starts with normal terrain and
+    // the HUD button reflects the actual render state. The store write
+    // re-triggers setTacticalMode via the subscription.
+    if (this.tacticalMode) {
+      setTacticalModeStore(false);
+    }
+  }
+
+  getFightUI(): FightUI | null {
+    return this.fightUI;
+  }
+
+  getCurrentMapData(): MapData | null {
+    return this.currentMapData;
+  }
+
+  /**
+   * Toggle the tactical view: swap per-cell ground/layer1/layer2 IDs to the
+   * extracted gfx.tactic sprites (walkable/blocked/LOS markers) and re-render
+   * through the atlas pipeline. Mirrors the AS `MapHandler.tacticMode()`
+   * semantics; falls back to a no-op when no map or map handler is ready.
+   */
+  async setTacticalMode(enabled: boolean): Promise<void> {
+    if (
+      this.tacticalMode === enabled ||
+      !this.mapHandler ||
+      !this.currentMapData ||
+      !this.mapContainer
+    ) {
+      return;
+    }
+    this.tacticalMode = enabled;
+
+    const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
+    const viewport = this.getViewport();
+
+    if (enabled) {
+      await this.mapHandler.enterTacticMode(
+        this.currentMapData,
+        this.mapContainer,
+        zoom,
+        viewport
+      );
+    } else {
+      await this.mapHandler.exitTacticMode(
+        this.currentMapData,
+        this.mapContainer,
+        zoom,
+        viewport
+      );
+    }
+
+    this.pickingSystem?.markDirty();
+  }
+
+  isTacticalMode(): boolean {
+    return this.tacticalMode;
   }
 
   async loadManifest(): Promise<void> {
@@ -293,9 +475,24 @@ export class Battlefield {
     this.debugOverlay?.clear();
     this.gridOverlay?.clear();
 
+    // Drop any stale tactic state from the prior map so the fresh render
+    // uses the normal ground_/objects_ prefixes. Re-applied below if the
+    // player was in tactic mode before the transition.
+    this.mapHandler.clearTacticState();
+
     const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
     this.atlasLoader.setZoom(zoom);
     this.characterSpriteLoader.setZoom(zoom);
+    // Spell asset loader sits inside FightUI's SpellRenderer, which
+    // doesn't exist until enterFightMode runs. Push the current zoom
+    // directly through the FightUI handle when present so the spell
+    // strip rasterizer matches character density. No registry fan-out
+    // — that would re-fire onResize on every other renderer mid-
+    // renderMap and disturb placement-cell / preview state.
+    const spellLoader = this.fightUI
+      ?.getSpellRenderer()
+      ?.getAssetLoader();
+    spellLoader?.setResolution(zoom);
     await this.mapHandler.renderMap(
       mapData,
       this.mapContainer,
@@ -312,6 +509,18 @@ export class Battlefield {
       mapData.triggerCellIds ?? []
     );
     this.debugOverlay?.setMapData(mapData.cells, mapData.width, mapData.height);
+
+    // Tactic mode survives map changes: once the fresh terrain is drawn,
+    // re-apply the tactic rewrite so a mid-fight teleport keeps the player
+    // in the tactic view they toggled into.
+    if (this.tacticalMode) {
+      await this.mapHandler.enterTacticMode(
+        mapData,
+        this.mapContainer,
+        zoom,
+        this.getViewport()
+      );
+    }
     // Map is ready — world actor container gets re-created on MAP_ACTORS.
   }
 
@@ -321,20 +530,18 @@ export class Battlefield {
    * Grid=400, Object2=800 — grid sits above walkable tiles, below foreground.
    */
   private positionGridBelowObject2(): void {
-    if (!this.gridOverlay || !this.mapHandler || !this.mapContainer) {
+    if (!this.gridOverlay || !this.mapContainer) {
       return;
     }
 
     const gridContainer = this.gridOverlay.getContainer();
-    const obj2 = this.mapHandler.getObjectLayer2();
 
-    if (this.mapContainer.children.includes(gridContainer)) {
-      this.mapContainer.removeChild(gridContainer);
-    }
-
-    if (this.mapContainer.children.includes(obj2)) {
-      const obj2Index = this.mapContainer.getChildIndex(obj2);
-      this.mapContainer.addChildAt(gridContainer, obj2Index);
+    // mapContainer.sortableChildren is on and every root layer
+    // (including the grid) has an explicit zIndex, so order is
+    // determined by those indices. We only need to make sure the
+    // grid container IS a child of mapContainer.
+    if (!this.mapContainer.children.includes(gridContainer)) {
+      this.mapContainer.addChild(gridContainer);
     }
   }
 
@@ -387,6 +594,17 @@ export class Battlefield {
 
   addWorldActor(data: WorldActorData): Promise<void> {
     return this.worldActors.add(data);
+  }
+
+  /**
+   * Public handle on the world-actor PlayerRenderer — the renderer that
+   * actually holds every on-screen fighter during combat. Callers who
+   * need per-fighter cell lookups (e.g. resolving the caster cell for a
+   * spell animation) should go through this rather than the empty
+   * FightUI PlayerRenderer.
+   */
+  getWorldActorRenderer() {
+    return this.worldActors.getRenderer();
   }
 
   /** Look changes on equip/unequip re-render the actor with new accessories. */
@@ -487,6 +705,37 @@ export class Battlefield {
     this.onCellClickCallback = callback;
   }
 
+  // Called via BattlefieldBootstrapContext. Resolves the cell under the
+  // cursor once per pointermove tick and fans out to the registered
+  // hover callback only when the cell ID actually changes — subscribers
+  // don't want N calls per second for the same cell.
+  handleGroundHover(mapX: number, mapY: number): void {
+    if (!this.currentMapData) {
+      return;
+    }
+    const mapScale = computeMapScale(
+      this.currentMapData.width,
+      this.currentMapData.height
+    );
+    const cell = findCellAtPosition(
+      mapX,
+      mapY,
+      this.currentMapData.cells,
+      this.currentMapData.width,
+      mapScale
+    );
+    const cellId = cell?.walkable ? cell.id : null;
+    if (cellId === this.lastHoveredCellId) {
+      return;
+    }
+    this.lastHoveredCellId = cellId;
+    this.onCellHoverCallback?.(cellId);
+  }
+
+  setOnCellHover(callback: (cellId: number | null) => void): void {
+    this.onCellHoverCallback = callback;
+  }
+
   getApp(): Application | null {
     return this.app;
   }
@@ -515,6 +764,11 @@ export class Battlefield {
     }
 
     this.scene.clear();
+
+    this.fightActorUnsubscribe?.();
+    this.fightActorUnsubscribe = null;
+    this.tacticalUnsubscribe?.();
+    this.tacticalUnsubscribe = null;
 
     this.fightUI?.destroy();
     this.fightUI = null;

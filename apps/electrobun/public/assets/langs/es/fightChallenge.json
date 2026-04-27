@@ -1,0 +1,420 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "FC": {
+            "1": {
+                "n": "Zombi",
+                "d": "Utiliza sólo un punto de movimiento en cada turno.",
+                "g": 11
+            },
+            "2": {
+                "n": "Estatua",
+                "d": "Acaba tu turno en la misma casilla donde lo empezaste, hasta que acabe el combate.",
+                "g": 9
+            },
+            "3": {
+                "n": "Elegido Voluntario",
+                "d": "Matar %1 el primero.",
+                "g": 4
+            },
+            "4": {
+                "n": "Aplazamiento",
+                "d": "Matar %1 el último.",
+                "g": 10
+            },
+            "5": {
+                "n": "Ahorrador",
+                "d": "Durante el tiempo que dure el combate, cada personaje sólo debe utilizar la misma acción una única vez.",
+                "g": 3
+            },
+            "6": {
+                "n": "Versátil",
+                "d": "Durante su turno, cada jugador sólo puede utilizar una vez la misma acción.",
+                "g": 12
+            },
+            "7": {
+                "n": "Jardinero",
+                "d": "Durante el tiempo que dure el combate, planta una Zanahowia cada vez que el hechizo esté disponible.",
+                "g": 6
+            },
+            "8": {
+                "n": "Nómada",
+                "d": "Durante el tiempo que dure el combate, utiliza todos tus PM disponibles en cada turno.",
+                "g": 8
+            },
+            "9": {
+                "n": "Bárbaro",
+                "d": "No utilices ningún hechizo durante el tiempo que dure este combate.",
+                "g": 1
+            },
+            "10": {
+                "n": "Cruel",
+                "d": "Debes matar a los adversarios en orden creciente de nivel.",
+                "g": 2
+            },
+            "11": {
+                "n": "Místico",
+                "d": "Durante el tiempo que dure el combate, utiliza solamente hechizos.",
+                "g": 7
+            },
+            "12": {
+                "n": "Sepulturero",
+                "d": "Durante el tiempo que dure el combate, invoca un Chaferloko cada vez que el hechizo esté disponible.",
+                "g": 5
+            },
+            "14": {
+                "n": "Casino Real",
+                "d": "Durante el tiempo que dure el combate, lanzar el hechizo Ruleta cada vez que se encuentre disponible.",
+                "g": 14
+            },
+            "15": {
+                "n": "Aracnófilo",
+                "d": "Invocar una arakna cada vez que el hechizo esté disponible. Válido durante todo el combate.",
+                "g": 15
+            },
+            "16": {
+                "n": "Entomólogo",
+                "d": "Invocar una Llamita cada vez que el hechizo esté disponible. Válido durante todo el combate.",
+                "g": 16
+            },
+            "17": {
+                "n": "Intocable",
+                "d": "No perder puntos de vida durante el tiempo que dure el combate.",
+                "g": 17
+            },
+            "18": {
+                "n": "Incurable",
+                "d": "No curar durante el tiempo que dure el combate.",
+                "g": 18
+            },
+            "19": {
+                "n": "Manos limpias",
+                "d": "Acabar con los monstruos sin ocasionarles daños directos durante lo que dure el combate. Se puede utilizar trampas, glifos, venenos, daños ocasionados por desplazamiento así como los ataques de invocaciones.",
+                "g": 19
+            },
+            "20": {
+                "n": "Elemental",
+                "d": "Utiliza el mismo elemento de ataque durante todo el combate.",
+                "g": 20
+            },
+            "21": {
+                "n": "¡Circulen!",
+                "d": "No quitar PM a los adversarios mientras dure el combate.",
+                "g": 21
+            },
+            "22": {
+                "n": "El tiempo pasa",
+                "d": "No quitar PA a los adversarios durante el tiempo que dure el combate.",
+                "g": 22
+            },
+            "23": {
+                "n": "Perdido de vista",
+                "d": "No reducir el alcance de los adversarios durante el tiempo que dure el combate.",
+                "g": 23
+            },
+            "24": {
+                "n": "Limitado",
+                "d": "Utilizar el mismo hechizo o el mismo ataque cuerpo a cuerpo durante el tiempo que dure el combate.",
+                "g": 24
+            },
+            "25": {
+                "n": "Ordenado",
+                "d": "Se debe acabar con los adversarios en orden descendiente de nivel.",
+                "g": 25
+            },
+            "28": {
+                "n": "Ni pías ni sumisas",
+                "d": "Los personajes de sexo masculino deben dejar que los de sexo femenino acaben con los adversarios. Válido durante todo el combate.",
+                "g": 28
+            },
+            "29": {
+                "n": "Ní píos ni sumisos",
+                "d": "Los personajes de sexo femenino deben dejar que los de sexo masculino acaben con los adversarios. Válido durante todo el combate.",
+                "g": 29
+            },
+            "30": {
+                "n": "Los pequeños antes",
+                "d": "El personaje de menor nivel debe acabar con los adversarios.",
+                "g": 30
+            },
+            "31": {
+                "n": "Focalización",
+                "d": "Cuando se ataca a un adversario, hay que matarlo antes de atacar a otro adversario.",
+                "g": 31
+            },
+            "32": {
+                "n": "Elitista",
+                "d": "Todos los ataques deben ir dirigidos a %1 hasta que muera.",
+                "g": 32
+            },
+            "33": {
+                "n": "Superviviente",
+                "d": "Ningún aliado debe morir.",
+                "g": 33
+            },
+            "34": {
+                "n": "Imprevisible",
+                "d": "Todos los ataques deben ir dirigidos a un mismo objetivo que se designa en cada turno de un personaje.",
+                "g": 34
+            },
+            "35": {
+                "n": "Asesino a sueldo",
+                "d": "Debes matar a los adversarios en el orden indicado. Cada vez que mates a un objetivo, obtendrás el nombre del próximo al que tienes que matar.",
+                "g": 35
+            },
+            "36": {
+                "n": "Audaz",
+                "d": "Acaba tu turno en una de las casillas pegadas a las de uno de tus adversarios.",
+                "g": 36
+            },
+            "37": {
+                "n": "Pegajoso",
+                "d": "Acaba tu turno en una de las casillas pegadas a las de uno de tus aliados.",
+                "g": 37
+            },
+            "38": {
+                "n": "Blitzkrieg",
+                "d": "Cuando un adversario pierde puntos de vida, hay que matarlo antes de que comience su turno.",
+                "g": 38
+            },
+            "39": {
+                "n": "Anacoreta",
+                "d": "No termines nunca tu turno en una casilla adyacente a la de uno de tus aliados.",
+                "g": 39
+            },
+            "40": {
+                "n": "Pusilánime",
+                "d": "No termines nunca tu turno en una casilla adyacente a la de uno de tus adversarios.",
+                "g": 40
+            },
+            "41": {
+                "n": "Impetuoso",
+                "d": "Utiliza todos tus puntos de acción antes de acabar tu turno.",
+                "g": 41
+            },
+            "42": {
+                "n": "El dos por uno",
+                "d": "Cuando un personaje mata a un adversario, tiene que matar obligatoriamente a un (y sólo a un) segundo adversario durante su turno.",
+                "g": 42
+            },
+            "43": {
+                "n": "Abnegación",
+                "d": "Nadie puede recibir curas durante su turno.",
+                "g": 43
+            },
+            "44": {
+                "n": "Reparto",
+                "d": "Cada personaje debe matar al menos a un adversario (que no sea una invocación) durante el combate.",
+                "g": 44
+            },
+            "45": {
+                "n": "Duelo",
+                "d": "Cuando un personaje ataca a un adversario, ningún otro personaje debe atacar a ese mismo adversario durante el tiempo que dure el combate.",
+                "g": 51
+            },
+            "46": {
+                "n": "Cada uno con su monstruo",
+                "d": "Cada personaje debe matar al menos a un adversario durante el combate. Cuando un personaje ataca a un adversario, ningún otro personaje puede atacar a ese mismo adversario durante el combate.",
+                "g": 46
+            },
+            "47": {
+                "n": "Contaminación",
+                "d": "Cuando un aliado pierde puntos de vida, dispones de 3 turnos para rematar a tu aliado o ¡ganar el combate!",
+                "g": 47
+            },
+            "48": {
+                "n": "¡Los personajes secundarios primero!",
+                "d": "El personaje secundario de menor nivel tiene que matar a todos los adversarios (así aprenderás a querer abusar como un puerkazo).",
+                "g": 48
+            },
+            "49": {
+                "n": "Protejan a sus personajes secundarios",
+                "d": "Aliados y personajes secundarios deben acabar vivos el combate.",
+                "g": 49
+            },
+            "50": {
+                "n": "La trampa de los desarrolladores",
+                "d": "Acaba el combate, para ganar el desafío. Ya se sabe, los desarrolladores del juego son unos tramposos...",
+                "g": 50
+            },
+            "51": {
+                "n": "Zombi",
+                "d": "Utiliza sólo un punto de movimiento en cada turno.",
+                "g": 11
+            },
+            "52": {
+                "n": "Estatua",
+                "d": "Acaba tu turno en la misma casilla donde lo empezaste, hasta que acabe el combate.",
+                "g": 9
+            },
+            "53": {
+                "n": "Elegido Voluntario",
+                "d": "Matar %1 el primero.",
+                "g": 4
+            },
+            "54": {
+                "n": "Aplazamiento",
+                "d": "Matar %1 el último.",
+                "g": 10
+            },
+            "55": {
+                "n": "Versátil",
+                "d": "Durante su turno, cada jugador sólo puede utilizar una vez la misma acción.",
+                "g": 12
+            },
+            "56": {
+                "n": "Jardinero",
+                "d": "Durante el tiempo que dure el combate, planta una Zanahowia cada vez que el hechizo esté disponible.",
+                "g": 6
+            },
+            "57": {
+                "n": "Nómada",
+                "d": "Durante el tiempo que dure el combate, utiliza todos tus PM disponibles en cada turno.",
+                "g": 8
+            },
+            "59": {
+                "n": "Cruel",
+                "d": "Debes matar a los adversarios en orden creciente de nivel.",
+                "g": 2
+            },
+            "60": {
+                "n": "Místico",
+                "d": "Durante el tiempo que dure el combate, utiliza solamente hechizos.",
+                "g": 7
+            },
+            "61": {
+                "n": "Sepulturero",
+                "d": "Durante el tiempo que dure el combate, invoca un Chaferloko cada vez que el hechizo esté disponible.",
+                "g": 5
+            },
+            "63": {
+                "n": "Aracnófilo",
+                "d": "Invocar una arakna cada vez que el hechizo esté disponible. Válido durante todo el combate.",
+                "g": 15
+            },
+            "64": {
+                "n": "Intocable",
+                "d": "No perder puntos de vida durante el tiempo que dure el combate.",
+                "g": 17
+            },
+            "65": {
+                "n": "Incurable",
+                "d": "No curar durante el tiempo que dure el combate.",
+                "g": 18
+            },
+            "66": {
+                "n": "Perdido de vista",
+                "d": "No reducir el alcance de los adversarios durante el tiempo que dure el combate.",
+                "g": 23
+            },
+            "68": {
+                "n": "Ordenado",
+                "d": "Se debe acabar con los adversarios en orden descendiente de nivel.",
+                "g": 25
+            },
+            "69": {
+                "n": "Ni pías ni sumisas",
+                "d": "Los personajes de sexo masculino deben dejar que los de sexo femenino acaben con los adversarios. Válido durante todo el combate.",
+                "g": 28
+            },
+            "70": {
+                "n": "Ní píos ni sumisos",
+                "d": "Los personajes de sexo femenino deben dejar que los de sexo masculino acaben con los adversarios. Válido durante todo el combate.",
+                "g": 29
+            },
+            "71": {
+                "n": "Focalización",
+                "d": "Cuando se ataca a un adversario, hay que matarlo antes de atacar a otro adversario.",
+                "g": 31
+            },
+            "72": {
+                "n": "Elitista",
+                "d": "Todos los ataques deben ir dirigidos a %1 hasta que muera.",
+                "g": 32
+            },
+            "73": {
+                "n": "Superviviente",
+                "d": "Ningún aliado debe morir.",
+                "g": 33
+            },
+            "74": {
+                "n": "Imprevisible",
+                "d": "Todos los ataques deben ir dirigidos a un mismo objetivo que se designa en cada turno de un personaje.",
+                "g": 34
+            },
+            "75": {
+                "n": "Asesino a sueldo",
+                "d": "Debes matar a los adversarios en el orden indicado. Cada vez que mates a un objetivo, obtendrás el nombre del próximo al que tienes que matar.",
+                "g": 35
+            },
+            "76": {
+                "n": "Audaz",
+                "d": "Acaba tu turno en una de las casillas pegadas a las de uno de tus adversarios.",
+                "g": 36
+            },
+            "77": {
+                "n": "Pegajoso",
+                "d": "Acaba tu turno en una de las casillas pegadas a las de uno de tus aliados.",
+                "g": 37
+            },
+            "79": {
+                "n": "Anacoreta",
+                "d": "No termines nunca tu turno en una casilla adyacente a la de uno de tus aliados.",
+                "g": 39
+            },
+            "80": {
+                "n": "Pusilánime",
+                "d": "No termines nunca tu turno en una casilla adyacente a la de uno de tus adversarios.",
+                "g": 40
+            },
+            "81": {
+                "n": "Impetuoso",
+                "d": "Utiliza todos tus puntos de acción antes de acabar tu turno.",
+                "g": 41
+            },
+            "82": {
+                "n": "El dos por uno",
+                "d": "Cuando un personaje mata a un adversario, tiene que matar obligatoriamente a un (y sólo a un) segundo adversario durante su turno.",
+                "g": 42
+            },
+            "83": {
+                "n": "Abnegación",
+                "d": "Nadie puede recibir curas durante su turno.",
+                "g": 43
+            },
+            "84": {
+                "n": "Reparto",
+                "d": "Cada personaje debe matar al menos a un adversario (que no sea una invocación) durante el combate.",
+                "g": 44
+            },
+            "85": {
+                "n": "Duelo",
+                "d": "Cuando un personaje ataca a un adversario, ningún otro personaje debe atacar a ese mismo adversario durante el tiempo que dure el combate.",
+                "g": 51
+            },
+            "86": {
+                "n": "Cada uno con su monstruo",
+                "d": "Cada personaje debe matar al menos a un adversario durante el combate. Cuando un personaje ataca a un adversario, ningún otro personaje puede atacar a ese mismo adversario durante el combate.",
+                "g": 46
+            },
+            "87": {
+                "n": "Contaminación",
+                "d": "Cuando un aliado pierde puntos de vida, dispones de 3 turnos para rematar a tu aliado o ¡ganar el combate!",
+                "g": 47
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 107,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "FC",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

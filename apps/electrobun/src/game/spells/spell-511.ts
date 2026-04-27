@@ -1,84 +1,173 @@
 /**
- * Spell 511 - Ronce (Bramble)
+ * Spell 511 — Ronce (Feca thorn aura / self-buff).
  *
- * A single composite animation at the target position.
- * The animation plays sounds at frames 1, 4, and 7 (0-indexed: 0, 3, 6),
- * then stops at frame 148 (0-indexed: 147).
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/511/scripts/scripts/
  *
- * Components:
- * - anim1: Composite animation at target position, stops at frame 147
+ * displayType=10 (CasterCell). This spell has no projectile, no target-cell
+ * impact, and no caster→target motion. The single animation (anim1) plays
+ * at the caster. The manifest has no librarySymbols[] — `anim1` lives only
+ * in animations[]. All rendering is driven by the anim1 timeline directly.
  *
- * Original AS timing:
- * - Frame 1 (0-indexed: 0): Play sound 'ronce'
- * - Frame 4 (0-indexed: 3): Play sound 'ronce'
- * - Frame 7 (0-indexed: 6): Play sound 'ronce'
- * - Frame 148 (0-indexed: 147): stop() + removeMovieClip()
+ * Canonical AS layout:
+ *   - DefineSprite_9 (anim1, 150 frames):
+ *       frame_1:  SOMA.playSound("ronce")
+ *       frame_4:  SOMA.playSound("ronce")
+ *       frame_7:  SOMA.playSound("ronce")
+ *       frame_148: stop(); removeMovieClip(_parent)  → spell complete
  *
- * DefineSprite_8 (inner particle) onClipEvent(load):
- * - gotoAndPlay(random(45)) -> random start frame 0..44
- * - _alpha = 150 (but alpha fades at 1.3/frame via enterFrame)
- * Note: The composite anim1 already bakes this behavior into its frames.
+ *   - DefineSprite_8 (the actual animated sprite placed inside sprite_9,
+ *     referenced as PlaceObject2_7_1 at depth 1 of sprite_9/frame_1):
+ *       onClipEvent(load):
+ *         gotoAndPlay(random(45));
+ *         _alpha = 150;   → AS 150 clamped by Flash to 100, so alpha=1.0
+ *       onClipEvent(enterFrame):
+ *         _alpha = _alpha - 1.3;   → gentle fade per frame
+ *
+ * Because the manifest has no librarySymbols[], the texture key for the
+ * main animated sprite is plain "anim1" (no lib_ prefix). DefineSprite_8
+ * is embedded inside sprite_9 and shares the same frames; we register it
+ * as a symbol "anim1_inner" but its textures come from the same "anim1"
+ * atlas since it IS the visual content of anim1. The outer container
+ * (sprite_9) has no authored visual — it just drives sounds and lifetime.
+ *
+ * Sounds are played at frames 1, 4, 7 (canonical AS). We capture the
+ * callbacks reference in onSpellStart and fire them from frameScripts.
+ *
+ * signalHit is called at frame_1 of the outer sprite (immediate impact on
+ * the caster-side aura appearing), consistent with CasterCell self-buffs.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const ANIM1_MANIFEST: SpriteManifest = {
+const ANIM1_BOUNDS = {
   width: 56.4,
   height: 130.25,
   offsetX: -30.7,
   offsetY: -83.3,
 };
 
-export class Spell511 extends BaseSpell {
+export class Spell511 extends RuntimeSpell {
   readonly spellId = 511;
+  readonly displayType = SpellDisplayType.CasterCell;
 
-  protected setup(
-    _context: SpellContext,
+  private soundCallback?: (id: string) => void;
+
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const anchor = calculateAnchor(ANIM1_MANIFEST);
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    const anim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("anim1"),
-        fps: 60,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-      })
-    );
+    // ---- anim1_inner — the actual animated visual (DefineSprite_8) ------
+    // Placed at depth 1 inside DefineSprite_9/frame_1. Contains the thorn
+    // aura animation. Its clipEvents randomise start frame and fade alpha.
+    //
+    // AS: DefineSprite_8/frame_1/PlaceObject2_7_1/CLIPACTIONRECORD onClipEvent(load).as
+    // AS: DefineSprite_8/frame_1/PlaceObject2_7_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    const anim1InnerSym: SymbolDefinition = {
+      name: "anim1_inner",
+      totalFrames: 150,
+      frames: textures.getFrames("anim1"),
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
+      onLoad: (clip) => {
+        // AS onClipEvent(load): gotoAndPlay(random(45)); _alpha = 150;
+        // Flash clamps _alpha to [0,100], so 150 → 1.0 in TS.
+        clip.gotoAndPlay(Math.floor(Math.random() * 45));
+        clip.alpha = 1.0;
+      },
+      onEnterFrame: (clip) => {
+        // AS onClipEvent(enterFrame): _alpha = _alpha - 1.3;
+        // Convert: AS 0-100 → TS 0-1; delta 1.3 → 1.3/100
+        clip.alpha = clip.alpha - 1.3 / 100;
+      },
+    };
 
-    anim.sprite.position.set(init.targetX, init.targetY);
+    // ---- anim1 — outer container / timeline driver (DefineSprite_9) -----
+    // 150-frame container. No authored visual content itself — carries
+    // sound scripts and the lifetime-end removal. Attaches anim1_inner
+    // at frame_1 (the PlaceObject2_7_1 implicit placement in canonical AS).
+    //
+    // AS: DefineSprite_9/frame_1/DoAction.as  → SOMA.playSound("ronce")
+    // AS: DefineSprite_9/frame_4/DoAction.as  → SOMA.playSound("ronce")
+    // AS: DefineSprite_9/frame_7/DoAction.as  → SOMA.playSound("ronce")
+    // AS: DefineSprite_9/frame_148/DoAction.as → stop(); removeMovieClip(_parent)
+    const anim1Sym: SymbolDefinition = {
+      name: "anim1",
+      totalFrames: 150,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS DefineSprite_9/frame_1/DoAction.as: SOMA.playSound("ronce")
+            // Also: implicit PlaceObject2_7_1 places anim1_inner at depth 1.
+            this.soundCallback?.("ronce");
+            if (!clip.children.has("anim1_inner")) {
+              clip.attach(anim1InnerSym, "anim1_inner", 1, ctx);
+            }
+            // Signal hit immediately — caster-side aura has appeared.
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          3,
+          (_clip) => {
+            // AS DefineSprite_9/frame_4/DoAction.as: SOMA.playSound("ronce")
+            this.soundCallback?.("ronce");
+          },
+        ],
+        [
+          6,
+          (_clip) => {
+            // AS DefineSprite_9/frame_7/DoAction.as: SOMA.playSound("ronce")
+            this.soundCallback?.("ronce");
+          },
+        ],
+        [
+          147,
+          (clip) => {
+            // AS DefineSprite_9/frame_148/DoAction.as: stop(); removeMovieClip(_parent)
+            clip.stop();
+            clip.parent?.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    anim
-      .stopAt(147)
-      .onFrame(0, () => this.callbacks.playSound("ronce"))
-      .onFrame(3, () => this.callbacks.playSound("ronce"))
-      .onFrame(6, () => {
-        this.callbacks.playSound("ronce");
-        this.signalHit();
-      });
-
-    anim.addTo(this.container);
+    this.registry.register(anim1InnerSym);
+    this.registry.register(anim1Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // Capture callbacks so frameScripts can play sounds.
+    this.soundCallback = callbacks.playSound;
 
-    this.anims.update(deltaTime);
-
-    if (this.anims.allStopped()) {
-      this.complete();
-    }
+    // Main timeline frame_1: attach the outer anim1 container at the root.
+    // In canonical AS the outer SWF places DefineSprite_9 (anim1) on the
+    // main timeline implicitly — we attach it explicitly here.
+    this.root.attach(
+      this.registry.resolve("anim1")!,
+      "anim1",
+      1,
+      context,
+    );
   }
 }

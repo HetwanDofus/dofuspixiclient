@@ -1,0 +1,500 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1248,
+        "PT": {
+            "1": {
+                "t": "Goule de %1",
+                "c": 16777215,
+                "pt": 0
+            },
+            "2": {
+                "t": "Vampyre",
+                "c": 16777215,
+                "pt": 0
+            },
+            "3": {
+                "t": "Vampyre Sanglant",
+                "c": 16777215,
+                "pt": 0
+            },
+            "4": {
+                "t": "Vampyre Maudyt",
+                "c": 16777215,
+                "pt": 0
+            },
+            "5": {
+                "t": "Vampyre Ultyme",
+                "c": 16777215,
+                "pt": 0
+            },
+            "6": {
+                "t": "Vampyre Démonyaque",
+                "c": 16777215,
+                "pt": 0
+            },
+            "7": {
+                "t": "Vampyre Runyque",
+                "c": 16777215,
+                "pt": 0
+            },
+            "8": {
+                "t": "Pourfendeur de Bworker",
+                "c": 16777215,
+                "pt": 0
+            },
+            "9": {
+                "t": "Pourfendeur du Sphincter Cell",
+                "c": 16777215,
+                "pt": 0
+            },
+            "10": {
+                "t": "Pourfendeur du Koulosse",
+                "c": 16777215,
+                "pt": 0
+            },
+            "11": {
+                "t": "Pourfendeur du Wa Wabbit",
+                "c": 16777215,
+                "pt": 0
+            },
+            "12": {
+                "t": "Pourfendeur du Kimbo",
+                "c": 16777215,
+                "pt": 0
+            },
+            "13": {
+                "t": "Pourfendeur du Minotoror",
+                "c": 16777215,
+                "pt": 0
+            },
+            "14": {
+                "t": "Pourfendeur du Dragon Cochon",
+                "c": 16777215,
+                "pt": 0
+            },
+            "15": {
+                "t": "Pourfendeur du Chêne Mou",
+                "c": 16777215,
+                "pt": 0
+            },
+            "16": {
+                "t": "Pourfendeur du Moon",
+                "c": 16777215,
+                "pt": 0
+            },
+            "17": {
+                "t": "Pourfendeur du Dark Vlad",
+                "c": 16777215,
+                "pt": 0
+            },
+            "18": {
+                "t": "Héros Bicentenaire",
+                "c": 16777215,
+                "pt": 0
+            },
+            "19": {
+                "t": "Chevalier HispaÑique",
+                "c": 16777215,
+                "pt": 0
+            },
+            "20": {
+                "t": "Terreur de la Presqu'île",
+                "c": 16777215,
+                "pt": 0
+            },
+            "21": {
+                "t": "Dékrokilliseur",
+                "c": 16777215,
+                "pt": 0
+            },
+            "22": {
+                "t": "Bûcheron Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "23": {
+                "t": "Forgeur d'Epées Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "24": {
+                "t": "Sculpteur d'Arcs Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "25": {
+                "t": "Forgeur de Marteaux Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "26": {
+                "t": "Cordonnier Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "27": {
+                "t": "Bijoutier Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "28": {
+                "t": "Forgeur de Dagues Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "29": {
+                "t": "Sculpteur de Bâtons Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "30": {
+                "t": "Sculpteur de Baguettes Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "31": {
+                "t": "Forgeur de Pelles Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "32": {
+                "t": "Mineur Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "33": {
+                "t": "Boulanger Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "34": {
+                "t": "Alchimiste Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "35": {
+                "t": "Tailleur Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "36": {
+                "t": "Paysan Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "37": {
+                "t": "Forgeur de Haches Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "38": {
+                "t": "Pêcheur Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "39": {
+                "t": "Chasseur Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "40": {
+                "t": "Forgemage de Dagues Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "41": {
+                "t": "Forgemage d'Epées Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "42": {
+                "t": "Forgemage de Marteaux Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "43": {
+                "t": "Forgemage de Pelles Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "44": {
+                "t": "Forgemage de Haches Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "45": {
+                "t": "Sculptemage d'Arcs Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "46": {
+                "t": "Sculptemage de Baguettes Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "47": {
+                "t": "Sculptemage de Bâtons Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "48": {
+                "t": "Boucher Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "49": {
+                "t": "Poissonnier Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "50": {
+                "t": "Forgeur de Boucliers Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "51": {
+                "t": "Cordomage Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "52": {
+                "t": "Joaillomage Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "53": {
+                "t": "Costumage Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "54": {
+                "t": "Bricoleur Primordial",
+                "c": 16777215,
+                "pt": 0
+            },
+            "55": {
+                "t": "Aventurier de l'Avent 651",
+                "c": 16777215,
+                "pt": 0
+            },
+            "56": {
+                "t": "Noweliste",
+                "c": 16777215,
+                "pt": 0
+            },
+            "57": {
+                "t": "Pourfendeur du Sapik",
+                "c": 16777215,
+                "pt": 0
+            },
+            "58": {
+                "t": "Pourfendeur du Papa Nowel",
+                "c": 16777215,
+                "pt": 0
+            },
+            "59": {
+                "t": "Pourfendeur du Père Fwetar",
+                "c": 16777215,
+                "pt": 0
+            },
+            "60": {
+                "t": "Pandi fait de la résistance",
+                "c": 16777215,
+                "pt": 0
+            },
+            "61": {
+                "t": "Grand Maître des cartes",
+                "c": 16777215,
+                "pt": 0
+            },
+            "62": {
+                "t": "Maître des cartes",
+                "c": 16777215,
+                "pt": 0
+            },
+            "63": {
+                "t": "Gladiatrooleur novice",
+                "c": 16777215,
+                "pt": 0
+            },
+            "64": {
+                "t": "Gladiatrooleur expert",
+                "c": 16777215,
+                "pt": 0
+            },
+            "65": {
+                "t": "Maître Gladiatrooleur",
+                "c": 16777215,
+                "pt": 0
+            },
+            "66": {
+                "t": "Aventurier de l'Avent 652",
+                "c": 16777215,
+                "pt": 0
+            },
+            "67": {
+                "t": "Aventurier de l'Avent 653",
+                "c": 16777215,
+                "pt": 0
+            },
+            "68": {
+                "t": "Aventurier de l'Avent 654",
+                "c": 16777215,
+                "pt": 0
+            },
+            "69": {
+                "t": "Krosplayeur Intemporel",
+                "c": 16777215,
+                "pt": 0
+            },
+            "70": {
+                "t": "Grand Maître des éléments",
+                "c": 16777215,
+                "pt": 0
+            },
+            "71": {
+                "t": "Pourfendeur du Crocabulia",
+                "c": 16777215,
+                "pt": 0
+            },
+            "72": {
+                "t": "Pourfendeur du Rasboul",
+                "c": 16777215,
+                "pt": 0
+            },
+            "73": {
+                "t": "Pourfendeur du Rat Noir corrompu",
+                "c": 16777215,
+                "pt": 0
+            },
+            "74": {
+                "t": "Pourfendeur de l'Abraknyde Ancestral",
+                "c": 16777215,
+                "pt": 0
+            },
+            "75": {
+                "t": "Pourfendeur du Chêne Mou Krollector",
+                "c": 14864002,
+                "pt": 0
+            },
+            "76": {
+                "t": "Pourfendeur du Dragon Cochon Krollector",
+                "c": 14864002,
+                "pt": 0
+            },
+            "77": {
+                "t": "Mélomane en puissance",
+                "c": 16777215,
+                "pt": 0
+            },
+            "78": {
+                "t": "Pourfendeur du Wa Wabbit Krollector",
+                "c": 14864002,
+                "pt": 0
+            },
+            "79": {
+                "t": "Pourfendeur du Koulosse Krollector",
+                "c": 14864002,
+                "pt": 0
+            },
+            "80": {
+                "t": "Pourfendeur du Sphincter Cell Krollector",
+                "c": 14864002,
+                "pt": 0
+            },
+            "81": {
+                "t": "Pourfendeur du Bworker Krollector",
+                "c": 14864002,
+                "pt": 0
+            },
+            "85": {
+                "t": "À l'ancienne",
+                "c": 16777215,
+                "pt": 0
+            },
+            "86": {
+                "t": "Pourfendeur du Tynril Consternée",
+                "c": 16777215,
+                "pt": 0
+            },
+            "87": {
+                "t": "Pourfendeur du Tynril Déconcerté",
+                "c": 16777215,
+                "pt": 0
+            },
+            "88": {
+                "t": "Pourfendeur du Tynril Perfide",
+                "c": 16777215,
+                "pt": 0
+            },
+            "89": {
+                "t": "Pourfendeur du Tynril Ahuri",
+                "c": 16777215,
+                "pt": 0
+            },
+            "90": {
+                "t": "Âme sœur de %1",
+                "c": 14516962,
+                "pt": 0
+            },
+            "91": {
+                "t": "Cœur à prendre",
+                "c": 16777215,
+                "pt": 0
+            },
+            "92": {
+                "t": "Pourfendeur du Scarabosse Doré",
+                "c": 16777215,
+                "pt": 0
+            },
+            "93": {
+                "t": "Pourfendeur du Tanukouï San",
+                "c": 16777215,
+                "pt": 0
+            },
+            "94": {
+                "t": "Pourfendeur du Corailleur Magistral",
+                "c": 16777215,
+                "pt": 0
+            },
+            "95": {
+                "t": "Pourfendeur du Meulou",
+                "c": 16777215,
+                "pt": 0
+            },
+            "96": {
+                "t": "Pourfendeur de la Bworkette",
+                "c": 16777215,
+                "pt": 0
+            },
+            "97": {
+                "t": "WAKFU S5 Producer",
+                "c": 16777215,
+                "pt": 0
+            },
+            "98": {
+                "t": "Ankaffilié",
+                "c": 16777215,
+                "pt": 0
+            },
+            "99": {
+                "t": "Fanfaron de la Fanfon",
+                "c": 16777215,
+                "pt": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 109,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "PT",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

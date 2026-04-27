@@ -1,306 +1,322 @@
 /**
- * Spell 209 - Renvoi de Sort (Sadida / Earth)
+ * Spell 209 — Tremblement de Terre (Feca earth tremor).
  *
- * A ground-impact spell with flying stone particles.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/209/scripts/scripts/
  *
- * Components:
- * - anim1: Main composite animation at target position, stops at frame 171
- * - Stone particles: Groups of 5 "pierres" spawned at frames 54, 63 (x5), 69, 75
+ * displayType=11 (TargetCell). Single composite animation (anim1, 174 frames)
+ * rendered at the target cell. No projectile, no caster reference — pure
+ * impact-at-target pattern.
  *
- * Original AS timing:
- * - Frame 49 (0-indexed: 48): Play sound 'grrr1'
- * - Frame 55 (0-indexed: 54): Spawn 1 group of 5 stones
- * - Frame 64 (0-indexed: 63): Play sound 'grrr2', spawn 5 groups of 5 stones
- * - Frame 70 (0-indexed: 69): Spawn 1 group of 5 stones
- * - Frame 76 (0-indexed: 75): Spawn 1 group of 5 stones
- * - Frame 124 (0-indexed: 123): Signal hit (this.end())
- * - Frame 148 (0-indexed: 147): Begin fade (_alpha -= 10 per frame)
- * - Frame 172 (0-indexed: 171): removeMovieClip() / stop()
+ * Canonical AS layout:
+ *   - DefineSprite_11 — outer container (174 frames / anim1 composite):
+ *       frame_49  (idx 48): SOMA.playSound("grrr1")
+ *       frame_55  (idx 54): place PlaceObject2_8_47 (a "pierres" container),
+ *                           onLoad attaches 5 pierres particles
+ *       frame_64  (idx 63): SOMA.playSound("grrr2") + place 4 more "pierres"
+ *                           containers (PlaceObject2_8_7/15/23/31/39), each
+ *                           onLoad attaches 5 pierres particles
+ *       frame_70  (idx 69): place PlaceObject2_8_55, onLoad attaches 5 pierres
+ *       frame_76  (idx 75): place PlaceObject2_8_63, onLoad attaches 5 pierres
+ *       frame_124 (idx 123): this.end() → signalHit
+ *       frame_148 (idx 147): install onEnterFrame that fades alpha by 10/frame
+ *       frame_172 (idx 171): _parent.removeMovieClip(); stop() → complete
+ *
+ *   - DefineSprite_3_pierres — stone chip particle (1 frame):
+ *       PlaceObject2_2_1/onClipEvent(load): seed vx,vy,t,v,vr,scale,alpha;
+ *                                           scatter _parent._x/_y
+ *       PlaceObject2_2_1/onClipEvent(enterFrame): gravity/bounce physics
+ *
+ * The "pierres container" pattern: the outer DefineSprite_11 places several
+ * plain MovieClip instances (depth 7, 15, 23, 31, 39, 47, 55, 63) across
+ * multiple frames. Each container's onClipEvent(load) calls
+ * attachMovie("pierres", "pierres0"…"pierres4", 0…4) to spawn 5 stone
+ * particles. The inner `PlaceObject2_2_1` clip events live ON the pierres
+ * symbol instance, so they are the pierres symbol's own onLoad/onEnterFrame.
+ *
+ * We model each "pierres container" as a registered symbol ("pierresContainer")
+ * whose onLoad immediately attaches 5 "pierres" children. The actual physics
+ * are on the "pierres" symbol.
+ *
+ * Sounds declared in manifest: frame 48 → "grrr1", frame 63 → "grrr2".
+ * These are fired from DefineSprite_11 frame scripts (frames 49 and 64 in
+ * AS 1-based = indices 48 and 63 in 0-based).
+ *
+ * Main timeline (top-level): the manifest shows anim1 (isComposite=true,
+ * 174 frames). The outer sprite DefineSprite_11 IS that composite — we
+ * register it as a single symbol named "anim1" and attach it from
+ * onSpellStart. No separate main-timeline sound beyond those embedded in
+ * DefineSprite_11.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Container, Sprite, Texture } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const ANIM1_MANIFEST: SpriteManifest = {
-  width: 84.8,
-  height: 82.8,
-  offsetX: -44.7,
-  offsetY: -39.85,
-};
-
-const PIERRES_MANIFEST: SpriteManifest = {
+const PIERRES_BOUNDS = {
   width: 4.75,
   height: 2.3,
   offsetX: -2.4,
   offsetY: -1.7,
 };
 
-interface StoneParticle {
-  sprite: Sprite;
-  /** Group container position (moves via vx/vy) */
-  groupX: number;
-  groupY: number;
-  /** Stone-local Y position (vertical bounce) */
-  localY: number;
-  /** Group horizontal velocity */
-  vx: number;
-  vy: number;
-  /** Vertical velocity (gravity-affected) */
-  v: number;
-  /** Rotation velocity */
-  vr: number;
-  /** Scale as percentage */
-  t: number;
-  /** Alpha (0-100) */
-  alpha: number;
-  /** Rotation in degrees */
-  rotation: number;
-}
+const ANIM1_BOUNDS = {
+  width: 84.8,
+  height: 82.8,
+  offsetX: -44.7,
+  offsetY: -39.85,
+};
 
-export class Spell209 extends BaseSpell {
+export class Spell209 extends RuntimeSpell {
   readonly spellId = 209;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private mainAnim!: FrameAnimatedSprite;
-  private stonesContainer!: Container;
-  private stones: StoneParticle[] = [];
-  private pierresAnchorX = 0.5;
-  private pierresAnchorY = 0.5;
-  private pierresTexture: Texture = Texture.EMPTY;
+  // Hold symbol refs for cross-symbol attachment in onLoad callbacks.
+  private pierresSym!: SymbolDefinition;
+  private pierresContainerSym!: SymbolDefinition;
+  private anim1Sym!: SymbolDefinition;
 
-  /** Fade state after frame 147 */
-  private fading = false;
-  private fadeAlpha = 100;
+  // Capture callbacks reference for sounds played from frame scripts.
+  private soundCallback?: (id: string) => void;
 
-  /** Accumulated time for physics stepping */
-  private physicsAccum = 0;
-
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    // Calculate anchor for pierres sprite
-    const pierresAnchor = calculateAnchor(PIERRES_MANIFEST);
-    this.pierresAnchorX = pierresAnchor.x;
-    this.pierresAnchorY = pierresAnchor.y;
+    const pierresAnchor = calculateAnchor(PIERRES_BOUNDS);
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // Load pierres texture
-    const pierresFrames = textures.getFrames("lib_pierres");
-    this.pierresTexture = pierresFrames[0] ?? Texture.EMPTY;
+    // ---- lib_pierres — stone chip particle -----------------------
+    // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/
+    //     CLIPACTIONRECORD onClipEvent(load).as
+    //     CLIPACTIONRECORD onClipEvent(enterFrame).as
+    //
+    // The clip events live on the inner PlaceObject2_2_1 instance
+    // (depth 1) placed inside the pierres symbol. In Flash the
+    // PlaceObject2 instance IS the visual sprite — we model its
+    // events directly as the pierres symbol's own onLoad/onEnterFrame.
+    //
+    // onLoad seeds:
+    //   vx = 5*(random-0.5), vy = 2*(random-0.5)
+    //   _parent._x = 20*(random-0.5) — scatter the container clip
+    //   _parent._y = 10*(random-0.5)
+    //   t = 60+40*random → scale and alpha seed
+    //   _alpha = 20+random(90)
+    //   v = -10*random-3      (upward velocity, negative Y)
+    //   vr = 40*(-0.5+random) (rotation rate)
+    //
+    // Note: _parent._x/_y in the AS refers to the "pierres container"
+    // clip (pierresContainer) that holds the pierres instance. We
+    // implement this by writing to `clip.parent.x`/`clip.parent.y`.
+    this.pierresSym = {
+      name: "pierres",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_pierres"),
+      anchorX: pierresAnchor.x,
+      anchorY: pierresAnchor.y,
 
-    // Container for stone particles, positioned at target
-    this.stonesContainer = new Container();
-    this.stonesContainer.position.set(init.targetX, init.targetY);
-    this.container.addChild(this.stonesContainer);
+      onLoad: (clip) => {
+        // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/onClipEvent(load)
+        clip.vars.vx = 5 * (Math.random() - 0.5);
+        clip.vars.vy = 2 * (Math.random() - 0.5);
+        if (clip.parent) {
+          clip.parent.x = 20 * (Math.random() - 0.5);
+          clip.parent.y = 10 * (Math.random() - 0.5);
+        }
+        const t = 60 + 40 * Math.random();
+        clip.vars.t = t;
+        clip.scaleX = t / 100;
+        clip.scaleY = t / 100;
+        clip.alpha = (20 + Math.floor(Math.random() * 90)) / 100;
+        clip.vars.v = -10 * Math.random() - 3;
+        clip.vars.vr = 40 * (-0.5 + Math.random());
+      },
 
-    // Main composite animation at target position
-    const anchor = calculateAnchor(ANIM1_MANIFEST);
-    this.mainAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("anim1"),
-        fps: 60,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-      })
-    );
-    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
-    this.container.addChild(this.mainAnim.sprite);
+      onEnterFrame: (clip) => {
+        // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/onClipEvent(enterFrame)
+        const vx = clip.vars.vx as number;
+        const vy = clip.vars.vy as number;
+        let v = clip.vars.v as number;
+        const vr = clip.vars.vr as number;
+        const t = clip.vars.t as number;
 
-    // Frame 48 (0-indexed): play grrr1
-    this.mainAnim.onFrame(48, () => {
-      this.callbacks.playSound("grrr1");
-    });
+        // _parent._x += vx; _parent._y += vy
+        if (clip.parent) {
+          clip.parent.x += vx;
+          clip.parent.y += vy;
+        }
 
-    // Frame 54 (0-indexed): spawn 1 group of 5 stones
-    this.mainAnim.onFrame(54, () => {
-      this.spawnStoneGroup();
-    });
+        if (t !== 1) {
+          clip.y += v;
+          clip.rotation += (vr * Math.PI) / 180;
+          v += 0.5;
+          clip.vars.v = v;
 
-    // Frame 63 (0-indexed): play grrr2 + spawn 5 groups of 5 stones
-    this.mainAnim.onFrame(63, () => {
-      this.callbacks.playSound("grrr2");
-      this.spawnStoneGroup();
-      this.spawnStoneGroup();
-      this.spawnStoneGroup();
-      this.spawnStoneGroup();
-      this.spawnStoneGroup();
-    });
-
-    // Frame 69 (0-indexed): spawn 1 group of 5 stones
-    this.mainAnim.onFrame(69, () => {
-      this.spawnStoneGroup();
-    });
-
-    // Frame 75 (0-indexed): spawn 1 group of 5 stones
-    this.mainAnim.onFrame(75, () => {
-      this.spawnStoneGroup();
-    });
-
-    // Frame 123 (0-indexed): signal hit
-    this.mainAnim.onFrame(123, () => {
-      this.signalHit();
-    });
-
-    // Frame 147 (0-indexed): begin fade out
-    this.mainAnim.onFrame(147, () => {
-      this.fading = true;
-      this.fadeAlpha = 100;
-    });
-
-    // Stop at frame 171 (0-indexed)
-    this.mainAnim.stopAt(171);
-  }
-
-  /**
-   * Spawn a group of 5 stone particles.
-   *
-   * Group parent offset (AS: _parent._x/_parent._y):
-   *   groupX = 20 * (Math.random() - 0.5)
-   *   groupY = 10 * (Math.random() - 0.5)
-   *
-   * Per stone:
-   *   vx = 5 * (Math.random() - 0.5)
-   *   vy = 2 * (Math.random() - 0.5)
-   *   t = 60 + 40 * Math.random()
-   *   _alpha = 20 + random(90)   [AS random(90) = 0..89]
-   *   v = -10 * Math.random() - 3
-   *   vr = 40 * (-0.5 + Math.random())
-   */
-  private spawnStoneGroup(): void {
-    const groupX = 20 * (Math.random() - 0.5);
-    const groupY = 10 * (Math.random() - 0.5);
-
-    for (let i = 0; i < 5; i++) {
-      const vx = 5 * (Math.random() - 0.5);
-      const vy = 2 * (Math.random() - 0.5);
-      const t = 60 + 40 * Math.random();
-      const alpha = 20 + Math.floor(Math.random() * 90);
-      const v = -10 * Math.random() - 3;
-      const vr = 40 * (-0.5 + Math.random());
-
-      const sprite = new Sprite(this.pierresTexture);
-      sprite.anchor.set(this.pierresAnchorX, this.pierresAnchorY);
-      sprite.scale.set(t / 100);
-      sprite.alpha = alpha / 100;
-      sprite.position.set(groupX, groupY);
-
-      this.stonesContainer.addChild(sprite);
-
-      const stone: StoneParticle = {
-        sprite,
-        groupX,
-        groupY,
-        localY: 0,
-        vx,
-        vy,
-        v,
-        vr,
-        t,
-        alpha,
-        rotation: 0,
-      };
-
-      this.stones.push(stone);
-    }
-  }
-
-  /**
-   * Update stone physics for one frame step.
-   *
-   * AS onClipEvent(enterFrame):
-   *   _parent._x += vx
-   *   _parent._y += vy
-   *   if (t != 1) {
-   *     _Y += v
-   *     _rotation += vr
-   *     v += 0.5
-   *     if (_Y > 0) {
-   *       vx /= 2; vy /= 2
-   *       _rotation = 0; _Y = 0
-   *       v = -v / 4
-   *       if (Math.abs(v) < 1) { vx = 0; vy = 0; t = 1; }
-   *     }
-   *   }
-   */
-  private stepStonePhysics(): void {
-    for (const stone of this.stones) {
-      // Move group container
-      stone.groupX += stone.vx;
-      stone.groupY += stone.vy;
-
-      if (stone.t !== 1) {
-        stone.localY += stone.v;
-        stone.rotation += stone.vr;
-        stone.v += 0.5;
-
-        if (stone.localY > 0) {
-          stone.vx /= 2;
-          stone.vy /= 2;
-          stone.rotation = 0;
-          stone.localY = 0;
-          stone.v = -stone.v / 4;
-
-          if (Math.abs(stone.v) < 1) {
-            stone.vx = 0;
-            stone.vy = 0;
-            stone.t = 1;
+          if (clip.y > 0) {
+            // Bounce: halve horizontal drift, zero rotation, reset Y
+            const newVx = vx / 2;
+            const newVy = vy / 2;
+            clip.vars.vx = newVx;
+            clip.vars.vy = newVy;
+            if (clip.parent) {
+              // Reflect the parent velocity as well
+            }
+            clip.rotation = 0;
+            clip.y = 0;
+            const newV = (-v) / 4;
+            clip.vars.v = newV;
+            if (Math.abs(newV) < 1) {
+              clip.vars.vx = 0;
+              clip.vars.vy = 0;
+              clip.vars.t = 1;
+            }
           }
         }
-      }
+      },
+    };
 
-      // Apply to sprite
-      stone.sprite.position.set(stone.groupX, stone.groupY + stone.localY);
-      stone.sprite.rotation = (stone.rotation * Math.PI) / 180;
-      stone.sprite.scale.set(Math.max(0, stone.t / 100));
-      stone.sprite.alpha = stone.alpha / 100;
-    }
+    // ---- pierresContainer — plain container that spawns 5 pierres --
+    // AS: Each PlaceObject2_8_N (depths 7,15,23,31,39,47,55,63) placed
+    // on DefineSprite_11's timeline has onClipEvent(load) that attaches
+    // "pierres" x5 into itself. We register a container symbol for this
+    // pattern — its onLoad reproduces that attachMovie loop.
+    //
+    // AS: DefineSprite_11/frame_64/PlaceObject2_8_7/onClipEvent(load)
+    //     (and identical files at depths 15,23,31,39,47,55,63)
+    this.pierresContainerSym = {
+      name: "pierresContainer",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+
+      onLoad: (clip, ctx) => {
+        // AS: c = 0; while(c < 5){ attachMovie("pierres","pierres"+c,c); c++ }
+        for (let c = 0; c < 5; c++) {
+          clip.attach(this.pierresSym, `pierres${c}`, c, ctx);
+        }
+      },
+    };
+
+    // ---- anim1 — outer 174-frame composite (DefineSprite_11) -----
+    // This is the top-level timeline content. The manifest's anim1
+    // composite frames are its visual backing; the frame scripts drive
+    // the particle spawns, sounds, hit signal, fade and completion.
+    //
+    // Frame index map (AS 1-based → 0-based):
+    //   frame_49  → idx 48: SOMA.playSound("grrr1")
+    //   frame_55  → idx 54: place pierresContainer at depth 47
+    //   frame_64  → idx 63: SOMA.playSound("grrr2") + place 5 containers
+    //                        at depths 7,15,23,31,39
+    //   frame_70  → idx 69: place pierresContainer at depth 55
+    //   frame_76  → idx 75: place pierresContainer at depth 63
+    //   frame_124 → idx 123: this.end() → signalHit
+    //   frame_148 → idx 147: install per-frame fade (alpha -10/frame)
+    //   frame_172 → idx 171: _parent.removeMovieClip(); stop() → complete
+    this.anim1Sym = {
+      name: "anim1",
+      totalFrames: 174,
+      frames: textures.getFrames("anim1"),
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
+
+      frameScripts: new Map([
+        [
+          48,
+          (_clip) => {
+            // AS: DefineSprite_11/frame_49/DoAction.as — SOMA.playSound("grrr1")
+            this.soundCallback?.("grrr1");
+          },
+        ],
+        [
+          54,
+          (clip, ctx) => {
+            // AS: DefineSprite_11/frame_55 — PlaceObject2_8_47 onClipEvent(load)
+            // Places a pierres container at depth 47.
+            clip.attach(this.pierresContainerSym, "pc_47", 47, ctx);
+          },
+        ],
+        [
+          63,
+          (clip, ctx) => {
+            // AS: DefineSprite_11/frame_64/DoAction.as — SOMA.playSound("grrr2")
+            // AS: DefineSprite_11/frame_64/PlaceObject2_8_7/15/23/31/39 onLoad
+            // Places 5 pierres containers at depths 7,15,23,31,39.
+            this.soundCallback?.("grrr2");
+            clip.attach(this.pierresContainerSym, "pc_7", 7, ctx);
+            clip.attach(this.pierresContainerSym, "pc_15", 15, ctx);
+            clip.attach(this.pierresContainerSym, "pc_23", 23, ctx);
+            clip.attach(this.pierresContainerSym, "pc_31", 31, ctx);
+            clip.attach(this.pierresContainerSym, "pc_39", 39, ctx);
+          },
+        ],
+        [
+          69,
+          (clip, ctx) => {
+            // AS: DefineSprite_11/frame_70 — PlaceObject2_8_55 onClipEvent(load)
+            clip.attach(this.pierresContainerSym, "pc_55", 55, ctx);
+          },
+        ],
+        [
+          75,
+          (clip, ctx) => {
+            // AS: DefineSprite_11/frame_76 — PlaceObject2_8_63 onClipEvent(load)
+            clip.attach(this.pierresContainerSym, "pc_63", 63, ctx);
+          },
+        ],
+        [
+          123,
+          (_clip) => {
+            // AS: DefineSprite_11/frame_124/DoAction.as — this.end()
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          147,
+          (clip) => {
+            // AS: DefineSprite_11/frame_148/DoAction.as
+            // this.onEnterFrame = function(){ _alpha = _alpha - 10; }
+            // We install a clip-level onEnterFrame that decrements alpha.
+            clip.onEnterFrame = (c) => {
+              c.alpha = Math.max(0, c.alpha - 10 / 100);
+            };
+          },
+        ],
+        [
+          171,
+          (clip) => {
+            // AS: DefineSprite_11/frame_172/DoAction.as
+            // _parent.removeMovieClip(); stop();
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
+
+    this.registry.register(this.pierresSym);
+    this.registry.register(this.pierresContainerSym);
+    this.registry.register(this.anim1Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // Capture sound callback for use from frame scripts.
+    this.soundCallback = callbacks.playSound;
 
-    this.anims.update(deltaTime);
-
-    // Run physics at 60fps frame steps
-    const frameTime = 1000 / 60;
-    this.physicsAccum += deltaTime;
-
-    while (this.physicsAccum >= frameTime) {
-      this.stepStonePhysics();
-      this.physicsAccum -= frameTime;
-    }
-
-    // Apply fade after frame 147 (_alpha -= 10 per frame at 60fps)
-    if (this.fading) {
-      const frameDelta = deltaTime / frameTime;
-      this.fadeAlpha -= 10 * frameDelta;
-      const clampedAlpha = Math.max(0, this.fadeAlpha) / 100;
-      this.mainAnim.sprite.alpha = clampedAlpha;
-      this.stonesContainer.alpha = clampedAlpha;
-    }
-
-    // Complete when main animation stops at frame 171
-    if (this.mainAnim.isStopped() || this.mainAnim.isComplete()) {
-      this.complete();
-    }
-  }
-
-  destroy(): void {
-    for (const stone of this.stones) {
-      stone.sprite.destroy();
-    }
-    this.stones = [];
-    this.stonesContainer.destroy({ children: false });
-    super.destroy();
+    // Attach the main composite timeline at the root.
+    // displayType=11 means the harness places the container at the target
+    // cell; we place anim1 at (0,0) within that container.
+    this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

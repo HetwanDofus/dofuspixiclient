@@ -39,7 +39,8 @@ export async function loadSpellClass(
       null
     );
   } catch (err) {
-    console.warn(`Failed to load dynamic spell module ${spellId}:`, err);
+    // eslint-disable-next-line no-console
+    console.warn(`[loadSpellClass] Failed to load module ${spellId}:`, err);
     return null;
   }
 }

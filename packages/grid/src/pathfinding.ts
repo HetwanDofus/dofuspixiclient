@@ -50,7 +50,26 @@ export class DofusPathfinding {
     this.occupiedCells.delete(cellId);
   }
 
-  findPath(startId: number, goalId: number): number[] | null {
+  clearOccupied(): void {
+    this.occupiedCells.clear();
+  }
+
+  /**
+   * Fight-mode A*. Same as findPath but restricts transitions to the
+   * four cardinal-isometric directions (1=SE, 3=SW, 5=NW, 7=NE) — the
+   * only ones valid on the Dofus 1.29 combat grid. The half-step
+   * directions 0/2/4/6 are walkable in roleplay but illegal in fight
+   * and would get rejected by the server's path validator.
+   */
+  findFightPath(startId: number, goalId: number): number[] | null {
+    return this.findPath(startId, goalId, true);
+  }
+
+  findPath(
+    startId: number,
+    goalId: number,
+    orthogonalOnly = false
+  ): number[] | null {
     if (!this.walkableSet.has(startId) || !this.walkableSet.has(goalId)) {
       return null;
     }
@@ -94,6 +113,11 @@ export class DofusPathfinding {
       const { row, col, isLong } = cellToRowCol(current.cellId, this.mapWidth);
 
       for (let dir = 0; dir < 8; dir++) {
+        // Fight mode only uses the odd directions (1=SE, 3=SW, 5=NW,
+        // 7=NE) — the ones that move a full cell visually. The
+        // half-step directions (0/2/4/6) are roleplay-only and fail
+        // server-side path validation in combat.
+        if (orthogonalOnly && (dir & 1) === 0) continue;
         if (
           !isValidDirection(
             row,
@@ -106,12 +130,12 @@ export class DofusPathfinding {
         )
           continue;
 
-        const neighborId = current.cellId + this.dirOffsets[dir];
+        const neighborId = current.cellId + (this.dirOffsets[dir] as number);
         if (!this.walkableSet.has(neighborId)) continue;
         if (neighborId !== goalId && this.occupiedCells.has(neighborId))
           continue;
 
-        const moveCost = DIR_COSTS[dir];
+        const moveCost = DIR_COSTS[dir] as number;
         const dirChangeCost =
           current.d >= 0 && dir !== current.d ? DIR_CHANGE_PENALTY : 0;
         const tentativeG = current.g + moveCost;
@@ -153,6 +177,112 @@ export class DofusPathfinding {
   }
 
   /**
+   * Return every walkable cell reachable from `start` in at most
+   * `maxSteps` orthogonal/diagonal hops via a breadth-first flood fill.
+   * Used to render the cyan MP-range tint on the player's turn so the
+   * client can show the same set of cells the server will accept for
+   * a fight movement request.
+   *
+   * The starting cell is excluded from the result. Cells held by other
+   * fighters (in `occupiedCells`) are walkable as transit but never
+   * appear as a destination — same rule the server uses.
+   */
+  reachable(start: number, maxSteps: number, orthogonalOnly = false): number[] {
+    if (maxSteps <= 0 || !this.walkableSet.has(start)) {
+      return [];
+    }
+    const visited = new Map<number, number>();
+    visited.set(start, 0);
+    const queue: number[] = [start];
+    const out: number[] = [];
+    while (queue.length > 0) {
+      const cell = queue.shift() as number;
+      const depth = visited.get(cell) ?? 0;
+      if (depth >= maxSteps) {
+        continue;
+      }
+      const neighbors = orthogonalOnly
+        ? this.getFightNeighbors(cell)
+        : this.getNeighbors(cell);
+      for (const n of neighbors) {
+        if (!this.walkableSet.has(n) || visited.has(n)) {
+          continue;
+        }
+        visited.set(n, depth + 1);
+        if (!this.occupiedCells.has(n)) {
+          out.push(n);
+        }
+        queue.push(n);
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Fight-grid neighbors: the four cardinal-isometric cells (SE, SW,
+   * NW, NE). Excludes the half-step directions that are legal in
+   * roleplay but illegal in combat.
+   */
+  getFightNeighbors(cellId: number): number[] {
+    const { row, col, isLong } = cellToRowCol(cellId, this.mapWidth);
+    const out: number[] = [];
+    for (const dir of [1, 3, 5, 7]) {
+      if (
+        isValidDirection(row, col, isLong, dir, this.mapWidth, this.totalRows)
+      ) {
+        out.push(cellId + (this.dirOffsets[dir] as number));
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Return every cell within [minRange, maxRange] hops of `center`,
+   * used to preview spell-cast targeting. Ignores walkability so the
+   * tint covers holes / void too — the consumer is responsible for
+   * trimming by line-of-sight if needed.
+   */
+  cellsInRange(
+    center: number,
+    minRange: number,
+    maxRange: number,
+    orthogonalOnly = false
+  ): number[] {
+    if (maxRange < minRange) {
+      return [];
+    }
+    const depth = new Map<number, number>();
+    depth.set(center, 0);
+    const queue: number[] = [center];
+    const out: number[] = [];
+    while (queue.length > 0) {
+      const cell = queue.shift() as number;
+      const d = depth.get(cell) ?? 0;
+      // Self-cast spells (rangeMin = 0) need the caster's own cell in
+      // the preview ring so the user can click themselves to confirm
+      // the cast — Armure Incandescente, Tactique, etc. all have
+      // rangeMin = rangeMax = 0 and previously got an empty array.
+      if (d >= minRange) {
+        out.push(cell);
+      }
+      if (d >= maxRange) {
+        continue;
+      }
+      const neighbors = orthogonalOnly
+        ? this.getFightNeighbors(cell)
+        : this.getNeighbors(cell);
+      for (const n of neighbors) {
+        if (depth.has(n)) {
+          continue;
+        }
+        depth.set(n, d + 1);
+        queue.push(n);
+      }
+    }
+    return out;
+  }
+
+  /**
    * Get valid neighbor cell IDs for a given cell.
    */
   getNeighbors(cellId: number): number[] {
@@ -162,7 +292,7 @@ export class DofusPathfinding {
       if (
         isValidDirection(row, col, isLong, dir, this.mapWidth, this.totalRows)
       ) {
-        neighbors.push(cellId + this.dirOffsets[dir]);
+        neighbors.push(cellId + (this.dirOffsets[dir] as number));
       }
     }
     return neighbors;
@@ -176,12 +306,12 @@ export class DofusPathfinding {
     if (path[0] !== currentCellId) return false;
 
     for (let i = 0; i < path.length; i++) {
-      if (!this.walkableSet.has(path[i])) return false;
+      if (!this.walkableSet.has(path[i] as number)) return false;
     }
 
     for (let i = 0; i < path.length - 1; i++) {
-      const neighbors = this.getNeighbors(path[i]);
-      if (!neighbors.includes(path[i + 1])) return false;
+      const neighbors = this.getNeighbors(path[i] as number);
+      if (!neighbors.includes(path[i + 1] as number)) return false;
     }
 
     return true;

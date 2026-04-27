@@ -1,0 +1,1 @@
+{"version":1,"spriteId":"2002","animations":{"sprite_9":{"file":"atlas.svg","width":650,"height":670,"offsetX":-28.6,"offsetY":-206.2,"fps":60,"frames":[],"frameOrder":[],"duplicates":{}}},"spell":{"id":2002,"fps":40,"mainTimelineScale":1,"requiresTypeScript":false,"sounds":[],"librarySymbols":[],"animationMeta":{"sprite_9":{"isComposite":true}}}}

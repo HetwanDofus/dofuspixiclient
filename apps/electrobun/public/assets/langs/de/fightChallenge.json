@@ -1,0 +1,420 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "FC": {
+            "1": {
+                "n": "Zombie",
+                "d": "Pro Runde muss genau 1 BP verwendet werden",
+                "g": 11
+            },
+            "2": {
+                "n": "Statue",
+                "d": "Jede Runde muss auf dem Anfangsfeld beendet werden und zwar während der gesamten Kampfzeit.",
+                "g": 9
+            },
+            "3": {
+                "n": "Zielstrebigkeit",
+                "d": "%1 muss als Erstes besiegt werden",
+                "g": 4
+            },
+            "4": {
+                "n": "Aufschub",
+                "d": "%1 muss als Letztes besiegt werden",
+                "g": 10
+            },
+            "5": {
+                "n": "Wirtschaftlichkeit",
+                "d": "Alle Charaktere dürfen im Verlauf des Kampfes jede Aktion nur insgesamt 1x durchführen.",
+                "g": 3
+            },
+            "6": {
+                "n": "Vielseitigkeit",
+                "d": "Alle Charaktere dürfen jede Aktion nur 1x pro Runde durchführen",
+                "g": 12
+            },
+            "7": {
+                "n": "Gärtner",
+                "d": "Während des Kampfes muss eine Kawotte beschworen werden, sobald der Zauberspruch verfügbar ist",
+                "g": 6
+            },
+            "8": {
+                "n": "Nomade",
+                "d": "Pro Runde müssen alle BP eingesetzt werden",
+                "g": 8
+            },
+            "9": {
+                "n": "Barbar",
+                "d": "Im gesamten Kampf darf kein einziger Zauberspruch verwendet werden",
+                "g": 1
+            },
+            "10": {
+                "n": "Hierarchie",
+                "d": "Die Gegner müssen nach wachsender Stufenzahl besiegt werden",
+                "g": 2
+            },
+            "11": {
+                "n": "Mystiker",
+                "d": "Im gesamten Kampf dürfen nur Zaubersprüche verwendet werden",
+                "g": 7
+            },
+            "12": {
+                "n": "Totengräber",
+                "d": "Während des Kampfes muss ein Chaferwirr beschworen werden, sobald der Zauberspruch verfügbar ist",
+                "g": 5
+            },
+            "14": {
+                "n": "Casino Royal ",
+                "d": "Während des Kampfes muss der Zauberspruch Roulette gewirkt werden, sobald der Zauberspruch verfügbar ist ",
+                "g": 14
+            },
+            "15": {
+                "n": "Arachnophil ",
+                "d": "Während des Kampfes muss eine Arachnee beschworen werden, sobald der Zauberspruch verfügbar ist ",
+                "g": 15
+            },
+            "16": {
+                "n": "Ein Flünkchen Verstand!",
+                "d": "Während des Kampfes muss ein Flünkchen beschworen werden, sobald der Zauberspruch verfügbar ist.",
+                "g": 16
+            },
+            "17": {
+                "n": "Unberührbarkeit ",
+                "d": "Während des Kampfes dürfen die Charaktere keine Lebenspunkte verlieren ",
+                "g": 17
+            },
+            "18": {
+                "n": "Unheilbarkeit ",
+                "d": "Während des Kampfes dürfen keine Heilzauber gewirkt werden.",
+                "g": 18
+            },
+            "19": {
+                "n": "Weiße Weste! ",
+                "d": "Die Gegner müssen während des Kampfes erledigt werden, ohne ihnen direkten Schaden zuzufügen. Glyphen, Gift, Fallen, Stoßschaden, das Zurückwerfen von Schaden oder Zaubern und Angriffe durch beschworene Wesen können demnach dazu verwendet werden.",
+                "g": 19
+            },
+            "20": {
+                "n": "Elementar",
+                "d": "Während des Kampfes muss immer das selbe Element verwendet werden werden.",
+                "g": 20
+            },
+            "21": {
+                "n": "Bewegung,Bewegung! ",
+                "d": "Während des Kampfes darf nicht versucht werden, Gegnern BPs zu entziehen.",
+                "g": 21
+            },
+            "22": {
+                "n": "Die Zeit rennt! ",
+                "d": "Während des Kampfes darf nicht versucht werden, Gegnern APs zu entziehen.",
+                "g": 22
+            },
+            "23": {
+                "n": "Aus den Augen verloren! ",
+                "d": "Während des Kampfes darf nicht versucht werden, Gegnern Reichweite zu entziehen.",
+                "g": 23
+            },
+            "24": {
+                "n": "Borniert ",
+                "d": "Während des Kampfes muss immer der selbe Nahkampfangriff oder Zauberspruch verwendet werden. ",
+                "g": 24
+            },
+            "25": {
+                "n": "Der Reihe nach! ",
+                "d": "Die Gegner müssen nach sinkender Stufenzahl besiegt werden ",
+                "g": 25
+            },
+            "28": {
+                "n": "Damenwahl ",
+                "d": "Männliche Charaktere müssen während des gesamten Kampfes weibliche Charaktere die Gegner erledigen lassen ",
+                "g": 28
+            },
+            "29": {
+                "n": "Herrenwahl ",
+                "d": "Weibliche Charaktere müssen während des gesamten Kampfes männliche Charaktere die Gegner erledigen lassen ",
+                "g": 29
+            },
+            "30": {
+                "n": "Klein, aber oho! ",
+                "d": "Der Charakter mit der niedrigsten Stufe muss alle Monster erledigen ",
+                "g": 30
+            },
+            "31": {
+                "n": "Fokus",
+                "d": "Wird ein Gegner angegriffen, muss er besiegt werden, bevor ein anderer Gegner angegriffen werden kann.",
+                "g": 31
+            },
+            "32": {
+                "n": "Elitär",
+                "d": "Alle Angriffe müssen sich auf %1 konzentrieren, bis er besiegt ist.",
+                "g": 32
+            },
+            "33": {
+                "n": "Überleben",
+                "d": "Kein Verbündeter darf sterben.",
+                "g": 33
+            },
+            "34": {
+                "n": "Unberechenbar",
+                "d": "Alle Angriffe müssen sich bei jeder neuen Runde auf das angezeigte Ziel konzentrieren.",
+                "g": 34
+            },
+            "35": {
+                "n": "Auftragskiller",
+                "d": "Die Gegner müssen in bestimmter Reihenfolge besiegt werden. Sobald ein Ziel besiegt wurde, wird ein neues Ziel angezeigt.",
+                "g": 35
+            },
+            "36": {
+                "n": "Gewagt",
+                "d": "Die eigene Runde muss auf dem benachbarten Feld eines Gegners beendet werden.",
+                "g": 36
+            },
+            "37": {
+                "n": "Anhängsel",
+                "d": "Die eigene Runde muss auf dem benachbarten Feld eines Verbündeten beendet werden.",
+                "g": 37
+            },
+            "38": {
+                "n": "Blitzangriff",
+                "d": "Verliert ein Gegner Lebens, muss dieser besiegt werden, bevor er dran ist.",
+                "g": 38
+            },
+            "39": {
+                "n": "Einsiedler",
+                "d": "Die eigene Runde darf nie auf dem benachbarten Feld eines Verbündeten beendet werden.",
+                "g": 39
+            },
+            "40": {
+                "n": "Zaghaft",
+                "d": "Seine Runde niemals auf dem benachbarten Feld eines Gegners beenden.",
+                "g": 40
+            },
+            "41": {
+                "n": "Ungestüm",
+                "d": "Alle verfügbaren Aktionspunkte müssen bis Ende der Runde aufbraucht werden und zwar den ganzen Kampf über, bis auf die letzte Runde.",
+                "g": 41
+            },
+            "42": {
+                "n": "Zwei zum Preis von einem",
+                "d": "Wenn ein Charakter einen Gegner besiegt, muss er unbedingt einen (und nur einen) zweiten Gegner während seiner Runde besiegen.",
+                "g": 42
+            },
+            "43": {
+                "n": "Selbstaufopferung",
+                "d": "Charakter dürfen in ihrer Runde nie Heilungzauber auf sich selbst wirken oder in ihrer Runde Heilung erhalten.",
+                "g": 43
+            },
+            "44": {
+                "n": "Teilen",
+                "d": "Jeder Charakter muss mindestens einen Gegner (von Gegnern beschworene Kreaturen zählen dabei nicht) während des Kampfes besiegen.",
+                "g": 44
+            },
+            "45": {
+                "n": "Duell",
+                "d": "Wenn ein Charakter einen Gegner angreift, darf während des ganzen Kampfes kein anderer Charakter diesen Gegner angreifen.",
+                "g": 51
+            },
+            "46": {
+                "n": "Jedem sein Monster",
+                "d": "Jeder Charakter muss während des Kampfes mindestens einen Gegner besiegt haben (von Gegnern beschworene Kreaturen zählen nicht) und sobald ein Charakter einen Gegner angegriffen hat, darf kein anderer diesen Gegner bekämpfen.",
+                "g": 46
+            },
+            "47": {
+                "n": "Verseuchung",
+                "d": "Sobald ein Verbündeter Lebenspunkte durch einen Gegner verliert, habt ihr genau 3 Runden, um euren Verbündeten zu besiegen.",
+                "g": 47
+            },
+            "48": {
+                "n": "Twink Attack!",
+                "d": "Der Mule mit der niedrigsten Stufe muss alle Gegner besiegen (das kommt davon, dass ihr herum \"mult\")",
+                "g": 48
+            },
+            "49": {
+                "n": "Schützt eure Twinks",
+                "d": "Alle eure Verbündeten und all eure Twinks müssen den Kampf lebend überstehen.",
+                "g": 49
+            },
+            "50": {
+                "n": "Der Cheat der Devs",
+                "d": "Beendet diesen Kampf, um diese Challenge zu gewinnen. Es ist allgemein bekannt, dass alle Devs schummeln.",
+                "g": 50
+            },
+            "51": {
+                "n": "Zombie",
+                "d": "Pro Runde muss genau 1 BP verwendet werden",
+                "g": 11
+            },
+            "52": {
+                "n": "Statue",
+                "d": "Jede Runde muss auf dem Anfangsfeld beendet werden und zwar während der gesamten Kampfzeit.",
+                "g": 9
+            },
+            "53": {
+                "n": "Zielstrebigkeit",
+                "d": "%1 muss als Erstes besiegt werden",
+                "g": 4
+            },
+            "54": {
+                "n": "Aufschub",
+                "d": "%1 muss als Letztes besiegt werden",
+                "g": 10
+            },
+            "55": {
+                "n": "Vielseitigkeit",
+                "d": "Alle Charaktere dürfen jede Aktion nur 1x pro Runde durchführen",
+                "g": 12
+            },
+            "56": {
+                "n": "Gärtner",
+                "d": "Während des Kampfes muss eine Kawotte beschworen werden, sobald der Zauberspruch verfügbar ist",
+                "g": 6
+            },
+            "57": {
+                "n": "Nomade",
+                "d": "Pro Runde müssen alle BP eingesetzt werden",
+                "g": 8
+            },
+            "59": {
+                "n": "Hierarchie",
+                "d": "Die Gegner müssen nach wachsender Stufenzahl besiegt werden",
+                "g": 2
+            },
+            "60": {
+                "n": "Mystiker",
+                "d": "Im gesamten Kampf dürfen nur Zaubersprüche verwendet werden",
+                "g": 7
+            },
+            "61": {
+                "n": "Totengräber",
+                "d": "Während des Kampfes muss ein Chaferwirr beschworen werden, sobald der Zauberspruch verfügbar ist",
+                "g": 5
+            },
+            "63": {
+                "n": "Arachnophil ",
+                "d": "Während des Kampfes muss eine Arachnee beschworen werden, sobald der Zauberspruch verfügbar ist ",
+                "g": 15
+            },
+            "64": {
+                "n": "Unberührbarkeit ",
+                "d": "Während des Kampfes dürfen die Charaktere keine Lebenspunkte verlieren ",
+                "g": 17
+            },
+            "65": {
+                "n": "Unheilbarkeit ",
+                "d": "Während des Kampfes dürfen keine Heilzauber gewirkt werden.",
+                "g": 18
+            },
+            "66": {
+                "n": "Aus den Augen verloren! ",
+                "d": "Während des Kampfes darf nicht versucht werden, Gegnern Reichweite zu entziehen.",
+                "g": 23
+            },
+            "68": {
+                "n": "Der Reihe nach! ",
+                "d": "Die Gegner müssen nach sinkender Stufenzahl besiegt werden ",
+                "g": 25
+            },
+            "69": {
+                "n": "Damenwahl ",
+                "d": "Männliche Charaktere müssen während des gesamten Kampfes weibliche Charaktere die Gegner erledigen lassen ",
+                "g": 28
+            },
+            "70": {
+                "n": "Herrenwahl ",
+                "d": "Weibliche Charaktere müssen während des gesamten Kampfes männliche Charaktere die Gegner erledigen lassen ",
+                "g": 29
+            },
+            "71": {
+                "n": "Fokus",
+                "d": "Wird ein Gegner angegriffen, muss er besiegt werden, bevor ein anderer Gegner angegriffen werden kann.",
+                "g": 31
+            },
+            "72": {
+                "n": "Elitär",
+                "d": "Alle Angriffe müssen sich auf %1 konzentrieren, bis er besiegt ist.",
+                "g": 32
+            },
+            "73": {
+                "n": "Überleben",
+                "d": "Kein Verbündeter darf sterben.",
+                "g": 33
+            },
+            "74": {
+                "n": "Unberechenbar",
+                "d": "Alle Angriffe müssen sich bei jeder neuen Runde auf das angezeigte Ziel konzentrieren.",
+                "g": 34
+            },
+            "75": {
+                "n": "Auftragskiller",
+                "d": "Die Gegner müssen in bestimmter Reihenfolge besiegt werden. Sobald ein Ziel besiegt wurde, wird ein neues Ziel angezeigt.",
+                "g": 35
+            },
+            "76": {
+                "n": "Gewagt",
+                "d": "Die eigene Runde muss auf dem benachbarten Feld eines Gegners beendet werden.",
+                "g": 36
+            },
+            "77": {
+                "n": "Anhängsel",
+                "d": "Die eigene Runde muss auf dem benachbarten Feld eines Verbündeten beendet werden.",
+                "g": 37
+            },
+            "79": {
+                "n": "Einsiedler",
+                "d": "Die eigene Runde darf nie auf dem benachbarten Feld eines Verbündeten beendet werden.",
+                "g": 39
+            },
+            "80": {
+                "n": "Zaghaft",
+                "d": "Seine Runde niemals auf dem benachbarten Feld eines Gegners beenden.",
+                "g": 40
+            },
+            "81": {
+                "n": "Ungestüm",
+                "d": "Alle verfügbaren Aktionspunkte müssen bis Ende der Runde aufbraucht werden und zwar den ganzen Kampf über, bis auf die letzte Runde.",
+                "g": 41
+            },
+            "82": {
+                "n": "Zwei zum Preis von einem",
+                "d": "Wenn ein Charakter einen Gegner besiegt, muss er unbedingt einen (und nur einen) zweiten Gegner während seiner Runde besiegen.",
+                "g": 42
+            },
+            "83": {
+                "n": "Selbstaufopferung",
+                "d": "Charakter dürfen in ihrer Runde nie Heilungzauber auf sich selbst wirken oder in ihrer Runde Heilung erhalten.",
+                "g": 43
+            },
+            "84": {
+                "n": "Teilen",
+                "d": "Jeder Charakter muss mindestens einen Gegner (von Gegnern beschworene Kreaturen zählen dabei nicht) während des Kampfes besiegen.",
+                "g": 44
+            },
+            "85": {
+                "n": "Duell",
+                "d": "Wenn ein Charakter einen Gegner angreift, darf während des ganzen Kampfes kein anderer Charakter diesen Gegner angreifen.",
+                "g": 51
+            },
+            "86": {
+                "n": "Jedem sein Monster",
+                "d": "Jeder Charakter muss während des Kampfes mindestens einen Gegner besiegt haben (von Gegnern beschworene Kreaturen zählen nicht) und sobald ein Charakter einen Gegner angegriffen hat, darf kein anderer diesen Gegner bekämpfen.",
+                "g": 46
+            },
+            "87": {
+                "n": "Verseuchung",
+                "d": "Sobald ein Verbündeter Lebenspunkte durch einen Gegner verliert, habt ihr genau 3 Runden, um euren Verbündeten zu besiegen.",
+                "g": 47
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 110,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "FC",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

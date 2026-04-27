@@ -1,6 +1,6 @@
 import type { DofusPathfinding } from "@dofus/grid";
 import type { Sprite } from "pixi.js";
-import { Container, Graphics, Ticker } from "pixi.js";
+import { ColorMatrixFilter, Container, Graphics, Ticker } from "pixi.js";
 
 import type { CellData } from "@/game/datacenter/cell";
 import type { PickingSystem } from "@/game/render/picking-system";
@@ -20,10 +20,15 @@ import {
   getCellPositionWithSlope,
   initFrameState,
   initMovementState,
+  isOneShotAnimation,
   PlayerAnimation,
   type PlayerAnimationValue,
 } from "@/game/scene/player/animation";
-import { drawHPBar, drawPlayerPlaceholder } from "@/game/scene/player/graphics";
+import {
+  drawFighterGroundCircle,
+  drawHPBar,
+  drawPlayerPlaceholder,
+} from "@/game/scene/player/graphics";
 import { PlayerMovement } from "@/game/scene/player/movement";
 import { PlayerNameplate } from "@/game/scene/player/nameplate";
 import { PlayerPerfMonitor } from "@/game/scene/player/perf";
@@ -39,6 +44,70 @@ import { createLogger } from "@/utils/logger";
 const log = createLogger("PlayerRenderer");
 
 const GHOST_VIEW_ALPHA = 0.8;
+
+/**
+ * ColorMatrix that mirrors the Flash color transform
+ * `{ra:60, rb:102, ga:60, gb:102, ba:60, bb:102}` from
+ * Sprite.as:98 (the original 1.29 "selected sprite" look). Each
+ * channel is multiplied by 0.6 then offset by 102/255 ≈ 0.4, which
+ * brightens shadows without blowing out highlights — the washed-out
+ * pop the client uses on the active fighter.
+ */
+function buildActiveTurnFilter(): ColorMatrixFilter {
+  const f = new ColorMatrixFilter();
+  const offset = 102 / 255;
+  // prettier-ignore
+  f.matrix = [
+    0.6,
+    0,
+    0,
+    0,
+    offset,
+    0,
+    0.6,
+    0,
+    0,
+    offset,
+    0,
+    0,
+    0.6,
+    0,
+    offset,
+    0,
+    0,
+    0,
+    1,
+    0,
+  ];
+  return f;
+}
+
+/**
+ * Combat only recognises the four isometric-cardinal facings
+ * (1=SE, 3=SW, 5=NW, 7=NE). An even direction coming from roleplay
+ * (E/S/W/N — cells that aren't reachable in a fight) gets snapped to
+ * the nearest odd that keeps the sprite's left/right orientation:
+ *   0 (E — right-facing) → 1 (SE)    —— Dofus's canonical "front"
+ *   2 (S — front)        → 1 (SE)    —— same default front pose
+ *   4 (W — left-facing)  → 3 (SW)    —— mirror of the E case
+ *   6 (N — back)         → 5 (NW)    —— mirror of the S case
+ */
+function clampFightDirection(dir: number): number {
+  if ((dir & 1) === 1) {
+    return dir;
+  }
+  switch (dir) {
+    case 0:
+    case 2:
+      return 1;
+    case 4:
+      return 3;
+    case 6:
+      return 5;
+    default:
+      return 1;
+  }
+}
 
 /**
  * Map-level coordinator that owns the player registry + the PIXI parent
@@ -58,6 +127,19 @@ export class PlayerRenderer {
   private ghostView = false;
   private pathfinding: DofusPathfinding | null;
   private scene: Scene;
+  /**
+   * When true, every existing + future player gets the team-colored
+   * ground ring; toggled on enter/exit of fight mode by the
+   * battlefield-scene. Roleplay has no team concept, so rings stay
+   * hidden there.
+   */
+  private fightMode = false;
+  /**
+   * Fighter id whose turn is currently active — their ground ring
+   * renders in the brighter "glow" variant. null while waiting for
+   * the first TURN_START or outside of combat.
+   */
+  private activeTurnPlayerId: number | null = null;
   private unsubPreTick: () => void;
   private unsubPostTick: () => void;
 
@@ -147,11 +229,14 @@ export class PlayerRenderer {
     }
 
     if (data.direction !== undefined && data.direction !== player.direction) {
-      player.direction = data.direction;
+      const finalDir = this.fightMode
+        ? clampFightDirection(data.direction)
+        : data.direction;
+      player.direction = finalDir;
 
       if (player.sprite) {
         const baseAnim = getAnimationBaseFromType(player.animation);
-        this.sprites.switch(player, baseAnim, data.direction);
+        this.sprites.switch(player, baseAnim, finalDir);
       } else if (player.placeholderGraphics) {
         drawPlayerPlaceholder(
           player.placeholderGraphics,
@@ -195,7 +280,21 @@ export class PlayerRenderer {
     }
   }
 
-  setAnimation(id: number, animation: PlayerAnimationValue): void {
+  setAnimation(
+    id: number,
+    animation: PlayerAnimationValue,
+    options?: {
+      revertTo?: PlayerAnimationValue;
+      /**
+       * Fires once when a one-shot animation reaches its last frame.
+       * Used for canonical sequencer-blocking semantics — e.g. cast
+       * pose completes → THEN spell visual launches (mirrors
+       * SpriteHandler.as:782 `addAction(18, true=blocking, setAnim)`
+       * before `addAction(20, addEffect)`).
+       */
+      onComplete?: () => void;
+    }
+  ): void {
     const player = this.players.get(id);
 
     if (!player) {
@@ -203,8 +302,82 @@ export class PlayerRenderer {
     }
 
     player.animation = animation;
+    // Any new explicit setAnimation call cancels a pending revert
+    // — e.g. server-driven HIT mid-cast must not be overridden by the
+    // queued cast→idle revert.
+    player.revertTo = null;
+    player.onAnimComplete = null;
+    if (options?.revertTo && isOneShotAnimation(animation)) {
+      player.revertTo = options.revertTo;
+      // Reset the frame counter so the one-shot anim plays from frame 0
+      // and our completion check (last-frame) fires reliably.
+      player.frameIndex = 0;
+      player.frameTimer = 0;
+    }
+    if (options?.onComplete && isOneShotAnimation(animation)) {
+      player.onAnimComplete = options.onComplete;
+    }
     const baseAnim = getAnimationBaseFromType(animation);
     this.sprites.switch(player, baseAnim, player.direction);
+  }
+
+  /**
+   * Called once per tick after the sprite frame has advanced.
+   *
+   * Two independent signals fire on a one-shot animation:
+   *
+   *   1. `onAnimComplete` (the spell-launch hook) fires at the canonical
+   *      `applyEnd` frame from the player class metadata.json. Mirrors
+   *      `GlobalSpriteHandler.applyEnd(mc)` → `sequencer.onActionEnd()`
+   *      which only advances the sequencer (so the next blocking action,
+   *      e.g. addEffect at SpriteHandler.as:791, runs). It does NOT
+   *      stop the animation — the MovieClip keeps playing on its own.
+   *
+   *   2. `revertTo` (the idle-restore) fires when the animation actually
+   *      reaches its last frame. Canonical AS doesn't auto-restore at
+   *      all (the inner timeline has a `stop()` on its last frame and
+   *      the sprite holds that pose until another `setAnim` lands), but
+   *      for our UX we flip back to IDLE so the sprite doesn't appear
+   *      frozen between actions. If applyEnd metadata is missing for
+   *      this anim, fall back to firing both signals at the last frame.
+   */
+  private checkAnimRevert(player: ActivePlayer): void {
+    if ((!player.revertTo && !player.onAnimComplete) || !player.currentAnimData) {
+      return;
+    }
+    if (!isOneShotAnimation(player.animation)) {
+      // Should not happen (revertTo only set when one-shot), but guard
+      // in case animation changed via switch() without going through
+      // setAnimation.
+      player.revertTo = null;
+      player.onAnimComplete = null;
+      return;
+    }
+    const total =
+      player.currentAnimData.frameCount ??
+      player.currentAnimData.textures.length;
+    const lastFrame = Math.max(0, total - 1);
+    const applyEnd = this.spriteLoader.getApplyEndFrame(
+      player.gfxId,
+      player.currentAnimName
+    );
+    // applyEnd >= lastFrame: collapse to one signal at the last frame
+    // (matches the missing-metadata fallback below).
+    const launchFrame =
+      applyEnd !== null ? Math.min(applyEnd, lastFrame) : lastFrame;
+
+    // Fire the spell-launch hook at applyEnd — animation continues.
+    if (player.onAnimComplete && player.frameIndex >= launchFrame) {
+      const onComplete = player.onAnimComplete;
+      player.onAnimComplete = null;
+      onComplete();
+    }
+    // Revert only when the animation has actually finished playing.
+    if (player.revertTo && player.frameIndex >= lastFrame) {
+      const next = player.revertTo;
+      player.revertTo = null;
+      this.setAnimation(player.id, next);
+    }
   }
 
   setDirection(id: number, direction: number): void {
@@ -214,9 +387,17 @@ export class PlayerRenderer {
       return;
     }
 
-    player.direction = direction;
+    // In combat the grid only supports four facings; a stale
+    // roleplay direction (E/S/W/N) would animate with the "S" or "F"
+    // suffix fallbacks which don't match what the original client
+    // ever shows during a fight.
+    const finalDir = this.fightMode
+      ? clampFightDirection(direction)
+      : direction;
+
+    player.direction = finalDir;
     const baseAnim = getAnimationBaseFromType(player.animation);
-    this.sprites.switch(player, baseAnim, direction);
+    this.sprites.switch(player, baseAnim, finalDir);
   }
 
   // ── Accessors ───────────────────────────────────────────────────────
@@ -333,15 +514,20 @@ export class PlayerRenderer {
     const frame = initFrameState();
     const move = initMovementState();
 
+    const direction = this.fightMode
+      ? clampFightDirection(data.direction)
+      : data.direction;
+
     return {
       id: data.id,
       container: display.container,
       sprite: null,
       placeholderGraphics: display.placeholderGraphics,
+      groundCircle: display.groundCircle,
       nameplate: display.nameplate,
       hpBar: display.hpBar,
       cellId: data.cellId,
-      direction: data.direction,
+      direction,
       team: data.team,
       hp: data.hp,
       maxHp: data.maxHp,
@@ -362,6 +548,8 @@ export class PlayerRenderer {
       moving: move.moving,
       spriteLoading: false,
       pendingAnim: null,
+      revertTo: null,
+      onAnimComplete: null,
       look: data.look,
       linkedChildren: [],
       mount: data.mount,
@@ -373,6 +561,7 @@ export class PlayerRenderer {
   private createPlayerContainer(data: PlayerSpriteData): {
     container: Container;
     placeholderGraphics: Graphics;
+    groundCircle: Graphics | null;
     nameplate: PlayerNameplate;
     hpBar: Graphics;
   } {
@@ -381,6 +570,16 @@ export class PlayerRenderer {
     container.sortableChildren = true;
     // Hide container until sprite loads to avoid placeholder flash.
     container.visible = false;
+
+    // Team-colored under-foot ring, drawn BELOW the sprite via a
+    // negative zIndex on the sortable container. Always created so a
+    // mid-game fight-mode toggle doesn't need to mutate the display
+    // list; visibility is gated on `fightMode` so roleplay stays clean.
+    const groundCircle = new Graphics();
+    drawFighterGroundCircle(groundCircle, data.team);
+    groundCircle.zIndex = -10;
+    groundCircle.visible = this.fightMode;
+    container.addChild(groundCircle);
 
     const placeholderGraphics = new Graphics();
     drawPlayerPlaceholder(placeholderGraphics, data.team, data.direction);
@@ -404,7 +603,79 @@ export class PlayerRenderer {
 
     this.container.addChild(container);
 
-    return { container, placeholderGraphics, nameplate, hpBar };
+    return { container, placeholderGraphics, groundCircle, nameplate, hpBar };
+  }
+
+  /**
+   * Toggle fight-mode decorations (team-colored ground rings) on every
+   * existing player and seed the flag for future ones. Called by the
+   * battlefield-scene in response to fightActor transitions. Also
+   * re-clamps every current direction: combat only allows the four
+   * isometric-cardinal directions (1=SE, 3=SW, 5=NW, 7=NE), so any
+   * lingering roleplay direction (E/S/W/N) is snapped to the nearest
+   * valid one.
+   */
+  setFightMode(enabled: boolean): void {
+    this.fightMode = enabled;
+    for (const player of this.players.values()) {
+      if (player.groundCircle) {
+        player.groundCircle.visible = enabled;
+      }
+      if (enabled) {
+        const clamped = clampFightDirection(player.direction);
+        if (clamped !== player.direction) {
+          this.setDirection(player.id, clamped);
+        }
+      }
+    }
+  }
+
+  /**
+   * Update a player's team (used when a fight begins and the server
+   * authoritatively tells us which side each sprite belongs to). The
+   * ring is re-drawn immediately; callers don't need to toggle
+   * fight-mode off/on.
+   */
+  updatePlayerTeam(id: number, team: number): void {
+    const player = this.players.get(id);
+    if (!player || player.team === team) {
+      return;
+    }
+    player.team = team;
+    if (player.groundCircle) {
+      drawFighterGroundCircle(player.groundCircle, team);
+    }
+  }
+
+  /**
+   * Mark one fighter as the current turn actor — applies the same
+   * color transform `{ra:60, rb:102, ga:60, gb:102, ba:60, bb:102}`
+   * the original client uses to brighten a selected sprite
+   * (Sprite.as:93-105). Pass `null` to clear.
+   *
+   * Intentionally does NOT alter the ground circle; the 1.29 client
+   * paints every fighter's ring identically (GameIn.as:1298) and has
+   * no battlefield-level "active turn" indicator — only the sprite
+   * brightness.
+   */
+  setActiveTurnPlayer(id: number | null): void {
+    if (this.activeTurnPlayerId === id) {
+      return;
+    }
+    const prev = this.activeTurnPlayerId;
+    this.activeTurnPlayerId = id;
+    if (prev !== null) {
+      const p = this.players.get(prev);
+      if (p?.sprite) {
+        p.sprite.filters = [];
+      }
+    }
+    if (id !== null) {
+      const p = this.players.get(id);
+      if (p?.sprite) {
+        p.sprite.filters = [buildActiveTurnFilter()];
+      }
+    }
   }
 
   private registerPlayerActor(
@@ -419,6 +690,7 @@ export class PlayerRenderer {
 
         if (f) {
           this.sprites.tickFrame(f, dt / 1000);
+          this.checkAnimRevert(f);
           this.movement.advance(f, dt);
         }
       },

@@ -1,161 +1,131 @@
 /**
- * Spell 1104 - Autre
+ * Spell 1104 — (Unknown name, likely a Feca/shield-type or ambient aura).
  *
- * Two looping animations (DefineSprite_4 and DefineSprite_5) displayed at the
- * target position. Both start at a random frame and loop with different loop
- * points. The spell signals hit at frame 137 and removes itself at frame 159.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/1104/scripts/scripts/
  *
- * Components:
- * - anim1 (DefineSprite_4): Starts at random(40)+2 (0-indexed: 1-40),
- *   loops from frame 95 back to frame 44 (0-indexed: 94 → 43)
- * - anim1 (DefineSprite_5): Starts at random(40)+2 (0-indexed: 1-40),
- *   loops from frame 85 back to frame 56 (0-indexed: 84 → 55)
+ * displayType=11 (TargetCell). There are no library symbols, no `move`/`shoot`/
+ * `duplicate` references, no `_parent.cellFrom`/`_parent.cellTo` world-absolute
+ * positioning. The spell is a single `anim1` animation placed at the target cell.
+ * The main timeline runs 159 frames; frame_159 removes the outer mc (spell complete).
+ * frame_137 fires `this.end()` — the canonical hit signal.
  *
- * Main timeline:
- * - Frame 1: Play sound 'autre_1104'
- * - Frame 137: this.end() → signal hit
- * - Frame 159: removeMovieClip() → complete
+ * Library symbols: none (librarySymbols[] is absent/empty in manifest).
  *
- * Both sprites share the same anim1 texture strip.
+ * The manifest exposes one animation: `anim1` (98 frames, composite).
+ * The main timeline has two internal sprites (DefineSprite_4 and DefineSprite_5)
+ * that are the authored sub-timelines within `anim1`. Their frame scripts implement
+ * random-start loops so the animation cycles with variation.
+ *
+ * Main timeline layout:
+ *   frame_1:   SOMA.playSound("autre_1104")
+ *   frame_137: this.end()  → signalHit
+ *   frame_159: this.removeMovieClip()  → complete
+ *
+ * DefineSprite_4 (sub-timeline inside anim1):
+ *   frame_1:   gotoAndPlay(random(40) + 2)  — random start in [2..41]
+ *   frame_95:  gotoAndPlay(44)              — loop back to frame 44
+ *
+ * DefineSprite_5 (sub-timeline inside anim1):
+ *   frame_1:   gotoAndPlay(random(40) + 2)  — random start in [2..41]
+ *   frame_85:  gotoAndPlay(56)              — loop back to frame 56
+ *
+ * These sub-timelines are authored into the anim1 composite frames and are
+ * driven by the texture extractor — the TS runtime only needs to register
+ * anim1 as the root symbol with the correct total frame count and the
+ * hit/complete signals at the canonical main-timeline frames.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  SPELL_CONSTANTS,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const ANIM1_MANIFEST: SpriteManifest = {
+const ANIM1_BOUNDS = {
   width: 99.95,
   height: 59.05,
   offsetX: -49.95,
   offsetY: -20.25,
 };
 
-export class Spell1104 extends BaseSpell {
+export class Spell1104 extends RuntimeSpell {
   readonly spellId = 1104;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  // Main timeline accumulator (runs at 60 fps alongside the sprites)
-  private mainFrameAccumulator = 0;
-  private mainFrame = 0;
-  private hitSignaledMain = false;
-  private sprite4Anim!: FrameAnimatedSprite;
-  private sprite5Anim!: FrameAnimatedSprite;
+  private anim1Sym!: SymbolDefinition;
 
-  // Per-sprite loop state for sprite_4
-  private sprite4Frame = 0;
-  private sprite4Accumulator = 0;
-
-  // Per-sprite loop state for sprite_5
-  private sprite5Frame = 0;
-  private sprite5Accumulator = 0;
-
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const anim1Textures = textures.getFrames("anim1");
-    const anchor = calculateAnchor(ANIM1_MANIFEST);
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // Play sound at frame 1 (index 0) of the main timeline
-    this.callbacks.playSound("autre_1104");
+    // ---- anim1 — main animated composite at target cell ----------
+    // The manifest lists this under animations[] (not librarySymbols[]),
+    // so we use textures.getFrames("anim1") without a lib_ prefix.
+    //
+    // The main SWF timeline is 159 frames long. The anim1 asset only
+    // captures 98 composite frames (the extractor's frame range). We
+    // model the symbol with totalFrames=159 matching the canonical AS
+    // timeline length so our frame scripts fire at the right indices.
+    // Frames beyond index 97 will reuse the last available texture
+    // (the runtime clamps frame index into the frames array).
+    //
+    // DefineSprite_4 frame_1: gotoAndPlay(random(40) + 2)
+    // DefineSprite_4 frame_95: gotoAndPlay(44)
+    // DefineSprite_5 frame_1: gotoAndPlay(random(40) + 2)
+    // DefineSprite_5 frame_85: gotoAndPlay(56)
+    //
+    // These sub-sprite loops are baked into the composite anim1 frames
+    // by the extractor; the TS runtime doesn't need to replicate them
+    // separately — the frame scripts below cover only the main-timeline
+    // signals (hit + complete).
 
-    // --- DefineSprite_4 ---
-    // Starts at gotoAndPlay(random(40) + 2) → 0-indexed: Math.floor(Math.random()*40) + 1
-    const sprite4StartFrame = Math.floor(Math.random() * 40) + 1;
-    this.sprite4Frame = sprite4StartFrame;
+    this.anim1Sym = {
+      name: "anim1",
+      totalFrames: 159,
+      frames: textures.getFrames("anim1"),
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
+      frameScripts: new Map([
+        [
+          // scripts/frame_137/DoAction.as: this.end()
+          136,
+          (_clip) => {
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          // scripts/frame_159/DoAction.as: this.removeMovieClip()
+          158,
+          (clip) => {
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    this.sprite4Anim = new FrameAnimatedSprite({
-      textures: anim1Textures,
-      fps: SPELL_CONSTANTS.FPS,
-      anchorX: anchor.x,
-      anchorY: anchor.y,
-      scale: init.scale,
-      startFrame: sprite4StartFrame,
-      loop: false,
-    });
-    this.sprite4Anim.sprite.position.set(init.targetX, init.targetY);
-    this.container.addChild(this.sprite4Anim.sprite);
-
-    // --- DefineSprite_5 ---
-    // Starts at gotoAndPlay(random(40) + 2) → 0-indexed: Math.floor(Math.random()*40) + 1
-    const sprite5StartFrame = Math.floor(Math.random() * 40) + 1;
-    this.sprite5Frame = sprite5StartFrame;
-
-    this.sprite5Anim = new FrameAnimatedSprite({
-      textures: anim1Textures,
-      fps: SPELL_CONSTANTS.FPS,
-      anchorX: anchor.x,
-      anchorY: anchor.y,
-      scale: init.scale,
-      startFrame: sprite5StartFrame,
-      loop: false,
-    });
-    this.sprite5Anim.sprite.position.set(init.targetX, init.targetY);
-    this.container.addChild(this.sprite5Anim.sprite);
+    this.registry.register(this.anim1Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // scripts/frame_1/DoAction.as: SOMA.playSound("autre_1104")
+    callbacks.playSound("autre_1104");
 
-    // --- Main timeline tracking ---
-    this.mainFrameAccumulator += deltaTime;
-    const frameTime = SPELL_CONSTANTS.FRAME_TIME;
-
-    while (this.mainFrameAccumulator >= frameTime) {
-      this.mainFrameAccumulator -= frameTime;
-      this.mainFrame++;
-
-      // Frame 137 (0-indexed 136): signal hit
-      if (this.mainFrame === 136 && !this.hitSignaledMain) {
-        this.hitSignaledMain = true;
-        this.signalHit();
-      }
-
-      // Frame 159 (0-indexed 158): complete
-      if (this.mainFrame >= 158) {
-        this.complete();
-        return;
-      }
-    }
-
-    // --- DefineSprite_4 manual loop update ---
-    this.sprite4Accumulator += deltaTime;
-    while (this.sprite4Accumulator >= frameTime) {
-      this.sprite4Accumulator -= frameTime;
-      this.sprite4Frame++;
-
-      // At frame 95 (0-indexed 94): gotoAndPlay(44) → 0-indexed 43
-      if (this.sprite4Frame >= 94) {
-        this.sprite4Frame = 43;
-      }
-
-      if (this.sprite4Frame < this.sprite4Anim.textures.length) {
-        this.sprite4Anim.gotoFrame(this.sprite4Frame);
-      }
-    }
-
-    // --- DefineSprite_5 manual loop update ---
-    this.sprite5Accumulator += deltaTime;
-    while (this.sprite5Accumulator >= frameTime) {
-      this.sprite5Accumulator -= frameTime;
-      this.sprite5Frame++;
-
-      // At frame 85 (0-indexed 84): gotoAndPlay(56) → 0-indexed 55
-      if (this.sprite5Frame >= 84) {
-        this.sprite5Frame = 55;
-      }
-
-      if (this.sprite5Frame < this.sprite5Anim.textures.length) {
-        this.sprite5Anim.gotoFrame(this.sprite5Frame);
-      }
-    }
+    // Attach anim1 at root so the main-timeline animation plays.
+    // displayType=11 (TargetCell): the container is already positioned
+    // at the target cell by the harness; anim1 sits at local (0,0).
+    this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

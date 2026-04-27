@@ -70,12 +70,17 @@ async function main() {
       };
     }
 
-    // Merge spell-specific data under `spell` key
+    // Merge spell-specific data under `spell` key.
+    // Force requiresTypeScript: true so EVERY spell loads a bespoke
+    // TypeScript class instead of falling back to the generic
+    // PreRenderedSpell stepper. Manifest-driven fallback was too lossy
+    // — particle systems, multi-stage timing, and library symbol
+    // composition all need code, not data.
     generated.spell = {
       id: original.id,
       fps: original.fps,
       mainTimelineScale: original.mainTimelineScale ?? 1,
-      requiresTypeScript: original.requiresTypeScript ?? false,
+      requiresTypeScript: true,
       sounds: original.sounds ?? [],
       librarySymbols: original.librarySymbols ?? [],
       animationMeta,

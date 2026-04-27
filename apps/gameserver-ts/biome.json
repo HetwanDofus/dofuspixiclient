@@ -1,0 +1,23 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.2.5/schema.json",
+  "extends": "//",
+  "linter": {
+    "rules": {
+      "style": {
+        "useImportType": "off"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["kysely.config.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDefaultExport": "off"
+          }
+        }
+      }
+    }
+  ]
+}

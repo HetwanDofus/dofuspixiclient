@@ -4,7 +4,9 @@ import type { CharacterSpriteLoader } from "@/game/assets/character-sprite";
 import type { CellData } from "@/game/datacenter/cell";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { RendererRegistry } from "@/game/render/renderer-registry";
+import type { SpellVelloRenderer } from "@/game/render/spell-vello-renderer";
 import type { Scene } from "@/game/scene/scene";
+import { Z_FIGHT_CONTAINER } from "@/game/constants/z-index";
 import {
   type DamageDisplayConfig,
   DamageRenderer,
@@ -40,7 +42,16 @@ export class FightUI {
     private rendererRegistry: RendererRegistry,
     private currentMapData: { width: number; height: number } | null,
     private spriteLoader: CharacterSpriteLoader,
-    private scene: Scene
+    private scene: Scene,
+    /**
+     * Container where spell FX attach directly (one per cast). This is
+     * the battlefield's objectLayer2 — the same container that holds
+     * fighters and object2 tiles — so Pixi's sortable-children puts
+     * each spell at `targetCell*100+50` and gets occluded by any
+     * sprite at a higher per-cell zIndex, matching the original.
+     */
+    private objectLayer2: Container | null,
+    private spellVelloRenderer: SpellVelloRenderer | null
   ) {}
 
   /**
@@ -55,23 +66,37 @@ export class FightUI {
       return;
     }
 
-    // Create fight container for all fight-related rendering
+    // Create fight container for damage text + spell fx. These DO sit
+    // above world actors (sprite hits / crit bursts need to be visible
+    // over fighters), so the container gets a zIndex higher than
+    // objectLayer2. Cell highlights are NOT in this container — they
+    // live directly in mapContainer at a lower zIndex so fighters
+    // draw over the placement / reachable tints, matching the
+    // original's Zone-below-Object2 layering.
     this.fightContainer = new Container();
     this.fightContainer.label = "fight-container";
     this.fightContainer.sortableChildren = true;
+    this.fightContainer.zIndex = Z_FIGHT_CONTAINER;
     this.mapContainer.addChild(this.fightContainer);
 
     // Initialize fight renderers
     const mapWidth = this.currentMapData?.width ?? 15;
     const groundLevel = 7;
 
-    this.cellHighlighter = new CellHighlighter(this.fightContainer, {
+    // Highlighter goes directly in mapContainer — its own zIndex
+    // (Z_CELL_HIGHLIGHTER) slots it between Object1 and Object2 just
+    // like the original client's Zone layer.
+    this.cellHighlighter = new CellHighlighter(this.mapContainer, {
       mapWidth,
       groundLevel,
       cellDataMap: this.cellDataMap,
     });
     this.scene.add(this.cellHighlighter);
 
+    // This PlayerRenderer is kept for API compatibility but holds no
+    // players — fighters in this codebase live in the world-actors
+    // PlayerRenderer inside objectLayer2 (same renderer for roleplay
+    // + combat). Team rings there are toggled via setFightMode().
     this.playerRenderer = new PlayerRenderer(this.fightContainer, {
       mapWidth,
       groundLevel,
@@ -87,10 +112,17 @@ export class FightUI {
       cellDataMap: this.cellDataMap,
     });
 
-    this.spellRenderer = new SpellRenderer(this.fightContainer, this.scene, {
+    // Spell FX attach directly to objectLayer2 (falls back to fight
+    // container if the map hasn't built its object layer yet, which
+    // only happens in unit tests). The Vello renderer is injected so
+    // each spell class can rasterize its frames through the shared
+    // GPU pipeline.
+    const spellParent = this.objectLayer2 ?? this.fightContainer;
+    this.spellRenderer = new SpellRenderer(spellParent, this.scene, {
       mapWidth,
       groundLevel,
       cellDataMap: this.cellDataMap,
+      velloRenderer: this.spellVelloRenderer,
     });
 
     // Register fight renderers
@@ -279,16 +311,18 @@ export class FightUI {
   }
 
   /**
-   * Show placement cells.
+   * Show placement cells. Takes team0 / team1 rather than ally / enemy
+   * because the original paints cells by team number, not by the local
+   * player's perspective — red for team 0, blue for team 1, always.
    */
-  showPlacementCells(allyCells: number[], enemyCells: number[]): void {
+  showPlacementCells(team0Cells: number[], team1Cells: number[]): void {
     this.cellHighlighter?.highlightCells(
-      allyCells,
-      HighlightType.PLACEMENT_ALLY
+      team0Cells,
+      HighlightType.PLACEMENT_TEAM_0
     );
     this.cellHighlighter?.highlightCells(
-      enemyCells,
-      HighlightType.PLACEMENT_ENEMY
+      team1Cells,
+      HighlightType.PLACEMENT_TEAM_1
     );
   }
 
@@ -296,8 +330,8 @@ export class FightUI {
    * Clear placement highlights.
    */
   clearPlacementHighlights(): void {
-    this.cellHighlighter?.clearHighlightType(HighlightType.PLACEMENT_ALLY);
-    this.cellHighlighter?.clearHighlightType(HighlightType.PLACEMENT_ENEMY);
+    this.cellHighlighter?.clearHighlightType(HighlightType.PLACEMENT_TEAM_0);
+    this.cellHighlighter?.clearHighlightType(HighlightType.PLACEMENT_TEAM_1);
   }
 
   // ============================================================================

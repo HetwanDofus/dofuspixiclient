@@ -1,0 +1,2929 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "E": {
+            "4": {
+                "d": "Teletrasporta a una distanza di #1 caselle al massimo",
+                "c": 89,
+                "p": -100,
+                "o": ""
+            },
+            "5": {
+                "d": "Fa indietreggiare di #1 casella/e",
+                "c": 92,
+                "p": -100,
+                "o": ""
+            },
+            "6": {
+                "d": "Fa avanzare di #1 casella/e",
+                "c": 91,
+                "p": -100,
+                "o": ""
+            },
+            "7": {
+                "d": "Divorziare la coppia",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "8": {
+                "d": "Scambia i posti di due giocatori",
+                "c": 90,
+                "p": -100,
+                "o": ""
+            },
+            "9": {
+                "d": "Evita #1% dei colpi indietreggiando #2 casella/e",
+                "c": 92,
+                "p": -100,
+                "o": ""
+            },
+            "10": {
+                "d": "Permette di usare l'emoticon #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "13": {
+                "d": "Cambia il tempo di gioco di un giocatore",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "50": {
+                "d": "Sollevare un giocatore",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "51": {
+                "d": "Lanciare un giocatore",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "77": {
+                "d": "Ruba #1{~1~2 a }#2 PM",
+                "c": 28,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "78": {
+                "d": "Aggiunge +#1{~1~2 a }#2 PM",
+                "c": 0,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "79": {
+                "d": "#3% danni subiti x#1, ma curato di x#2",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "81": {
+                "d": "PV restituiti: #1{~1~2 a }#2",
+                "c": 82,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "82": {
+                "d": "Ruba #1{~1~2 a }#2 PV (fisso)",
+                "c": 11,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "84": {
+                "d": "Ruba #1{~1~2 a }#2 PA",
+                "c": 1,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "85": {
+                "d": "Danni: #1{~1~2 a }#2% della vita dell'attaccante (acqua)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true,
+                "e": "W"
+            },
+            "86": {
+                "d": "Danni: #1{~1~2 a }#2% della vita dell'attaccante (terra)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true,
+                "e": "E"
+            },
+            "87": {
+                "d": "Danni: #1{~1~2 a }#2% della vita dell'attaccante (aria)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true,
+                "e": "A"
+            },
+            "88": {
+                "d": "Danni: #1{~1~2 a }#2% della vita dell'attaccante (fuoco)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true,
+                "e": "F"
+            },
+            "89": {
+                "d": "Danni: #1{~1~2 a }#2% della vita dell'attaccante (neutro)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true,
+                "e": "N"
+            },
+            "90": {
+                "d": "Dà #1{~1~2 a }#2 % della sua vita",
+                "c": 11,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "91": {
+                "d": "Ruba #1{~1~2 a }#2 PV (acqua)",
+                "c": 0,
+                "p": 994,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "W"
+            },
+            "92": {
+                "d": "Ruba #1{~1~2 a }#2 PV (terra)",
+                "c": 0,
+                "p": 992,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "E"
+            },
+            "93": {
+                "d": "Ruba #1{~1~2 a }#2 PV (aria)",
+                "c": 0,
+                "p": 991,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "A"
+            },
+            "94": {
+                "d": "Ruba #1{~1~2 a }#2 PV (fuoco)",
+                "c": 0,
+                "p": 993,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "F"
+            },
+            "95": {
+                "d": "Ruba #1{~1~2 a }#2 PV (neutro)",
+                "c": 0,
+                "p": 995,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "N"
+            },
+            "96": {
+                "d": "Danni: #1{~1~2 a }#2 (acqua)",
+                "c": 0,
+                "p": 999,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "W"
+            },
+            "97": {
+                "d": "Danni: #1{~1~2 a }#2 (terra)",
+                "c": 0,
+                "p": 997,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "E"
+            },
+            "98": {
+                "d": "Danni: #1{~1~2 a }#2 (aria)",
+                "c": 0,
+                "p": 996,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "A"
+            },
+            "99": {
+                "d": "Danni: #1{~1~2 a }#2 (fuoco)",
+                "c": 0,
+                "p": 998,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "F"
+            },
+            "100": {
+                "d": "Danni: #1{~1~2 a }#2 (neutro)",
+                "c": 0,
+                "p": 1000,
+                "o": "",
+                "t": true,
+                "j": true,
+                "e": "N"
+            },
+            "101": {
+                "d": "PA persi per il bersaglio: #1{~1~2 a }#2",
+                "c": 1,
+                "p": 989,
+                "o": "/",
+                "t": true,
+                "j": true
+            },
+            "105": {
+                "d": "Danni ridotti di  #1{~1~2 a }#2",
+                "c": 6,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "106": {
+                "d": "Rinvia un incantesimo di livello #2 al massimo",
+                "c": 30,
+                "p": -100,
+                "o": ""
+            },
+            "107": {
+                "d": "Danni ripercossi: #1{~1~2 a }#2",
+                "c": 31,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "108": {
+                "d": "PV restituiti: #1{~1~2 a }#2",
+                "c": 82,
+                "p": 990,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "109": {
+                "d": "Danni per il lanciatore: #1{~1~2 a }#2",
+                "c": 0,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "110": {
+                "d": "+#1{~1~2 a }#2 di vita",
+                "c": 82,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "111": {
+                "d": "+#1{~1~2 a }#2 PA",
+                "c": 1,
+                "p": 101,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "112": {
+                "d": "+#1{~1~2 a }#2 di danni",
+                "c": 80,
+                "p": 88,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "113": {
+                "d": "Raddoppia i danni o ripercuote #1{~1~2 a }#2 PV",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "114": {
+                "d": "Moltiplica i danni di #1",
+                "c": 17,
+                "p": -100,
+                "o": "+"
+            },
+            "115": {
+                "d": "+#1{~1~2 a }#2 ai colpi critici",
+                "c": 18,
+                "p": 87,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "116": {
+                "d": "-#1{~1~2 a -}#2 di portata",
+                "c": 19,
+                "p": 99,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "117": {
+                "d": "+#1{~1~2 a }#2 di portata",
+                "c": 19,
+                "p": 99,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "118": {
+                "d": "+#1{~1~2 a }#2 di forza",
+                "c": 10,
+                "p": 93,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "119": {
+                "d": "+#1{~1~2 a }#2 di agilità",
+                "c": 14,
+                "p": 92,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "120": {
+                "d": "Aggiunge +#1{~1~2 a }#2 PA",
+                "c": 1,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "121": {
+                "d": "+#1{~1~2 a }#2 di danni",
+                "c": 80,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "122": {
+                "d": "+#1{~1~2 a }#2 ai fiaschi critici",
+                "c": 39,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "123": {
+                "d": "+#1{~1~2 a }#2 di fortuna",
+                "c": 13,
+                "p": 95,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "124": {
+                "d": "+#1{~1~2 a }#2 di saggezza",
+                "c": 12,
+                "p": 90,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "125": {
+                "d": "+#1{~1~2 a }#2 di vitalità",
+                "c": 11,
+                "p": 96,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "126": {
+                "d": "+#1{~1~2 a }#2 di intelligenza",
+                "c": 15,
+                "p": 94,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "127": {
+                "d": "PM persi: #1{~1~2 a }#2",
+                "c": 23,
+                "p": 100,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "128": {
+                "d": "+#1{~1~2 a }#2 PM",
+                "c": 23,
+                "p": 100,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "130": {
+                "d": "Ruba  #1{~1~2 a }#2 di oro",
+                "c": 2,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "131": {
+                "d": "#1 PA utilizzati fanno perdere #2 PV",
+                "c": 0,
+                "p": -100,
+                "o": "-"
+            },
+            "132": {
+                "d": "Elimina i sortilegi",
+                "c": -1,
+                "p": -100,
+                "o": ""
+            },
+            "133": {
+                "d": "PA persi per il lanciatore: #1{~1~2 a }#2",
+                "c": 1,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "134": {
+                "d": "PM persi per il lanciatore: #1{~1~2 a }#2",
+                "c": 23,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "135": {
+                "d": "Portata del lanciatore ridotta di: #1{~1~2 a }#2",
+                "c": 19,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "136": {
+                "d": "Portata del lanciatore aumentata di: #1{~1~2 a }#2",
+                "c": 19,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "137": {
+                "d": "Danni fisici del lanciatore aumentati di: #1{~1~2 a }#2",
+                "c": 79,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "138": {
+                "d": "Aumenta i danni di #1{~1~2 a }#2%",
+                "c": 17,
+                "p": 91,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "139": {
+                "d": "Restituisce #1{~1~2 a }#2 punti energia",
+                "c": 29,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "140": {
+                "d": "Fa saltare il turno",
+                "c": -1,
+                "p": -100,
+                "o": ""
+            },
+            "141": {
+                "d": "Uccide il bersaglio",
+                "c": 102,
+                "p": -100,
+                "o": ""
+            },
+            "142": {
+                "d": "+#1{~1~2 a }#2 ai danni fisici",
+                "c": 79,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "143": {
+                "d": "PV restituiti: #1{~1~2 a }#2",
+                "c": 82,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "144": {
+                "d": "Danni: #1{~1~2 a }#2 (non spinti)",
+                "c": 11,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "145": {
+                "d": "-#1{~1~2 a }#2 ai danni",
+                "c": 80,
+                "p": 88,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "146": {
+                "d": "Cambia le parole",
+                "c": 38,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "147": {
+                "d": "Resuscita un alleato",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "148": {
+                "d": "Qualcuno ti insegue!",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "149": {
+                "d": "Cambia l'aspetto",
+                "c": 38,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "150": {
+                "d": "Rende il personaggio invisibile",
+                "c": 24,
+                "p": -100,
+                "o": "+"
+            },
+            "152": {
+                "d": "-#1{~1~2 a -}#2 di fortuna",
+                "c": 13,
+                "p": 95,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "153": {
+                "d": "-#1{~1~2 a -}#2 di vitalità",
+                "c": 11,
+                "p": 96,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "154": {
+                "d": "-#1{~1~2 a -}#2 di agilità",
+                "c": 14,
+                "p": 92,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "155": {
+                "d": "-#1{~1~2 a -}#2 di intelligenza",
+                "c": 15,
+                "p": 94,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "156": {
+                "d": "-#1{~1~2 a -}#2 di saggezza",
+                "c": 12,
+                "p": 90,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "157": {
+                "d": "-#1{~1~2 a -}#2 di forza",
+                "c": 10,
+                "p": 93,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "158": {
+                "d": "Aumenta la capacità trasportabile #1{~1~2 a }#2 pods",
+                "c": 96,
+                "p": 97,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "159": {
+                "d": "Riduce la capacità trasportabile di #1{~1~2 a }#2 pods",
+                "c": 96,
+                "p": 97,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "160": {
+                "d": "+#1{~1~2 a }#2% di possibilità di evitare le perdite di PA",
+                "c": 27,
+                "p": 0,
+                "o": "+",
+                "j": true
+            },
+            "161": {
+                "d": "+#1{~1~2 a }#2% di possibilità di evitare le perdite di PM",
+                "c": 28,
+                "p": 0,
+                "o": "+",
+                "j": true
+            },
+            "162": {
+                "d": "-#1{~1~2 a }#2% di possibilità di evitare le perdite di PA",
+                "c": 27,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "163": {
+                "d": "-#1{~1~2 a }#2% di possibilità di evitare le perdite di PM",
+                "c": 28,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "164": {
+                "d": "Danni ridotti di #1%",
+                "c": 6,
+                "p": -100,
+                "o": "+"
+            },
+            "165": {
+                "d": "Aumenta i danni (#1) di #2%",
+                "c": 16,
+                "p": -100,
+                "o": "+"
+            },
+            "166": {
+                "d": "PA rinviati: #1{~1~2 a }#2",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "168": {
+                "d": "-#1{~1~2 a -}#2 PA",
+                "c": 1,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "169": {
+                "d": "-#1{~1~2 a -}#2 PM",
+                "c": 23,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "171": {
+                "d": "-#1{~1~2 a }#2 ai colpi critici",
+                "c": 18,
+                "p": 87,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "172": {
+                "d": "Riduzione magica diminuita di #1{~1~2 a }#2",
+                "c": 20,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "173": {
+                "d": "Riduzione fisica diminuita di #1{~1~2 a }#2",
+                "c": 79,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "174": {
+                "d": "+#1{~1~2 a }#2 di iniziativa",
+                "c": 44,
+                "p": 98,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "175": {
+                "d": "-#1{~1~2 a }#2 di iniziativa",
+                "c": 44,
+                "p": 98,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "176": {
+                "d": "+#1{~1~2 a }#2 di prospezione",
+                "c": 48,
+                "p": 89,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "177": {
+                "d": "-#1{~1~2 a }#2 di prospezione",
+                "c": 48,
+                "p": 89,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "178": {
+                "d": "+#1{~1~2 a }#2 di cure",
+                "c": 49,
+                "p": 81,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "179": {
+                "d": "-#1{~1~2 a }#2 di cure",
+                "c": 49,
+                "p": 81,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "180": {
+                "d": "Crea un doppio del lanciatore dell'incantesimo",
+                "c": 97,
+                "p": -100,
+                "o": ""
+            },
+            "181": {
+                "d": "Invoca una creatura",
+                "c": 97,
+                "p": -100,
+                "o": ""
+            },
+            "182": {
+                "d": "+#1{~1~2 a }#2 creature invocabili",
+                "c": 26,
+                "p": 80,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "183": {
+                "d": "Riduzione magica di #1{~1~2 a }#2",
+                "c": 6,
+                "p": 0,
+                "o": "/",
+                "t": true,
+                "j": true
+            },
+            "184": {
+                "d": "Riduzione fisica di #1{~1~2 a }#2",
+                "c": 6,
+                "p": 0,
+                "o": "/",
+                "t": true,
+                "j": true
+            },
+            "185": {
+                "d": "Invoca una creatura statica",
+                "c": 98,
+                "p": -100,
+                "o": ""
+            },
+            "186": {
+                "d": "Diminuisce i danni di #1{~1~2 a }#2%",
+                "c": 17,
+                "p": 91,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "188": {
+                "d": "Cambiare schieramento",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "194": {
+                "d": "Vincere #1{~1~2 a }#2 kama",
+                "c": 2,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "197": {
+                "d": "Trasforma in #1",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "201": {
+                "d": "Posa a terra un Oggetto",
+                "c": -1,
+                "p": -100,
+                "o": ""
+            },
+            "202": {
+                "d": "Mostra tutti gli oggetti invisibili",
+                "c": -1,
+                "p": -100,
+                "o": ""
+            },
+            "206": {
+                "d": "Resuscita il Bersaglio",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "210": {
+                "d": "#1{~1~2 a }#2 % di resistenza alla terra",
+                "c": 33,
+                "p": 83,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "211": {
+                "d": "#1{~1~2 a }#2 % di resistenza all'acqua",
+                "c": 35,
+                "p": 85,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "212": {
+                "d": "#1{~1~2 a }#2 % di resistenza all'aria",
+                "c": 36,
+                "p": 82,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "213": {
+                "d": "#1{~1~2 a }#2 % di resistenza al fuoco",
+                "c": 34,
+                "p": 84,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "214": {
+                "d": "#1{~1~2 a }#2 % di resistenza neutro",
+                "c": 37,
+                "p": 86,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "215": {
+                "d": "#1{~1~2 a }#2 % di debolezza contro la terra",
+                "c": 33,
+                "p": 83,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "216": {
+                "d": "#1{~1~2 a }#2 % di debolezza contro l'acqua",
+                "c": 35,
+                "p": 85,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "217": {
+                "d": "#1{~1~2 a }#2 % di debolezza contro l'aria",
+                "c": 36,
+                "p": 82,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "218": {
+                "d": "#1{~1~2 a }#2 % di debolezza contro il fuoco",
+                "c": 34,
+                "p": 84,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "219": {
+                "d": "#1{~1~2 a }#2 % di debolezza neutro",
+                "c": 37,
+                "p": 86,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "220": {
+                "d": "Rinvia #1{~1~2 a }#2 danni",
+                "c": 50,
+                "p": 74,
+                "o": "+",
+                "t": true
+            },
+            "221": {
+                "d": "Cosa c'è là dentro?",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "222": {
+                "d": "Cosa c'è là dentro?",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "225": {
+                "d": "+#1{~1~2 a }#2 di danni alle trappole",
+                "c": 70,
+                "p": 73,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "226": {
+                "d": "+#1{~1~2 a }#2% di danni alle trappole",
+                "c": 69,
+                "p": 72,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "229": {
+                "d": "Recupera una Cavalcatura!",
+                "c": 81,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "230": {
+                "d": "+#1 di energia persa",
+                "c": 51,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "239": {
+                "d": "Trasforma in #1",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "240": {
+                "d": "+#1{~1~2 a }#2 di resistenza alla terra",
+                "c": 83,
+                "p": 76,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "241": {
+                "d": "+#1{~1~2 a }#2 di resistenza all'acqua",
+                "c": 85,
+                "p": 78,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "242": {
+                "d": "+#1{~1~2 a }#2 di resistenza all'aria",
+                "c": 86,
+                "p": 75,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "243": {
+                "d": "+#1{~1~2 a }#2 di resistenza al fuoco",
+                "c": 84,
+                "p": 77,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "244": {
+                "d": "+#1{~1~2 a }#2 di resistenza neutro",
+                "c": 87,
+                "p": 79,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "245": {
+                "d": "-#1{~1~2 a }#2 di resistenza alla terra",
+                "c": 83,
+                "p": 76,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "246": {
+                "d": "-#1{~1~2 a }#2 di resistenza all'acqua",
+                "c": 85,
+                "p": 78,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "247": {
+                "d": "-#1{~1~2 a }#2 di resistenza all'aria",
+                "c": 86,
+                "p": 75,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "248": {
+                "d": "-#1{~1~2 a }#2 di resistenza al fuoco",
+                "c": 84,
+                "p": 77,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "249": {
+                "d": "-#1{~1~2 a }#2 di resistenza neutro",
+                "c": 87,
+                "p": 79,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "250": {
+                "d": "#1{~1~2 a }#2 % di res. terra contro i combattenti",
+                "c": 33,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "251": {
+                "d": "#1{~1~2 a }#2 % di res. acqua contro i combattenti",
+                "c": 35,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "252": {
+                "d": "#1{~1~2 a }#2 % di res. aria contro i combattenti",
+                "c": 36,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "253": {
+                "d": "#1{~1~2 a }#2 % di res. fuoco contro i combattenti",
+                "c": 34,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "254": {
+                "d": "#1{~1~2 a }#2 % di res. neutro contro i combattenti",
+                "c": 37,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "255": {
+                "d": "#1{~1~2 a }#2 % di debolezza terra contro i combattenti",
+                "c": 33,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "256": {
+                "d": "#1{~1~2 a }#2 % di debolezza acqua contro i combattenti",
+                "c": 35,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "257": {
+                "d": "#1{~1~2 a }#2 % di debolezza aria contro i combattenti",
+                "c": 36,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "258": {
+                "d": "#1{~1~2 a }#2 % di debolezza fuoco contro i combattenti",
+                "c": 34,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "259": {
+                "d": "#1{~1~2 a }#2 % di debolezza neutro ai combattenti",
+                "c": 37,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "260": {
+                "d": "+#1{~1~2 a }#2 di res. terra contro i combattenti",
+                "c": 83,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "261": {
+                "d": "+#1{~1~2 a }#2 di res. acqua contro i combattenti",
+                "c": 85,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "262": {
+                "d": "+#1{~1~2 a }#2 di res. aria contro i combattenti",
+                "c": 86,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "263": {
+                "d": "+#1{~1~2 a }#2 di res fuoco cotro i combattenti",
+                "c": 84,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "264": {
+                "d": "+#1{~1~2 a }#2 di res. neutro contro i combattenti",
+                "c": 87,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "265": {
+                "d": "Danni ridotti di  #1{~1~2 a }#2",
+                "c": 6,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "266": {
+                "d": "#1{~1~2 à -}#2 vool di fortuna",
+                "c": 13,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "267": {
+                "d": "#1{~1~2 à -}#2 volo di vitalità",
+                "c": 11,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "268": {
+                "d": "#1{~1~2 à -}#2 volo d'agilità",
+                "c": 14,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "269": {
+                "d": "#1{~1~2 à -}#2 volo d'intelligenza",
+                "c": 15,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "270": {
+                "d": "#1{~1~2 à -}#2 volo di saggezza",
+                "c": 12,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "271": {
+                "d": "#1{~1~2 à -}#2 volo di forza",
+                "c": 10,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "275": {
+                "d": "Danni: #1{~1~2 a }#2% della vita mancante dell'attaccante (acqua)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "276": {
+                "d": "Danni: #1{~1~2 a }#2% della vita mancante dell'attaccante (terra)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "277": {
+                "d": "Danni: #1{~1~2 a }#2% della vita mancante dell'attaccante (aria)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "278": {
+                "d": "Danni: #1{~1~2 a }#2% della vita mancante dell'attaccante (fuoco)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "279": {
+                "d": "Danni: #1{~1~2 a }#2% della vita mancante dell'attaccante (neutro)",
+                "c": 0,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "281": {
+                "d": "Aumenta la portata dell'incantesimo #1 di #3",
+                "c": 19,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "282": {
+                "d": "Rende modificabile la portata dell'incantesimo #1",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "283": {
+                "d": "+#3 di danni sull'incantesimo #1",
+                "c": 80,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "284": {
+                "d": "+#3 di cure sull'incantesimo #1",
+                "c": 49,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "285": {
+                "d": "Diminuisce di #3 il costo di PA dell'Incantesimo #1",
+                "c": 1,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "286": {
+                "d": "Diminuisce di #3 turni l'attesa per il rilancio dell'incantesimo #1",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "287": {
+                "d": "+#3 ai CC sull'incantesimo #1",
+                "c": 18,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "288": {
+                "d": "Disattiva il lancio in linea dell'incantesimo #1",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "289": {
+                "d": "Disattiva la linea di vista dell'incantesimo #1",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "290": {
+                "d": "Aumenta di #3 il numero di lanci massimi per turno dell'incantesimo #1",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "291": {
+                "d": "Aumenta di #3 il numero di lanci massimi per bersaglio dell'incantesimo #1",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "292": {
+                "d": "Fissa a #3 turni l'attesa per il rilancio dell'incantesimo #1",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "293": {
+                "d": "Aumenta i danni di base dell'incantesimo #1 di #3",
+                "c": 0,
+                "p": -100,
+                "o": "+"
+            },
+            "294": {
+                "d": "Diminuisce la portata dell'incantesimo #1 di #3",
+                "c": 19,
+                "p": -100,
+                "o": "-"
+            },
+            "300": {
+                "d": "Casts the #3 spell",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "310": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "320": {
+                "d": "Ruba #1{~1~2 a }#2 PO",
+                "c": 19,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "333": {
+                "d": "Cambia un colore",
+                "c": 38,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "335": {
+                "d": "Cambia l'aspetto",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "400": {
+                "d": "Mette una trappola di grandezza #2",
+                "c": 70,
+                "p": -100,
+                "o": ""
+            },
+            "401": {
+                "d": "Mette un glifo di grandezza #2",
+                "c": -1,
+                "p": -100,
+                "o": ""
+            },
+            "402": {
+                "d": "Mette un glifo di grandezza #2",
+                "c": -1,
+                "p": -100,
+                "o": ""
+            },
+            "405": {
+                "d": "Uccide e sostituisce con un'invocazione",
+                "c": 97,
+                "p": -100,
+                "o": ""
+            },
+            "406": {
+                "d": "[wip]Enlève les effets du sort %1",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "448": {
+                "d": "Efficacia: #3",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "513": {
+                "d": "Posa un Prisma",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "600": {
+                "d": "Teletrasporta fino al punto di salvataggio",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "601": {
+                "d": "Teletrasportarsi: '#1' a (#2, #3)",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "602": {
+                "d": "Registra la sua posizione",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "603": {
+                "d": "Impara il Mestiere #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "604": {
+                "d": "Impara l'Incantesimo #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "605": {
+                "d": "+#1{~1~2 a }#2 punti XP",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "606": {
+                "d": "+#1{~1~2 a }#2 di saggezza",
+                "c": 12,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "607": {
+                "d": "+#1{~1~2 a }#2 di forza",
+                "c": 10,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "608": {
+                "d": "+#1{~1~2 a }#2 di fortuna",
+                "c": 13,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "609": {
+                "d": "+#1{~1~2 a }#2 di agilità",
+                "c": 14,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "610": {
+                "d": "+#1{~1~2 a }#2 di vitalità",
+                "c": 11,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "611": {
+                "d": "+#1{~1~2 a }#2 di intelligenza",
+                "c": 15,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "612": {
+                "d": "+#1{~1~2 a }#2 punti caratteristica",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "613": {
+                "d": "+#1{~1~2 a }#2 punti incantesimo",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "614": {
+                "d": "+ #1 di XP nel mestiere #2",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "615": {
+                "d": "Fa dimenticare il mestiere di #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "616": {
+                "d": "Fa dimenticare un livello dell'incantesimo #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "620": {
+                "d": "Consultare #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "621": {
+                "d": "Invoca: #3 (grado #1)",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "622": {
+                "d": "Teletrasporta a casa",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "623": {
+                "d": "Invoca: #3",
+                "c": -1,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "624": {
+                "d": "Fa dimenticare un livello dell'incantesimo #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "625": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "626": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "627": {
+                "d": "Riproduce la mappa di origine",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "628": {
+                "d": "Invoca: #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "631": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "640": {
+                "d": "Aggiunge #3 punti d'onore",
+                "c": 52,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "641": {
+                "d": "Aggiunge #3 punti di disonore",
+                "c": 53,
+                "p": 0,
+                "o": "-",
+                "t": true
+            },
+            "642": {
+                "d": "Ritira #3 punti d'onore",
+                "c": 52,
+                "p": 0,
+                "o": "-",
+                "t": true
+            },
+            "643": {
+                "d": "Ritira #3 punti di disonore",
+                "c": 53,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "645": {
+                "d": "Resuscita gli alleati presenti sulla cartina.",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "646": {
+                "d": "PDV resi : #1{~1~2 a }#2",
+                "c": 82,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "647": {
+                "d": "Libera le anime dei nemici",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "648": {
+                "d": "Libera un'anima nemica",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "649": {
+                "d": "Far finta di essere #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "654": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": "+"
+            },
+            "666": {
+                "d": "Nessun effetto supplementare",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "669": {
+                "d": "Incarnazione di livello #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "670": {
+                "d": "Danni: #1{~1~2 a }#2% della vite dell'attaccante (neutro)",
+                "c": 93,
+                "p": -100,
+                "o": "",
+                "t": true,
+                "j": true
+            },
+            "671": {
+                "d": "Danni: #1{~1~2 a }#2% della vite dell'attaccante (neutro)",
+                "c": 93,
+                "p": -100,
+                "o": "",
+                "t": true,
+                "j": true
+            },
+            "672": {
+                "d": "Danni: #1{~1~2 a }#2% della vita dell'attaccante (neutro)",
+                "c": 93,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "699": {
+                "d": "Legare il mestiere: #1",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "700": {
+                "d": "Cambia l'elemento di attacco",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "701": {
+                "d": "Potenza : #1{~1~2 a }#2",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "702": {
+                "d": "+#1{~1~2 a }#2 punti durata",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true,
+                "j": true
+            },
+            "705": {
+                "d": "#1% cattura di anima di potenza #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "706": {
+                "d": "#1% di probabilità di catturare una cavalcatura",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "710": {
+                "d": "Costo supplementare",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "715": {
+                "d": "#1: #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "716": {
+                "d": "#1: #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "717": {
+                "d": "#1: #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "720": {
+                "d": "Numero di vittime: #2",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "722": {
+                "d": "Gives the #3 spell",
+                "c": 0,
+                "p": 986,
+                "o": "",
+                "t": true
+            },
+            "724": {
+                "d": "Visualizza il titolo: «#3»",
+                "c": 0,
+                "p": -10,
+                "o": "",
+                "t": true
+            },
+            "725": {
+                "d": "Rinominare la gilda : #4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "730": {
+                "d": "Teletrasporta fino al Prisma alleato più vicino",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "731": {
+                "d": "Aggredisce automaticamente i giocatori dell'Allineamento nemico",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "740": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "741": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "742": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "750": {
+                "d": "Bonus alle possibilità di cattura: #1{~1~2 a }#2%",
+                "c": 72,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "751": {
+                "d": "Bonus all'xp del dragacchino: #1{~1~2 a }#2%",
+                "c": 73,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "760": {
+                "d": "Scompare spostandosi",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "765": {
+                "d": "Scambia i posti di due giocatori",
+                "c": 90,
+                "p": -100,
+                "o": ""
+            },
+            "770": {
+                "d": "Confusione oraria: #1{~1~2 a }#2 gradi",
+                "c": 74,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "771": {
+                "d": "Confusione oraria: #1{~1~2 a }#2 Pi/2",
+                "c": 74,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "772": {
+                "d": "Confusione oraria: #1{~1~2 a }#2 Pi/4",
+                "c": 74,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "773": {
+                "d": "Confusione contro orario: #1{~1~2 a }#2 gradi",
+                "c": 74,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "774": {
+                "d": "Confusione contro orario: #1{~1~2 a }#2 Pi/2",
+                "c": 74,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "775": {
+                "d": "Confusione contro orario: #1{~1~2 a }#2 Pi/4",
+                "c": 74,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "776": {
+                "d": "+#1{~1~2 à }#2% di danni subiti permanenti",
+                "c": 75,
+                "p": -100,
+                "o": "-",
+                "j": true
+            },
+            "780": {
+                "d": "Invoca l'ultimo alleato morto con #1{~1~2 a }#2 % dei suoi PDV",
+                "c": 0,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "781": {
+                "d": "Minimizza gli effetti aleatori",
+                "c": 0,
+                "p": -100,
+                "o": "-"
+            },
+            "782": {
+                "d": "Massimizza gli effetti aleatori",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "783": {
+                "d": "Spinge fino alla casella presa di mira",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "784": {
+                "d": "Ritorno alla posizione di partenza",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "785": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "786": {
+                "d": "Cura su attacco",
+                "c": 11,
+                "p": -100,
+                "o": "/"
+            },
+            "787": {
+                "d": "#1",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "788": {
+                "d": "Castigo di #2 per #3 turno(-i)",
+                "c": 0,
+                "p": -100,
+                "o": "+"
+            },
+            "789": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "790": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "791": {
+                "d": "Prapara #1{~1~2 a }#2 pergamene per mercenari",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "795": {
+                "d": "Arma da caccia",
+                "c": 0,
+                "p": 105,
+                "o": "/",
+                "t": true
+            },
+            "800": {
+                "d": "Punti Vita: #3",
+                "c": 99,
+                "p": 987,
+                "o": "",
+                "t": true
+            },
+            "805": {
+                "d": "Ricevuto il: #1",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "806": {
+                "d": "Corpulenza: #1",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "807": {
+                "d": "Ultimo pasto: #1",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "808": {
+                "d": "Ha mangiato il: #1",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "810": {
+                "d": "Taglia: #3 poces",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "811": {
+                "d": "Turno/i rimanente/i: #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "812": {
+                "d": "Resistenza: #2 / #3",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "813": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "814": {
+                "d": "#1",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "815": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "816": {
+                "d": "",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "825": {
+                "d": "Teletrasporta",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "856": {
+                "d": "Voir la collection de cartes",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "857": {
+                "d": "[NO_TRAD]",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "905": {
+                "d": "Dà inizio ad un combattimento contro #2",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "930": {
+                "d": "Aumenta la serenità, diminuisce l'aggressività",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "931": {
+                "d": "Aumenta l'aggressività, diminuisce la serenità",
+                "c": 0,
+                "p": -100,
+                "o": "/"
+            },
+            "932": {
+                "d": "Aumenta la resistenza",
+                "c": 0,
+                "p": -100,
+                "o": "+"
+            },
+            "933": {
+                "d": "Diminuisce la resistenza",
+                "c": 0,
+                "p": -100,
+                "o": "-"
+            },
+            "934": {
+                "d": "Aumenta l'amore",
+                "c": 0,
+                "p": -100,
+                "o": "+"
+            },
+            "935": {
+                "d": "Diminuisce l'amore",
+                "c": 0,
+                "p": -100,
+                "o": "-"
+            },
+            "936": {
+                "d": "Accellera la maturità",
+                "c": 0,
+                "p": -100,
+                "o": "+"
+            },
+            "937": {
+                "d": "Rallenta la maturità",
+                "c": 0,
+                "p": -100,
+                "o": "-"
+            },
+            "939": {
+                "d": "Aumenta la capacità di un famiglio #3",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "940": {
+                "d": "Capacità aumentate",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "945": {
+                "d": "Dà una capacità alla cavalcatura",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "946": {
+                "d": "Ritira temporaneamente un oggetto di allevamento",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "947": {
+                "d": "Recupera un oggetto di recinto",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "948": {
+                "d": "Oggetto per recinto",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "949": {
+                "d": "Salire/scendere da una cavalcatura",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "950": {
+                "d": "Stato #3",
+                "c": 71,
+                "p": -100,
+                "o": "/"
+            },
+            "951": {
+                "d": "Rimuove lo stato '#3'",
+                "c": 71,
+                "p": -100,
+                "o": "/"
+            },
+            "960": {
+                "d": "Schieramento: #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "961": {
+                "d": "Grado: #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "962": {
+                "d": "Livello: #3",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "963": {
+                "d": "Creato da : #3 giorno/i",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "964": {
+                "d": "Nome: #4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "969": {
+                "d": "Aspetto: #3",
+                "c": 0,
+                "p": -10,
+                "o": "/",
+                "t": true
+            },
+            "970": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "971": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "972": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "973": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "974": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "975": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "983": {
+                "d": "Associato all'account #1",
+                "c": 0,
+                "p": -11,
+                "o": "/",
+                "t": true
+            },
+            "984": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": "/"
+            },
+            "985": {
+                "d": "Modificato da: #4",
+                "c": 0,
+                "p": -9,
+                "o": "/",
+                "t": true
+            },
+            "986": {
+                "d": "Prepara #1{~1~2 a }#2 pergamene",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "987": {
+                "d": "Appartiene a: #4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "988": {
+                "d": "Fabbricato da: #4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "989": {
+                "d": "Cerca: #4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "990": {
+                "d": "#4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "994": {
+                "d": "!! Certificato non valido !!",
+                "c": 0,
+                "p": 0,
+                "o": "-",
+                "t": true
+            },
+            "995": {
+                "d": "Consultare la scheda della cavalcatura",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "996": {
+                "d": "Appartiene a: #4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "997": {
+                "d": "Nome: #4",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "998": {
+                "d": "Validità: #1g #2o #3m",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "999": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": "+"
+            },
+            "2001": {
+                "d": "Vincere #1{~1~2 a }#2 kama",
+                "c": 2,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "2008": {
+                "d": "Aumenta i danni di #1{~1~2 a }#2%",
+                "c": 76,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "2009": {
+                "d": "Diminuisce i danni di #1{~1~2 a }#2%",
+                "c": 76,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "2010": {
+                "d": "+#1{~1~2 à }#2 power stack(s)",
+                "c": 77,
+                "p": -100,
+                "o": "+"
+            },
+            "2011": {
+                "d": "-#1{~1~2 à -}#2 power stack(s)",
+                "c": 77,
+                "p": -100,
+                "o": "-"
+            },
+            "2050": {
+                "d": "Guadagno di XP: equivalente al livello 1 a #1{~2 (+#2%)}",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "2100": {
+                "d": "PA persi: #1{~1~2 a }#2",
+                "c": 1,
+                "p": 101,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "2101": {
+                "d": "Contiene una Carta Tragic The Gardening",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2102": {
+                "d": "Aggiungi la carta al raccoglitore",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2107": {
+                "d": "Contiene una Carta Tragic The Gardening",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2111": {
+                "d": "Diminue de #1{~1~2 à }#2 le renvoi de dommages",
+                "c": 50,
+                "p": 74,
+                "o": "-",
+                "t": true
+            },
+            "2112": {
+                "d": "-#1{~1~2 a }#2 creature invocabili",
+                "c": 26,
+                "p": 80,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "2113": {
+                "d": "-#1{~1~2 a }#2 di danni alle trappole",
+                "c": 70,
+                "p": 73,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "2114": {
+                "d": "-#1{~1~2 a }#2% di danni alle trappole",
+                "c": 69,
+                "p": 72,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "2116": {
+                "d": "Bonus aggiuntivi:",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true,
+                "j": true
+            },
+            "2117": {
+                "d": "Nessun bonus!",
+                "c": 0,
+                "p": 0,
+                "o": "/",
+                "t": true,
+                "j": true
+            },
+            "2118": {
+                "d": "-#1{~1~2 a }#2 di vita",
+                "c": 82,
+                "p": 0,
+                "o": "-",
+                "j": true
+            },
+            "2123": {
+                "d": "Reduces the weapon's AP cost by #3",
+                "c": 1,
+                "p": -100,
+                "o": "+"
+            },
+            "2124": {
+                "d": "Increases the range of all spells by #3",
+                "c": 0,
+                "p": -100,
+                "o": "+"
+            },
+            "2126": {
+                "d": "Danni: #1{~1~2 a }#2 (miglior elemento)",
+                "c": 95,
+                "p": -100,
+                "o": "",
+                "j": true,
+                "e": "B"
+            },
+            "2127": {
+                "d": "Fa avanzare di #1 casella/e",
+                "c": 91,
+                "p": -100,
+                "o": ""
+            },
+            "2128": {
+                "d": "Stato #3",
+                "c": 71,
+                "p": -100,
+                "o": "/"
+            },
+            "2129": {
+                "d": "Rimuove lo stato '#3'",
+                "c": 71,
+                "p": -100,
+                "o": "/"
+            },
+            "2130": {
+                "d": "Registra la sua posizione",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "2131": {
+                "d": "Teletrasporta alla posizione precedente",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "2132": {
+                "d": "Draws 1 card",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "2133": {
+                "d": "Shuffles the cards",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "2134": {
+                "d": "Ruba #1{~1~2 a }#2 PV (miglior elemento)",
+                "c": 95,
+                "p": -100,
+                "o": "+",
+                "j": true,
+                "e": "B"
+            },
+            "2135": {
+                "d": "Steals #1{~1~2 to -}#2 in all characteristics",
+                "c": 88,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "2136": {
+                "d": "Danni: #1{~1~2 a }#2% della vite dell'attaccante (neutro)",
+                "c": 93,
+                "p": -100,
+                "o": "",
+                "j": true
+            },
+            "2137": {
+                "d": "Stato #3",
+                "c": 71,
+                "p": -100,
+                "o": "/"
+            },
+            "2138": {
+                "d": "+#3% di danni sull'incantesimo #1",
+                "c": 17,
+                "p": -100,
+                "o": "+"
+            },
+            "2139": {
+                "d": "Teleport targets symmetrically",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "2142": {
+                "d": "Cambia l'elemento di attacco",
+                "c": 0,
+                "p": 0,
+                "o": "/"
+            },
+            "2143": {
+                "d": "Teletrasporta : #1",
+                "c": 89,
+                "p": -100,
+                "o": ""
+            },
+            "2144": {
+                "d": "Ajoute un monstre au combat",
+                "c": 0,
+                "p": -100,
+                "o": ""
+            },
+            "2146": {
+                "d": "Progresso: #2{~3,}#3%",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2147": {
+                "d": "-",
+                "c": 0,
+                "p": -1,
+                "o": ""
+            },
+            "2148": {
+                "d": "-",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "2149": {
+                "d": "Resistenza di panoplia: #2 / #3",
+                "c": 0,
+                "p": -12,
+                "o": "",
+                "t": true
+            },
+            "2150": {
+                "d": "",
+                "c": 0,
+                "p": 0,
+                "o": ""
+            },
+            "2151": {
+                "d": "Legato al personaggio #1",
+                "c": 101,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2152": {
+                "d": "Dai da #1 a #2 '#3'",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2153": {
+                "d": "Teleports the group members",
+                "c": 0,
+                "p": -12,
+                "o": "",
+                "t": true
+            },
+            "2154": {
+                "d": "Locked to account until: #1",
+                "c": 101,
+                "p": 0,
+                "o": "/",
+                "t": true
+            },
+            "2155": {
+                "d": "Locked to account (favourited item)",
+                "c": 0,
+                "p": -12,
+                "o": "/",
+                "t": true
+            },
+            "2156": {
+                "d": "You look radiant!",
+                "c": 38,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2157": {
+                "d": "Increases final damage received by #1{~1~2 to }#2%",
+                "c": 78,
+                "p": 0,
+                "o": "+",
+                "t": true,
+                "j": true
+            },
+            "2158": {
+                "d": "Reduces final damage received by #1{~1~2 to }#2%",
+                "c": 78,
+                "p": 0,
+                "o": "-",
+                "t": true,
+                "j": true
+            },
+            "2159": {
+                "d": "Domm. finaux infligés +#1{~1~3 à }#3%, reçus +#2{~2~4 à }#4%",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true,
+                "j": true
+            },
+            "2161": {
+                "d": "Gives +#3 token at the end of fights",
+                "c": 100,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "2162": {
+                "d": "Gives #3 tokens at the end of fights for each monster killed",
+                "c": 100,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "2163": {
+                "d": "Gives #3 tokens at the end of fights for each spell tonic bought (#1 of #2)",
+                "c": 100,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "2164": {
+                "d": "Gives #3 tokens at the end of fights for each resupply done (#1 of #2)",
+                "c": 100,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "2165": {
+                "d": "+#3 permanent in #1 at the end of a fight",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "2166": {
+                "d": "Increases the base #1 gain earned after a victory by #3",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "2169": {
+                "d": "#1{~1~2 to -}#2 damage steal",
+                "c": 80,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "2170": {
+                "d": "#1{~1~2 to -}#2 critical hit steal",
+                "c": 18,
+                "p": -100,
+                "o": "/",
+                "j": true
+            },
+            "2171": {
+                "d": "PV restituiti: #1{~1~2 a }#2",
+                "c": 82,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "2172": {
+                "d": "Increases the #3 spell's level by #2",
+                "c": 0,
+                "p": 0,
+                "o": "+",
+                "t": true
+            },
+            "2173": {
+                "d": "Changes the effects of the #3 spell to the best element",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2174": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's health (earth)",
+                "c": 94,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "2175": {
+                "d": "Damage: #1{~1~2 to }#2% of the attacker's health (best element)",
+                "c": 95,
+                "p": -100,
+                "o": "+",
+                "j": true
+            },
+            "2179": {
+                "d": "+#1% XP in combat with a partner",
+                "c": 0,
+                "p": 0,
+                "o": "",
+                "t": true
+            },
+            "2184": {
+                "d": "Evolving item: Skin #3 out of #1",
+                "c": 0,
+                "p": 0,
+                "o": " "
+            }
+        },
+        "EDMG": {
+            "0": 100,
+            "1": 95,
+            "2": 97,
+            "3": 92,
+            "4": 98,
+            "5": 93,
+            "6": 96,
+            "7": 91,
+            "8": 99,
+            "9": 94,
+            "10": 80
+        },
+        "EHEL": {
+            "0": 108,
+            "1": 81
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 11,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "E",
+            "EDMG",
+            "EHEL",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

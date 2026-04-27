@@ -1,0 +1,37 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "SUB": {
+            "8": {
+                "1": "Existem seis talismãs portando poderes misteriosos e prosperidade",
+                "2": "Seis ovos de dragão chamados de Dofus...",
+                "3": "...foram roubados de seus protetores",
+                "4": "Então, os elementos se enfureceram,\nmonstros vieram da escuridão!",
+                "5": "Aventureiros empunharam suas armas,\ne tudo terminou em um massacre!",
+                "6": "Mas o tempo passou!\nSeu destino agora o leva a Incarnam...",
+                "7": "Seja um cavaleiro, curandeiro ou invocador",
+                "8": "Encontre os Dofus\nE torne-se o herói que esse mundo precisa!"
+            },
+            "14": {
+                "1": "[TR2]",
+                "2": "[TR2]",
+                "3": "[TR2]",
+                "4": "[TR2]",
+                "5": "[TR2]"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 19,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "SUB",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

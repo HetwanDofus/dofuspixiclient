@@ -30,17 +30,28 @@ import { join, resolve } from 'path';
 const TOOL_DIR = resolve(import.meta.dirname!);
 const REPO_ROOT = resolve(TOOL_DIR, '../..');
 const SPELL_ANIMS_DIR = join(TOOL_DIR, 'output/spell-anims');
-const SPELLS_OUT_DIR = join(TOOL_DIR, 'test-player/src/spells');
-const GUIDE_PATH = join(SPELLS_OUT_DIR, 'CLAUDE.md');
+// Runtime path — the Vite glob in spell-module-loader.ts loads from here.
+const SPELLS_OUT_DIR = join(REPO_ROOT, 'apps/electrobun/src/game/spells');
+const GUIDE_PATH = join(TOOL_DIR, 'test-player/src/spells/CLAUDE.md');
 const RUNTIME_PKG = join(REPO_ROOT, 'packages/spell-runtime/src');
-const BASE_SPELL_PATH = join(RUNTIME_PKG, 'base-spell.ts');
 const INTERFACE_PATH = join(RUNTIME_PKG, 'spell-interface.ts');
-const UTILS_INDEX_PATH = join(RUNTIME_PKG, 'index.ts');
-const UTILS_FRAME_PATH = join(RUNTIME_PKG, 'frame-animated-sprite.ts');
-const UTILS_PARTICLE_PATH = join(RUNTIME_PKG, 'particle-system.ts');
-const UTILS_SPRITE_PATH = join(RUNTIME_PKG, 'sprite-config.ts');
+// Clip-runtime sources — the actual API the LLM must target.
+const CLIP_TYPES_PATH = join(RUNTIME_PKG, 'clip/types.ts');
+const CLIP_PATH = join(RUNTIME_PKG, 'clip/clip.ts');
+const RUNTIME_PATH = join(RUNTIME_PKG, 'clip/runtime.ts');
+const RUNTIME_SPELL_PATH = join(RUNTIME_PKG, 'clip/runtime-spell.ts');
+const HARNESS_PATH = join(RUNTIME_PKG, 'clip/harness.ts');
+const SYMBOL_REGISTRY_PATH = join(RUNTIME_PKG, 'clip/symbol-registry.ts');
+const SPRITE_CONFIG_PATH = join(RUNTIME_PKG, 'sprite-config.ts');
+// Hand-perfected reference implementations (NEVER overwritten).
+const REF_103_PATH = join(SPELLS_OUT_DIR, 'spell-103.ts');
 const REF_909_PATH = join(SPELLS_OUT_DIR, 'spell-909.ts');
-const REF_1005_PATH = join(SPELLS_OUT_DIR, 'spell-1005.ts');
+
+/**
+ * Spells that have hand-perfected RuntimeSpell ports — the generator
+ * must NOT overwrite them and uses them as in-prompt references.
+ */
+const PROTECTED_SPELL_IDS = new Set<number>([103, 909, 911]);
 
 // ---------------------------------------------------------------------------
 // Types
@@ -170,9 +181,11 @@ async function discoverSpells(opts: Options): Promise<SpellInfo[]> {
     const manifestPath = join(SPELL_ANIMS_DIR, entry.name, 'manifest.json');
     if (!(await exists(manifestPath))) continue;
 
-    const manifest = JSON.parse(await readText(manifestPath));
-    if (!manifest.requiresTypeScript) continue;
+    // Every spell now gets a bespoke TS class — there is no
+    // PreRenderedSpell fallback. The legacy `requiresTypeScript`
+    // flag is ignored at discovery time.
 
+    if (PROTECTED_SPELL_IDS.has(id)) continue;
     const hasExisting = await exists(join(SPELLS_OUT_DIR, `spell-${id}.ts`));
     if (opts.skipExisting && hasExisting) continue;
 
@@ -193,18 +206,31 @@ async function discoverSpells(opts: Options): Promise<SpellInfo[]> {
 // ---------------------------------------------------------------------------
 
 async function loadStaticContext(): Promise<string> {
-  const [guide, baseSpell, iface, utilsIndex, utilsFrame, utilsParticle, utilsSprite, ref909, ref1005] =
-    await Promise.all([
-      readText(GUIDE_PATH),
-      readText(BASE_SPELL_PATH),
-      readText(INTERFACE_PATH),
-      readText(UTILS_INDEX_PATH),
-      readText(UTILS_FRAME_PATH),
-      readText(UTILS_PARTICLE_PATH),
-      readText(UTILS_SPRITE_PATH),
-      readText(REF_909_PATH),
-      readText(REF_1005_PATH),
-    ]);
+  const [
+    guide,
+    iface,
+    clipTypes,
+    clip,
+    runtime,
+    runtimeSpell,
+    harness,
+    symbolRegistry,
+    spriteConfig,
+    ref103,
+    ref909,
+  ] = await Promise.all([
+    readText(GUIDE_PATH),
+    readText(INTERFACE_PATH),
+    readText(CLIP_TYPES_PATH),
+    readText(CLIP_PATH),
+    readText(RUNTIME_PATH),
+    readText(RUNTIME_SPELL_PATH),
+    readText(HARNESS_PATH),
+    readText(SYMBOL_REGISTRY_PATH),
+    readText(SPRITE_CONFIG_PATH),
+    readText(REF_103_PATH),
+    readText(REF_909_PATH),
+  ]);
 
   return `# Spell Implementation Guide
 
@@ -212,46 +238,62 @@ ${guide}
 
 ---
 
-# Source Files Reference
+# Runtime API — read these to understand the contract
 
-## spell-interface.ts
+## spell-interface.ts (SpellContext, SpellCallbacks, SpellTextureProvider, SpellDisplayType)
 \`\`\`typescript
 ${iface}
 \`\`\`
 
-## base-spell.ts
+## clip/types.ts (SymbolDefinition, FrameScript, ClipEventHandler)
 \`\`\`typescript
-${baseSpell}
+${clipTypes}
 \`\`\`
 
-## spell-utils/index.ts
+## clip/clip.ts (SpellClip — the API your handlers use)
 \`\`\`typescript
-${utilsIndex}
+${clip}
 \`\`\`
 
-## spell-utils/frame-animated-sprite.ts
+## clip/runtime.ts (SpellRuntime — drives the tick at canonical 60 fps)
 \`\`\`typescript
-${utilsFrame}
+${runtime}
 \`\`\`
 
-## spell-utils/particle-system.ts
+## clip/runtime-spell.ts (RuntimeSpell — your superclass)
 \`\`\`typescript
-${utilsParticle}
+${runtimeSpell}
 \`\`\`
 
-## spell-utils/sprite-config.ts
+## clip/harness.ts (configureHarness — displayType-based root setup; you do NOT call this directly)
 \`\`\`typescript
-${utilsSprite}
+${harness}
 \`\`\`
 
-## Reference: spell-909.ts (beam with particles)
+## clip/symbol-registry.ts (SymbolRegistry — passive lookup map)
+\`\`\`typescript
+${symbolRegistry}
+\`\`\`
+
+## sprite-config.ts (calculateAnchor — the one helper from this file you use)
+\`\`\`typescript
+${spriteConfig}
+\`\`\`
+
+---
+
+# Reference implementations — hand-perfected, 1:1 with canonical AS
+
+## spell-103.ts — Attaque Naturelle (Feca, displayType=30 ProjectileBallistic)
+The canonical example for ballistic projectiles + library symbols + particles.
+\`\`\`typescript
+${ref103}
+\`\`\`
+
+## spell-909.ts — Flèche Enflammée (Cra, displayType=51 WorldAbsoluteAlt)
+The canonical example for dual-anchored timelines + onSpellStart child attaches + manual signalHit.
 \`\`\`typescript
 ${ref909}
-\`\`\`
-
-## Reference: spell-1005.ts (radial with randomized instances)
-\`\`\`typescript
-${ref1005}
 \`\`\`
 `;
 }
@@ -288,24 +330,43 @@ ${file.content}
 
 Generate the complete TypeScript implementation for spell ${spell.id}.
 
-Requirements:
-- MUST extend BaseSpell
-- Use this.anims.add() to register all FrameAnimatedSprite instances
-- Use this.signalHit() for hit signal (auto-guarded, fires once)
-- Use this.complete() for completion (auto-guarded, fires once)
-- Use init parameter for: scale, angleRad, casterY, targetX, targetY
-- Frame numbers: AS is 1-indexed, TS is 0-indexed (subtract 1)
-- Use frame numbers inline, not as constants
-- Particle physics: Copy EXACT formulas from AS (no approximation)
-- Randomization: Replicate exact ranges (AS random(N) = Math.floor(Math.random() * N))
-- Sounds: Play at exact frames specified in AS
-- No inline ifs (use block form with braces)
-- Only override destroy() if you have extra resources (particles)
-- NEVER use require() — ALL imports must be top-level ES module imports (import { Sprite, Container, Texture } from 'pixi.js')
-- NEVER use dynamic type imports like import('pixi.js').Sprite — import types at the top of the file
-- NEVER access private members of FrameAnimatedSprite (like .currentFrame) — use public API only (.sprite, .isComplete(), .isStopped(), .getFrame(), .update(), .onFrame(), .stopAt(), .addTo())
+Hard requirements:
+- MUST \`extends RuntimeSpell\` from "@dofus/spell-runtime"
+- MUST declare \`readonly spellId = ${spell.id};\`
+- MUST declare \`readonly displayType = SpellDisplayType.<NAME>;\` — pick the correct one by reading the AS scripts (see displayType detection table in the guide)
+- MUST implement \`protected registerSymbols(textures, context): void\` registering every library symbol the AS \`attachMovie\` calls reference
+- SHOULD implement \`protected onSpellStart(callbacks, context): void\` for main-timeline \`SOMA.playSound(...)\` and any explicit child attaches
+- ALL imports from "@dofus/spell-runtime" only — NO pixi.js imports, NO relative paths
+- DO NOT override \`init\`, \`update\`, \`isComplete\`, or \`destroy\` — RuntimeSpell handles them
+- DO NOT touch \`this.runtime\` until inside a frameScripts/onLoad/onEnterFrame/onSpellStart callback (it's not assigned at constructor time)
+- For displayType 30/31 (ProjectileBallistic): the harness fires \`runtime.signalHit()\` automatically on landing — you must NOT call it again from your code
+- For all other displayTypes: call \`this.runtime.signalHit()\` from the canonical hit frame
+- Call \`this.runtime.complete()\` from the frame script that mirrors the canonical \`_parent.removeMovieClip()\` of the outer mc (usually the final frame of the longest-lived sprite/shoot)
 
-Respond with ONLY the TypeScript file content inside a single \`\`\`typescript code block. No explanation before or after.
+AS → TS translation rules:
+- Frame numbers: AS \`frame_N\` → \`frameScripts.set(N - 1, ...)\` (0-based). Inline the number, don't extract it as a constant
+- Rotation: AS degrees → TS radians. \`_rotation = X\` → \`clip.rotation = (X * Math.PI) / 180\`
+- Scale: AS percent → TS decimal. \`_xscale = 50\` → \`clip.scaleX = 50 / 100\`
+- Alpha: AS 0-100 → TS 0-1. \`_alpha = 50\` → \`clip.alpha = 50 / 100\`
+- Variables: \`p.vx = 5\` → \`clip.vars.vx = 5\` (read with cast \`const vx = clip.vars.vx as number\`)
+- Random: \`random(N)\` → \`Math.floor(Math.random() * N)\`; \`Math.random()\` stays the same
+- Strict-less-than-float bounds: \`while (c < 2 + f*f*0.7)\` → \`for (let c = 0; c < 2 + level * level * 0.7; c++)\` (do NOT Math.floor the bound)
+- Removal: \`removeMovieClip(this)\` → \`clip.remove()\`; \`_parent.removeMovieClip()\` → \`clip.parent?.remove()\` or \`this.runtime.complete()\` if it's the outer mc
+- gotoAndPlay/Stop: AS \`gotoAndPlay(N)\` → \`clip.gotoAndPlay(N - 1)\`
+- Symbol textures: ALWAYS \`textures.getFrames("lib_<name>")\` for library symbols (note the \`lib_\` prefix); never assume frame indices
+
+Symbol registration:
+- For each \`librarySymbols[]\` entry in manifest.json that AS \`attachMovie\`s, build a \`SymbolDefinition\` with: \`name\` (matches the attachMovie string), \`totalFrames\` (from manifest), \`frames: textures.getFrames("lib_<name>")\`, anchorX/anchorY from \`calculateAnchor({width, height, offsetX, offsetY})\` using the librarySymbols entry's bounds, plus appropriate onLoad/onEnterFrame/frameScripts hand-ported from the AS files
+- For container-only symbols (e.g. spell 103's \`move\` and \`shoot\`): \`frames: []\`, anchorX/Y: 0.5, with frameScripts driving attaches/sound/completion
+- For displayType 30/31, you MUST register \`move\` and \`shoot\` symbols (the harness expects them by name)
+- For displayType 40/41, you MUST register \`duplicate\` (and optionally \`shoot\` for 41)
+
+Quality:
+- Lead the file with a docstring describing the spell, its canonical AS layout, and your displayType choice
+- Inside each onLoad / onEnterFrame / frameScripts entry, add a short comment quoting the canonical AS file path it ports (e.g. \`// AS DefineSprite_8_baton/frame_1/DoAction.as\`)
+- Use block-form ifs with braces. No inline if statements
+- No \`require()\`, no dynamic \`import()\`, no \`pixi.js\` imports
+- Output the file as a single \`\`\`typescript code block. No prose before or after.
 `;
 
   return context;
@@ -349,28 +410,52 @@ function validateOutput(code: string, spellId: number): ValidationResult {
     errors.push(`Missing class Spell${spellId}`);
   }
 
-  if (!code.includes('extends BaseSpell')) {
-    errors.push('Missing extends BaseSpell');
+  if (!code.includes('extends RuntimeSpell')) {
+    errors.push('Missing `extends RuntimeSpell` — must subclass RuntimeSpell from "@dofus/spell-runtime"');
   }
 
   if (!code.includes(`readonly spellId = ${spellId}`)) {
-    errors.push(`Missing readonly spellId = ${spellId}`);
+    errors.push(`Missing \`readonly spellId = ${spellId}\``);
   }
 
-  if (!code.includes('setup(')) {
-    errors.push('Missing setup() method');
+  if (!/readonly\s+displayType\s*=\s*SpellDisplayType\./.test(code)) {
+    errors.push('Missing `readonly displayType = SpellDisplayType.<NAME>` — pick a value from SpellDisplayType');
   }
 
-  if (!code.includes('update(')) {
-    errors.push('Missing update() method');
+  if (!/registerSymbols\s*\(/.test(code)) {
+    errors.push('Missing `registerSymbols(...)` method — required for every RuntimeSpell subclass');
+  }
+
+  if (/\bextends\s+BaseSpell\b/.test(code)) {
+    errors.push('Uses `extends BaseSpell` — that architecture is removed. Subclass RuntimeSpell instead.');
+  }
+
+  if (/\b(setup|getFramesOrWarn|this\.anims|FrameAnimatedSprite|ASParticleSystem|SpellInitContext)\b/.test(code)) {
+    errors.push('References legacy BaseSpell APIs (setup/anims/FrameAnimatedSprite/ASParticleSystem/SpellInitContext). Port to RuntimeSpell + SpellClip.');
+  }
+
+  if (/from\s+["']pixi\.js["']/.test(code)) {
+    errors.push('Direct `pixi.js` import is forbidden — only import from "@dofus/spell-runtime".');
+  }
+
+  if (/from\s+["']\.\.?\//.test(code)) {
+    errors.push('Relative import detected — import everything from "@dofus/spell-runtime".');
   }
 
   if (code.includes('require(')) {
     errors.push('Contains require() — must use ES module imports only');
   }
 
-  if (code.includes("import('pixi")) {
-    errors.push('Contains dynamic import() type — must use top-level imports');
+  if (code.includes("import('")) {
+    errors.push('Contains dynamic import() — must use top-level imports');
+  }
+
+  if (/this\.signalHit\b|this\.complete\(/.test(code) && !/this\.runtime\.(signalHit|complete)/.test(code)) {
+    errors.push('Use `this.runtime.signalHit()` / `this.runtime.complete()` — `this.signalHit/complete` no longer exist on RuntimeSpell.');
+  }
+
+  if (/^\s*(public\s+|protected\s+|override\s+)*(update|init|isComplete|destroy)\s*\(/m.test(code)) {
+    errors.push('Do not override `init`, `update`, `isComplete`, or `destroy` — RuntimeSpell handles them. Drive completion via frame scripts calling `this.runtime.complete()`.');
   }
 
   return { valid: errors.length === 0, errors };

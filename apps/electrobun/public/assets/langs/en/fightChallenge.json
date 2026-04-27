@@ -1,0 +1,415 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "FC": {
+            "1": {
+                "n": "Zombie",
+                "d": "Use exactly one MP per turn.",
+                "g": 11
+            },
+            "2": {
+                "n": "Statue",
+                "d": "Every turn, finish on the same cell as you started on, for the duration of the fight.",
+                "g": 9
+            },
+            "3": {
+                "n": "Unwilling Volunteer",
+                "d": "Kill %1 first.",
+                "g": 4
+            },
+            "4": {
+                "n": "Reprieve",
+                "d": "Kill %1 last.",
+                "g": 10
+            },
+            "5": {
+                "n": "Scanty",
+                "d": "Each player must not use the same action more than once, for the duration of the fight.",
+                "g": 3
+            },
+            "6": {
+                "n": "Versatile",
+                "d": "Each player must not use the same action more than once, on every turn.",
+                "g": 12
+            },
+            "7": {
+                "n": "Gardener",
+                "d": "Plant a Cawwot each time the spell is available, for the duration of the fight.",
+                "g": 6
+            },
+            "8": {
+                "n": "Nomad",
+                "d": "Use all available MP during each turn, for the duration of the fight.",
+                "g": 8
+            },
+            "9": {
+                "n": "Barbaric",
+                "d": "Do not use any spells for the duration of the fight.",
+                "g": 1
+            },
+            "10": {
+                "n": "Cruel",
+                "d": "You must kill your enemies according to their levels in ascending order.",
+                "g": 2
+            },
+            "11": {
+                "n": "Mystique",
+                "d": "Use only spells for the duration of the fight.",
+                "g": 7
+            },
+            "12": {
+                "n": "Gravedigger",
+                "d": "Summon a Chaferfu each time the spell is available, for the duration of the fight.",
+                "g": 5
+            },
+            "14": {
+                "n": "Casino Royal",
+                "d": "Cast the spell Roulette each time the spell is available for the duration of the combat. ",
+                "g": 14
+            },
+            "15": {
+                "n": "Arachnophile",
+                "d": "Summon an Arachnee each time the spell is available, for the duration of the combat.",
+                "g": 15
+            },
+            "17": {
+                "n": "Untouchable",
+                "d": "Do not lose any HP for the duration of the combat. ",
+                "g": 17
+            },
+            "18": {
+                "n": "Incurable",
+                "d": "Do not heal for the duration of the combat.",
+                "g": 18
+            },
+            "19": {
+                "n": "Clean hands",
+                "d": "Kill all monsters without dealing direct damage for the duration of the combat. Traps, glyphs, poisons, pushback damage, reflected damage as well as attacks by summons may all be used.",
+                "g": 19
+            },
+            "20": {
+                "n": "Elementary, my dear!",
+                "d": "Use the same element to attack for the duration of the combat.",
+                "g": 20
+            },
+            "21": {
+                "n": "Keep moving!",
+                "d": "Do not attempt to reduce your enemies' MP for the duration of the combat.",
+                "g": 21
+            },
+            "22": {
+                "n": "Time Flies",
+                "d": "Do not attempt to reduce your enemies' AP for the duration of the combat.",
+                "g": 22
+            },
+            "23": {
+                "n": "Sightseeing",
+                "d": "Do not attempt to reduce the range of any enemies for the duration of the combat.",
+                "g": 23
+            },
+            "24": {
+                "n": "Pighead",
+                "d": "Use the same spell or close combat attack for the duration of the combat.",
+                "g": 24
+            },
+            "25": {
+                "n": "Maniac",
+                "d": "Enemies must be killed according to the descending order of their levels.",
+                "g": 25
+            },
+            "28": {
+                "n": "Neither Piwin nor submissive",
+                "d": "Male players must let female players deliver the mortal blow to enemies for the duration of the combat. ",
+                "g": 28
+            },
+            "29": {
+                "n": "Neither Piwi nor submissive",
+                "d": "Female players must let male players deliver the mortal blow to enemies for the duration of the combat. ",
+                "g": 29
+            },
+            "30": {
+                "n": "Low levels first!",
+                "d": "The player with the lowest XP must deliver the mortal blow to all enemies. ",
+                "g": 30
+            },
+            "31": {
+                "n": "Focus",
+                "d": "When an enemy is attacked, they must be finished off before any other enemy is attacked.",
+                "g": 31
+            },
+            "32": {
+                "n": "Elitist",
+                "d": "All attacks must be made exclusively on %1 until they die.",
+                "g": 32
+            },
+            "33": {
+                "n": "Survivor",
+                "d": "No ally must die.",
+                "g": 33
+            },
+            "34": {
+                "n": "Unpredictable",
+                "d": "All attacks should be concentrated on the designated target at each new character turn.",
+                "g": 34
+            },
+            "35": {
+                "n": "Contract Killer",
+                "d": "Your enemies must be killed in the designated order. A new target will be selected each time the preceding target has been killed.",
+                "g": 35
+            },
+            "36": {
+                "n": "Impertinence",
+                "d": "Finish your turn on a cell adjacent to an enemy.",
+                "g": 36
+            },
+            "37": {
+                "n": "Tight",
+                "d": "Finish your turn on a cell adjacent to an ally.",
+                "g": 37
+            },
+            "38": {
+                "n": "Blitzkrieg",
+                "d": "As soon as an opponent takes damage, it must be killed before it starts its turn.",
+                "g": 38
+            },
+            "39": {
+                "n": "Hermit",
+                "d": "Never finish your turn on a cell adjacent to an ally.",
+                "g": 39
+            },
+            "40": {
+                "n": "Limpwrist",
+                "d": "Never finish your turn on a cell adjacent to an enemy.",
+                "g": 40
+            },
+            "41": {
+                "n": "Exuberant",
+                "d": "Use all of your AP before the end of your turn.",
+                "g": 41
+            },
+            "42": {
+                "n": "Two for the price of one",
+                "d": "When a character kills an enemy, that character must kill one (and only one) more enemy during the character's turn.",
+                "g": 42
+            },
+            "43": {
+                "n": "Self Sacrifice",
+                "d": "Characters must not be healed during their turn.",
+                "g": 43
+            },
+            "44": {
+                "n": "Sharing",
+                "d": "Each character must finish off at least one enemy (enemy summons do not count) during the fight.",
+                "g": 44
+            },
+            "45": {
+                "n": "Duel",
+                "d": "When a character attacks an opponent, no other character must attack that opponent for the duration of the combat.",
+                "g": 51
+            },
+            "46": {
+                "n": "To each his pwn",
+                "d": "Each character must kill at least one enemy (enemy summons do not count) during the combat. Once a character attacks a particular enemy, no other character must attack that enemy for the duration of the combat.",
+                "g": 46
+            },
+            "47": {
+                "n": "Contamination",
+                "d": "As soon as an ally loses HP, you have 3 turns to kill that ally.",
+                "g": 47
+            },
+            "48": {
+                "n": "First the mules",
+                "d": "The weakest mule must finish all enemies off (that'll teach you to 'mule' like a Lousy Pig).",
+                "g": 48
+            },
+            "49": {
+                "n": "Protect the mules",
+                "d": "All your allies and all your mules must be alive at the end of the fight.",
+                "g": 49
+            },
+            "50": {
+                "n": "Dodgy devs",
+                "d": "Finish this fight and you've won the challenge! It's well known that all devs are cheaters.",
+                "g": 50
+            },
+            "51": {
+                "n": "Zombie",
+                "d": "Use exactly one MP per turn.",
+                "g": 11
+            },
+            "52": {
+                "n": "Statue",
+                "d": "Every turn, finish on the same cell as you started on, for the duration of the fight.",
+                "g": 9
+            },
+            "53": {
+                "n": "Unwilling Volunteer",
+                "d": "Kill %1 first.",
+                "g": 4
+            },
+            "54": {
+                "n": "Reprieve",
+                "d": "Kill %1 last.",
+                "g": 10
+            },
+            "55": {
+                "n": "Versatile",
+                "d": "Each player must not use the same action more than once, on every turn.",
+                "g": 12
+            },
+            "56": {
+                "n": "Gardener",
+                "d": "Plant a Cawwot each time the spell is available, for the duration of the fight.",
+                "g": 6
+            },
+            "57": {
+                "n": "Nomad",
+                "d": "Use all available MP during each turn, for the duration of the fight.",
+                "g": 8
+            },
+            "59": {
+                "n": "Cruel",
+                "d": "You must kill your enemies according to their levels in ascending order.",
+                "g": 2
+            },
+            "60": {
+                "n": "Mystique",
+                "d": "Use only spells for the duration of the fight.",
+                "g": 7
+            },
+            "61": {
+                "n": "Gravedigger",
+                "d": "Summon a Chaferfu each time the spell is available, for the duration of the fight.",
+                "g": 5
+            },
+            "63": {
+                "n": "Arachnophile",
+                "d": "Summon an Arachnee each time the spell is available, for the duration of the combat.",
+                "g": 15
+            },
+            "64": {
+                "n": "Untouchable",
+                "d": "Do not lose any HP for the duration of the combat. ",
+                "g": 17
+            },
+            "65": {
+                "n": "Incurable",
+                "d": "Do not heal for the duration of the combat.",
+                "g": 18
+            },
+            "66": {
+                "n": "Sightseeing",
+                "d": "Do not attempt to reduce the range of any enemies for the duration of the combat.",
+                "g": 23
+            },
+            "68": {
+                "n": "Maniac",
+                "d": "Enemies must be killed according to the descending order of their levels.",
+                "g": 25
+            },
+            "69": {
+                "n": "Neither Piwin nor submissive",
+                "d": "Male players must let female players deliver the mortal blow to enemies for the duration of the combat. ",
+                "g": 28
+            },
+            "70": {
+                "n": "Neither Piwi nor submissive",
+                "d": "Female players must let male players deliver the mortal blow to enemies for the duration of the combat. ",
+                "g": 29
+            },
+            "71": {
+                "n": "Focus",
+                "d": "When an enemy is attacked, they must be finished off before any other enemy is attacked.",
+                "g": 31
+            },
+            "72": {
+                "n": "Elitist",
+                "d": "All attacks must be made exclusively on %1 until they die.",
+                "g": 32
+            },
+            "73": {
+                "n": "Survivor",
+                "d": "No ally must die.",
+                "g": 33
+            },
+            "74": {
+                "n": "Unpredictable",
+                "d": "All attacks should be concentrated on the designated target at each new character turn.",
+                "g": 34
+            },
+            "75": {
+                "n": "Contract Killer",
+                "d": "Your enemies must be killed in the designated order. A new target will be selected each time the preceding target has been killed.",
+                "g": 35
+            },
+            "76": {
+                "n": "Impertinence",
+                "d": "Finish your turn on a cell adjacent to an enemy.",
+                "g": 36
+            },
+            "77": {
+                "n": "Tight",
+                "d": "Finish your turn on a cell adjacent to an ally.",
+                "g": 37
+            },
+            "79": {
+                "n": "Hermit",
+                "d": "Never finish your turn on a cell adjacent to an ally.",
+                "g": 39
+            },
+            "80": {
+                "n": "Limpwrist",
+                "d": "Never finish your turn on a cell adjacent to an enemy.",
+                "g": 40
+            },
+            "81": {
+                "n": "Exuberant",
+                "d": "Use all of your AP before the end of your turn.",
+                "g": 41
+            },
+            "82": {
+                "n": "Two for the price of one",
+                "d": "When a character kills an enemy, that character must kill one (and only one) more enemy during the character's turn.",
+                "g": 42
+            },
+            "83": {
+                "n": "Self Sacrifice",
+                "d": "Characters must not be healed during their turn.",
+                "g": 43
+            },
+            "84": {
+                "n": "Sharing",
+                "d": "Each character must finish off at least one enemy (enemy summons do not count) during the fight.",
+                "g": 44
+            },
+            "85": {
+                "n": "Duel",
+                "d": "When a character attacks an opponent, no other character must attack that opponent for the duration of the combat.",
+                "g": 51
+            },
+            "86": {
+                "n": "To each his pwn",
+                "d": "Each character must kill at least one enemy (enemy summons do not count) during the combat. Once a character attacks a particular enemy, no other character must attack that enemy for the duration of the combat.",
+                "g": 46
+            },
+            "87": {
+                "n": "Contamination",
+                "d": "As soon as an ally loses HP, you have 3 turns to kill that ally.",
+                "g": 47
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 105,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "FC",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

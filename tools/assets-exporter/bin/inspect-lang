@@ -1,0 +1,52 @@
+#!/usr/bin/env php
+<?php
+/**
+ * Dump AS2 DoAction opcodes + string-table pushes from a lang SWF, so we can
+ * learn the layout before writing a proper extractor.
+ *
+ * Usage: inspect-lang <path-to-lang.swf> [--max=200]
+ */
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use Arakne\Swf\SwfFile;
+use Arakne\Swf\Parser\Structure\Tag\DoActionTag;
+use Arakne\Swf\Parser\Structure\Tag\DoInitActionTag;
+
+$path = $argv[1] ?? null;
+$max = 200;
+foreach ($argv as $a) {
+    if (str_starts_with($a, '--max=')) $max = (int) substr($a, 6);
+}
+if (!$path) {
+    fwrite(STDERR, "Usage: inspect-lang <swf> [--max=N]\n");
+    exit(1);
+}
+
+$swf = new SwfFile($path);
+if (!$swf->valid()) {
+    fwrite(STDERR, "Invalid SWF: $path\n");
+    exit(1);
+}
+
+$total = 0;
+foreach ($swf->tags() as $tag) {
+    if (!($tag instanceof DoActionTag || $tag instanceof DoInitActionTag)) continue;
+    $actions = $tag->actions ?? [];
+    foreach ($actions as $action) {
+        if ($total >= $max) break 2;
+        $opcode = $action->opcode;
+        $data = $action->data ?? null;
+        $desc = sprintf("  [%03d] opcode=0x%02X (%s)", $total, $opcode, $opcode->name);
+        if (is_array($data)) {
+            $desc .= " data=" . json_encode($data, JSON_UNESCAPED_UNICODE);
+        } elseif (is_scalar($data)) {
+            $desc .= " data=" . json_encode($data, JSON_UNESCAPED_UNICODE);
+        } elseif (is_object($data)) {
+            $desc .= " data=<" . get_class($data) . ">";
+        }
+        echo $desc . "\n";
+        $total++;
+    }
+}
+echo "---\nEmitted $total actions (max=$max).\n";

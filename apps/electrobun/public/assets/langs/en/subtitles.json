@@ -1,0 +1,37 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "SUB": {
+            "8": {
+                "1": "Six talismans exist in this World,\nbearing mysterious powers and prosperity.",
+                "2": "Six Dragon eggs, the sacred Dofus,",
+                "3": "Were stolen from their protectors...",
+                "4": "And with that, the elements were unleashed, \nMonsters sharpened their fangs,",
+                "5": "Adventurers brandished their weapons,\nAnd there was joyous carnage!",
+                "6": "But the time has come!\nYour destiny now takes you to Incarnam...",
+                "7": "Choose your path as a knight, a healer or a summoner.",
+                "8": "Find the Dofus,\nAnd become the hero the World has been waiting for!"
+            },
+            "14": {
+                "1": "[TR2]",
+                "2": "[TR2]",
+                "3": "[TR2]",
+                "4": "[TR2]",
+                "5": "[TR2]"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 19,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "SUB",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

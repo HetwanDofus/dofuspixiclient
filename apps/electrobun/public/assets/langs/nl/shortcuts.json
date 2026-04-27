@@ -1,0 +1,4918 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "SST": {
+            "9": {
+                "d": "Duits toetsenbord - Duitsland",
+                "i": 9
+            },
+            "6": {
+                "d": "Engels toetsenbord - Engeland",
+                "i": 6
+            },
+            "3": {
+                "d": "Engels toetsenbord - Verenigde Staten",
+                "i": 3
+            },
+            "4": {
+                "d": "Frans toetsenbord - Canada",
+                "i": 4
+            },
+            "1": {
+                "d": "Frans toetsenbord - Frankrijk",
+                "i": 1
+            },
+            "2": {
+                "d": "Frans toetsenbord - Frankrijk (Linux)",
+                "i": 2
+            },
+            "8": {
+                "d": "Frans toetsenbord - Frankrijk (Mac)",
+                "i": 8
+            },
+            "7": {
+                "d": "Frans toetsenbord - Zwitserland",
+                "i": 7
+            }
+        },
+        "SSK": {
+            "1|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 52,
+                "c": 1,
+                "s": "Ctrl+'"
+            },
+            "1|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 53,
+                "c": 1,
+                "s": "Ctrl+("
+            },
+            "1|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 54,
+                "c": 1,
+                "s": "Ctrl+-"
+            },
+            "1|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Spatie",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "1|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "1|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "1|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "1|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 109,
+                "c": 2,
+                "s": "Shift+-"
+            },
+            "1|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "1|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "1|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Omhoog",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Volgende pagina"
+            },
+            "1|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "Ctrl+D"
+            },
+            "1|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "1|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "1|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "1|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+("
+            },
+            "1|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "1|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Rechts"
+            },
+            "1|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 49,
+                "c": 0,
+                "s": "&"
+            },
+            "1|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "1|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "1|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "1|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 222,
+                "c": 1,
+                "s": "Ctrl+²"
+            },
+            "1|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "1|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "1|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 51,
+                "c": 0,
+                "s": "3"
+            },
+            "1|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+'"
+            },
+            "1|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 222,
+                "c": 2,
+                "s": "Shift+²"
+            },
+            "1|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 52,
+                "c": 0,
+                "s": "'"
+            },
+            "1|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 54,
+                "c": 0,
+                "s": "-"
+            },
+            "1|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            },
+            "1|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "1|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "1|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 222,
+                "c": 0,
+                "s": "²"
+            },
+            "1|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 53,
+                "c": 0,
+                "s": "("
+            },
+            "1|SEND_CHAT": {
+                "d": "SEND_CHAT",
+                "o": true,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "1|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "1|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "1|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+&"
+            },
+            "1|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "1|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "1|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "1|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "1|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+è"
+            },
+            "1|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "1|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "1|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "1|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Omlaag",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Vorige pagina"
+            },
+            "1|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "1|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 161,
+                "c": 0,
+                "s": "!",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "1|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "1|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "1|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "1|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "1|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+é"
+            },
+            "1|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "1|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Rechts"
+            },
+            "1|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Omhoog"
+            },
+            "1|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 50,
+                "c": 1,
+                "s": "Ctrl+é"
+            },
+            "1|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "1|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "1|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 55,
+                "c": 1,
+                "s": "Ctrl+è"
+            },
+            "1|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 55,
+                "c": 0,
+                "s": "è"
+            },
+            "1|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Links"
+            },
+            "1|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "1|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "é"
+            },
+            "1|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+\""
+            },
+            "1|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 226,
+                "c": 0,
+                "s": "<"
+            },
+            "1|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "1|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "1|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "1|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "1|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "1|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Omlaag"
+            },
+            "1|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "1|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "1|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "1|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "1|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 51,
+                "c": 1,
+                "s": "Ctrl+\""
+            },
+            "1|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 49,
+                "c": 1,
+                "s": "Ctrl+&"
+            },
+            "2|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "2|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+\""
+            },
+            "2|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Omhoog",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Vorige pagina"
+            },
+            "2|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 114,
+                "c": 1,
+                "s": "Shift+F3"
+            },
+            "2|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 113,
+                "c": 1,
+                "s": "Shift+F2"
+            },
+            "2|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "2|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Omlaag",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Volgende pagina"
+            },
+            "2|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "2|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "2|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "2|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 109,
+                "c": 2,
+                "s": "Shift+-"
+            },
+            "2|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+("
+            },
+            "2|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 114,
+                "c": 0,
+                "s": "3"
+            },
+            "2|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 222,
+                "c": 2,
+                "s": "Shift+'"
+            },
+            "2|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+&"
+            },
+            "2|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "2|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 161,
+                "c": 0,
+                "s": "!",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "2|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "2|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "2|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "2|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "2|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 190,
+                "c": 0,
+                "s": "<"
+            },
+            "2|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "2|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Omlaag"
+            },
+            "2|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "2|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "2|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "2|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "Ctrl+D"
+            },
+            "2|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "2|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "2|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "2|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 178,
+                "c": 2,
+                "s": "Shift+²"
+            },
+            "2|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            },
+            "2|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "2|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 178,
+                "c": 0,
+                "s": "²"
+            },
+            "2|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "2|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "2|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Rechts"
+            },
+            "2|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "2|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "2|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "2|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "2|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "2|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "2|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "2|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "2|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 112,
+                "c": 1,
+                "s": "Ctrl+F1"
+            },
+            "2|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 115,
+                "c": 1,
+                "s": "Ctrl+F4"
+            },
+            "2|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 116,
+                "c": 1,
+                "s": "Ctrl+F5"
+            },
+            "2|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 116,
+                "c": 1,
+                "s": "Ctrl+F6"
+            },
+            "2|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 118,
+                "c": 1,
+                "s": "Ctrl+F7"
+            },
+            "2|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "2|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "2|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "2|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 178,
+                "c": 1,
+                "s": "Ctrl+²"
+            },
+            "2|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "2|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "2|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "2|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Rechts"
+            },
+            "2|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "2|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "2|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "2|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "2|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "2|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "2|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "2|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "2|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 118,
+                "c": 0,
+                "s": "F7"
+            },
+            "2|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Spatie",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "2|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "2|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 113,
+                "c": 0,
+                "s": "F2"
+            },
+            "2|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 115,
+                "c": 0,
+                "s": "F4"
+            },
+            "2|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 116,
+                "c": 0,
+                "s": "F5"
+            },
+            "2|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 117,
+                "c": 0,
+                "s": "F6"
+            },
+            "2|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Links"
+            },
+            "2|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 84,
+                "c": 2,
+                "s": "Shift+é"
+            },
+            "2|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 232,
+                "c": 2,
+                "s": "Shift+è"
+            },
+            "2|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Omhoog"
+            },
+            "2|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "3|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "3|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "3|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Omlaag",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Vorige pagina"
+            },
+            "3|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "3|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "3|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "3|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "3|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 192,
+                "c": 0,
+                "s": "`"
+            },
+            "3|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "3|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 192,
+                "c": 1,
+                "s": "Ctrl+`"
+            },
+            "3|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "3|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "3|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "3|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 55,
+                "c": 0,
+                "s": "7"
+            },
+            "3|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 54,
+                "c": 0,
+                "s": "6"
+            },
+            "3|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "3|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Omhoog"
+            },
+            "3|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "3|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Omhoog",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Volgende pagina"
+            },
+            "3|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 53,
+                "c": 0,
+                "s": "5"
+            },
+            "3|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "3|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "3|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Rechts"
+            },
+            "3|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "3|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "3|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+$"
+            },
+            "3|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "3|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 52,
+                "c": 0,
+                "s": "4"
+            },
+            "3|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "3|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "3|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 226,
+                "c": 0,
+                "s": ""
+            },
+            "3|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "3|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "3|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+^"
+            },
+            "3|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 53,
+                "c": 1,
+                "s": "Ctrl+5"
+            },
+            "3|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "3|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "3|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 54,
+                "c": 1,
+                "s": "Ctrl+6"
+            },
+            "3|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 52,
+                "c": 1,
+                "s": "Ctrl+4"
+            },
+            "3|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "3|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "3|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+@"
+            },
+            "3|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 192,
+                "c": 2,
+                "s": "Shift+`"
+            },
+            "3|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "3|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 55,
+                "c": 1,
+                "s": "Ctrl+7"
+            },
+            "3|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 51,
+                "c": 1,
+                "s": "Ctrl+3"
+            },
+            "3|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "3|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "3|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "Ctrl+D"
+            },
+            "3|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Links"
+            },
+            "3|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Rechts"
+            },
+            "3|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            },
+            "3|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "3|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "3|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "3|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 50,
+                "c": 1,
+                "s": "Ctrl+2"
+            },
+            "3|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "2"
+            },
+            "3|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "3|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "3|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "3|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "3|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 51,
+                "c": 0,
+                "s": "3"
+            },
+            "3|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "3|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+&"
+            },
+            "3|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "3|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 49,
+                "c": 1,
+                "s": "Ctrl+1"
+            },
+            "3|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 161,
+                "c": 0,
+                "s": "!",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "3|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "3|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "3|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 49,
+                "c": 0,
+                "s": "1"
+            },
+            "3|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "3|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+#"
+            },
+            "3|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+!"
+            },
+            "3|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Spatie",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "3|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "3|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+%"
+            },
+            "3|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "3|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Omlaag"
+            },
+            "3|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "4|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+!"
+            },
+            "4|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "4|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "4|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 222,
+                "c": 0,
+                "s": "/"
+            },
+            "4|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 49,
+                "c": 0,
+                "s": "1"
+            },
+            "4|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "2"
+            },
+            "4|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "4|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 51,
+                "c": 0,
+                "s": "3"
+            },
+            "4|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 52,
+                "c": 0,
+                "s": "4"
+            },
+            "4|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 53,
+                "c": 0,
+                "s": "5"
+            },
+            "4|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 54,
+                "c": 0,
+                "s": "6"
+            },
+            "4|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 55,
+                "c": 0,
+                "s": "7"
+            },
+            "4|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Omlaag"
+            },
+            "4|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 222,
+                "c": 1,
+                "s": "Ctrl+/"
+            },
+            "4|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "4|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 49,
+                "c": 1,
+                "s": "Ctrl+1"
+            },
+            "4|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 50,
+                "c": 1,
+                "s": "Ctrl+2"
+            },
+            "4|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 51,
+                "c": 1,
+                "s": "Ctrl+3"
+            },
+            "4|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 52,
+                "c": 1,
+                "s": "Ctrl+4"
+            },
+            "4|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 53,
+                "c": 1,
+                "s": "Ctrl+5"
+            },
+            "4|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 54,
+                "c": 1,
+                "s": "Ctrl+6"
+            },
+            "4|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 55,
+                "c": 1,
+                "s": "Ctrl+7"
+            },
+            "4|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Rechts"
+            },
+            "4|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "4|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "4|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "4|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "4|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Rechts"
+            },
+            "4|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "4|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "4|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "4|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Spatie",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "4|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Links"
+            },
+            "4|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Omhoog"
+            },
+            "4|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+#"
+            },
+            "4|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+$"
+            },
+            "4|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "4|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+%"
+            },
+            "4|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+&"
+            },
+            "4|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "4|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+?"
+            },
+            "4|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+@"
+            },
+            "4|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Omlaag",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Volgende pagina"
+            },
+            "4|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "4|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Omhoog",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Vorige pagina"
+            },
+            "4|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "4|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "4|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "4|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "4|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "4|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "4|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "4|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "4|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 226,
+                "c": 0,
+                "s": "ù"
+            },
+            "4|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "4|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "4|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "4|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "4|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            },
+            "4|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "4|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "4|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "4|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "4|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 222,
+                "c": 2,
+                "s": "Shift+/"
+            },
+            "4|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "4|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "4|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "4|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "4|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "4|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "4|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "4|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "4|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "4|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "4|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "4|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "4|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "Ctrl+D"
+            },
+            "4|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 161,
+                "c": 0,
+                "s": "!",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "4|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "6|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "6|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 54,
+                "c": 1,
+                "s": "Ctrl+6"
+            },
+            "6|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 191,
+                "c": 0,
+                "s": "!",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "6|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "6|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 54,
+                "c": 0,
+                "s": "6"
+            },
+            "6|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+!"
+            },
+            "6|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 55,
+                "c": 0,
+                "s": "7"
+            },
+            "6|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 53,
+                "c": 1,
+                "s": "Ctrl+5"
+            },
+            "6|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 52,
+                "c": 1,
+                "s": "Ctrl+4"
+            },
+            "6|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "6|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "6|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "6|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 223,
+                "c": 2,
+                "s": "Shift+`"
+            },
+            "6|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 51,
+                "c": 1,
+                "s": "Ctrl+3"
+            },
+            "6|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Spatie",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "6|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "6|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "6|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "6|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "6|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 50,
+                "c": 1,
+                "s": "Ctrl+2"
+            },
+            "6|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+^"
+            },
+            "6|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "6|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Omlaag",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Volgende pagina"
+            },
+            "6|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 49,
+                "c": 1,
+                "s": "Ctrl+1"
+            },
+            "6|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "6|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "6|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Omlaag"
+            },
+            "6|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "6|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "6|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "2"
+            },
+            "6|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 49,
+                "c": 0,
+                "s": "1"
+            },
+            "6|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "6|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "6|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "6|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "6|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "6|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+$"
+            },
+            "6|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Rechts"
+            },
+            "6|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Omhoog"
+            },
+            "6|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+&"
+            },
+            "6|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "6|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "6|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "6|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "6|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "p"
+            },
+            "6|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+£"
+            },
+            "6|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "6|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 223,
+                "c": 1,
+                "s": "Ctrl+`"
+            },
+            "6|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "6|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+%"
+            },
+            "6|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "6|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Omhoog",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Vorige pagina"
+            },
+            "6|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "6|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "6|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+\""
+            },
+            "6|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "6|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Links"
+            },
+            "6|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "6|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "6|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "6|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "6|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 220,
+                "c": 0,
+                "s": ""
+            },
+            "6|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "6|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "6|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "6|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 223,
+                "c": 0,
+                "s": "`"
+            },
+            "6|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "6|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 51,
+                "c": 0,
+                "s": "3"
+            },
+            "6|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "6|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Rechts"
+            },
+            "6|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            },
+            "6|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "6|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "6|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 52,
+                "c": 0,
+                "s": "4"
+            },
+            "6|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 53,
+                "c": 0,
+                "s": "5"
+            },
+            "6|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "6|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "6|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "6|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 55,
+                "c": 1,
+                "s": "Ctrl+7"
+            },
+            "7|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "7|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 54,
+                "c": 1,
+                "s": "Ctrl+6"
+            },
+            "7|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "7|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 191,
+                "c": 0,
+                "s": "§"
+            },
+            "7|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "7|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "7|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "Ctrl+D"
+            },
+            "7|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "7|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 53,
+                "c": 1,
+                "s": "Ctrl+5"
+            },
+            "7|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "7|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "7|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Rechts"
+            },
+            "7|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "7|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 191,
+                "c": 1,
+                "s": "Ctrl+§"
+            },
+            "7|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 51,
+                "c": 0,
+                "s": "3"
+            },
+            "7|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "7|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            },
+            "7|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 53,
+                "c": 0,
+                "s": "5"
+            },
+            "7|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "7|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 52,
+                "c": 1,
+                "s": "Ctrl+4"
+            },
+            "7|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "7|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 191,
+                "c": 0,
+                "s": "g",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "7|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "7|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "7|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 191,
+                "c": 2,
+                "s": "Shift+§"
+            },
+            "7|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Omlaag",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Volgende pagina"
+            },
+            "7|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 55,
+                "c": 0,
+                "s": "7"
+            },
+            "7|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 51,
+                "c": 1,
+                "s": "Ctrl+3"
+            },
+            "7|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 226,
+                "c": 0,
+                "s": "<"
+            },
+            "7|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "7|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "7|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "7|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "7|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "7|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "7|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "7|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 54,
+                "c": 0,
+                "s": "6"
+            },
+            "7|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 52,
+                "c": 0,
+                "s": "4"
+            },
+            "7|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Links"
+            },
+            "7|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 55,
+                "c": 1,
+                "s": "Ctrl+7"
+            },
+            "7|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "7|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "7|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "7|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 50,
+                "c": 1,
+                "s": "Ctrl+2"
+            },
+            "7|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 49,
+                "c": 0,
+                "s": "1"
+            },
+            "7|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "7|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "7|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "7|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "7|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "7|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 49,
+                "c": 1,
+                "s": "Ctrl+1"
+            },
+            "7|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Omhoog",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Vorige pagina"
+            },
+            "7|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "7|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Omlaag"
+            },
+            "7|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "7|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "7|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "7|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "7|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "7|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "7|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "7|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Spatie",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "7|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "7|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "7|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Omhoog"
+            },
+            "7|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "7|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "2"
+            },
+            "7|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "7|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "7|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "7|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "7|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "7|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "7|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Rechts"
+            },
+            "7|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "7|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "7|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "7|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "7|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "8|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Spatie",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "8|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Omhoog",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Vorige pagina"
+            },
+            "8|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+\""
+            },
+            "8|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "8|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+è"
+            },
+            "8|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Omhoog"
+            },
+            "8|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Links"
+            },
+            "8|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+é"
+            },
+            "8|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 122,
+                "c": 1,
+                "s": "F1"
+            },
+            "8|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "8|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "8|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "8|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "8|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "8|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "8|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "8|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "8|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "8|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "8|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "8|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Rechts"
+            },
+            "8|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "8|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "8|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "8|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "8|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 55,
+                "c": 0,
+                "s": "è"
+            },
+            "8|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "é"
+            },
+            "8|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 54,
+                "c": 0,
+                "s": "-"
+            },
+            "8|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "8|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "8|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "8|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "8|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "8|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "8|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "8|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "Ctrl+D"
+            },
+            "8|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "8|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            },
+            "8|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Rechts"
+            },
+            "8|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "8|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "8|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 55,
+                "c": 1,
+                "s": "Ctrl+7"
+            },
+            "8|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 54,
+                "c": 1,
+                "s": "Ctrl+6"
+            },
+            "8|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 53,
+                "c": 1,
+                "s": "Ctrl+5"
+            },
+            "8|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "8|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 52,
+                "c": 1,
+                "s": "Ctrl+4"
+            },
+            "8|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 122,
+                "c": 2,
+                "s": "Shift+F1"
+            },
+            "8|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 51,
+                "c": 1,
+                "s": "Ctrl+3"
+            },
+            "8|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "8|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "8|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 50,
+                "c": 1,
+                "s": "Ctrl+2"
+            },
+            "8|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 161,
+                "c": 0,
+                "s": "!",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "8|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "8|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 49,
+                "c": 1,
+                "s": "Ctrl+1"
+            },
+            "8|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "8|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "8|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "8|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Omlaag"
+            },
+            "8|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "@"
+            },
+            "8|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 192,
+                "c": 0,
+                "s": "<"
+            },
+            "8|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "8|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "8|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "8|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "8|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "8|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "8|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "8|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 53,
+                "c": 0,
+                "s": "("
+            },
+            "8|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 51,
+                "c": 0,
+                "s": "3"
+            },
+            "8|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "8|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+&"
+            },
+            "8|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+'"
+            },
+            "8|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+("
+            },
+            "8|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 52,
+                "c": 0,
+                "s": "'"
+            },
+            "8|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 49,
+                "c": 0,
+                "s": "&"
+            },
+            "8|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+-§"
+            },
+            "8|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "8|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "8|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Omlaag",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Volgende pagina"
+            },
+            "9|MOVABLEBAR_SH1": {
+                "d": "MOVABLEBAR_SH1",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+2"
+            },
+            "9|MOVABLEBAR_SH13": {
+                "d": "MOVABLEBAR_SH13",
+                "o": true
+            },
+            "9|ESCAPE": {
+                "d": "ESCAPE",
+                "o": false,
+                "k": 27,
+                "c": 0,
+                "s": "Esc."
+            },
+            "9|SH6": {
+                "d": "SH6",
+                "o": true,
+                "k": 54,
+                "c": 0,
+                "s": "6"
+            },
+            "9|SH12": {
+                "d": "SH12",
+                "o": true,
+                "k": 53,
+                "c": 1,
+                "s": "Ctrl+5"
+            },
+            "9|SH13": {
+                "d": "SH13",
+                "o": true,
+                "k": 54,
+                "c": 1,
+                "s": "Ctrl+6"
+            },
+            "9|MOUNT_INVENTORY": {
+                "d": "MOUNT_INVENTORY",
+                "o": true,
+                "k": 68,
+                "c": 1,
+                "s": "Ctrl+D"
+            },
+            "9|SPELLS": {
+                "d": "SPELLS",
+                "o": true,
+                "k": 83,
+                "c": 0,
+                "s": "s"
+            },
+            "9|GRID": {
+                "d": "GRID",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+%"
+            },
+            "9|SHOW_CELL": {
+                "d": "SHOW_CELL",
+                "o": true
+            },
+            "9|MOVABLEBAR_SH6": {
+                "d": "MOVABLEBAR_SH6",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+7"
+            },
+            "9|MOVABLEBAR_SH5": {
+                "d": "MOVABLEBAR_SH5",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+6"
+            },
+            "9|MOVABLEBAR_SH0": {
+                "d": "MOVABLEBAR_SH0",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+1"
+            },
+            "9|TOGGLE_FIGHT_INFOS": {
+                "d": "TOGGLE_FIGHT_INFOS",
+                "o": true,
+                "k": 73,
+                "c": 1,
+                "s": "Ctrl+I"
+            },
+            "9|SH5": {
+                "d": "SH5",
+                "o": true,
+                "k": 53,
+                "c": 0,
+                "s": "5"
+            },
+            "9|SH4": {
+                "d": "SH4",
+                "o": true,
+                "k": 52,
+                "c": 0,
+                "s": "4"
+            },
+            "9|SH14": {
+                "d": "SH14",
+                "o": true,
+                "k": 55,
+                "c": 1,
+                "s": "Ctrl+7"
+            },
+            "9|MAXI": {
+                "d": "MAXI",
+                "o": true,
+                "k": 107,
+                "c": 0,
+                "s": "+"
+            },
+            "9|MOVABLEBAR_SH11": {
+                "d": "MOVABLEBAR_SH11",
+                "o": true
+            },
+            "9|AUTOCOMPLETE": {
+                "d": "AUTOCOMPLETE",
+                "o": false,
+                "k": 39,
+                "c": 1,
+                "s": "Ctrl+Rechts"
+            },
+            "9|BUFF": {
+                "d": "BUFF",
+                "o": true,
+                "k": 54,
+                "c": 2,
+                "s": "Shift+&"
+            },
+            "9|MOVABLEBAR_SH14": {
+                "d": "MOVABLEBAR_SH14",
+                "o": true
+            },
+            "9|MOVABLEBAR_SH7": {
+                "d": "MOVABLEBAR_SH7",
+                "o": true,
+                "k": 56,
+                "c": 2,
+                "s": "Shift+8"
+            },
+            "9|GUILD_MESSAGE": {
+                "d": "GUILD_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 1,
+                "s": "Ctrl+Enter"
+            },
+            "9|MINI": {
+                "d": "MINI",
+                "o": true,
+                "k": 109,
+                "c": 0,
+                "s": "-"
+            },
+            "9|FULLSCREEN": {
+                "d": "FULLSCREEN",
+                "o": false,
+                "k": 70,
+                "c": 1,
+                "s": "Ctrl+F"
+            },
+            "9|MOVABLEBAR_SH4": {
+                "d": "MOVABLEBAR_SH4",
+                "o": true,
+                "k": 53,
+                "c": 2,
+                "s": "Shift+5"
+            },
+            "9|MOVABLEBAR_SH3": {
+                "d": "MOVABLEBAR_SH3",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+4"
+            },
+            "9|SPRITEINFOS": {
+                "d": "SPRITEINFOS",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+§"
+            },
+            "9|MOVABLEBAR_SH15": {
+                "d": "MOVABLEBAR_SH15",
+                "o": true
+            },
+            "9|SH3": {
+                "d": "SH3",
+                "o": true,
+                "k": 51,
+                "c": 0,
+                "s": "3"
+            },
+            "9|ALLOWSCALE": {
+                "d": "ALLOWSCALE",
+                "o": false,
+                "k": 83,
+                "c": 1,
+                "s": "Ctrl+S"
+            },
+            "9|SH2": {
+                "d": "SH2",
+                "o": true,
+                "k": 50,
+                "c": 0,
+                "s": "2"
+            },
+            "9|CONSOLE": {
+                "d": "CONSOLE",
+                "o": false,
+                "k": 220,
+                "c": 1,
+                "s": "Ctrl+^"
+            },
+            "9|QUESTS": {
+                "d": "QUESTS",
+                "o": true,
+                "k": 81,
+                "c": 0,
+                "s": "q"
+            },
+            "9|MERGE_RUNE": {
+                "d": "MERGE_RUNE",
+                "o": true,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "9|MAP": {
+                "d": "MAP",
+                "o": true,
+                "k": 77,
+                "c": 0,
+                "s": "m"
+            },
+            "9|MOUNTING": {
+                "d": "MOUNTING",
+                "o": true,
+                "k": 68,
+                "c": 2,
+                "s": "Shift+d"
+            },
+            "9|WHISPER_HISTORY_DOWN": {
+                "d": "WHISPER_HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 2,
+                "s": "Shift+Omlaag",
+                "k2": 34,
+                "c2": 0,
+                "o2": false,
+                "s2": "Volgende pagina"
+            },
+            "9|HISTORY_UP": {
+                "d": "HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 0,
+                "s": "Omhoog"
+            },
+            "9|SH1": {
+                "d": "SH1",
+                "o": true,
+                "k": 49,
+                "c": 0,
+                "s": "1"
+            },
+            "9|CODE_NEXT": {
+                "d": "CODE_NEXT",
+                "o": true,
+                "k": 39,
+                "c": 0,
+                "s": "Rechts"
+            },
+            "9|STRINGCOURSE": {
+                "d": "STRINGCOURSE",
+                "o": true,
+                "k": 49,
+                "c": 2,
+                "s": "Shift+!"
+            },
+            "9|GUILD_TAX_COLLECTOR": {
+                "d": "GUILD_TAX_COLLECTOR",
+                "o": true,
+                "k": 71,
+                "c": 1,
+                "s": "Ctrl+G"
+            },
+            "9|WHISPER_HISTORY_UP": {
+                "d": "WHISPER_HISTORY_UP",
+                "o": false,
+                "k": 38,
+                "c": 2,
+                "s": "Shift+Omhoog",
+                "k2": 33,
+                "c2": 0,
+                "o2": false,
+                "s2": "Vorige pagina"
+            },
+            "9|TEAM_MESSAGE": {
+                "d": "TEAM_MESSAGE",
+                "o": false,
+                "k": 13,
+                "c": 2,
+                "s": "Shift+Enter"
+            },
+            "9|INVENTORY": {
+                "d": "INVENTORY",
+                "o": true,
+                "k": 73,
+                "c": 0,
+                "s": "i"
+            },
+            "9|MOVABLEBAR_SH2": {
+                "d": "MOVABLEBAR_SH2",
+                "o": true,
+                "k": 51,
+                "c": 2,
+                "s": "Shift+3"
+            },
+            "9|TRANSPARENCY": {
+                "d": "TRANSPARENCY",
+                "o": true,
+                "k": 50,
+                "c": 2,
+                "s": "Shift+\""
+            },
+            "9|COORDS": {
+                "d": "COORDS",
+                "o": true,
+                "k": 55,
+                "c": 2,
+                "s": "Shift+/"
+            },
+            "9|CONQUEST_AND_HUNT": {
+                "d": "CONQUEST_AND_HUNT",
+                "o": true,
+                "k": 80,
+                "c": 0,
+                "s": "p"
+            },
+            "9|ACCEPT_CURRENT_DIALOG": {
+                "d": "ACCEPT_CURRENT_DIALOG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "9|NEXTTURN": {
+                "d": "NEXTTURN",
+                "o": false,
+                "k": 112,
+                "c": 0,
+                "s": "F1"
+            },
+            "9|GUILD": {
+                "d": "GUILD",
+                "o": true,
+                "k": 71,
+                "c": 0,
+                "s": "g"
+            },
+            "9|FRIENDS": {
+                "d": "FRIENDS",
+                "o": true,
+                "k": 70,
+                "c": 0,
+                "s": "f"
+            },
+            "9|MOVABLEBAR": {
+                "d": "MOVABLEBAR",
+                "o": true,
+                "k": 52,
+                "c": 2,
+                "s": "Shift+$"
+            },
+            "9|SHOW_FIX_RES": {
+                "d": "SHOW_FIX_RES",
+                "o": true
+            },
+            "9|MOVABLEBAR_SH9": {
+                "d": "MOVABLEBAR_SH9",
+                "o": true
+            },
+            "9|TEMPORIS": {
+                "d": "TEMPORIS",
+                "o": true,
+                "k": 161,
+                "c": 0,
+                "s": "!",
+                "k2": 84,
+                "c2": 0,
+                "o2": true,
+                "s2": "T"
+            },
+            "9|SEND_CHAT_MSG": {
+                "d": "SEND_CHAT_MSG",
+                "o": false,
+                "k": 13,
+                "c": 0,
+                "s": "Enter"
+            },
+            "9|HISTORY_DOWN": {
+                "d": "HISTORY_DOWN",
+                "o": false,
+                "k": 40,
+                "c": 0,
+                "s": "Omlaag"
+            },
+            "9|MOVABLEBAR_SH10": {
+                "d": "MOVABLEBAR_SH10",
+                "o": true
+            },
+            "9|MOUNT": {
+                "d": "MOUNT",
+                "o": true,
+                "k": 68,
+                "c": 0,
+                "s": "d"
+            },
+            "9|CODE_CLEAR": {
+                "d": "CODE_CLEAR",
+                "o": true,
+                "k": 32,
+                "c": 0,
+                "s": "Spatie",
+                "k2": 46,
+                "c2": 0,
+                "o2": true,
+                "s2": "Del"
+            },
+            "9|SWAP": {
+                "d": "SWAP",
+                "o": true,
+                "k": 226,
+                "c": 0,
+                "s": "<"
+            },
+            "9|CHARAC": {
+                "d": "CHARAC",
+                "o": true,
+                "k": 67,
+                "c": 0,
+                "s": "c"
+            },
+            "9|SH8": {
+                "d": "SH8",
+                "o": true,
+                "k": 49,
+                "c": 1,
+                "s": "Ctrl+1"
+            },
+            "9|SHOWMONSTERSTOOLTIP": {
+                "d": "SHOWMONSTERSTOOLTIP",
+                "o": true,
+                "k": 90,
+                "c": 0,
+                "s": "z"
+            },
+            "9|SH0": {
+                "d": "SH0",
+                "o": true,
+                "k": 220,
+                "c": 0,
+                "s": "^"
+            },
+            "9|SH9": {
+                "d": "SH9",
+                "o": true,
+                "k": 50,
+                "c": 1,
+                "s": "Ctrl+2"
+            },
+            "9|HIDESPRITES": {
+                "d": "HIDESPRITES",
+                "o": true,
+                "k": 69,
+                "c": 0,
+                "s": "e"
+            },
+            "9|CODE_PREVIOUS": {
+                "d": "CODE_PREVIOUS",
+                "o": true,
+                "k": 37,
+                "c": 0,
+                "s": "Links"
+            },
+            "9|MOVABLEBAR_SH12": {
+                "d": "MOVABLEBAR_SH12",
+                "o": true
+            },
+            "9|SH10": {
+                "d": "SH10",
+                "o": true,
+                "k": 51,
+                "c": 1,
+                "s": "Ctrl+3"
+            },
+            "9|CONSOLESIZE": {
+                "d": "CONSOLESIZE",
+                "o": false,
+                "k": 220,
+                "c": 2,
+                "s": "Shift+^"
+            },
+            "9|SH7": {
+                "d": "SH7",
+                "o": true,
+                "k": 55,
+                "c": 0,
+                "s": "7"
+            },
+            "9|SH11": {
+                "d": "SH11",
+                "o": true,
+                "k": 52,
+                "c": 1,
+                "s": "Ctrl+4"
+            },
+            "9|SHOWTRIGGERS": {
+                "d": "SHOWTRIGGERS",
+                "o": true,
+                "k": 65,
+                "c": 0,
+                "s": "a"
+            },
+            "9|MOVABLEBAR_SH8": {
+                "d": "MOVABLEBAR_SH8",
+                "o": true,
+                "k": 57,
+                "c": 2,
+                "s": "Shift+9"
+            }
+        },
+        "SSC": {
+            "1": {
+                "d": "Andere snelkoppelingen",
+                "i": 1,
+                "o": 99
+            },
+            "7": {
+                "d": "Code deur",
+                "i": 7,
+                "o": 7
+            },
+            "4": {
+                "d": "Interface",
+                "i": 4,
+                "o": 6
+            },
+            "5": {
+                "d": "Menu's",
+                "i": 5,
+                "o": 5
+            },
+            "8": {
+                "d": "Verplaatsbare Sneltoets Toolbar",
+                "i": 8,
+                "o": 4
+            },
+            "3": {
+                "d": "Snelkoppelingsbalk",
+                "i": 3,
+                "o": 3
+            },
+            "6": {
+                "d": "Gevecht",
+                "i": 6,
+                "o": 2
+            },
+            "2": {
+                "d": "Chat",
+                "i": 2,
+                "o": 1
+            }
+        },
+        "SH": {
+            "SHOW_FIX_RES": {
+                "d": "Show/hide fixed resistances in the combat banner",
+                "c": 6,
+                "k": "",
+                "s": false
+            },
+            "TEMPORIS": {
+                "d": "Open the Temporis interface",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "SWAP": {
+                "d": "Wisselen tussen snelkoppelingen toverspreuken en voorwerpen",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "CODE_CLEAR": {
+                "d": "Wis huidig nummer",
+                "c": 7,
+                "k": "",
+                "s": false
+            },
+            "MAP": {
+                "d": "Wereldkaart",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "WHISPER_HISTORY_UP": {
+                "d": "Vorige relatie in geschiedenis",
+                "c": 2,
+                "k": "",
+                "s": false
+            },
+            "HISTORY_UP": {
+                "d": "Vorig bericht in geschiedenis",
+                "c": 2,
+                "k": "",
+                "s": false
+            },
+            "WHISPER_HISTORY_DOWN": {
+                "d": "Volgende relatie in geschiedenis",
+                "c": 2,
+                "k": "",
+                "s": false
+            },
+            "HISTORY_DOWN": {
+                "d": "Volgend bericht in geschiedenis",
+                "c": 2,
+                "k": "",
+                "s": false
+            },
+            "HIDESPRITES": {
+                "d": "Verberg de figuurtjes",
+                "c": 1,
+                "k": "",
+                "s": false
+            },
+            "SH9": {
+                "d": "Toverspreuk of voorwerp bruikbaar snelkoppeling 9",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH8": {
+                "d": "Toverspreuk of voorwerp bruikbaar snelkoppeling 8",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH7": {
+                "d": "Toverspreuk of voorwerp bruikbaar snelkoppeling 7",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH6": {
+                "d": "Toverspreuk of voorwerp bruikbaar snelkoppeling 6",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH5": {
+                "d": "Toverspreuk of voorwerp bruikbaar snelkoppeling 5",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH4": {
+                "d": "Toverspreuk of voorwerp bruikbaar snelkoppeling 4",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH3": {
+                "d": "Toverspreuk of voorwerp bruikbaar snelkoppeling 3",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH2": {
+                "d": "Toverspreuk of voorwerp bruikbaar snelkoppeling 2",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH14": {
+                "d": "Toverspreuk of voorwerp bruikbaar snelkoppeling 14",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH13": {
+                "d": "Toverspreuk of voorwerp bruikbaar snelkoppeling 13",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH12": {
+                "d": "Toverspreuk of voorwerp bruikbaar snelkoppeling 12",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH11": {
+                "d": "Toverspreuk of voorwerp bruikbaar snelkoppeling 11",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH10": {
+                "d": "Toverspreuk of voorwerp bruikbaar snelkoppeling 10",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "SH1": {
+                "d": "Toverspreuk of voorwerp bruikbaar snelkoppeling 1",
+                "c": 3,
+                "k": "",
+                "s": false
+            },
+            "GRID": {
+                "d": "Toon / Verberg het raster",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR": {
+                "d": "Toon / Verberg de verplaatsbare  snelkoppelingsbalk",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "COORDS": {
+                "d": "Toon / Verberg de coördinaten van de kaart",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "BUFF": {
+                "d": "Toon / Verberg de buffs en debuffs",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "TOGGLE_FIGHT_INFOS": {
+                "d": "Toont / verbergt vechtdetails in de chat.",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "SEND_CHAT_MSG": {
+                "d": "Stuur huidig bericht",
+                "c": 2,
+                "k": "",
+                "s": true
+            },
+            "MOVABLEBAR_SH15": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 16",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH14": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 15",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH13": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 14",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH12": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 13",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH11": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 12",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH10": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 11",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH9": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 10",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH8": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 09",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH7": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 08",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH6": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 07",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH5": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 06",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH4": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 05",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH3": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 04",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH2": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 03",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH1": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 02",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MOVABLEBAR_SH0": {
+                "d": "Spreuk of bruikbaar voorwerp sneltoets vak 01",
+                "c": 8,
+                "k": "",
+                "s": false
+            },
+            "MERGE_RUNE": {
+                "d": "(Smithmagic) Combine once",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "SH0": {
+                "d": "Sluit gevecht man tegen man",
+                "c": 6,
+                "k": "",
+                "s": false
+            },
+            "ESCAPE": {
+                "d": "Sluit geopende interface",
+                "c": 1,
+                "k": "",
+                "s": true
+            },
+            "CONSOLESIZE": {
+                "d": "Resize the console",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "MOUNTING": {
+                "d": "Op- of afstijgen rijdier",
+                "c": 1,
+                "k": "",
+                "s": false
+            },
+            "MINI": {
+                "d": "Minimaliseer chatscherm",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "ALLOWSCALE": {
+                "d": "Maximaliseer / Minimaliseer het beeld van het spel",
+                "c": 1,
+                "k": "",
+                "s": true
+            },
+            "MAXI": {
+                "d": "Maximaliseer chatscherm",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "AUTOCOMPLETE": {
+                "d": "Maak de naam van een personage volledig",
+                "c": 2,
+                "k": "",
+                "s": false
+            },
+            "FRIENDS": {
+                "d": "Lijst van vrienden / vijanden",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "SPELLS": {
+                "d": "Lijst toverspreuken",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "QUESTS": {
+                "d": "Lijst missies",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "CHARAC": {
+                "d": "Karakteristieken",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "INVENTORY": {
+                "d": "Inventaris",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "SHOWTRIGGERS": {
+                "d": "Highlight important squares on the map",
+                "c": 1,
+                "k": "",
+                "s": false
+            },
+            "SHOW_CELL": {
+                "d": "Hiermee kun je aan je hele team een vak op de kaart laten zien",
+                "c": 6,
+                "k": "",
+                "s": false
+            },
+            "GUILD": {
+                "d": "Gilde",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "SHOWMONSTERSTOOLTIP": {
+                "d": "Geef de tooltips van de monsters weer",
+                "c": 1,
+                "k": "",
+                "s": false
+            },
+            "CODE_PREVIOUS": {
+                "d": "Ga naar volgend nummer",
+                "c": 7,
+                "k": "",
+                "s": false
+            },
+            "CODE_NEXT": {
+                "d": "Ga naar volgende nummer",
+                "c": 7,
+                "k": "",
+                "s": false
+            },
+            "NEXTTURN": {
+                "d": "End your turn or be ready in the fight preparation phase",
+                "c": 6,
+                "k": "",
+                "s": false
+            },
+            "ACCEPT_CURRENT_DIALOG": {
+                "d": "Bevestig huidig dialoog.",
+                "c": 1,
+                "k": "",
+                "s": true
+            },
+            "MOUNT": {
+                "d": "Berijden",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "TEAM_MESSAGE": {
+                "d": "Bericht op het Teamkanaal",
+                "c": 2,
+                "k": "",
+                "s": true
+            },
+            "GUILD_MESSAGE": {
+                "d": "Bericht op het Gildekanaal",
+                "c": 2,
+                "k": "",
+                "s": true
+            },
+            "CONSOLE": {
+                "d": "Bedieningspaneel",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "FULLSCREEN": {
+                "d": "Activeer / Deactiveer volledig scherm modus",
+                "c": 1,
+                "k": "",
+                "s": true
+            },
+            "TRANSPARENCY": {
+                "d": "Activeer / Deactiveer de transparantie van de spelers",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "STRINGCOURSE": {
+                "d": "Activeer / Deactiveer de illustratie aan het begin van een ronde",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "SPRITEINFOS": {
+                "d": "Activeer / Deactiveer aanvullende informatie over een speler in gevecht",
+                "c": 4,
+                "k": "",
+                "s": false
+            },
+            "CONQUEST_AND_HUNT": {
+                "d": "Conquest and Hunt",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "GUILD_TAX_COLLECTOR": {
+                "d": "Guild: open the collectors tab",
+                "c": 5,
+                "k": "",
+                "s": false
+            },
+            "MOUNT_INVENTORY": {
+                "d": "Mount: open inventory",
+                "c": 5,
+                "k": "",
+                "s": false
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 466,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "SST",
+            "SSK",
+            "SSC",
+            "SH",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

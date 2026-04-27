@@ -1,0 +1,1112 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "A": {
+            "a": {
+                "0": {
+                    "n": "Neutraal",
+                    "c": true
+                },
+                "1": {
+                    "n": "Bonta",
+                    "c": true
+                },
+                "2": {
+                    "n": "Brakmar",
+                    "c": true
+                },
+                "3": {
+                    "n": "Huurling",
+                    "c": false
+                }
+            },
+            "o": {
+                "0": {
+                    "n": "Neutraal",
+                    "a": 0
+                },
+                "1": {
+                    "n": "Nieuwe Bonta rekruten",
+                    "a": 1
+                },
+                "2": {
+                    "n": "Orde van het Dappere Hart",
+                    "a": 1
+                },
+                "3": {
+                    "n": "Orde van de Reddende Geest",
+                    "a": 1
+                },
+                "4": {
+                    "n": "Orde van het Alziende Oog",
+                    "a": 1
+                },
+                "5": {
+                    "n": "Nieuwe Brakmar rekruten",
+                    "a": 2
+                },
+                "6": {
+                    "n": "Orde van het Bloedende Hart",
+                    "a": 2
+                },
+                "7": {
+                    "n": "Orde van de Zieke Geest",
+                    "a": 2
+                },
+                "8": {
+                    "n": "Orde van het Etterende Oog",
+                    "a": 2
+                },
+                "9": {
+                    "n": "Seriane-Kerm Clan",
+                    "a": 3
+                }
+            },
+            "jo": {
+                "0": [
+                    false,
+                    false,
+                    false,
+                    true
+                ],
+                "1": [
+                    true,
+                    false,
+                    true,
+                    true
+                ],
+                "2": [
+                    true,
+                    true,
+                    false,
+                    true
+                ],
+                "3": [
+                    true,
+                    true,
+                    true,
+                    true
+                ]
+            },
+            "at": {
+                "0": [
+                    false,
+                    false,
+                    false,
+                    false
+                ],
+                "1": [
+                    true,
+                    true,
+                    false,
+                    true
+                ],
+                "2": [
+                    true,
+                    false,
+                    true,
+                    true
+                ],
+                "3": [
+                    true,
+                    true,
+                    true,
+                    true
+                ]
+            },
+            "f": {
+                "1": {
+                    "n": "Doeltreffendheid",
+                    "g": 1,
+                    "e": 10
+                },
+                "2": {
+                    "n": "Initiatief",
+                    "g": 2,
+                    "e": 2
+                },
+                "3": {
+                    "n": "Aarde Weerstand",
+                    "g": 3,
+                    "e": 17
+                },
+                "4": {
+                    "n": "Vuur Weerstand",
+                    "g": 4,
+                    "e": 18
+                },
+                "5": {
+                    "n": "Water Weerstand",
+                    "g": 5,
+                    "e": 19
+                },
+                "6": {
+                    "n": "Lucht Weerstand",
+                    "g": 6,
+                    "e": 20
+                },
+                "7": {
+                    "n": "Neutrale Weerstand",
+                    "g": 7,
+                    "e": 21
+                },
+                "8": {
+                    "n": "Weerstandsvermogen",
+                    "g": 8,
+                    "e": 4
+                },
+                "9": {
+                    "n": "Uithoudingsvermogen",
+                    "g": 9,
+                    "e": 22
+                },
+                "10": {
+                    "n": "Camouflage Kunst",
+                    "g": 10,
+                    "e": 0
+                },
+                "11": {
+                    "n": "Schriftrol Kennis",
+                    "g": 11,
+                    "e": 0
+                },
+                "12": {
+                    "n": "Herlevingsvermogen",
+                    "g": 12,
+                    "e": 0
+                },
+                "13": {
+                    "n": "Extra Energieverlies",
+                    "g": 12,
+                    "e": 23
+                },
+                "15": {
+                    "n": "Weerstand Aarde vechters",
+                    "g": 3,
+                    "e": 29
+                },
+                "16": {
+                    "n": "Weerstand Water vechters",
+                    "g": 5,
+                    "e": 31
+                },
+                "17": {
+                    "n": "Weerstand Lucht vechters",
+                    "g": 6,
+                    "e": 32
+                },
+                "18": {
+                    "n": "Weerstand Neutrale vechters",
+                    "g": 7,
+                    "e": 33
+                },
+                "19": {
+                    "n": "Weerstand Vuur vechters",
+                    "g": 4,
+                    "e": 30
+                },
+                "20": {
+                    "n": "Onderzoek",
+                    "g": 13,
+                    "e": 40
+                },
+                "21": {
+                    "n": "Wachter",
+                    "g": 1,
+                    "e": 0
+                },
+                "22": {
+                    "n": "Ontwaking",
+                    "g": 12,
+                    "e": 23
+                },
+                "23": {
+                    "n": "Kennis van drankjes",
+                    "g": 11,
+                    "e": 0
+                }
+            },
+            "fe": {
+                "1": "+#1 door bereik",
+                "2": "+#1 door initiatief",
+                "3": "+#1 op schade",
+                "4": "+#1 door vitaliteit",
+                "6": "+#1 door intelligentie",
+                "7": "+#1 door kracht",
+                "8": "+#1 door behendigheid",
+                "9": "+#1 door geluk",
+                "10": "+#1 op kritieke aanvallen",
+                "11": "+#1 AP",
+                "12": "+#1 MP",
+                "13": "+#1 door wijsheid",
+                "14": "+#1% door weerstand van AP verlies",
+                "15": "+#1% door weerstand van MP verlies",
+                "16": "#1% korting in winkel",
+                "17": "+#1 op weerstand tegen Aardeschade",
+                "18": "+#1 op weerstand tegen Vuurschade",
+                "19": "+#1 op weerstand tegen Waterschade",
+                "20": "+#1 op weerstand tegen Luchtschade",
+                "21": "+#1 op weerstand tegen Neutrale schade",
+                "22": "+#1 door energie",
+                "23": "+#1 door verloren energie",
+                "24": "+#1 op weerstand tegen Aardeschade",
+                "25": "+#1 op weerstand tegen Vuurschade",
+                "26": "+#1 op weerstand tegen Waterschade",
+                "27": "+#1 op weerstand tegen Luchtschade",
+                "28": "+#1 op weerstand tegen Neutrale schade",
+                "29": "+#1 op weerstand tegen Aardeschade van strijders",
+                "30": "+#1 op weerstand tegen Vuurschade van strijders",
+                "31": "+#1 op weerstand tegen Waterschade van strijders",
+                "32": "+#1 op weerstand tegen Luchtschade van strijders",
+                "33": "+#1 op weerstand tegen Neutrale schade van strijders",
+                "34": "+#1 op weerstand tegen Aardeschade van strijders",
+                "35": "+#1 op weerstand tegen Vuurschade van strijders",
+                "36": "+#1 op weerstand tegen Waterschade van strijders",
+                "37": "+#1 op weerstand tegen Luchtschade van strijders",
+                "38": "+#1 op weerstand tegen Neutrale schade van strijders",
+                "39": "+#1 op herstel",
+                "40": "+#1 door onderzoek"
+            },
+            "b": {
+                "0": {
+                    "s": 0,
+                    "e": 10,
+                    "n": "",
+                    "d": ""
+                },
+                "1": {
+                    "s": 10,
+                    "e": 20,
+                    "n": "",
+                    "d": ""
+                },
+                "2": {
+                    "s": 20,
+                    "e": 30,
+                    "n": "",
+                    "d": ""
+                },
+                "3": {
+                    "s": 30,
+                    "e": 40,
+                    "n": "",
+                    "d": ""
+                },
+                "4": {
+                    "s": 40,
+                    "e": 50,
+                    "n": "",
+                    "d": ""
+                },
+                "5": {
+                    "s": 50,
+                    "e": 60,
+                    "n": "",
+                    "d": ""
+                },
+                "6": {
+                    "s": 60,
+                    "e": 70,
+                    "n": "",
+                    "d": ""
+                },
+                "7": {
+                    "s": 70,
+                    "e": 80,
+                    "n": "",
+                    "d": ""
+                },
+                "8": {
+                    "s": 80,
+                    "e": 90,
+                    "n": "",
+                    "d": ""
+                },
+                "9": {
+                    "s": 90,
+                    "e": 100,
+                    "n": "",
+                    "d": ""
+                }
+            },
+            "g": {
+                "0": [
+                    false,
+                    false,
+                    false,
+                    false
+                ],
+                "1": [
+                    false,
+                    true,
+                    true,
+                    false
+                ],
+                "2": [
+                    false,
+                    true,
+                    true,
+                    false
+                ],
+                "3": [
+                    true,
+                    false,
+                    false,
+                    false
+                ]
+            },
+            "s": {
+                "0": {
+                    "n": "Neutraal",
+                    "d": "-",
+                    "o": 0,
+                    "av": 0,
+                    "f": {}
+                },
+                "1": {
+                    "n": "Nieuweling",
+                    "d": "De nieuwe rekruten hebben gekozen om de zwakkeren te beschermen. Ze zijn echter net begonnen met hun training en hebben zich nog niet gespecialiseerd. Pas later zullen hun verlangens en mogelijkheden samenkomen om ze te helpen.",
+                    "o": 1,
+                    "av": 0,
+                    "f": {}
+                },
+                "2": {
+                    "n": "Volgeling van Menalt",
+                    "d": "Om hun vecht bekwaamheid te ontwikkelen, moeten Menalt's volgelingen hun moed en kracht bewijzen tijdens lange en pijnlijke trainingen.",
+                    "o": 2,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            21
+                        ],
+                        [
+                            [
+                                200
+                            ],
+                            1,
+                            22
+                        ]
+                    ]
+                },
+                "3": {
+                    "n": "Page",
+                    "d": "Een page die deze naam waardig is, klaagt niet over vermoeidheid en zal dit elke dag bewijzen door lange en pijnlijke trainingen.",
+                    "o": 2,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            21
+                        ],
+                        [
+                            [
+                                400
+                            ],
+                            2,
+                            22
+                        ]
+                    ]
+                },
+                "4": {
+                    "n": "Ridder der Hoop",
+                    "d": "-",
+                    "o": 2,
+                    "av": 60,
+                    "f": [
+                        [
+                            [
+                                600
+                            ],
+                            3,
+                            22
+                        ],
+                        [
+                            3,
+                            21
+                        ]
+                    ]
+                },
+                "5": {
+                    "n": "Buitengewone Kampioen",
+                    "d": "-",
+                    "o": 2,
+                    "av": 80,
+                    "f": [
+                        [
+                            4,
+                            21
+                        ],
+                        [
+                            [
+                                800
+                            ],
+                            4,
+                            22
+                        ]
+                    ]
+                },
+                "6": {
+                    "n": "Legendarische Held",
+                    "d": "-",
+                    "o": 2,
+                    "av": 100,
+                    "f": [
+                        [
+                            5,
+                            21
+                        ],
+                        [
+                            [
+                                1000
+                            ],
+                            5,
+                            22
+                        ]
+                    ]
+                },
+                "7": {
+                    "n": "Volgeling van Jiva",
+                    "d": "Om hun magische krachten te ontwikkelen, moeten Jiva's volgelingen de spirituele kracht in zichzelf ontdekken.",
+                    "o": 3,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            23
+                        ]
+                    ]
+                },
+                "8": {
+                    "n": "Leerling",
+                    "d": "Om de titel van Leerling van dit beroep te mogen dragen, moet je gewonde en stervende soldaten kunnen verzorgen.",
+                    "o": 3,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            23
+                        ]
+                    ]
+                },
+                "9": {
+                    "n": "Schrift Volgeling",
+                    "d": "-",
+                    "o": 3,
+                    "av": 60,
+                    "f": [
+                        [
+                            3,
+                            23
+                        ]
+                    ]
+                },
+                "10": {
+                    "n": "Meester der Schriftrollen",
+                    "d": "-",
+                    "o": 3,
+                    "av": 80,
+                    "f": [
+                        [
+                            4,
+                            23
+                        ]
+                    ]
+                },
+                "11": {
+                    "n": "Kennis Bewaker",
+                    "d": "-",
+                    "o": 3,
+                    "av": 100,
+                    "f": [
+                        [
+                            5,
+                            23
+                        ]
+                    ]
+                },
+                "13": {
+                    "n": "Volgeling van Silvosse",
+                    "d": "Om hun bekwaamheid als spion te ontwikkelen, moeten Silvosse's volgelingen leren om nuttige informatie te verzamelen zonder betrapt te worden.",
+                    "o": 4,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            10
+                        ]
+                    ]
+                },
+                "14": {
+                    "n": "Spion",
+                    "d": "Jezelf spion noemen, wil nog niet zeggen dat je er één bent. Alleen een ervaren Spion die onbeweeglijk is als de eik en zo stil als een steen kan alles op aarde horen.",
+                    "o": 4,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            10
+                        ]
+                    ]
+                },
+                "15": {
+                    "n": "Rebellen Jager",
+                    "d": "-",
+                    "o": 4,
+                    "av": 60,
+                    "f": [
+                        [
+                            3,
+                            10
+                        ]
+                    ]
+                },
+                "16": {
+                    "n": "Opper Moordenaar",
+                    "d": "-",
+                    "o": 4,
+                    "av": 80,
+                    "f": [
+                        [
+                            4,
+                            10
+                        ]
+                    ]
+                },
+                "17": {
+                    "n": "Meester der Illusies",
+                    "d": "-",
+                    "o": 4,
+                    "av": 100,
+                    "f": [
+                        [
+                            5,
+                            10
+                        ]
+                    ]
+                },
+                "18": {
+                    "n": "Nieuweling",
+                    "d": "De nieuwe rekruten komen uit het meest vieze moeras dat er bestaat. Zelfs aangezien ze behoorlijk onbetrouwbaar zijn, zijn ze door hun onnozelheid geen geduchte vijanden. Maar dit wordt anders, als ze eenmaal leren...",
+                    "o": 5,
+                    "av": 0,
+                    "f": {}
+                },
+                "19": {
+                    "n": "Volgeling van Djaul",
+                    "d": "Gedreven door hun liefde voor haat, moeten Djaul's volgelingen leren dat er tijdens een gevecht geen vijanden bestaan, maar enkel koppen die moeten rollen.",
+                    "o": 6,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            21
+                        ],
+                        [
+                            [
+                                200
+                            ],
+                            1,
+                            22
+                        ]
+                    ]
+                },
+                "20": {
+                    "n": "Messenvechter",
+                    "d": "Een Messenvechter voor Djaul zijn is geen gemakkelijke taak en je moet fysiek heel sterk zijn, maar het vraagt ook dat je totaal ongevoelig bent voor moraliteit.",
+                    "o": 6,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            21
+                        ],
+                        [
+                            [
+                                400
+                            ],
+                            2,
+                            22
+                        ]
+                    ]
+                },
+                "21": {
+                    "n": "Ridder der Wanhoop",
+                    "d": "-",
+                    "o": 6,
+                    "av": 60,
+                    "f": [
+                        [
+                            3,
+                            21
+                        ],
+                        [
+                            [
+                                600
+                            ],
+                            3,
+                            22
+                        ]
+                    ]
+                },
+                "22": {
+                    "n": "Chaos Kampioen",
+                    "d": "-",
+                    "o": 6,
+                    "av": 80,
+                    "f": [
+                        [
+                            [
+                                800
+                            ],
+                            4,
+                            22
+                        ],
+                        [
+                            4,
+                            21
+                        ]
+                    ]
+                },
+                "23": {
+                    "n": "Apocalyps Held",
+                    "d": "-",
+                    "o": 6,
+                    "av": 100,
+                    "f": [
+                        [
+                            [
+                                1000
+                            ],
+                            5,
+                            22
+                        ],
+                        [
+                            5,
+                            21
+                        ]
+                    ]
+                },
+                "24": {
+                    "n": "Volgeling van Hecate",
+                    "d": "Gedreven door kwade bedoelingen, moeten Hecate's volgelingen hun vermogen bewijzen om informatie te verzamelen en foute informatie verspreiden.",
+                    "o": 7,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            23
+                        ]
+                    ]
+                },
+                "25": {
+                    "n": "Duistere Leerling",
+                    "d": "Om de titel van Leerling van dit beroep te mogen dragen, moet je de levenden, de doden en de levende doden kunnen betoveren.",
+                    "o": 7,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            23
+                        ]
+                    ]
+                },
+                "26": {
+                    "n": "Pijn Volgeling",
+                    "d": "-",
+                    "o": 7,
+                    "av": 60,
+                    "f": [
+                        [
+                            3,
+                            23
+                        ]
+                    ]
+                },
+                "27": {
+                    "n": "Meester der Wreedheden",
+                    "d": "-",
+                    "o": 7,
+                    "av": 80,
+                    "f": [
+                        [
+                            4,
+                            23
+                        ]
+                    ]
+                },
+                "28": {
+                    "n": "Martel Bewaker",
+                    "d": "-",
+                    "o": 7,
+                    "av": 100,
+                    "f": [
+                        [
+                            5,
+                            23
+                        ]
+                    ]
+                },
+                "29": {
+                    "n": "Volgeling van Brumaire",
+                    "d": "Gedreven door een buitensporige smaak voor duistere sferen, moeten Brumaire's volgelingen perfecte kennis van giffen vergaren en leren de juiste dodelijke ingrediënten samen te stellen.",
+                    "o": 8,
+                    "av": 20,
+                    "f": [
+                        [
+                            1,
+                            10
+                        ]
+                    ]
+                },
+                "30": {
+                    "n": "Duistere Spion",
+                    "d": "Gehuld in z'n donkere jas, zal de Duistere Spion bloed laten vloeien en zwaarden laten huilen...",
+                    "o": 8,
+                    "av": 40,
+                    "f": [
+                        [
+                            2,
+                            10
+                        ]
+                    ]
+                },
+                "31": {
+                    "n": "Zielen Jager",
+                    "d": "-",
+                    "o": 8,
+                    "av": 60,
+                    "f": [
+                        [
+                            3,
+                            10
+                        ]
+                    ]
+                },
+                "32": {
+                    "n": "Psychopaat",
+                    "d": "-",
+                    "o": 8,
+                    "av": 80,
+                    "f": [
+                        [
+                            4,
+                            10
+                        ]
+                    ]
+                },
+                "33": {
+                    "n": "Meester der Schaduwen",
+                    "d": "-",
+                    "o": 8,
+                    "av": 100,
+                    "f": [
+                        [
+                            5,
+                            10
+                        ]
+                    ]
+                },
+                "34": {
+                    "n": "Neophyte",
+                    "d": "-",
+                    "o": 9,
+                    "av": 0,
+                    "f": {}
+                },
+                "36": {
+                    "n": "Huurling Leerling",
+                    "d": "-",
+                    "o": 9,
+                    "av": 20,
+                    "f": [
+                        [
+                            [
+                                1
+                            ],
+                            1,
+                            3
+                        ],
+                        [
+                            [
+                                1
+                            ],
+                            1,
+                            6
+                        ],
+                        [
+                            [
+                                50
+                            ],
+                            1,
+                            2
+                        ],
+                        [
+                            [
+                                1500
+                            ],
+                            1,
+                            13
+                        ],
+                        [
+                            [
+                                1
+                            ],
+                            1,
+                            4
+                        ],
+                        [
+                            [
+                                1
+                            ],
+                            1,
+                            5
+                        ]
+                    ]
+                },
+                "37": {
+                    "n": "Huurling",
+                    "d": "-",
+                    "o": 9,
+                    "av": 40,
+                    "f": [
+                        [
+                            [
+                                100
+                            ],
+                            2,
+                            2
+                        ],
+                        [
+                            [
+                                2
+                            ],
+                            2,
+                            3
+                        ],
+                        [
+                            [
+                                2
+                            ],
+                            2,
+                            5
+                        ],
+                        [
+                            [
+                                2
+                            ],
+                            2,
+                            4
+                        ],
+                        [
+                            [
+                                3500
+                            ],
+                            2,
+                            13
+                        ],
+                        [
+                            [
+                                2
+                            ],
+                            2,
+                            6
+                        ]
+                    ]
+                },
+                "38": {
+                    "n": "Bekwame Huurling",
+                    "d": "-",
+                    "o": 9,
+                    "av": 60,
+                    "f": [
+                        [
+                            [
+                                3
+                            ],
+                            3,
+                            6
+                        ],
+                        [
+                            [
+                                3
+                            ],
+                            3,
+                            3
+                        ],
+                        [
+                            [
+                                5500
+                            ],
+                            3,
+                            13
+                        ],
+                        [
+                            [
+                                3
+                            ],
+                            3,
+                            4
+                        ],
+                        [
+                            [
+                                150
+                            ],
+                            3,
+                            2
+                        ],
+                        [
+                            [
+                                50
+                            ],
+                            3,
+                            8
+                        ],
+                        [
+                            [
+                                3
+                            ],
+                            3,
+                            5
+                        ]
+                    ]
+                },
+                "39": {
+                    "n": "Huurling Meester",
+                    "d": "-",
+                    "o": 9,
+                    "av": 80,
+                    "f": [
+                        [
+                            [
+                                100
+                            ],
+                            4,
+                            8
+                        ],
+                        [
+                            [
+                                4
+                            ],
+                            4,
+                            6
+                        ],
+                        [
+                            1,
+                            11
+                        ],
+                        [
+                            [
+                                4
+                            ],
+                            4,
+                            5
+                        ],
+                        [
+                            [
+                                7500
+                            ],
+                            4,
+                            13
+                        ],
+                        [
+                            [
+                                4
+                            ],
+                            4,
+                            4
+                        ],
+                        [
+                            [
+                                4
+                            ],
+                            4,
+                            3
+                        ],
+                        [
+                            [
+                                200
+                            ],
+                            4,
+                            2
+                        ]
+                    ]
+                },
+                "40": {
+                    "n": "Bekwame Huurling Meester",
+                    "d": "-",
+                    "o": 9,
+                    "av": 100,
+                    "f": [
+                        [
+                            [
+                                5
+                            ],
+                            5,
+                            5
+                        ],
+                        [
+                            1,
+                            11
+                        ],
+                        [
+                            [
+                                250
+                            ],
+                            5,
+                            2
+                        ],
+                        [
+                            [
+                                5
+                            ],
+                            5,
+                            4
+                        ],
+                        [
+                            [
+                                5
+                            ],
+                            5,
+                            6
+                        ],
+                        [
+                            [
+                                5
+                            ],
+                            5,
+                            3
+                        ],
+                        [
+                            [
+                                9500
+                            ],
+                            5,
+                            13
+                        ],
+                        [
+                            [
+                                150
+                            ],
+                            5,
+                            8
+                        ]
+                    ]
+                }
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 140,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "A",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

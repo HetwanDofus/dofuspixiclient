@@ -16,6 +16,12 @@ export interface MapData {
   backgroundNum?: number;
   cells: CellData[];
   triggerCellIds?: number[];
+  /**
+   * Dofus subarea id (0-261). Drives tactic-mode theme/color lookup via
+   * `lang.MA.sa[subareaId]` (tt = theme name, tc = 4 hex colors). 0 when
+   * the server doesn't have it on record.
+   */
+  subareaId?: number;
 }
 
 export interface MapScale {

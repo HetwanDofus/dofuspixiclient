@@ -1,170 +1,114 @@
 /**
- * Spell 2071
+ * Spell 2071 — Unknown (displayType=11 TargetCell).
  *
- * A composite animation with multiple sprite instances (DefineSprite_7) that have
- * randomized scale, position drift, and start frame, contained within DefineSprite_8.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/2071/scripts/scripts/
  *
- * Components:
- * - anim1 (composite): Multiple instances of DefineSprite_7 at target position,
- *   each with random scale (50-109%), random velocity drift, and random start frame (0-29)
+ * displayType=11 (TargetCell). The spell has no projectile motion, no caster
+ * reference, and no `move`/`shoot`/`duplicate` symbols. It is a single
+ * impact animation anchored at the target cell. The manifest has no
+ * `librarySymbols[]` entry — only a single `animations[]` entry named
+ * `anim1`. There is no top-level main-timeline sound.
  *
- * Original AS timing:
- * - DefineSprite_7 frame_1: Set random scale, velocity; gotoAndPlay(random(30)+1)
- * - DefineSprite_7 frame_106 (0-indexed: 105): stop()
- * - DefineSprite_8 frame_109 (0-indexed: 108): removeMovieClip() -> complete
+ * Library symbols:
+ *   None. The AS scripts (DefineSprite_7, DefineSprite_8) drive the
+ *   `anim1` composite animation which is the sole visual.
+ *
+ * Symbol layout (inferred from script paths and manifest):
+ *   - `anim1` (DefineSprite_8, 111 frames, isComposite=true):
+ *       • Internally spawns instances of DefineSprite_7 particles.
+ *       • frame_109/DoAction.as: `_parent.removeMovieClip(); stop();`
+ *         → signals spell complete.
+ *
+ *   - DefineSprite_7 — particle sprite within anim1 (106 frames):
+ *       • frame_1/DoAction.as: seeds scale [50,110]%, vx ∈ [-3,3],
+ *         vy ∈ [-3,-8]; installs onEnterFrame for physics; jumps to
+ *         random frame in [1,30].
+ *       • frame_106/DoAction.as: stop().
+ *       • onEnterFrame: integrate position + 0.9 friction per axis.
+ *
+ * Because the manifest has no `librarySymbols[]`, the composite anim1
+ * timeline is rendered directly via `textures.getFrames("anim1")` (no
+ * `lib_` prefix). The DefineSprite_7 sub-particles are baked into the
+ * composite frames by the exporter and do not need separate registration.
+ *
+ * signalHit: fired at frame_109 (index 108) — the same frame that
+ * removes the outer mc, which is the canonical impact moment.
+ * complete(): fired at the same frame script (frame_109 / index 108).
+ *
+ * Main timeline: no sound, no explicit child attaches beyond what the
+ * harness sets up. `onSpellStart` is a no-op.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Container } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const ANIM1_MANIFEST: SpriteManifest = {
+const ANIM1_BOUNDS = {
   width: 54.6,
   height: 44.9,
   offsetX: -27.3,
   offsetY: -21.8,
 };
 
-/**
- * Internal state for each sprite_7 instance physics simulation
- */
-interface SpritePhysics {
-  anim: FrameAnimatedSprite;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  stopped: boolean;
-}
-
-export class Spell2071 extends BaseSpell {
+export class Spell2071 extends RuntimeSpell {
   readonly spellId = 2071;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private spriteInstances: SpritePhysics[] = [];
-  private instancesContainer!: Container;
-  private outerAnim!: FrameAnimatedSprite;
-
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const anchor = calculateAnchor(ANIM1_MANIFEST);
-    const anim1Textures = textures.getFrames("anim1");
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // Container for all instances, positioned at target
-    this.instancesContainer = new Container();
-    this.instancesContainer.position.set(init.targetX, init.targetY);
-    this.container.addChild(this.instancesContainer);
+    // ---- anim1 — composite impact animation at target cell -------
+    // The composite bakes the DefineSprite_7 particle behaviour into
+    // per-frame SVG textures. We still wire the timeline scripts so
+    // signalHit / complete fire at the correct canonical moment.
+    //
+    // AS DefineSprite_8/frame_109/DoAction.as:
+    //   _parent.removeMovieClip(); stop();
+    const anim1Sym: SymbolDefinition = {
+      name: "anim1",
+      totalFrames: 111,
+      frames: textures.getFrames("anim1"),
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
+      frameScripts: new Map([
+        [
+          108,
+          (_clip) => {
+            // AS DefineSprite_8/frame_109/DoAction.as:
+            //   _parent.removeMovieClip(); stop();
+            // frame_109 (0-based: 108) is the canonical removal frame.
+            // Signal hit at impact and complete the spell.
+            this.runtime.signalHit();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // The outer sprite (DefineSprite_8) is represented by anim1 itself.
-    // frame_109 (0-indexed: 108) triggers removeMovieClip -> complete.
-    // We use a single FrameAnimatedSprite for the outer timeline to track completion.
-    // The manifest says stopFrame=108 and fadingFrame=107, so we stop at 108.
-    this.outerAnim = new FrameAnimatedSprite({
-      textures: anim1Textures,
-      anchorX: anchor.x,
-      anchorY: anchor.y,
-      scale: init.scale,
-      stopFrame: 108,
-    });
-    // The outer anim sprite itself is not rendered visually (it's the container timeline),
-    // but we use it for timing. We add it hidden to still benefit from update tracking.
-    this.outerAnim.sprite.visible = false;
-    this.instancesContainer.addChild(this.outerAnim.sprite);
-    this.outerAnim.onFrame(108, () => this.complete());
-
-    // Spawn multiple DefineSprite_7 instances.
-    // The manifest has 111 frames for anim1 (composite), which corresponds to
-    // DefineSprite_8's 111 frames. DefineSprite_7 has 106 frames (stops at frame 106 = index 105).
-    // Based on original AS, the composite likely spawns several instances.
-    // Looking at the animation structure: anim1 is composite with 111 frames,
-    // containing multiple DefineSprite_7 instances. The typical pattern for such
-    // composite spells spawns a small number (e.g., 5) instances.
-    // Since no explicit count is given in AS, we use the composite frame data directly.
-    // Each DefineSprite_7 frame_1 initializes its own physics, so we simulate that.
-
-    const instanceCount = 5;
-
-    for (let i = 0; i < instanceCount; i++) {
-      // AS frame_1 of DefineSprite_7:
-      // t = 50 + random(60)  -> scale percentage 50-109
-      const t = 50 + Math.floor(Math.random() * 60);
-      const asScale = t / 100;
-
-      // vx = 6 * (-0.5 + Math.random())
-      const vx = 6 * (-0.5 + Math.random());
-
-      // vy = -3 - 5 * Math.random()
-      const vy = -3 - 5 * Math.random();
-
-      // gotoAndPlay(random(30) + 1) -> 0-indexed: random(30) = 0-29, so startFrame 0-29
-      const startFrame = Math.floor(Math.random() * 30);
-
-      const anim = new FrameAnimatedSprite({
-        textures: anim1Textures,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale * asScale,
-        startFrame,
-        stopFrame: 105,
-      });
-
-      this.instancesContainer.addChild(anim.sprite);
-
-      this.spriteInstances.push({
-        anim,
-        x: 0,
-        y: 0,
-        vx,
-        vy,
-        stopped: false,
-      });
-    }
-
-    // Signal hit at frame 0 (instant effect at target)
-    this.signalHit();
+    this.registry.register(anim1Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    // Update outer timing animation
-    this.outerAnim.update(deltaTime);
-
-    // Update each sprite_7 instance with AS physics
-    for (const inst of this.spriteInstances) {
-      if (inst.stopped) {
-        continue;
-      }
-
-      inst.anim.update(deltaTime);
-
-      // AS onEnterFrame physics (runs every frame):
-      // _X = _X + vx
-      // _Y = _Y + vy
-      // vx *= 0.9
-      // vy *= 0.9
-      // We apply per-frame step; since deltaTime may span multiple frames,
-      // we approximate by applying once per update (frame-locked at 60fps via FrameAnimatedSprite)
-      inst.x += inst.vx;
-      inst.y += inst.vy;
-      inst.vx *= 0.9;
-      inst.vy *= 0.9;
-
-      inst.anim.sprite.position.set(inst.x, inst.y);
-
-      if (inst.anim.isStopped() || inst.anim.isComplete()) {
-        inst.stopped = true;
-      }
+  protected onSpellStart(
+    _callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // No canonical SOMA.playSound on the main timeline for this spell.
+    // Attach anim1 at root so it starts playing immediately.
+    const anim1Sym = this.registry.resolve("anim1");
+    if (anim1Sym) {
+      this.root.attach(anim1Sym, "anim1", 1, context);
     }
   }
 }

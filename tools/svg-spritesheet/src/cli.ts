@@ -662,10 +662,17 @@ function findSpriteDirectories(inputBase: string): string[] {
     return [];
   }
 
+  // Resolve symlinks so staging dirs (used by the asset-pipeline to scope
+  // work to one sprite) are traversed rather than filtered out.
   return fs
-    .readdirSync(inputBase, { withFileTypes: true })
-    .filter((dirent) => dirent.isDirectory())
-    .map((dirent) => dirent.name)
+    .readdirSync(inputBase)
+    .filter((name) => {
+      try {
+        return fs.statSync(path.join(inputBase, name)).isDirectory();
+      } catch {
+        return false;
+      }
+    })
     .sort((a, b) => {
       const aNum = parseInt(a, 10);
       const bNum = parseInt(b, 10);

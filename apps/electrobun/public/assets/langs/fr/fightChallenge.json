@@ -1,0 +1,415 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "FC": {
+            "1": {
+                "n": "Zombie",
+                "d": "Utiliser exactement un point de mouvement par tour de jeu.",
+                "g": 11
+            },
+            "2": {
+                "n": "Statue",
+                "d": "Finir son tour sur la même case que celle où vous l'avez commencé, pendant toute la durée du combat.",
+                "g": 9
+            },
+            "3": {
+                "n": "Désigné volontaire",
+                "d": "Tuer %1 en premier.",
+                "g": 4
+            },
+            "4": {
+                "n": "Sursis",
+                "d": "Tuer %1 en dernier.",
+                "g": 10
+            },
+            "5": {
+                "n": "Économe",
+                "d": "Tous les personnages ne doivent utiliser qu'une seule fois la même action durant toute la durée du combat.",
+                "g": 3
+            },
+            "6": {
+                "n": "Versatile",
+                "d": "Chaque joueur n'a le droit d'effectuer qu'une seule fois une même action pendant son tour de jeu.",
+                "g": 12
+            },
+            "7": {
+                "n": "Jardinier",
+                "d": "Planter une Cawotte à chaque fois que le sort est disponible, pendant toute la durée du combat.",
+                "g": 6
+            },
+            "8": {
+                "n": "Nomade",
+                "d": "Utiliser tous ses PM disponibles à chaque tour pendant toute la durée du combat.",
+                "g": 8
+            },
+            "9": {
+                "n": "Barbare",
+                "d": "N'utiliser aucun sort pendant toute la durée du combat.",
+                "g": 1
+            },
+            "10": {
+                "n": "Cruel",
+                "d": "Les adversaires doivent être achevés dans l'ordre croissant de leur niveau.",
+                "g": 2
+            },
+            "11": {
+                "n": "Mystique",
+                "d": "N'utiliser que des sorts pendant toute la durée du combat.",
+                "g": 7
+            },
+            "12": {
+                "n": "Fossoyeur",
+                "d": "Invoquer un Chaferfu à chaque fois que le sort est disponible, pendant toute la durée du combat.",
+                "g": 5
+            },
+            "14": {
+                "n": "Casino Royal",
+                "d": "Lancer le sort Roulette à chaque fois que le sort est disponible, pendant toute la durée du combat.",
+                "g": 14
+            },
+            "15": {
+                "n": "Araknophile",
+                "d": "Invoquer une Arakne à chaque fois que le sort est disponible, pendant toute la durée du combat.",
+                "g": 15
+            },
+            "17": {
+                "n": "Intouchable",
+                "d": "Ne pas perdre de point de vie pendant toute la durée du combat.",
+                "g": 17
+            },
+            "18": {
+                "n": "Incurable",
+                "d": "Ne pas soigner pendant toute la durée du combat.",
+                "g": 18
+            },
+            "19": {
+                "n": "Mains propres",
+                "d": "Achever tous les monstres sans leur occasionner de dégâts directs pendant toute la durée du combat. Les pièges, les glyphes, les poisons, les dommages occasionnés par les déplacements, les renvois de dommages ainsi que les attaques des invocations peuvent être utilisés.",
+                "g": 19
+            },
+            "20": {
+                "n": "Elémentaire",
+                "d": "Utiliser le même élément d'attaque pendant toute la durée du combat.",
+                "g": 20
+            },
+            "21": {
+                "n": "Circulez !",
+                "d": "Ne pas tenter de retirer de PM aux adversaires pendant toute la durée du combat.",
+                "g": 21
+            },
+            "22": {
+                "n": "Le temps qui court",
+                "d": "Ne pas tenter de retirer de PA aux adversaires pendant toute la durée du combat.",
+                "g": 22
+            },
+            "23": {
+                "n": "Perdu de vue",
+                "d": "Ne pas tenter de retirer de portée aux adversaires pendant toute la durée du combat.",
+                "g": 23
+            },
+            "24": {
+                "n": "Borné",
+                "d": "Utiliser le même sort ou la même attaque au corps à corps pendant toute la durée du combat.",
+                "g": 24
+            },
+            "25": {
+                "n": "Ordonné",
+                "d": "Les adversaires doivent être achevés dans l'ordre décroissant de leurs niveaux.",
+                "g": 25
+            },
+            "28": {
+                "n": "Ni pioutes ni soumises",
+                "d": "Les personnages de sexe masculin doivent laisser les personnages de sexe féminin achever les adversaires pendant toute la durée du combat.",
+                "g": 28
+            },
+            "29": {
+                "n": "Ni pious ni soumis",
+                "d": "Les personnages de sexe féminin doivent laisser les personnages de sexe masculin achever les adversaires pendant toute la durée du combat.",
+                "g": 29
+            },
+            "30": {
+                "n": "Les petits d'abord",
+                "d": "Le personnage de plus petit niveau doit achever tous les adversaires.",
+                "g": 30
+            },
+            "31": {
+                "n": "Focus",
+                "d": "Lorsqu'un adversaire est attaqué, il doit être achevé avant qu'un autre adversaire soit attaqué.",
+                "g": 31
+            },
+            "32": {
+                "n": "Elitiste",
+                "d": "Toutes les attaques doivent être concentrées sur %1 jusqu'à ce qu'il meure.",
+                "g": 32
+            },
+            "33": {
+                "n": "Survivant",
+                "d": "Aucun allié ne doit mourir.",
+                "g": 33
+            },
+            "34": {
+                "n": "Imprévisible",
+                "d": "Toutes les attaques doivent être concentrées sur la cible désignée à chaque nouveau tour d'un personnage.",
+                "g": 34
+            },
+            "35": {
+                "n": "Tueur à gages",
+                "d": "Les adversaires doivent être tués dans l'ordre désigné. Une nouvelle cible est désignée à chaque fois que la cible précédente est tuée.",
+                "g": 35
+            },
+            "36": {
+                "n": "Hardi",
+                "d": "Finir son tour sur une cellule adjacente à celle d'un adversaire.",
+                "g": 36
+            },
+            "37": {
+                "n": "Collant",
+                "d": "Finir son tour sur une cellule adjacente à celle d'un allié.",
+                "g": 37
+            },
+            "38": {
+                "n": "Blitzkrieg",
+                "d": "Dès qu'un adversaire perd des points de vie, il doit être achevé avant le début de son tour de jeu.",
+                "g": 38
+            },
+            "39": {
+                "n": "Anachorète",
+                "d": "Ne jamais finir son tour sur une cellule adjacente à celle d'un allié.",
+                "g": 39
+            },
+            "40": {
+                "n": "Pusillanime",
+                "d": "Ne jamais finir son tour sur une cellule adjacente à celle d'un adversaire.",
+                "g": 40
+            },
+            "41": {
+                "n": "Pétulant",
+                "d": "Utiliser tous les points d'action disponibles avant la fin de son tour de jeu.",
+                "g": 41
+            },
+            "42": {
+                "n": "Deux pour le prix d'un",
+                "d": "Lorsqu'un personnage achève un adversaire, il doit obligatoirement achever un (et un seul) deuxième adversaire pendant son tour de jeu.",
+                "g": 42
+            },
+            "43": {
+                "n": "Abnégation",
+                "d": "Les personnages ne doivent jamais recevoir de soins pendant leur tour de jeu.",
+                "g": 43
+            },
+            "44": {
+                "n": "Partage",
+                "d": "Chaque personnage doit avoir achevé au moins un adversaire (qui ne soit pas une invocation) pendant le combat.",
+                "g": 44
+            },
+            "45": {
+                "n": "Duel",
+                "d": "Lorsqu'un personnage attaque un adversaire, aucun autre personnage ne doit attaquer cet adversaire pendant toute la durée du combat.",
+                "g": 51
+            },
+            "46": {
+                "n": "Chacun son monstre",
+                "d": "Chaque personnage doit avoir achevé au moins un adversaire (qui ne soit pas une invocation) pendant le combat et lorsqu'un personnage attaque un adversaire, aucun autre personnage ne doit attaquer cet adversaire pendant toute la durée du combat.",
+                "g": 46
+            },
+            "47": {
+                "n": "Contamination",
+                "d": "Dès qu'un allié perd des points de vie, vous avez 3 tours de jeu pour achever votre allié.",
+                "g": 47
+            },
+            "48": {
+                "n": "Les mules d'abord",
+                "d": "La mule de plus faible niveau doit achever tous les adversaires (ça vous apprendra à \"muler\" comme un Porkass).",
+                "g": 48
+            },
+            "49": {
+                "n": "Protégez vos mules",
+                "d": "Ni les mules, ni les alliés ne doivent mourir.",
+                "g": 49
+            },
+            "50": {
+                "n": "Le cheat des devs",
+                "d": "Finissez ce combat pour remporter ce challenge. C'est bien connu, tous les devs sont des cheaters.",
+                "g": 50
+            },
+            "51": {
+                "n": "Zombie",
+                "d": "Utiliser exactement un point de mouvement par tour de jeu.",
+                "g": 11
+            },
+            "52": {
+                "n": "Statue",
+                "d": "Finir son tour sur la même case que celle où vous l'avez commencé, pendant toute la durée du combat.",
+                "g": 9
+            },
+            "53": {
+                "n": "Désigné volontaire",
+                "d": "Tuer %1 en premier.",
+                "g": 4
+            },
+            "54": {
+                "n": "Sursis",
+                "d": "Tuer %1 en dernier.",
+                "g": 10
+            },
+            "55": {
+                "n": "Versatile",
+                "d": "Chaque joueur n'a le droit d'effectuer qu'une seule fois une même action pendant son tour de jeu.",
+                "g": 12
+            },
+            "56": {
+                "n": "Jardinier",
+                "d": "Planter une Cawotte à chaque fois que le sort est disponible, pendant toute la durée du combat.",
+                "g": 6
+            },
+            "57": {
+                "n": "Nomade",
+                "d": "Utiliser tous ses PM disponibles à chaque tour pendant toute la durée du combat.",
+                "g": 8
+            },
+            "59": {
+                "n": "Cruel",
+                "d": "Les adversaires doivent être achevés dans l'ordre croissant de leur niveau.",
+                "g": 2
+            },
+            "60": {
+                "n": "Mystique",
+                "d": "N'utiliser que des sorts pendant toute la durée du combat.",
+                "g": 7
+            },
+            "61": {
+                "n": "Fossoyeur",
+                "d": "Invoquer un Chaferfu à chaque fois que le sort est disponible, pendant toute la durée du combat.",
+                "g": 5
+            },
+            "63": {
+                "n": "Araknophile",
+                "d": "Invoquer une Arakne à chaque fois que le sort est disponible, pendant toute la durée du combat.",
+                "g": 15
+            },
+            "64": {
+                "n": "Intouchable",
+                "d": "Ne pas perdre de point de vie pendant toute la durée du combat.",
+                "g": 17
+            },
+            "65": {
+                "n": "Incurable",
+                "d": "Ne pas soigner pendant toute la durée du combat.",
+                "g": 18
+            },
+            "66": {
+                "n": "Perdu de vue",
+                "d": "Ne pas tenter de retirer de portée aux adversaires pendant toute la durée du combat.",
+                "g": 23
+            },
+            "68": {
+                "n": "Ordonné",
+                "d": "Les adversaires doivent être achevés dans l'ordre décroissant de leurs niveaux.",
+                "g": 25
+            },
+            "69": {
+                "n": "Ni pioutes ni soumises",
+                "d": "Les personnages de sexe masculin doivent laisser les personnages de sexe féminin achever les adversaires pendant toute la durée du combat.",
+                "g": 28
+            },
+            "70": {
+                "n": "Ni pious ni soumis",
+                "d": "Les personnages de sexe féminin doivent laisser les personnages de sexe masculin achever les adversaires pendant toute la durée du combat.",
+                "g": 29
+            },
+            "71": {
+                "n": "Focus",
+                "d": "Lorsqu'un adversaire est attaqué, il doit être achevé avant qu'un autre adversaire soit attaqué.",
+                "g": 31
+            },
+            "72": {
+                "n": "Elitiste",
+                "d": "Toutes les attaques doivent être concentrées sur %1 jusqu'à ce qu'il meure.",
+                "g": 32
+            },
+            "73": {
+                "n": "Survivant",
+                "d": "Aucun allié ne doit mourir.",
+                "g": 33
+            },
+            "74": {
+                "n": "Imprévisible",
+                "d": "Toutes les attaques doivent être concentrées sur la cible désignée à chaque nouveau tour d'un personnage.",
+                "g": 34
+            },
+            "75": {
+                "n": "Tueur à gages",
+                "d": "Les adversaires doivent être tués dans l'ordre désigné. Une nouvelle cible est désignée à chaque fois que la cible précédente est tuée.",
+                "g": 35
+            },
+            "76": {
+                "n": "Hardi",
+                "d": "Finir son tour sur une cellule adjacente à celle d'un adversaire.",
+                "g": 36
+            },
+            "77": {
+                "n": "Collant",
+                "d": "Finir son tour sur une cellule adjacente à celle d'un allié.",
+                "g": 37
+            },
+            "79": {
+                "n": "Anachorète",
+                "d": "Ne jamais finir son tour sur une cellule adjacente à celle d'un allié.",
+                "g": 39
+            },
+            "80": {
+                "n": "Pusillanime",
+                "d": "Ne jamais finir son tour sur une cellule adjacente à celle d'un adversaire.",
+                "g": 40
+            },
+            "81": {
+                "n": "Pétulant",
+                "d": "Utiliser tous les points d'action disponibles avant la fin de son tour de jeu.",
+                "g": 41
+            },
+            "82": {
+                "n": "Deux pour le prix d'un",
+                "d": "Lorsqu'un personnage achève un adversaire, il doit obligatoirement achever un (et un seul) deuxième adversaire pendant son tour de jeu.",
+                "g": 42
+            },
+            "83": {
+                "n": "Abnégation",
+                "d": "Les personnages ne doivent jamais recevoir de soins pendant leur tour de jeu.",
+                "g": 43
+            },
+            "84": {
+                "n": "Partage",
+                "d": "Chaque personnage doit avoir achevé au moins un adversaire (qui ne soit pas une invocation) pendant le combat.",
+                "g": 44
+            },
+            "85": {
+                "n": "Duel",
+                "d": "Lorsqu'un personnage attaque un adversaire, aucun autre personnage ne doit attaquer cet adversaire pendant toute la durée du combat.",
+                "g": 51
+            },
+            "86": {
+                "n": "Chacun son monstre",
+                "d": "Chaque personnage doit avoir achevé au moins un adversaire (qui ne soit pas une invocation) pendant le combat et lorsqu'un personnage attaque un adversaire, aucun autre personnage ne doit attaquer cet adversaire pendant toute la durée du combat.",
+                "g": 46
+            },
+            "87": {
+                "n": "Contamination",
+                "d": "Dès qu'un allié perd des points de vie, vous avez 3 tours de jeu pour achever votre allié.",
+                "g": 47
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 108,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "FC",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

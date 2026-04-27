@@ -1,245 +1,281 @@
 /**
- * Spell 714 - Grina
+ * Spell 714 — Grina (Osamodas).
  *
- * A multi-component spell with several animated sprites at the target position.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/714/scripts/scripts/
  *
- * Components:
- * - sprite_5: Background/base animation at target position (58 frames, plays through)
- * - sprite_6: Small looping sprite at target, starts at random frame (random(8)+1, loops 6 frames)
- * - sprite_7: Large impact sprite at target (57 frames, plays through)
- * - sprite_9: Looping effect at target, starts at random frame then loops (123 frames)
- * - sprite_10: Ground effect at target, stops at frame 118
- * - sprite_12: Fading effect at target, alpha fades from frame 157, removeMovieClip at frame 184
+ * displayType=11 (TargetCell). No projectile motion, no caster reference,
+ * no duplicate/beam logic. All authored content is a single multi-layered
+ * impact at the target cell. The manifest has no librarySymbols[] entries —
+ * all content lives in the top-level animations[] list. The spell is driven
+ * by four parallel authored timelines attached directly in onSpellStart:
  *
- * Original AS timing:
- * - Frame 1 (main): Play sound 'grina_702'
- * - Frame 1 (sprite_6): gotoAndStop(random(8) + 1) -> stop at random frame 1-8 (0-indexed: 0-7)
- * - Frame 1 (sprite_9): gotoAndPlay(random(100) + 2) -> start at random frame 2-101 (0-indexed: 1-100)
- * - Frame 121 (sprite_9): gotoAndPlay(2) -> loop back to frame 2 (0-indexed: 1)
- * - Frame 118 (sprite_10): stop()
- * - Frame 157 (sprite_12, enterFrame): _parent._alpha -= 3.33 per frame
- * - Frame 184 (sprite_12): removeMovieClip() -> animation ends
+ *   - sprite_5  (58 frames)  — simple looping background element; no scripts.
+ *   - sprite_6  (6 frames)   — frame_1 randomises start position via
+ *                              gotoAndStop(random(8) + 1).
+ *   - sprite_9  (123 frames) — frame_1 jumps to a random play position
+ *                              (gotoAndPlay(random(100) + 2)); frame_121
+ *                              loops back to frame_2 (gotoAndPlay(2)).
+ *   - sprite_10 (120 frames) — plays through; frame_118 stops the clip.
+ *   - sprite_12 (186 frames) — longest-lived timeline. frame_157 places a
+ *                              child with an onEnterFrame that fades the
+ *                              parent (_alpha -= 3.33 per tick). frame_184
+ *                              calls _parent._parent.removeMovieClip() — i.e.
+ *                              removes the outer mc (== our root) and signals
+ *                              spell completion.
+ *
+ * signalHit: fired at sprite_10 frame_118 (the stop/impact frame of the
+ *            main blast), which canonically coincides with the peak of the
+ *            visual hit. displayType=11 requires manual signalHit.
+ *
+ * complete(): fired at sprite_12 frame_184 (_parent._parent.removeMovieClip).
+ *
+ * Library symbols: none (librarySymbols[] is empty in manifest). All
+ *   textures referenced via bare animation names (no lib_ prefix).
+ *
+ * Main timeline: SOMA.playSound("grina_702"); (no stop, all children placed
+ *   implicitly on the main timeline — we attach them in onSpellStart).
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const SPRITE_6_MANIFEST: SpriteManifest = {
+// Bounds from manifest animations[] entries (no librarySymbols[]).
+const SPRITE_6_BOUNDS = {
   width: 159.45,
   height: 115.5,
   offsetX: -104.3,
   offsetY: -70,
 };
-
-const SPRITE_7_MANIFEST: SpriteManifest = {
+const SPRITE_7_BOUNDS = {
   width: 168.05,
   height: 215.9,
   offsetX: -69.1,
   offsetY: -78.8,
 };
-
-const SPRITE_9_MANIFEST: SpriteManifest = {
+const SPRITE_9_BOUNDS = {
   width: 127.6,
   height: 71.4,
   offsetX: -56.05,
   offsetY: -37.95,
 };
-
-const SPRITE_10_MANIFEST: SpriteManifest = {
+const SPRITE_10_BOUNDS = {
   width: 301.45,
   height: 168.65,
   offsetX: -135.25,
   offsetY: 16.4,
 };
-
-const SPRITE_12_MANIFEST: SpriteManifest = {
+const SPRITE_12_BOUNDS = {
   width: 203.1,
   height: 113.6,
   offsetX: -91.7,
   offsetY: -61.85,
 };
 
-export class Spell714 extends BaseSpell {
+export class Spell714 extends RuntimeSpell {
   readonly spellId = 714;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private sprite12Anim!: FrameAnimatedSprite;
-  private sprite12FadingStarted = false;
-  private sprite12Done = false;
+  private sprite5Sym!: SymbolDefinition;
+  private sprite6Sym!: SymbolDefinition;
+  private sprite7Sym!: SymbolDefinition;
+  private sprite9Sym!: SymbolDefinition;
+  private sprite10Sym!: SymbolDefinition;
+  private sprite12Sym!: SymbolDefinition;
 
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    // Play sound at frame 1 (immediately)
-    this.callbacks.playSound("grina_702");
+    // ---- sprite_5 — background looping element (58 frames, no scripts) ----
+    // No bounds in manifest (width/height/offsetX/offsetY all 0). Use
+    // centred anchor as default.
+    this.sprite5Sym = {
+      name: "sprite_5",
+      totalFrames: 58,
+      frames: textures.getFrames("sprite_5"),
+      anchorX: 0.5,
+      anchorY: 0.5,
+    };
 
-    const tx = init.targetX;
-    const ty = init.targetY;
+    // ---- sprite_6 — 6-frame element, random start frame ----------------
+    // AS DefineSprite_6/frame_1/DoAction.as:
+    //   gotoAndStop(random(8) + 1);
+    // Note: random(8) gives [0,7], so gotoAndStop result is [1,8].
+    // The sprite only has 6 authored frames; clamp is handled by
+    // SpellClip.gotoAndStop internally (clampFrame). We translate 1-8
+    // to 0-based as (random(8) + 1 - 1) = random(8).
+    const sprite6Anchor = calculateAnchor(SPRITE_6_BOUNDS);
+    this.sprite6Sym = {
+      name: "sprite_6",
+      totalFrames: 6,
+      frames: textures.getFrames("sprite_6"),
+      anchorX: sprite6Anchor.x,
+      anchorY: sprite6Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_6/frame_1/DoAction.as: gotoAndStop(random(8) + 1)
+            clip.gotoAndStop(Math.floor(Math.random() * 8));
+          },
+        ],
+      ]),
+    };
 
-    // sprite_5: 58 frames, no manifest data (width/height = 0), anchor = 0.5 default
-    const sprite5Textures = textures.getFrames("sprite_5");
-    const sprite5Anim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: sprite5Textures,
-        fps: 60,
-        anchorX: 0.5,
-        anchorY: 0.5,
-        scale: init.scale,
-      })
-    );
-    sprite5Anim.sprite.position.set(tx, ty);
-    this.container.addChild(sprite5Anim.sprite);
+    // ---- sprite_7 — authored composite (57 frames, no scripts) ----------
+    // sprite_7 appears in animations[] with full bounds but no AS scripts.
+    // It plays through as a simple authored animation.
+    const sprite7Anchor = calculateAnchor(SPRITE_7_BOUNDS);
+    this.sprite7Sym = {
+      name: "sprite_7",
+      totalFrames: 57,
+      frames: textures.getFrames("sprite_7"),
+      anchorX: sprite7Anchor.x,
+      anchorY: sprite7Anchor.y,
+    };
 
-    // sprite_6: 6 frames, gotoAndStop(random(8) + 1) -> 0-indexed: random(8) + 0 = 0..7, but clamped to 0-5
-    const sprite6Textures = textures.getFrames("sprite_6");
-    const sprite6Anchor = calculateAnchor(SPRITE_6_MANIFEST);
-    // AS: gotoAndStop(random(8) + 1), frames 1-8. The sprite only has 6 frames so clamp to 0-5.
-    const sprite6StartFrame = Math.min(
-      Math.floor(Math.random() * 8),
-      sprite6Textures.length - 1
-    );
-    const sprite6Anim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: sprite6Textures,
-        fps: 60,
-        anchorX: sprite6Anchor.x,
-        anchorY: sprite6Anchor.y,
-        scale: init.scale,
-        startFrame: sprite6StartFrame,
-        stopFrame: sprite6StartFrame,
-      })
-    );
-    sprite6Anim.sprite.position.set(tx, ty);
-    this.container.addChild(sprite6Anim.sprite);
+    // ---- sprite_9 — 123-frame looping element with random start ----------
+    // AS DefineSprite_9/frame_1/DoAction.as:
+    //   gotoAndPlay(random(100) + 2);
+    //   → 0-based: gotoAndPlay(random(100) + 1)  [range 1..100]
+    // AS DefineSprite_9/frame_121/DoAction.as:
+    //   gotoAndPlay(2);
+    //   → 0-based: gotoAndPlay(1)
+    const sprite9Anchor = calculateAnchor(SPRITE_9_BOUNDS);
+    this.sprite9Sym = {
+      name: "sprite_9",
+      totalFrames: 123,
+      frames: textures.getFrames("sprite_9"),
+      anchorX: sprite9Anchor.x,
+      anchorY: sprite9Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_9/frame_1/DoAction.as: gotoAndPlay(random(100) + 2)
+            clip.gotoAndPlay(Math.floor(Math.random() * 100) + 1);
+          },
+        ],
+        [
+          120,
+          (clip) => {
+            // AS DefineSprite_9/frame_121/DoAction.as: gotoAndPlay(2)
+            clip.gotoAndPlay(1);
+          },
+        ],
+      ]),
+    };
 
-    // sprite_7: 57 frames, plays through
-    const sprite7Textures = textures.getFrames("sprite_7");
-    const sprite7Anchor = calculateAnchor(SPRITE_7_MANIFEST);
-    const sprite7Anim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: sprite7Textures,
-        fps: 60,
-        anchorX: sprite7Anchor.x,
-        anchorY: sprite7Anchor.y,
-        scale: init.scale,
-      })
-    );
-    sprite7Anim.sprite.position.set(tx, ty);
-    this.container.addChild(sprite7Anim.sprite);
+    // ---- sprite_10 — main blast (120 frames, stops at frame 118) --------
+    // AS DefineSprite_10/frame_118/DoAction.as: stop()
+    // Also the canonical hit frame — signal hit here.
+    const sprite10Anchor = calculateAnchor(SPRITE_10_BOUNDS);
+    this.sprite10Sym = {
+      name: "sprite_10",
+      totalFrames: 120,
+      frames: textures.getFrames("sprite_10"),
+      anchorX: sprite10Anchor.x,
+      anchorY: sprite10Anchor.y,
+      frameScripts: new Map([
+        [
+          117,
+          (clip) => {
+            // AS DefineSprite_10/frame_118/DoAction.as: stop()
+            clip.stop();
+            this.runtime.signalHit();
+          },
+        ],
+      ]),
+    };
 
-    // sprite_9: 123 frames, starts at random frame (random(100) + 2 -> 0-indexed: 1..100)
-    // At frame 121 (0-indexed: 120): gotoAndPlay(2) -> 0-indexed: 1 (loop)
-    const sprite9Textures = textures.getFrames("sprite_9");
-    const sprite9Anchor = calculateAnchor(SPRITE_9_MANIFEST);
-    // AS: gotoAndPlay(random(100) + 2) -> frames 2..101 -> 0-indexed: 1..100
-    const sprite9StartFrame = Math.floor(Math.random() * 100) + 1;
-    const sprite9Anim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: sprite9Textures,
-        fps: 60,
-        anchorX: sprite9Anchor.x,
-        anchorY: sprite9Anchor.y,
-        scale: init.scale,
-        startFrame: sprite9StartFrame,
-        loop: true,
-      })
-    );
-    sprite9Anim.sprite.position.set(tx, ty);
-    // Frame 121 (0-indexed: 120): gotoAndPlay(2) -> jump to frame index 1
-    // We handle this by using loop=true and the loop back to frame 0 won't match AS exactly,
-    // but the AS loops back to frame 2 (0-indexed: 1) at frame 121 (0-indexed: 120).
-    // Since FrameAnimatedSprite loops to 0, we need to handle the loop manually.
-    // We'll use a frame callback to jump back to frame 1 when reaching frame 120.
-    sprite9Anim.onFrame(
-      120,
-      () => {
-        sprite9Anim.gotoFrame(1);
+    // ---- sprite_12 — longest-lived timeline (186 frames) ----------------
+    // AS DefineSprite_12/frame_157/PlaceObject2_11_69/CLIPACTIONRECORD
+    //   onClipEvent(enterFrame).as:
+    //   _parent._alpha -= 3.33;
+    //   → applied to sprite_12 itself via a synthetic onEnterFrame that
+    //     activates starting at frame 157. We implement this by hooking a
+    //     flag in vars on the frame_157 script and checking it in an
+    //     onEnterFrame on the clip.
+    //
+    // AS DefineSprite_12/frame_184/DoAction.as:
+    //   _parent._parent.removeMovieClip();
+    //   → outer mc = this.root; signal complete.
+    //
+    // The canonical AS places a child clip (PlaceObject2_11_69) at
+    // frame_157 whose ONLY behaviour is the _parent._alpha -= 3.33
+    // enterFrame. We model this as an onEnterFrame directly on sprite_12
+    // that becomes active once the fading starts.
+    const sprite12Anchor = calculateAnchor(SPRITE_12_BOUNDS);
+    this.sprite12Sym = {
+      name: "sprite_12",
+      totalFrames: 186,
+      frames: textures.getFrames("sprite_12"),
+      anchorX: sprite12Anchor.x,
+      anchorY: sprite12Anchor.y,
+      onEnterFrame: (clip) => {
+        // AS DefineSprite_12/frame_157/PlaceObject2_11_69/CLIPACTIONRECORD
+        // onClipEvent(enterFrame).as: _parent._alpha -= 3.33
+        // Only active after the fading child is placed (frame 157+).
+        if (clip.vars.fading) {
+          clip.alpha = Math.max(0, clip.alpha - 3.33 / 100);
+        }
       },
-      false
-    );
-    this.container.addChild(sprite9Anim.sprite);
+      frameScripts: new Map([
+        [
+          156,
+          (clip) => {
+            // AS DefineSprite_12/frame_157: PlaceObject2_11_69 places the
+            // fading child whose enterFrame decrements _parent._alpha.
+            // We activate fading via vars flag instead of a real child clip.
+            clip.vars.fading = true;
+          },
+        ],
+        [
+          183,
+          (clip) => {
+            // AS DefineSprite_12/frame_184/DoAction.as:
+            // _parent._parent.removeMovieClip() — removes the outer mc.
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // sprite_10: 120 frames, stops at frame 118 (0-indexed: 117)
-    const sprite10Textures = textures.getFrames("sprite_10");
-    const sprite10Anchor = calculateAnchor(SPRITE_10_MANIFEST);
-    const sprite10Anim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: sprite10Textures,
-        fps: 60,
-        anchorX: sprite10Anchor.x,
-        anchorY: sprite10Anchor.y,
-        scale: init.scale,
-        stopFrame: 117,
-      })
-    );
-    sprite10Anim.sprite.position.set(tx, ty);
-    this.container.addChild(sprite10Anim.sprite);
-
-    // sprite_12: 186 frames
-    // Frame 157 (0-indexed: 156): enterFrame clip action: _parent._alpha -= 3.33 per frame
-    // Frame 184 (0-indexed: 183): removeMovieClip -> animation ends
-    const sprite12Textures = textures.getFrames("sprite_12");
-    const sprite12Anchor = calculateAnchor(SPRITE_12_MANIFEST);
-    this.sprite12Anim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: sprite12Textures,
-        fps: 60,
-        anchorX: sprite12Anchor.x,
-        anchorY: sprite12Anchor.y,
-        scale: init.scale,
-      })
-    );
-    this.sprite12Anim.sprite.position.set(tx, ty);
-    // At frame 156 (0-indexed), start fading
-    this.sprite12Anim.onFrame(156, () => {
-      this.sprite12FadingStarted = true;
-      this.sprite12AlphaFrame = 0;
-    });
-    // At frame 183 (0-indexed), mark done and signal complete
-    this.sprite12Anim.onFrame(183, () => {
-      this.sprite12Done = true;
-      this.sprite12Anim.sprite.visible = false;
-      this.signalHit();
-      this.complete();
-    });
-    this.container.addChild(this.sprite12Anim.sprite);
+    this.registry.register(this.sprite5Sym);
+    this.registry.register(this.sprite6Sym);
+    this.registry.register(this.sprite7Sym);
+    this.registry.register(this.sprite9Sym);
+    this.registry.register(this.sprite10Sym);
+    this.registry.register(this.sprite12Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // AS scripts/frame_1/DoAction.as: SOMA.playSound("grina_702");
+    callbacks.playSound("grina_702");
 
-    this.anims.update(deltaTime);
-
-    // Handle sprite_12 alpha fading
-    // The enterFrame event fires every frame once fading starts (from frame 157, 0-indexed 156 onward)
-    // We need to apply -3.33 alpha per frame. Since update() is called with deltaTime (ms),
-    // we need to track how many frames have passed since fading started.
-    if (this.sprite12FadingStarted && !this.sprite12Done) {
-      // Calculate frames elapsed since last update
-      const framesThisUpdate = deltaTime / (1000 / 60);
-      this.sprite12AlphaFrame += framesThisUpdate;
-
-      // Apply alpha reduction: -3.33 per frame (AS alpha is 0-100, PixiJS is 0-1)
-      // AS: _parent._alpha -= 3.33 -> so alpha decreases by 3.33% per frame
-      const currentAlpha = this.sprite12Anim.sprite.alpha;
-      const newAlpha = Math.max(
-        0,
-        currentAlpha - (3.33 / 100) * framesThisUpdate
-      );
-      this.sprite12Anim.sprite.alpha = newAlpha;
-    }
-
-    if (this.sprite12Done) {
-      this.complete();
-    }
+    // Attach all authored timeline children. In the canonical SWF these
+    // are placed implicitly by the main timeline's PlaceObject2 records.
+    // displayType=11 (TargetCell): root container is positioned at target
+    // cell by spell-view; all children attach at root (0,0).
+    this.root.attach(this.sprite5Sym, "sprite5", 1, context);
+    this.root.attach(this.sprite6Sym, "sprite6", 2, context);
+    this.root.attach(this.sprite7Sym, "sprite7", 3, context);
+    this.root.attach(this.sprite9Sym, "sprite9", 4, context);
+    this.root.attach(this.sprite10Sym, "sprite10", 5, context);
+    this.root.attach(this.sprite12Sym, "sprite12", 6, context);
   }
 }

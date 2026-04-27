@@ -4,29 +4,13 @@ set shell := ["bash", "-cu"]
 
 # Project paths
 root := justfile_directory()
-assets_exporter := root + "/tools/assets-exporter"
-svg_spritesheet := root + "/tools/svg-spritesheet"
-tile_classifier := root + "/tools/tile-classifier"
-sources := root + "/assets/sources"
-tiles_output := root + "/assets/rasters/tiles"
-sprites_output := root + "/assets/rasters/sprites"
-items_output := root + "/apps/electrobun/public/assets/items"
-tiles_spritesheets := root + "/assets/spritesheets/tiles"
-sprites_spritesheets := root + "/assets/spritesheets/sprites"
-tile_classifications := root + "/assets/tile-classifications.json"
-
-# Rasterized images output (for cross-animation deduplication)
-tiles_rasters := root + "/assets/spritesheets/rasters/tiles"
-sprites_rasters := root + "/assets/spritesheets/rasters/sprites"
+pipeline := "cd " + root + "/tools/asset-pipeline && bun run src/cli.ts"
 
 db_user := env_var_or_default("PG_USER", "dofus")
 db_pass := env_var_or_default("PG_PASSWORD", "dofus")
 db_name := env_var_or_default("PG_DATABASE", "dofus")
 db_host := env_var_or_default("PG_HOST", "localhost")
 db_port := env_var_or_default("PG_PORT", "5432")
-
-# Maximum parallelism for svg-spritesheet (use all available cores)
-parallel := `sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 16`
 
 # Show available commands
 default:
@@ -81,77 +65,89 @@ build:
     bun run build
 
 # =============================================================================
-# Asset Pipeline
+# Asset pipeline — unified entrypoint for every asset category.
+# Replaces the old combination of (just sprites-spritesheet | tiles-spritesheet
+# | tools/compile-for-web.sh | tools/compile-accessories.sh).
 # =============================================================================
 
-# Full pipeline: extract tiles then generate spritesheets
-tiles-spritesheet: extract-tiles generate-tile-spritesheets
-    @echo "✓ Tiles spritesheet generation complete"
+# List every registered category + its traits.
+pipeline-list:
+    @{{pipeline}} list
 
-# Extract tiles from SWF sources to SVG
-extract-tiles:
-    @echo "Extracting tiles from SWF sources..."
-    cd "{{assets_exporter}}" && php bin/extract-tiles --output "{{tiles_output}}"
+# Run extract + atlas (when applicable) + compile + publish for a single category.
+pipeline-build category='' id='':
+    @just _pipeline-build "{{category}}" "{{id}}"
 
-# Extract tiles with clean (removes existing output first)
-extract-tiles-clean:
-    @echo "Extracting tiles from SWF sources (clean)..."
-    cd "{{assets_exporter}}" && php bin/extract-tiles --output "{{tiles_output}}" --clean
+_pipeline-build category id:
+    @test -n "{{category}}" || (echo "usage: just pipeline-build <category> [id]"; exit 1)
+    @{{pipeline}} run {{category}} {{ if id != "" { "--id " + id } else { "" } }}
+    @if [ "{{category}}" = "sprites" ] || [ "{{category}}" = "sprites.chevauchors" ]; then \
+        {{pipeline}} atlas {{category}} {{ if id != "" { "--id " + id } else { "" } }} ; \
+    fi
+    @{{pipeline}} compile {{category}} {{ if id != "" { "--id " + id } else { "" } }}
+    @{{pipeline}} publish {{category}}
 
-# Generate spritesheets from extracted SVG tiles (ground then objects)
-generate-tile-spritesheets: spritesheet-ground spritesheet-objects
-    @echo "✓ Tile spritesheets generated"
+# Extract all lang SWFs (every namespace × locale).
+pipeline-langs:
+    @{{pipeline}} langs
 
-# Generate ground tiles spritesheet only
-spritesheet-ground:
-    @echo "Generating ground tiles spritesheet..."
-    @mkdir -p "{{tiles_spritesheets}}/ground"
-    cd "{{svg_spritesheet}}" && bun run src/cli.ts \
-        "{{tiles_output}}/svg/ground" \
-        "{{tiles_spritesheets}}/ground" \
-        --parallel {{parallel}} \
-        --tile-classifications "{{tile_classifications}}" \
-        --tile-type ground
+# Show or update a single stage.
+pipeline-run category id='':
+    @{{pipeline}} run {{category}} {{ if id != "" { "--id " + id } else { "" } }}
+pipeline-atlas category id='':
+    @{{pipeline}} atlas {{category}} {{ if id != "" { "--id " + id } else { "" } }}
+pipeline-compile category id='':
+    @{{pipeline}} compile {{category}} {{ if id != "" { "--id " + id } else { "" } }}
+pipeline-publish category:
+    @{{pipeline}} publish {{category}}
 
-# Generate objects tiles spritesheet only
-spritesheet-objects:
-    @echo "Generating objects tiles spritesheet..."
-    @mkdir -p "{{tiles_spritesheets}}/objects"
-    cd "{{svg_spritesheet}}" && bun run src/cli.ts \
-        "{{tiles_output}}/svg/objects" \
-        "{{tiles_spritesheets}}/objects" \
-        --parallel {{parallel}} \
-        --tile-classifications "{{tile_classifications}}" \
-        --tile-type objects
+# Item icon extraction (items stay as SVGs; no dofasset consumption on runtime).
+items-build:
+    @{{pipeline}} run items
+    @{{pipeline}} publish items
 
-# Open visual gallery to review and classify tiles (auto-saves on each change)
-review-tiles:
-    @echo "Starting tile classifier gallery..."
-    cd "{{tile_classifier}}" && bun run src/cli.ts review \
-        "{{tiles_output}}/svg" \
-        --classifications "{{tile_classifications}}"
+# Tile dofassets — frame-direct compile reads per-frame SVGs from
+# `extract-tiles` output; no atlas stage.
+tiles-build:
+    @{{pipeline}} run tiles.ground
+    @{{pipeline}} run tiles.objects
+    @{{pipeline}} compile tiles.ground
+    @{{pipeline}} compile tiles.objects
+    @{{pipeline}} publish tiles.ground
+    @{{pipeline}} publish tiles.objects
 
-# Show tile classification stats
-classify-stats:
-    cd "{{tile_classifier}}" && bun run src/cli.ts stats "{{tile_classifications}}"
+# Spell dofassets (assumes combat-exporter produced assets/spritesheets/spells/<id>/).
+spells-build:
+    @{{pipeline}} compile spells
+    @{{pipeline}} publish spells
 
-# Clean all generated output
-clean:
-    @echo "Cleaning generated tiles, sprites and spritesheets..."
-    rm -rf "{{tiles_output}}" "{{tiles_spritesheets}}" "{{sprites_spritesheets}}" "{{tiles_rasters}}" "{{sprites_rasters}}"
-    @echo "✓ Cleaned"
+# Tactic-view dofassets (gfx.tactic + gfx.cell) — single-frame SVGs repackaged
+# as tile-shaped dofassets so the client's atlas loader can pull them.
+tactic-build:
+    @{{pipeline}} run gfx.tactic
+    @{{pipeline}} run gfx.cell
+    @{{pipeline}} compile gfx.tactic
+    @{{pipeline}} compile gfx.cell
+    @{{pipeline}} publish gfx.tactic
+    @{{pipeline}} publish gfx.cell
 
-# Clean only tile spritesheets (keep extracted tiles)
-clean-tile-spritesheets:
-    @echo "Cleaning tile spritesheets..."
-    rm -rf "{{tiles_spritesheets}}"
-    @echo "✓ Cleaned tile spritesheets"
+# Sprites + chevauchors + accessories together — end-to-end from raw SWF
+# via frame-direct compile (no atlas intermediary).
+sprites-build:
+    @{{pipeline}} run sprites
+    @{{pipeline}} compile sprites
+    @{{pipeline}} publish sprites
+    @{{pipeline}} run sprites.chevauchors
+    @{{pipeline}} compile sprites.chevauchors
+    @{{pipeline}} publish sprites.chevauchors
+    @{{pipeline}} run sprites.accessories
+    @{{pipeline}} compile sprites.accessories
+    @{{pipeline}} publish sprites.accessories
 
-# Clean only sprite spritesheets (keep extracted sprites)
-clean-sprite-spritesheets:
-    @echo "Cleaning sprite spritesheets..."
-    rm -rf "{{sprites_spritesheets}}"
-    @echo "✓ Cleaned sprite spritesheets"
+# Wipe every cache + dist + public/assets spritesheets artifact.
+clean-assets:
+    rm -rf assets/cache assets/dist
+    @echo "✓ Cleaned asset-pipeline caches (assets/cache, assets/dist)"
 
 # =============================================================================
 # UI Builder
@@ -165,62 +161,5 @@ ui-builder:
 # Show current configuration
 info:
     @echo "Configuration:"
-    @echo "  Root:                 {{root}}"
-    @echo "  Assets Exporter:      {{assets_exporter}}"
-    @echo "  SVG Spritesheet:      {{svg_spritesheet}}"
-    @echo "  Sources:              {{sources}}"
-    @echo "  Tiles Output:         {{tiles_output}}"
-    @echo "  Sprites Output:       {{sprites_output}}"
-    @echo "  Tiles Spritesheets:   {{tiles_spritesheets}}"
-    @echo "  Sprites Spritesheets: {{sprites_spritesheets}}"
-    @echo "  Tiles Rasters:        {{tiles_rasters}}"
-    @echo "  Sprites Rasters:      {{sprites_rasters}}"
-    @echo "  Parallel Workers:     {{parallel}}"
-
-# =============================================================================
-# Item icons extraction
-# =============================================================================
-
-# Extract item icons from SWF sources to SVG
-extract-items:
-    @echo "Extracting item icons from SWF sources..."
-    cd "{{assets_exporter}}" && php bin/extract-items --output "{{items_output}}"
-
-# Extract item icons with clean (removes existing output first)
-extract-items-clean:
-    @echo "Extracting item icons from SWF sources (clean)..."
-    cd "{{assets_exporter}}" && php bin/extract-items --output "{{items_output}}" --clean
-
-# Extract a single item type (e.g., just extract-item-type 1)
-extract-item-type type:
-    @echo "Extracting item type {{type}}..."
-    cd "{{assets_exporter}}" && php bin/extract-items --output "{{items_output}}" --type {{type}}
-
-# =============================================================================
-# Sprites spritesheet generation
-# =============================================================================
-
-# Full pipeline: extract sprites then generate spritesheets
-sprites-spritesheet: extract-sprites generate-sprite-spritesheets
-    @echo "✓ Sprites spritesheet generation complete"
-
-# Extract sprites from SWF sources to SVG
-extract-sprites:
-    @echo "Extracting sprites from SWF sources..."
-    cd "{{assets_exporter}}" && php bin/extract-sprites --output "{{sprites_output}}"
-
-# Extract sprites with clean (removes existing output first)
-extract-sprites-clean:
-    @echo "Extracting sprites from SWF sources (clean)..."
-    cd "{{assets_exporter}}" && php bin/extract-sprites --output "{{sprites_output}}" --clean
-
-# Generate spritesheets from extracted SVG sprites (WARNING: takes ~8 hours)
-generate-sprite-spritesheets:
-    @echo "Generating sprite spritesheets with {{parallel}} parallel workers..."
-    @echo "WARNING: This process takes approximately 8 hours to complete"
-    @mkdir -p "{{sprites_spritesheets}}"
-    cd "{{svg_spritesheet}}" && bun run src/cli.ts \
-        "{{sprites_output}}/svg" \
-        "{{sprites_spritesheets}}" \
-        --parallel {{parallel}}
-    @echo "✓ Sprite spritesheets generated"
+    @echo "  Root:     {{root}}"
+    @echo "  Pipeline: {{pipeline}}"

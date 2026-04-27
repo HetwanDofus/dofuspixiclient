@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext"],
+    "types": ["bun-types"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
+    "ignoreDeprecations": "5.0",
+    "jsx": "react-jsx",
+    "paths": {
+      "@gateway/*": ["./src/gateway/*"],
+      "@core/*": ["./src/core/*"],
+      "@shared/*": ["./src/core/shared/*"],
+      "@modules/*": ["./src/core/modules/*"],
+      "@features/*": ["./src/core/features/*"]
+    }
+  },
+  "include": ["src/**/*", "./tests/**/*"]
+}

@@ -1,0 +1,61 @@
+// Gateway ↔ core transport. Envelopes carry the existing Dofus 1.29 protocol
+// messages (dofus.ClientMessage / dofus.DofusMessage) — this file only
+// defines the gateway plumbing around them.
+
+syntax = "proto3";
+
+package dofus.gateway.v1;
+
+
+import "client_messages.proto";
+import "server_messages.proto";
+
+message GatewayFrame {
+  oneof kind {
+    ClientEnvelope  client_env    = 1;
+    CoreEnvelope    core_env      = 2;
+    SessionOpen     session_open  = 3;
+    SessionClose    session_close = 4;
+    HandoffControl  handoff       = 5;
+    Heartbeat       hb            = 6;
+  }
+}
+
+message ClientEnvelope {
+  string session_id = 1;
+  dofus.ClientMessage message = 2;
+}
+
+message CoreEnvelope {
+  repeated string session_ids = 1;
+  dofus.DofusMessage message = 2;
+}
+
+message SessionOpen {
+  string session_id = 1;
+  string account_id = 2;
+  string character_id = 3;
+  string remote_addr = 4;
+}
+
+message SessionClose {
+  string session_id = 1;
+  string reason = 2;
+}
+
+message HandoffControl {
+  enum Phase {
+    PHASE_UNKNOWN  = 0;
+    PHASE_DRAIN    = 1;
+    PHASE_SNAPSHOT = 2;
+    PHASE_RESTORE  = 3;
+    PHASE_READY    = 4;
+    PHASE_SHUTDOWN = 5;
+  }
+  Phase phase = 1;
+  bytes snapshot = 2;
+}
+
+message Heartbeat {
+  uint64 seq = 1;
+}

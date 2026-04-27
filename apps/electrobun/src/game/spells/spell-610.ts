@@ -1,90 +1,159 @@
 /**
- * Spell 610 - Dodge
+ * Spell 610 — Esquive (Dodge).
  *
- * A single animation played at the target position.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/610/scripts/scripts/
  *
- * Components:
- * - anim1 (DefineSprite_20): Main animation at target position, 96 frames
- *   - Contains a child sprite (DefineSprite_9) that starts at a random frame (1-30)
- *     and stops at frame 40
- *   - Frame 7: Play sound 'dodge_610'
- *   - Frame 94: removeMovieClip() -> animation ends
+ * displayType=11 (TargetCell). This spell has no library symbols with
+ * `attachMovie` calls, no `move`/`shoot`/`duplicate` pattern, and no
+ * caster-anchored elements. It is a single animated composite (`anim1`)
+ * played at the target cell. The manifest has no `librarySymbols[]` —
+ * the animation content lives entirely in the `animations[]` entry
+ * `anim1` (96 frames). Two DefineSprite children drive the timeline:
  *
- * Original AS timing:
- * - DefineSprite_9/frame_1: gotoAndPlay(random(30) + 1) -> start at random frame 1-30
- * - DefineSprite_9/frame_40: stop()
- * - DefineSprite_20/frame_7: SOMA.playSound("dodge_610")
- * - DefineSprite_20/frame_94: _parent.removeMovieClip() -> complete
+ *   - DefineSprite_9 — inner animated clip (sub-symbol). frame_1 jumps
+ *     to a random frame in [1..30] via `gotoAndPlay(random(30) + 1)`.
+ *     frame_40 stops the clip.
+ *
+ *   - DefineSprite_20 — outer / wrapper clip (96 frames total).
+ *     frame_7  plays "dodge_610" sound.
+ *     frame_94 calls `_parent.removeMovieClip()` → spell complete.
+ *
+ * Because the manifest has no `librarySymbols[]`, there are no
+ * `attachMovie` calls; the DefineSprite children are placed on the
+ * authored timeline. We model this as a single `anim1` symbol driving
+ * the top-level visual, with its frameScripts porting the DefineSprite_20
+ * actions (sound at frame 7, removal at frame 94). The DefineSprite_9
+ * random-seek is an internal sub-clip behaviour that is already baked
+ * into the composite anim1 frame sequence.
+ *
+ * signalHit is fired at frame 7 (the impact / sound frame), which is
+ * the canonical first meaningful hit cue for a dodge/impact animation.
+ *
+ * Main timeline: no explicit SOMA.playSound on the outer timeline;
+ * the sound is inside DefineSprite_20/frame_7. No onSpellStart sound.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const ANIM1_MANIFEST: SpriteManifest = {
+const ANIM1_BOUNDS = {
   width: 70.5,
   height: 360.9,
   offsetX: -35.55,
   offsetY: -340.7,
 };
 
-export class Spell610 extends BaseSpell {
+export class Spell610 extends RuntimeSpell {
   readonly spellId = 610;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  protected setup(
-    _context: SpellContext,
+  private anim1Sym!: SymbolDefinition;
+
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    // The main animation (DefineSprite_20) has 96 frames (indices 0-95)
-    // The child sprite (DefineSprite_9) starts at random(30)+1 (1-indexed) = random frame 0-29 (0-indexed)
-    // and stops at frame 40 (1-indexed) = frame 39 (0-indexed).
-    // Since anim1 is a composite/flattened export, we use the startFrame to simulate
-    // the random start of the inner sprite. The composite frames already incorporate
-    // the inner sprite behavior, so we start the outer animation at a random offset
-    // corresponding to random(30)+1 -> 0-indexed: Math.floor(Math.random() * 30)
-    const randomStart = Math.floor(Math.random() * 30);
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    const anchor = calculateAnchor(ANIM1_MANIFEST);
+    // ---- anim1 — 96-frame composite at target cell ---------------
+    // Ports DefineSprite_20 timeline actions:
+    //   frame_7/DoAction.as:  SOMA.playSound("dodge_610")
+    //   frame_94/DoAction.as: _parent.removeMovieClip()
+    //
+    // DefineSprite_9 (inner sub-clip) logic:
+    //   frame_1/DoAction.as:  gotoAndPlay(random(30) + 1)
+    //   frame_40/DoAction.as: stop()
+    // The DefineSprite_9 sub-clip is baked into the composite anim1
+    // frame textures; its random-seek only affects which of the first
+    // 30 frames it starts from. We model the outer DefineSprite_20
+    // as the anim1 symbol driving the full 96-frame timeline.
+    // The random seek maps to: gotoAndPlay(Math.floor(Math.random()*30)+1)
+    // → clip.gotoAndPlay(Math.floor(Math.random() * 30)) at entry.
+    this.anim1Sym = {
+      name: "anim1",
+      totalFrames: 96,
+      frames: textures.getFrames("anim1"),
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_9/frame_1/DoAction.as:
+            //   gotoAndPlay(random(30) + 1);
+            // The inner DefineSprite_9 seeks to a random frame in [1..30].
+            // We mirror this on the composite clip itself so the animation
+            // starts from a random offset in the first 30 frames.
+            clip.gotoAndPlay(Math.floor(Math.random() * 30));
+          },
+        ],
+        [
+          6,
+          (clip) => {
+            // AS DefineSprite_20/frame_7/DoAction.as:
+            //   SOMA.playSound("dodge_610");
+            // Sound is stored in clip.vars so the frameScript can access
+            // the callback captured during onSpellStart. If not available,
+            // the sound is simply skipped gracefully.
+            const playSoundFn = clip.vars.playSound as
+              | ((id: string) => void)
+              | undefined;
+            if (playSoundFn) {
+              playSoundFn("dodge_610");
+            }
+            // Signal hit at the impact / sound frame.
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          39,
+          (clip) => {
+            // AS DefineSprite_9/frame_40/DoAction.as:
+            //   stop();
+            // The inner sub-clip stops at frame 40. Since we're modelling
+            // the composite, this is a no-op on the outer timeline but we
+            // mirror it for semantic correctness — the outer clip (anim1)
+            // continues to play through frame 94.
+            // No action needed on the composite level.
+            void clip;
+          },
+        ],
+        [
+          93,
+          (clip) => {
+            // AS DefineSprite_20/frame_94/DoAction.as:
+            //   _parent.removeMovieClip();
+            // Remove the anim clip and signal spell completion.
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    const mainAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("anim1"),
-        fps: 60,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-        startFrame: randomStart,
-      })
-    );
-
-    mainAnim.sprite.position.set(init.targetX, init.targetY);
-
-    // Frame 7 (1-indexed) = frame 6 (0-indexed): play sound
-    mainAnim.onFrame(6, () => this.callbacks.playSound("dodge_610"));
-
-    // Frame 94 (1-indexed) = frame 93 (0-indexed): removeMovieClip -> signal hit and complete
-    mainAnim.onFrame(93, () => {
-      this.signalHit();
-    });
-
-    this.container.addChild(mainAnim.sprite);
+    this.registry.register(this.anim1Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-
-    if (this.anims.allComplete()) {
-      this.complete();
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // No sound on the outer main timeline (sound is in DefineSprite_20/
+    // frame_7, fired from the frameScript above via clip.vars.playSound).
+    // Attach anim1 at the root so it begins ticking from the next frame.
+    // Store the playSound callback on the clip so the frame_7 script
+    // can invoke it.
+    const clip = this.root.attach(this.anim1Sym, "anim1", 1, context);
+    clip.vars.playSound = callbacks.playSound;
   }
 }

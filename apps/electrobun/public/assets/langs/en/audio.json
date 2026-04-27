@@ -1,0 +1,6769 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1248,
+        "AUMC": {
+            "FIGHT_AMAKNA": 32,
+            "FIGHT_CANIA": 30,
+            "FIGHT_ILYZAELLE": 134,
+            "FIGHT_KUTAN": 135,
+            "FIGHT_OTOMAI": 137,
+            "FIGHT_SIDIMOTE": 31,
+            "GUILD_CRA": 1,
+            "GUILD_ECAFLIP": 2,
+            "GUILD_ENIRIPSA": 3,
+            "GUILD_ENUTROF": 4,
+            "GUILD_FECA": 5,
+            "GUILD_IOP": 6,
+            "GUILD_OSAMODAS": 7,
+            "GUILD_SADIDA": 8,
+            "GUILD_SRAM": 9,
+            "GUILD_XELOR": 10,
+            "JOB_BAKER": 41,
+            "JOB_CARVER": 45,
+            "JOB_JEWELLER": 40,
+            "JOB_LUMBERJACK": 42,
+            "JOB_SHOEMAKER": 43,
+            "JOB_SMITH": 44,
+            "PLACE_AMAKNA": 115,
+            "PLACE_BONTA": 116,
+            "PLACE_BRAKMAR": 117,
+            "PLACE_CANIA": 118,
+            "PLACE_CHWISTMAS": 128,
+            "PLACE_DRAGOTURKEY1": 126,
+            "PLACE_DRAGOTURKEY2": 127,
+            "PLACE_ILYZAELLE": 132,
+            "PLACE_INCARNAM": 129,
+            "PLACE_KUTAN": 133,
+            "PLACE_MINOTOROR": 130,
+            "PLACE_MOON": 120,
+            "PLACE_OTOMAI": 136,
+            "PLACE_PANDALA_CITY": 124,
+            "PLACE_PANDALA_FIGHT": 125,
+            "PLACE_PANDALA_FOREST": 123,
+            "PLACE_SEWERS": 131,
+            "PLACE_SIDIMOTE": 119,
+            "PLACE_TROOL": 122,
+            "PLACE_WABBIT": 121
+        },
+        "AUM": {
+            "32": {
+                "f": "fig_amakna.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "30": {
+                "f": "fig_cania.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "134": {
+                "f": "fig_ilyzaelle.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "135": {
+                "f": "fig_kutan.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "137": {
+                "f": "fig_otomai.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "31": {
+                "f": "fig_sidimote.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "1": {
+                "f": "cls_cra.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "2": {
+                "f": "cls_ecaflip.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "3": {
+                "f": "cls_eniripsa.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "4": {
+                "f": "cls_enutrof.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "5": {
+                "f": "cls_feca.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "6": {
+                "f": "cls_iop.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "7": {
+                "f": "cls_osamodas.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "8": {
+                "f": "cls_sadida.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "9": {
+                "f": "cls_sram.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "10": {
+                "f": "cls_xelor.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "41": {
+                "f": "job_baker.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "45": {
+                "f": "job_carver.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "40": {
+                "f": "job_jeweller.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "42": {
+                "f": "job_lumberjack.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "43": {
+                "f": "job_shoemaker.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "44": {
+                "f": "job_smith.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "115": {
+                "f": "loc_amakna.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "116": {
+                "f": "loc_bonta.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "117": {
+                "f": "loc_brakmar.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "118": {
+                "f": "loc_cania.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "128": {
+                "f": "loc_kwistmas.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "126": {
+                "f": "loc_dragoturkey1.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "127": {
+                "f": "loc_dragoturkey2.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "132": {
+                "f": "loc_ilyzaelle.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "129": {
+                "f": "loc_incarnam.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "133": {
+                "f": "loc_kutan.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "130": {
+                "f": "loc_minotoror.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "120": {
+                "f": "loc_moon.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "136": {
+                "f": "loc_otomai.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "124": {
+                "f": "loc_pandawacity.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "125": {
+                "f": "loc_pandawafight.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "123": {
+                "f": "loc_pandawaforest.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "131": {
+                "f": "loc_sewers.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "119": {
+                "f": "loc_sidimote.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "122": {
+                "f": "loc_trool.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            },
+            "121": {
+                "f": "loc_wabbit.mp3",
+                "v": 100,
+                "l": true,
+                "s": false,
+                "o": 0
+            }
+        },
+        "AUEC": {
+            "AIE_F": 753,
+            "AIE_F2": 752,
+            "AIE_F3": 751,
+            "AIE_GRAVE_M": 750,
+            "AIE_M": 749,
+            "AIE_M2": 748,
+            "AIE_M4": 747,
+            "AIE_NORMAL_M": 746,
+            "AIE_SMALL_F": 745,
+            "AIE_SMALL_F2": 744,
+            "AIE_SMALL_M": 743,
+            "AIR": 742,
+            "ANIM0L_BOUFTOU": 741,
+            "ANIM0R_BOUFTOU": 740,
+            "ARB_BLETCH": 739,
+            "ARB_HUM": 738,
+            "ARTY_101": 737,
+            "ARTY_102": 736,
+            "ARTY_104": 735,
+            "ARTY_105": 734,
+            "ARTY_111": 733,
+            "ARTY_SPELL": 732,
+            "ASPIRATION": 731,
+            "ATACK_BOULE_DE_FEU_BABY_TROLL": 730,
+            "ATTACK_BISOU_DRAGUEUSE": 729,
+            "ATTACK_BOUFFAGE": 728,
+            "ATTACK_BOUFTOU_RAINBOW": 727,
+            "ATTACK_CRI": 726,
+            "ATTACK_HALEINE_PERE_NOEL": 725,
+            "ATTACK_NICHONS_DRAGUEUSE_01": 724,
+            "ATTACK_TOURNI_PERE_NOEL_01": 723,
+            "ATTAK_F": 722,
+            "ATTAK_M": 721,
+            "ATTAK_NORMAL_F": 720,
+            "ATTAK_NORMAL_F2": 719,
+            "ATTAK_NORMAL_F3": 718,
+            "ATTAK_NORMAL_F4": 717,
+            "ATTAK_NORMAL_F5": 716,
+            "ATTAK_NORMAL_M": 715,
+            "ATTAK_NORMAL_M3": 714,
+            "ATTAK_NORMAL_M4": 713,
+            "ATTAK_NORMAL_M5": 712,
+            "ATTAK_SMALL_F": 711,
+            "ATTAK_SMALL_F2": 710,
+            "ATTAK_SMALL_M": 709,
+            "ATTAK_SMALL_M2": 708,
+            "ATTAQUE_ENLEVAGE_NEIGE_TOFFU_SURPRISE": 707,
+            "ATTAQUE_LANGUE_BAS_DU_PERE_NOEL_2": 706,
+            "ATTAQUE_MAGIK_TOFFU_SURPRISE": 705,
+            "ATTAQUE_TOURNI_TOFFU_SURPRISE_01": 704,
+            "BAMBOU": 703,
+            "BASS_DRUM": 702,
+            "BAT_AILES": 701,
+            "BATEAU": 700,
+            "BATEAU_01": 699,
+            "BATEAU_02": 698,
+            "BATEAU_03": 697,
+            "BIP": 696,
+            "BISOU": 695,
+            "BLOP_CC": 694,
+            "BLOP_CC2": 693,
+            "BLOP_CC3": 692,
+            "BLOP_CC4": 691,
+            "BLOP_CC5": 690,
+            "BLOP_STEP": 689,
+            "BLOP_UP": 688,
+            "BOO_UP": 687,
+            "BOSS_RAT_BONTA_ATTACK_ASABRE": 686,
+            "BOSS_RAT_BONTA_ATTACK_QUEUE_TRANCHEE": 685,
+            "BOSS_RAT_BONTA_DIE": 684,
+            "BOSS_RAT_BONTA_VOIX_HIT": 683,
+            "BOUFTON": 682,
+            "BOUFTOU2": 676,
+            "BOUFTOU3": 675,
+            "BOUFTOU_CRI_HIT_1": 681,
+            "BOUFTOU_RAINBOW_DIE": 680,
+            "BOUFTOU_RIRE": 678,
+            "BOUFTOU_SCREAM": 677,
+            "BOUFTOU_VOIX_HIT_2": 679,
+            "BOUM": 674,
+            "BOUNE_BOING": 754,
+            "BRAK_WIND2": 673,
+            "BULB_DRILL": 672,
+            "BULB_DRILL2": 671,
+            "BWORK_DIE": 670,
+            "BWORKER_CC": 664,
+            "BWORKER_DIE": 663,
+            "BWORKER_LAME": 662,
+            "BWORKER_SPELL": 661,
+            "BWORK_FIRE": 669,
+            "BWORK_HIT": 668,
+            "BWORK_INCANT1": 667,
+            "BWORK_INCANT2": 666,
+            "BWORK_INCANT3": 665,
+            "CANIA_OISEAUX": 660,
+            "CANIA_OUAF": 659,
+            "CANIA_TITI": 658,
+            "CANIA_TITI2": 657,
+            "CANIA_WIND": 656,
+            "CARTOON_STEP": 655,
+            "CARTOON_STEP2": 654,
+            "CASSAGE_BOIS": 653,
+            "CC_ARTY": 652,
+            "CC_CHAMPION": 651,
+            "CC_DODGE": 650,
+            "CC_GRINA": 649,
+            "CC_GRINA2": 648,
+            "CC_JET": 647,
+            "CC_LAKAM": 646,
+            "CC_LICROUNCH": 645,
+            "CC_MANY": 644,
+            "CC_MANY2": 643,
+            "CC_SETAG": 642,
+            "CC_VLAD": 641,
+            "CC_WABBIT": 640,
+            "CHAFFER_ARC": 639,
+            "CHAFFER_EPEE": 638,
+            "CHAFFER_LANCE": 637,
+            "CHAIR1": 636,
+            "CHAIR2": 635,
+            "CHAIR3": 634,
+            "CHANT_TRIBAL": 633,
+            "CLANG": 632,
+            "CLAP1": 631,
+            "CLAP2": 630,
+            "CLAP3": 629,
+            "CLAVES": 628,
+            "CLICK": 627,
+            "CLICK2": 626,
+            "CLICK3": 625,
+            "COCHON_DEATH": 624,
+            "COCHON_FIRE": 623,
+            "COCHON_PUNCH": 622,
+            "COCHON_STEP": 621,
+            "COCHON_SWISHES": 620,
+            "COFFRE": 619,
+            "COOLOSS_ATTACK": 618,
+            "COOLOSS_DIE": 617,
+            "COQUILLE": 616,
+            "CORBAC_CHAIR": 615,
+            "CORBAC_COCON": 614,
+            "CORBAC_DIE": 613,
+            "CORBAC_LOAD": 612,
+            "CORBAC_STARS": 611,
+            "COUP_CRITIQUE": 610,
+            "COUP_LANCE": 609,
+            "COUP_LANCE02": 608,
+            "CRI_CORBAK": 607,
+            "CRI_KWAK": 606,
+            "CRIQUET": 605,
+            "CROCKETTE_1005": 604,
+            "CROCKETTE_201": 603,
+            "CROCKETTE_202": 602,
+            "CROCKETTE_205": 601,
+            "CROCKETTE_206": 600,
+            "CROCKETTE_207": 599,
+            "CROCKETTE_211": 598,
+            "CROCKETTE_213": 597,
+            "CROCKETTE_214": 596,
+            "CROKOBURIO": 595,
+            "CROKOBURIO_SPELL": 594,
+            "CYBWORK_CC": 593,
+            "CYBWORK_DIE": 592,
+            "CYBWORK_HIT": 591,
+            "CYBWORK_HIT_PUNCH": 590,
+            "CYBWORK_LOAD": 589,
+            "CYBWORK_MOTEUR": 588,
+            "DARKVLAD_ATTAK": 587,
+            "DARKVLAD_DIE": 586,
+            "DEATH": 585,
+            "DEATH_F": 584,
+            "DEATH_F2": 583,
+            "DEATH_F3": 582,
+            "DEATH_FALL": 581,
+            "DEATH_M": 580,
+            "DEATH_NORMAL_M": 579,
+            "DEATH_OLD_M": 578,
+            "DEATH_SMALL_F": 577,
+            "DEATH_SMALL_M": 576,
+            "DIDGERIDOO_1": 575,
+            "DIDGERIDOO_2": 574,
+            "DIE": 567,
+            "DIE_BABY_TROLL": 573,
+            "DIE_BERNARD_LHERMITTE": 572,
+            "DIE_BOUFTOU": 571,
+            "DIE_DRAGUEUSE": 570,
+            "DIE_DRAGUII": 569,
+            "DIE_KRAKLER_SOMBRE": 568,
+            "DIE_PEKIGAROU": 566,
+            "DIE_POTE_A_GOZILLA": 565,
+            "DIE_SAPIN_DE_NOEL": 564,
+            "DIE_SOLDAT_DRAGON_01": 563,
+            "DIE_TOFFU_SURPRISE_01": 562,
+            "DODGE_1100": 561,
+            "DODGE_601": 560,
+            "DODGE_602": 559,
+            "DODGE_603": 558,
+            "DODGE_604": 557,
+            "DODGE_605": 556,
+            "DODGE_607": 555,
+            "DODGE_607B": 554,
+            "DODGE_607C": 553,
+            "DODGE_608": 552,
+            "DODGE_610": 551,
+            "DODGE_613A": 550,
+            "DODGE_613B": 549,
+            "DODGE_614": 548,
+            "DODGE_615": 547,
+            "DODGE_616A": 546,
+            "DODGE_616B": 545,
+            "DRINK1": 543,
+            "DRINK_BURP": 544,
+            "ECA_ATTAK": 542,
+            "ECA_CC": 541,
+            "ECA_DIE": 540,
+            "ECA_HIT": 539,
+            "ECA_SCREAM": 538,
+            "ECU_CAST": 537,
+            "ECU_HIT": 536,
+            "ECU_MOVE": 535,
+            "EPEE_1M": 534,
+            "EPEE_2M": 533,
+            "ERROR": 532,
+            "EXPLO_DEATH": 531,
+            "EXPLO_FIREWORKS": 530,
+            "EXPLO_FIREWORKS2": 529,
+            "EXPLOSION": 528,
+            "FART1": 527,
+            "FART2": 526,
+            "FART3": 525,
+            "FART4": 524,
+            "FEUILLAGE": 523,
+            "FEUILLAGE2": 522,
+            "FIREWORKS01": 521,
+            "FIREWORKS02": 520,
+            "FISH": 519,
+            "FISH_OUT": 518,
+            "FLAMME_2022": 517,
+            "FLOTTEUR": 516,
+            "FORET01": 515,
+            "FORET01_01": 514,
+            "FORET01_02": 513,
+            "FORET01_03": 512,
+            "FORET01_05": 511,
+            "FORET01_06": 510,
+            "FORET02": 509,
+            "FORET02_01": 508,
+            "FORET02_03": 507,
+            "FORET02_04": 506,
+            "FORET03": 505,
+            "FORET03_01": 504,
+            "FORET03_05": 503,
+            "FORET03_06": 502,
+            "FORET03_07": 501,
+            "FORET03_08": 500,
+            "FORET03_09": 499,
+            "FOX_GRRR": 498,
+            "FOX_GRRR2": 497,
+            "FOX_GRRR3": 496,
+            "FRONDE": 495,
+            "GALOP": 494,
+            "GAME_EVENT": 766,
+            "GATED_GOUTTE": 493,
+            "GELEE": 492,
+            "GHOST": 491,
+            "GONFLE": 490,
+            "GRAND_MERE_ENU_ATTACK_EPEE": 489,
+            "GRILLON": 488,
+            "GRILLON_SOLO": 487,
+            "GRINA_701": 486,
+            "GRINA_702": 485,
+            "GRINA_703": 484,
+            "GRINA_704": 483,
+            "GRINA_705": 482,
+            "GRINA_706": 481,
+            "GRINA_707": 480,
+            "GRINA_709": 479,
+            "GRINA_709B": 478,
+            "GRINA_710": 477,
+            "GRINA_711": 476,
+            "GRINA_LOAD": 475,
+            "GROIN": 474,
+            "GROWL": 473,
+            "GRRR1": 472,
+            "GRRR2": 471,
+            "GUERISON": 470,
+            "HACHE_2M": 469,
+            "HERBE": 468,
+            "HIT_COOLOSS_3": 467,
+            "HIT_DEFAUT": 466,
+            "HIT_DODGE": 465,
+            "HIT_OLD_M": 464,
+            "IMPACT_LOURD": 463,
+            "JET_903": 462,
+            "JET_904": 461,
+            "JET_905": 460,
+            "JET_912": 459,
+            "JET_912B": 458,
+            "JINGLE_FLUTE": 457,
+            "JUMP": 456,
+            "JUNGLE": 455,
+            "JUNGLE_01": 454,
+            "JUNGLE_02": 453,
+            "KANIGROU_CC": 452,
+            "KANIGROU_DEATH": 451,
+            "KANIGROU_HIT": 450,
+            "KANIGROU_SCREAM": 449,
+            "KICK_BABY_TROLL": 448,
+            "KITSOUNE_CRI": 447,
+            "KOALA_ATTACK": 443,
+            "KOALA_BONG": 442,
+            "KOALA_DIE_L": 446,
+            "KOALA_DIE_R": 445,
+            "KOALA_HIT": 444,
+            "KOALA_SPELL": 441,
+            "KOKAKOALA_ATTACK_FRONDE_LR": 440,
+            "KOKAKOALA_ATTACK_FRONDE_RL": 439,
+            "KOKAKOALA_ATTACK_PANIER": 438,
+            "KOKO": 437,
+            "KRAK_CC": 436,
+            "KRAK_IMPACT": 435,
+            "KRAK_LANCE": 434,
+            "KRAK_RAMASSE": 433,
+            "KRAK_STEP": 432,
+            "KRAK_STEP2": 431,
+            "KROKETT_SPELL": 430,
+            "LAKAM_401A": 429,
+            "LAKAM_401B": 428,
+            "LAKAM_404": 427,
+            "LAKAM_405": 426,
+            "LAKAM_409": 425,
+            "LAKAM_LOAD": 424,
+            "LANCE": 423,
+            "LANCE02": 422,
+            "LARVE_CC": 421,
+            "LARVE_DIE": 420,
+            "LARVE_GLUANTE": 419,
+            "LARVE_GLUANTE2": 418,
+            "LARVE_GONFLE": 417,
+            "LARVE_HIT": 416,
+            "LARVE_SPELL": 415,
+            "LARVE_TIR": 414,
+            "LE_OURS_CC": 413,
+            "LE_OURS_DIE": 412,
+            "LE_OURS_HIT": 411,
+            "LE_OURS_SPELL": 410,
+            "LICROUNCH_1001": 409,
+            "LICROUNCH_1001B": 408,
+            "LICROUNCH_1003": 407,
+            "LICROUNCH_1008": 406,
+            "LICROUNCH_1008B": 405,
+            "LICROUNCH_1013": 404,
+            "LICROUNCH_1014": 403,
+            "LICROUNCH_ARBRE": 402,
+            "LITTLE_CAT": 401,
+            "LOAD_WABAMEHA": 400,
+            "LOUP_ABOIE": 399,
+            "LOW_SOUND": 398,
+            "MACHOUILLE": 393,
+            "MAGE_INCANTATIONS": 392,
+            "MAMA_CC": 391,
+            "MAMA_DIE": 390,
+            "MAMA_HIT": 389,
+            "MAMAN_KOALA_HIT": 387,
+            "MAMA_SPELL": 388,
+            "MANDO1": 385,
+            "MANDO2": 384,
+            "MANDO3": 383,
+            "MANDO4": 382,
+            "MANDO_CHORD": 386,
+            "MANY_501": 381,
+            "MANY_502": 380,
+            "MANY_503": 379,
+            "MANY_504": 378,
+            "MANY_505": 377,
+            "MANY_507": 376,
+            "MANY_508": 375,
+            "MANY_509": 374,
+            "MANY_512B": 373,
+            "MANY_LOAD": 372,
+            "MANY_LOAD2": 371,
+            "MARTEAU_1M": 370,
+            "MARTEAU_2M": 369,
+            "MEGA_FOX_STEP": 368,
+            "MEGA_FOX_STEP2": 367,
+            "MER01": 366,
+            "MER01_MOUETTE02": 365,
+            "MER01_MOUETTE03": 364,
+            "MER01_MOUETTE04": 363,
+            "MILICIEN_CC": 362,
+            "MILICIEN_CC2": 361,
+            "MILICIEN_CC3": 360,
+            "MILICIEN_DIE": 359,
+            "MILICIEN_HACHE": 358,
+            "MILICIEN_HACHE2": 357,
+            "MILICIEN_HIT": 356,
+            "MILICIEN_HIT2": 355,
+            "MILICIEN_PUNCH": 354,
+            "MOON_HIT": 353,
+            "MOON_PLEURES": 352,
+            "MOON_RIRES": 351,
+            "MOON_STARS": 350,
+            "MOON_SWIRL": 349,
+            "MOON_TAMBOUR": 348,
+            "M_PANDA_EXPLO": 397,
+            "M_PANDA_FLOTTE": 396,
+            "M_PANDA_SPELL_A": 395,
+            "M_PANDA_SPELL_B": 394,
+            "MULOU": 347,
+            "NOVA_CAST": 346,
+            "NOVA_GRRR": 345,
+            "OGIVOL_DIE": 344,
+            "OGIVOL_HIT": 343,
+            "OGIVOL_RIRES": 342,
+            "ONI_OEIL": 341,
+            "OS": 340,
+            "OTOMAI_BACKGROUND_FIELDS": 757,
+            "OTOMAI_BACKGROUND_FOREST": 756,
+            "OTOMAI_BACKGROUND_SWAMPS": 755,
+            "OUASSINGUE_GRRR": 339,
+            "OUGA_GRRR": 338,
+            "OUGA_LEVI": 337,
+            "OUGA_POSE": 336,
+            "OUGINAC_CHAINE": 335,
+            "OUGINAC_EPEE": 334,
+            "OUGINAC_HIT": 333,
+            "OUGINAC_LOAD": 332,
+            "OUGINAC_OUAF_GRRR": 331,
+            "OUGINAC_OUAF_LOAD": 330,
+            "PADEGREF_ATTAK": 329,
+            "PADEGREF_DIE": 328,
+            "PADEGREF_HIT": 327,
+            "PADEGREF_SPELL": 326,
+            "PAGES": 325,
+            "PAIN": 324,
+            "PANDA_BELCH": 323,
+            "PANDA_GAZ": 322,
+            "PANDA_GLOUPS": 321,
+            "PANDALA": 316,
+            "PANDA_LOAD": 320,
+            "PANDA_MOLOTOV": 319,
+            "PANDA_SOUILLURE": 318,
+            "PANDA_VAGUE": 317,
+            "PANDIT_ATTAK": 315,
+            "PANDIT_DEATH": 314,
+            "PANDIT_FIRE": 313,
+            "PANDIT_HORN": 312,
+            "PANDIT_SPELL": 311,
+            "PANDORE_TAM": 310,
+            "PAS_HOMME_NORMAL": 309,
+            "PAS_HOMME_PETIT": 308,
+            "PEKIPEKI": 307,
+            "PET": 300,
+            "PET_1": 306,
+            "PET_2": 305,
+            "PET_3": 304,
+            "PET_4": 303,
+            "PET_5": 302,
+            "PET_6": 301,
+            "PIC": 299,
+            "PISSENLI": 298,
+            "POK": 297,
+            "PORKASS_CAST": 296,
+            "PORKASS_DEATH": 295,
+            "PORKASS_FLEAU": 294,
+            "PORKASS_GROIN": 293,
+            "PORKASS_GROIN2": 292,
+            "PORKASS_HIT": 291,
+            "PORKASS_HIT2": 290,
+            "PORKASS_STEP": 289,
+            "POSE": 288,
+            "POSE2": 287,
+            "POUPEE": 286,
+            "POUPEE_VODOO2": 285,
+            "PUNCH": 284,
+            "RAPID_SWISH": 283,
+            "RAPID_SWISHES": 282,
+            "RAPID_SWISHES_SHORTER": 281,
+            "RENIFLEMENTS": 280,
+            "RIRE_CHAMPION": 279,
+            "RIRE_SADIQUE": 278,
+            "RIVER": 277,
+            "RONCE": 276,
+            "RONRONNEMENT": 275,
+            "RUBI_ATTAQUE_BOOMERANG": 274,
+            "RUBI_ATTAQUE_WISTLE_L": 273,
+            "RUBI_ATTAQUE_WISTLE_R": 272,
+            "RUBY_DIE": 271,
+            "SACRIEUR_1050": 270,
+            "SACRIEUR_1050B": 269,
+            "SACRIEUR_1051": 268,
+            "SACRIEUR_1053": 267,
+            "SACRIEUR_1054": 266,
+            "SACRIEUR_LOAD1": 265,
+            "SACRIEUR_LOAD2": 264,
+            "SACRIEUR_LOAD3": 263,
+            "SADIDA_ATTAK_F": 262,
+            "SADIDA_DIE": 261,
+            "SADIDA_DIE_F": 260,
+            "SADIDA_DIE_F2": 259,
+            "SADIDA_HIT_M": 258,
+            "SADIDA_SCREAM": 257,
+            "SAUT": 256,
+            "SAVE_ATTACK_BULLE_ETOILE_DE_MER": 255,
+            "SAVE_ATTACK_SAUT_ETOILE_DE_MER": 254,
+            "SAVE_DIE_ETOILE_DE_MER": 253,
+            "SERPENTIN_CC": 252,
+            "SETAG_301": 251,
+            "SETAG_302": 250,
+            "SETAG_303": 249,
+            "SETAG_305": 248,
+            "SETAG_307": 247,
+            "SETAG_309A": 246,
+            "SETAG_309B": 245,
+            "SETAG_310": 244,
+            "SETAG_ATTAK_F": 243,
+            "SETAG_ATTAK_M": 242,
+            "SETAG_ATTAK_M2": 241,
+            "SETAG_DIE_F": 240,
+            "SETAG_HIT_F": 239,
+            "SETAG_LOAD": 238,
+            "SETAG_SPELL_F": 237,
+            "SETAG_SPELL_M": 236,
+            "SHIELD_CARA": 235,
+            "SLOP": 234,
+            "SON_ANIM_AILES_DRAGONDINDE": 233,
+            "SON_ATTACK": 232,
+            "SON_ATTACK_ABOIMENT_PEKIGAROU": 231,
+            "SON_ATTACK_ATTRAPE_PEKIGAROU": 230,
+            "SON_ATTACK_AVALE_TOFFU": 229,
+            "SON_ATTACK_BANG_GANGSTAKO": 228,
+            "SON_ATTACK_BATON_TOURNANT_WARKO": 227,
+            "SON_ATTACK_BATON_WARKO": 226,
+            "SON_ATTACK_BIDON_MAXIKOALA": 225,
+            "SON_ATTACK_BOOMERANG_KOALA_MARSUPIAL": 224,
+            "SON_ATTACK_BOOMERANG_REDKOALA": 223,
+            "SON_ATTACK_BOULE_DE_FEU_KID_KOALA": 222,
+            "SON_ATTACK_BOUUFAGE_DRAGUII_VERS_LA_DROITE": 221,
+            "SON_ATTACK_BOUUFAGE_DRAGUII_VERS_LA_GAUCHE": 220,
+            "SON_ATTACK_CHEWING_GUM_DOC_ALAKO": 219,
+            "SON_ATTACK_COUP_DE_BOULE_DOC_ALAKO": 218,
+            "SON_ATTACK_COUP_DE_BOULE_KOOL_ALLAH": 217,
+            "SON_ATTACK_COUP_DE_BOULE_PETIT_RAT_NOIR": 216,
+            "SON_ATTACK_COUP_DE_BOULE_POUPPEE_KOALA": 215,
+            "SON_ATTACK_COUP_DE_PIED_KID_KOALA": 214,
+            "SON_ATTACK_COUP_DE_POING_REDKOALA": 213,
+            "SON_ATTACK_COUP_DE_TETE_SAPIN_DE_NOEL": 212,
+            "SON_ATTACK_CRI_GODZILLA": 211,
+            "SON_ATTACK_CRI_TOFFU": 210,
+            "SON_ATTACK_DANSE_MAMA_KOALA_01": 209,
+            "SON_ATTACK_DIE_DOC_ALAKO": 208,
+            "SON_ATTACK_DIE_MAMA_KOALA": 207,
+            "SON_ATTACK_DIE_MINIKOALA_DES_CIMETIERES_01": 206,
+            "SON_ATTACK_ENORME_MAXIKOALA": 205,
+            "SON_ATTACK_ENSELLEVISSEMENT_BERNARD_LHERMITTE": 204,
+            "SON_ATTACK_ENTERREMENT_MINIKOALA_DES_CIMETIERES": 203,
+            "SON_ATTACK_EPEE_RAT_DE_BRAQUEMAR": 202,
+            "SON_ATTACK_FIOLE_KOALA_PIRATE": 201,
+            "SON_ATTACK_FLASH_POUPPEE_KOALA": 200,
+            "SON_ATTACK_GRIFF_POTE_A_GOZILLA": 199,
+            "SON_ATTACK_GROS_CUL_MAMA_KOALA": 198,
+            "SON_ATTACK_HARP": 197,
+            "SON_ATTACK_KICK": 196,
+            "SON_ATTACK_KICK_KOALA_MARSUPIAL": 195,
+            "SON_ATTACK_KICK_KRAKLER_SOMBRE": 194,
+            "SON_ATTACK_KICK_PAPYKOALA": 193,
+            "SON_ATTACK_KICK_REDKOALA": 192,
+            "SON_ATTACK_LANCE": 191,
+            "SON_ATTACK_LANCE_AT_BONTA_01": 190,
+            "SON_ATTACK_LANCE_DOC_ALAKO": 189,
+            "SON_ATTACK_LANCE_DRAGUII": 188,
+            "SON_ATTACK_LANCE_KRAKLER_DES_GLACES": 187,
+            "SON_ATTACK_LANCE_TETE_BONHOMME": 186,
+            "SON_ATTACK_LASER__POTE_A_GOZILLA_01": 185,
+            "SON_ATTACK_MAGIK_BONHOMME": 184,
+            "SON_ATTACK_MAGIK_GODZILLA": 183,
+            "SON_ATTACK_MAGIK_PAPYKOALA": 182,
+            "SON_ATTACK_MAGIK_PETIT_RAT_NOIR": 181,
+            "SON_ATTACK_MAGIK_RAT_DE_BRAQUEMAR": 180,
+            "SON_ATTACK_MASSUE_SOLDAT_DRAGON": 179,
+            "SON_ATTACK_MASSUE_SWIFT_SOLDAT_DRAGON": 178,
+            "SON_ATTACK_MEGAKRAKLER": 177,
+            "SON_ATTACK_NINJA_PETIT_RAT_NOIR": 176,
+            "SON_ATTACK_PAS_KRAKLER_DES_GLACES": 175,
+            "SON_ATTACK_PAS_POTE_A_GOZILLA": 174,
+            "SON_ATTACK_PELLE_MINIKOALA_DES_CIMETIERES": 173,
+            "SON_ATTACK_PET_RAT_BONTA": 172,
+            "SON_ATTACK_PINCE_BERNARD_LHERMITTE": 171,
+            "SON_ATTACK_PORTAGE_PEPSIKOALA": 170,
+            "SON_ATTACK_POWER_KRAKLER_SOMBRE": 169,
+            "SON_ATTACK_POWER_LUTIN_IRLANDAIS": 168,
+            "SON_ATTACK_PUNCH_GANGSTAKO": 167,
+            "SON_ATTACK_PUNCH_KOALA_MARSUPIAL": 166,
+            "SON_ATTACK_PUNCH_KOOL_ALLAH": 165,
+            "SON_ATTACK_PUNCH_LUTIN_IRLANDAIS": 164,
+            "SON_ATTACK_PUNCH_MAMAN_KOALA": 163,
+            "SON_ATTACK_PUNCH_MAXIKOALA": 162,
+            "SON_ATTACK_PUNCH_YETI": 161,
+            "SON_ATTACK_RECRACHE_TOFFU": 160,
+            "SON_ATTACK_RIRE": 159,
+            "SON_ATTACK_SABLE_DOUBLE_COUP_BOSS_RAT_DE_BRAQUEMART": 158,
+            "SON_ATTACK_SABRE_ENORME_BOSS_RAT_DE_BRAQUEMART_01": 157,
+            "SON_ATTACK_SABRE_KOALA_PIRATE": 156,
+            "SON_ATTACK_SARBACANE_GANGSTAKO": 155,
+            "SON_ATTACK_SAUT_KOOL_ALLAH": 154,
+            "SON_ATTACK_SAUT_SAPIN_DE_NOEL": 153,
+            "SON_ATTACK_TERRE_MINIKOALA_DES_CIMETIERES": 152,
+            "SON_ATTACK_TOTEM": 151,
+            "SON_ATTACK_TOURNIS_HAUT_DU_PERE_NOEL": 150,
+            "SON_ATTAQUE_ARC_LR": 149,
+            "SON_ATTAQUE_ARC_RL": 148,
+            "SON_ATTAQUE_FAUCILLE": 147,
+            "SON_ATTAQUE_KICK_R": 146,
+            "SON_ATTAQUE_PECHE": 145,
+            "SON_ATTAQUE_PECHE_RETOUR_DE_CANNE": 144,
+            "SON_ATTAQUE_SORT": 143,
+            "SON_CARRINGEND_PESPSIKOALA": 142,
+            "SON_CARRINGTHROW_PEPSIKOALA": 141,
+            "SON_CARRNG": 140,
+            "SON_DIE": 139,
+            "SON_DIE_BONHOMME_DE_NEIGE": 137,
+            "SON_DIE__BOSS_RAT_DE_BRAQUEMART_01": 138,
+            "SON_DIE_DRAGONDINDE": 136,
+            "SON_DIE_GANGSTAKO": 135,
+            "SON_DIE_GODZILLA": 134,
+            "SON_DIE_KIDKOALA": 133,
+            "SON_DIE_KOALA_MARSUPIAL": 132,
+            "SON_DIE_KOALA_PIRATE": 131,
+            "SON_DIE_KOOL_ALLAH": 130,
+            "SON_DIE_KRAKLER_DES_GLACES": 129,
+            "SON_DIE_LUTIN_IRLANDAIS_01": 128,
+            "SON_DIE_MAXIKOALA": 127,
+            "SON_DIE_MEGAKRAKLER_01": 126,
+            "SON_DIE_MORKITU": 125,
+            "SON_DIE_PAPYKOALA": 124,
+            "SON_DIE_PECHEUR": 123,
+            "SON_DIE_PESPIKOALA": 122,
+            "SON_DIE_PETIT_RAT_NOIR": 121,
+            "SON_DIE_POPS_TOFFU": 120,
+            "SON_DIE_POUPPEE_KOALA": 119,
+            "SON_DIE_RAT_DE_BRAQUEMAR": 118,
+            "SON_DIE_REDKOALA": 117,
+            "SON_DIE_SKUNK": 116,
+            "SON_DIE_TOTEM": 115,
+            "SON_DIE_WARKO": 114,
+            "SON_DIE_YETI": 113,
+            "SON_EMOTE_COUP_DE_BOULE": 112,
+            "SON_EMOTE_DANSE_DU_POPOTIN": 111,
+            "SON_EMOTE_MANGEAGE": 110,
+            "SON_EMOTE_PET_POUSSE_L": 109,
+            "SON_EMOTE_PET_POUSSE_R": 108,
+            "SON_EMOTE_REPRO_FEMELLE": 107,
+            "SON_EMOTE_ROULEMENT_DE_CUL": 106,
+            "SON_GROS_RAT_BOULET_ATTACK_BOULET_KICK": 105,
+            "SON_GROS_RAT_BOULET_ATTACK_BOULET_TOURNANT": 104,
+            "SON_GROS_RAT_BOULET_DIE": 103,
+            "SON_HARPE_JOUEE": 102,
+            "SON_HIT_KOALA_PIRATE": 101,
+            "SON_HIT_PEPSIKOALA": 100,
+            "SON_MOMIKOALA_DIE": 99,
+            "SON_POSAGE_PESPIKOALA": 98,
+            "SON_RAT_BONTA__DIE": 97,
+            "SON_SORT": 96,
+            "SON_TRANSFORMATION_PERE_NOEL": 95,
+            "SON_VOIX_HIT_KOOL_ALLAH": 94,
+            "SOUFFRANCE_3": 93,
+            "SPACE_TIR": 92,
+            "SPEAKING_ITEMS_1": 758,
+            "SPEAKING_ITEMS_2": 759,
+            "SPEAKING_ITEMS_3": 760,
+            "SPEAK_TRIGGER_ASSOCIATE": 763,
+            "SPEAK_TRIGGER_CHANGE_SKIN": 765,
+            "SPEAK_TRIGGER_DISSOCIATE": 764,
+            "SPEAK_TRIGGER_FEED": 762,
+            "SPEAK_TRIGGER_LEVEL_UP": 761,
+            "SPLINTER_CELL_ATTACK_DISAPPEAR": 91,
+            "SPLINTER_CELL_ATTACK_FIOLE": 90,
+            "SPLINTER_CELL_COIX_HIT": 89,
+            "SPLINTER_CELL_DIE": 88,
+            "SRAM_ATTAK_M": 87,
+            "SRAM_DIE_M": 86,
+            "SRAM_HIT_M": 85,
+            "STARS": 84,
+            "STARS2": 83,
+            "STARS3": 82,
+            "START_FIGHT": 81,
+            "STEP_LITTLE": 80,
+            "STEP_LITTLE2": 79,
+            "TAK": 78,
+            "TCHAK": 77,
+            "TOFU1": 71,
+            "TOFU2": 70,
+            "TOFU_FIRE": 76,
+            "TOFU_KING": 75,
+            "TOFU_KING2": 73,
+            "TOFU_KING3": 72,
+            "TOFU_KING_HIT": 74,
+            "TURN_START": 69,
+            "VIOX_HIT_MOMIEKOALA": 68,
+            "VIOX_HIT_WARKO": 67,
+            "VLAD_801": 66,
+            "VLAD_802": 65,
+            "VLAD_803": 64,
+            "VLAD_804": 63,
+            "VLAD_805": 62,
+            "VLAD_806": 61,
+            "VLAD_807": 60,
+            "VLAD_812": 59,
+            "VLAD_813": 58,
+            "VLAD_AMENO": 57,
+            "VOIX_ATTACK_2_MONTURE_DIFORME": 55,
+            "VOIX_BONTA_HIT": 54,
+            "VOIX_DIE__BAS_DU_PERE_NOEL_01": 53,
+            "VOIX_DIE_MONTURE_DIFORME": 52,
+            "VOIX__DRAGON_HIT": 56,
+            "VOIX_GROS_RAT_BOULET_HIT": 51,
+            "VOIX_HIT": 50,
+            "VOIX_HIT_BABY_TROLL": 48,
+            "VOIX_HIT_BAS_DU_PERE_NOEL_01": 47,
+            "VOIX_HIT_BERNARD_LHERMITTE": 46,
+            "VOIX_HIT__BOSS_RAT_DE_BRAQUEMART_02": 49,
+            "VOIX_HIT_BOUFTOU_RAINBOW_1": 45,
+            "VOIX_HIT_DRAGUEUSE": 44,
+            "VOIX_HIT_GANGSTAKO": 43,
+            "VOIX_HIT_GODZILLA": 42,
+            "VOIX_HIT_HAUT_DU_PERE_NOEL": 41,
+            "VOIX_HIT_KIDKOALA": 40,
+            "VOIX_HIT_KOALA_MARSUPIAL": 39,
+            "VOIX_HIT_LUTIN_IRLANDAIS": 38,
+            "VOIX_HIT_MONTURE_DIFORME": 37,
+            "VOIX_HIT_MONTURE_KOALA": 36,
+            "VOIX_HIT_PECHEUR": 35,
+            "VOIX_HIT_PEKIGAROU": 34,
+            "VOIX_HIT_PERE_NOEL": 33,
+            "VOIX_HIT_PERE_NOEL_2": 32,
+            "VOIX_HIT_PETIT_RAT_NOIR_01": 31,
+            "VOIX_HIT_POTE_A_GODZILLA": 30,
+            "VOIX_HIT_POUPEE_KOALA_2": 29,
+            "VOIX_HIT_RAT_DE_BRAQUEMAR": 28,
+            "VOIX_HIT_REDKOALA": 27,
+            "VOIX_HIT_SKUNK": 26,
+            "VOIX_HIT_SOLDAT_DRAGON": 25,
+            "VOIX_HIT_TOFFU": 24,
+            "VOIX_HIT_TOTEM": 23,
+            "VOIX_HIT_YETI": 22,
+            "VOIX_MAXIKOALA_HIT": 21,
+            "VOIX_VIEUX_HIT": 20,
+            "VOL": 19,
+            "WAB_2000A": 18,
+            "WAB_2000B": 17,
+            "WAB_2005A": 16,
+            "WAB_2005B": 15,
+            "WAB_2006": 14,
+            "WABAMEHA": 3,
+            "WABAMEHA2": 2,
+            "WAB_ATTACK": 13,
+            "WAB_CARROTE": 12,
+            "WAB_CRACHAT": 11,
+            "WAB_EXPLO": 10,
+            "WAB_HIT1": 9,
+            "WAB_HIT3": 8,
+            "WAB_JUMP": 7,
+            "WAB_ROBOT": 6,
+            "WAB_SWIRL": 5,
+            "WAB_VENTRE": 4,
+            "WOUWOU": 1
+        },
+        "AUE": {
+            "753": {
+                "f": "fx_753.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "752": {
+                "f": "fx_752.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "751": {
+                "f": "fx_751.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "750": {
+                "f": "fx_750.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "749": {
+                "f": "fx_749.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "748": {
+                "f": "fx_748.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "747": {
+                "f": "fx_747.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "746": {
+                "f": "fx_746.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "745": {
+                "f": "fx_745.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "744": {
+                "f": "fx_744.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "743": {
+                "f": "fx_743.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "742": {
+                "f": "fx_742.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "741": {
+                "f": "fx_741.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "740": {
+                "f": "fx_740.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "739": {
+                "f": "fx_739.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "738": {
+                "f": "fx_738.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "737": {
+                "f": "fx_737.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "736": {
+                "f": "fx_736.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "735": {
+                "f": "fx_735.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "734": {
+                "f": "fx_734.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "733": {
+                "f": "fx_733.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "732": {
+                "f": "fx_732.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "731": {
+                "f": "fx_731.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "730": {
+                "f": "fx_730.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "729": {
+                "f": "fx_729.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "728": {
+                "f": "fx_728.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "727": {
+                "f": "fx_727.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "726": {
+                "f": "fx_726.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "725": {
+                "f": "fx_725.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "724": {
+                "f": "fx_724.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "723": {
+                "f": "fx_723.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "722": {
+                "f": "fx_722.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "721": {
+                "f": "fx_721.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "720": {
+                "f": "fx_720.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "719": {
+                "f": "fx_719.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "718": {
+                "f": "fx_718.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "717": {
+                "f": "fx_717.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "716": {
+                "f": "fx_716.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "715": {
+                "f": "fx_715.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "714": {
+                "f": "fx_714.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "713": {
+                "f": "fx_713.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "712": {
+                "f": "fx_712.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "711": {
+                "f": "fx_711.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "710": {
+                "f": "fx_710.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "709": {
+                "f": "fx_709.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "708": {
+                "f": "fx_708.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "707": {
+                "f": "fx_707.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "706": {
+                "f": "fx_706.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "705": {
+                "f": "fx_705.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "704": {
+                "f": "fx_704.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "703": {
+                "f": "fx_703.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "702": {
+                "f": "fx_702.mp3",
+                "v": 70,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "701": {
+                "f": "fx_701.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "700": {
+                "f": "fx_700.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "699": {
+                "f": "fx_699.mp3",
+                "v": 70,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "698": {
+                "f": "fx_698.mp3",
+                "v": 80,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "697": {
+                "f": "fx_697.mp3",
+                "v": 50,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "696": {
+                "f": "fx_696.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "695": {
+                "f": "fx_695.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "694": {
+                "f": "fx_694.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "693": {
+                "f": "fx_693.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "692": {
+                "f": "fx_692.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "691": {
+                "f": "fx_691.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "690": {
+                "f": "fx_690.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "689": {
+                "f": "fx_689.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "688": {
+                "f": "fx_688.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "687": {
+                "f": "fx_687.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "686": {
+                "f": "fx_686.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "685": {
+                "f": "fx_685.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "684": {
+                "f": "fx_684.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "683": {
+                "f": "fx_683.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "682": {
+                "f": "fx_682.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "676": {
+                "f": "fx_676.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "675": {
+                "f": "fx_675.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "681": {
+                "f": "fx_681.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "680": {
+                "f": "fx_680.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "678": {
+                "f": "fx_678.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "677": {
+                "f": "fx_677.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "679": {
+                "f": "fx_679.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "674": {
+                "f": "fx_674.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "754": {
+                "f": "fx_754.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "673": {
+                "f": "fx_673.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "672": {
+                "f": "fx_672.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "671": {
+                "f": "fx_671.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "670": {
+                "f": "fx_670.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "664": {
+                "f": "fx_664.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "663": {
+                "f": "fx_663.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "662": {
+                "f": "fx_662.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "661": {
+                "f": "fx_661.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "669": {
+                "f": "fx_669.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "668": {
+                "f": "fx_668.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "667": {
+                "f": "fx_667.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "666": {
+                "f": "fx_666.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "665": {
+                "f": "fx_665.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "660": {
+                "f": "fx_660.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "659": {
+                "f": "fx_659.mp3",
+                "v": 40,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "658": {
+                "f": "fx_658.mp3",
+                "v": 20,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "657": {
+                "f": "fx_657.mp3",
+                "v": 20,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "656": {
+                "f": "fx_656.mp3",
+                "v": 50,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "655": {
+                "f": "fx_655.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "654": {
+                "f": "fx_654.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "653": {
+                "f": "fx_653.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "652": {
+                "f": "fx_652.mp3",
+                "v": 95,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "651": {
+                "f": "fx_651.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "650": {
+                "f": "fx_650.mp3",
+                "v": 80,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "649": {
+                "f": "fx_649.mp3",
+                "v": 75,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "648": {
+                "f": "fx_648.mp3",
+                "v": 75,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "647": {
+                "f": "fx_647.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "646": {
+                "f": "fx_646.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "645": {
+                "f": "fx_645.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "644": {
+                "f": "fx_644.mp3",
+                "v": 68,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "643": {
+                "f": "fx_643.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "642": {
+                "f": "fx_642.mp3",
+                "v": 40,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "641": {
+                "f": "fx_641.mp3",
+                "v": 50,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "640": {
+                "f": "fx_640.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "639": {
+                "f": "fx_639.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "638": {
+                "f": "fx_638.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "637": {
+                "f": "fx_637.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "636": {
+                "f": "fx_636.mp3",
+                "v": 50,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "635": {
+                "f": "fx_635.mp3",
+                "v": 50,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "634": {
+                "f": "fx_634.mp3",
+                "v": 50,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "633": {
+                "f": "fx_633.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "632": {
+                "f": "fx_632.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "631": {
+                "f": "fx_631.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "630": {
+                "f": "fx_630.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "629": {
+                "f": "fx_629.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "628": {
+                "f": "fx_628.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "627": {
+                "f": "fx_627.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "626": {
+                "f": "fx_626.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "625": {
+                "f": "fx_625.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "624": {
+                "f": "fx_624.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "623": {
+                "f": "fx_623.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "622": {
+                "f": "fx_622.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "621": {
+                "f": "fx_621.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "620": {
+                "f": "fx_620.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "619": {
+                "f": "fx_619.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "618": {
+                "f": "fx_618.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "617": {
+                "f": "fx_617.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "616": {
+                "f": "fx_616.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "615": {
+                "f": "fx_615.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "614": {
+                "f": "fx_614.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "613": {
+                "f": "fx_613.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "612": {
+                "f": "fx_612.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "611": {
+                "f": "fx_611.mp3",
+                "v": 75,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "610": {
+                "f": "fx_610.mp3",
+                "v": 35,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "609": {
+                "f": "fx_609.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "608": {
+                "f": "fx_608.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "607": {
+                "f": "fx_607.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "606": {
+                "f": "fx_606.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "605": {
+                "f": "fx_605.mp3",
+                "v": 40,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "604": {
+                "f": "fx_604.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "603": {
+                "f": "fx_603.mp3",
+                "v": 65,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "602": {
+                "f": "fx_602.mp3",
+                "v": 40,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "601": {
+                "f": "fx_601.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "600": {
+                "f": "fx_600.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "599": {
+                "f": "fx_599.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "598": {
+                "f": "fx_598.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "597": {
+                "f": "fx_597.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "596": {
+                "f": "fx_596.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "595": {
+                "f": "fx_595.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "594": {
+                "f": "fx_594.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "593": {
+                "f": "fx_593.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "592": {
+                "f": "fx_592.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "591": {
+                "f": "fx_591.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "590": {
+                "f": "fx_590.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "589": {
+                "f": "fx_589.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "588": {
+                "f": "fx_588.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "587": {
+                "f": "fx_587.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "586": {
+                "f": "fx_586.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "585": {
+                "f": "fx_585.mp3",
+                "v": 75,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "584": {
+                "f": "fx_584.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "583": {
+                "f": "fx_583.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "582": {
+                "f": "fx_582.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "581": {
+                "f": "fx_581.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "580": {
+                "f": "fx_580.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "579": {
+                "f": "fx_579.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "578": {
+                "f": "fx_578.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "577": {
+                "f": "fx_577.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "576": {
+                "f": "fx_576.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "575": {
+                "f": "fx_575.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "574": {
+                "f": "fx_574.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "567": {
+                "f": "fx_567.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "573": {
+                "f": "fx_573.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "572": {
+                "f": "fx_572.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "571": {
+                "f": "fx_571.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "570": {
+                "f": "fx_570.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "569": {
+                "f": "fx_569.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "568": {
+                "f": "fx_568.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "566": {
+                "f": "fx_566.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "565": {
+                "f": "fx_565.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "564": {
+                "f": "fx_564.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "563": {
+                "f": "fx_563.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "562": {
+                "f": "fx_562.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "561": {
+                "f": "fx_561.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "560": {
+                "f": "fx_560.mp3",
+                "v": 65,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "559": {
+                "f": "fx_559.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "558": {
+                "f": "fx_558.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "557": {
+                "f": "fx_557.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "556": {
+                "f": "fx_556.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "555": {
+                "f": "fx_555.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "554": {
+                "f": "fx_554.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "553": {
+                "f": "fx_553.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "552": {
+                "f": "fx_552.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "551": {
+                "f": "fx_551.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "550": {
+                "f": "fx_550.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "549": {
+                "f": "fx_549.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "548": {
+                "f": "fx_548.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "547": {
+                "f": "fx_547.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "546": {
+                "f": "fx_546.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "545": {
+                "f": "fx_545.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "543": {
+                "f": "fx_543.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "544": {
+                "f": "fx_544.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "542": {
+                "f": "fx_542.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "541": {
+                "f": "fx_541.mp3",
+                "v": 60,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "540": {
+                "f": "fx_540.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "539": {
+                "f": "fx_539.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "538": {
+                "f": "fx_538.mp3",
+                "v": 50,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "537": {
+                "f": "fx_537.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "536": {
+                "f": "fx_536.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "535": {
+                "f": "fx_535.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "534": {
+                "f": "fx_534.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "533": {
+                "f": "fx_533.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "532": {
+                "f": "fx_532.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "531": {
+                "f": "fx_531.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "530": {
+                "f": "fx_530.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "529": {
+                "f": "fx_529.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "528": {
+                "f": "fx_528.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "527": {
+                "f": "fx_527.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "526": {
+                "f": "fx_526.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "525": {
+                "f": "fx_525.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "524": {
+                "f": "fx_524.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "523": {
+                "f": "fx_523.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "522": {
+                "f": "fx_522.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "521": {
+                "f": "fx_521.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "520": {
+                "f": "fx_520.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "519": {
+                "f": "fx_519.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "518": {
+                "f": "fx_518.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "517": {
+                "f": "fx_517.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "516": {
+                "f": "fx_516.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "515": {
+                "f": "fx_515.mp3",
+                "v": 20,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "514": {
+                "f": "fx_514.mp3",
+                "v": 20,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "513": {
+                "f": "fx_513.mp3",
+                "v": 20,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "512": {
+                "f": "fx_512.mp3",
+                "v": 20,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "511": {
+                "f": "fx_511.mp3",
+                "v": 10,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "510": {
+                "f": "fx_510.mp3",
+                "v": 20,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "509": {
+                "f": "fx_509.mp3",
+                "v": 30,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "508": {
+                "f": "fx_508.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "507": {
+                "f": "fx_507.mp3",
+                "v": 40,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "506": {
+                "f": "fx_506.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "505": {
+                "f": "fx_505.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "504": {
+                "f": "fx_504.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "503": {
+                "f": "fx_503.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "502": {
+                "f": "fx_502.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "501": {
+                "f": "fx_501.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "500": {
+                "f": "fx_500.mp3",
+                "v": 25,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "499": {
+                "f": "fx_499.mp3",
+                "v": 25,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "498": {
+                "f": "fx_498.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "497": {
+                "f": "fx_497.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "496": {
+                "f": "fx_496.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "495": {
+                "f": "fx_495.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "494": {
+                "f": "fx_494.mp3",
+                "v": 30,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "766": {
+                "f": "EVENT",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "493": {
+                "f": "fx_493.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "492": {
+                "f": "fx_492.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "491": {
+                "f": "fx_491.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "490": {
+                "f": "fx_490.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "489": {
+                "f": "fx_489.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "488": {
+                "f": "fx_488.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "487": {
+                "f": "fx_487.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "486": {
+                "f": "fx_486.mp3",
+                "v": 35,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "485": {
+                "f": "fx_485.mp3",
+                "v": 67,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "484": {
+                "f": "fx_484.mp3",
+                "v": 55,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "483": {
+                "f": "fx_483.mp3",
+                "v": 85,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "482": {
+                "f": "fx_482.mp3",
+                "v": 91,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "481": {
+                "f": "fx_481.mp3",
+                "v": 65,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "480": {
+                "f": "fx_480.mp3",
+                "v": 65,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "479": {
+                "f": "fx_479.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "478": {
+                "f": "fx_478.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "477": {
+                "f": "fx_477.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "476": {
+                "f": "fx_476.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "475": {
+                "f": "fx_475.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "474": {
+                "f": "fx_474.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "473": {
+                "f": "fx_473.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "472": {
+                "f": "fx_472.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "471": {
+                "f": "fx_471.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "470": {
+                "f": "fx_470.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "469": {
+                "f": "fx_469.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "468": {
+                "f": "fx_468.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "467": {
+                "f": "fx_467.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "466": {
+                "f": "fx_466.mp3",
+                "v": 70,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "465": {
+                "f": "fx_465.mp3",
+                "v": 35,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "464": {
+                "f": "fx_464.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "463": {
+                "f": "fx_463.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "462": {
+                "f": "fx_462.mp3",
+                "v": 42,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "461": {
+                "f": "fx_461.mp3",
+                "v": 65,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "460": {
+                "f": "fx_460.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "459": {
+                "f": "fx_459.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "458": {
+                "f": "fx_458.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "457": {
+                "f": "fx_457.mp3",
+                "v": 70,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "456": {
+                "f": "fx_456.mp3",
+                "v": 10,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "455": {
+                "f": "fx_455.mp3",
+                "v": 45,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "454": {
+                "f": "fx_454.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "453": {
+                "f": "fx_453.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "452": {
+                "f": "fx_452.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "451": {
+                "f": "fx_451.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "450": {
+                "f": "fx_450.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "449": {
+                "f": "fx_449.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "448": {
+                "f": "fx_448.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "447": {
+                "f": "fx_447.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "443": {
+                "f": "fx_443.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "442": {
+                "f": "fx_442.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "446": {
+                "f": "fx_446.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "445": {
+                "f": "fx_445.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "444": {
+                "f": "fx_444.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "441": {
+                "f": "fx_441.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "440": {
+                "f": "fx_440.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "439": {
+                "f": "fx_439.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "438": {
+                "f": "fx_438.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "437": {
+                "f": "fx_437.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "436": {
+                "f": "fx_436.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "435": {
+                "f": "fx_435.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "434": {
+                "f": "fx_434.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "433": {
+                "f": "fx_433.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "432": {
+                "f": "fx_432.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "431": {
+                "f": "fx_431.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "430": {
+                "f": "fx_430.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "429": {
+                "f": "fx_429.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "428": {
+                "f": "fx_428.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "427": {
+                "f": "fx_427.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "426": {
+                "f": "fx_426.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "425": {
+                "f": "fx_425.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "424": {
+                "f": "fx_424.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "423": {
+                "f": "fx_423.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "422": {
+                "f": "fx_422.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "421": {
+                "f": "fx_421.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "420": {
+                "f": "fx_420.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "419": {
+                "f": "fx_419.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "418": {
+                "f": "fx_418.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "417": {
+                "f": "fx_417.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "416": {
+                "f": "fx_416.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "415": {
+                "f": "fx_415.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "414": {
+                "f": "fx_414.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "413": {
+                "f": "fx_413.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "412": {
+                "f": "fx_412.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "411": {
+                "f": "fx_411.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "410": {
+                "f": "fx_410.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "409": {
+                "f": "fx_409.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "408": {
+                "f": "fx_408.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "407": {
+                "f": "fx_407.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "406": {
+                "f": "fx_406.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "405": {
+                "f": "fx_405.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "404": {
+                "f": "fx_404.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "403": {
+                "f": "fx_403.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "402": {
+                "f": "fx_402.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "401": {
+                "f": "fx_401.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "400": {
+                "f": "fx_400.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "399": {
+                "f": "fx_399.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "398": {
+                "f": "fx_398.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "393": {
+                "f": "fx_393.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "392": {
+                "f": "fx_392.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "391": {
+                "f": "fx_391.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "390": {
+                "f": "fx_390.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "389": {
+                "f": "fx_389.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "387": {
+                "f": "fx_387.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "388": {
+                "f": "fx_388.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "385": {
+                "f": "fx_385.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "384": {
+                "f": "fx_384.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "383": {
+                "f": "fx_383.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "382": {
+                "f": "fx_382.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "386": {
+                "f": "fx_386.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "381": {
+                "f": "fx_381.mp3",
+                "v": 85,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "380": {
+                "f": "fx_380.mp3",
+                "v": 40,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "379": {
+                "f": "fx_379.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "378": {
+                "f": "fx_378.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "377": {
+                "f": "fx_377.mp3",
+                "v": 65,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "376": {
+                "f": "fx_376.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "375": {
+                "f": "fx_375.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "374": {
+                "f": "fx_374.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "373": {
+                "f": "fx_373.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "372": {
+                "f": "fx_372.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "371": {
+                "f": "fx_371.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "370": {
+                "f": "fx_370.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "369": {
+                "f": "fx_369.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "368": {
+                "f": "fx_368.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "367": {
+                "f": "fx_367.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "366": {
+                "f": "fx_366.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "365": {
+                "f": "fx_365.mp3",
+                "v": 20,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "364": {
+                "f": "fx_364.mp3",
+                "v": 40,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "363": {
+                "f": "fx_363.mp3",
+                "v": 40,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "362": {
+                "f": "fx_362.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "361": {
+                "f": "fx_361.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "360": {
+                "f": "fx_360.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "359": {
+                "f": "fx_359.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "358": {
+                "f": "fx_358.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "357": {
+                "f": "fx_357.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "356": {
+                "f": "fx_356.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "355": {
+                "f": "fx_355.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "354": {
+                "f": "fx_354.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "353": {
+                "f": "fx_353.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "352": {
+                "f": "fx_352.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "351": {
+                "f": "fx_351.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "350": {
+                "f": "fx_350.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "349": {
+                "f": "fx_349.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "348": {
+                "f": "fx_348.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "397": {
+                "f": "fx_397.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "396": {
+                "f": "fx_396.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "395": {
+                "f": "fx_395.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "394": {
+                "f": "fx_394.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "347": {
+                "f": "fx_347.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "346": {
+                "f": "fx_346.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "345": {
+                "f": "fx_345.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "344": {
+                "f": "fx_344.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "343": {
+                "f": "fx_343.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "342": {
+                "f": "fx_342.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "341": {
+                "f": "fx_341.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "340": {
+                "f": "fx_340.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "757": {
+                "f": "Otomai_Plaines_Herbeuses",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "756": {
+                "f": "Otomai_Arbre_Hakam",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "755": {
+                "f": "Otomai_Tourbiere",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "339": {
+                "f": "fx_339.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "338": {
+                "f": "fx_338.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "337": {
+                "f": "fx_337.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "336": {
+                "f": "fx_336.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "335": {
+                "f": "fx_335.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "334": {
+                "f": "fx_334.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "333": {
+                "f": "fx_333.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "332": {
+                "f": "fx_332.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "331": {
+                "f": "fx_331.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "330": {
+                "f": "fx_330.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "329": {
+                "f": "fx_329.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "328": {
+                "f": "fx_328.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "327": {
+                "f": "fx_327.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "326": {
+                "f": "fx_326.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "325": {
+                "f": "fx_325.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "324": {
+                "f": "fx_324.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "323": {
+                "f": "fx_323.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "322": {
+                "f": "fx_322.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "321": {
+                "f": "fx_321.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "316": {
+                "f": "fx_316.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "320": {
+                "f": "fx_320.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "319": {
+                "f": "fx_319.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "318": {
+                "f": "fx_318.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "317": {
+                "f": "fx_317.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "315": {
+                "f": "fx_315.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "314": {
+                "f": "fx_314.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "313": {
+                "f": "fx_313.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "312": {
+                "f": "fx_312.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "311": {
+                "f": "fx_311.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "310": {
+                "f": "fx_310.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "309": {
+                "f": "fx_309.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "308": {
+                "f": "fx_308.mp3",
+                "v": 90,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "307": {
+                "f": "fx_307.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "300": {
+                "f": "fx_300.mp3",
+                "v": 43,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "306": {
+                "f": "fx_306.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "305": {
+                "f": "fx_305.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "304": {
+                "f": "fx_304.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "303": {
+                "f": "fx_303.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "302": {
+                "f": "fx_302.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "301": {
+                "f": "fx_301.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "299": {
+                "f": "fx_299.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "298": {
+                "f": "fx_298.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "297": {
+                "f": "fx_297.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "296": {
+                "f": "fx_296.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "295": {
+                "f": "fx_295.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "294": {
+                "f": "fx_294.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "293": {
+                "f": "fx_293.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "292": {
+                "f": "fx_292.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "291": {
+                "f": "fx_291.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "290": {
+                "f": "fx_290.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "289": {
+                "f": "fx_289.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "288": {
+                "f": "fx_288.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "287": {
+                "f": "fx_287.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "286": {
+                "f": "fx_286.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "285": {
+                "f": "fx_285.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "284": {
+                "f": "fx_284.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "283": {
+                "f": "fx_283.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "282": {
+                "f": "fx_282.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "281": {
+                "f": "fx_281.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "280": {
+                "f": "fx_280.mp3",
+                "v": 60,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "279": {
+                "f": "fx_279.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "278": {
+                "f": "fx_278.mp3",
+                "v": 50,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "277": {
+                "f": "fx_277.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "276": {
+                "f": "fx_276.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "275": {
+                "f": "fx_275.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "274": {
+                "f": "fx_274.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "273": {
+                "f": "fx_273.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "272": {
+                "f": "fx_272.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "271": {
+                "f": "fx_271.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "270": {
+                "f": "fx_270.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "269": {
+                "f": "fx_269.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "268": {
+                "f": "fx_268.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "267": {
+                "f": "fx_267.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "266": {
+                "f": "fx_266.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "265": {
+                "f": "fx_265.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "264": {
+                "f": "fx_264.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "263": {
+                "f": "fx_263.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "262": {
+                "f": "fx_262.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "261": {
+                "f": "fx_261.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "260": {
+                "f": "fx_260.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "259": {
+                "f": "fx_259.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "258": {
+                "f": "fx_258.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "257": {
+                "f": "fx_257.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "256": {
+                "f": "fx_256.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "255": {
+                "f": "fx_255.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "254": {
+                "f": "fx_254.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "253": {
+                "f": "fx_253.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "252": {
+                "f": "fx_252.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "251": {
+                "f": "fx_251.mp3",
+                "v": 75,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "250": {
+                "f": "fx_250.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "249": {
+                "f": "fx_249.mp3",
+                "v": 60,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "248": {
+                "f": "fx_248.mp3",
+                "v": 85,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "247": {
+                "f": "fx_247.mp3",
+                "v": 80,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "246": {
+                "f": "fx_246.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "245": {
+                "f": "fx_245.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "244": {
+                "f": "fx_244.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "243": {
+                "f": "fx_243.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "242": {
+                "f": "fx_242.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "241": {
+                "f": "fx_241.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "240": {
+                "f": "fx_240.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "239": {
+                "f": "fx_239.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "238": {
+                "f": "fx_238.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "237": {
+                "f": "fx_237.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "236": {
+                "f": "fx_236.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "235": {
+                "f": "fx_235.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "234": {
+                "f": "fx_234.mp3",
+                "v": 10,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "233": {
+                "f": "fx_233.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "232": {
+                "f": "fx_232.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "231": {
+                "f": "fx_231.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "230": {
+                "f": "fx_230.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "229": {
+                "f": "fx_229.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "228": {
+                "f": "fx_228.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "227": {
+                "f": "fx_227.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "226": {
+                "f": "fx_226.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "225": {
+                "f": "fx_225.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "224": {
+                "f": "fx_224.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "223": {
+                "f": "fx_223.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "222": {
+                "f": "fx_222.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "221": {
+                "f": "fx_221.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "220": {
+                "f": "fx_220.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "219": {
+                "f": "fx_219.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "218": {
+                "f": "fx_218.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "217": {
+                "f": "fx_217.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "216": {
+                "f": "fx_216.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "215": {
+                "f": "fx_215.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "214": {
+                "f": "fx_214.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "213": {
+                "f": "fx_213.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "212": {
+                "f": "fx_212.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "211": {
+                "f": "fx_211.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "210": {
+                "f": "fx_210.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "209": {
+                "f": "fx_209.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "208": {
+                "f": "fx_208.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "207": {
+                "f": "fx_207.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "206": {
+                "f": "fx_206.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "205": {
+                "f": "fx_205.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "204": {
+                "f": "fx_204.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "203": {
+                "f": "fx_203.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "202": {
+                "f": "fx_202.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "201": {
+                "f": "fx_201.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "200": {
+                "f": "fx_200.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "199": {
+                "f": "fx_199.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "198": {
+                "f": "fx_198.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "197": {
+                "f": "fx_197.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "196": {
+                "f": "fx_196.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "195": {
+                "f": "fx_195.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "194": {
+                "f": "fx_194.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "193": {
+                "f": "fx_193.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "192": {
+                "f": "fx_192.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "191": {
+                "f": "fx_191.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "190": {
+                "f": "fx_190.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "189": {
+                "f": "fx_189.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "188": {
+                "f": "fx_188.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "187": {
+                "f": "fx_187.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "186": {
+                "f": "fx_186.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "185": {
+                "f": "fx_185.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "184": {
+                "f": "fx_184.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "183": {
+                "f": "fx_183.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "182": {
+                "f": "fx_182.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "181": {
+                "f": "fx_181.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "180": {
+                "f": "fx_180.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "179": {
+                "f": "fx_179.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "178": {
+                "f": "fx_178.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "177": {
+                "f": "fx_177.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "176": {
+                "f": "fx_176.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "175": {
+                "f": "fx_175.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "174": {
+                "f": "fx_174.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "173": {
+                "f": "fx_173.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "172": {
+                "f": "fx_172.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "171": {
+                "f": "fx_171.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "170": {
+                "f": "fx_170.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "169": {
+                "f": "fx_169.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "168": {
+                "f": "fx_168.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "167": {
+                "f": "fx_167.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "166": {
+                "f": "fx_166.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "165": {
+                "f": "fx_165.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "164": {
+                "f": "fx_164.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "163": {
+                "f": "fx_163.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "162": {
+                "f": "fx_162.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "161": {
+                "f": "fx_161.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "160": {
+                "f": "fx_160.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "159": {
+                "f": "fx_159.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "158": {
+                "f": "fx_158.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "157": {
+                "f": "fx_157.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "156": {
+                "f": "fx_156.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "155": {
+                "f": "fx_155.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "154": {
+                "f": "fx_154.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "153": {
+                "f": "fx_153.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "152": {
+                "f": "fx_152.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "151": {
+                "f": "fx_151.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "150": {
+                "f": "fx_150.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "149": {
+                "f": "fx_149.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "148": {
+                "f": "fx_148.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "147": {
+                "f": "fx_147.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "146": {
+                "f": "fx_146.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "145": {
+                "f": "fx_145.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "144": {
+                "f": "fx_144.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "143": {
+                "f": "fx_143.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "142": {
+                "f": "fx_142.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "141": {
+                "f": "fx_141.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "140": {
+                "f": "fx_140.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "139": {
+                "f": "fx_139.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "137": {
+                "f": "fx_137.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "138": {
+                "f": "fx_138.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "136": {
+                "f": "fx_136.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "135": {
+                "f": "fx_135.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "134": {
+                "f": "fx_134.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "133": {
+                "f": "fx_133.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "132": {
+                "f": "fx_132.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "131": {
+                "f": "fx_131.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "130": {
+                "f": "fx_130.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "129": {
+                "f": "fx_129.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "128": {
+                "f": "fx_128.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "127": {
+                "f": "fx_127.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "126": {
+                "f": "fx_126.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "125": {
+                "f": "fx_125.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "124": {
+                "f": "fx_124.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "123": {
+                "f": "fx_123.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "122": {
+                "f": "fx_122.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "121": {
+                "f": "fx_121.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "120": {
+                "f": "fx_120.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "119": {
+                "f": "fx_119.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "118": {
+                "f": "fx_118.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "117": {
+                "f": "fx_117.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "116": {
+                "f": "fx_116.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "115": {
+                "f": "fx_115.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "114": {
+                "f": "fx_114.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "113": {
+                "f": "fx_113.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "112": {
+                "f": "fx_112.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "111": {
+                "f": "fx_111.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "110": {
+                "f": "fx_110.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "109": {
+                "f": "fx_109.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "108": {
+                "f": "fx_108.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "107": {
+                "f": "fx_107.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "106": {
+                "f": "fx_106.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "105": {
+                "f": "fx_105.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "104": {
+                "f": "fx_104.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "103": {
+                "f": "fx_103.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "102": {
+                "f": "fx_102.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "101": {
+                "f": "fx_101.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "100": {
+                "f": "fx_100.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "99": {
+                "f": "fx_99.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "98": {
+                "f": "fx_98.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "97": {
+                "f": "fx_97.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "96": {
+                "f": "fx_96.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "95": {
+                "f": "fx_95.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "94": {
+                "f": "fx_94.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "93": {
+                "f": "fx_93.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "92": {
+                "f": "fx_92.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "758": {
+                "f": "speakingItems_1",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "759": {
+                "f": "speakingItems_2",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "760": {
+                "f": "speakingItems_3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "763": {
+                "f": "speakingItems_association",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "765": {
+                "f": "speakingItems_apparence",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "764": {
+                "f": "speakingItems_dissociation",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "762": {
+                "f": "speakingItems_mange",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "761": {
+                "f": "speakingItems_lvlup",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "91": {
+                "f": "fx_91.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "90": {
+                "f": "fx_90.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "89": {
+                "f": "fx_89.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "88": {
+                "f": "fx_88.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "87": {
+                "f": "fx_87.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "86": {
+                "f": "fx_86.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "85": {
+                "f": "fx_85.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "84": {
+                "f": "fx_84.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "83": {
+                "f": "fx_83.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "82": {
+                "f": "fx_82.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "81": {
+                "f": "fx_81.mp3",
+                "v": 150,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "80": {
+                "f": "fx_80.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "79": {
+                "f": "fx_79.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "78": {
+                "f": "fx_78.mp3",
+                "v": 15,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "77": {
+                "f": "fx_77.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "71": {
+                "f": "fx_71.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "70": {
+                "f": "fx_70.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "76": {
+                "f": "fx_76.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "75": {
+                "f": "fx_75.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "73": {
+                "f": "fx_73.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "72": {
+                "f": "fx_72.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "74": {
+                "f": "fx_74.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "69": {
+                "f": "fx_69.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "68": {
+                "f": "fx_68.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "67": {
+                "f": "fx_67.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "66": {
+                "f": "fx_66.mp3",
+                "v": 65,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "65": {
+                "f": "fx_65.mp3",
+                "v": 60,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "64": {
+                "f": "fx_64.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "63": {
+                "f": "fx_63.mp3",
+                "v": 45,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "62": {
+                "f": "fx_62.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "61": {
+                "f": "fx_61.mp3",
+                "v": 40,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "60": {
+                "f": "fx_60.mp3",
+                "v": 50,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "59": {
+                "f": "fx_59.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "58": {
+                "f": "fx_58.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "57": {
+                "f": "fx_57.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "55": {
+                "f": "fx_55.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "54": {
+                "f": "fx_54.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "53": {
+                "f": "fx_53.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "52": {
+                "f": "fx_52.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "56": {
+                "f": "fx_56.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "51": {
+                "f": "fx_51.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "50": {
+                "f": "fx_50.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "48": {
+                "f": "fx_48.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "47": {
+                "f": "fx_47.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "46": {
+                "f": "fx_46.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "49": {
+                "f": "fx_49.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "45": {
+                "f": "fx_45.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "44": {
+                "f": "fx_44.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "43": {
+                "f": "fx_43.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "42": {
+                "f": "fx_42.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "41": {
+                "f": "fx_41.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "40": {
+                "f": "fx_40.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "39": {
+                "f": "fx_39.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "38": {
+                "f": "fx_38.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "37": {
+                "f": "fx_37.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "36": {
+                "f": "fx_36.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "35": {
+                "f": "fx_35.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "34": {
+                "f": "fx_34.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "33": {
+                "f": "fx_33.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "32": {
+                "f": "fx_32.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "31": {
+                "f": "fx_31.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "30": {
+                "f": "fx_30.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "29": {
+                "f": "fx_29.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "28": {
+                "f": "fx_28.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "27": {
+                "f": "fx_27.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "26": {
+                "f": "fx_26.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "25": {
+                "f": "fx_25.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "24": {
+                "f": "fx_24.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "23": {
+                "f": "fx_23.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "22": {
+                "f": "fx_22.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "21": {
+                "f": "fx_21.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "20": {
+                "f": "fx_20.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "19": {
+                "f": "fx_19.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "18": {
+                "f": "fx_18.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "17": {
+                "f": "fx_17.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "16": {
+                "f": "fx_16.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "15": {
+                "f": "fx_15.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "14": {
+                "f": "fx_14.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "3": {
+                "f": "fx_3.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "2": {
+                "f": "fx_2.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "13": {
+                "f": "fx_13.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "12": {
+                "f": "fx_12.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "11": {
+                "f": "fx_11.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "10": {
+                "f": "fx_10.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "9": {
+                "f": "fx_9.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "8": {
+                "f": "fx_8.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "7": {
+                "f": "fx_7.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "6": {
+                "f": "fx_6.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "5": {
+                "f": "fx_5.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "4": {
+                "f": "fx_4.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            },
+            "1": {
+                "f": "fx_1.mp3",
+                "v": 100,
+                "l": false,
+                "s": false,
+                "o": 0
+            }
+        },
+        "AUAC": {
+            "ENVIRONMENT_BOAT": 12,
+            "ENVIRONMENT_BONTA": 15,
+            "ENVIRONMENT_BRAKMAR": 13,
+            "ENVIRONMENT_CANIA": 14,
+            "ENVIRONMENT_COUNTRYSIDE": 1,
+            "ENVIRONMENT_COUNTRYSIDE_RIVER": 5,
+            "ENVIRONMENT_DEEPFOREST": 3,
+            "ENVIRONMENT_FIELDS": 7,
+            "ENVIRONMENT_FOREST": 2,
+            "ENVIRONMENT_FOREST_RIVER": 8,
+            "ENVIRONMENT_INCARNAM": 17,
+            "ENVIRONMENT_JUNGLE": 11,
+            "ENVIRONMENT_LAKE": 10,
+            "ENVIRONMENT_OTOMAI_FIELDS": 20,
+            "ENVIRONMENT_OTOMAI_FOREST": 19,
+            "ENVIRONMENT_OTOMAI_SWAMPS": 18,
+            "ENVIRONMENT_PANDALA": 16,
+            "ENVIRONMENT_SEA": 4,
+            "ENVIRONMENT_VILLAGE": 9,
+            "ENVIRONMENT_VILLAGE_FOUNTAIN": 6
+        },
+        "AUA": {
+            "12": {
+                "bg": [
+                    700
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    699,
+                    698,
+                    697
+                ]
+            },
+            "15": {
+                "bg": [
+                    660
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    513,
+                    659,
+                    605
+                ]
+            },
+            "13": {
+                "bg": [
+                    673
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    500,
+                    499,
+                    636,
+                    635,
+                    634
+                ]
+            },
+            "14": {
+                "bg": [
+                    656
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    605,
+                    658,
+                    657,
+                    660
+                ]
+            },
+            "1": {
+                "bg": [
+                    515
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    510,
+                    511,
+                    512,
+                    513,
+                    514
+                ]
+            },
+            "5": {
+                "bg": [
+                    277,
+                    515
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    510,
+                    511,
+                    512,
+                    513,
+                    514
+                ]
+            },
+            "3": {
+                "bg": [
+                    505
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    504,
+                    503,
+                    502,
+                    501,
+                    500,
+                    499
+                ]
+            },
+            "7": {
+                "bg": [
+                    515
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    487,
+                    488,
+                    510,
+                    511,
+                    512,
+                    513
+                ]
+            },
+            "2": {
+                "bg": [
+                    509
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    506,
+                    507,
+                    508
+                ]
+            },
+            "8": {
+                "bg": [
+                    277,
+                    509
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    508,
+                    507,
+                    506
+                ]
+            },
+            "17": {
+                "bg": [
+                    656
+                ],
+                "mind": 10,
+                "maxd": 20,
+                "n": [
+                    605,
+                    658,
+                    657,
+                    660
+                ]
+            },
+            "11": {
+                "bg": [
+                    455
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    453,
+                    453
+                ]
+            },
+            "10": {
+                "bg": [
+                    514
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    513,
+                    512,
+                    511,
+                    510
+                ]
+            },
+            "20": {
+                "bg": [
+                    757
+                ],
+                "mind": 10,
+                "maxd": 20,
+                "n": {}
+            },
+            "19": {
+                "bg": [
+                    756
+                ],
+                "mind": 10,
+                "maxd": 20,
+                "n": {}
+            },
+            "18": {
+                "bg": [
+                    755
+                ],
+                "mind": 10,
+                "maxd": 20,
+                "n": {}
+            },
+            "16": {
+                "bg": [
+                    316
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    628,
+                    703,
+                    702,
+                    575,
+                    574
+                ]
+            },
+            "4": {
+                "bg": [
+                    366
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    508,
+                    363,
+                    364,
+                    365
+                ]
+            },
+            "9": {
+                "bg": [
+                    514
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    513,
+                    512,
+                    511,
+                    510
+                ]
+            },
+            "6": {
+                "bg": [
+                    515
+                ],
+                "mind": 15,
+                "maxd": 30,
+                "n": [
+                    510,
+                    511,
+                    512,
+                    513,
+                    514
+                ]
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 325,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "AUMC",
+            "AUM",
+            "AUEC",
+            "AUE",
+            "AUAC",
+            "AUA",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

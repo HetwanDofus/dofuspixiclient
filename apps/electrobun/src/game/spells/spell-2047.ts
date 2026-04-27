@@ -1,100 +1,148 @@
 /**
- * Spell 2047 - Move/Shoot
+ * Spell 2047 — (Cra linear projectile).
  *
- * A projectile spell with a wobbling rotation effect.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/2047/scripts/scripts/
  *
- * Components:
- * - shoot (sprite): At caster position, rotated toward target
- *   - Has a wobbling rotation animation driven by: _rotation = 90 + a * Math.cos(i += 0.6); a /= 1.1
- *   - Stops at frame 88 (AS frame 88 = index 87, but DoAction is at frame_88 which is index 87)
+ * displayType=20 (ProjectileLinear). Evidence:
+ *   - Has a `shoot` symbol (90-frame composite) and a `move` symbol with a
+ *     clip-event-driven oscillation — classic linear projectile pattern.
+ *   - The `move` symbol's PlaceObject2_15_1 clip events drive a rotation
+ *     wobble on the projectile while it travels to the target (caster-side
+ *     rotation). No parabolic arc math → NOT ballistic.
+ *   - No `duplicate` symbol → NOT beam.
+ *   - No `_parent.cellFrom`/`_parent.cellTo` world-anchor positioning → NOT
+ *     WorldAbsolute.
  *
- * Original AS timing:
- * - onClipEvent(load): a = 30; i = 0;
- * - onClipEvent(enterFrame): _rotation = 90 + a * Math.cos(i += 0.6); a /= 1.1;
- * - Frame 88 (DoAction): _parent.removeMovieClip(); stop();
- *   (AS frame 88 = 0-indexed frame 87 → animation completes at frame 87)
+ * Library symbols:
+ *   - `move` — single-frame container with an oscillating-rotation clip-event
+ *     child (PlaceObject2_15_1). onLoad seeds `a=30, i=0`. onEnterFrame
+ *     drives `_rotation = 90 + a*cos(i += 0.6); a /= 1.1`.
+ *     No authored textures (container-only, frames: []).
+ *   - `shoot` — 90-frame impact composite. frame_88 calls
+ *     `_parent.removeMovieClip(); stop();` which tears down the spell and
+ *     signals completion. The harness attaches `shoot` at the target on
+ *     landing, so we signal hit in the harness (displayType 20 → harness
+ *     does NOT fire signalHit automatically; we fire it from the first
+ *     frame of shoot, frame_1). Actually for ProjectileLinear the harness
+ *     attaches shoot at target-offset but does not call signalHit —
+ *     we call it from frame_0 of shoot (frame_1 canonical).
+ *
+ * Main timeline: no explicit SOMA.playSound found in provided scripts;
+ * onSpellStart is a no-op (no sound script supplied).
+ *
+ * Textures: `shoot` is in `animations[]` (not `librarySymbols[]`), so use
+ * `textures.getFrames("shoot")` — no `lib_` prefix.
+ * `move` is also in `animations[]` (container-only, no frames needed).
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const SHOOT_MANIFEST: SpriteManifest = {
+const SHOOT_BOUNDS = {
   width: 223.6,
   height: 41.1,
   offsetX: 1.55,
   offsetY: -24.95,
 };
 
-export class Spell2047 extends BaseSpell {
+export class Spell2047 extends RuntimeSpell {
   readonly spellId = 2047;
+  readonly displayType = SpellDisplayType.ProjectileLinear;
 
-  private shootAnim!: FrameAnimatedSprite;
-
-  // Wobble state (from onClipEvent(load))
-  private wobbleA = 30;
-  private wobbleI = 0;
-
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext
   ): void {
-    const anchor = calculateAnchor(SHOOT_MANIFEST);
+    const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    this.shootAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("shoot"),
-        fps: 60,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-      })
-    );
+    // ---- move — oscillating projectile container ----------------
+    // AS: DefineSprite_16_move/frame_1/PlaceObject2_15_1
+    // The move symbol itself is a container whose authored child
+    // (PlaceObject2_15_1) carries the clip events for the wobble.
+    // We model the child's clip events directly on the move symbol
+    // since the runtime attaches move as a single unit.
+    //
+    // AS PlaceObject2_15_1/CLIPACTIONRECORD onClipEvent(load):
+    //   a = 30; i = 0;
+    // AS PlaceObject2_15_1/CLIPACTIONRECORD onClipEvent(enterFrame):
+    //   _rotation = 90 + a * Math.cos(i += 0.6);
+    //   a /= 1.1;
+    const moveSym: SymbolDefinition = {
+      name: "move",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onLoad: (clip) => {
+        // AS DefineSprite_16_move/frame_1/PlaceObject2_15_1/onClipEvent(load)
+        clip.vars.a = 30;
+        clip.vars.i = 0;
+      },
+      onEnterFrame: (clip) => {
+        // AS DefineSprite_16_move/frame_1/PlaceObject2_15_1/onClipEvent(enterFrame)
+        let a = clip.vars.a as number;
+        let i = clip.vars.i as number;
+        i += 0.6;
+        // AS: _rotation = 90 + a * Math.cos(i)  (degrees → radians)
+        clip.rotation = ((90 + a * Math.cos(i)) * Math.PI) / 180;
+        a /= 1.1;
+        clip.vars.a = a;
+        clip.vars.i = i;
+      },
+    };
 
-    // Position at caster, rotated toward target
-    this.shootAnim.sprite.position.set(0, init.casterY);
+    // ---- shoot — 90-frame impact composite at target ------------
+    // AS: DefineSprite_14_shoot/frame_88/DoAction.as:
+    //   _parent.removeMovieClip(); stop();
+    //
+    // For ProjectileLinear the harness does NOT call signalHit
+    // automatically, so we fire it on the first frame of shoot
+    // (frame_1 canonical = frameScripts index 0).
+    const shootSym: SymbolDefinition = {
+      name: "shoot",
+      totalFrames: 90,
+      frames: textures.getFrames("shoot"),
+      anchorX: shootAnchor.x,
+      anchorY: shootAnchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (_clip) => {
+            // frame_1: projectile reached target — signal hit.
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          87,
+          (clip) => {
+            // AS DefineSprite_14_shoot/frame_88/DoAction.as:
+            //   _parent.removeMovieClip(); stop();
+            clip.parent?.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // Initial rotation includes the angle toward target
-    // The wobble will be applied as an offset each frame
-    this.shootAnim.sprite.rotation = init.angleRad;
-
-    // Signal hit when the shoot animation completes (frame 87, AS frame 88)
-    this.shootAnim.onFrame(87, () => {
-      this.signalHit();
-    });
-
-    this.container.addChild(this.shootAnim.sprite);
+    this.registry.register(moveSym);
+    this.registry.register(shootSym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    this.anims.update(deltaTime);
-
-    // Apply wobble rotation each frame (from onClipEvent(enterFrame))
-    // AS: _rotation = 90 + a * Math.cos(i += 0.6); a /= 1.1;
-    // _rotation in Flash is in degrees relative to parent, but here we add it as an offset
-    // The base rotation is the angle toward target (angleRad), and wobble adds a rotation offset
-    this.wobbleI += 0.6;
-    const wobbleDeg = 90 + this.wobbleA * Math.cos(this.wobbleI);
-    this.wobbleA /= 1.1;
-
-    // In Flash, _rotation replaces the rotation entirely (in degrees)
-    // The parent of the shoot clip has the angle, so the shoot clip's own rotation = wobbleDeg
-    // Convert to radians for PixiJS
-    this.shootAnim.sprite.rotation = (wobbleDeg * Math.PI) / 180;
-
-    // Check completion (frame 87 = AS frame 88 where stop() is called)
-    if (this.shootAnim.isComplete() || this.shootAnim.getFrame() >= 87) {
-      this.complete();
-    }
+  protected onSpellStart(
+    _callbacks: SpellCallbacks,
+    _context: SpellContext
+  ): void {
+    // No SOMA.playSound found in provided canonical AS scripts.
+    // Harness (ProjectileLinear) handles attaching move + shoot.
   }
 }

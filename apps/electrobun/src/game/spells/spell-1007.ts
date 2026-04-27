@@ -1,86 +1,159 @@
 /**
- * Spell 1007 - Herbe (Eniripsa)
+ * Spell 1007 — Herbe (Sadida grass/nature spell).
  *
- * A composite animation with multiple layers:
- * - DefineSprite_14: Main timeline (297 frames), plays sound at frames 1, 58, 121, 184,
- *   signals hit at frame 178, removes self at frame 295
- * - DefineSprite_12: Background leaf sprites, random start frame (1-40), random alpha (30-79%),
- *   random scale (t=30-149, xscale=t, yscale=t/2), stops at frame 289
- * - DefineSprite_8: Foreground leaf sprites, 80% chance to skip to frame 20, stops at frame 55
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/1007/scripts/scripts/
  *
- * The manifest provides a single composite animation (anim1, 297 frames).
- * We use it directly as the main animation, with sound/hit/completion callbacks
- * mapped from the AS timing.
+ * displayType=11 (TargetCell). This spell has no move/shoot/duplicate/projectile
+ * symbols, no caster-reference positioning, and no dual-anchored timelines. It is
+ * a single impact animation anchored at the target cell. The manifest has NO
+ * librarySymbols[] entries — all content lives in `animations: ["anim1"]`. The
+ * top-level outer sprite (DefineSprite_14) plays a 295-frame timeline at the
+ * target, fires sounds at frames 1/58/121/184, signals hit at frame 178, and
+ * removes itself at frame 295.
  *
- * Original AS timing (1-indexed → 0-indexed):
- * - Frame 1  (idx 0):   Play sound 'herbe'
- * - Frame 58 (idx 57):  Play sound 'herbe'
- * - Frame 121 (idx 120): Play sound 'herbe'
- * - Frame 178 (idx 177): Signal hit (this.end())
- * - Frame 184 (idx 183): Play sound 'herbe'
- * - Frame 295 (idx 294): removeMovieClip / animation ends (stopFrame in manifest)
+ * Canonical AS layout:
+ *
+ *   DefineSprite_8 (grass particle, 55 frames):
+ *     frame_1:  if (random(5) != 1) { gotoAndStop(20); }
+ *     frame_55: stop();
+ *
+ *   DefineSprite_12 (background layer, 289+ frames):
+ *     frame_1:   gotoAndPlay(random(40) + 1); _alpha = 30 + random(50); t = 30 + random(120);
+ *                _xscale = t; _yscale = t / 2;
+ *     frame_289: stop();
+ *
+ *   DefineSprite_14 (outer container, 295 frames — longest-lived):
+ *     frame_1:   SOMA.playSound("herbe");
+ *     frame_58:  SOMA.playSound("herbe");
+ *     frame_121: SOMA.playSound("herbe");
+ *     frame_178: this.end()  → signalHit
+ *     frame_184: SOMA.playSound("herbe");
+ *     frame_295: _parent.removeMovieClip(); stop(); → complete()
+ *
+ * The manifest `anim1` animation (297 frames) IS the composite baked output of
+ * all three DefineSprite layers together. There are no separate library symbol
+ * texture sets — all textures are under "anim1".
+ *
+ * Because the whole animation is baked into `anim1`, we model it as a single
+ * top-level SymbolDefinition (name "anim1") registered and attached from
+ * onSpellStart, with frameScripts carrying the canonical timing signals.
+ * No particle sub-symbols are attached at runtime (the particle behaviour of
+ * DefineSprite_8 and DefineSprite_12 is baked into the composite frames).
+ *
+ * Sounds at manifest-level frames 0/57/120/183 correspond to the canonical
+ * DefineSprite_14 frame_1/58/121/184 (frame index shift: manifest is 0-based,
+ * the outer wrapper shifts by 1). The canonical frame_1 sound is played from
+ * onSpellStart; subsequent sounds are fired from frameScripts.
+ *
+ * Library symbols: none (librarySymbols[] is absent/empty in manifest).
+ *
+ * Main timeline: attaches anim1, plays at target cell.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const ANIM1_MANIFEST: SpriteManifest = {
+const ANIM1_BOUNDS = {
   width: 95.1,
   height: 38.1,
   offsetX: -49.25,
   offsetY: -17.05,
 };
 
-export class Spell1007 extends BaseSpell {
+export class Spell1007 extends RuntimeSpell {
   readonly spellId = 1007;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private mainAnim!: FrameAnimatedSprite;
+  private anim1Sym!: SymbolDefinition;
+  private soundCallback?: (id: string) => void;
 
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    const anchor = calculateAnchor(ANIM1_MANIFEST);
+    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    this.mainAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("anim1"),
-        fps: 60,
-        anchorX: anchor.x,
-        anchorY: anchor.y,
-        scale: init.scale,
-        stopFrame: 294,
-      })
-    );
+    // ---- anim1 — composite baked timeline (295 active frames) ----
+    // Canonical DefineSprite_14 outer container drives all timing.
+    // The baked anim1 asset has 297 frames (frameCount in manifest);
+    // the canonical removal fires at frame_295 (index 294).
+    this.anim1Sym = {
+      name: "anim1",
+      totalFrames: 297,
+      frames: textures.getFrames("anim1"),
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
+      frameScripts: new Map([
+        [
+          // AS DefineSprite_14/frame_58/DoAction.as: SOMA.playSound("herbe")
+          // frame_58 (1-based) → index 57
+          57,
+          (_clip) => {
+            this.soundCallback?.("herbe");
+          },
+        ],
+        [
+          // AS DefineSprite_14/frame_121/DoAction.as: SOMA.playSound("herbe")
+          // frame_121 → index 120
+          120,
+          (_clip) => {
+            this.soundCallback?.("herbe");
+          },
+        ],
+        [
+          // AS DefineSprite_14/frame_178/DoAction.as: this.end()
+          // frame_178 → index 177 — canonical hit signal
+          177,
+          (_clip) => {
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          // AS DefineSprite_14/frame_184/DoAction.as: SOMA.playSound("herbe")
+          // frame_184 → index 183
+          183,
+          (_clip) => {
+            this.soundCallback?.("herbe");
+          },
+        ],
+        [
+          // AS DefineSprite_14/frame_295/DoAction.as: _parent.removeMovieClip(); stop();
+          // frame_295 → index 294
+          294,
+          (clip) => {
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    this.mainAnim.sprite.position.set(init.targetX, init.targetY);
-
-    this.mainAnim
-      .onFrame(0, () => this.callbacks.playSound("herbe"))
-      .onFrame(57, () => this.callbacks.playSound("herbe"))
-      .onFrame(120, () => this.callbacks.playSound("herbe"))
-      .onFrame(177, () => this.signalHit())
-      .onFrame(183, () => this.callbacks.playSound("herbe"));
-
-    this.container.addChild(this.mainAnim.sprite);
+    this.registry.register(this.anim1Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // Capture sound callback for use inside frameScripts where only
+    // `this` is available (no callbacks parameter passed to frame scripts).
+    this.soundCallback = callbacks.playSound;
 
-    this.anims.update(deltaTime);
+    // AS DefineSprite_14/frame_1/DoAction.as: SOMA.playSound("herbe")
+    // The canonical frame_1 sound fires as the outer mc starts.
+    callbacks.playSound("herbe");
 
-    if (this.anims.allStopped()) {
-      this.complete();
-    }
+    // Attach the composite anim1 timeline at the root (target cell anchor).
+    this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

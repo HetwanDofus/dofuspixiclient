@@ -1,322 +1,302 @@
 /**
- * Spell 210 - Griffes (Iop)
+ * Spell 210 — Griffes de Craqueleur (Crackler Claws).
  *
- * A claw attack spell that spawns multiple "griffes" (claw) instances
- * at the target position. Two initial claw animations are placed with
- * random rotations, then additional claws are spawned at frame 13 of
- * each wave animation, up to 6 times.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/210/scripts/scripts/
  *
- * Components:
- * - DefineSprite_7: Main container at target position, runs ~163 frames
- *   - PlaceObject2_6_1 (wave1): claw animator, random rotation 135-224°
- *   - PlaceObject2_6_3 (wave2): claw animator, random rotation -45-44°, starts at frame 18
- * - DefineSprite_6: Wave animator that at frame 13 attachMovie("griffes")
- *   - Frame 1: set _Y = random(40)-40, stop if cpt > 6
- *   - Frame 7: play sound 'lance02'
- *   - Frame 13: spawn a griffes instance
- * - DefineSprite_4_griffes: The claw animation (30 frames), frame 28: removeMovieClip
- * - DefineSprite_3: Spawned claw with physics (_X moves left, _alpha fades)
+ * displayType=11 (TargetCell). The spell has no `move`, `shoot`, `duplicate`,
+ * or `_parent.cellFrom`/`cellTo` references. It is a pure impact animation at
+ * the target cell. A single outer container (DefineSprite_7, 163 frames) drives
+ * the whole show, removing itself at frame 163 to signal completion.
  *
- * Original AS timing:
- * - Frame 1 (main): Play sound 'crockette_201'
- * - Frame 1 (wave): Set random Y offset, check cpt limit
- * - Frame 7 (wave): Play sound 'lance02'
- * - Frame 13 (wave): Spawn griffes instance at random Y and rotation
- * - Frame 28 (griffes): removeMovieClip (animation ends)
- * - Frame 163 (DefineSprite_7): removeMovieClip (spell ends)
+ * Symbol layout:
+ *
+ *   - lib_griffes (DefineSprite_4_griffes, 30 frames) — claw swipe sprite.
+ *     frame_28: removeMovieClip(this) + stop(). No onLoad/onEnterFrame.
+ *     Spawned dynamically by DefineSprite_6 at frame_13.
+ *
+ * Container symbols (no rendered frames):
+ *
+ *   - DefineSprite_6 (unnamed launcher, 13+ frames):
+ *       frame_1:  random Y offset ∈ [-40, 0]; if cpt > 6, stop().
+ *       frame_7:  SOMA.playSound("lance02").
+ *       frame_13: attachMovie("griffes", "griffes"+cpt, cpt+100);
+ *                 copy _y and _rotation onto the new griffes clip; cpt++.
+ *     This sprite is pre-placed twice on DefineSprite_7's timeline with
+ *     clip events that randomise _rotation and stagger the second copy to
+ *     start at frame 18.
+ *
+ *   - DefineSprite_7 (outer container, 163 frames):
+ *       frame_1 DoAction: cpt = 0.
+ *       Two pre-placed instances of DefineSprite_6 ("g1" at depth 1, "g3"
+ *       at depth 3) with clip events:
+ *         PlaceObject2_6_1 onLoad:  _rotation = random(90)+135; swapDepths(1100)
+ *         PlaceObject2_6_1 onEnterFrame: if frame==1 → re-randomise rotation
+ *         PlaceObject2_6_3 onLoad:  _rotation = random(90)-45; gotoAndPlay(18); swapDepths(1000)
+ *         PlaceObject2_6_3 onEnterFrame: if frame==1 → re-randomise rotation
+ *       frame_163: _parent.removeMovieClip(); stop() → spell complete.
+ *
+ *   - DefineSprite_3 (unused ambient particle visible on main timeline):
+ *       frame_1: v = 1.6+random(5); va=3; onEnterFrame drifts X left + fades alpha.
+ *
+ * Main timeline (frame_1): SOMA.playSound("crockette_201").
+ *
+ * signalHit is fired at DefineSprite_6/frame_13 (first time a griffes clip
+ * is spawned — i.e. when cpt goes from 0 to 1, which is the first claw impact).
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
-import {
-  BaseSpell,
-  calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
 } from "@dofus/spell-runtime";
-import { Container } from "pixi.js";
+import {
+  RuntimeSpell,
+  SpellDisplayType,
+  calculateAnchor,
+} from "@dofus/spell-runtime";
 
-const GRIFFES_MANIFEST: SpriteManifest = {
+const GRIFFES_BOUNDS = {
   width: 61.25,
   height: 38.45,
   offsetX: -24.3,
   offsetY: -21.6,
 };
 
-/**
- * Represents a single spawned "griffes" (claw) instance with
- * the sliding/fading physics from DefineSprite_3
- */
-interface GriffesParticle {
-  anim: FrameAnimatedSprite;
-  v: number; // velocity
-  va: number; // alpha velocity
-  alive: boolean;
-}
-
-export class Spell210 extends BaseSpell {
+export class Spell210 extends RuntimeSpell {
   readonly spellId = 210;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  /** Container placed at target position */
-  private effectContainer!: Container;
+  private griffesSym!: SymbolDefinition;
 
-  /** The two "wave" animators (DefineSprite_6 instances) */
-  private wave1Anim!: FrameAnimatedSprite;
-  private wave2Anim!: FrameAnimatedSprite;
-
-  /** Spawned griffes particles */
-  private griffesParticles: GriffesParticle[] = [];
-
-  /** Counter of how many claws have been spawned (AS: cpt) */
-  private cpt = 0;
-
-  /** Whether wave1 has already spawned its claw */
-  private wave1Spawned = false;
-  /** Whether wave2 has already spawned its claw */
-  private wave2Spawned = false;
-
-  /** Main timeline frame counter (DefineSprite_7 runs 163 frames) */
-  private mainFrameAcc = 0;
-  private mainFrame = 0;
-  private readonly MAIN_FRAME_TIME = 1000 / 60;
-  private readonly MAIN_TOTAL_FRAMES = 163;
-
-  /** Stored textures/anchor for spawning griffes */
-  private griffesTextures: ReturnType<SpellTextureProvider["getFrames"]> = [];
-  private griffesAnchorX = 0;
-  private griffesAnchorY = 0;
-
-  /** Wave sound played flags */
-  private wave1SoundPlayed = false;
-  private wave2SoundPlayed = false;
-
-  /** Wave 1 & 2 initial Y offsets (random(40) - 40 -> -40 to -1) */
-  private wave1Y = 0;
-  private wave2Y = 0;
-
-  /** Wave 1 & 2 initial rotations */
-  private wave1Rotation = 0;
-  private wave2Rotation = 0;
-
-  protected setup(
-    _context: SpellContext,
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext
   ): void {
-    // Play initial sound at frame 1 (index 0)
-    this.initialSoundPlayed = false;
+    const griffesAnchor = calculateAnchor(GRIFFES_BOUNDS);
 
-    // Store textures for later claw spawning
-    this.griffesTextures = textures.getFrames("lib_griffes");
-    const anchor = calculateAnchor(GRIFFES_MANIFEST);
-    this.griffesAnchorX = anchor.x;
-    this.griffesAnchorY = anchor.y;
-
-    // Create a container at the target position
-    this.effectContainer = new Container();
-    this.effectContainer.position.set(init.targetX, init.targetY);
-    this.container.addChild(this.effectContainer);
-
-    // Initialize cpt
-    this.cpt = 0;
-
-    // Wave 1 initial state (PlaceObject2_6_1):
-    // _rotation = random(90) + 135
-    this.wave1Rotation = Math.floor(Math.random() * 90) + 135;
-    // Wave 2 initial state (PlaceObject2_6_3):
-    // _rotation = random(90) - 45
-    this.wave2Rotation = Math.floor(Math.random() * 90) - 45;
-
-    // DefineSprite_6/frame_1: _Y = random(40) - 40
-    this.wave1Y = Math.floor(Math.random() * 40) - 40;
-    this.wave2Y = Math.floor(Math.random() * 40) - 40;
-
-    // Wave 1 animation (DefineSprite_6), starts at frame 0
-    this.wave1Anim = new FrameAnimatedSprite({
-      textures: textures.getFrames("griffes"),
-      fps: 60,
-      anchorX: anchor.x,
-      anchorY: anchor.y,
-      scale: init.scale,
-    });
-    this.wave1Anim.sprite.position.set(0, this.wave1Y * init.scale);
-    this.wave1Anim.sprite.rotation = (this.wave1Rotation * Math.PI) / 180;
-    this.effectContainer.addChild(this.wave1Anim.sprite);
-
-    // Wave 2 animation (DefineSprite_6), starts at frame 17 (gotoAndPlay(18) -> 0-indexed: 17)
-    this.wave2Anim = new FrameAnimatedSprite({
-      textures: textures.getFrames("griffes"),
-      fps: 60,
-      anchorX: anchor.x,
-      anchorY: anchor.y,
-      scale: init.scale,
-      startFrame: 17,
-    });
-    this.wave2Anim.sprite.position.set(0, this.wave2Y * init.scale);
-    this.wave2Anim.sprite.rotation = (this.wave2Rotation * Math.PI) / 180;
-    this.effectContainer.addChild(this.wave2Anim.sprite);
-
-    // Play initial sound immediately
-    this.callbacks.playSound("crockette_201");
-
-    // Signal hit immediately (on impact at caster/target)
-    this.signalHit();
-  }
-
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
-
-    // Update main frame counter
-    this.mainFrameAcc += deltaTime;
-    while (this.mainFrameAcc >= this.MAIN_FRAME_TIME) {
-      this.mainFrame++;
-      this.mainFrameAcc -= this.MAIN_FRAME_TIME;
-    }
-
-    // Update wave animations
-    this.updateWave1(deltaTime);
-    this.updateWave2(deltaTime);
-
-    // Update all griffes particles
-    this.updateParticles(deltaTime);
-
-    // Check completion: DefineSprite_7/frame_163 -> removeMovieClip
-    if (this.mainFrame >= this.MAIN_TOTAL_FRAMES - 1) {
-      // Wait for all particles to finish
-      const allDone = this.griffesParticles.every((p) => !p.alive);
-      if (allDone) {
-        this.complete();
-      }
-    }
-  }
-
-  private updateWave1(deltaTime: number): void {
-    if (!this.wave1Anim.isComplete() && !this.wave1Anim.isStopped()) {
-      this.wave1Anim.update(deltaTime);
-
-      const frame = this.wave1Anim.getFrame();
-
-      // Frame 7 (0-indexed: 6): play sound 'lance02'
-      if (frame >= 6 && !this.wave1SoundPlayed) {
-        this.wave1SoundPlayed = true;
-        this.callbacks.playSound("lance02");
-      }
-
-      // Frame 13 (0-indexed: 12): spawn griffes
-      if (frame >= 12 && !this.wave1Spawned) {
-        this.wave1Spawned = true;
-        if (this.cpt <= 6) {
-          this.spawnGriffes(this.wave1Y, this.wave1Rotation);
-        }
-      }
-
-      // On loop back to frame 1 (0-indexed: 0), reset rotation
-      // AS: if(this._currentframe == 1) { _rotation = random(90) + 135; }
-      // This is handled by checking if frame resets (loop)
-    }
-  }
-
-  private updateWave2(deltaTime: number): void {
-    if (!this.wave2Anim.isComplete() && !this.wave2Anim.isStopped()) {
-      this.wave2Anim.update(deltaTime);
-
-      const frame = this.wave2Anim.getFrame();
-
-      // Frame 7 (0-indexed: 6): play sound 'lance02'
-      if (frame >= 6 && !this.wave2SoundPlayed) {
-        this.wave2SoundPlayed = true;
-        this.callbacks.playSound("lance02");
-      }
-
-      // Frame 13 (0-indexed: 12): spawn griffes
-      if (frame >= 12 && !this.wave2Spawned) {
-        this.wave2Spawned = true;
-        if (this.cpt <= 6) {
-          this.spawnGriffes(this.wave2Y, this.wave2Rotation);
-        }
-      }
-    }
-  }
-
-  private spawnGriffes(yOffset: number, rotationDeg: number): void {
-    // AS: attachMovie("griffes","griffes" + cpt, cpt + 100)
-    // eval("_parent.griffes" + cpt)._y = _Y
-    // eval("_parent.griffes" + cpt)._rotation = _rotation
-    // cpt = cpt + 1
-
-    const scale = 1 / 1; // init.scale is stored in setup, use 1:1 since EXTRACTION_SCALE=1
-
-    const anim = new FrameAnimatedSprite({
-      textures: this.griffesTextures,
-      fps: 60,
-      anchorX: this.griffesAnchorX,
-      anchorY: this.griffesAnchorY,
-      scale: scale,
-    });
-
-    // DefineSprite_3/frame_1: v = 1.6 + random(5); va = 3;
-    const v = 1.6 + Math.floor(Math.random() * 5);
-    const va = 3;
-
-    anim.sprite.position.set(0, yOffset);
-    anim.sprite.rotation = (rotationDeg * Math.PI) / 180;
-
-    // Frame 28 (0-indexed: 27): removeMovieClip
-    anim.stopAt(27);
-
-    this.effectContainer.addChild(anim.sprite);
-
-    const particle: GriffesParticle = {
-      anim,
-      v,
-      va,
-      alive: true,
+    // ---- lib_griffes — claw swipe sprite (30 frames) -------------
+    // AS: DefineSprite_4_griffes/frame_28/DoAction.as
+    this.griffesSym = {
+      name: "griffes",
+      totalFrames: 30,
+      frames: textures.getFrames("lib_griffes"),
+      anchorX: griffesAnchor.x,
+      anchorY: griffesAnchor.y,
+      frameScripts: new Map([
+        [
+          27,
+          (clip) => {
+            // AS DefineSprite_4_griffes/frame_28/DoAction.as:
+            //   removeMovieClip(this); stop();
+            clip.remove();
+            clip.stop();
+          },
+        ],
+      ]),
     };
 
-    this.griffesParticles.push(particle);
-    this.cpt++;
+    // ---- DefineSprite_6 — claw launcher container (13+ frames) --
+    // This symbol is pre-placed twice on DefineSprite_7's timeline.
+    // We model it as a registered symbol so it can be attached by the
+    // outer container. Its clip-event handlers (load/enterFrame) are
+    // baked into the two named instances "g1" and "g3" via the outer
+    // container's frameScripts.
+    const launcher6Sym: SymbolDefinition = {
+      name: "launcher6",
+      totalFrames: 13,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS DefineSprite_6/frame_1/DoAction.as:
+            //   _Y = random(40) - 40;
+            //   if (_parent.cpt > 6) { stop(); }
+            clip.y = Math.floor(Math.random() * 40) - 40;
+            const outerCpt = (clip.parent?.vars.cpt as number) ?? 0;
+            if (outerCpt > 6) {
+              clip.stop();
+            }
+          },
+        ],
+        [
+          6,
+          (_clip) => {
+            // AS DefineSprite_6/frame_7/DoAction.as:
+            //   SOMA.playSound("lance02");
+            // Sound is stored; we capture the callback reference in
+            // onSpellStart and call it here.
+            this._playSound?.("lance02");
+          },
+        ],
+        [
+          12,
+          (clip, ctx) => {
+            // AS DefineSprite_6/frame_13/DoAction.as:
+            //   _parent.attachMovie("griffes","griffes" + _parent.cpt, _parent.cpt + 100);
+            //   eval("_parent.griffes" + _parent.cpt)._y = _Y;
+            //   eval("_parent.griffes" + _parent.cpt)._rotation = _rotation;
+            //   _parent.cpt = _parent.cpt + 1;
+            const outer = clip.parent;
+            if (!outer) {
+              return;
+            }
+            const cpt = (outer.vars.cpt as number) ?? 0;
+            const instanceName = `griffes${cpt}`;
+            const depth = cpt + 100;
+            const newClip = outer.attach(
+              this.griffesSym,
+              instanceName,
+              depth,
+              ctx
+            );
+            // Apply the launcher's current _y and _rotation to the new griffes clip.
+            newClip.y = clip.y;
+            newClip.rotation = clip.rotation;
+            outer.vars.cpt = cpt + 1;
+
+            // Signal hit on the first claw impact (canonical first attachMovie).
+            if (cpt === 0) {
+              this.runtime.signalHit();
+            }
+          },
+        ],
+      ]),
+    };
+
+    // ---- DefineSprite_3 — ambient drift particle (main timeline) -
+    // AS: DefineSprite_3/frame_1/DoAction.as
+    // This particle drifts left and fades. It is placed on the main
+    // timeline (not via attachMovie from a library symbol lookup) but
+    // we model it as a registered container symbol so we can attach it
+    // from onSpellStart.
+    const ambient3Sym: SymbolDefinition = {
+      name: "ambient3",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_3/frame_1/DoAction.as:
+            //   v = 1.6 + random(5);
+            //   va = 3;
+            //   this.onEnterFrame = function() { _X -= (v /= 1.4); _alpha -= va; };
+            clip.vars.v = 1.6 + Math.floor(Math.random() * 5);
+            clip.vars.va = 3;
+          },
+        ],
+      ]),
+      onEnterFrame: (clip) => {
+        // Canonical onEnterFrame set dynamically in frame_1 DoAction:
+        //   _X = _X - (v /= 1.4);
+        //   _alpha = _alpha - va;
+        let v = clip.vars.v as number;
+        const va = clip.vars.va as number;
+        v /= 1.4;
+        clip.x -= v;
+        clip.vars.v = v;
+        clip.alpha -= va / 100;
+      },
+    };
+
+    // ---- DefineSprite_7 — outer container (163 frames) -----------
+    // Hosts two pre-placed launcher instances ("g1" at depth 1 with
+    // PlaceObject2_6_1 clip events, "g3" at depth 3 with
+    // PlaceObject2_6_3 clip events).
+    const outer7Sym: SymbolDefinition = {
+      name: "outer7",
+      totalFrames: 163,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS DefineSprite_7/frame_1/DoAction.as:
+            //   cpt = 0;
+            clip.vars.cpt = 0;
+
+            // Pre-place launcher "g1" (PlaceObject2_6_1):
+            // onClipEvent(load): _rotation = random(90)+135; swapDepths(1100)
+            const g1 = clip.attach(launcher6Sym, "g1", 1, ctx);
+            g1.rotation = ((Math.floor(Math.random() * 90) + 135) * Math.PI) / 180;
+            // swapDepths(1100) — modelled as zIndex, already set to 1100.
+            g1.container.zIndex = 1100;
+            // onClipEvent(enterFrame) for g1:
+            g1.onEnterFrame = (c) => {
+              // AS DefineSprite_7/frame_1/PlaceObject2_6_1/onClipEvent(enterFrame):
+              //   if (this._currentframe == 1) { _rotation = random(90) + 135; }
+              if (c.currentFrame === 0) {
+                c.rotation =
+                  ((Math.floor(Math.random() * 90) + 135) * Math.PI) / 180;
+              }
+            };
+
+            // Pre-place launcher "g3" (PlaceObject2_6_3):
+            // onClipEvent(load): _rotation = random(90)-45; gotoAndPlay(18); swapDepths(1000)
+            const g3 = clip.attach(launcher6Sym, "g3", 3, ctx);
+            g3.rotation = ((Math.floor(Math.random() * 90) - 45) * Math.PI) / 180;
+            g3.gotoAndPlay(17); // AS gotoAndPlay(18) → 0-based index 17
+            g3.container.zIndex = 1000;
+            // onClipEvent(enterFrame) for g3:
+            g3.onEnterFrame = (c) => {
+              // AS DefineSprite_7/frame_1/PlaceObject2_6_3/onClipEvent(enterFrame):
+              //   if (this._currentframe == 1) { _rotation = random(90) - 45; }
+              if (c.currentFrame === 0) {
+                c.rotation =
+                  ((Math.floor(Math.random() * 90) - 45) * Math.PI) / 180;
+              }
+            };
+          },
+        ],
+        [
+          162,
+          (clip) => {
+            // AS DefineSprite_7/frame_163/DoAction.as:
+            //   _parent.removeMovieClip(); stop();
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
+
+    this.registry.register(this.griffesSym);
+    this.registry.register(launcher6Sym);
+    this.registry.register(ambient3Sym);
+    this.registry.register(outer7Sym);
+
+    // Store sym references for onSpellStart.
+    this._outer7Sym = outer7Sym;
+    this._ambient3Sym = ambient3Sym;
   }
 
-  private updateParticles(deltaTime: number): void {
-    // Each frame: _X -= (v /= 1.4); _alpha -= va
-    // We convert per-frame updates to deltaTime-based
-    // AS runs at 60fps, so each "frame" = 1000/60 ms
-    const framesElapsed = deltaTime / (1000 / 60);
+  private _outer7Sym!: SymbolDefinition;
+  private _ambient3Sym!: SymbolDefinition;
+  private _playSound?: (id: string) => void;
 
-    for (const p of this.griffesParticles) {
-      if (!p.alive) {
-        continue;
-      }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext
+  ): void {
+    // AS scripts/frame_1/DoAction.as: SOMA.playSound("crockette_201");
+    callbacks.playSound("crockette_201");
 
-      p.anim.update(deltaTime);
+    // Capture sound callback for use inside launcher frame_7.
+    this._playSound = callbacks.playSound;
 
-      // Apply physics: per frame: v /= 1.4, x -= v; alpha -= va
-      for (let f = 0; f < framesElapsed; f++) {
-        p.v /= 1.4;
-        p.anim.sprite.x -= p.v;
-        p.anim.sprite.alpha -= p.va / 100; // _alpha is 0-100 in AS, pixi uses 0-1
-      }
+    // Attach the outer container (DefineSprite_7) at depth 1.
+    this.root.attach(this._outer7Sym, "outer7", 1, context);
 
-      if (p.anim.sprite.alpha <= 0) {
-        p.anim.sprite.alpha = 0;
-        p.alive = false;
-        p.anim.sprite.visible = false;
-      }
-
-      if (p.anim.isStopped() || p.anim.isComplete()) {
-        p.alive = false;
-        p.anim.sprite.visible = false;
-      }
-    }
-  }
-
-  override destroy(): void {
-    for (const p of this.griffesParticles) {
-      p.anim.destroy();
-    }
-    this.griffesParticles = [];
-    super.destroy();
+    // Attach the ambient drift particle (DefineSprite_3) at depth 2.
+    this.root.attach(this._ambient3Sym, "ambient3", 2, context);
   }
 }

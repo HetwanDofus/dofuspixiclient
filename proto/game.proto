@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package dofus;
 
-option go_package = "dofus/proto";
 
 import "common.proto";
 
@@ -196,6 +195,9 @@ message GameMapData {
   int32  height = 5;
   int32  background = 6;  // Background image id (0 = none).
   repeated MapCell cells = 7;
+  // Dofus subarea id (0-261). Drives tactic-mode theme + colors via
+  // lang.MA.sa[subarea_id]. 0 = unknown (map row carried null).
+  int32 subarea_id = 8;
 }
 
 // MapCell mirrors the fields exposed by the TS CellData interface
@@ -242,6 +244,12 @@ message CellDataEntry {
 // GDZ - Zone data (glyph/trap zone highlight).
 // StarLoco ref: SocketManager.java:985 / Fight.java:3609
 // Wire: GDZ<suffix><cellId>;<size>;<color>    suffix = '+' add, '-' remove
+//
+// `area_kind` is OUR extension (not in the legacy GDZ format) — needed
+// because the canonical wire only carries `size` and assumes Circle for
+// all glyphs/traps. Real Dofus 1.29 spells use Cross / Square / etc.
+// for some traps + non-circular glyphs; carrying the kind keeps the
+// client from rendering the wrong shape.
 message GameZoneData {
   enum Operation {
     OPERATION_UNSPECIFIED = 0;
@@ -252,6 +260,8 @@ message GameZoneData {
   int32     cell_id = 2;
   int32     size = 3;
   int32     color = 4;
+  /** Mirrors @dofus/grid AreaKind. 0 = Circle (legacy default). */
+  int32     area_kind = 5;
 }
 
 // GDO - Cell object (dropped/mounted item on the map).

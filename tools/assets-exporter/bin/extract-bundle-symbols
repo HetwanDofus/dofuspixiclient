@@ -1,0 +1,12 @@
+#!/usr/bin/env php
+<?php
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use App\Command\ExtractBundleSymbolsCommand;
+use Symfony\Component\Console\Application;
+
+$application = new Application('Bundle-symbol Extractor', '1.0.0');
+$application->addCommand(new ExtractBundleSymbolsCommand());
+$application->setDefaultCommand('bundle:extract', true);
+$application->run();

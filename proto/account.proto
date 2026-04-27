@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package dofus;
 
-option go_package = "dofus/proto";
 
 import "common.proto";
 
@@ -32,17 +31,33 @@ message HandshakeCharacterSwitch {
   string ticket_data = 1;
 }
 
+// Login failure reasons. Mirrors the legacy Dofus 1.29 single-char codes
+// (documented in apps/gameserver/pkg/auth/application/login.go) — the
+// enum is the canonical form; the translation layer to legacy clients, if
+// ever needed, maps values back to their original chars.
+enum LoginError {
+  LOGIN_ERROR_UNSPECIFIED         = 0;
+  LOGIN_ERROR_INVALID_CREDENTIALS = 1;  // "f"
+  LOGIN_ERROR_BANNED              = 2;  // "b"
+  LOGIN_ERROR_ALREADY_ONLINE      = 3;  // "a"
+  LOGIN_ERROR_MALFORMED           = 4;  // "m"
+  LOGIN_ERROR_BACKEND             = 5;  // "e"
+  LOGIN_ERROR_QUEUED              = 6;  // "q"
+  LOGIN_ERROR_VERSION_MISMATCH    = 7;  // "v" → required_version populated
+  LOGIN_ERROR_KICKED              = 8;  // "k" → kick_* populated
+}
+
 // Al - Login response
 message AccountLoginResponse {
-  bool   success = 1;
-  bool   is_authorized = 2;     // When success: sExtraData[0] == "1"
-  string error_code = 3;        // When error: single char code
-  // Error-specific fields (populated based on error_code)
-  string required_version = 4;  // error_code "v": version string
-  repeated string kick_reasons = 5;  // error_code "k": split by |
-  string kick_title = 6;
-  string kick_message = 7;
-  string kick_custom_info = 8;
+  bool       success         = 1;
+  bool       is_authorized   = 2;
+  LoginError error_code      = 3;
+  // Populated for specific error_code values.
+  string required_version    = 4;  // error_code = LOGIN_ERROR_VERSION_MISMATCH
+  repeated string kick_reasons = 5;  // error_code = LOGIN_ERROR_KICKED
+  string kick_title          = 6;
+  string kick_message        = 7;
+  string kick_custom_info    = 8;
 }
 
 // Ac - Community ID
@@ -108,14 +123,27 @@ message AccountTicketResponse {
   string key_data = 3;
 }
 
+// Select-server failure reasons. Canonical enum; legacy single-char codes
+// documented inline match apps/gameserver/pkg/auth/application/servers.go.
+enum SelectServerError {
+  SELECT_SERVER_ERROR_UNSPECIFIED     = 0;
+  SELECT_SERVER_ERROR_DOWN            = 1;  // "d"
+  SELECT_SERVER_ERROR_FULL            = 2;  // "F"
+  SELECT_SERVER_ERROR_FULL_NON_MEMBER = 3;  // "f"
+  SELECT_SERVER_ERROR_SHOP            = 4;  // "s"
+  SELECT_SERVER_ERROR_RESTRICTED      = 5;  // "r"
+  SELECT_SERVER_ERROR_NOT_FOUND       = 6;  // "n"
+  SELECT_SERVER_ERROR_UNKNOWN         = 7;  // "e"
+}
+
 // AX / AY - Select server response
 message AccountSelectServer {
-  bool   success = 1;
-  bool   use_ip_encoding = 2; // AX=true (binary IP), AY=false (text IP)
-  string ip = 3;              // Decoded IP address
-  int32  port = 4;            // Decoded port
-  string ticket = 5;          // Connection ticket for game server
-  string error_code = 6;      // d=down, f=full(non-member), F=full, s=shop, r=restricted
+  bool              success         = 1;
+  bool              use_ip_encoding = 2; // AX=true (binary IP), AY=false (text IP)
+  string            ip              = 3;
+  int32             port            = 4;
+  string            ticket          = 5;
+  SelectServerError error_code      = 6;
 }
 
 // AZ - Select server minimal

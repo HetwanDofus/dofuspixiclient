@@ -1,0 +1,228 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "SR": {
+            "612": {
+                "n": "Boon",
+                "d": "Você já deve ter se deparado com ela em Incarnam, aquela bolinha azul e felpuda que fica saltitando para chamar a atenção das almas recém-encarnadas e dando bons conselhos para os viajantes perdidos. Mas você conhece sua história? Há muitos rumores. O mais recorrente diz que Boon seria um bichinho de pelúcia de Osamodas. É claro que isso já foi negado pelo maior interessado em acabar com as gracinhas, mas continuam falando isso para provocá-lo...",
+                "l": "en",
+                "p": "0",
+                "t": 5,
+                "c": "2",
+                "date": "1611705600000",
+                "rlng": {}
+            },
+            "649": {
+                "n": "Fallanster",
+                "d": "Connu pour sa droiture et son courage, Fallanster est une personnalité emblématique de la cité d'Astrub. En bon frère du roi Allister, il n'a de cesse d'œuvrer pour la justice. Il occupe le poste de Chef du Conseil des Douze d'Astrub depuis de nombreuses années maintenant et est également le fondateur de la guilde Féca d'Astrub. Aux dernières nouvelles, les entraves Têtes à Clic et à Clac, ces menottes magiques qui ont permis à Allister d'emprisonner le démon Uk'Not'Allag après qu'il eut envahi Amakna et réduit sa population en esclavage, sont en sa possession.",
+                "l": "en",
+                "p": "0",
+                "t": 3,
+                "c": "2",
+                "date": "1706054400000",
+                "rlng": {}
+            },
+            "650": {
+                "n": "Allisteria",
+                "d": "Fille de Fallanster et nièce d'Allister, Allisteria est une bergère féca qui apprécie la compagnie des bêtes plus que celle des Douziens. Elle passe d'ailleurs le plus clair de son temps auprès de son troupeau familial de bouftous. Parmi eux, Greg et Fidel sont ses petits chouchous ! Allisteria fait également partie du conseil des Fécas, un groupe de disciples où chacun s'efforce de protéger son prochain. Sa présence y est grandement appréciée, aussi en raison des délicieux petits plats qu'elle prend parfois plaisir à préparer ! ",
+                "l": "en",
+                "p": "0",
+                "t": 4,
+                "c": "2",
+                "date": "1706054400000",
+                "rlng": {}
+            },
+            "651": {
+                "n": "Tournament",
+                "d": "As regras específicas dos torneios são aplicadas a este modo de jogo.",
+                "l": "en",
+                "p": "0",
+                "t": 4,
+                "c": "2",
+                "date": "1710806400000",
+                "rlng": {}
+            }
+        },
+        "SRP": {
+            "0": "Recomendado",
+            "1": "Médio",
+            "2": "Alto",
+            "3": "Em breve",
+            "4": "Cheio",
+            "5": "New"
+        },
+        "SRPW": {
+            "0": 1,
+            "1": 2,
+            "2": 3,
+            "3": 99,
+            "4": 4,
+            "5": 5
+        },
+        "SRC": {
+            "0": {
+                "n": "Francês",
+                "d": true,
+                "i": 0,
+                "c": [
+                    "LU",
+                    "BE",
+                    "CH",
+                    "FR"
+                ]
+            },
+            "1": {
+                "n": "Reino Unido & Irlanda",
+                "d": true,
+                "i": 1,
+                "c": [
+                    "GB",
+                    "IE",
+                    "UK"
+                ]
+            },
+            "2": {
+                "n": "Internacional",
+                "d": true,
+                "i": 2,
+                "c": [
+                    "XX"
+                ]
+            },
+            "3": {
+                "n": "Alemão",
+                "d": true,
+                "i": 3,
+                "c": [
+                    "LI",
+                    "AT",
+                    "DE"
+                ]
+            },
+            "4": {
+                "n": "Espanhol",
+                "d": true,
+                "i": 4,
+                "c": [
+                    "MX",
+                    "CK",
+                    "AR",
+                    "AD",
+                    "ES"
+                ]
+            },
+            "5": {
+                "n": "Russo",
+                "d": true,
+                "i": 5,
+                "c": [
+                    "RU"
+                ]
+            },
+            "6": {
+                "n": "Brasileiro",
+                "d": true,
+                "i": 6,
+                "c": [
+                    "BR",
+                    "PT"
+                ]
+            },
+            "7": {
+                "n": "Holandês",
+                "d": true,
+                "i": 7,
+                "c": [
+                    "NL"
+                ]
+            },
+            "9": {
+                "n": "Italiano",
+                "d": true,
+                "i": 9,
+                "c": [
+                    "IT"
+                ]
+            },
+            "10": {
+                "n": "Japonês",
+                "d": true,
+                "i": 10,
+                "c": [
+                    "JP"
+                ]
+            },
+            "99": {
+                "n": "Teste",
+                "d": false,
+                "i": 99,
+                "c": {}
+            }
+        },
+        "SRVT": {
+            "1": {
+                "l": "MERCENARY_CLAN",
+                "d": "Clã de Mercenários"
+            },
+            "2": {
+                "l": "MERCENARY_LEADER",
+                "d": "Piedade Humana"
+            },
+            "3": {
+                "l": "MERCENARY_INTRONIZER",
+                "d": "Promovido para"
+            },
+            "4": {
+                "l": "MERCENARY_SHORT_NAME",
+                "d": "Mercenário"
+            },
+            "31": {
+                "l": "EVENT_HOUSE_NAME",
+                "d": "Piso para alugar"
+            }
+        },
+        "SRVC": {
+            "1|2": "Clã Samurye",
+            "2|2": "-",
+            "1|6": "Clã de Nedora Riem",
+            "1|1": "Clã Seriano-Kerm",
+            "1|5": "Clã dos Selenitos",
+            "1|3": "Clan Stères",
+            "31|3": "Piso Zooooooornal",
+            "4|6": "Nedora",
+            "3|6": "Nedorazator",
+            "3|5": "Selenizator",
+            "4|5": "Selenite",
+            "4|4": "Nephthys",
+            "1|4": "Clã Erinyes",
+            "3|4": "Erinysator",
+            "3|2": "Samuryisor",
+            "4|2": "Samurye",
+            "3|3": "Stèrisateur",
+            "1|666": "SHADOW DOOM HELL§§§",
+            "4|3": "Stère",
+            "3|1": "Serianisator",
+            "2|1": "Pinut",
+            "4|1": "Seriano",
+            "4|666": "de Nimaoh"
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 134,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "SR",
+            "SRP",
+            "SRPW",
+            "SRC",
+            "SRVT",
+            "SRVC",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

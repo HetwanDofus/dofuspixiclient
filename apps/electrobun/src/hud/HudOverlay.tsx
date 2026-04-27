@@ -1,11 +1,14 @@
 import { useSyncExternalStore } from "react";
 
+import type { GameClient } from "@/game/game-client";
 import { DISPLAY_HEIGHT, FULL_HEIGHT } from "@/game/constants/battlefield";
 import { characterStore, closeAllPanels, hudStore } from "@/game/stores";
 
 import { BannerReact } from "./banner/BannerReact";
 import { TooltipProvider } from "./components/Tooltip";
 import { ConquestPanel } from "./conquest/ConquestPanel";
+import { FightEndDialog } from "./fight/FightEndDialog";
+import { FightOverlay } from "./fight/FightOverlay";
 import { FriendsPanel } from "./friends/FriendsPanel";
 import { GameContextMenu } from "./GameContextMenu";
 import { GuildPanel } from "./guild/GuildPanel";
@@ -15,14 +18,20 @@ import { QuestsPanel } from "./quests/QuestsPanel";
 import { SpellsPanel } from "./spells/SpellsPanel";
 import { StatsPanel } from "./stats/StatsPanel";
 import { WorldMapPanel } from "./worldmap/WorldMapPanel";
+import { MonsterGroupTooltip } from "./world/MonsterGroupTooltip";
 
 interface HudOverlayProps {
   baseZoom: number;
   /** Measured canvas offset within the .map-renderer container */
   canvasRect: { left: number; top: number; w: number; h: number };
+  gameClient: GameClient | null;
 }
 
-export function HudOverlay({ baseZoom, canvasRect }: HudOverlayProps) {
+export function HudOverlay({
+  baseZoom,
+  canvasRect,
+  gameClient,
+}: HudOverlayProps) {
   const { activePanel, isWorldMapOpen } = useSyncExternalStore(
     hudStore.subscribe,
     hudStore.getSnapshot
@@ -123,9 +132,29 @@ export function HudOverlay({ baseZoom, canvasRect }: HudOverlayProps) {
           canvasHeight={canvasRect.h}
         />
 
-        <BannerReact />
+        <BannerReact
+          {...(gameClient
+            ? { onSelectSpell: (spellId) => gameClient.fightSelectSpell(spellId) }
+            : {})}
+        />
+
+        {gameClient && (
+          <FightOverlay
+            actions={{
+              onPassTurn: () => gameClient.fightPassTurn(),
+              onForfeit: () => gameClient.fightForfeit(),
+              onReady: () => gameClient.fightReady(),
+              // Spell selection now lives on the main banner grid
+              // (BannerReact). FightOverlay no longer renders its own
+              // spell bar — the banner doubles as the in-fight cast UI.
+              onSelectSpell: (spellId) => gameClient.fightSelectSpell(spellId),
+            }}
+          />
+        )}
+        <FightEndDialog onClose={() => gameClient?.fightForfeit()} />
       </div>
 
+      <MonsterGroupTooltip />
       <GameContextMenu />
     </TooltipProvider>
   );

@@ -1,0 +1,200 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "R": {
+            "1": {
+                "n": "Líder",
+                "o": 1,
+                "i": 1
+            },
+            "2": {
+                "n": "Segundo em comando",
+                "o": 2,
+                "i": 2
+            },
+            "3": {
+                "n": "Tesoureiro",
+                "o": 3,
+                "i": 3
+            },
+            "4": {
+                "n": "Protetor",
+                "o": 4,
+                "i": 4
+            },
+            "5": {
+                "n": "Artesão",
+                "o": 5,
+                "i": 5
+            },
+            "6": {
+                "n": "Reservista",
+                "o": 6,
+                "i": 6
+            },
+            "8": {
+                "n": "Guarda",
+                "o": 7,
+                "i": 8
+            },
+            "9": {
+                "n": "Batedor",
+                "o": 8,
+                "i": 9
+            },
+            "10": {
+                "n": "Espião",
+                "o": 9,
+                "i": 10
+            },
+            "11": {
+                "n": "Diplomata",
+                "o": 10,
+                "i": 11
+            },
+            "12": {
+                "n": "Secretário",
+                "o": 11,
+                "i": 12
+            },
+            "33": {
+                "n": "Caçador de Mascotes",
+                "o": 82,
+                "i": 33
+            },
+            "31": {
+                "n": "Caçador ilegal",
+                "o": 84,
+                "i": 31
+            },
+            "30": {
+                "n": "Caçador de tesouros",
+                "o": 85,
+                "i": 30
+            },
+            "29": {
+                "n": "Gatuno",
+                "o": 86,
+                "i": 29
+            },
+            "28": {
+                "n": "Iniciado",
+                "o": 87,
+                "i": 28
+            },
+            "27": {
+                "n": "Infiltrador",
+                "o": 88,
+                "i": 27
+            },
+            "26": {
+                "n": "Governador",
+                "o": 89,
+                "i": 26
+            },
+            "25": {
+                "n": "Musa",
+                "o": 90,
+                "i": 25
+            },
+            "24": {
+                "n": "Conselheiro",
+                "o": 91,
+                "i": 24
+            },
+            "23": {
+                "n": "O Escolhido",
+                "o": 92,
+                "i": 23
+            },
+            "21": {
+                "n": "Guia",
+                "o": 93,
+                "i": 21
+            },
+            "22": {
+                "n": "Mentor",
+                "o": 94,
+                "i": 22
+            },
+            "20": {
+                "n": "Oficial de Recrutamento",
+                "o": 95,
+                "i": 20
+            },
+            "19": {
+                "n": "Criador",
+                "o": 96,
+                "i": 19
+            },
+            "18": {
+                "n": "Mercador",
+                "o": 97,
+                "i": 18
+            },
+            "17": {
+                "n": "Aprendiz",
+                "o": 98,
+                "i": 17
+            },
+            "16": {
+                "n": "Punidor",
+                "o": 100,
+                "i": 16
+            },
+            "34": {
+                "n": "Mascote",
+                "o": 103,
+                "i": 34
+            },
+            "13": {
+                "n": "Penitente",
+                "o": 104,
+                "i": 13
+            },
+            "35": {
+                "n": "Coletor Infiltrado",
+                "o": 105,
+                "i": 35
+            },
+            "15": {
+                "n": "Desertor",
+                "o": 110,
+                "i": 15
+            },
+            "32": {
+                "n": "Traidor",
+                "o": 120,
+                "i": 32
+            },
+            "14": {
+                "n": "Perturbador",
+                "o": 150,
+                "i": 14
+            },
+            "7": {
+                "n": "Servo",
+                "o": 200,
+                "i": 7
+            },
+            "0": {
+                "n": "Em avaliação",
+                "o": 999,
+                "i": 0
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 49,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "R",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

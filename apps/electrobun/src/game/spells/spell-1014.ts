@@ -1,124 +1,196 @@
 /**
- * Spell 1014 - Licorne (Eniripsa)
+ * Spell 1014 — Licorne (Ecaflip lizard bite / unicorn strike).
  *
- * A sprite animation that positions at the target cell and plays through.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Canonical AS source: tools/combat-exporter/output/spell-anims/1014/scripts/scripts/
  *
- * Components:
- * - sprite_17: Main animation at target position, 120 frames
- *   - Frame 1: Sets position to cellTo
- *   - Frame 28: Play sound 'licrounch_1014'
- *   - Frame 88: Signal hit (this.end())
- *   - Frame 106: Play sound 'jump'
- *   - Frame 118: removeMovieClip() - animation ends
- * - sprite_11: Decorative swirl, randomized rotation/scale/start frame
- *   - Frame 1: Random rotation, random scale (50-99%), random start frame (0-26)
+ * displayType=11 (TargetCell). The only authored child is sprite_17, which
+ * positions itself at _parent.cellTo on frame_1 — a single impact anchored
+ * at the target cell. No projectile, no caster reference, no beams.
  *
- * Original AS timing:
- * - Frame 28 (sprite_17): Play sound 'licrounch_1014'
- * - Frame 88 (sprite_17): Signal hit
- * - Frame 106 (sprite_17): Play sound 'jump'
- * - Frame 118 (sprite_17): Animation ends
- * - sprite_11 frame_1: _rotation = random(360), t = random(50)+50, gotoAndPlay(random(27)+1)
+ * Library symbols: none (librarySymbols[] is empty in manifest).
+ * Animations:
+ *   - sprite_11 — 21-frame particle / decoration element.
+ *       frame_1: set rotation to random(360) degrees, scale to random [50,100]%,
+ *                if first visit jump to random frame in [1,27].
+ *   - sprite_17 — 120-frame composite impact timeline (main content).
+ *       frame_1:   position self at _parent.cellTo.
+ *       frame_28:  SOMA.playSound("licrounch_1014").
+ *       frame_88:  this.end() → signalHit.
+ *       frame_106: SOMA.playSound("jump").
+ *       frame_118: _parent.removeMovieClip() → complete.
+ *
+ * Main timeline: frame_2/DoAction.as → stop().
+ * The main timeline implicitly places sprite_17 at depth 1; we attach it
+ * in onSpellStart after the harness configures the container.
+ *
+ * Sounds are driven from sprite_17's frame scripts to stay canonical;
+ * the main-timeline stop() has no runtime effect beyond halting a 2-frame
+ * outer clip (irrelevant once sprite_17 drives everything).
+ *
+ * NOTE: sprite_11 appears in animations[] but is never referenced by an
+ * attachMovie call in any script — it is placed by the authored timeline
+ * inside sprite_17 (a composite). We register it so the runtime can
+ * drive its frame_1 script if the composite rendering pipeline attaches it.
+ * For completeness it is registered, but the primary spell driver is
+ * sprite_17.
  */
 
-import type { SpellContext, SpellTextureProvider } from "@dofus/spell-runtime";
+import type {
+  SpellCallbacks,
+  SpellContext,
+  SpellTextureProvider,
+  SymbolDefinition,
+} from "@dofus/spell-runtime";
 import {
-  BaseSpell,
+  RuntimeSpell,
+  SpellDisplayType,
   calculateAnchor,
-  FrameAnimatedSprite,
-  type SpellInitContext,
-  type SpriteManifest,
 } from "@dofus/spell-runtime";
 
-const SPRITE_17_MANIFEST: SpriteManifest = {
-  width: 107.95,
-  height: 85.85,
-  offsetX: -21.55,
-  offsetY: -79.75,
-};
-
-const SPRITE_11_MANIFEST: SpriteManifest = {
+// Bounds from manifest animations[] entries (no librarySymbols[] present).
+const SPRITE_11_BOUNDS = {
   width: 75.05,
   height: 1,
   offsetX: 9.7,
   offsetY: -0.5,
 };
 
-export class Spell1014 extends BaseSpell {
+const SPRITE_17_BOUNDS = {
+  width: 107.95,
+  height: 85.85,
+  offsetX: -21.55,
+  offsetY: -79.75,
+};
+
+export class Spell1014 extends RuntimeSpell {
   readonly spellId = 1014;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  protected setup(
-    _context: SpellContext,
+  private sprite17Sym!: SymbolDefinition;
+
+  // Capture sound callback so frame scripts inside sprite_17 can play sounds.
+  private playSound?: (id: string) => void;
+
+  protected registerSymbols(
     textures: SpellTextureProvider,
-    init: SpellInitContext
+    _context: SpellContext,
   ): void {
-    // sprite_17: Main animation at target position
-    const sprite17Anchor = calculateAnchor(SPRITE_17_MANIFEST);
-    const mainAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_17"),
-        anchorX: sprite17Anchor.x,
-        anchorY: sprite17Anchor.y,
-        scale: init.scale,
-      })
-    );
+    const sprite11Anchor = calculateAnchor(SPRITE_11_BOUNDS);
+    const sprite17Anchor = calculateAnchor(SPRITE_17_BOUNDS);
 
-    // AS frame_1: _X = _parent.cellTo.x; _Y = _parent.cellTo.y;
-    // Position at target cell (relative to container which is at cellFrom)
-    mainAnim.sprite.position.set(init.targetX, init.targetY);
+    // ---- sprite_11 — particle / decoration element inside sprite_17 composite ----
+    // AS: scripts/scripts/DefineSprite_11/frame_1/DoAction.as
+    //   _rotation = random(360);
+    //   t = random(50) + 50;
+    //   _xscale = t;
+    //   _yscale = t;
+    //   if (c != 1) { c = 1; gotoAndPlay(random(27) + 1); }
+    const sprite11Sym: SymbolDefinition = {
+      name: "sprite_11",
+      totalFrames: 21,
+      frames: textures.getFrames("sprite_11"),
+      anchorX: sprite11Anchor.x,
+      anchorY: sprite11Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_11/frame_1/DoAction.as
+            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+            const t = Math.floor(Math.random() * 50) + 50;
+            clip.scaleX = t / 100;
+            clip.scaleY = t / 100;
+            const c = clip.vars.c as number | undefined;
+            if (c !== 1) {
+              clip.vars.c = 1;
+              // AS: gotoAndPlay(random(27) + 1) → 0-based: random(27) + 0
+              clip.gotoAndPlay(Math.floor(Math.random() * 27));
+            }
+          },
+        ],
+      ]),
+    };
 
-    // AS frame_28: SOMA.playSound("licrounch_1014") -> 0-indexed: frame 27
-    mainAnim.onFrame(27, () => this.callbacks.playSound("licrounch_1014"));
+    // ---- sprite_17 — 120-frame composite impact timeline (primary driver) ----
+    // AS frame scripts:
+    //   frame_1/DoAction.as  : _X = _parent.cellTo.x; _Y = _parent.cellTo.y;
+    //   frame_28/DoAction.as : SOMA.playSound("licrounch_1014");
+    //   frame_88/DoAction.as : this.end();  → signalHit
+    //   frame_106/DoAction.as: SOMA.playSound("jump");
+    //   frame_118/DoAction.as: _parent.removeMovieClip();  → complete
+    this.sprite17Sym = {
+      name: "sprite_17",
+      totalFrames: 120,
+      frames: textures.getFrames("sprite_17"),
+      anchorX: sprite17Anchor.x,
+      anchorY: sprite17Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_17/frame_1/DoAction.as
+            // Position self at _parent.cellTo (world coords stored on root.vars).
+            const root = clip.parent;
+            const cellTo = root?.vars.cellTo as
+              | { x: number; y: number }
+              | undefined;
+            if (cellTo) {
+              clip.x = cellTo.x;
+              clip.y = cellTo.y;
+            }
+          },
+        ],
+        [
+          27,
+          () => {
+            // AS DefineSprite_17/frame_28/DoAction.as
+            // SOMA.playSound("licrounch_1014");
+            this.playSound?.("licrounch_1014");
+          },
+        ],
+        [
+          87,
+          () => {
+            // AS DefineSprite_17/frame_88/DoAction.as
+            // this.end() → damage popup at target.
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          105,
+          () => {
+            // AS DefineSprite_17/frame_106/DoAction.as
+            // SOMA.playSound("jump");
+            this.playSound?.("jump");
+          },
+        ],
+        [
+          117,
+          (clip) => {
+            // AS DefineSprite_17/frame_118/DoAction.as
+            // _parent.removeMovieClip() → spell complete.
+            clip.parent?.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
+    };
 
-    // AS frame_88: this.end() -> 0-indexed: frame 87
-    mainAnim.onFrame(87, () => this.signalHit());
-
-    // AS frame_106: SOMA.playSound("jump") -> 0-indexed: frame 105
-    mainAnim.onFrame(105, () => this.callbacks.playSound("jump"));
-
-    // AS frame_118: _parent.removeMovieClip() -> 0-indexed: frame 117
-    mainAnim.stopAt(117);
-
-    this.container.addChild(mainAnim.sprite);
-
-    // sprite_11: Decorative swirl with randomized properties
-    // AS frame_1/DoAction:
-    //   _rotation = random(360)         -> Math.floor(Math.random() * 360)
-    //   t = random(50) + 50             -> Math.floor(Math.random() * 50) + 50
-    //   _xscale = t; _yscale = t        -> scale = t / 100
-    //   if(c != 1) { c = 1; gotoAndPlay(random(27) + 1) } -> startFrame = Math.floor(Math.random() * 27) + 1 (1-indexed -> 0-indexed: Math.floor(Math.random() * 27) + 0, but +1 in AS means frame 1-27 -> 0-indexed: 1-27, but random(27) gives 0-26, +1 gives 1-27 -> 0-indexed: 0-26)
-    // AS gotoAndPlay(random(27) + 1): random(27) = 0..26, +1 = 1..27 (1-indexed) -> 0-indexed: 0..26
-    const rotation = Math.floor(Math.random() * 360);
-    const t = Math.floor(Math.random() * 50) + 50;
-    const asScale = t / 100;
-    const startFrame = Math.floor(Math.random() * 27); // random(27) = 0..26 -> gotoAndPlay(0+1)=1 -> 0-indexed: 0..26
-
-    const sprite11Anchor = calculateAnchor(SPRITE_11_MANIFEST);
-    const swirlAnim = this.anims.add(
-      new FrameAnimatedSprite({
-        textures: textures.getFrames("sprite_11"),
-        anchorX: sprite11Anchor.x,
-        anchorY: sprite11Anchor.y,
-        scale: init.scale * asScale,
-        startFrame,
-      })
-    );
-
-    swirlAnim.sprite.position.set(init.targetX, init.targetY);
-    swirlAnim.sprite.rotation = (rotation * Math.PI) / 180;
-
-    this.container.addChild(swirlAnim.sprite);
+    this.registry.register(sprite11Sym);
+    this.registry.register(this.sprite17Sym);
   }
 
-  update(deltaTime: number): void {
-    if (this.done) {
-      return;
-    }
+  protected onSpellStart(
+    callbacks: SpellCallbacks,
+    context: SpellContext,
+  ): void {
+    // Capture sound callback for use from frame scripts.
+    this.playSound = callbacks.playSound;
 
-    this.anims.update(deltaTime);
-
-    if (this.anims.allStopped()) {
-      this.complete();
-    }
+    // Main timeline frame_2/DoAction.as: stop() — no action needed at runtime
+    // since the outer 2-frame clip stopping is irrelevant once sprite_17 drives
+    // the spell. The implicit frame_1 placement of sprite_17 is replicated here.
+    this.root.attach(this.sprite17Sym, "sprite17", 1, context);
   }
 }

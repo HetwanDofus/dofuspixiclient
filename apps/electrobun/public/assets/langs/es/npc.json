@@ -1,0 +1,6807 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "N": {
+            "d": {
+                "960": {
+                    "n": "Pauquet [WIP]"
+                },
+                "1498": {
+                    "n": "Yapad Panot",
+                    "a": [
+                        3
+                    ]
+                },
+                "1185": {
+                    "n": "Awful Sidimote Trool",
+                    "a": [
+                        3
+                    ]
+                },
+                "1191": {
+                    "n": "Bontarian Militiaman"
+                },
+                "1168": {
+                    "n": "Brakmarian Prisoner",
+                    "a": [
+                        3
+                    ]
+                },
+                "1169": {
+                    "n": "Brakmarian Soldier",
+                    "a": [
+                        3
+                    ]
+                },
+                "1190": {
+                    "n": "Chambermaid",
+                    "a": [
+                        3
+                    ]
+                },
+                "1170": {
+                    "n": "Eccentric Rogue",
+                    "a": [
+                        3
+                    ]
+                },
+                "1207": {
+                    "n": "Fel Misher",
+                    "a": [
+                        3
+                    ]
+                },
+                "1266": {
+                    "n": "Lethaline Sigisbul",
+                    "a": [
+                        3
+                    ]
+                },
+                "1202": {
+                    "n": "Ouginak Guard"
+                },
+                "1187": {
+                    "n": "Pandikaze",
+                    "a": [
+                        3
+                    ]
+                },
+                "1184": {
+                    "n": "Sidimote Trool",
+                    "a": [
+                        3
+                    ]
+                },
+                "1192": {
+                    "n": "Thirsty Demon",
+                    "a": [
+                        3
+                    ]
+                },
+                "1201": {
+                    "n": "Wabbit Wowkew"
+                },
+                "549": {
+                    "n": "???",
+                    "a": [
+                        3
+                    ]
+                },
+                "1277": {
+                    "n": "???",
+                    "a": [
+                        3
+                    ]
+                },
+                "63": {
+                    "n": "Abel Bobel",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "497": {
+                    "n": "Abrazolargo Sixgarras",
+                    "a": [
+                        3
+                    ]
+                },
+                "477": {
+                    "n": "Abuela",
+                    "a": [
+                        3
+                    ]
+                },
+                "391": {
+                    "n": "Abulita Kofre",
+                    "a": [
+                        3
+                    ]
+                },
+                "729": {
+                    "n": "Acidrik Rasgapanza",
+                    "a": [
+                        3
+                    ]
+                },
+                "1031": {
+                    "n": "Adid Pokdleifrev",
+                    "a": [
+                        3
+                    ]
+                },
+                "686": {
+                    "n": "Aermyn 'Braco' Scalptaras"
+                },
+                "980": {
+                    "n": "Agente de Brakmar",
+                    "a": [
+                        3
+                    ]
+                },
+                "1006": {
+                    "n": "Agente del Equipo turist-A",
+                    "a": [
+                        3
+                    ]
+                },
+                "59": {
+                    "n": "Agrid Shakuro",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "601": {
+                    "n": "Ahenn Peuh",
+                    "a": [
+                        3
+                    ]
+                },
+                "458": {
+                    "n": "Aida",
+                    "a": [
+                        3
+                    ]
+                },
+                "1147": {
+                    "n": "Aiel",
+                    "a": [
+                        3
+                    ]
+                },
+                "308": {
+                    "n": "Aigurraf el Secretario Judicial",
+                    "a": [
+                        3
+                    ]
+                },
+                "306": {
+                    "n": "Ala Reyna",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "900": {
+                    "n": "Al Blurrad",
+                    "a": [
+                        3
+                    ]
+                },
+                "243": {
+                    "n": "Alcohólico Anónimo",
+                    "a": [
+                        3
+                    ]
+                },
+                "93": {
+                    "n": "Ale One",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "522": {
+                    "n": "Al Etsop",
+                    "a": [
+                        3
+                    ]
+                },
+                "122": {
+                    "n": "Ali Akel",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "1224": {
+                    "n": "Ali Macbeth",
+                    "a": [
+                        3
+                    ]
+                },
+                "467": {
+                    "n": "Alit Elfminate",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1493": {
+                    "n": "Alizé Riana",
+                    "a": [
+                        3
+                    ]
+                },
+                "749": {
+                    "n": "Alka Traz"
+                },
+                "262": {
+                    "n": "Allen Tokar",
+                    "a": [
+                        3
+                    ]
+                },
+                "471": {
+                    "n": "Allisteria",
+                    "a": [
+                        3
+                    ]
+                },
+                "1043": {
+                    "n": "Alma de Terra Bitya",
+                    "a": [
+                        3
+                    ]
+                },
+                "878": {
+                    "n": "Almae Terna",
+                    "a": [
+                        3
+                    ]
+                },
+                "171": {
+                    "n": "Al Okab",
+                    "a": [
+                        3
+                    ]
+                },
+                "683": {
+                    "n": "Alse Tocreto",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "172": {
+                    "n": "Alshain",
+                    "a": [
+                        3
+                    ]
+                },
+                "177": {
+                    "n": "Altair",
+                    "a": [
+                        3
+                    ]
+                },
+                "174": {
+                    "n": "Altair",
+                    "a": [
+                        3
+                    ]
+                },
+                "95": {
+                    "n": "Alyento Defiera",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "156": {
+                    "n": "Alza Belas",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "875": {
+                    "n": "Amaskao Ganymed",
+                    "a": [
+                        3
+                    ]
+                },
+                "180": {
+                    "n": "Amayiro",
+                    "a": [
+                        3
+                    ]
+                },
+                "620": {
+                    "n": "Amayiro (MAJ)",
+                    "a": [
+                        3
+                    ]
+                },
+                "37": {
+                    "n": "Amino",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "786": {
+                    "n": "Amo de las llaves",
+                    "a": [
+                        1
+                    ]
+                },
+                "1228": {
+                    "n": "Anerrab",
+                    "a": [
+                        3
+                    ]
+                },
+                "316": {
+                    "n": "Angelo Bolle",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "220": {
+                    "n": "Anik Mekh",
+                    "a": [
+                        3
+                    ]
+                },
+                "1023": {
+                    "n": "Anilavaj",
+                    "a": [
+                        3
+                    ]
+                },
+                "1045": {
+                    "n": "Ani N'Hubb",
+                    "a": [
+                        3
+                    ]
+                },
+                "1119": {
+                    "n": "Aniripsa de Brakmar",
+                    "a": [
+                        3
+                    ]
+                },
+                "380": {
+                    "n": "Anis Olog",
+                    "a": [
+                        3
+                    ]
+                },
+                "874": {
+                    "n": "Anta Brok",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "543": {
+                    "n": "Ant Ydoto",
+                    "a": [
+                        3
+                    ]
+                },
+                "876": {
+                    "n": "Apegaho Ganymed",
+                    "a": [
+                        3
+                    ]
+                },
+                "818": {
+                    "n": "Aperirel",
+                    "a": [
+                        3
+                    ]
+                },
+                "805": {
+                    "n": "Aplastator el Aminal",
+                    "a": [
+                        3
+                    ]
+                },
+                "362": {
+                    "n": "Ardilla ambulante",
+                    "a": [
+                        3
+                    ]
+                },
+                "226": {
+                    "n": "Ardilla clarividente",
+                    "a": [
+                        3
+                    ]
+                },
+                "359": {
+                    "n": "Ardilla entrañable",
+                    "a": [
+                        3
+                    ]
+                },
+                "373": {
+                    "n": "Ardilla milagrosa",
+                    "a": [
+                        3
+                    ]
+                },
+                "360": {
+                    "n": "Ardilla sabia",
+                    "a": [
+                        3
+                    ]
+                },
+                "361": {
+                    "n": "Ardilla seductora",
+                    "a": [
+                        3
+                    ]
+                },
+                "825": {
+                    "n": "Argui Ñaño",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "89": {
+                    "n": "Aria Knofob",
+                    "a": [
+                        3
+                    ]
+                },
+                "847": {
+                    "n": "Arietta Frasca",
+                    "a": [
+                        3
+                    ]
+                },
+                "112": {
+                    "n": "Ariz",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "602": {
+                    "n": "Arodallat",
+                    "a": [
+                        3
+                    ]
+                },
+                "193": {
+                    "n": "Aron",
+                    "a": [
+                        3,
+                        4,
+                        2
+                    ]
+                },
+                "733": {
+                    "n": "Arpagnagrobis",
+                    "a": [
+                        3
+                    ]
+                },
+                "975": {
+                    "n": "Arquera equipada",
+                    "a": [
+                        3
+                    ]
+                },
+                "1497": {
+                    "n": "Arras Cenario",
+                    "a": [
+                        3
+                    ]
+                },
+                "945": {
+                    "n": "Arrás Dasfalto",
+                    "a": [
+                        3
+                    ]
+                },
+                "888": {
+                    "n": "Arrobao Ganymed",
+                    "a": [
+                        3
+                    ]
+                },
+                "278": {
+                    "n": "Artok",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "448": {
+                    "n": "Arucol Seh",
+                    "a": [
+                        3
+                    ]
+                },
+                "877": {
+                    "n": "Arvenyr Ganymed",
+                    "a": [
+                        3
+                    ]
+                },
+                "1000": {
+                    "n": "Asesino bontariano",
+                    "a": [
+                        3
+                    ]
+                },
+                "119": {
+                    "n": "Asistente de Otomai",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "1077": {
+                    "n": "Asistente de Otomai",
+                    "a": [
+                        3
+                    ]
+                },
+                "630": {
+                    "n": "Asistente Shaman",
+                    "a": [
+                        3
+                    ]
+                },
+                "1074": {
+                    "n": "Austinamú Flowa",
+                    "a": [
+                        3
+                    ]
+                },
+                "52": {
+                    "n": "Azra Lazarus",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "727": {
+                    "n": "Bajofrente, jefe mercenario",
+                    "a": [
+                        3
+                    ]
+                },
+                "828": {
+                    "n": "Bandido de caminos",
+                    "a": [
+                        3
+                    ]
+                },
+                "1106": {
+                    "n": "Bandido de las llanuras",
+                    "a": [
+                        3
+                    ]
+                },
+                "100": {
+                    "n": "Banquero",
+                    "a": [
+                        3
+                    ]
+                },
+                "670": {
+                    "n": "Bardawa el Comerciante",
+                    "a": [
+                        3
+                    ]
+                },
+                "1118": {
+                    "n": "Barrero Clanco",
+                    "a": [
+                        3
+                    ]
+                },
+                "658": {
+                    "n": "Bawler",
+                    "a": [
+                        3
+                    ]
+                },
+                "661": {
+                    "n": "Bazarwa la Mercante",
+                    "a": [
+                        3
+                    ]
+                },
+                "682": {
+                    "n": "Bebun Tregyto",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "96": {
+                    "n": "Bellus Sel",
+                    "a": [
+                        3
+                    ]
+                },
+                "170": {
+                    "n": "Benn Zin",
+                    "a": [
+                        3
+                    ]
+                },
+                "989": {
+                    "n": "Benoyce",
+                    "a": [
+                        3
+                    ]
+                },
+                "950": {
+                    "n": "Berkzoy"
+                },
+                "439": {
+                    "n": "Bernardo Peul",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "709": {
+                    "n": "Berthawa",
+                    "a": [
+                        3
+                    ]
+                },
+                "300": {
+                    "n": "Bhania Laka",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1034": {
+                    "n": "Bibiblop",
+                    "a": [
+                        3
+                    ]
+                },
+                "767": {
+                    "n": "Bibliotecario"
+                },
+                "235": {
+                    "n": "Bill Yondepasta",
+                    "a": [
+                        3
+                    ]
+                },
+                "663": {
+                    "n": "Binzawa el Comerciante",
+                    "a": [
+                        3
+                    ]
+                },
+                "577": {
+                    "n": "Bish Fone",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "614": {
+                    "n": "Blu Beryl",
+                    "a": [
+                        3
+                    ]
+                },
+                "669": {
+                    "n": "Bobardawa el Comerciante",
+                    "a": [
+                        3
+                    ]
+                },
+                "1230": {
+                    "n": "Bob, el anutrof",
+                    "a": [
+                        3
+                    ]
+                },
+                "906": {
+                    "n": "Bob Zollo",
+                    "a": [
+                        3
+                    ]
+                },
+                "168": {
+                    "n": "Boff Chalon",
+                    "a": [
+                        3
+                    ]
+                },
+                "117": {
+                    "n": "Bolzano Viejamancha",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "1126": {
+                    "n": "Borracho perdido",
+                    "a": [
+                        3
+                    ]
+                },
+                "57": {
+                    "n": "Bowis",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "1015": {
+                    "n": "Breit Gnil",
+                    "a": [
+                        3
+                    ]
+                },
+                "816": {
+                    "n": "Bricky Brock",
+                    "a": [
+                        1
+                    ]
+                },
+                "436": {
+                    "n": "Brigitebardo Peul",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "616": {
+                    "n": "Brookita Pyrita",
+                    "a": [
+                        3
+                    ]
+                },
+                "1066": {
+                    "n": "Brumario, el Señor Macabro",
+                    "a": [
+                        3
+                    ]
+                },
+                "512": {
+                    "n": "Brumen Tinctorias"
+                },
+                "992": {
+                    "n": "Brutus Unratus",
+                    "a": [
+                        3
+                    ]
+                },
+                "82": {
+                    "n": "Bud Spensur",
+                    "a": [
+                        3
+                    ]
+                },
+                "701": {
+                    "n": "Bulbig",
+                    "a": [
+                        3
+                    ]
+                },
+                "279": {
+                    "n": "Bulor",
+                    "a": [
+                        3
+                    ]
+                },
+                "884": {
+                    "n": "Bunito Yabero",
+                    "a": [
+                        3
+                    ]
+                },
+                "672": {
+                    "n": "Bushido Peul",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "645": {
+                    "n": "Buwada",
+                    "a": [
+                        3
+                    ]
+                },
+                "1102": {
+                    "n": "Bwak de fuego",
+                    "a": [
+                        3
+                    ]
+                },
+                "703": {
+                    "n": "Bwon Bargwen",
+                    "a": [
+                        3
+                    ]
+                },
+                "775": {
+                    "n": "Bwork",
+                    "a": [
+                        3
+                    ]
+                },
+                "840": {
+                    "n": "Bworkcelana",
+                    "a": [
+                        3
+                    ]
+                },
+                "851": {
+                    "n": "Bworkecina",
+                    "a": [
+                        3
+                    ]
+                },
+                "842": {
+                    "n": "Bworkespín",
+                    "a": [
+                        3
+                    ]
+                },
+                "832": {
+                    "n": "Bworkidio el Paxifista",
+                    "a": [
+                        3
+                    ]
+                },
+                "413": {
+                    "n": "Bworkitus"
+                },
+                "833": {
+                    "n": "Bworknroll",
+                    "a": [
+                        3
+                    ]
+                },
+                "712": {
+                    "n": "Bworky",
+                    "a": [
+                        3
+                    ]
+                },
+                "363": {
+                    "n": "Caballero Fugard",
+                    "a": [
+                        3
+                    ]
+                },
+                "311": {
+                    "n": "Caballero Hortuen",
+                    "a": [
+                        3
+                    ]
+                },
+                "927": {
+                    "n": "Caballero Negro y Rosa",
+                    "a": [
+                        3
+                    ]
+                },
+                "222": {
+                    "n": "Caballero Neuthr",
+                    "a": [
+                        3
+                    ]
+                },
+                "334": {
+                    "n": "Caballero Nogard",
+                    "a": [
+                        3
+                    ]
+                },
+                "271": {
+                    "n": "Cachocarne",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1051": {
+                    "n": "Cadáver de renegado",
+                    "a": [
+                        3
+                    ]
+                },
+                "270": {
+                    "n": "Camarera demoníaca",
+                    "a": [
+                        3
+                    ]
+                },
+                "889": {
+                    "n": "Camarera de Panzudo",
+                    "a": [
+                        3
+                    ]
+                },
+                "418": {
+                    "n": "Camp Esina",
+                    "a": [
+                        3
+                    ]
+                },
+                "863": {
+                    "n": "Campesino de Incarnam",
+                    "a": [
+                        3
+                    ]
+                },
+                "1056": {
+                    "n": "Candun Mac Leodinas",
+                    "a": [
+                        3
+                    ]
+                },
+                "215": {
+                    "n": "Capitán Alrok",
+                    "a": [
+                        3
+                    ]
+                },
+                "1287": {
+                    "n": "Capitana Morgan",
+                    "a": [
+                        3
+                    ]
+                },
+                "668": {
+                    "n": "Capitán Banwana",
+                    "a": [
+                        3
+                    ]
+                },
+                "854": {
+                    "n": "Capitán de los Kerubimes",
+                    "a": [
+                        3
+                    ]
+                },
+                "942": {
+                    "n": "Capitán Flams",
+                    "a": [
+                        3
+                    ]
+                },
+                "925": {
+                    "n": "Capitán Guarrok",
+                    "a": [
+                        3
+                    ]
+                },
+                "336": {
+                    "n": "Capitán Koda",
+                    "a": [
+                        3
+                    ]
+                },
+                "257": {
+                    "n": "Capitán Malfe",
+                    "a": [
+                        3
+                    ]
+                },
+                "330": {
+                    "n": "Capitán Osarra",
+                    "a": [
+                        3
+                    ]
+                },
+                "1075": {
+                    "n": "Capitan Quuk",
+                    "a": [
+                        3
+                    ]
+                },
+                "798": {
+                    "n": "Capitán Yglú",
+                    "a": [
+                        3
+                    ]
+                },
+                "55": {
+                    "n": "Captain Iglut",
+                    "a": [
+                        3
+                    ]
+                },
+                "804": {
+                    "n": "Captain Starky",
+                    "a": [
+                        3
+                    ]
+                },
+                "1093": {
+                    "n": "Carcelero de Sabina",
+                    "a": [
+                        3
+                    ]
+                },
+                "23": {
+                    "n": "Carlota",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "1124": {
+                    "n": "Carpe oscuro encantado",
+                    "a": [
+                        3
+                    ]
+                },
+                "1458": {
+                    "n": "Cartel usado",
+                    "a": [
+                        3
+                    ]
+                },
+                "61": {
+                    "n": "Casper Van Brushing",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "882": {
+                    "n": "Cazador de Incarnam",
+                    "a": [
+                        3
+                    ]
+                },
+                "26": {
+                    "n": "Celín",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "346": {
+                    "n": "Centinela Asirpetad",
+                    "a": [
+                        3
+                    ]
+                },
+                "344": {
+                    "n": "Centinela Cho Peloso",
+                    "a": [
+                        3
+                    ]
+                },
+                "347": {
+                    "n": "Centinela Emide Rut",
+                    "a": [
+                        3
+                    ]
+                },
+                "343": {
+                    "n": "Centinela Tevi Lup",
+                    "a": [
+                        3
+                    ]
+                },
+                "345": {
+                    "n": "Centinela Yurig Ela",
+                    "a": [
+                        3
+                    ]
+                },
+                "946": {
+                    "n": "Chachka",
+                    "a": [
+                        3
+                    ]
+                },
+                "368": {
+                    "n": "Chafer Arquero"
+                },
+                "175": {
+                    "n": "Chaferloko",
+                    "a": [
+                        3
+                    ]
+                },
+                "1284": {
+                    "n": "Chafer maldito",
+                    "a": [
+                        3
+                    ]
+                },
+                "384": {
+                    "n": "Chaki Triss",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1486": {
+                    "n": "Chantal O'Vigne",
+                    "a": [
+                        3
+                    ]
+                },
+                "164": {
+                    "n": "Cherlook Holmus",
+                    "a": [
+                        3
+                    ]
+                },
+                "596": {
+                    "n": "Chipo Atuf",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1162": {
+                    "n": "Chorizal Adron",
+                    "a": [
+                        3
+                    ]
+                },
+                "1144": {
+                    "n": "Chouwy",
+                    "a": [
+                        3
+                    ]
+                },
+                "815": {
+                    "n": "Chrisis Denervios",
+                    "a": [
+                        3
+                    ]
+                },
+                "473": {
+                    "n": "Chronokwartz",
+                    "a": [
+                        3
+                    ]
+                },
+                "599": {
+                    "n": "Cirle Drawde",
+                    "a": [
+                        3
+                    ]
+                },
+                "199": {
+                    "n": "Clara Dol",
+                    "a": [
+                        3
+                    ]
+                },
+                "958": {
+                    "n": "Classmano",
+                    "a": [
+                        1
+                    ]
+                },
+                "890": {
+                    "n": "Cliente de la Taberna",
+                    "a": [
+                        3
+                    ]
+                },
+                "485": {
+                    "n": "Clint Pot",
+                    "a": [
+                        3
+                    ]
+                },
+                "493": {
+                    "n": "Clyde Peus",
+                    "a": [
+                        3
+                    ]
+                },
+                "937": {
+                    "n": "Cocodrail Dandi",
+                    "a": [
+                        3
+                    ]
+                },
+                "1002": {
+                    "n": "Cofre con símbolos 1",
+                    "a": [
+                        3
+                    ]
+                },
+                "1003": {
+                    "n": "Cofre con símbolos 2",
+                    "a": [
+                        3
+                    ]
+                },
+                "1004": {
+                    "n": "Cofre con símbolos 3",
+                    "a": [
+                        3
+                    ]
+                },
+                "1281": {
+                    "n": "Cofre de ámbar",
+                    "a": [
+                        3
+                    ]
+                },
+                "1280": {
+                    "n": "Cofre de esmeralda",
+                    "a": [
+                        3
+                    ]
+                },
+                "1278": {
+                    "n": "Cofre de rubí",
+                    "a": [
+                        3
+                    ]
+                },
+                "1279": {
+                    "n": "Cofre de zafiro",
+                    "a": [
+                        3
+                    ]
+                },
+                "973": {
+                    "n": "Comandante bontariano Kad",
+                    "a": [
+                        3
+                    ]
+                },
+                "994": {
+                    "n": "Comandante Imagiro",
+                    "a": [
+                        3
+                    ]
+                },
+                "637": {
+                    "n": "Comerciante Estrellita",
+                    "a": [
+                        3
+                    ]
+                },
+                "236": {
+                    "n": "Conny Vini",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "628": {
+                    "n": "Consejero Anshwa",
+                    "a": [
+                        3
+                    ]
+                },
+                "625": {
+                    "n": "Consejero Boyowa",
+                    "a": [
+                        3
+                    ]
+                },
+                "626": {
+                    "n": "Consejero Legawa",
+                    "a": [
+                        3
+                    ]
+                },
+                "629": {
+                    "n": "Consejero Nugawa",
+                    "a": [
+                        3
+                    ]
+                },
+                "627": {
+                    "n": "Consejero Rindswa",
+                    "a": [
+                        3
+                    ]
+                },
+                "893": {
+                    "n": "Consejero Ys Vewybad",
+                    "a": [
+                        3
+                    ]
+                },
+                "849": {
+                    "n": "Contramaestre Ikul",
+                    "a": [
+                        3
+                    ]
+                },
+                "333": {
+                    "n": "Coronel Lyeno",
+                    "a": [
+                        3
+                    ]
+                },
+                "666": {
+                    "n": "Corserawa el Comerciante",
+                    "a": [
+                        3
+                    ]
+                },
+                "908": {
+                    "n": "Criado Doz"
+                },
+                "907": {
+                    "n": "Criado Doz",
+                    "a": [
+                        3
+                    ]
+                },
+                "911": {
+                    "n": "Criado Lelisdanla",
+                    "a": [
+                        3
+                    ]
+                },
+                "129": {
+                    "n": "Criador de Dragohuevos",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "959": {
+                    "n": "Crujidor Pulío Pulío",
+                    "a": [
+                        3
+                    ]
+                },
+                "1111": {
+                    "n": "Cuerbok"
+                },
+                "352": {
+                    "n": "Culpable I",
+                    "a": [
+                        3
+                    ]
+                },
+                "353": {
+                    "n": "Culpable II",
+                    "a": [
+                        3
+                    ]
+                },
+                "354": {
+                    "n": "Culpable III",
+                    "a": [
+                        3
+                    ]
+                },
+                "379": {
+                    "n": "Dakí Dayí",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "903": {
+                    "n": "Dama de la corte",
+                    "a": [
+                        3
+                    ]
+                },
+                "318": {
+                    "n": "Danathor",
+                    "a": [
+                        3
+                    ]
+                },
+                "957": {
+                    "n": "Daniel Niebla",
+                    "a": [
+                        3
+                    ]
+                },
+                "1150": {
+                    "n": "Danly Derssan",
+                    "a": [
+                        3
+                    ]
+                },
+                "265": {
+                    "n": "Dante Sion",
+                    "a": [
+                        3
+                    ]
+                },
+                "673": {
+                    "n": "Dark Vlad",
+                    "a": [
+                        3
+                    ]
+                },
+                "87": {
+                    "n": "Ded Asolas",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "747": {
+                    "n": "Degui Ketatriste",
+                    "a": [
+                        3
+                    ]
+                },
+                "385": {
+                    "n": "Deneb Okab",
+                    "a": [
+                        3
+                    ]
+                },
+                "868": {
+                    "n": "Deperta Delsuenio",
+                    "a": [
+                        3
+                    ]
+                },
+                "1235": {
+                    "n": "Dhes Bío",
+                    "a": [
+                        3
+                    ]
+                },
+                "267": {
+                    "n": "Diabalú",
+                    "a": [
+                        3
+                    ]
+                },
+                "763": {
+                    "n": "Diamantina",
+                    "a": [
+                        3
+                    ]
+                },
+                "1166": {
+                    "n": "Dikaprio",
+                    "a": [
+                        3
+                    ]
+                },
+                "227": {
+                    "n": "Dike Tarak",
+                    "a": [
+                        3
+                    ]
+                },
+                "482": {
+                    "n": "Dió Myo",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "607": {
+                    "n": "Discípulo Tymador"
+                },
+                "855": {
+                    "n": "Diskre Tonano",
+                    "a": [
+                        3
+                    ]
+                },
+                "395": {
+                    "n": "Disné Lan",
+                    "a": [
+                        3
+                    ]
+                },
+                "1453": {
+                    "n": "Disné Lan",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "684": {
+                    "n": "Divad Dleifrepok",
+                    "a": [
+                        3
+                    ]
+                },
+                "490": {
+                    "n": "Diver Birel",
+                    "a": [
+                        3
+                    ]
+                },
+                "1067": {
+                    "n": "Djaul, el Gran Chapoteador",
+                    "a": [
+                        3
+                    ]
+                },
+                "105": {
+                    "n": "Djonz",
+                    "a": [
+                        3
+                    ]
+                },
+                "933": {
+                    "n": "Doctor Morros",
+                    "a": [
+                        3
+                    ]
+                },
+                "930": {
+                    "n": "Doctor Niet",
+                    "a": [
+                        3
+                    ]
+                },
+                "1146": {
+                    "n": "Dolan Sianrical",
+                    "a": [
+                        3
+                    ]
+                },
+                "691": {
+                    "n": "Dollarawan El Banquero",
+                    "a": [
+                        3
+                    ]
+                },
+                "367": {
+                    "n": "Domen",
+                    "a": [
+                        3
+                    ]
+                },
+                "185": {
+                    "n": "Doña Claudia",
+                    "a": [
+                        3
+                    ]
+                },
+                "820": {
+                    "n": "Doña El",
+                    "a": [
+                        3
+                    ]
+                },
+                "819": {
+                    "n": "Don El",
+                    "a": [
+                        3
+                    ]
+                },
+                "178": {
+                    "n": "Don Huan",
+                    "a": [
+                        3
+                    ]
+                },
+                "205": {
+                    "n": "Dora Modera"
+                },
+                "1076": {
+                    "n": "Doro le Black",
+                    "a": [
+                        7,
+                        3
+                    ]
+                },
+                "223": {
+                    "n": "Doug Tulvin",
+                    "a": [
+                        3
+                    ]
+                },
+                "414": {
+                    "n": "Dragominotorus"
+                },
+                "125": {
+                    "n": "Drogho Cralasar",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "312": {
+                    "n": "Dulce Koneja",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "328": {
+                    "n": "Dyseo Atolmundo",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1039": {
+                    "n": "Ecidni",
+                    "a": [
+                        3
+                    ]
+                },
+                "736": {
+                    "n": "Edgg Komb",
+                    "a": [
+                        3
+                    ]
+                },
+                "440": {
+                    "n": "Edmundo Peul",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "47": {
+                    "n": "Edrige Valling",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "1231": {
+                    "n": "Edward Yadese Guridá",
+                    "a": [
+                        3
+                    ]
+                },
+                "879": {
+                    "n": "Eek Mite",
+                    "a": [
+                        3
+                    ]
+                },
+                "1013": {
+                    "n": "Ekla Bynot",
+                    "a": [
+                        3
+                    ]
+                },
+                "965": {
+                    "n": "Ekusoyk Ubnan",
+                    "a": [
+                        3
+                    ]
+                },
+                "813": {
+                    "n": "El Amo de las llaves",
+                    "a": [
+                        3
+                    ]
+                },
+                "1452": {
+                    "n": "Elanu Doc",
+                    "a": [
+                        3
+                    ]
+                },
+                "955": {
+                    "n": "Elena Meyer",
+                    "a": [
+                        3
+                    ]
+                },
+                "781": {
+                    "n": "El Escarador",
+                    "a": [
+                        3
+                    ]
+                },
+                "1103": {
+                    "n": "Eliebwe Palp Atynte",
+                    "a": [
+                        3
+                    ]
+                },
+                "425": {
+                    "n": "Elisa Granito",
+                    "a": [
+                        3
+                    ]
+                },
+                "501": {
+                    "n": "El Llenador",
+                    "a": [
+                        3
+                    ]
+                },
+                "656": {
+                    "n": "Elogio",
+                    "a": [
+                        3
+                    ]
+                },
+                "744": {
+                    "n": "Eloko Osopeloso",
+                    "a": [
+                        3
+                    ]
+                },
+                "632": {
+                    "n": "El Pandawelo",
+                    "a": [
+                        3
+                    ]
+                },
+                "426": {
+                    "n": "Eluhisa Valing",
+                    "a": [
+                        3
+                    ]
+                },
+                "986": {
+                    "n": "Eluosteeq",
+                    "a": [
+                        3
+                    ]
+                },
+                "680": {
+                    "n": "Elviana Tirips",
+                    "a": [
+                        3
+                    ]
+                },
+                "46": {
+                    "n": "Elya Wood",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "103": {
+                    "n": "Ely Woullack",
+                    "a": [
+                        3
+                    ]
+                },
+                "1127": {
+                    "n": "Ema Sacre",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "140": {
+                    "n": "Emilia la Zolla",
+                    "a": [
+                        3
+                    ]
+                },
+                "432": {
+                    "n": "Emilia Yuh",
+                    "a": [
+                        3
+                    ]
+                },
+                "157": {
+                    "n": "Empleado del Equipo turist-A",
+                    "a": [
+                        3
+                    ]
+                },
+                "284": {
+                    "n": "Enamira",
+                    "a": [
+                        3
+                    ]
+                },
+                "1009": {
+                    "n": "Encyn Ador",
+                    "a": [
+                        3
+                    ]
+                },
+                "503": {
+                    "n": "Enileda",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "857": {
+                    "n": "Enin Postor",
+                    "a": [
+                        3
+                    ]
+                },
+                "234": {
+                    "n": "Enue Chupac"
+                },
+                "124": {
+                    "n": "Eowina Frasca",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "206": {
+                    "n": "Erem Dran",
+                    "a": [
+                        3
+                    ]
+                },
+                "1036": {
+                    "n": "Ernesto Tunda",
+                    "a": [
+                        3
+                    ]
+                },
+                "449": {
+                    "n": "Erty Trapchet",
+                    "a": [
+                        3
+                    ]
+                },
+                "745": {
+                    "n": "Escualo El Rojo",
+                    "a": [
+                        3
+                    ]
+                },
+                "762": {
+                    "n": "Esmeralda",
+                    "a": [
+                        3
+                    ]
+                },
+                "981": {
+                    "n": "Espía a la fuga",
+                    "a": [
+                        3
+                    ]
+                },
+                "1047": {
+                    "n": "Espía brakmariana",
+                    "a": [
+                        3
+                    ]
+                },
+                "979": {
+                    "n": "Espía herido",
+                    "a": [
+                        3
+                    ]
+                },
+                "993": {
+                    "n": "Espíritu de Luz",
+                    "a": [
+                        3
+                    ]
+                },
+                "1225": {
+                    "n": "Essel Dawa",
+                    "a": [
+                        3
+                    ]
+                },
+                "1052": {
+                    "n": "Estatuilla de Sumens",
+                    "a": [
+                        3
+                    ]
+                },
+                "969": {
+                    "n": "Estratega de Bonta",
+                    "a": [
+                        3
+                    ]
+                },
+                "43": {
+                    "n": "Etenipse Tik",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "320": {
+                    "n": "Etreuf Yoson",
+                    "a": [
+                        3
+                    ]
+                },
+                "962": {
+                    "n": "Exoram",
+                    "a": [
+                        3
+                    ]
+                },
+                "498": {
+                    "n": "Fallanster",
+                    "a": [
+                        3
+                    ]
+                },
+                "665": {
+                    "n": "Falsowa el Comerciante",
+                    "a": [
+                        3
+                    ]
+                },
+                "999": {
+                    "n": "Fantasma de Fearmac",
+                    "a": [
+                        3
+                    ]
+                },
+                "53": {
+                    "n": "Farle Ingals",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "830": {
+                    "n": "Feldz Paf",
+                    "a": [
+                        3
+                    ]
+                },
+                "430": {
+                    "n": "Felenia Taciturna",
+                    "a": [
+                        3
+                    ]
+                },
+                "1232": {
+                    "n": "Félix Nawidad",
+                    "a": [
+                        3
+                    ]
+                },
+                "766": {
+                    "n": "Fidji Merlín",
+                    "a": [
+                        3
+                    ]
+                },
+                "40": {
+                    "n": "Filgar Feel",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "188": {
+                    "n": "Finche Aticus",
+                    "a": [
+                        3
+                    ]
+                },
+                "213": {
+                    "n": "Fir Mess",
+                    "a": [
+                        3
+                    ]
+                },
+                "936": {
+                    "n": "Flip Flap",
+                    "a": [
+                        3
+                    ]
+                },
+                "191": {
+                    "n": "Flora Anuaf",
+                    "a": [
+                        3
+                    ]
+                },
+                "631": {
+                    "n": "Florawa la Comerciante",
+                    "a": [
+                        3
+                    ]
+                },
+                "415": {
+                    "n": "Flortus Riktus",
+                    "a": [
+                        3
+                    ]
+                },
+                "396": {
+                    "n": "For Inkas",
+                    "a": [
+                        3
+                    ]
+                },
+                "403": {
+                    "n": "Frank Genis",
+                    "a": [
+                        3
+                    ]
+                },
+                "98": {
+                    "n": "Franki",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "823": {
+                    "n": "Fred Austero",
+                    "a": [
+                        3
+                    ]
+                },
+                "759": {
+                    "n": "Frivolak",
+                    "a": [
+                        3
+                    ]
+                },
+                "899": {
+                    "n": "Frost His",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "258": {
+                    "n": "Fryda Garra-Nocturna",
+                    "a": [
+                        3
+                    ]
+                },
+                "784": {
+                    "n": "Fued",
+                    "a": [
+                        3
+                    ]
+                },
+                "1282": {
+                    "n": "Fuerza extraña",
+                    "a": [
+                        3
+                    ]
+                },
+                "1283": {
+                    "n": "Fuerza extraña",
+                    "a": [
+                        3
+                    ]
+                },
+                "769": {
+                    "n": "Fulgencio Ramiro",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "285": {
+                    "n": "Fulsura",
+                    "a": [
+                        3
+                    ]
+                },
+                "456": {
+                    "n": "Fuu Yi",
+                    "a": [
+                        3
+                    ]
+                },
+                "225": {
+                    "n": "Gai Tan",
+                    "a": [
+                        3
+                    ]
+                },
+                "865": {
+                    "n": "Galileo Maginífico",
+                    "a": [
+                        3
+                    ]
+                },
+                "1487": {
+                    "n": "Ganadero",
+                    "a": [
+                        1
+                    ]
+                },
+                "378": {
+                    "n": "Ganymed",
+                    "a": [
+                        3
+                    ]
+                },
+                "1022": {
+                    "n": "Gardián de la Prisión Kebra",
+                    "a": [
+                        3
+                    ]
+                },
+                "505": {
+                    "n": "Gasdora",
+                    "a": [
+                        3
+                    ]
+                },
+                "540": {
+                    "n": "Gazogeno",
+                    "a": [
+                        3
+                    ]
+                },
+                "542": {
+                    "n": "Gazolina",
+                    "a": [
+                        3
+                    ]
+                },
+                "538": {
+                    "n": "Gazpaxo",
+                    "a": [
+                        3
+                    ]
+                },
+                "541": {
+                    "n": "Gazteropod",
+                    "a": [
+                        3
+                    ]
+                },
+                "374": {
+                    "n": "Gelatina Real Azul",
+                    "a": [
+                        3
+                    ]
+                },
+                "376": {
+                    "n": "Gelatina Real de Fresa",
+                    "a": [
+                        3
+                    ]
+                },
+                "375": {
+                    "n": "Gelatina Real de Limón",
+                    "a": [
+                        3
+                    ]
+                },
+                "377": {
+                    "n": "Gelatina Real de Menta",
+                    "a": [
+                        3
+                    ]
+                },
+                "785": {
+                    "n": "George Cash",
+                    "a": [
+                        3
+                    ]
+                },
+                "209": {
+                    "n": "Gigi"
+                },
+                "864": {
+                    "n": "Gil Caper",
+                    "a": [
+                        3
+                    ]
+                },
+                "383": {
+                    "n": "Girle Pylot",
+                    "a": [
+                        3
+                    ]
+                },
+                "836": {
+                    "n": "Gobacho Troker",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "834": {
+                    "n": "Gobatchef",
+                    "a": [
+                        3
+                    ]
+                },
+                "337": {
+                    "n": "Goblin",
+                    "a": [
+                        3
+                    ]
+                },
+                "845": {
+                    "n": "Gobriel",
+                    "a": [
+                        3
+                    ]
+                },
+                "852": {
+                    "n": "Gobrosa",
+                    "a": [
+                        3
+                    ]
+                },
+                "853": {
+                    "n": "Gobulador",
+                    "a": [
+                        3
+                    ]
+                },
+                "332": {
+                    "n": "Goldo Arak"
+                },
+                "416": {
+                    "n": "Gorko Tokawebos",
+                    "a": [
+                        3
+                    ]
+                },
+                "217": {
+                    "n": "Grace Malcean",
+                    "a": [
+                        3
+                    ]
+                },
+                "62": {
+                    "n": "Graham Finam",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "340": {
+                    "n": "Greg Augos"
+                },
+                "132": {
+                    "n": "Gregor Mendal",
+                    "a": [
+                        3
+                    ]
+                },
+                "1156": {
+                    "n": "Greu Nouille",
+                    "a": [
+                        3
+                    ]
+                },
+                "1110": {
+                    "n": "Grimpill",
+                    "a": [
+                        3
+                    ]
+                },
+                "302": {
+                    "n": "Gringa"
+                },
+                "304": {
+                    "n": "Gringi"
+                },
+                "301": {
+                    "n": "Gringo"
+                },
+                "303": {
+                    "n": "Gringu"
+                },
+                "80": {
+                    "n": "Grizmoh Guay",
+                    "a": [
+                        3
+                    ]
+                },
+                "751": {
+                    "n": "Guan Tánamo"
+                },
+                "1019": {
+                    "n": "Guarda Nujo",
+                    "a": [
+                        3
+                    ]
+                },
+                "643": {
+                    "n": "Guardia Airedala",
+                    "a": [
+                        3
+                    ]
+                },
+                "350": {
+                    "n": "Guardia Aybu Ganslante",
+                    "a": [
+                        3
+                    ]
+                },
+                "1018": {
+                    "n": "Guardia Crujidor",
+                    "a": [
+                        3
+                    ]
+                },
+                "1114": {
+                    "n": "Guardia de convoy"
+                },
+                "1112": {
+                    "n": "Guardia de la torre",
+                    "a": [
+                        3
+                    ]
+                },
+                "1021": {
+                    "n": "Guardia del convoy",
+                    "a": [
+                        3
+                    ]
+                },
+                "1130": {
+                    "n": "Guardia de paisano",
+                    "a": [
+                        3
+                    ]
+                },
+                "349": {
+                    "n": "Guardia Herviss Ganslante",
+                    "a": [
+                        3
+                    ]
+                },
+                "621": {
+                    "n": "Guardia Jarritawa",
+                    "a": [
+                        3
+                    ]
+                },
+                "913": {
+                    "n": "Guardia Montao",
+                    "a": [
+                        8,
+                        3
+                    ]
+                },
+                "606": {
+                    "n": "Guardián",
+                    "a": [
+                        3
+                    ]
+                },
+                "358": {
+                    "n": "Guardián Azo Brut",
+                    "a": [
+                        3
+                    ]
+                },
+                "799": {
+                    "n": "Guardián de la mazmorra de las ratas de Bonta",
+                    "a": [
+                        3
+                    ]
+                },
+                "800": {
+                    "n": "Guardián de la mazmorra de las ratas de Brakmar",
+                    "a": [
+                        3
+                    ]
+                },
+                "1079": {
+                    "n": "Guardián de la Torre",
+                    "a": [
+                        3
+                    ]
+                },
+                "78": {
+                    "n": "Guardián del Kanojedo",
+                    "a": [
+                        3
+                    ]
+                },
+                "1097": {
+                    "n": "Guardián del pozos",
+                    "a": [
+                        3
+                    ]
+                },
+                "928": {
+                    "n": "Guardián del Puente de la Muerte",
+                    "a": [
+                        3
+                    ]
+                },
+                "754": {
+                    "n": "Guardián Koalak",
+                    "a": [
+                        3
+                    ]
+                },
+                "348": {
+                    "n": "Guardia Pritt Ganslante",
+                    "a": [
+                        3
+                    ]
+                },
+                "676": {
+                    "n": "Guardia Suburbano",
+                    "a": [
+                        3
+                    ]
+                },
+                "675": {
+                    "n": "Guardia Tono Portwa",
+                    "a": [
+                        3
+                    ]
+                },
+                "148": {
+                    "n": "Guawdia Dofus",
+                    "a": [
+                        3
+                    ]
+                },
+                "149": {
+                    "n": "Guawdián Dofus",
+                    "a": [
+                        3
+                    ]
+                },
+                "147": {
+                    "n": "Guawdia Wabbit",
+                    "a": [
+                        3
+                    ]
+                },
+                "746": {
+                    "n": "Guemado Elwapo",
+                    "a": [
+                        3
+                    ]
+                },
+                "1113": {
+                    "n": "Guerl",
+                    "a": [
+                        3
+                    ]
+                },
+                "255": {
+                    "n": "Guerrero Bishom Pot",
+                    "a": [
+                        3
+                    ]
+                },
+                "246": {
+                    "n": "Guerrero Brank Thoof",
+                    "a": [
+                        3
+                    ]
+                },
+                "251": {
+                    "n": "Guerrero Haco Norss",
+                    "a": [
+                        3
+                    ]
+                },
+                "250": {
+                    "n": "Guerrero Jack el Eruptador",
+                    "a": [
+                        3
+                    ]
+                },
+                "249": {
+                    "n": "Guerrero Kad Maxi",
+                    "a": [
+                        3
+                    ]
+                },
+                "253": {
+                    "n": "Guerrero Nager Nacmeil",
+                    "a": [
+                        3
+                    ]
+                },
+                "247": {
+                    "n": "Guerrero Seta Bnamrom",
+                    "a": [
+                        3
+                    ]
+                },
+                "254": {
+                    "n": "Guerrero Sivart Bicelk",
+                    "a": [
+                        3
+                    ]
+                },
+                "248": {
+                    "n": "Guerrero Tink Berval",
+                    "a": [
+                        3
+                    ]
+                },
+                "252": {
+                    "n": "Guerrero Xal Grueso",
+                    "a": [
+                        3
+                    ]
+                },
+                "370": {
+                    "n": "Guf Ruho",
+                    "a": [
+                        3
+                    ]
+                },
+                "1218": {
+                    "n": "Gúltar",
+                    "a": [
+                        3
+                    ]
+                },
+                "1216": {
+                    "n": "Gúltar",
+                    "a": [
+                        3
+                    ]
+                },
+                "1269": {
+                    "n": "Gúltar",
+                    "a": [
+                        3
+                    ]
+                },
+                "609": {
+                    "n": "Guy San Nolan",
+                    "a": [
+                        3
+                    ]
+                },
+                "1083": {
+                    "n": "Gwace Keli",
+                    "a": [
+                        3
+                    ]
+                },
+                "545": {
+                    "n": "Gwenolaz Barnamuza",
+                    "a": [
+                        3
+                    ]
+                },
+                "756": {
+                    "n": "Gylygil",
+                    "a": [
+                        3
+                    ]
+                },
+                "281": {
+                    "n": "Gymy Ro",
+                    "a": [
+                        3
+                    ]
+                },
+                "1223": {
+                    "n": "Hada Risitas",
+                    "a": [
+                        3
+                    ]
+                },
+                "435": {
+                    "n": "Haikido Peul",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "779": {
+                    "n": "Halda Moccione",
+                    "a": [
+                        3
+                    ]
+                },
+                "58": {
+                    "n": "Hannibol Smis",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "194": {
+                    "n": "Han Torcha",
+                    "a": [
+                        3
+                    ]
+                },
+                "740": {
+                    "n": "Haraquiri",
+                    "a": [
+                        3
+                    ]
+                },
+                "60": {
+                    "n": "Harrys Corb",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "127": {
+                    "n": "Harry Stóteles",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1062": {
+                    "n": "Hécate la Mistificadora",
+                    "a": [
+                        3
+                    ]
+                },
+                "795": {
+                    "n": "Héctor Nawidad",
+                    "a": [
+                        3
+                    ]
+                },
+                "1072": {
+                    "n": "Hel Baric",
+                    "a": [
+                        3
+                    ]
+                },
+                "176": {
+                    "n": "Hel Munster",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "446": {
+                    "n": "Henual"
+                },
+                "646": {
+                    "n": "Henual",
+                    "a": [
+                        3
+                    ]
+                },
+                "655": {
+                    "n": "Henual",
+                    "a": [
+                        3
+                    ]
+                },
+                "782": {
+                    "n": "Herman Kondonito"
+                },
+                "192": {
+                    "n": "Hersa Garra Oscura",
+                    "a": [
+                        3
+                    ]
+                },
+                "214": {
+                    "n": "Hete Renelt",
+                    "a": [
+                        3
+                    ]
+                },
+                "1099": {
+                    "n": "Highlambert",
+                    "a": [
+                        3
+                    ]
+                },
+                "398": {
+                    "n": "Hinss Hert",
+                    "a": [
+                        3
+                    ]
+                },
+                "429": {
+                    "n": "Hirpina Fekalamidad",
+                    "a": [
+                        3
+                    ]
+                },
+                "369": {
+                    "n": "Hoticili Ufot",
+                    "a": [
+                        3
+                    ]
+                },
+                "489": {
+                    "n": "Howard el Siperonada",
+                    "a": [
+                        3
+                    ]
+                },
+                "79": {
+                    "n": "Hugo Bello",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "92": {
+                    "n": "Hurrax Hipipe",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "314": {
+                    "n": "Huta Wuit",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1055": {
+                    "n": "Hyrkul",
+                    "a": [
+                        3
+                    ]
+                },
+                "290": {
+                    "n": "Iakos",
+                    "a": [
+                        3
+                    ]
+                },
+                "325": {
+                    "n": "Ichassi Djaul",
+                    "a": [
+                        3
+                    ]
+                },
+                "1078": {
+                    "n": "Ihsiga Kimay",
+                    "a": [
+                        3
+                    ]
+                },
+                "1229": {
+                    "n": "Imanol Biliaria",
+                    "a": [
+                        3
+                    ]
+                },
+                "897": {
+                    "n": "Intendente San Lavals",
+                    "a": [
+                        3
+                    ]
+                },
+                "1165": {
+                    "n": "Itúriko",
+                    "a": [
+                        3
+                    ]
+                },
+                "317": {
+                    "n": "Ixa Mustam"
+                },
+                "291": {
+                    "n": "Jabalí de las llanuras"
+                },
+                "810": {
+                    "n": "Jalateater",
+                    "a": [
+                        3
+                    ]
+                },
+                "411": {
+                    "n": "Jalatocornus"
+                },
+                "531": {
+                    "n": "Jalató domesticado",
+                    "a": [
+                        3
+                    ]
+                },
+                "532": {
+                    "n": "Jalató domesticado",
+                    "a": [
+                        3
+                    ]
+                },
+                "530": {
+                    "n": "Jalató domesticado",
+                    "a": [
+                        3
+                    ]
+                },
+                "533": {
+                    "n": "Jalató domesticado",
+                    "a": [
+                        3
+                    ]
+                },
+                "529": {
+                    "n": "Jalató domesticado",
+                    "a": [
+                        3
+                    ]
+                },
+                "1054": {
+                    "n": "Jalawinha",
+                    "a": [
+                        3
+                    ]
+                },
+                "1140": {
+                    "n": "Jancló Padam",
+                    "a": [
+                        3
+                    ]
+                },
+                "1456": {
+                    "n": "Jaula"
+                },
+                "1457": {
+                    "n": "Jaula vacia"
+                },
+                "1120": {
+                    "n": "Jean-Bworknouille",
+                    "a": [
+                        3
+                    ]
+                },
+                "844": {
+                    "n": "Jefe de Bworkesta",
+                    "a": [
+                        3
+                    ]
+                },
+                "1101": {
+                    "n": "Jefe del convoy",
+                    "a": [
+                        3
+                    ]
+                },
+                "968": {
+                    "n": "Jefe de los espías",
+                    "a": [
+                        3
+                    ]
+                },
+                "1094": {
+                    "n": "Jefe de los ladrones",
+                    "a": [
+                        3
+                    ]
+                },
+                "1129": {
+                    "n": "Jefe de los renegados bontarianos",
+                    "a": [
+                        3
+                    ]
+                },
+                "338": {
+                    "n": "Jefe Miliciano"
+                },
+                "638": {
+                    "n": "Jefe Pandikaze",
+                    "a": [
+                        3
+                    ]
+                },
+                "202": {
+                    "n": "Jett Marte",
+                    "a": [
+                        3
+                    ]
+                },
+                "323": {
+                    "n": "Jiay Djaul",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "476": {
+                    "n": "Jim Fleps",
+                    "a": [
+                        3
+                    ]
+                },
+                "114": {
+                    "n": "Jimmy Rasta",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "1016": {
+                    "n": "Jiva la Salvaje",
+                    "a": [
+                        3
+                    ]
+                },
+                "949": {
+                    "n": "Jock"
+                },
+                "481": {
+                    "n": "Joe Lamula",
+                    "a": [
+                        3
+                    ]
+                },
+                "824": {
+                    "n": "Jorg Dy",
+                    "a": [
+                        3
+                    ]
+                },
+                "797": {
+                    "n": "Josefa Taplana",
+                    "a": [
+                        3
+                    ]
+                },
+                "934": {
+                    "n": "Juana Morros",
+                    "a": [
+                        3
+                    ]
+                },
+                "932": {
+                    "n": "Juan Niet",
+                    "a": [
+                        3
+                    ]
+                },
+                "433": {
+                    "n": "Juhdo Peul",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "310": {
+                    "n": "Kaffra Kyper",
+                    "a": [
+                        3
+                    ]
+                },
+                "758": {
+                    "n": "Kakolak",
+                    "a": [
+                        3
+                    ]
+                },
+                "1024": {
+                    "n": "Kalfen",
+                    "a": [
+                        3
+                    ]
+                },
+                "817": {
+                    "n": "Kal Vicie",
+                    "a": [
+                        3
+                    ]
+                },
+                "167": {
+                    "n": "Kande Boffler",
+                    "a": [
+                        3
+                    ]
+                },
+                "594": {
+                    "n": "Kania Depeskar",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "155": {
+                    "n": "Kaníbola cocinero",
+                    "a": [
+                        3
+                    ]
+                },
+                "159": {
+                    "n": "Kaníbola máscara",
+                    "a": [
+                        3
+                    ]
+                },
+                "1012": {
+                    "n": "Kapi Ta'han",
+                    "a": [
+                        3
+                    ]
+                },
+                "97": {
+                    "n": "Karim Pochypich",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "187": {
+                    "n": "Karne Dekanión",
+                    "a": [
+                        3
+                    ]
+                },
+                "739": {
+                    "n": "Kartier Tremai",
+                    "a": [
+                        3
+                    ]
+                },
+                "161": {
+                    "n": "Kar Ybe",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "1109": {
+                    "n": "Kat Guoman",
+                    "a": [
+                        3
+                    ]
+                },
+                "410": {
+                    "n": "Ka Tuor",
+                    "a": [
+                        3
+                    ]
+                },
+                "1082": {
+                    "n": "Kazanowabbit",
+                    "a": [
+                        3
+                    ]
+                },
+                "778": {
+                    "n": "Kazy Ingals",
+                    "a": [
+                        3
+                    ]
+                },
+                "261": {
+                    "n": "Kazzy Duno",
+                    "a": [
+                        3
+                    ]
+                },
+                "104": {
+                    "n": "Keck Demoras",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "51": {
+                    "n": "Kelog Korflex",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "990": {
+                    "n": "Kerenah",
+                    "a": [
+                        3
+                    ]
+                },
+                "444": {
+                    "n": "Kib Roca",
+                    "a": [
+                        3
+                    ]
+                },
+                "154": {
+                    "n": "Kib Roca",
+                    "a": [
+                        3
+                    ]
+                },
+                "956": {
+                    "n": "Kimiya",
+                    "a": [
+                        3
+                    ]
+                },
+                "939": {
+                    "n": "Kito",
+                    "a": [
+                        3
+                    ]
+                },
+                "771": {
+                    "n": "Klako",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1163": {
+                    "n": "Klik Klak",
+                    "a": [
+                        3
+                    ]
+                },
+                "808": {
+                    "n": "Koka Dekolak",
+                    "a": [
+                        3
+                    ]
+                },
+                "288": {
+                    "n": "Koli",
+                    "a": [
+                        3
+                    ]
+                },
+                "938": {
+                    "n": "Kolibríe",
+                    "a": [
+                        3
+                    ]
+                },
+                "502": {
+                    "n": "Kompra Varatho",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "256": {
+                    "n": "Kosuke Ichazum",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "858": {
+                    "n": "Kotorra Nana",
+                    "a": [
+                        3
+                    ]
+                },
+                "321": {
+                    "n": "Krachan Porterr",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "772": {
+                    "n": "Krakot",
+                    "a": [
+                        3
+                    ]
+                },
+                "831": {
+                    "n": "Krazybwork",
+                    "a": [
+                        3
+                    ]
+                },
+                "322": {
+                    "n": "Kro Burk",
+                    "a": [
+                        3
+                    ]
+                },
+                "954": {
+                    "n": "Kroula",
+                    "a": [
+                        3
+                    ]
+                },
+                "608": {
+                    "n": "Krowbe Jondon",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "964": {
+                    "n": "Kungfue Ivolvyó",
+                    "a": [
+                        3
+                    ]
+                },
+                "777": {
+                    "n": "Kurk Ingals",
+                    "a": [
+                        3
+                    ]
+                },
+                "121": {
+                    "n": "Kusen Trengón",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "94": {
+                    "n": "Kwaker Vans",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "324": {
+                    "n": "Kwoker Djaul"
+                },
+                "515": {
+                    "n": "La ardilla Peazo Beyota"
+                },
+                "1081": {
+                    "n": "La Bella Mordiente",
+                    "a": [
+                        3
+                    ]
+                },
+                "947": {
+                    "n": "Lack"
+                },
+                "1134": {
+                    "n": "Ladrón de Brakmar",
+                    "a": [
+                        3
+                    ]
+                },
+                "1095": {
+                    "n": "Ladrón de Brakmar",
+                    "a": [
+                        3
+                    ]
+                },
+                "1133": {
+                    "n": "Ladrón de Brakmar",
+                    "a": [
+                        3
+                    ]
+                },
+                "1131": {
+                    "n": "Ladrón de Brakmar",
+                    "a": [
+                        3
+                    ]
+                },
+                "988": {
+                    "n": "Lagren Doowile",
+                    "a": [
+                        3
+                    ]
+                },
+                "649": {
+                    "n": "Lanma",
+                    "a": [
+                        3
+                    ]
+                },
+                "263": {
+                    "n": "Lansy Odsson"
+                },
+                "1135": {
+                    "n": "La Pesada",
+                    "a": [
+                        3
+                    ]
+                },
+                "99": {
+                    "n": "Lara Soft",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "207": {
+                    "n": "Larik Oubiac",
+                    "a": [
+                        3
+                    ]
+                },
+                "201": {
+                    "n": "Larry Poller",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "600": {
+                    "n": "Latem Odasep",
+                    "a": [
+                        3
+                    ]
+                },
+                "35": {
+                    "n": "Laura Soho",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "871": {
+                    "n": "Laura Té",
+                    "a": [
+                        3
+                    ]
+                },
+                "200": {
+                    "n": "Layol Onidalap",
+                    "a": [
+                        3
+                    ]
+                },
+                "106": {
+                    "n": "Lee Aibig",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "881": {
+                    "n": "Leñador de Incarnam",
+                    "a": [
+                        3
+                    ]
+                },
+                "657": {
+                    "n": "Lern",
+                    "a": [
+                        3
+                    ]
+                },
+                "331": {
+                    "n": "Libah Yoson",
+                    "a": [
+                        3
+                    ]
+                },
+                "366": {
+                    "n": "Líder Rocopal",
+                    "a": [
+                        3
+                    ]
+                },
+                "136": {
+                    "n": "Lily",
+                    "a": [
+                        3
+                    ]
+                },
+                "134": {
+                    "n": "Lily",
+                    "a": [
+                        3
+                    ]
+                },
+                "1037": {
+                    "n": "Lina Vortald",
+                    "a": [
+                        3
+                    ]
+                },
+                "81": {
+                    "n": "Linda Maliwhú",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "765": {
+                    "n": "Liroye Merlín",
+                    "a": [
+                        3
+                    ]
+                },
+                "431": {
+                    "n": "Lisa Modas",
+                    "a": [
+                        3
+                    ]
+                },
+                "394": {
+                    "n": "Litecia Portiz",
+                    "a": [
+                        3
+                    ]
+                },
+                "139": {
+                    "n": "Logel el Zollo",
+                    "a": [
+                        3
+                    ]
+                },
+                "142": {
+                    "n": "Logel el Zollo",
+                    "a": [
+                        3
+                    ]
+                },
+                "115": {
+                    "n": "Loh Doh",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "487": {
+                    "n": "Lolo Anchoa",
+                    "a": [
+                        3
+                    ]
+                },
+                "412": {
+                    "n": "Longijalató"
+                },
+                "783": {
+                    "n": "Lorkos",
+                    "a": [
+                        3
+                    ]
+                },
+                "460": {
+                    "n": "Lucita Lurnbell",
+                    "a": [
+                        3
+                    ]
+                },
+                "1143": {
+                    "n": "Luc Starkilar",
+                    "a": [
+                        3
+                    ]
+                },
+                "667": {
+                    "n": "Ludmerawa el Marinero",
+                    "a": [
+                        3
+                    ]
+                },
+                "524": {
+                    "n": "Luisa Sinsemillas",
+                    "a": [
+                        3
+                    ]
+                },
+                "454": {
+                    "n": "Luk Drif",
+                    "a": [
+                        3
+                    ]
+                },
+                "750": {
+                    "n": "Luki Lushiano"
+                },
+                "107": {
+                    "n": "Lu Pachups",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "101": {
+                    "n": "Lupin",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "1048": {
+                    "n": "Mac Ronald",
+                    "a": [
+                        3
+                    ]
+                },
+                "642": {
+                    "n": "Maestro de Airedala",
+                    "a": [
+                        3
+                    ]
+                },
+                "634": {
+                    "n": "Maestro de Akwadala",
+                    "a": [
+                        3
+                    ]
+                },
+                "636": {
+                    "n": "Maestro de Fuegodala",
+                    "a": [
+                        3
+                    ]
+                },
+                "664": {
+                    "n": "Maestro del Pandawushu",
+                    "a": [
+                        3
+                    ]
+                },
+                "641": {
+                    "n": "Maestro de Tierradala",
+                    "a": [
+                        3
+                    ]
+                },
+                "690": {
+                    "n": "Maestro Djakky Chwan",
+                    "a": [
+                        3
+                    ]
+                },
+                "757": {
+                    "n": "Maestro Koalak (105)",
+                    "a": [
+                        3
+                    ]
+                },
+                "654": {
+                    "n": "Maestro Padasiman",
+                    "a": [
+                        3
+                    ]
+                },
+                "705": {
+                    "n": "Maestro Pandora",
+                    "a": [
+                        3
+                    ]
+                },
+                "128": {
+                    "n": "Maestro Tymador",
+                    "a": [
+                        3
+                    ]
+                },
+                "776": {
+                    "n": "Magnus Magus",
+                    "a": [
+                        3
+                    ]
+                },
+                "726": {
+                    "n": "Mago de Zo",
+                    "a": [
+                        3
+                    ]
+                },
+                "407": {
+                    "n": "Mahla Pahta",
+                    "a": [
+                        3
+                    ]
+                },
+                "356": {
+                    "n": "Mahr",
+                    "a": [
+                        3
+                    ]
+                },
+                "1065": {
+                    "n": "Maimane el Estabilizador",
+                    "a": [
+                        3
+                    ]
+                },
+                "219": {
+                    "n": "Majono Takubin"
+                },
+                "443": {
+                    "n": "Makdo Peul",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "242": {
+                    "n": "Mak Gahan",
+                    "a": [
+                        3
+                    ]
+                },
+                "326": {
+                    "n": "Malicia Miseria",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "923": {
+                    "n": "Mali Key",
+                    "a": [
+                        3
+                    ]
+                },
+                "389": {
+                    "n": "Mami Ayuto",
+                    "a": [
+                        3
+                    ]
+                },
+                "706": {
+                    "n": "Mamowa",
+                    "a": [
+                        3
+                    ]
+                },
+                "610": {
+                    "n": "Manganezio Pirita"
+                },
+                "1495": {
+                    "n": "Marcelo Nario",
+                    "a": [
+                        3
+                    ]
+                },
+                "241": {
+                    "n": "Marge Gondersun",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "822": {
+                    "n": "María Zoto",
+                    "a": [
+                        3
+                    ]
+                },
+                "437": {
+                    "n": "Marlobrando Peul",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "453": {
+                    "n": "Marp",
+                    "a": [
+                        3
+                    ]
+                },
+                "983": {
+                    "n": "Marquís",
+                    "a": [
+                        3
+                    ]
+                },
+                "229": {
+                    "n": "Marsel Leax",
+                    "a": [
+                        3
+                    ]
+                },
+                "887": {
+                    "n": "Marylork",
+                    "a": [
+                        3
+                    ]
+                },
+                "688": {
+                    "n": "Marzwelo el Goblin"
+                },
+                "752": {
+                    "n": "Mashino",
+                    "a": [
+                        4,
+                        1
+                    ]
+                },
+                "807": {
+                    "n": "Maskara",
+                    "a": [
+                        3
+                    ]
+                },
+                "886": {
+                    "n": "Ma'ster Donge",
+                    "a": [
+                        3
+                    ]
+                },
+                "885": {
+                    "n": "Masvisto",
+                    "a": [
+                        3
+                    ]
+                },
+                "1222": {
+                    "n": "Mauricio, el guía",
+                    "a": [
+                        3
+                    ]
+                },
+                "780": {
+                    "n": "Mawy Ingals",
+                    "a": [
+                        3
+                    ]
+                },
+                "120": {
+                    "n": "Max",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "696": {
+                    "n": "Máximo",
+                    "a": [
+                        3
+                    ]
+                },
+                "397": {
+                    "n": "Maxims",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "305": {
+                    "n": "Medah Larisa",
+                    "a": [
+                        3
+                    ]
+                },
+                "811": {
+                    "n": "Mega Jug'Onh",
+                    "a": [
+                        3
+                    ]
+                },
+                "558": {
+                    "n": "Megustam Laspelas",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "829": {
+                    "n": "Mejiyón"
+                },
+                "372": {
+                    "n": "Mentira Porcina",
+                    "a": [
+                        3
+                    ]
+                },
+                "495": {
+                    "n": "Meow Moew",
+                    "a": [
+                        3
+                    ]
+                },
+                "605": {
+                    "n": "Mercenaria Seriane",
+                    "a": [
+                        3
+                    ]
+                },
+                "604": {
+                    "n": "Mercenario de Astrub",
+                    "a": [
+                        3
+                    ]
+                },
+                "526": {
+                    "n": "Mercenario de Astrub",
+                    "a": [
+                        3
+                    ]
+                },
+                "527": {
+                    "n": "Mercenario de Astrub",
+                    "a": [
+                        3
+                    ]
+                },
+                "525": {
+                    "n": "Mercenario de Astrub",
+                    "a": [
+                        3
+                    ]
+                },
+                "528": {
+                    "n": "Mercenario de Astrub",
+                    "a": [
+                        3
+                    ]
+                },
+                "603": {
+                    "n": "Mercenario de Astrub",
+                    "a": [
+                        3
+                    ]
+                },
+                "1159": {
+                    "n": "Meuh Sieurchance",
+                    "a": [
+                        3
+                    ]
+                },
+                "1285": {
+                    "n": "Miaubuelo",
+                    "a": [
+                        3
+                    ]
+                },
+                "1142": {
+                    "n": "Miaumiauligno",
+                    "a": [
+                        3
+                    ]
+                },
+                "442": {
+                    "n": "Micado Peul",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1070": {
+                    "n": "Mick Djaygerito",
+                    "a": [
+                        3
+                    ]
+                },
+                "1073": {
+                    "n": "Mik Vackey",
+                    "a": [
+                        3
+                    ]
+                },
+                "735": {
+                    "n": "Miliciana de Bonta",
+                    "a": [
+                        3
+                    ]
+                },
+                "734": {
+                    "n": "Miliciana de Brakmar",
+                    "a": [
+                        3
+                    ]
+                },
+                "339": {
+                    "n": "Miliciano"
+                },
+                "974": {
+                    "n": "Miliciano equipado",
+                    "a": [
+                        3
+                    ]
+                },
+                "873": {
+                    "n": "Miliciano Kerubim",
+                    "a": [
+                        3
+                    ]
+                },
+                "860": {
+                    "n": "Miliciano Kerubim",
+                    "a": [
+                        3
+                    ]
+                },
+                "861": {
+                    "n": "Miliciano Kerubim",
+                    "a": [
+                        3
+                    ]
+                },
+                "862": {
+                    "n": "Miliciano Kerubim",
+                    "a": [
+                        3
+                    ]
+                },
+                "224": {
+                    "n": "Mili Ralloc"
+                },
+                "277": {
+                    "n": "Milone Corichel",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "841": {
+                    "n": "Milubo Grankrok",
+                    "a": [
+                        3
+                    ]
+                },
+                "268": {
+                    "n": "Mimi Fista",
+                    "a": [
+                        3
+                    ]
+                },
+                "827": {
+                    "n": "Minero Oscuro"
+                },
+                "1010": {
+                    "n": "Mirleen el Encadenador",
+                    "a": [
+                        3
+                    ]
+                },
+                "404": {
+                    "n": "Miss Reeze Teurf",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "742": {
+                    "n": "Monabella",
+                    "a": [
+                        3
+                    ]
+                },
+                "474": {
+                    "n": "Mon'Hawt'Wit'",
+                    "a": [
+                        3
+                    ]
+                },
+                "160": {
+                    "n": "Moon",
+                    "a": [
+                        3
+                    ]
+                },
+                "90": {
+                    "n": "Mori Arty",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "1041": {
+                    "n": "Morry Gann",
+                    "a": [
+                        3
+                    ]
+                },
+                "221": {
+                    "n": "Mub Oreicifrita",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "943": {
+                    "n": "Mulaza",
+                    "a": [
+                        3
+                    ]
+                },
+                "365": {
+                    "n": "Mulic Bere",
+                    "a": [
+                        3
+                    ]
+                },
+                "239": {
+                    "n": "Musa",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "826": {
+                    "n": "Mus Buf",
+                    "a": [
+                        3
+                    ]
+                },
+                "687": {
+                    "n": "Musha el Maldito"
+                },
+                "730": {
+                    "n": "Nacf Virgilio, vendedor de pergaminos",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "651": {
+                    "n": "Nakuna Maltrata",
+                    "a": [
+                        3
+                    ]
+                },
+                "1096": {
+                    "n": "Nana Rikumos",
+                    "a": [
+                        3
+                    ]
+                },
+                "208": {
+                    "n": "Nani Tago"
+                },
+                "856": {
+                    "n": "Nanito Sabio",
+                    "a": [
+                        3
+                    ]
+                },
+                "972": {
+                    "n": "Nara",
+                    "a": [
+                        3
+                    ]
+                },
+                "622": {
+                    "n": "Narber Dapiwa el Cormerciante",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "704": {
+                    "n": "Narber Rihen Levihawa",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1149": {
+                    "n": "Natalia Kooc",
+                    "a": [
+                        3
+                    ]
+                },
+                "991": {
+                    "n": "Názagloh",
+                    "a": [
+                        3
+                    ]
+                },
+                "231": {
+                    "n": "Ned Etsith",
+                    "a": [
+                        3
+                    ]
+                },
+                "1117": {
+                    "n": "Néforun",
+                    "a": [
+                        3
+                    ]
+                },
+                "1098": {
+                    "n": "Neke Nieh",
+                    "a": [
+                        3
+                    ]
+                },
+                "1105": {
+                    "n": "Nek'Ro Nomikón",
+                    "a": [
+                        3
+                    ]
+                },
+                "809": {
+                    "n": "Nena Wapa",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "479": {
+                    "n": "Nepra Lido",
+                    "a": [
+                        3
+                    ]
+                },
+                "659": {
+                    "n": "Nergal",
+                    "a": [
+                        3
+                    ]
+                },
+                "514": {
+                    "n": "Nervus Brakdan"
+                },
+                "109": {
+                    "n": "Ness Leh",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "186": {
+                    "n": "Niamuh Bulkier",
+                    "a": [
+                        3
+                    ]
+                },
+                "486": {
+                    "n": "Nibe Lula",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "210": {
+                    "n": "Nieve"
+                },
+                "770": {
+                    "n": "Nikos Monauta",
+                    "a": [
+                        3
+                    ]
+                },
+                "286": {
+                    "n": "Nim Nei"
+                },
+                "441": {
+                    "n": "Nintenedo Peul",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "732": {
+                    "n": "Nistracolamus",
+                    "a": [
+                        3
+                    ]
+                },
+                "511": {
+                    "n": "Noai Aludem"
+                },
+                "902": {
+                    "n": "Noble de la corte",
+                    "a": [
+                        3
+                    ]
+                },
+                "985": {
+                    "n": "Nóep",
+                    "a": [
+                        3
+                    ]
+                },
+                "891": {
+                    "n": "Noken Okuto",
+                    "a": [
+                        3
+                    ]
+                },
+                "468": {
+                    "n": "Nokomas Seso",
+                    "a": [
+                        3
+                    ]
+                },
+                "653": {
+                    "n": "Nomola",
+                    "a": [
+                        3
+                    ]
+                },
+                "652": {
+                    "n": "Nomola Poneweso",
+                    "a": [
+                        3
+                    ]
+                },
+                "794": {
+                    "n": "Nopa Abra",
+                    "a": [
+                        1
+                    ]
+                },
+                "793": {
+                    "n": "Nopa Bworker",
+                    "a": [
+                        1
+                    ]
+                },
+                "1490": {
+                    "n": "Nopa Ganknam Style",
+                    "a": [
+                        1
+                    ]
+                },
+                "792": {
+                    "n": "Nopa Jalató",
+                    "a": [
+                        1
+                    ]
+                },
+                "791": {
+                    "n": "Nopa Prespic",
+                    "a": [
+                        1
+                    ]
+                },
+                "216": {
+                    "n": "Nopa Sarás",
+                    "a": [
+                        3
+                    ]
+                },
+                "971": {
+                    "n": "Norb",
+                    "a": [
+                        3
+                    ]
+                },
+                "1128": {
+                    "n": "Nor Blerapaím",
+                    "a": [
+                        3
+                    ]
+                },
+                "1153": {
+                    "n": "Nosilla Budois",
+                    "a": [
+                        3
+                    ]
+                },
+                "405": {
+                    "n": "Notend Less",
+                    "a": [
+                        3
+                    ]
+                },
+                "725": {
+                    "n": "Nowa",
+                    "a": [
+                        3
+                    ]
+                },
+                "796": {
+                    "n": "Obad",
+                    "a": [
+                        3
+                    ]
+                },
+                "406": {
+                    "n": "Ogav",
+                    "a": [
+                        3
+                    ]
+                },
+                "475": {
+                    "n": "Ogivol Scarratero",
+                    "a": [
+                        3
+                    ]
+                },
+                "510": {
+                    "n": "Ogivol Scarratero"
+                },
+                "484": {
+                    "n": "Oli Venders",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1145": {
+                    "n": "Olos Nah",
+                    "a": [
+                        3
+                    ]
+                },
+                "1494": {
+                    "n": "Omar Senario",
+                    "a": [
+                        3
+                    ]
+                },
+                "1157": {
+                    "n": "Ombrel Bebasaco",
+                    "a": [
+                        3
+                    ]
+                },
+                "679": {
+                    "n": "Onidal",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1154": {
+                    "n": "Orava",
+                    "a": [
+                        3
+                    ]
+                },
+                "319": {
+                    "n": "Orenicoc",
+                    "a": [
+                        3
+                    ]
+                },
+                "190": {
+                    "n": "Oreroset",
+                    "a": [
+                        3
+                    ]
+                },
+                "434": {
+                    "n": "Orlando Peul",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "520": {
+                    "n": "Orroha Neuw",
+                    "a": [
+                        3
+                    ]
+                },
+                "162": {
+                    "n": "Ortimus",
+                    "a": [
+                        3
+                    ]
+                },
+                "753": {
+                    "n": "Oshima",
+                    "a": [
+                        7,
+                        3
+                    ]
+                },
+                "298": {
+                    "n": "Otabaj",
+                    "a": [
+                        3
+                    ]
+                },
+                "111": {
+                    "n": "Otho Laringo",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "914": {
+                    "n": "Otomai",
+                    "a": [
+                        3
+                    ]
+                },
+                "183": {
+                    "n": "Oto Mustam",
+                    "a": [
+                        3
+                    ]
+                },
+                "1001": {
+                    "n": "Ovuegard",
+                    "a": [
+                        3
+                    ]
+                },
+                "738": {
+                    "n": "Oyster",
+                    "a": [
+                        3
+                    ]
+                },
+                "452": {
+                    "n": "Oz Dralett",
+                    "a": [
+                        3
+                    ]
+                },
+                "123": {
+                    "n": "Ozen El Sabio",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "802": {
+                    "n": "Pabo Portapluma",
+                    "a": [
+                        3
+                    ]
+                },
+                "195": {
+                    "n": "Padre Furi Oso"
+                },
+                "315": {
+                    "n": "Pako Rábano",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1155": {
+                    "n": "Palana",
+                    "a": [
+                        3
+                    ]
+                },
+                "1090": {
+                    "n": "Pandaulina Rubi",
+                    "a": [
+                        3
+                    ]
+                },
+                "821": {
+                    "n": "Pandep",
+                    "a": [
+                        3
+                    ]
+                },
+                "644": {
+                    "n": "Pandiwan Kenobi",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1491": {
+                    "n": "Pantalemon",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "872": {
+                    "n": "Panzudo el Veterano Kerubim",
+                    "a": [
+                        3
+                    ]
+                },
+                "401": {
+                    "n": "Papiya Dovle",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "197": {
+                    "n": "Parissil Trool",
+                    "a": [
+                        3
+                    ]
+                },
+                "1069": {
+                    "n": "Partisano de Oto Mustam",
+                    "a": [
+                        3
+                    ]
+                },
+                "814": {
+                    "n": "Pat Adekabra",
+                    "a": [
+                        3
+                    ]
+                },
+                "806": {
+                    "n": "Patalenta",
+                    "a": [
+                        3
+                    ]
+                },
+                "677": {
+                    "n": "Patxi Debanbwa"
+                },
+                "931": {
+                    "n": "Paulina Panela",
+                    "a": [
+                        3
+                    ]
+                },
+                "940": {
+                    "n": "Peggy la Puerkaza",
+                    "a": [
+                        3
+                    ]
+                },
+                "838": {
+                    "n": "Peke Gobleche",
+                    "a": [
+                        3
+                    ]
+                },
+                "674": {
+                    "n": "Pekemus",
+                    "a": [
+                        3
+                    ]
+                },
+                "710": {
+                    "n": "Peki Peki",
+                    "a": [
+                        3
+                    ]
+                },
+                "266": {
+                    "n": "Pel Otero",
+                    "a": [
+                        3
+                    ]
+                },
+                "470": {
+                    "n": "Peluka Diolobalgo",
+                    "a": [
+                        3
+                    ]
+                },
+                "697": {
+                    "n": "Peny Tenciario",
+                    "a": [
+                        3
+                    ]
+                },
+                "504": {
+                    "n": "Pepe Madero",
+                    "a": [
+                        3
+                    ]
+                },
+                "1123": {
+                    "n": "Perseguidor brakmariano",
+                    "a": [
+                        3
+                    ]
+                },
+                "883": {
+                    "n": "Pescador de Incarnam",
+                    "a": [
+                        3
+                    ]
+                },
+                "382": {
+                    "n": "Peteto Orbil",
+                    "a": [
+                        3
+                    ]
+                },
+                "839": {
+                    "n": "Pinta Gono",
+                    "a": [
+                        3
+                    ]
+                },
+                "869": {
+                    "n": "Pío",
+                    "a": [
+                        3
+                    ]
+                },
+                "461": {
+                    "n": "Pío Gordo"
+                },
+                "662": {
+                    "n": "Pladawa",
+                    "a": [
+                        3
+                    ]
+                },
+                "837": {
+                    "n": "Plastik Goblo",
+                    "a": [
+                        3
+                    ]
+                },
+                "635": {
+                    "n": "Plumawa La Comerciante",
+                    "a": [
+                        3
+                    ]
+                },
+                "970": {
+                    "n": "Poderoso miliciano bontariano",
+                    "a": [
+                        3
+                    ]
+                },
+                "929": {
+                    "n": "Polka Merer",
+                    "a": [
+                        3
+                    ]
+                },
+                "967": {
+                    "n": "Pomoly",
+                    "a": [
+                        3
+                    ]
+                },
+                "648": {
+                    "n": "Poochan",
+                    "a": [
+                        3
+                    ]
+                },
+                "647": {
+                    "n": "Poochan",
+                    "a": [
+                        3
+                    ]
+                },
+                "118": {
+                    "n": "Pork Hetebas",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "850": {
+                    "n": "Poss'Ybel Nano",
+                    "a": [
+                        3
+                    ]
+                },
+                "1063": {
+                    "n": "Pouchecot el Gran Afrutado",
+                    "a": [
+                        3
+                    ]
+                },
+                "1226": {
+                    "n": "Prandacilla Dragcuin",
+                    "a": [
+                        3
+                    ]
+                },
+                "904": {
+                    "n": "Príncipe de Wey",
+                    "a": [
+                        3
+                    ]
+                },
+                "926": {
+                    "n": "Profesor Fornasol",
+                    "a": [
+                        3
+                    ]
+                },
+                "153": {
+                    "n": "Promotor del Equipo turist-A",
+                    "a": [
+                        3
+                    ]
+                },
+                "151": {
+                    "n": "Propanzón Crizoe",
+                    "a": [
+                        3
+                    ]
+                },
+                "1233": {
+                    "n": "Próspera Nawidad",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "386": {
+                    "n": "Pujampuja"
+                },
+                "357": {
+                    "n": "Puja Mustam",
+                    "a": [
+                        3
+                    ]
+                },
+                "1160": {
+                    "n": "Pu Shan",
+                    "a": [
+                        3
+                    ]
+                },
+                "624": {
+                    "n": "Pyrita",
+                    "a": [
+                        3
+                    ]
+                },
+                "516": {
+                    "n": "Qil Bil"
+                },
+                "110": {
+                    "n": "Quincy Prais",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "1008": {
+                    "n": "Qu'Tan",
+                    "a": [
+                        3
+                    ]
+                },
+                "341": {
+                    "n": "Raaga",
+                    "a": [
+                        3
+                    ]
+                },
+                "342": {
+                    "n": "Raaga",
+                    "a": [
+                        3
+                    ]
+                },
+                "544": {
+                    "n": "Radlu Minite el Minero Oscuro",
+                    "a": [
+                        3
+                    ]
+                },
+                "264": {
+                    "n": "Rafaj",
+                    "a": [
+                        3
+                    ]
+                },
+                "66": {
+                    "n": "Ralgut",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1042": {
+                    "n": "Ramón Santo",
+                    "a": [
+                        3
+                    ]
+                },
+                "329": {
+                    "n": "Ranj Té",
+                    "a": [
+                        3
+                    ]
+                },
+                "1064": {
+                    "n": "Raval el Terrible",
+                    "a": [
+                        3
+                    ]
+                },
+                "835": {
+                    "n": "Raxítiko",
+                    "a": [
+                        3
+                    ]
+                },
+                "1": {
+                    "n": "Recaudador",
+                    "a": [
+                        3
+                    ]
+                },
+                "1007": {
+                    "n": "Recluta",
+                    "a": [
+                        3
+                    ]
+                },
+                "259": {
+                    "n": "Rekojle",
+                    "a": [
+                        3
+                    ]
+                },
+                "1050": {
+                    "n": "Renegado bontariano",
+                    "a": [
+                        3
+                    ]
+                },
+                "615": {
+                    "n": "René Gustavo",
+                    "a": [
+                        3
+                    ]
+                },
+                "1071": {
+                    "n": "Renfaf",
+                    "a": [
+                        3
+                    ]
+                },
+                "371": {
+                    "n": "Reuth Rezed",
+                    "a": [
+                        3
+                    ]
+                },
+                "438": {
+                    "n": "Ricardo Peul",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "45": {
+                    "n": "Rigal Mano Ganchuda",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "427": {
+                    "n": "Rihina Yagabierta",
+                    "a": [
+                        3
+                    ]
+                },
+                "313": {
+                    "n": "Rika Embrujada",
+                    "a": [
+                        1
+                    ]
+                },
+                "355": {
+                    "n": "Rimaraf"
+                },
+                "38": {
+                    "n": "Rish Claymore",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "1100": {
+                    "n": "Risto Cángel",
+                    "a": [
+                        3
+                    ]
+                },
+                "237": {
+                    "n": "Roca Embrujada",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "741": {
+                    "n": "Rocco Fidelio",
+                    "a": [
+                        3
+                    ]
+                },
+                "494": {
+                    "n": "Rok Elruss",
+                    "a": [
+                        3
+                    ]
+                },
+                "685": {
+                    "n": "Rok Gnorok"
+                },
+                "1020": {
+                    "n": "Ronan el Bárbaro",
+                    "a": [
+                        3
+                    ]
+                },
+                "1035": {
+                    "n": "Ronan el Bromista",
+                    "a": [
+                        3
+                    ]
+                },
+                "108": {
+                    "n": "Ronsha",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "598": {
+                    "n": "Rosa Artempestad",
+                    "a": [
+                        3
+                    ]
+                },
+                "1060": {
+                    "n": "Rosal",
+                    "a": [
+                        3
+                    ]
+                },
+                "1141": {
+                    "n": "Ros Nefed",
+                    "a": [
+                        3
+                    ]
+                },
+                "173": {
+                    "n": "Rotabla el pastor triste",
+                    "a": [
+                        3
+                    ]
+                },
+                "761": {
+                    "n": "Ruby",
+                    "a": [
+                        3
+                    ]
+                },
+                "274": {
+                    "n": "Rucar",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1435": {
+                    "n": "Rudy Stribución",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "408": {
+                    "n": "Rueda Furtuna",
+                    "a": [
+                        3
+                    ]
+                },
+                "694": {
+                    "n": "Runago Gho",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "695": {
+                    "n": "Runoga Gha",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "275": {
+                    "n": "Runyac"
+                },
+                "272": {
+                    "n": "Rupi Chipón",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "218": {
+                    "n": "Ruth Banke",
+                    "a": [
+                        3
+                    ]
+                },
+                "1092": {
+                    "n": "Sabina",
+                    "a": [
+                        3
+                    ]
+                },
+                "163": {
+                    "n": "Sacerdote",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "496": {
+                    "n": "Sadadi Sama",
+                    "a": [
+                        3
+                    ]
+                },
+                "984": {
+                    "n": "Sadida con capa bontariana",
+                    "a": [
+                        3
+                    ]
+                },
+                "1161": {
+                    "n": "Sag Zatamos",
+                    "a": [
+                        3
+                    ]
+                },
+                "472": {
+                    "n": "Saketsú",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1011": {
+                    "n": "Sakri Zo",
+                    "a": [
+                        3
+                    ]
+                },
+                "102": {
+                    "n": "Salamon Rudy",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "463": {
+                    "n": "Sam Croa",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "228": {
+                    "n": "Sanaguk"
+                },
+                "1152": {
+                    "n": "San Grampiro",
+                    "a": [
+                        3
+                    ]
+                },
+                "1005": {
+                    "n": "Sargento García",
+                    "a": [
+                        3
+                    ]
+                },
+                "987": {
+                    "n": "Satirev Novini",
+                    "a": [
+                        3
+                    ]
+                },
+                "351": {
+                    "n": "Satirev Refibrom",
+                    "a": [
+                        3
+                    ]
+                },
+                "1492": {
+                    "n": "Saul Itario",
+                    "a": [
+                        3
+                    ]
+                },
+                "335": {
+                    "n": "Sbab",
+                    "a": [
+                        3
+                    ]
+                },
+                "245": {
+                    "n": "Seci Ves",
+                    "a": [
+                        3
+                    ]
+                },
+                "866": {
+                    "n": "Semper Idefix",
+                    "a": [
+                        3
+                    ]
+                },
+                "212": {
+                    "n": "Sen Eiser",
+                    "a": [
+                        3
+                    ]
+                },
+                "1227": {
+                    "n": "Sergi Mianto",
+                    "a": [
+                        3
+                    ]
+                },
+                "1496": {
+                    "n": "Sergio Yhane",
+                    "a": [
+                        3
+                    ]
+                },
+                "455": {
+                    "n": "Seria",
+                    "a": [
+                        3
+                    ]
+                },
+                "41": {
+                    "n": "Setag",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "480": {
+                    "n": "Setsinbol",
+                    "a": [
+                        3
+                    ]
+                },
+                "232": {
+                    "n": "Sey jissey"
+                },
+                "462": {
+                    "n": "Shani Sings",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "54": {
+                    "n": "Shika Ingals",
+                    "a": [
+                        3
+                    ]
+                },
+                "423": {
+                    "n": "Silimote Fugaris",
+                    "a": [
+                        3
+                    ]
+                },
+                "1059": {
+                    "n": "Siluate",
+                    "a": [
+                        3
+                    ]
+                },
+                "1057": {
+                    "n": "Silvosse",
+                    "a": [
+                        3
+                    ]
+                },
+                "1104": {
+                    "n": "Sim el Soft",
+                    "a": [
+                        3
+                    ]
+                },
+                "91": {
+                    "n": "Simgood el marino",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "428": {
+                    "n": "Sirmina Daguiera",
+                    "a": [
+                        3
+                    ]
+                },
+                "165": {
+                    "n": "Sirvienta",
+                    "a": [
+                        3
+                    ]
+                },
+                "787": {
+                    "n": "Sister Halliwell",
+                    "a": [
+                        1
+                    ]
+                },
+                "612": {
+                    "n": "Sko Balt",
+                    "a": [
+                        3
+                    ]
+                },
+                "760": {
+                    "n": "Skonk",
+                    "a": [
+                        3
+                    ]
+                },
+                "650": {
+                    "n": "Sli",
+                    "a": [
+                        3
+                    ]
+                },
+                "801": {
+                    "n": "Snobin Parchume",
+                    "a": [
+                        3
+                    ]
+                },
+                "1088": {
+                    "n": "Snori Nairb",
+                    "a": [
+                        3
+                    ]
+                },
+                "457": {
+                    "n": "Soki",
+                    "a": [
+                        3
+                    ]
+                },
+                "996": {
+                    "n": "Soldado bontariano superviviente",
+                    "a": [
+                        3
+                    ]
+                },
+                "995": {
+                    "n": "Soldado de élite bontariano",
+                    "a": [
+                        3
+                    ]
+                },
+                "133": {
+                    "n": "Sosh",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "280": {
+                    "n": "Sotsiah Peh",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "289": {
+                    "n": "Sperwel",
+                    "a": [
+                        3
+                    ]
+                },
+                "935": {
+                    "n": "Spit Faller",
+                    "a": [
+                        3
+                    ]
+                },
+                "681": {
+                    "n": "Stayfun Bonnawa",
+                    "a": [
+                        3
+                    ]
+                },
+                "402": {
+                    "n": "Su Benhir",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1038": {
+                    "n": "Suebur Dirgah",
+                    "a": [
+                        3
+                    ]
+                },
+                "327": {
+                    "n": "Suenio Nocturno"
+                },
+                "660": {
+                    "n": "Sukawa el Comerciante",
+                    "a": [
+                        3
+                    ]
+                },
+                "1061": {
+                    "n": "Sumens",
+                    "a": [
+                        3
+                    ]
+                },
+                "491": {
+                    "n": "Sun Rinos",
+                    "a": [
+                        3
+                    ]
+                },
+                "623": {
+                    "n": "Surivitna el chamán",
+                    "a": [
+                        3
+                    ]
+                },
+                "894": {
+                    "n": "Syete Zerozero",
+                    "a": [
+                        3
+                    ]
+                },
+                "1234": {
+                    "n": "Syn Jorge",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "307": {
+                    "n": "Tabach el Secretario Judicial",
+                    "a": [
+                        3
+                    ]
+                },
+                "293": {
+                    "n": "Tabernero Almenú",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "292": {
+                    "n": "Tabernero Bagruta",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "296": {
+                    "n": "Tabernero Chatarreo",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "244": {
+                    "n": "Tabernero de La Paliza Feliz",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "240": {
+                    "n": "Tabernero Feubuk",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "294": {
+                    "n": "Tabernero Jarradepalo",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "295": {
+                    "n": "Tabernero Pankemante",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "711": {
+                    "n": "Tabernero Ripata",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "198": {
+                    "n": "Tabi de Gracia Insana",
+                    "a": [
+                        3
+                    ]
+                },
+                "273": {
+                    "n": "Tados",
+                    "a": [
+                        3
+                    ]
+                },
+                "424": {
+                    "n": "Tajide Ragalde",
+                    "a": [
+                        3
+                    ]
+                },
+                "788": {
+                    "n": "Takeshi Nopan",
+                    "a": [
+                        1
+                    ]
+                },
+                "1116": {
+                    "n": "Tallesba",
+                    "a": [
+                        3
+                    ]
+                },
+                "619": {
+                    "n": "Tanta Klaus"
+                },
+                "708": {
+                    "n": "Tanukui San",
+                    "a": [
+                        3
+                    ]
+                },
+                "392": {
+                    "n": "Tarazed",
+                    "a": [
+                        3
+                    ]
+                },
+                "181": {
+                    "n": "Tarazed",
+                    "a": [
+                        3
+                    ]
+                },
+                "417": {
+                    "n": "Tarcelino Panypino"
+                },
+                "184": {
+                    "n": "Tarche",
+                    "a": [
+                        3
+                    ]
+                },
+                "276": {
+                    "n": "Taskao"
+                },
+                "260": {
+                    "n": "Tas Kaput",
+                    "a": [
+                        3
+                    ]
+                },
+                "1086": {
+                    "n": "Tédeor",
+                    "a": [
+                        3
+                    ]
+                },
+                "113": {
+                    "n": "Teha Chicks",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "287": {
+                    "n": "Tehamó",
+                    "a": [
+                        3
+                    ]
+                },
+                "464": {
+                    "n": "Tek Abir",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "466": {
+                    "n": "Tekat Bra"
+                },
+                "1217": {
+                    "n": "Tenorak",
+                    "a": [
+                        3
+                    ]
+                },
+                "83": {
+                    "n": "Terans Gil",
+                    "a": [
+                        3
+                    ]
+                },
+                "1046": {
+                    "n": "Terra Bitya",
+                    "a": [
+                        3
+                    ]
+                },
+                "1049": {
+                    "n": "Terra Cógita",
+                    "a": [
+                        3
+                    ]
+                },
+                "731": {
+                    "n": "Test",
+                    "a": [
+                        3
+                    ]
+                },
+                "912": {
+                    "n": "Test"
+                },
+                "978": {
+                    "n": "Thanos",
+                    "a": [
+                        3
+                    ]
+                },
+                "483": {
+                    "n": "Ticra",
+                    "a": [
+                        3
+                    ]
+                },
+                "1455": {
+                    "n": "Timmy Elfán",
+                    "a": [
+                        3
+                    ]
+                },
+                "941": {
+                    "n": "Tina Montini",
+                    "a": [
+                        3
+                    ]
+                },
+                "1087": {
+                    "n": "Tinamuito"
+                },
+                "400": {
+                    "n": "Tío Gilipato",
+                    "a": [
+                        3
+                    ]
+                },
+                "773": {
+                    "n": "Tishima",
+                    "a": [
+                        4
+                    ]
+                },
+                "230": {
+                    "n": "Toka Webos",
+                    "a": [
+                        3
+                    ]
+                },
+                "1121": {
+                    "n": "Tomás Sacre",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1454": {
+                    "n": "Tom Atimo",
+                    "a": [
+                        3
+                    ]
+                },
+                "867": {
+                    "n": "Tom Ovejo",
+                    "a": [
+                        3
+                    ]
+                },
+                "513": {
+                    "n": "Tortacia Leukocita"
+                },
+                "755": {
+                    "n": "Trankitronko",
+                    "a": [
+                        3
+                    ]
+                },
+                "1275": {
+                    "n": "Trefan Caza",
+                    "a": [
+                        3
+                    ]
+                },
+                "1276": {
+                    "n": "Trefan Caza",
+                    "a": [
+                        3
+                    ]
+                },
+                "1115": {
+                    "n": "Trempa",
+                    "a": [
+                        3
+                    ]
+                },
+                "488": {
+                    "n": "Tres-Flores",
+                    "a": [
+                        3
+                    ]
+                },
+                "88": {
+                    "n": "Trimpize De Askurias",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "880": {
+                    "n": "Tritura Nehofito",
+                    "a": [
+                        3
+                    ]
+                },
+                "364": {
+                    "n": "Trojen Tihpor",
+                    "a": [
+                        3
+                    ]
+                },
+                "1080": {
+                    "n": "Trok",
+                    "a": [
+                        3,
+                        2
+                    ]
+                },
+                "916": {
+                    "n": "Trono de Allister"
+                },
+                "421": {
+                    "n": "Trool Bromista",
+                    "a": [
+                        3
+                    ]
+                },
+                "419": {
+                    "n": "Trool Payaso"
+                },
+                "420": {
+                    "n": "Trool Risueño"
+                },
+                "283": {
+                    "n": "Trysy",
+                    "a": [
+                        3
+                    ]
+                },
+                "238": {
+                    "n": "Tsog"
+                },
+                "613": {
+                    "n": "Tubo Dezink",
+                    "a": [
+                        3
+                    ]
+                },
+                "977": {
+                    "n": "Tugtora",
+                    "a": [
+                        3
+                    ]
+                },
+                "492": {
+                    "n": "Tuh Flowa",
+                    "a": [
+                        3
+                    ]
+                },
+                "611": {
+                    "n": "Tung Steno",
+                    "a": [
+                        3
+                    ]
+                },
+                "233": {
+                    "n": "Ture Inge",
+                    "a": [
+                        3
+                    ]
+                },
+                "693": {
+                    "n": "Turist",
+                    "a": [
+                        3
+                    ]
+                },
+                "702": {
+                    "n": "Turista",
+                    "a": [
+                        3
+                    ]
+                },
+                "1085": {
+                    "n": "Tymador",
+                    "a": [
+                        3
+                    ]
+                },
+                "915": {
+                    "n": "Tyneta",
+                    "a": [
+                        8,
+                        3
+                    ]
+                },
+                "166": {
+                    "n": "Uba Teseo",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "388": {
+                    "n": "Uga Buga",
+                    "a": [
+                        3
+                    ]
+                },
+                "997": {
+                    "n": "Uk'Not'Allag",
+                    "a": [
+                        3
+                    ]
+                },
+                "1058": {
+                    "n": "Ulgrude del Trueno",
+                    "a": [
+                        3
+                    ]
+                },
+                "1084": {
+                    "n": "Una Mujer de Negro",
+                    "a": [
+                        3
+                    ]
+                },
+                "534": {
+                    "n": "Unel Nak",
+                    "a": [
+                        3
+                    ]
+                },
+                "536": {
+                    "n": "Unhorel Nak",
+                    "a": [
+                        3
+                    ]
+                },
+                "848": {
+                    "n": "Unin Potento",
+                    "a": [
+                        3
+                    ]
+                },
+                "843": {
+                    "n": "Unin Structor",
+                    "a": [
+                        3
+                    ]
+                },
+                "537": {
+                    "n": "Unkuy Nak",
+                    "a": [
+                        3
+                    ]
+                },
+                "535": {
+                    "n": "Unortel Nak",
+                    "a": [
+                        3
+                    ]
+                },
+                "564": {
+                    "n": "Unterix Unter",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "924": {
+                    "n": "Úrsula Antes"
+                },
+                "269": {
+                    "n": "Vagabundo",
+                    "a": [
+                        3
+                    ]
+                },
+                "803": {
+                    "n": "Valcor",
+                    "a": [
+                        3
+                    ]
+                },
+                "671": {
+                    "n": "Varatijawa el Comerciante",
+                    "a": [
+                        3
+                    ]
+                },
+                "737": {
+                    "n": "Vark Agram",
+                    "a": [
+                        3
+                    ]
+                },
+                "1288": {
+                    "n": "Vasco de Kama",
+                    "a": [
+                        3
+                    ]
+                },
+                "189": {
+                    "n": "Vasta Detontirías",
+                    "a": [
+                        3
+                    ]
+                },
+                "1125": {
+                    "n": "Vasta Detontirías",
+                    "a": [
+                        3
+                    ]
+                },
+                "768": {
+                    "n": "Vayinklán",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "698": {
+                    "n": "Vendedor de almas de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "699": {
+                    "n": "Vendedor de almas de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "1270": {
+                    "n": "Vendedor de amuletos",
+                    "a": [
+                        1
+                    ]
+                },
+                "1271": {
+                    "n": "Vendedor de anillos",
+                    "a": [
+                        1
+                    ]
+                },
+                "1488": {
+                    "n": "Vendedor de animales",
+                    "a": [
+                        1
+                    ]
+                },
+                "714": {
+                    "n": "Vendedor de animales de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "715": {
+                    "n": "Vendedor de animales de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "1274": {
+                    "n": "Vendedor de armas",
+                    "a": [
+                        1
+                    ]
+                },
+                "1272": {
+                    "n": "Vendedor de botas",
+                    "a": [
+                        1
+                    ]
+                },
+                "1158": {
+                    "n": "Vendedor de capas",
+                    "a": [
+                        1
+                    ]
+                },
+                "580": {
+                    "n": "Vendedor de carne de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "592": {
+                    "n": "Vendedor de carne de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "1273": {
+                    "n": "Vendedor de cinturones",
+                    "a": [
+                        1
+                    ]
+                },
+                "716": {
+                    "n": "Vendedor de documentos de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "717": {
+                    "n": "Vendedor de documentos de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "1053": {
+                    "n": "Vendedor de Dofus",
+                    "a": [
+                        1
+                    ]
+                },
+                "1286": {
+                    "n": "Vendedor de Escudo",
+                    "a": [
+                        1
+                    ]
+                },
+                "1489": {
+                    "n": "Vendedor de escudos",
+                    "a": [
+                        1
+                    ]
+                },
+                "678": {
+                    "n": "Vendedor de escudos de Pandala",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "1221": {
+                    "n": "Vendedor de hadas artificiales",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "722": {
+                    "n": "Vendedor de la milicia de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "723": {
+                    "n": "Vendedor de la milicia de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "557": {
+                    "n": "Vendedor del mercadillo de los alquimistas de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "570": {
+                    "n": "Vendedor del mercadillo de los alquimistas de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "584": {
+                    "n": "Vendedor del mercadillo de los alquimistas de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "551": {
+                    "n": "Vendedor del mercadillo de los campesinos de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "576": {
+                    "n": "Vendedor del mercadillo de los campesinos de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "590": {
+                    "n": "Vendedor del mercadillo de los campesinos de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "553": {
+                    "n": "Vendedor del mercadillo de los carniceros de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "563": {
+                    "n": "Vendedor del mercadillo de los cazadores de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "548": {
+                    "n": "Vendedor del mercadillo de los escultores de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "569": {
+                    "n": "Vendedor del mercadillo de los escultores de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "583": {
+                    "n": "Vendedor del mercadillo de los escultores de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "547": {
+                    "n": "Vendedor del mercadillo de los herreros de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "567": {
+                    "n": "Vendedor del mercadillo de los herreros de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "581": {
+                    "n": "Vendedor del mercadillo de los herreros de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "555": {
+                    "n": "Vendedor del mercadillo de los joyeros de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "572": {
+                    "n": "Vendedor del mercadillo de los joyeros de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "586": {
+                    "n": "Vendedor del mercadillo de los joyeros de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "554": {
+                    "n": "Vendedor del mercadillo de los leñadores de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "578": {
+                    "n": "Vendedor del mercadillo de los leñadores de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "591": {
+                    "n": "Vendedor del mercadillo de los leñadores de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "1220": {
+                    "n": "Vendedor del mercadillo de los manitas de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "720": {
+                    "n": "Vendedor del mercadillo de los manitas de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "721": {
+                    "n": "Vendedor del mercadillo de los manitas de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "550": {
+                    "n": "Vendedor del mercadillo de los mineros de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "568": {
+                    "n": "Vendedor del mercadillo de los mineros de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "582": {
+                    "n": "Vendedor del mercadillo de los mineros de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "561": {
+                    "n": "Vendedor del mercadillo de los panaderos de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "575": {
+                    "n": "Vendedor del mercadillo de los panaderos de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "589": {
+                    "n": "Vendedor del mercadillo de los panaderos de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "559": {
+                    "n": "Vendedor del mercadillo de los pescaderos de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "562": {
+                    "n": "Vendedor del mercadillo de los pescadores de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "560": {
+                    "n": "Vendedor del mercadillo de los sastres de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "571": {
+                    "n": "Vendedor del mercadillo de los sastres de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "585": {
+                    "n": "Vendedor del mercadillo de los sastres de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "552": {
+                    "n": "Vendedor del mercadillo de los zapateros de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "573": {
+                    "n": "Vendedor del mercadillo de los zapateros de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "587": {
+                    "n": "Vendedor del mercadillo de los zapateros de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "952": {
+                    "n": "Vendedor de pergaminos",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "579": {
+                    "n": "Vendedor de pescado de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "593": {
+                    "n": "Vendedor de pescado de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "546": {
+                    "n": "Vendedor de recursos de Astrub",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "574": {
+                    "n": "Vendedor de recursos de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "588": {
+                    "n": "Vendedor de recursos de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "790": {
+                    "n": "Vendedor de runas",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "718": {
+                    "n": "Vendedor de runas de Bonta",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "719": {
+                    "n": "Vendedor de runas de Brakmar",
+                    "a": [
+                        6,
+                        5,
+                        3
+                    ]
+                },
+                "812": {
+                    "n": "Vendedor de sombreros",
+                    "a": [
+                        1
+                    ]
+                },
+                "743": {
+                    "n": "Verrumacha",
+                    "a": [
+                        3
+                    ]
+                },
+                "204": {
+                    "n": "Vicky Fachyon",
+                    "a": [
+                        3
+                    ]
+                },
+                "169": {
+                    "n": "Vid Cheber",
+                    "a": [
+                        3
+                    ]
+                },
+                "84": {
+                    "n": "Vil Smis",
+                    "a": [
+                        3
+                    ]
+                },
+                "774": {
+                    "n": "Virgilio",
+                    "a": [
+                        3
+                    ]
+                },
+                "141": {
+                    "n": "Wabbit de la Mañana Goteante",
+                    "a": [
+                        3
+                    ]
+                },
+                "144": {
+                    "n": "Wabbit de la Tawde Oscuwa",
+                    "a": [
+                        3
+                    ]
+                },
+                "143": {
+                    "n": "Wabbit del Mediodía Soleadow",
+                    "a": [
+                        3
+                    ]
+                },
+                "1025": {
+                    "n": "Wabbit encadenado",
+                    "a": [
+                        3
+                    ]
+                },
+                "998": {
+                    "n": "Wabbit esclavizado",
+                    "a": [
+                        3
+                    ]
+                },
+                "748": {
+                    "n": "Walak",
+                    "a": [
+                        3
+                    ]
+                },
+                "565": {
+                    "n": "Waldo Pyrita",
+                    "a": [
+                        3
+                    ]
+                },
+                "447": {
+                    "n": "Wally Oluconom",
+                    "a": [
+                        3
+                    ]
+                },
+                "566": {
+                    "n": "Walter Pyrita",
+                    "a": [
+                        3
+                    ]
+                },
+                "700": {
+                    "n": "Warda Leny Apafuego",
+                    "a": [
+                        3
+                    ]
+                },
+                "1511": {
+                    "n": "Warko Linch",
+                    "a": [
+                        3
+                    ]
+                },
+                "399": {
+                    "n": "Wentipo Wenalga",
+                    "a": [
+                        3
+                    ]
+                },
+                "137": {
+                    "n": "Wey Wabbit",
+                    "a": [
+                        3
+                    ]
+                },
+                "506": {
+                    "n": "Wilde Pyrita",
+                    "a": [
+                        3
+                    ]
+                },
+                "203": {
+                    "n": "Willem Lenglade",
+                    "a": [
+                        3
+                    ]
+                },
+                "146": {
+                    "n": "Wob",
+                    "a": [
+                        3
+                    ]
+                },
+                "196": {
+                    "n": "Wogew Lewmitanyo",
+                    "a": [
+                        3
+                    ]
+                },
+                "966": {
+                    "n": "Xantrax",
+                    "a": [
+                        3
+                    ]
+                },
+                "1148": {
+                    "n": "Xela Daymun",
+                    "a": [
+                        3
+                    ]
+                },
+                "1068": {
+                    "n": "Xela Dikk",
+                    "a": [
+                        3
+                    ]
+                },
+                "1091": {
+                    "n": "Xelora Busona",
+                    "a": [
+                        3
+                    ]
+                },
+                "859": {
+                    "n": "Xelorat Masket",
+                    "a": [
+                        3
+                    ]
+                },
+                "963": {
+                    "n": "Xéphirex",
+                    "a": [
+                        3
+                    ]
+                },
+                "387": {
+                    "n": "Yan Chenap",
+                    "a": [
+                        3
+                    ]
+                },
+                "846": {
+                    "n": "Yanklod Vandán",
+                    "a": [
+                        3
+                    ]
+                },
+                "309": {
+                    "n": "Ybaul, Secretaria Judicial",
+                    "a": [
+                        3
+                    ]
+                },
+                "692": {
+                    "n": "Yenawa el Banquero",
+                    "a": [
+                        3
+                    ]
+                },
+                "597": {
+                    "n": "Ygat Chus",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "1167": {
+                    "n": "Yig Saw",
+                    "a": [
+                        3
+                    ]
+                },
+                "450": {
+                    "n": "Yke Haru",
+                    "a": [
+                        3
+                    ]
+                },
+                "297": {
+                    "n": "Yokashi",
+                    "a": [
+                        3,
+                        4,
+                        2,
+                        1
+                    ]
+                },
+                "459": {
+                    "n": "Yol Grivind",
+                    "a": [
+                        3
+                    ]
+                },
+                "1151": {
+                    "n": "Yon Leysbo",
+                    "a": [
+                        3
+                    ]
+                },
+                "982": {
+                    "n": "Yopuka con capa brakmariana",
+                    "a": [
+                        3
+                    ]
+                },
+                "451": {
+                    "n": "Yori Khas",
+                    "a": [
+                        3
+                    ]
+                },
+                "393": {
+                    "n": "Yova Etna",
+                    "a": [
+                        3
+                    ]
+                },
+                "870": {
+                    "n": "Yueba Kántaros",
+                    "a": [
+                        3
+                    ]
+                },
+                "595": {
+                    "n": "Yul Brinner",
+                    "a": [
+                        3
+                    ]
+                },
+                "211": {
+                    "n": "Yvan Amarh",
+                    "a": [
+                        3
+                    ]
+                },
+                "465": {
+                    "n": "Yve Konpetmin",
+                    "a": [
+                        3
+                    ]
+                },
+                "764": {
+                    "n": "Zafira",
+                    "a": [
+                        3
+                    ]
+                },
+                "707": {
+                    "n": "Zamawa",
+                    "a": [
+                        3
+                    ]
+                },
+                "640": {
+                    "n": "Zanal el Sabio Zollo",
+                    "a": [
+                        3
+                    ]
+                },
+                "689": {
+                    "n": "Zatoishwan"
+                },
+                "409": {
+                    "n": "Ze Krow",
+                    "a": [
+                        3,
+                        1
+                    ]
+                },
+                "422": {
+                    "n": "Zenizienta",
+                    "a": [
+                        3
+                    ]
+                },
+                "42": {
+                    "n": "Zeurg",
+                    "a": [
+                        3,
+                        2,
+                        1
+                    ]
+                },
+                "789": {
+                    "n": "Ziho",
+                    "a": [
+                        3
+                    ]
+                },
+                "1033": {
+                    "n": "Zim de Bramerly",
+                    "a": [
+                        3
+                    ]
+                },
+                "145": {
+                    "n": "Zollo de los Antiguos Tiempos",
+                    "a": [
+                        3
+                    ]
+                },
+                "282": {
+                    "n": "ZolTAN",
+                    "a": [
+                        3
+                    ]
+                },
+                "633": {
+                    "n": "Zoyo el Sabio Zollo",
+                    "a": [
+                        3
+                    ]
+                },
+                "478": {
+                    "n": "Ztiv Oztin",
+                    "a": [
+                        3
+                    ]
+                },
+                "1108": {
+                    "n": "Zurcaricia",
+                    "a": [
+                        3
+                    ]
+                },
+                "1204": {
+                    "n": "Bwork",
+                    "a": [
+                        3
+                    ]
+                },
+                "1210": {
+                    "n": "Maurice the Concierge",
+                    "a": [
+                        3
+                    ]
+                },
+                "1485": {
+                    "n": "Jack Kitshan",
+                    "a": [
+                        3
+                    ]
+                },
+                "1289": {
+                    "n": "Quaï Gone Gin",
+                    "a": [
+                        3
+                    ]
+                }
+            },
+            "a": {
+                "1": "Comprar/Vender",
+                "2": "Intercambiar",
+                "3": "Hablar",
+                "4": "Dejar/Recoger a una mascota",
+                "5": "Vender",
+                "6": "Comprar",
+                "7": "Resucitar a una mascota",
+                "8": "Intercambiar una montura"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 265,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "N",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}

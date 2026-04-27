@@ -1,0 +1,12 @@
+#!/usr/bin/env php
+<?php
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use App\Command\ExtractStaticCommand;
+use Symfony\Component\Console\Application;
+
+$application = new Application('Static Asset Extractor', '1.0.0');
+$application->addCommand(new ExtractStaticCommand());
+$application->setDefaultCommand('static:extract', true);
+$application->run();

@@ -1,6 +1,9 @@
 import { type Actor, createActor } from "xstate";
 
-import { fightMachine } from "@/game/machines/fight.machine";
+import {
+  type FighterSnapshot,
+  fightMachine,
+} from "@/game/machines/fight.machine";
 
 import { ExternalStore } from "./game-store";
 
@@ -24,6 +27,9 @@ export interface FightState {
   turnIndex: number;
   timeline: string[];
   isMyTurn: boolean;
+  mySpriteId: string | null;
+  currentTurnSpriteId: string | null;
+  fighters: Map<string, FighterSnapshot>;
 }
 
 const initialState: FightState = {
@@ -35,6 +41,9 @@ const initialState: FightState = {
   turnIndex: 0,
   timeline: [],
   isMyTurn: false,
+  mySpriteId: null,
+  currentTurnSpriteId: null,
+  fighters: new Map(),
 };
 
 /**
@@ -83,6 +92,9 @@ fightActor.subscribe((snap) => {
     turnIndex: ctx.turnIndex,
     timeline: ctx.timeline,
     isMyTurn,
+    mySpriteId: ctx.mySpriteId,
+    currentTurnSpriteId: ctx.currentTurnSpriteId,
+    fighters: ctx.fighters,
   });
 });
 

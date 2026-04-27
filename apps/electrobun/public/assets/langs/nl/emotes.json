@@ -1,0 +1,100 @@
+{
+    "schema": "dofus-lang/v2",
+    "data": {
+        "FILE_BEGIN": true,
+        "VERSION": 1254,
+        "EM": {
+            "1": {
+                "n": "Zitten",
+                "s": "sit"
+            },
+            "2": {
+                "n": "Zwaaien",
+                "s": "bye"
+            },
+            "3": {
+                "n": "Klappen",
+                "s": "appl"
+            },
+            "4": {
+                "n": "Boos worden",
+                "s": "mad"
+            },
+            "5": {
+                "n": "Angst tonen",
+                "s": "fear"
+            },
+            "6": {
+                "n": "Wapen tonen",
+                "s": "weap"
+            },
+            "7": {
+                "n": "Fluit spelen",
+                "s": "pipo"
+            },
+            "8": {
+                "n": "Winden",
+                "s": "oups"
+            },
+            "9": {
+                "n": "Groeten",
+                "s": "hi"
+            },
+            "10": {
+                "n": "Kussen",
+                "s": "kiss"
+            },
+            "11": {
+                "n": "Steen",
+                "s": "pfc1"
+            },
+            "12": {
+                "n": "Papier",
+                "s": "pfc2"
+            },
+            "13": {
+                "n": "Schaar",
+                "s": "pfc3"
+            },
+            "14": {
+                "n": "Armen kruisen",
+                "s": "cross"
+            },
+            "15": {
+                "n": "Aanwijzen",
+                "s": "point"
+            },
+            "16": {
+                "n": ". . . . .",
+                "s": "crow"
+            },
+            "19": {
+                "n": "Uitrekken",
+                "s": "rest"
+            },
+            "21": {
+                "n": "Kampioen",
+                "s": "champ"
+            },
+            "22": {
+                "n": "Kracht Aura",
+                "s": "aura"
+            },
+            "23": {
+                "n": "Bloederig Aura",
+                "s": "bat"
+            }
+        },
+        "FILE_END": true
+    },
+    "stats": {
+        "poolSize": 52,
+        "topLevelKeys": [
+            "FILE_BEGIN",
+            "VERSION",
+            "EM",
+            "FILE_END"
+        ],
+        "unknownOpcodes": []
+    }
+}
