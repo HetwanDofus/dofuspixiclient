@@ -210,7 +210,15 @@ export class FightHandler {
               ap: entry.ap,
               mp: entry.mp,
               cell: entry.cellNum,
-              dead: entry.isDead,
+              // Only LATCH dead to true via gameTurnMiddle — never
+              // un-set it. The death `FIGHTER_UPDATE` from
+              // `routeAction("death")` is authoritative for the
+              // dead transition; gameTurnMiddle's `isDead` field is
+              // sometimes false on the wire even for corpses (the
+              // server tears them down asynchronously), and
+              // overwriting back to false would let dead-monster
+              // cells re-block pathfinding/LoS for the next hover.
+              ...(entry.isDead ? { dead: true } : {}),
             },
           });
         }
@@ -266,6 +274,18 @@ export class FightHandler {
           if (entry.lpMax <= 0 && entry.lp <= 0) {
             continue;
           }
+          // Monster-group entries carry their colours on the leader
+          // member, not on `entry.colors` (the top-level CharacterColors
+          // is for player sprites). Mirror what `encodeLook` does in
+          // map.handler.ts so player and monster fighters both end up
+          // in the store with the right tint.
+          const isMonsterGroup =
+            entry.spriteType === 3 /* SPRITE_TYPE_MONSTER_GROUP */ &&
+            entry.monsters.length > 0;
+          const leader = isMonsterGroup ? entry.monsters[0] : null;
+          const c1 = leader?.color1 ?? entry.colors?.color1 ?? -1;
+          const c2 = leader?.color2 ?? entry.colors?.color2 ?? -1;
+          const c3 = leader?.color3 ?? entry.colors?.color3 ?? -1;
           fightActor.send({
             type: "FIGHTER_UPSERT",
             fighter: {
@@ -282,6 +302,9 @@ export class FightHandler {
               maxMp: entry.mp,
               gfxId: entry.gfxId,
               dead: false,
+              color1: c1,
+              color2: c2,
+              color3: c3,
               ...(entry.isSummoned
                 ? { summonedBy: entry.spriteId }
                 : {}),
@@ -421,6 +444,12 @@ export class FightHandler {
               maxMp: sd.mp,
               gfxId: sd.gfxId,
               dead: false,
+              // Summon spriteData doesn't carry colours on the wire
+              // (the server populates the gfx id; visual tint is left
+              // to the client). Default to -1 = "use gfx defaults".
+              color1: -1,
+              color2: -1,
+              color3: -1,
               summonedBy: action.spriteId,
             },
           });

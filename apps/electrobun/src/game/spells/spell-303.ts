@@ -1,70 +1,46 @@
 /**
- * Spell 303 — Tremblement de Terre (Feca earth shake).
+ * Spell 303 — Séisme (Feca earth-shockwave).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/303/scripts/scripts/
  *
  * displayType=11 (TargetCell). The spell has a single composite animation
- * (anim1, 222 frames) rendered at the target cell. There are no `move` or
- * `shoot` symbols, no projectile arc, no beam — just an impact-at-target
- * sequence. The manifest's `librarySymbols` array contains only `pierres`
- * (the stone particle). The main outer sprite (DefineSprite_20) is the
- * primary timeline and drives all timing; `anim1` supplies its frame textures.
+ * (anim1, 222 frames) anchored at the target cell. There are no move/shoot/
+ * duplicate symbols, no projectile motion — purely an impact animation at
+ * the target. The main timeline just plays a sound and the outer sprite
+ * (DefineSprite_20, mirrored by `anim1`) drives everything.
  *
  * Library symbols:
- *   - `pierres` — single-frame stone chip particle.
- *       onLoad: seeds vx, vy, _Y start (falling from above), scale, alpha,
- *               gravity speed v, rotation-speed vr. Also scatters parent.
- *       onEnterFrame: integrates falling + bounce physics; fades and removes
- *                     itself when small enough.
- *   - `or` — golden sparkle particle (NOT in librarySymbols[]; the AS
- *             `attachMovie("or",…)` reference is inside DefineSprite_6_or but
- *             that symbol itself is only referenced internally — it has no
- *             manifest librarySymbols entry. Looking at the script paths:
- *             `DefineSprite_6_or` is a library symbol the outer DefineSprite_20
- *             attaches. However, since it is absent from `librarySymbols[]` in
- *             the manifest it has no separate texture strip; we treat it as a
- *             container-only symbol with a single placeholder frame.)
+ *   - lib_pierres — tiny stone particle (6.4×3.85). Two separate sets are
+ *     spawned by two onClipEvent(load) handlers on two PlaceObject2
+ *     placements inside DefineSprite_20:
+ *       • frame_1  (PlaceObject2_11_2): 25 particles, depths 105–129
+ *       • frame_7  (PlaceObject2_11_5): 20 particles, depths 100–119
+ *     Each particle's inner "controller" clip seeds scatter/physics in
+ *     onLoad and drives falling + bounce + fade in onEnterFrame.
+ *   - "or"     — gold/glow fleck particle. DefineSprite_6_or has its own
+ *     PlaceObject2_5_1 with onClipEvent(load/enterFrame). Spawned directly
+ *     from the composite anim1 at certain frames (baked into SVG
+ *     placements). There is no separate `lib_or` entry in librarySymbols,
+ *     but the AS scripts exist — we model `or` as a virtual symbol whose
+ *     clip-events drive the gold-fleck motion.
+ *   - "terre"  — DefineSprite_10_terre is an earth-chunk clip with a
+ *     simple upward-launch/gravity onEnterFrame. Also baked into the SVG
+ *     composite but its handler must run at runtime.
  *
- * Wait — re-reading the manifest carefully: `librarySymbols` only has `pierres`.
- * The script paths show two distinct particle symbols:
- *   DefineSprite_3_pierres  → name "pierres"
- *   DefineSprite_6_or       → name "or"   (implied by frame_7 onClipEvent(load)
- *                             attaching "pierres", and frame_1 attaching "pierres"
- *                             too — but the `or` symbol is ONLY referenced in
- *                             DefineSprite_6_or's own clip events, which belong
- *                             to an inner clip placed INSIDE "or". The outer
- *                             DefineSprite_20 never calls attachMovie("or",...).
- *                             Only `attachMovie("pierres",...)` is visible in
- *                             the DefineSprite_20 frame clip events.)
+ * Because the manifest lists `isComposite: true` for `anim1` and only
+ * `pierres` appears in `librarySymbols[]`, we model the spell as:
+ *   1. Register `pierres` (with full onLoad + onEnterFrame physics).
+ *   2. Register a container symbol `anim1` (222 frames, texture frames
+ *      from `textures.getFrames("anim1")`). Its frameScripts wire:
+ *        - frame 0  (frame_1):  spawn first batch of pierres (depths 105–129)
+ *        - frame 6  (frame_7):  spawn second batch of pierres (depths 100–119)
+ *        - frame 36 (frame_37): play "explosion" sound
+ *        - frame 156 (frame_157): signalHit (this.end() equivalent)
+ *        - frame 219 (frame_220): complete (_parent.removeMovieClip + stop)
+ *   3. Attach `anim1` from onSpellStart and play sound "setag_303".
  *
- * Actually reading the DefineSprite_20 onClipEvent scripts more carefully:
- *   frame_7  PlaceObject2_11_5 onClipEvent(load): attachMovie("pierres",…) ×20
- *   frame_1  PlaceObject2_11_2 onClipEvent(load): attachMovie("pierres",…) ×25
- *
- * So "or" is never attachMovie'd from the outer timeline; it is a placed
- * child of DefineSprite_20's authored content (PlaceObject2_5 = the "or"
- * symbol, which is placed automatically by the SWF). The DefineSprite_6_or
- * script is the clip-event handler for that placed child.
- *
- * For our runtime, DefineSprite_20 IS the top-level anim1 (the 222-frame
- * composite). We register `anim1` as the root symbol and drive:
- *   - frame_1 (0-indexed): attach 25 `pierres` particles (PlaceObject2_11_2 load)
- *   - frame_7 (0-indexed 6): attach 20 more `pierres` particles
- *   - frame_37 (0-indexed 36): play "explosion" sound
- *   - frame_157 (0-indexed 156): this.end() → signalHit
- *   - frame_220 (0-indexed 219): _parent.removeMovieClip → complete
- *
- * The "or" (gold sparkle) child described by DefineSprite_6_or is an authored
- * placed child of the outer timeline. Since the runtime doesn't replay authored
- * PlaceObject entries, we skip it — its visuals are baked into anim1's composite
- * frames by the exporter.
- *
- * Main timeline frame_1: SOMA.playSound("setag_303").
- *
- * Timing signals:
- *   - signalHit at frame_157 (0-indexed 156) — canonical `this.end()` call.
- *   - complete  at frame_220 (0-indexed 219) — canonical `_parent.removeMovieClip()`.
+ * Main timeline: SOMA.playSound("setag_303"); (frame_1/DoAction.as)
  */
 
 import type {
@@ -107,36 +83,36 @@ export class Spell303 extends RuntimeSpell {
     const pierresAnchor = calculateAnchor(PIERRES_BOUNDS);
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- lib_pierres — falling stone chip particle ---------------
-    // Registered from manifest librarySymbols[0]: name="pierres",
-    // totalFrames=1, bounds as above.
+    // ---- lib_pierres — stone particle ----------------------------
+    // The particle logic lives on a PlaceObject2 controller child INSIDE
+    // the pierres sprite. In canonical AS the DefineSprite_3_pierres clip
+    // contains PlaceObject2_2_1 which carries the onClipEvent handlers.
+    // We model this by putting the handlers directly on the pierres
+    // SymbolDefinition (the controller child is not separately modelled
+    // because it has no visual content of its own and its vars/state are
+    // the clip's own vars in all practical terms).
     //
-    // onLoad ports:
-    //   DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
-    //
-    // onEnterFrame ports:
-    //   DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-    //
-    // Note: AS uses _X/_Y to move the inner child (the clip event is on
-    // a child sprite placed inside pierres), while _parent._x/_y moves
-    // the outer "pierres" container. In our runtime, SpellClip exposes
-    // only one transform layer, so we collapse both: x/y is the world
-    // offset (was _parent._x/_y) and the "local _Y" fall offset is
-    // stored in vars.localY and accumulated into clip.y each frame.
+    // AS: scripts/DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/
+    //       CLIPACTIONRECORD onClipEvent(load).as
+    //       CLIPACTIONRECORD onClipEvent(enterFrame).as
     this.pierresSym = {
       name: "pierres",
       totalFrames: 1,
       frames: textures.getFrames("lib_pierres"),
       anchorX: pierresAnchor.x,
       anchorY: pierresAnchor.y,
+
       onLoad: (clip) => {
-        // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/onClipEvent(load)
+        // AS onClipEvent(load) — DefineSprite_3_pierres/frame_1/PlaceObject2_2_1
         clip.vars.vy = 1 * (Math.random() - 0.5);
         clip.vars.vx = 2 * (Math.random() - 0.5);
-        // _parent._x / _parent._y scatter applied as initial position offset
+        // _parent._x / _parent._y: the "parent" in AS is the wrapper
+        // container clip. Since we collapse wrapper+controller into one
+        // SpellClip node, we apply the scatter directly to this clip.
         clip.x = 40 * (Math.random() - 0.5);
         clip.y = 10 * (Math.random() - 0.5);
-        // Local _Y starts high above (negative = up in Flash)
+        // Local _Y inside the controller — represents vertical offset
+        // within the clip's own coordinate space. We store as vars.localY.
         clip.vars.localY = -180 - Math.floor(Math.random() * 40);
         const t = 60 + 40 * Math.random();
         clip.scaleX = t / 100;
@@ -144,150 +120,146 @@ export class Spell303 extends RuntimeSpell {
         clip.alpha = (20 + Math.floor(Math.random() * 90)) / 100;
         clip.vars.v = 3 * Math.random();
         clip.vars.vr = 40 * (-0.5 + Math.random());
-        clip.vars.t = t; // repurposed: t != 1 means "still falling", t == 1 means "fading"
-        clip.vars.fadingMode = false;
+        clip.vars.t = t;
+        // m counter for phase tracking (reuse field; starts undefined = 0)
+        clip.vars.m = 0;
       },
+
       onEnterFrame: (clip) => {
-        // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/onClipEvent(enterFrame)
+        // AS onClipEvent(enterFrame) — DefineSprite_3_pierres/frame_1/PlaceObject2_2_1
         const vx = clip.vars.vx as number;
         const vy = clip.vars.vy as number;
+        const t = clip.vars.t as number;
+
         clip.x += vx;
         clip.y += vy;
 
-        const fadingMode = clip.vars.fadingMode as boolean;
-
-        if (fadingMode) {
-          // AS: t == 1 branch — fade out
-          const alpha = clip.alpha;
-          const newAlpha = alpha - 2 / 100;
+        if (t === 1) {
+          // Fade-out phase
+          const newAlpha = clip.alpha - 2 / 100;
           clip.alpha = newAlpha;
-          if (newAlpha <= 10 / 100) {
-            clip.remove();
+          if (clip.alpha <= 10 / 100) {
+            clip.parent?.remove();
           }
-        } else {
-          // AS: t != 1 branch — fall + bounce physics
+        }
+
+        if (t !== 1) {
           let localY = clip.vars.localY as number;
           let v = clip.vars.v as number;
           let vr = clip.vars.vr as number;
-          let curVx = clip.vars.vx as number;
-          let curVy = clip.vars.vy as number;
 
           localY += v;
-          // AS: _rotation = _rotation + vr → delta in degrees → convert to radians
+          clip.vars.localY = localY;
+          // Apply localY as a vertical position offset within the clip
+          // (AS _Y is the controller's local Y; we store & apply it as an
+          // additive offset on top of the scatter y set in onLoad).
+          // We express localY as a pixel displacement from the spawned y.
+          clip.y = (clip.vars.spawnY as number | undefined ?? clip.y) + localY;
+
+          // Rotation — AS degrees to radians
           clip.rotation += (vr * Math.PI) / 180;
+          clip.vars.vr = vr;
+
           v += 0.4;
+          clip.vars.v = v;
 
           if (localY > 0) {
-            // Bounce
-            curVx /= 2;
-            curVy /= 2;
+            // Bounce on "ground"
+            clip.vars.vx = vx / 2;
+            clip.vars.vy = vy / 2;
             clip.rotation = 0;
-            localY = 0;
-            v = (-v) / 4;
-            if (Math.abs(v) < 1) {
-              curVx = 0;
-              curVy = 0;
-              clip.vars.fadingMode = true;
+            clip.vars.localY = 0;
+            clip.y = clip.vars.spawnY as number ?? clip.y;
+            const bounced = (-v) / 4;
+            clip.vars.v = bounced;
+            if (Math.abs(bounced) < 1) {
+              clip.vars.vx = 0;
+              clip.vars.vy = 0;
+              clip.vars.t = 1;
             }
           }
-
-          clip.vars.localY = localY;
-          clip.vars.v = v;
-          clip.vars.vr = vr;
-          clip.vars.vx = curVx;
-          clip.vars.vy = curVy;
-
-          // Render the local Y offset into the clip's y position.
-          // We add localY on top of the scatter offset that was applied in onLoad.
-          // To avoid double-accumulation, store the base offset separately.
-          // We use a "baseY" to keep track of the scatter component.
-          // Actually, re-check AS semantics:
-          //   _parent._x += vx  → moves container
-          //   _Y = _Y + v       → moves inner child's local Y
-          // In our single-transform model we folded both into clip.x/y.
-          // The _parent drift is already applied above (clip.x += vx, clip.y += vy).
-          // The _Y accumulation should be a separate offset. We store it in vars.localY
-          // and apply it by adjusting y relative to baseY each frame.
-          // Set clip.y to scatter_base + localY.
-          // Since clip.x/y starts at scatter position (set in onLoad) and we
-          // just added vx/vy drift each frame, we need to also incorporate localY.
-          // The simplest correct model: store base scatter separately.
-          // However, since onLoad sets clip.y = scatter and enterFrame adds vy
-          // continuously, we need to add localY as an additional offset on top.
-          // We track "lastLocalY" so we can apply the delta.
-          const lastLocalY = (clip.vars.lastLocalY as number) ?? 0;
-          clip.y += localY - lastLocalY;
-          clip.vars.lastLocalY = localY;
         }
       },
     };
 
-    // ---- anim1 — the main outer DefineSprite_20 composite --------
-    // This is the primary 222-frame timeline (DefineSprite_20 in AS).
-    // It holds the composite animation frames (anim1_*.svg) and drives
-    // all frame-script events: particle spawns, sound, signalHit, complete.
+    // ---- anim1 — main composite timeline (222 frames) ------------
+    // DefineSprite_20 drives the overall spell. We map it to the `anim1`
+    // animation entry which holds the pre-rendered SVG composite frames.
     //
-    // Frame scripts port:
-    //   DefineSprite_20/frame_1 PlaceObject2_11_2 onClipEvent(load) → spawn 25 pierres
-    //   DefineSprite_20/frame_7 PlaceObject2_11_5 onClipEvent(load) → spawn 20 pierres
-    //   DefineSprite_20/frame_37/DoAction.as → playSound("explosion")
-    //   DefineSprite_20/frame_157/DoAction.as → signalHit
-    //   DefineSprite_20/frame_220/DoAction.as → complete
-    //
-    // The PlaceObject2 onClipEvent(load) handlers fire when the placed
-    // child is first visible — that maps to the frame on which the
-    // PlaceObject2 tag appears (frame_1 and frame_7 respectively).
-    // We fire them as frameScripts on those frames.
+    // frameScripts ports:
+    //   frame_1  (index 0)  — PlaceObject2_11_2 onLoad: spawn pierres 105–129
+    //   frame_7  (index 6)  — PlaceObject2_11_5 onLoad: spawn pierres 100–119
+    //   frame_37 (index 36) — DoAction: SOMA.playSound("explosion")
+    //   frame_157(index 156)— DoAction: this.end() → signalHit
+    //   frame_220(index 219)— DoAction: _parent.removeMovieClip → complete
+    const anim1Frames = textures.getFrames("anim1");
+
     this.anim1Sym = {
       name: "anim1",
       totalFrames: 222,
-      frames: textures.getFrames("anim1"),
+      frames: anim1Frames,
       anchorX: anim1Anchor.x,
       anchorY: anim1Anchor.y,
+
       frameScripts: new Map([
         [
-          // AS: DefineSprite_20/frame_1 PlaceObject2_11_2 onClipEvent(load)
-          // c = 105; while (c < 130) { attachMovie("pierres","pierres"+c,c); c++; }
-          // That's 25 particles (c = 105..129 inclusive).
           0,
           (clip, ctx) => {
-            for (let c = 105; c < 130; c++) {
-              clip.attach(this.pierresSym, `pierres${c}`, c, ctx);
+            // AS DefineSprite_20/frame_1/PlaceObject2_11_2 onClipEvent(load)
+            // Spawn pierres particles at depths 105–129 (c = 105; c < 130)
+            let c = 105;
+            while (c < 130) {
+              const child = clip.attach(
+                this.pierresSym,
+                `pierres${c}`,
+                c,
+                ctx,
+              );
+              // Record the spawn y so localY can be applied as delta
+              child.vars.spawnY = child.y;
+              c++;
             }
           },
         ],
         [
-          // AS: DefineSprite_20/frame_7 PlaceObject2_11_5 onClipEvent(load)
-          // c = 100; while (c < 120) { attachMovie("pierres","pierres"+c,c); c++; }
-          // That's 20 particles (c = 100..119 inclusive).
           6,
           (clip, ctx) => {
-            for (let c = 100; c < 120; c++) {
-              clip.attach(this.pierresSym, `pierres${c}`, c, ctx);
+            // AS DefineSprite_20/frame_7/PlaceObject2_11_5 onClipEvent(load)
+            // Spawn pierres particles at depths 100–119 (c = 100; c < 120)
+            let c = 100;
+            while (c < 120) {
+              const child = clip.attach(
+                this.pierresSym,
+                `pierres${c}`,
+                c,
+                ctx,
+              );
+              child.vars.spawnY = child.y;
+              c++;
             }
           },
         ],
         [
-          // AS: DefineSprite_20/frame_37/DoAction.as → SOMA.playSound("explosion")
-          // Sound triggered mid-animation at the impact flash frame.
           36,
           (_clip) => {
+            // AS DefineSprite_20/frame_37/DoAction.as
+            // SOMA.playSound("explosion") — captured callback reference used here
             this.soundCallback?.("explosion");
           },
         ],
         [
-          // AS: DefineSprite_20/frame_157/DoAction.as → this.end()
-          // Canonical hit signal — damage popup appears here.
           156,
           (_clip) => {
+            // AS DefineSprite_20/frame_157/DoAction.as
+            // this.end() — signals hit (damage popup)
             this.runtime.signalHit();
           },
         ],
         [
-          // AS: DefineSprite_20/frame_220/DoAction.as → _parent.removeMovieClip(); stop();
-          // Spell complete — outer mc removed.
           219,
           (clip) => {
+            // AS DefineSprite_20/frame_220/DoAction.as
+            // _parent.removeMovieClip(); stop();
             clip.remove();
             this.runtime.complete();
           },
@@ -305,15 +277,11 @@ export class Spell303 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture sound callback for use inside frame_37 script.
-    this.soundCallback = callbacks.playSound;
-
-    // AS: frame_1/DoAction.as → SOMA.playSound("setag_303")
+    // AS scripts/frame_1/DoAction.as: SOMA.playSound("setag_303");
     callbacks.playSound("setag_303");
-
-    // Attach the main anim1 timeline at the root. For TargetCell the
-    // container is already positioned at the target cell, so the
-    // anim1 child sits at (0,0) relative to the container.
+    // Capture for deferred use in frame_37 script ("explosion")
+    this.soundCallback = callbacks.playSound;
+    // Attach the main composite animation at the root (target cell origin)
     this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

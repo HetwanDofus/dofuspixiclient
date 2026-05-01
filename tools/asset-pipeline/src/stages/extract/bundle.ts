@@ -50,7 +50,13 @@ export async function extractBundleSymbols(
   // staticTile categories (gfx.tactic, gfx.cell) expect per-frame output for
   // multi-frame symbols — the tactic theme sprites (arene, foret, …) carry
   // three decor frames that the client cycles through.
-  if (category.shape === "staticTile") args.push("--expand-frames");
+  // ui.loader (cc-loader) animates each UI component's slide-in / hold /
+  // slide-out across many frames — UI_StringCourse hides the parchment in
+  // frame 0 (`stop()`) and only reveals it from frame 2 onward; we need
+  // every frame so the client can pick the steady-state one.
+  if (category.shape === "staticTile" || category.name === "ui.loader") {
+    args.push("--expand-frames");
+  }
 
   logger.info(
     { category: category.name, inputFile, outputDir },

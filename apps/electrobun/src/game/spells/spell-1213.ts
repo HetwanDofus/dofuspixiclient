@@ -1,31 +1,29 @@
 /**
- * Spell 1213 — Unknown (likely a Pandawa or support spell).
+ * Spell 1213 — (Unknown name, likely a Pandawa or similar class spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/1213/scripts/scripts/
  *
- * displayType=11 (TargetCell). This spell has no library symbols, no
- * projectile motion, no duplicate beam, and no dual-anchor pattern.
- * It is a single authored animation (`anim1`, 168 frames) placed at
- * the target cell. The only authored scripts are:
+ * displayType=11 (TargetCell). The spell has no library symbols, no
+ * projectile motion, no caster-side reference, and no dual-anchored
+ * timelines. It is a single animated composite (anim1, 168 frames)
+ * played at the target cell. This is the canonical TargetCell pattern.
  *
- *   - DefineSprite_14/frame_55/DoAction.as  → SOMA.playSound("m_panda_flotte")
- *   - DefineSprite_14/frame_166/DoAction.as → _parent.removeMovieClip()
+ * Library symbols: none (librarySymbols[] is empty in manifest).
  *
- * `DefineSprite_14` maps to the `anim1` animation (the sole entry in
- * `animations[]`, no `librarySymbols[]`). It has 168 authored frames.
- * Frame 55 plays a sound; frame 166 removes the parent (outer mc) and
- * signals spell completion.
+ * Main timeline / DefineSprite_14:
+ *   - Single symbol `anim1` (168 frames, composite SVG animation).
+ *   - frame_55/DoAction.as: SOMA.playSound("m_panda_flotte")
+ *   - frame_166/DoAction.as: _parent.removeMovieClip() → spell complete
  *
- * signalHit is fired at the impact frame (frame 55, coinciding with the
- * sound cue) — the canonical pattern for impact-at-target spells where
- * no explicit `this.end()` or hit-callback exists but a sound marks
- * the moment of effect.
+ * The sound at frame 55 fires from inside the anim1 symbol's timeline,
+ * not the outer main timeline. We capture the playSound callback in
+ * onSpellStart and fire it from the frameScripts entry for frame 54
+ * (0-based).
  *
- * Library symbols: none (librarySymbols[] is absent/empty).
- *
- * Main timeline: anim1 is the sole authored content; onSpellStart
- * attaches it to root so it starts ticking from the next runtime frame.
+ * signalHit is fired at the same frame as the sound (frame 55, index 54)
+ * as the canonical impact moment for this spell type (no explicit
+ * `this.end()` call in AS, but the sound marks the hit).
  */
 
 import type {
@@ -51,7 +49,7 @@ export class Spell1213 extends RuntimeSpell {
   readonly spellId = 1213;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  private anim1Sym!: SymbolDefinition;
+  private playSoundCallback?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
@@ -59,14 +57,11 @@ export class Spell1213 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1 — 168-frame impact animation at target cell -------
-    // No librarySymbols[] entry; exposed by animations[] only.
-    // Use bare "anim1" key (no lib_ prefix).
-    //
-    // Frame scripts:
-    //   AS DefineSprite_14/frame_55/DoAction.as  → playSound + signalHit
-    //   AS DefineSprite_14/frame_166/DoAction.as → _parent.removeMovieClip()
-    this.anim1Sym = {
+    // ---- anim1 — 168-frame composite animation at target cell ----
+    // AS DefineSprite_14 carries two frame scripts:
+    //   frame_55/DoAction.as:  SOMA.playSound("m_panda_flotte")
+    //   frame_166/DoAction.as: _parent.removeMovieClip()
+    const anim1Sym: SymbolDefinition = {
       name: "anim1",
       totalFrames: 168,
       frames: textures.getFrames("anim1"),
@@ -76,23 +71,18 @@ export class Spell1213 extends RuntimeSpell {
         [
           54,
           (_clip) => {
-            // AS DefineSprite_14/frame_55/DoAction.as:
-            //   SOMA.playSound("m_panda_flotte");
-            // Also the canonical moment the spell hits — signal hit here.
+            // AS DefineSprite_14/frame_55/DoAction.as
+            // SOMA.playSound("m_panda_flotte");
+            this.playSoundCallback?.("m_panda_flotte");
+            // The sound marks the canonical impact moment — signal hit here.
             this.runtime.signalHit();
-            // Sound is played from onSpellStart's captured reference;
-            // store the callback so we can call it from inside this closure.
-            if (this._soundCallback) {
-              this._soundCallback("m_panda_flotte");
-            }
           },
         ],
         [
           165,
           (clip) => {
-            // AS DefineSprite_14/frame_166/DoAction.as:
-            //   _parent.removeMovieClip();
-            // clip is anim1; its parent is root (the outer mc).
+            // AS DefineSprite_14/frame_166/DoAction.as
+            // _parent.removeMovieClip();
             clip.parent?.remove();
             this.runtime.complete();
           },
@@ -100,21 +90,23 @@ export class Spell1213 extends RuntimeSpell {
       ]),
     };
 
-    this.registry.register(this.anim1Sym);
+    this.registry.register(anim1Sym);
   }
-
-  private _soundCallback: ((id: string) => void) | undefined;
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture the sound callback so frameScripts can use it.
-    this._soundCallback = callbacks.playSound;
+    // Capture the playSound callback so frame scripts can fire sounds
+    // from inside the anim1 symbol's timeline.
+    this.playSoundCallback = callbacks.playSound;
 
-    // Attach anim1 to root so it begins ticking on the next runtime frame.
-    // The container is already positioned at the target cell by the harness
-    // (TargetCell anchor), so anim1 at local (0,0) lands at the target.
-    this.root.attach(this.anim1Sym, "anim1", 1, context);
+    // Attach anim1 to the root so it begins playing from frame 1.
+    // The harness has already positioned the root at the target cell
+    // (displayType=11), so anim1 at local (0,0) renders correctly.
+    const anim1Sym = this.registry.resolve("anim1");
+    if (anim1Sym) {
+      this.root.attach(anim1Sym, "anim1", 1, context);
+    }
   }
 }

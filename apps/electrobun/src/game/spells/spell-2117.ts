@@ -1,22 +1,26 @@
 /**
- * Spell 2117 — Unknown (simple impact animation).
+ * Spell 2117 — (Unknown name, likely a simple impact effect).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2117/scripts/scripts/
  *
- * displayType=11 (TargetCell). No projectile, no caster reference, no
- * library symbols with attachMovie. The manifest has a single `animations`
- * entry (`anim1`, 18 frames) and no `librarySymbols`. The only AS script
- * is `DefineSprite_2/frame_16/DoAction.as` which does:
- *   _parent.removeMovieClip(); stop();
- * This is the canonical outer-mc removal at frame 16 (0-based: 15),
- * triggering spell completion. signalHit is fired at the same frame since
- * there is no earlier canonical hit frame defined in the scripts.
+ * displayType=11 (TargetCell). This spell has a single animation (`anim1`)
+ * with no library symbols and no projectile/beam logic. The manifest
+ * contains no `librarySymbols[]` entries and no `attachMovie` calls in
+ * the AS scripts. The sole AS script is:
  *
- * Library symbols: none (librarySymbols[] is absent/empty in manifest).
+ *   DefineSprite_2/frame_16/DoAction.as:
+ *     _parent.removeMovieClip();
+ *     stop();
  *
- * Main timeline: single `anim1` animation placed at target cell; plays
- * through 18 frames, completion signalled at frame 16 (0-based: 15).
+ * This means the animation plays through 18 frames, and at frame 16
+ * (0-based: frame index 15) the sprite removes its parent (the outer mc)
+ * and signals spell completion.
+ *
+ * Library symbols: none — `librarySymbols[]` is absent from the manifest.
+ *
+ * Main timeline: single `anim1` animation, no sound, no explicit child
+ * attaches beyond what the harness provides.
  */
 
 import type {
@@ -42,20 +46,25 @@ export class Spell2117 extends RuntimeSpell {
   readonly spellId = 2117;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  private anim1Sym!: SymbolDefinition;
-
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1 — 18-frame impact animation at target cell -------
-    // AS: DefineSprite_2/frame_16/DoAction.as
-    //   _parent.removeMovieClip(); stop();
-    // Frame 16 in AS (1-based) = index 15 (0-based).
-    // signalHit is also fired here since no earlier hit frame is defined.
-    this.anim1Sym = {
+    // ---- anim1 — single 18-frame impact animation ---------------
+    // The manifest has no librarySymbols[] entries. The animation
+    // `anim1` is the main (and only) visual content. We register it
+    // as a SymbolDefinition so it can be attached to the root clip
+    // from onSpellStart and driven by the runtime tick loop.
+    //
+    // AS DefineSprite_2/frame_16/DoAction.as:
+    //   _parent.removeMovieClip();
+    //   stop();
+    //
+    // frame_16 in AS is 1-based → frameScripts.set(15, ...) here.
+    // `_parent.removeMovieClip()` removes the outer mc → complete().
+    const anim1Sym: SymbolDefinition = {
       name: "anim1",
       totalFrames: 18,
       frames: textures.getFrames("anim1"),
@@ -63,27 +72,37 @@ export class Spell2117 extends RuntimeSpell {
       anchorY: anim1Anchor.y,
       frameScripts: new Map([
         [
+          // AS: DefineSprite_2/frame_16/DoAction.as
+          // frame_16 (1-based) → index 15 (0-based)
           15,
           (clip) => {
-            // AS: DefineSprite_2/frame_16/DoAction.as
-            // _parent.removeMovieClip(); stop();
+            // _parent.removeMovieClip() — removes the outer mc.
+            // Signal hit at the impact frame before completing.
             this.runtime.signalHit();
-            clip.remove();
+            clip.parent?.remove();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
-    this.registry.register(this.anim1Sym);
+    this.registry.register(anim1Sym);
   }
 
   protected onSpellStart(
     _callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Main timeline: place anim1 at the target cell (root origin for
-    // displayType=11). No SOMA.playSound in the canonical scripts.
-    this.root.attach(this.anim1Sym, "anim1", 1, context);
+    // No SOMA.playSound() call exists in the canonical main-timeline
+    // scripts for this spell.
+    //
+    // Attach the anim1 symbol to root so the runtime can tick it.
+    // For displayType=11 (TargetCell), the harness places the
+    // container at the target cell; anim1 at root local (0,0) renders
+    // centred on the target.
+    const anim1Sym = this.registry.resolve("anim1");
+    if (anim1Sym) {
+      this.root.attach(anim1Sym, "anim1", 1, context);
+    }
   }
 }

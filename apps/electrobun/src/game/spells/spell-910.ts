@@ -5,29 +5,31 @@
  * Canonical AS source: tools/combat-exporter/output/spell-anims/910/scripts/scripts/
  *
  * displayType=11 (TargetCell). The spell has a single `shoot` symbol
- * anchored at the target cell. There is no projectile motion (no `move`
- * symbol, no caster reference, no `_parent.cellFrom`/`cellTo` world-
- * absolute wiring). The `shoot` animation plays a full 84-frame impact
- * burst at the target, with:
+ * with a fully authored 84-frame SVG timeline anchored at the target
+ * cell. No library symbols are attached at runtime — the `shoot`
+ * timeline is the entire visual. No projectile motion, no particles.
  *
- *   - frame_1 (DoAction.as):   SOMA.playSound("explosion")
- *   - frame_1 (DoAction_2.as): _rotation = 0  (upright impact)
- *   - frame_70 (DoAction.as):  _parent.removeMovieClip(); stop()
+ * Canonical AS layout:
+ *   - DefineSprite_15_shoot/frame_1/DoAction.as:
+ *       SOMA.playSound("explosion");
+ *   - DefineSprite_15_shoot/frame_1/DoAction_2.as:
+ *       _rotation = 0;
+ *   - DefineSprite_15_shoot/frame_70/DoAction.as:
+ *       _parent.removeMovieClip(); stop();
  *
- * The harness attaches `shoot` at the target for displayType=20/21/30/31,
- * but for TargetCell (11) it does NOT attach any `shoot` automatically —
- * the spell's onSpellStart must attach it directly to the root.
+ * The harness (displayType=11) attaches `shoot` at the target cell.
+ * shoot's frame_1 plays the explosion sound and resets rotation to 0.
+ * At frame_70 the outer mc is removed and the spell completes.
  *
- * Library symbols: none (manifest.librarySymbols is absent/empty).
- * The `shoot` animation lives in manifest.animations[] only, so its
- * texture key has NO `lib_` prefix.
+ * signalHit is fired at frame_1 (impact frame — the first visible
+ * explosion frame), which is canonical for TargetCell impact spells.
  *
- * Main timeline: the outer SWF main timeline has no authored frame
- * scripts; the single `shoot` symbol is placed on-stage at frame 1.
- * We attach it from onSpellStart.
+ * Library symbols: none (shoot has authored SVG frames, no runtime
+ * attachMovie calls).
  *
- * signalHit: fired at frame_70 (index 69), immediately before the
- * spell completes, matching the canonical impact frame.
+ * Main timeline: no explicit frame_1 DoAction on the outer timeline;
+ * sound is fired from inside shoot's frame_1. No onSpellStart override
+ * needed beyond the default no-op.
  */
 
 import type {
@@ -53,7 +55,7 @@ export class Spell910 extends RuntimeSpell {
   readonly spellId = 910;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  private shootSym!: SymbolDefinition;
+  private playExplosionSound?: () => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
@@ -61,20 +63,11 @@ export class Spell910 extends RuntimeSpell {
   ): void {
     const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // ---- shoot — 84-frame impact animation at target cell --------
-    // No librarySymbols entry in manifest; textures live under bare
-    // "shoot" key (no lib_ prefix).
-    //
-    // AS DefineSprite_15_shoot/frame_1/DoAction.as:
-    //   SOMA.playSound("explosion");
-    //
-    // AS DefineSprite_15_shoot/frame_1/DoAction_2.as:
-    //   _rotation = 0;
-    //
-    // AS DefineSprite_15_shoot/frame_70/DoAction.as:
-    //   _parent.removeMovieClip();
-    //   stop();
-    this.shootSym = {
+    // ---- shoot — 84-frame impact explosion at target cell --------
+    // The harness attaches this symbol at the target cell automatically
+    // for displayType=11 (TargetCell). The symbol's frame_1 scripts
+    // fire immediately on attach.
+    const shootSym: SymbolDefinition = {
       name: "shoot",
       totalFrames: 84,
       frames: textures.getFrames("shoot"),
@@ -84,40 +77,45 @@ export class Spell910 extends RuntimeSpell {
         [
           0,
           (clip) => {
-            // AS DefineSprite_15_shoot/frame_1/DoAction.as
-            // SOMA.playSound("explosion") — sound is played via onSpellStart
-            // for the initial attach; this script also resets rotation per
-            // DoAction_2.as: _rotation = 0.
-            // AS DefineSprite_15_shoot/frame_1/DoAction_2.as
+            // AS: DefineSprite_15_shoot/frame_1/DoAction.as
+            // SOMA.playSound("explosion");
+            if (this.playExplosionSound) {
+              this.playExplosionSound();
+            }
+            // AS: DefineSprite_15_shoot/frame_1/DoAction_2.as
+            // _rotation = 0;
             clip.rotation = 0;
+            // Signal hit at the impact frame (canonical for TargetCell
+            // impact spells — damage popup fires when explosion begins).
+            this.runtime.signalHit();
           },
         ],
         [
           69,
           (clip) => {
-            // AS DefineSprite_15_shoot/frame_70/DoAction.as
+            // AS: DefineSprite_15_shoot/frame_70/DoAction.as
             // _parent.removeMovieClip(); stop();
-            this.runtime.signalHit();
             clip.parent?.remove();
+            clip.stop();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
-    this.registry.register(this.shootSym);
+    this.registry.register(shootSym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    context: SpellContext,
+    _context: SpellContext,
   ): void {
-    // AS DefineSprite_15_shoot/frame_1/DoAction.as: SOMA.playSound("explosion")
-    callbacks.playSound("explosion");
-
-    // The shoot symbol is placed on the main timeline at frame 1 (depth 1).
-    // For TargetCell the harness has already anchored the container at
-    // the target cell, so attaching at (0, 0) places the impact there.
-    this.root.attach(this.shootSym, "shoot", 1, context);
+    // Capture the sound callback so it can be invoked from shoot's
+    // frame_1 script (where the canonical SOMA.playSound("explosion")
+    // fires). The harness will attach `shoot` after onSpellStart
+    // returns, so the sound fires on the first tick.
+    this.playExplosionSound = () => {
+      callbacks.playSound("explosion");
+    };
   }
 }

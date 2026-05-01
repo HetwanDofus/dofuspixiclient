@@ -8,6 +8,7 @@ import {
   SpriteMovementEntrySchema,
 } from "@dofus/proto/game_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
+import { fighterColors } from "@features/game/fight-start/fight-start.shared";
 import { Fighter } from "@modules/fight/core/fight.fighter";
 import { StateName } from "@modules/fight/fight.types";
 import { FightRegistryService } from "@modules/fight/registry/fight.registry";
@@ -79,6 +80,9 @@ export class FightJoinHandler {
       sex: player.sex,
       gfx: player.gfx,
       direction: player.direction,
+      color1: player.color1,
+      color2: player.color2,
+      color3: player.color3,
       stats: {
         strength: stats?.strength ?? 0,
         vitality: stats?.vitality ?? 0,
@@ -132,6 +136,7 @@ export class FightJoinHandler {
                 gfxId: fighter.player?.gfx ?? 0,
                 scaleX: 100,
                 scaleY: 100,
+                colors: fighterColors(fighter),
               }),
             ],
           }),

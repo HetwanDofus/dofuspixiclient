@@ -1,35 +1,35 @@
 /**
- * Spell 1053 — Sacrieur fire spire attack.
+ * Spell 1053 — Sacrieur fire spell.
  *
- * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/1053/scripts/scripts/
  *
- * displayType=30 (ProjectileBallistic): the manifest has both `move` and `shoot`
- * animations, and `move` is a projectile that travels to the target before `shoot`
- * plays at impact. The harness drives the parabolic arc for `move` and attaches
- * `shoot` on landing, automatically firing signalHit().
+ * displayType=20 (ProjectileLinear). The spell has a `move` symbol that
+ * loops frames 4-7 (a short 8-frame animated projectile), and a `shoot`
+ * symbol (81-frame impact). The harness attaches `move` at caster,
+ * rotates the container to face target, and attaches `shoot` at the
+ * target offset. This matches the canonical VisualEffectHandler linear
+ * projectile pattern.
  *
  * Library symbols:
- *   - lib_spire — single-frame fire spire particle. onLoad seeds va (alpha-decay
- *     rate), alpha, xscale, yscale, v (drift speed), and branches to frame 1 or 2
- *     based on parent.c parity. onEnterFrame drifts left with 0.9 friction on v,
- *     decays xscale by 0.97, decays alpha by va; removes when alpha < 0.
+ *   - spire — single-frame ember/spark particle. onLoad seeds va, alpha,
+ *     xscale, yscale, v, and a gotoAndStop branch based on parent.c parity.
+ *     onEnterFrame shrinks xscale by 0.97, drifts X by -v (with v*=0.9),
+ *     fades alpha by va, removes when alpha < 0.
  *
- * Container symbols:
- *   - move — 8-frame looping projectile container (frames 4-7 loop via frame_7
- *     gotoAndPlay(4)). frame_1 sets up an onEnterFrame that spawns 2 spire
- *     particles per tick, positioned and rotated to match the move clip.
- *   - shoot — 81-frame impact composite. frame_1 resets rotation to 0 and calls
- *     this.end() (signalHit — already handled by harness for displayType 30, so
- *     we skip it here). frame_4 plays sound "sacrieur_1053". frame_52 calls
- *     _parent.removeMovieClip() → spell complete.
+ * Animations (non-library):
+ *   - move  — 8-frame animated projectile looping frames 4-7.
+ *             frame_1: sets up onEnterFrame to spawn 2 spire particles
+ *               per tick at the move clip's position, rotated to match.
+ *             frame_7: gotoAndPlay(4) to loop.
+ *   - shoot — 81-frame composite impact.
+ *             frame_1: _rotation = 0; this.end() → signalHit.
+ *             frame_4: SOMA.playSound("sacrieur_1053").
+ *             frame_52: _parent.removeMovieClip() → complete.
  *
- * Main timeline: sound is played from shoot/frame_4, not the main timeline.
- * No top-level SOMA.playSound() call; onSpellStart is a no-op.
- *
- * NOTE: The harness fires signalHit() automatically on landing for displayType 30/31.
- * shoot/frame_1 calls `this.end()` in canonical AS (which is the signalHit equivalent),
- * but since the harness already covers it we must NOT call signalHit again.
+ * Main timeline: sound is driven from shoot/frame_4. No explicit
+ * onSpellStart sound needed (the harness attaches shoot, which fires
+ * the sound from its own frame script). onSpellStart is a no-op here.
  */
 
 import type {
@@ -51,23 +51,43 @@ const SPIRE_BOUNDS = {
   offsetY: -4.2,
 };
 
+const MOVE_BOUNDS = {
+  width: 48.9,
+  height: 19.4,
+  offsetX: -43.95,
+  offsetY: -8.95,
+};
+
+const SHOOT_BOUNDS = {
+  width: 150.75,
+  height: 196.2,
+  offsetX: -72.05,
+  offsetY: -138.2,
+};
+
 export class Spell1053 extends RuntimeSpell {
   readonly spellId = 1053;
-  readonly displayType = SpellDisplayType.ProjectileBallistic;
+  readonly displayType = SpellDisplayType.ProjectileLinear;
 
+  // Keep a reference to spire so move's onEnterFrame can attach it
   private spireSym!: SymbolDefinition;
-  private playSound?: (id: string) => void;
+
+  // Callbacks captured in onSpellStart for use in frameScripts
+  private soundCallback?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext
+    _context: SpellContext,
   ): void {
     const spireAnchor = calculateAnchor(SPIRE_BOUNDS);
+    const moveAnchor = calculateAnchor(MOVE_BOUNDS);
+    const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // ---- lib_spire — fire spire drift particle -------------------
-    // AS: DefineSprite_3_spire/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
-    // AS: DefineSprite_3_spire/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-    this.spireSym = {
+    // ---- spire — ember/spark drift particle ----------------------
+    // AS: DefineSprite_3_spire/frame_1/PlaceObject2_2_1/
+    //     CLIPACTIONRECORD onClipEvent(load).as
+    //     CLIPACTIONRECORD onClipEvent(enterFrame).as
+    const spireSym: SymbolDefinition = {
       name: "spire",
       totalFrames: 1,
       frames: textures.getFrames("lib_spire"),
@@ -86,8 +106,7 @@ export class Spell1053 extends RuntimeSpell {
         clip.scaleX = 200 / 100;
         clip.scaleY = (80 + Math.floor(Math.random() * 40)) / 100;
         clip.vars.v = 1 + 2.5 * Math.random();
-
-        const c = (clip.vars.c as number) ?? 0;
+        const c = (clip.parent?.vars.c as number) ?? 0;
         if (c % 2 === 0) {
           clip.gotoAndStop(1); // AS gotoAndStop(2) → 0-based index 1
         } else {
@@ -105,66 +124,67 @@ export class Spell1053 extends RuntimeSpell {
         v *= 0.9;
         clip.vars.v = v;
         clip.x -= v;
-        // alpha is stored 0-1, va is stored as the raw 0-100-scale decrement
         const va = clip.vars.va as number;
-        clip.alpha -= va / 100;
-        if (clip.alpha < 0) {
-          clip.parent?.remove();
+        const newAlpha = clip.alpha * 100 - va;
+        clip.alpha = newAlpha / 100;
+        if (newAlpha < 0) {
+          clip.remove();
         }
       },
     };
+    this.spireSym = spireSym;
 
-    // ---- move — 8-frame projectile container ---------------------
+    // ---- move — 8-frame animated projectile ----------------------
     // AS: DefineSprite_15_move/frame_1/DoAction.as
-    // AS: DefineSprite_15_move/frame_7/DoAction.as
-    const spireSym = this.spireSym;
+    //     DefineSprite_15_move/frame_7/DoAction.as
     const moveSym: SymbolDefinition = {
       name: "move",
       totalFrames: 8,
       frames: textures.getFrames("move"),
-      anchorX: calculateAnchor({ width: 48.9, height: 19.4, offsetX: -43.95, offsetY: -8.95 }).x,
-      anchorY: calculateAnchor({ width: 48.9, height: 19.4, offsetX: -43.95, offsetY: -8.95 }).y,
+      anchorX: moveAnchor.x,
+      anchorY: moveAnchor.y,
       frameScripts: new Map([
         [
           0,
           (clip, ctx) => {
             // AS DefineSprite_15_move/frame_1/DoAction.as:
             //   c = 1;
-            //   this.onEnterFrame = function() { spawn 2 spire particles per frame };
+            //   this.onEnterFrame = function() {
+            //     t = 1;
+            //     while (t <= 2) {
+            //       _parent.attachMovie("spire","spire"+c,c);
+            //       eval("_parent.spire"+c)._x = _X;
+            //       eval("_parent.spire"+c)._y = _Y;
+            //       eval("_parent.spire"+c)._rotation = _rotation;
+            //       eval("_parent.spire"+c).c = c;
+            //       c++;
+            //       t++;
+            //     }
+            //   };
             //   play();
             clip.vars.c = 1;
             clip.onEnterFrame = (self, innerCtx) => {
-              // AS: t = 1; while (t <= 2) { attachMovie("spire", ...) ... }
-              let t = 1;
-              while (t <= 2) {
-                const c = self.vars.c as number;
-                const parent = self.parent;
-                if (parent) {
-                  const spireInstance = parent.attach(
-                    spireSym,
-                    `spire${c}`,
-                    c,
-                    innerCtx
-                  );
-                  // AS: eval("_parent.spire" + c)._x = _X
-                  // AS: eval("_parent.spire" + c)._y = _Y
-                  // AS: eval("_parent.spire" + c)._rotation = _rotation
-                  // AS: eval("_parent.spire" + c).c = c
-                  spireInstance.x = self.x;
-                  spireInstance.y = self.y;
-                  spireInstance.rotation = self.rotation;
-                  // Pass c to the spire so its onLoad can use it for parity check.
-                  // onLoad already ran inside attach(), so we set vars.c after the
-                  // fact — the parity branch in onLoad already fired with default 0.
-                  // To match canonical AS (c is set BEFORE onLoad runs implicitly in
-                  // Flash's attachMovie with initObject), we store it for future
-                  // onEnterFrame reference. The visual difference is minimal since
-                  // gotoAndStop just picks a frame variant.
-                  spireInstance.vars.c = c;
-                  self.vars.c = c + 1;
-                }
-                t++;
+              let c = self.vars.c as number;
+              const parent = self.parent;
+              if (!parent) {
+                return;
               }
+              // Spawn 2 spire particles per tick at the move clip's position
+              for (let t = 1; t <= 2; t++) {
+                const instanceName = `spire${c}`;
+                const spireClip = parent.attach(
+                  spireSym,
+                  instanceName,
+                  c,
+                  innerCtx,
+                );
+                spireClip.x = self.x;
+                spireClip.y = self.y;
+                spireClip.rotation = self.rotation;
+                spireClip.vars.c = c;
+                c++;
+              }
+              self.vars.c = c;
             };
             clip.play();
           },
@@ -173,8 +193,8 @@ export class Spell1053 extends RuntimeSpell {
           6,
           (clip) => {
             // AS DefineSprite_15_move/frame_7/DoAction.as:
-            //   gotoAndPlay(4);
-            clip.gotoAndPlay(3); // AS gotoAndPlay(4) → 0-based index 3
+            //   gotoAndPlay(4)
+            clip.gotoAndPlay(3); // AS 4 → 0-based 3
           },
         ],
       ]),
@@ -182,23 +202,23 @@ export class Spell1053 extends RuntimeSpell {
 
     // ---- shoot — 81-frame impact composite -----------------------
     // AS: DefineSprite_12_shoot/frame_1/DoAction.as
-    // AS: DefineSprite_12_shoot/frame_4/DoAction.as
-    // AS: DefineSprite_12_shoot/frame_52/DoAction.as
+    //     DefineSprite_12_shoot/frame_4/DoAction.as
+    //     DefineSprite_12_shoot/frame_52/DoAction.as
     const shootSym: SymbolDefinition = {
       name: "shoot",
       totalFrames: 81,
       frames: textures.getFrames("shoot"),
-      anchorX: calculateAnchor({ width: 150.75, height: 196.2, offsetX: -72.05, offsetY: -138.2 }).x,
-      anchorY: calculateAnchor({ width: 150.75, height: 196.2, offsetX: -72.05, offsetY: -138.2 }).y,
+      anchorX: shootAnchor.x,
+      anchorY: shootAnchor.y,
       frameScripts: new Map([
         [
           0,
           (clip) => {
             // AS DefineSprite_12_shoot/frame_1/DoAction.as:
             //   _rotation = 0;
-            //   this.end();   ← signalHit equivalent; harness handles for displayType 30
+            //   this.end();   → signalHit (damage popup)
             clip.rotation = 0;
-            // this.end() → harness already called signalHit() on landing; do NOT call again.
+            this.runtime.signalHit();
           },
         ],
         [
@@ -206,9 +226,7 @@ export class Spell1053 extends RuntimeSpell {
           () => {
             // AS DefineSprite_12_shoot/frame_4/DoAction.as:
             //   SOMA.playSound("sacrieur_1053");
-            if (this.playSound) {
-              this.playSound("sacrieur_1053");
-            }
+            this.soundCallback?.("sacrieur_1053");
           },
         ],
         [
@@ -223,17 +241,20 @@ export class Spell1053 extends RuntimeSpell {
       ]),
     };
 
-    this.registry.register(this.spireSym);
+    this.registry.register(spireSym);
     this.registry.register(moveSym);
     this.registry.register(shootSym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    _context: SpellContext
+    _ctx: SpellContext,
   ): void {
-    // Capture playSound for use inside shoot's frame_4 script.
-    // The main timeline has no SOMA.playSound() call; sound fires from shoot/frame_4.
-    this.playSound = callbacks.playSound;
+    // Capture the sound callback so shoot/frame_4 can fire it
+    this.soundCallback = callbacks.playSound;
+    // Main timeline for this spell has no explicit sound in frame_1
+    // (the sound fires from shoot's frame_4 script). No additional
+    // child attaches needed — the harness handles move + shoot for
+    // displayType=20 (ProjectileLinear).
   }
 }

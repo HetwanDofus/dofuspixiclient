@@ -1,41 +1,40 @@
 /**
- * Spell 704 — Grina (Osamodas earth spell).
+ * Spell 704 — Grina (Osamodas).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition layer.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/704/scripts/scripts/
  *
- * displayType=11 (TargetCell). This spell has no `move`, `shoot`, or
- * `duplicate` symbols and no caster-anchored content. The single
- * `animations[]` entry (`anim1`, 135 frames) is the main visual,
- * played directly at the target cell. There are no `librarySymbols[]`
- * entries in the manifest — all content lives in the flat `anim1`
- * timeline. The outer sprite (DefineSprite_9) drives the main 135-frame
- * animation; it stops at frame 133 and removes the parent (= spell
- * complete). A clip event on one of its children fades alpha by 2.3
- * per frame starting from frame 82.
+ * displayType=11 (TargetCell). Single composite animation anchored at the
+ * target cell. No projectile motion, no library symbols via attachMovie —
+ * the entire visual is the pre-rendered `anim1` composite timeline.
  *
- * DefineSprite_3 (a sub-composite inside anim1) jumps to a random frame
- * in [1..3] on load and stops — this is baked into the composite SVG
- * frames and does not require runtime wiring.
+ * The manifest has no `librarySymbols[]` entries. All animations are in
+ * `animations[]` under the bare name `anim1`. Textures are accessed via
+ * `textures.getFrames("anim1")` (NO `lib_` prefix).
  *
- * DefineSprite_5 (another sub-composite inside anim1) picks a random
- * trajectory label on frame_1 (all branches resolve to "traj1" so
- * the effective result is always `gotoAndStop("traj1"); play()`), then
- * stops at frames 58, 118, and 178. This is also baked into the
- * composite SVG frame sequence.
+ * AS script structure:
+ *   - frame_1/DoAction.as: SOMA.playSound("grina_704")
+ *   - DefineSprite_9/frame_133/DoAction.as: stop(); _parent.removeMovieClip()
+ *   - DefineSprite_9/frame_82/PlaceObject2_8_26/onClipEvent(enterFrame):
+ *       _parent._alpha -= 2.3
+ *       This runs every tick from frame 82 onward, fading the anim1
+ *       container. It is a live runtime mutation — not captured in SVGs.
+ *   - DefineSprite_3/frame_1/DoAction.as: gotoAndStop(random(3) + 1)
+ *   - DefineSprite_5/frame_1/DoAction.as: pick traj1 randomly and play
+ *   - DefineSprite_5/frame_58/DoAction.as: stop()
+ *   - DefineSprite_5/frame_118/DoAction.as: stop()
+ *   - DefineSprite_5/frame_178/DoAction.as: stop()
  *
- * Library symbols: none (librarySymbols[] is empty in manifest.json).
- * The entire visual is driven by the `anim1` pre-rendered composite.
+ * Library symbols: none (librarySymbols[] is empty in manifest).
  *
- * Main timeline (frame_1/DoAction.as): SOMA.playSound("grina_704").
+ * Main timeline: plays sound "grina_704", runs the anim1 composite for
+ * 135 frames (stopFrame=132), alpha-fades from frame 82 via the
+ * CLIPACTIONRECORD onEnterFrame handler, removes on frame 133 and
+ * signals complete.
  *
- * Signal hit: fired at the canonical impact frame. Reviewing the AS,
- * DefineSprite_9/frame_82 is where the fade-out clip event kicks in,
- * indicating the hit has landed by that point. We fire signalHit at
- * frame 82 (index 81).
- *
- * Signal complete: fired from the frame_133 script (index 132) which
- * calls `stop(); _parent.removeMovieClip();`.
+ * signalHit: fired at frame 82 (0-based index 81), which is the frame at
+ * which PlaceObject2_8_26 is placed and its enterFrame first activates —
+ * the canonical impact moment.
  */
 
 import type {
@@ -67,59 +66,67 @@ export class Spell704 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1 — main composite timeline (135 frames) -----------
-    // This is the sole visual for spell 704. It is listed in
-    // animations[] (not librarySymbols[]), so we use the bare name
-    // "anim1" (no lib_ prefix) for both the symbol name and the
-    // textures.getFrames key.
+    // ---- anim1 — composite 135-frame impact animation at target ----
+    // Top-level authored symbol corresponding to DefineSprite_9 in the SWF.
     //
-    // DefineSprite_9/frame_133/DoAction.as:
-    //   stop(); _parent.removeMovieClip();
-    //
-    // DefineSprite_9/frame_82/PlaceObject2_8_26/
-    //   CLIPACTIONRECORD onClipEvent(enterFrame).as:
-    //   _parent._alpha -= 2.3;
-    //   (fade starts at frame 82 — indicates impact has occurred)
-    //
-    // We model the fade-out via onEnterFrame activated after frame 82,
-    // and spell completion at frame 133 (index 132).
+    // The CLIPACTIONRECORD onClipEvent(enterFrame) placed at frame 82
+    // (PlaceObject2_8_26) runs _parent._alpha -= 2.3 every tick from
+    // that frame onward. This is a live per-tick runtime mutation that
+    // produces a gradual alpha fade over the remaining ~50 frames of the
+    // animation. It must be ported to the anim1 symbol's onEnterFrame
+    // handler — it is NOT captured in the exported SVG frames.
     const anim1Sym: SymbolDefinition = {
       name: "anim1",
       totalFrames: 135,
       frames: textures.getFrames("anim1"),
       anchorX: anim1Anchor.x,
       anchorY: anim1Anchor.y,
+
+      onLoad: (clip) => {
+        // Initialise the fade-active flag. The fade only starts once
+        // frame 82 (1-based) = index 81 (0-based) is reached, matching
+        // the PlaceObject2_8_26 placement frame in the canonical SWF.
+        clip.vars.fadeActive = false;
+      },
+
       onEnterFrame: (clip) => {
-        // AS DefineSprite_9/frame_82/PlaceObject2_8_26/
-        //   CLIPACTIONRECORD onClipEvent(enterFrame).as:
-        //   _parent._alpha -= 2.3;
-        // This clip event is placed at frame 82 on a child of
-        // DefineSprite_9 and fires every frame thereafter. We
-        // approximate this by starting the fade once the clip has
-        // reached frame 81 (0-based) or beyond.
+        // AS: DefineSprite_9/frame_82/PlaceObject2_8_26/
+        //     CLIPACTIONRECORD onClipEvent(enterFrame).as
+        //   _parent._alpha -= 2.3
+        //
+        // PlaceObject2_8_26 is placed on frame 82 (1-based) = index 81
+        // (0-based). From that frame onward, every tick this handler
+        // fires on the containing clip, decrementing _alpha by 2.3
+        // (Flash 0-100 units). In TS: clip.alpha -= 2.3 / 100.
         if (clip.currentFrame >= 81) {
+          clip.vars.fadeActive = true;
+        }
+        if (clip.vars.fadeActive as boolean) {
           clip.alpha = Math.max(0, clip.alpha - 2.3 / 100);
         }
       },
+
       frameScripts: new Map([
         [
-          // AS DefineSprite_9/frame_82 — hit has landed; signal it.
-          // (frame_82 in AS = index 81 here)
+          // Frame 82 (1-based) = index 81 (0-based).
+          // PlaceObject2_8_26 is placed here; this is the canonical
+          // impact moment — signal hit so damage popups display.
           81,
-          () => {
-            // Canonical impact indicator: the fade-out clip event
-            // starts here, so this is the hit frame.
+          (_clip) => {
+            // Signal the hit at the frame the impact registers
+            // (first tick the alpha-fade CLIPACTIONRECORD activates).
             this.runtime.signalHit();
           },
         ],
         [
-          // AS DefineSprite_9/frame_133/DoAction.as:
-          //   stop(); _parent.removeMovieClip();
-          // (frame_133 in AS = index 132 here)
+          // AS: DefineSprite_9/frame_133/DoAction.as
+          //   stop();
+          //   _parent.removeMovieClip();
+          // frame_133 (1-based) = index 132 (0-based).
           132,
           (clip) => {
             clip.stop();
-            clip.remove();
+            clip.parent?.remove();
             this.runtime.complete();
           },
         ],
@@ -133,10 +140,12 @@ export class Spell704 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS scripts/frame_1/DoAction.as: SOMA.playSound("grina_704");
+    // AS: frame_1/DoAction.as — SOMA.playSound("grina_704")
     callbacks.playSound("grina_704");
 
-    // Attach the main anim1 clip at the root so it starts playing.
+    // Attach the anim1 composite at root so it starts ticking from the
+    // next runtime frame. For TargetCell the root container is already
+    // positioned at the target cell by the harness.
     const anim1Sym = this.registry.resolve("anim1");
     if (anim1Sym) {
       this.root.attach(anim1Sym, "anim1", 1, context);

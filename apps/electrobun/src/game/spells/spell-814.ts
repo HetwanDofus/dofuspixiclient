@@ -1,36 +1,33 @@
 /**
- * Spell 814 — Vlad (Sacrieur / Sram area).
+ * Spell 814 — Vlad (Sacrieur/Sram dark lance).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/814/scripts/scripts/
  *
- * displayType=20 (ProjectileLinear). The spell has a single `shoot` symbol
- * whose frame_1 sets `_rotation = _parent.angle` — the canonical indicator
- * of a linear projectile that points from caster toward target. The harness
- * attaches `shoot` at the target-relative offset inside a container rotated
- * to face the target; the frame_1 script then overrides rotation to
- * `_parent.angle` (degrees → radians) to align the visual.
+ * displayType=20 (ProjectileLinear). Rationale:
+ *   - The spell has a single `shoot` symbol with no `move` symbol.
+ *   - frame_1 of shoot sets `_rotation = _parent.angle`, which is the
+ *     canonical linear-projectile pattern: the container is rotated to
+ *     face the target and `shoot` lives at the target-relative offset
+ *     inside the rotated container.
+ *   - No ballistic arc, no duplicate, no dual-anchored world placement.
  *
  * Library symbols:
- *   - shoot — 90-frame linear projectile animation. frame_1 sets rotation
- *     to match caster→target angle. frame_88 calls _parent.removeMovieClip()
- *     which signals spell completion (the outer mc dies).
- *     NOTE: This symbol appears only in `animations[]`, NOT in
- *     `librarySymbols[]` — the manifest has no librarySymbols entries —
- *     so textures are loaded via `textures.getFrames("shoot")` (no lib_ prefix)
- *     and bounds come from the `animations[]` entry.
+ *   - `shoot` — 90-frame animated lance beam. frame_1 sets rotation to
+ *     parent angle (overridden by the harness-applied angle anyway, but
+ *     the canonical AS explicitly does it). frame_88 calls
+ *     `_parent.removeMovieClip()` — signals spell completion.
  *
- * Main timeline: SOMA.playSound("vlad_805") on frame_1.
+ * Main timeline (frame_1/DoAction.as): SOMA.playSound("vlad_805").
  *
- * Hit signal: fired at frame_1 of shoot (the projectile has "arrived" since
- * the harness places shoot at the target offset for ProjectileLinear). The
- * canonical pattern for ProjectileLinear is to signal hit at the start of
- * the shoot animation since the impact is immediate at placement.
- * For displayType 20 the harness does NOT auto-signal hit, so we fire it
- * from shoot's frame_1.
+ * The harness (displayType=20) attaches `shoot` at the target-local
+ * offset inside the rotated container and rotates the container to face
+ * the target. The shoot symbol's frame_1 then re-applies `_rotation =
+ * _parent.angle` (in degrees → radians here). frame_88 removes the
+ * parent outer mc and completes the spell.
  *
- * Completion: fired from shoot's frame_88 script (AS frame_88 →
- * frameScripts.set(87, …)) which mirrors `_parent.removeMovieClip()`.
+ * signalHit: fired at frame_1 of shoot (first visible impact frame),
+ * since the harness does NOT auto-signal for displayType 20.
  */
 
 import type {
@@ -45,7 +42,6 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-// Bounds from manifest animations[] entry for "shoot"
 const SHOOT_BOUNDS = {
   width: 509.1,
   height: 70.1,
@@ -59,18 +55,14 @@ export class Spell814 extends RuntimeSpell {
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext,
+    _context: SpellContext
   ): void {
     const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // ---- shoot — 90-frame linear projectile ----------------------
-    // "shoot" only appears in animations[], NOT in librarySymbols[],
-    // so we use textures.getFrames("shoot") — no lib_ prefix.
-    //
-    // AS DefineSprite_7_shoot/frame_1/DoAction.as:
+    // ---- shoot — 90-frame animated lance beam --------------------
+    // AS: DefineSprite_7_shoot/frame_1/DoAction.as
     //   _rotation = _parent.angle;
-    //
-    // AS DefineSprite_7_shoot/frame_88/DoAction.as:
+    // AS: DefineSprite_7_shoot/frame_88/DoAction.as
     //   _parent.removeMovieClip();
     const shootSym: SymbolDefinition = {
       name: "shoot",
@@ -84,13 +76,13 @@ export class Spell814 extends RuntimeSpell {
           (clip, ctx) => {
             // AS DefineSprite_7_shoot/frame_1/DoAction.as:
             //   _rotation = _parent.angle;
-            // _parent.angle is in degrees (set by the harness on root.vars).
-            const root = clip.parent;
-            const angleDeg = (root?.vars.angle as number) ?? 0;
+            // The harness has already rotated the root container to face
+            // the target. This re-applies the angle on the shoot clip
+            // itself in degrees → radians.
+            const angleDeg = (ctx.angle as number) ?? 0;
             clip.rotation = (angleDeg * Math.PI) / 180;
-            // For ProjectileLinear the harness does not auto-signal hit —
-            // the shoot clip is placed at the target offset at attach time,
-            // so the impact is immediate. Signal hit here.
+            // signalHit at first impact frame (displayType 20 — harness
+            // does not auto-signal hit).
             this.runtime.signalHit();
           },
         ],
@@ -99,7 +91,7 @@ export class Spell814 extends RuntimeSpell {
           (clip) => {
             // AS DefineSprite_7_shoot/frame_88/DoAction.as:
             //   _parent.removeMovieClip();
-            // This removes the outer mc, ending the spell.
+            // The outer mc is the spell root — remove it and complete.
             clip.parent?.remove();
             this.runtime.complete();
           },
@@ -112,10 +104,9 @@ export class Spell814 extends RuntimeSpell {
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    _context: SpellContext,
+    _context: SpellContext
   ): void {
-    // AS scripts/frame_1/DoAction.as:
-    //   SOMA.playSound("vlad_805");
+    // AS frame_1/DoAction.as: SOMA.playSound("vlad_805");
     callbacks.playSound("vlad_805");
   }
 }

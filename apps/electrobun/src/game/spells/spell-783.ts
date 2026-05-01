@@ -1,28 +1,27 @@
 /**
- * Spell 783 — (Unknown name, likely a buff/self-aura spell).
+ * Spell 783 — Gonflement (Osamodas or similar self-buff/aura).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/783/scripts/scripts/
  *
- * displayType=11 (TargetCell). The manifest has no `librarySymbols[]` and
- * no `move`/`shoot`/`duplicate` symbols — this is a single flat animation
- * (`anim1`, 141 frames) placed at the target cell. The canonical AS lives
- * entirely on `DefineSprite_16` (the main animated sprite):
- *   - frame_1:   SOMA.playSound("gonfle")
- *   - frame_139: stop(); _parent.removeMovieClip();
+ * displayType=11 (TargetCell). The spell has no library symbols, no
+ * projectile, no caster reference — it is a single composite animation
+ * (`anim1`, 141 frames) played at the target cell. The outer sprite
+ * (DefineSprite_16) plays its authored timeline, fires a sound on
+ * frame_1, and calls `stop(); _parent.removeMovieClip();` at frame_139
+ * (0-based: 138). No `attachMovie` calls, no `move`/`shoot` symbols,
+ * no CLIPACTIONRECORD handlers.
  *
- * Because there are no library symbols, `registerSymbols` registers a
- * single `anim1` symbol that drives the full visual timeline. The
- * `onSpellStart` override attaches it to root and plays the sound.
+ * Library symbols: none (librarySymbols[] is absent / empty in manifest).
  *
- * Signal timing:
- *   - signalHit: fired at frame 1 (frame index 0) — the animation is an
- *     impact effect that starts immediately at the target cell.
- *   - complete:  fired at frame 139 (index 138) via the canonical
- *     `_parent.removeMovieClip()` script.
+ * Main timeline (DefineSprite_16):
+ *   - frame_1  (index 0):  SOMA.playSound("gonfle")
+ *   - frame_139 (index 138): stop(); _parent.removeMovieClip()
  *
- * Library symbols: none (manifest.librarySymbols is absent/empty).
- * Main timeline: attaches anim1 at root; plays "gonfle" sound on entry.
+ * The composite `anim1` animation (141 frames) is registered as the
+ * sole symbol and attached to the root so the SpellClip runtime drives
+ * its timeline, fires the frame scripts, and signals completion at the
+ * canonical removal frame.
  */
 
 import type {
@@ -56,9 +55,10 @@ export class Spell783 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1 — 141-frame impact animation at target cell -------
-    // AS DefineSprite_16/frame_1/DoAction.as:  SOMA.playSound("gonfle")
-    // AS DefineSprite_16/frame_139/DoAction.as: stop(); _parent.removeMovieClip();
+    // ---- anim1 — 141-frame composite animation at target cell ----
+    // Mirrors DefineSprite_16 (the outer sprite in the canonical SWF).
+    // frame_1/DoAction.as:  SOMA.playSound("gonfle")  — handled in onSpellStart.
+    // frame_139/DoAction.as: stop(); _parent.removeMovieClip()
     this.anim1Sym = {
       name: "anim1",
       totalFrames: 141,
@@ -67,21 +67,14 @@ export class Spell783 extends RuntimeSpell {
       anchorY: anim1Anchor.y,
       frameScripts: new Map([
         [
-          0,
-          (_clip) => {
-            // AS DefineSprite_16/frame_1/DoAction.as:
-            // SOMA.playSound("gonfle") — sound is handled in onSpellStart
-            // via callbacks.playSound. Also signal hit at impact start.
-            this.runtime.signalHit();
-          },
-        ],
-        [
           138,
           (clip) => {
             // AS DefineSprite_16/frame_139/DoAction.as:
-            // stop(); _parent.removeMovieClip();
+            //   stop();
+            //   _parent.removeMovieClip();
             clip.stop();
-            clip.parent?.remove();
+            clip.remove();
+            this.runtime.signalHit();
             this.runtime.complete();
           },
         ],
@@ -95,9 +88,12 @@ export class Spell783 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS DefineSprite_16/frame_1/DoAction.as: SOMA.playSound("gonfle")
+    // AS DefineSprite_16/frame_1/DoAction.as:
+    //   SOMA.playSound("gonfle");
     callbacks.playSound("gonfle");
-    // Attach the main animation to root so it starts ticking.
+
+    // Attach the main composite animation at the root so the runtime
+    // drives its timeline from the first tick.
     this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

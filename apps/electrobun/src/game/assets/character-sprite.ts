@@ -51,12 +51,43 @@ const DIRECTION_FLIP: Record<number, boolean> = {
 };
 
 // Fallback chain when an animation+direction variant doesn't exist.
+// Monster SWFs only export `L`/`R` variants (no S/F/B), so any miss
+// must be able to land on one of those two suffixes — otherwise the
+// monster boots without a sprite and only the placeholder rectangle
+// shows. The original chain `S → R → F` would still miss when only
+// L/R exist (we'd give up after F), so every entry now ends in `L`.
 const SUFFIX_FALLBACKS: Record<string, string[]> = {
-  S: ["R", "F"],
-  R: ["S", "F"],
-  L: ["S", "F"],
-  F: ["S", "R"],
-  B: ["S", "L"],
+  S: ["R", "F", "L"],
+  R: ["S", "F", "L"],
+  L: ["R", "S", "F"],
+  F: ["S", "R", "L"],
+  B: ["S", "L", "R"],
+};
+
+// Monster SWFs use a numeric anim taxonomy (anim0/anim1/anim2/die/hit)
+// instead of the player-side static/walk/run/anim0/animH/animF/...
+// We don't know per gfxId which side of the taxonomy a sprite uses,
+// so the loader probes the player names first and falls back to the
+// monster names. Mapping verified against the canonical 1.29 client:
+// monster `setAnim("static")` resolves via library aliasing to the
+// SWF's first idle clip, which the SVG export records as `anim1` for
+// most monsters (anim0 is reserved for the spawn / appear pose).
+//
+// Order matters — for IDLE we try anim1 before anim0 because anim0
+// is often a one-shot intro on monsters that have one (Bouftou,
+// Tofu); falling through to anim2 lets static-less sprites that ship
+// only walk/attack keep something on screen.
+const MONSTER_ANIM_FALLBACKS: Record<string, string[]> = {
+  static: ["anim1", "anim0", "anim2"],
+  walk: ["anim2", "anim1"],
+  run: ["anim2", "anim1"],
+  // Player-side `anim0` is the close-combat punch — monsters reuse
+  // their animX taxonomy so falling through to anim1 (their idle)
+  // when the punch is missing keeps them on a sane pose.
+  anim0: ["anim1"],
+  // Cast pose — monsters tend to lump everything into anim2 when
+  // they have a "windup" frame.
+  anim1: ["anim2", "anim0"],
 };
 
 export function getAnimationName(baseAnim: string, direction: number): string {
@@ -291,20 +322,24 @@ export class CharacterSpriteLoader {
     look?: string
   ): Promise<{ animation: CharacterAnimation; animName: string } | null> {
     const suffix = getDirectionSuffix(direction);
-    const primaryName = `${baseAnim}${suffix}`;
 
-    const primary = await this.loadAnimation(gfxId, primaryName, look);
+    // Build the ordered list of base animations to probe. Player
+    // sprites resolve on the first entry; monster sprites (which
+    // export only `anim0/1/2/die/hit` instead of `static/walk/run`)
+    // fall through to MONSTER_ANIM_FALLBACKS until one matches.
+    const baseProbes = [baseAnim, ...(MONSTER_ANIM_FALLBACKS[baseAnim] ?? [])];
 
-    if (primary) {
-      return { animation: primary, animName: primaryName };
-    }
-
-    for (const fb of SUFFIX_FALLBACKS[suffix] ?? []) {
-      const fbName = `${baseAnim}${fb}`;
-      const result = await this.loadAnimation(gfxId, fbName, look);
-
-      if (result) {
-        return { animation: result, animName: fbName };
+    for (const base of baseProbes) {
+      const direct = await this.loadAnimation(gfxId, `${base}${suffix}`, look);
+      if (direct) {
+        return { animation: direct, animName: `${base}${suffix}` };
+      }
+      for (const fb of SUFFIX_FALLBACKS[suffix] ?? []) {
+        const fbName = `${base}${fb}`;
+        const result = await this.loadAnimation(gfxId, fbName, look);
+        if (result) {
+          return { animation: result, animName: fbName };
+        }
       }
     }
 

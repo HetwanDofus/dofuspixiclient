@@ -1,51 +1,54 @@
 /**
- * Spell 615 — (Air dodge / wind spell, likely Féca or Roublard class).
+ * Spell 615 — Esquive (Dodge/Evasion, air-element dodge animation).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/615/scripts/scripts/
  *
- * displayType=11 (TargetCell). The main sprite (DefineSprite_22) positions
- * itself at `_parent.cellTo` on frame_1, making this a target-anchored impact.
- * No projectile motion (no move/shoot/duplicate symbols), no caster reference —
- * pure TargetCell pattern.
+ * displayType=11 (TargetCell). The main sprite (DefineSprite_22) positions itself
+ * at _parent.cellTo in its frame_1, and the whole animation plays at the target cell.
+ * There is no projectile, no caster-side visual, no beam — just a single sprite
+ * anchored at the target with embedded sub-sprites. TargetCell is the correct choice.
  *
  * Canonical AS layout:
- *   - DefineSprite_22 (123-frame main animation, placed as sprite_22 in animations[]):
- *       frame_1:  SOMA.playSound("air"); position self at cellTo.
+ *   - sprite_22 (DefineSprite_22, 123 frames) — main animation timeline.
+ *       frame_1:  SOMA.playSound("air"); position self at _parent.cellTo; stop not present (plays).
  *       frame_34: SOMA.playSound("dodge_615").
- *       frame_37: PlaceObject2_17_2 onLoad — a container clip that spawns 5 "pierres"
- *                 particles inside itself.
+ *       frame_37: PlaceObject2_17_2 (sprite9 instance at depth 2) placed on timeline with onLoad
+ *                 that attachMovies 5 "pierres" inside it.
  *       frame_40: this.end() → signalHit.
- *       frame_43: SOMA.playSound("dodge_615"); PlaceObject2_17_6 onLoad — another
- *                 container clip that spawns 5 "pierres" particles.
+ *       frame_43: SOMA.playSound("dodge_615"); PlaceObject2_17_6 (sprite9 instance at depth 6)
+ *                 placed on timeline with onLoad that attachMovies 5 "pierres" inside it.
  *       frame_121: _parent.removeMovieClip() → spell complete.
  *
- *   - DefineSprite_9 (two child clips with enterFrame handlers):
- *       PlaceObject2_6_1 onEnterFrame: _alpha = random(50)
- *       PlaceObject2_8_3 onEnterFrame: _alpha = random(240) + 30
+ *   - sprite9 (DefineSprite_9, characterId=9, directlyDynamic=true) — a composite "dodger"
+ *     sprite with two internal sub-instances that both have onClipEvent(enterFrame):
+ *       PlaceObject2_6_1 (depth 1): _alpha = random(50) each frame.
+ *       PlaceObject2_8_3 (depth 3): _alpha = random(240) + 30 each frame.
+ *     Placed at frame 36 (0-based) of sprite_22 at depth 2, and frame 42 (0-based) at depth 6.
  *
- *   - lib_pierres (library symbol, 1 frame):
- *       onLoad: seeds vx, vy, position scatter, t, scale, alpha, v, vr physics.
- *       onEnterFrame: integrates position, gravity bounce, rotation decay.
+ *   - pierres (DefineSprite_3_pierres, characterId=3) — a falling rock/stone particle.
+ *       onLoad (on inner PlaceObject2_2_1): seeds vx/vy/t/v/vr, positions parent, sets scale/alpha.
+ *       onEnterFrame: moves parent x/y by vx/vy; falls via _Y += v with bounce and settle logic.
+ *     The pierres are NOT attached directly — they are attached inside sprite9's onLoad handler
+ *     (5 per sprite9 instance).
  *
  * Library symbols:
- *   - pierres — gravel/stone particle. onLoad seeds full physics (position scatter,
- *     velocity, rotation speed, bounce gravity). onEnterFrame integrates with
- *     gravity bounce and settles.
+ *   - "pierres" (lib_pierres) — rock particle. onLoad seeds physics. onEnterFrame integrates
+ *     position/rotation with bounce settling.
+ *   - "sprite9" (lib_sprite9) — composite flash/glow sprite. No onLoad on the sprite itself.
+ *     Internally has two sub-instances that flicker alpha. Represented as a symbol whose
+ *     onEnterFrame flickers the clip's own children or (since we can't place sub-instances
+ *     independently) we model the composite by flickering the whole clip's alpha. The two
+ *     PlaceObject2 children inside sprite9 both randomise alpha — we model this via the
+ *     sprite9 clip's onEnterFrame.
+ *     frame_1: attachMovie 5 "pierres" instances (from the PlaceObject2_17_N onLoad events).
  *
- * Main timeline (frame_2/DoAction.as): stop() — the main SWF stops; the spell
- * animation is driven entirely by sprite_22 which is placed on the main timeline.
+ * Main timeline (frame_2/DoAction.as): stop() — the outer wrapper stops; sprite_22 runs
+ * as a child attached via onSpellStart.
  *
- * Note: DefineSprite_9 appears to be an internally-authored child of sprite_22 with
- * two pre-placed sub-clips (PlaceObject2_6_1 and PlaceObject2_8_3) that have
- * enterFrame clip events. Since these are authored PlaceObject2 sub-clips (not
- * attachMovie'd library symbols), they are baked into the sprite_22 composite frames
- * and do not need separate SymbolDefinition registrations. The flicker effects are
- * already part of the SVG frames.
- *
- * The two PlaceObject2_17_2 (frame_37) and PlaceObject2_17_6 (frame_43) clips inside
- * sprite_22 are containers that attachMovie("pierres", ...) — these ARE library symbol
- * attaches and are driven by frame scripts.
+ * Sounds:
+ *   - "air" at frame_1 of sprite_22 (0-based frame 0).
+ *   - "dodge_615" at frame_34 (0-based frame 33) and frame_43 (0-based frame 42) of sprite_22.
  */
 
 import type {
@@ -67,6 +70,13 @@ const PIERRES_BOUNDS = {
   offsetY: -1.7,
 };
 
+const SPRITE9_BOUNDS = {
+  width: 122.8,
+  height: 125.45,
+  offsetX: -71.45,
+  offsetY: -56.85,
+};
+
 const SPRITE22_BOUNDS = {
   width: 239.5,
   height: 178.9,
@@ -79,35 +89,29 @@ export class Spell615 extends RuntimeSpell {
   readonly displayType = SpellDisplayType.TargetCell;
 
   private pierresSym!: SymbolDefinition;
+  private sprite9Sym!: SymbolDefinition;
   private sprite22Sym!: SymbolDefinition;
 
-  // Capture callbacks for sounds fired from frame scripts
-  private _playSound?: (id: string) => void;
+  private soundCallback?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext,
+    _context: SpellContext
   ): void {
     const pierresAnchor = calculateAnchor(PIERRES_BOUNDS);
+    const sprite9Anchor = calculateAnchor(SPRITE9_BOUNDS);
     const sprite22Anchor = calculateAnchor(SPRITE22_BOUNDS);
 
-    // ---- lib_pierres — gravel/stone bounce particle ---------------
-    // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/
+    // ---- pierres — falling rock/stone particle -------------------
+    // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
+    // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
     //
-    // The structure in AS is:
-    //   pierres (outer container, lib symbol) — its _parent._x/_y is
-    //   scattered on load. It contains one inner clip (PlaceObject2_2_1)
-    //   that actually has the image and handles physics via clip events.
-    //
-    // We flatten this: the SymbolDefinition IS the outer "pierres" clip.
-    // The onLoad handler sets the outer clip's position (the _parent._x =
-    // scatter becomes clip.x = scatter since clip IS _parent here), and
-    // sets vars for the inner physics. The onEnterFrame integrates the
-    // inner physics. This matches the observed canonical behavior: the
-    // stone spawns scattered, bounces, then settles.
-    //
-    // onLoad: AS DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
-    // onEnterFrame: AS DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    // Note: In AS, the clip events are on PlaceObject2_2_1 (an inner instance inside "pierres").
+    // The onLoad sets properties on _parent (= the pierres MovieClip) and on the inner instance.
+    // We model this by placing all state on the pierres clip itself (clip.vars.*) and having
+    // clip.parent tracking for _parent._x/_y manipulation.
+    // Since the inner clip IS the pierres clip in our model, _parent in AS is the container
+    // that holds the pierres. The onLoad sets _parent._x/_y (= the pierres clip's position).
     this.pierresSym = {
       name: "pierres",
       totalFrames: 1,
@@ -115,131 +119,105 @@ export class Spell615 extends RuntimeSpell {
       anchorX: pierresAnchor.x,
       anchorY: pierresAnchor.y,
       onLoad: (clip) => {
-        // AS onClipEvent(load):
-        //   vx = 3 * (Math.random() - 0.5);
-        //   vy = 2 * (Math.random() - 0.5);
-        //   _parent._x = 20 * (Math.random() - 0.5);   ← outer container x
-        //   _parent._y = 10 * (Math.random() - 0.5);   ← outer container y
-        //   t = 60 + 40 * Math.random();
-        //   _xscale = t; _yscale = t;
-        //   _alpha = 20 + random(90);
-        //   v = -6 * Math.random() - 3;
-        //   vr = 40 * (-0.5 + Math.random());
-        //
-        // In the canonical AS, PlaceObject2_2_1 is a child of "pierres"
-        // (the outer container). The outer container gets the scatter
-        // position (_parent._x/_y from inner clip = outer clip's x/y).
-        // The inner clip tracks _Y (vertical bounce), _rotation, and
-        // uses the vars. We store all vars on the single clip.
+        // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
         clip.vars.vx = 3 * (Math.random() - 0.5);
         clip.vars.vy = 2 * (Math.random() - 0.5);
-        // _parent._x / _parent._y scatter: apply to the clip itself
+        // _parent._x / _parent._y — the pierres clip is the "parent" in our model
         clip.x = 20 * (Math.random() - 0.5);
         clip.y = 10 * (Math.random() - 0.5);
         const t = 60 + 40 * Math.random();
+        clip.vars.t = t;
         clip.scaleX = t / 100;
         clip.scaleY = t / 100;
         clip.alpha = (20 + Math.floor(Math.random() * 90)) / 100;
         clip.vars.v = -6 * Math.random() - 3;
         clip.vars.vr = 40 * (-0.5 + Math.random());
-        clip.vars.t = 1; // t != 1 guard — start t=1 means settled=false
-        // We re-use vars.t as a flag: 0 = physics active, 1 = settled.
-        // In AS the initial placement means the clip IS active (t != 1
-        // runs physics). We store a separate "innerY" to track the
-        // inner clip's _Y (vertical position within outer container).
+        // Local Y offset for the inner bounce simulation (the "inner instance" _Y)
         clip.vars.innerY = 0;
-        clip.vars.innerRotation = 0;
-        clip.vars.settled = 0; // 0 = not settled (t != 1), 1 = settled
       },
       onEnterFrame: (clip) => {
-        // AS onClipEvent(enterFrame):
-        //   _parent._x += vx;
-        //   _parent._y += vy;
-        //   if(t != 1) {
-        //     _Y = _Y + v;
-        //     _rotation = _rotation + vr;
-        //     v += 0.5;
-        //     if(_Y > 0) {
-        //       vx /= 4; vy /= 2; _rotation = 0; _Y = 0;
-        //       v = (-v) / 4;
-        //       if(Math.abs(v) < 1) { vx=0; vy=0; t=1; }
-        //     }
-        //   }
+        // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
         const vx = clip.vars.vx as number;
         const vy = clip.vars.vy as number;
-        const settled = clip.vars.settled as number;
+        let t = clip.vars.t as number;
+        let v = clip.vars.v as number;
+        let vr = clip.vars.vr as number;
+        let innerY = clip.vars.innerY as number;
 
+        // _parent._x += vx; _parent._y += vy
         clip.x += vx;
         clip.y += vy;
-        clip.vars.vx = vx;
-        clip.vars.vy = vy;
 
-        if (settled !== 1) {
-          let innerY = clip.vars.innerY as number;
-          let innerRot = clip.vars.innerRotation as number;
-          let v = clip.vars.v as number;
-          const vr = clip.vars.vr as number;
-
+        if (t !== 1) {
           innerY += v;
-          innerRot += vr;
+          clip.rotation += (vr * Math.PI) / 180;
           v += 0.5;
 
           if (innerY > 0) {
+            // Bounce / settle
             clip.vars.vx = vx / 4;
             clip.vars.vy = vy / 2;
-            innerRot = 0;
+            clip.rotation = 0;
             innerY = 0;
-            const newV = (-v) / 4;
-            if (Math.abs(newV) < 1) {
+            v = (-v) / 4;
+
+            if (Math.abs(v) < 1) {
               clip.vars.vx = 0;
               clip.vars.vy = 0;
-              clip.vars.settled = 1;
-              v = newV; // settled, doesn't matter
-            } else {
-              v = newV;
+              t = 1;
             }
           }
 
-          clip.vars.innerY = innerY;
-          clip.vars.innerRotation = innerRot;
           clip.vars.v = v;
-
-          // Apply inner Y as additional y offset and rotation.
-          // The inner clip's _Y and _rotation in AS are relative to
-          // the outer container. We approximate by offsetting clip.y
-          // with innerY and setting rotation.
-          clip.y += innerY;
-          clip.rotation = (innerRot * Math.PI) / 180;
+          clip.vars.vr = vr;
+          clip.vars.t = t;
+          clip.vars.innerY = innerY;
         }
       },
     };
 
-    // ---- sprite_22 — main 123-frame animation --------------------
-    // AS: DefineSprite_22 — the primary animation sprite.
-    // frame_1:  SOMA.playSound("air"); _X = _parent.cellTo.x; _Y = _parent.cellTo.y
-    // frame_34: SOMA.playSound("dodge_615")
-    // frame_37: PlaceObject2_17_2 placed — onLoad spawns 5 pierres
-    // frame_40: this.end() → signalHit
-    // frame_43: SOMA.playSound("dodge_615"); PlaceObject2_17_6 placed — onLoad spawns 5 pierres
-    // frame_121: _parent.removeMovieClip() → complete
+    // ---- sprite9 — composite glow/flash sprite -------------------
+    // AS: DefineSprite_9/frame_1/PlaceObject2_6_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    //   depth 1 instance: _alpha = random(50)
+    // AS: DefineSprite_9/frame_1/PlaceObject2_8_3/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    //   depth 3 instance: _alpha = random(240) + 30
     //
-    // For displayType=11 (TargetCell), the container is already at the target cell.
-    // frame_1's DoAction_2 sets _X = _parent.cellTo.x, _Y = _parent.cellTo.y — in
-    // WorldAbsolute this would be needed, but for TargetCell the anchor IS cellTo,
-    // so the clip is already at (0,0) relative to target. The DoAction_2 would set
-    // x/y to absolute world coords, which for TargetCell means we should position
-    // relative to the container's origin. However since the container IS at cellTo,
-    // we set x=0, y=0 (the clip is already positioned correctly).
-    //
-    // Wait — re-reading: DefineSprite_22 is the main sprite placed ON the root.
-    // Its frame_1 DoAction_2 does _X = _parent.cellTo.x, _Y = _parent.cellTo.y.
-    // _parent here is the outer SWF mc (our root). root.vars.cellTo holds world coords.
-    // For TargetCell, root container is at cellTo. So cellTo.x in world coords != 0
-    // relative to root. We must set the clip's position to absolute world coords and
-    // then the Pixi container (at cellTo) will offset. Actually for TargetCell the
-    // root container IS positioned at cellTo by the spell-view, so relative coords
-    // within root are: child.x = 0, child.y = 0 means "at cellTo". Setting
-    // child.x = cellTo.x would place it at 2*cellTo.x visually. So we set x=0, y=0.
+    // Since our runtime models the two sub-instances as part of this clip, we model
+    // the combined flickering alpha effect on the sprite9 clip itself, averaging the
+    // intended visual by using the brighter of the two (depth 3: random(240)+30).
+    // The frame_1 (0-based frame 0) onLoad for sprite9's placements (PlaceObject2_17_2 and
+    // PlaceObject2_17_6 in sprite_22) attach 5 pierres instances.
+    this.sprite9Sym = {
+      name: "sprite9",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_sprite9"),
+      anchorX: sprite9Anchor.x,
+      anchorY: sprite9Anchor.y,
+      onLoad: (clip, ctx) => {
+        // AS: DefineSprite_22/frame_37/PlaceObject2_17_2/CLIPACTIONRECORD onClipEvent(load).as
+        // AS: DefineSprite_22/frame_43/PlaceObject2_17_6/CLIPACTIONRECORD onClipEvent(load).as
+        // Both have identical logic: attach 5 "pierres" instances.
+        for (let c = 0; c < 5; c++) {
+          clip.attach(this.pierresSym, `pierres${c}`, c, ctx);
+        }
+      },
+      onEnterFrame: (clip) => {
+        // AS: DefineSprite_9/frame_1/PlaceObject2_6_1/onClipEvent(enterFrame): _alpha = random(50)
+        // AS: DefineSprite_9/frame_1/PlaceObject2_8_3/onClipEvent(enterFrame): _alpha = random(240) + 30
+        // We model the combined effect using the brighter sub-instance's formula on the composite.
+        clip.alpha = (Math.floor(Math.random() * 240) + 30) / 100;
+      },
+    };
+
+    // ---- sprite_22 — main animation timeline (123 frames) --------
+    // AS: DefineSprite_22/frame_1/DoAction.as — SOMA.playSound("air")
+    // AS: DefineSprite_22/frame_1/DoAction_2.as — _X = _parent.cellTo.x; _Y = _parent.cellTo.y
+    // AS: DefineSprite_22/frame_34/DoAction.as — SOMA.playSound("dodge_615")
+    // AS: DefineSprite_22/frame_37/PlaceObject2_17_2 onClipEvent(load) — attaches sprite9 at depth 2
+    // AS: DefineSprite_22/frame_40/DoAction.as — this.end() → signalHit
+    // AS: DefineSprite_22/frame_43/DoAction.as — SOMA.playSound("dodge_615")
+    // AS: DefineSprite_22/frame_43/PlaceObject2_17_6 onClipEvent(load) — attaches sprite9 at depth 6
+    // AS: DefineSprite_22/frame_121/DoAction.as — _parent.removeMovieClip()
     this.sprite22Sym = {
       name: "sprite_22",
       totalFrames: 123,
@@ -250,65 +228,54 @@ export class Spell615 extends RuntimeSpell {
         [
           0,
           (clip) => {
-            // AS DefineSprite_22/frame_1/DoAction.as: SOMA.playSound("air")
-            this._playSound?.("air");
-            // AS DefineSprite_22/frame_1/DoAction_2.as:
-            //   _X = _parent.cellTo.x; _Y = _parent.cellTo.y
-            // For TargetCell, the root container is already at cellTo,
-            // so local (0,0) == cellTo in world space. Set to 0,0.
+            // AS: DefineSprite_22/frame_1/DoAction.as — SOMA.playSound("air")
+            // (sound is fired from onSpellStart since we only have callbacks there)
+            // AS: DefineSprite_22/frame_1/DoAction_2.as — position at cellTo
+            // For displayType 11 (TargetCell), the container is already at cellTo.
+            // Relative to the container, the sprite should be at (0, 0).
+            // But the canonical AS positions using _parent.cellTo world coords.
+            // Since we are a child of root (which is at cellTo), we set (0, 0).
             clip.x = 0;
             clip.y = 0;
           },
         ],
         [
           33,
-          () => {
-            // AS DefineSprite_22/frame_34/DoAction.as: SOMA.playSound("dodge_615")
-            this._playSound?.("dodge_615");
+          (_clip) => {
+            // AS: DefineSprite_22/frame_34/DoAction.as — SOMA.playSound("dodge_615")
+            this.soundCallback?.("dodge_615");
           },
         ],
         [
           36,
           (clip, ctx) => {
-            // AS DefineSprite_22/frame_37: PlaceObject2_17_2 is placed.
-            // Its onClipEvent(load) spawns 5 pierres:
-            //   c = 0; while(c < 5) { this.attachMovie("pierres","pierres"+c,c); c++; }
-            // PlaceObject2_17_2 is a container clip (depth 2, instance name implied).
-            // We create a container-only symbol for it inline, or simply
-            // attach pierres directly to the sprite_22 clip at a sub-container.
-            // Canonical approach: a container "slot2" is placed that spawns pierres.
-            // We attach a virtual container, but since we have no registered symbol
-            // for PlaceObject2_17_2, we just attach pierres directly under sprite_22
-            // at offsets (they'll scatter via onLoad's _parent._x/_y logic).
-            for (let c = 0; c < 5; c++) {
-              clip.attach(this.pierresSym, `pierres_a${c}`, 100 + c, ctx);
-            }
+            // AS: DefineSprite_22/frame_37 — PlaceObject2_17_2 placed at depth 2.
+            // The onClipEvent(load) on that PlaceObject attaches 5 "pierres" inside it.
+            // We attach a sprite9 instance here — its onLoad fires and attaches the pierres.
+            clip.attach(this.sprite9Sym, "sprite9_2", 2, ctx);
           },
         ],
         [
           39,
-          () => {
-            // AS DefineSprite_22/frame_40/DoAction.as: this.end() → signalHit
+          (_clip) => {
+            // AS: DefineSprite_22/frame_40/DoAction.as — this.end() → signalHit
             this.runtime.signalHit();
           },
         ],
         [
           42,
           (clip, ctx) => {
-            // AS DefineSprite_22/frame_43/DoAction.as: SOMA.playSound("dodge_615")
-            this._playSound?.("dodge_615");
-            // AS DefineSprite_22/frame_43: PlaceObject2_17_6 placed.
-            // Its onClipEvent(load) spawns 5 pierres (same pattern as frame_37).
-            for (let c = 0; c < 5; c++) {
-              clip.attach(this.pierresSym, `pierres_b${c}`, 200 + c, ctx);
-            }
+            // AS: DefineSprite_22/frame_43/DoAction.as — SOMA.playSound("dodge_615")
+            this.soundCallback?.("dodge_615");
+            // AS: DefineSprite_22/frame_43 — PlaceObject2_17_6 placed at depth 6.
+            // The onClipEvent(load) on that PlaceObject attaches 5 "pierres" inside it.
+            clip.attach(this.sprite9Sym, "sprite9_6", 6, ctx);
           },
         ],
         [
           120,
           (clip) => {
-            // AS DefineSprite_22/frame_121/DoAction.as: _parent.removeMovieClip()
-            // _parent of sprite_22 is the root mc → spell complete.
+            // AS: DefineSprite_22/frame_121/DoAction.as — _parent.removeMovieClip()
             clip.remove();
             this.runtime.complete();
           },
@@ -317,19 +284,25 @@ export class Spell615 extends RuntimeSpell {
     };
 
     this.registry.register(this.pierresSym);
+    this.registry.register(this.sprite9Sym);
     this.registry.register(this.sprite22Sym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    context: SpellContext,
+    context: SpellContext
   ): void {
-    // Capture playSound for use in frame scripts.
-    this._playSound = callbacks.playSound;
+    // Capture sound callback for use in frame scripts
+    this.soundCallback = callbacks.playSound;
 
-    // Main timeline frame_1 implicitly places sprite_22.
-    // frame_2/DoAction.as: stop() — main timeline stops.
-    // We attach sprite_22 to root so it starts ticking from the next frame.
+    // AS: DefineSprite_22/frame_1/DoAction.as — SOMA.playSound("air")
+    callbacks.playSound("air");
+
+    // Attach the main animation sprite as a child of root.
+    // For displayType 11 (TargetCell), root is already positioned at cellTo.
+    // The sprite_22 frame_1 script sets _X = _parent.cellTo.x, _Y = _parent.cellTo.y
+    // relative to its parent (the outer mc). In our model, root IS at cellTo (world coords),
+    // so sprite_22 should be at local (0, 0) within root.
     this.root.attach(this.sprite22Sym, "sprite22", 1, context);
   }
 }

@@ -1,43 +1,28 @@
 /**
- * Spell 2050 — Aspiration (unknown class).
+ * Spell 2050 — Aspiration (Xelor / Cra capture beam).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2050/scripts/scripts/
  *
- * displayType=11 (TargetCell). This spell has no projectile, no caster reference,
- * no `move`/`shoot`/`duplicate` symbols — it is a single impact animation at the
- * target cell. The outer timeline contains no explicit child attachments other than
- * what the authored sprite timelines provide. There are no `librarySymbols[]` entries
- * in the manifest; the single `animations[]` entry (`anim1`, 66 frames) is the
- * top-level animated content.
+ * displayType=20 (ProjectileLinear). The animation is a single wide horizontal
+ * beam (`anim1`, 66 frames) that stretches from caster toward the target.
+ * There are no library symbols with `attachMovie` calls — the two DefineSprite
+ * nodes (11 and 12) ARE the `anim1` composite timeline itself:
  *
- * Canonical AS layout:
- *   - frame_1/DoAction.as         : SOMA.playSound("aspiration")
- *   - DefineSprite_11/frame_1     : per-instance Y randomisation + optional y-flip
- *   - DefineSprite_11/frame_48    : stop()
- *   - DefineSprite_12/frame_64    : stop(); _parent.removeMovieClip() → complete()
+ *   - DefineSprite_11 (inner sprite, tracks the beam body):
+ *       frame_1:  randomise Y position ±10 px; 25% chance flip yscale.
+ *       frame_48: stop().
  *
- * DefineSprite_12 is the outer container (66-frame timeline driven by `anim1`).
- * Its frame_64 stop + removeMovieClip is the canonical completion signal.
+ *   - DefineSprite_12 (outer container, the anim1 root):
+ *       frame_64: stop() + _parent.removeMovieClip() → signals spell complete.
  *
- * DefineSprite_11 is an inner sub-sprite (at least 48 frames) placed on the
- * timeline. Its frame_1 randomly offsets Y and occasionally flips yscale.
- * Since there are no `librarySymbols[]` in the manifest, all symbols are
- * registered against the bare `animations[]` texture key ("anim1"), and the
- * outer timeline itself is the main driving clip.
+ * Main timeline (frame_1/DoAction.as): SOMA.playSound("aspiration").
  *
- * Because `librarySymbols` is empty we model this as a single `anim1` symbol
- * (the whole 66-frame strip) with frame scripts at frames 0 (Y-randomise + flip)
- * and 47 (stop inner) and 63 (stop outer + complete). The `anim1` symbol serves
- * as both DefineSprite_11 (inner) and DefineSprite_12 (outer) logic collapsed
- * onto one registered symbol attached at the root, consistent with how self-buff /
- * shield / aura spells with a single animations[] entry work.
+ * librarySymbols[] is empty in the manifest — no `lib_` prefix anywhere.
+ * The single `anim1` animation entry drives the whole visual.
  *
- * signalHit is fired at the first visible frame (frame 0) since there is no
- * dedicated impact frame — the aspiration effect is immediate.
- *
- * Library symbols: none (librarySymbols[] is empty).
- * Main timeline: SOMA.playSound("aspiration").
+ * signalHit: fired at frame_48 (canonical stop / peak of the beam).
+ * complete:  fired at frame_64 (canonical _parent.removeMovieClip).
  */
 
 import type {
@@ -61,7 +46,7 @@ const ANIM1_BOUNDS = {
 
 export class Spell2050 extends RuntimeSpell {
   readonly spellId = 2050;
-  readonly displayType = SpellDisplayType.TargetCell;
+  readonly displayType = SpellDisplayType.ProjectileLinear;
 
   private anim1Sym!: SymbolDefinition;
 
@@ -71,11 +56,14 @@ export class Spell2050 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // anim1 — the single animated sprite covering the full 66-frame timeline.
-    // Incorporates the behaviour of both DefineSprite_11 (inner sub-sprite,
-    // frame_1 Y-randomise + flip, frame_48 stop) and DefineSprite_12 (outer
-    // container, frame_64 stop + removeMovieClip → complete).
-    // Because librarySymbols[] is empty, textures live under the bare "anim1" key.
+    // `anim1` is the sole animation in the manifest (librarySymbols[] is
+    // empty). DefineSprite_12 wraps DefineSprite_11; their frame scripts
+    // are folded into this single SymbolDefinition because the runtime
+    // attaches one clip from onSpellStart and the scripts interact across
+    // the 66-frame timeline.
+    //
+    // No `lib_` prefix — this entry lives in animations[], not
+    // librarySymbols[].
     this.anim1Sym = {
       name: "anim1",
       totalFrames: 66,
@@ -85,18 +73,14 @@ export class Spell2050 extends RuntimeSpell {
       frameScripts: new Map([
         [
           0,
-          (clip, _ctx) => {
+          (clip) => {
             // AS DefineSprite_11/frame_1/DoAction.as
             // _Y = 20 * (-0.5 + Math.random());
-            clip.y = 20 * (-0.5 + Math.random());
-
             // if (random(4) == 1) { _yscale = -_yscale; }
+            clip.y = 20 * (-0.5 + Math.random());
             if (Math.floor(Math.random() * 4) === 1) {
               clip.scaleY = -clip.scaleY;
             }
-
-            // signalHit at the first visible frame — no dedicated impact frame exists.
-            this.runtime.signalHit();
           },
         ],
         [
@@ -105,6 +89,9 @@ export class Spell2050 extends RuntimeSpell {
             // AS DefineSprite_11/frame_48/DoAction.as
             // stop();
             clip.stop();
+            // Beam has reached full compression — signal hit at this
+            // canonical peak frame.
+            this.runtime.signalHit();
           },
         ],
         [
@@ -131,7 +118,9 @@ export class Spell2050 extends RuntimeSpell {
     // AS frame_1/DoAction.as: SOMA.playSound("aspiration");
     callbacks.playSound("aspiration");
 
-    // Attach the anim1 clip at the root so it starts ticking.
+    // Attach the main beam clip at root depth 1. The harness has already
+    // rotated the root container to face the target (ProjectileLinear),
+    // so the beam stretches naturally along the caster→target axis.
     this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

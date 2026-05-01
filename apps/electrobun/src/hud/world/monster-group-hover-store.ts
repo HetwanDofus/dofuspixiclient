@@ -16,8 +16,22 @@ export interface MonsterGroupHoverState {
   group: {
     spriteId: string;
     members: MonsterGroupMemberView[];
+    /**
+     * Difficulty bonus mirroring `dofus.datacenter.MonsterGroup._nBonusValue`.
+     * The hover panel splits this 0-1500 value across 5 stars (per
+     * `TextWithTitleOverHead.getStarsColor` / `STARS_COLORS`). Zero means
+     * the row of 5 stars is fully transparent.
+     */
+    bonusValue: number;
     x: number;
     y: number;
+    /**
+     * Anchor side. "right" places the panel to the right of (x, y);
+     * "left" places it to the left. Set to "left" automatically when
+     * the group sits near the right edge of the canvas to keep the
+     * tooltip from clipping. Defaults to "right" for backwards compat.
+     */
+    side?: "left" | "right";
   } | null;
 }
 

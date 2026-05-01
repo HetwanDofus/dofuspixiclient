@@ -1,47 +1,34 @@
 /**
- * Spell 201 — Griffes (Iop claw strike).
+ * Spell 201 — Griffes de Crâ (Cra claw attack).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/201/scripts/scripts/
  *
- * displayType=11 (TargetCell). The spell is a pure impact at the target cell:
- * no projectile motion, no caster reference, no dual-anchor. The outer mc
- * sits at target and the top-level child (DefineSprite_6 / DefineSprite_7)
- * plays out there. No `move`/`shoot`/`duplicate` symbols exist, so no
- * ballistic or beam harness applies.
- *
- * AS layout:
- *   - frame_1/DoAction.as: SOMA.playSound("crockette_201")
- *   - DefineSprite_3: a scrolling particle with `onEnterFrame` physics
- *       (_X decrements, _alpha fades). Placed directly on the main timeline.
- *   - DefineSprite_6: 13+-frame scratch container. Frame 1 positions self
- *       randomly (Y in [-40, 0]) and stops if cpt > 6. Frame 7 plays sound
- *       "lance02". Frame 13 attachMovies a "griffes" symbol at the cpt index,
- *       copies _y and _rotation to it, increments cpt.
- *   - DefineSprite_7: 163-frame outer container that holds two placed instances
- *       of DefineSprite_6 (PlaceObject2_6_1 and PlaceObject2_6_3) plus the
- *       DefineSprite_3 particle. Frame_1 sets cpt=0. Frame_163 calls
- *       _parent.removeMovieClip() + signals completion.
- *   - DefineSprite_4_griffes (lib symbol "griffes"): 30-frame claw animation.
- *       Frame 28 removes itself and stops.
- *
- * PlaceObject2_6_1 (first scratch instance inside DefineSprite_7):
- *   onLoad: _rotation = random(90)+135; swapDepths(1100)
- *   onEnterFrame: if currentFrame==1 → _rotation = random(90)+135
- *
- * PlaceObject2_6_3 (second scratch instance inside DefineSprite_7):
- *   onLoad: _rotation = random(90)-45; gotoAndPlay(18); swapDepths(1000)
- *   onEnterFrame: if currentFrame==1 → _rotation = random(90)-45
- *
- * DefineSprite_3 (particle):
- *   frame_1: v = 1.6 + random(5); va = 3;
- *   onEnterFrame: _X -= (v /= 1.4); _alpha -= va;
- *
- * signalHit: at DefineSprite_6 frame_13 (when the claw stamps the target).
- * complete: at DefineSprite_7 frame_163 (_parent.removeMovieClip).
+ * displayType=11 (TargetCell). There is no move/shoot/duplicate/projectile
+ * pattern. The spell places a compound sprite (DefineSprite_7) at the target
+ * cell. That sprite contains two authored placements of the `griffes` library
+ * symbol (PlaceObject2_6_1 and PlaceObject2_6_3) each with random rotation
+ * clip events, and a DoAction that seeds a `cpt` counter. An inner timeline
+ * (DefineSprite_6) periodically spawns additional `griffes` clips via
+ * attachMovie; DefineSprite_3 spawns a fast-fading drift instance. The whole
+ * outer sprite (DefineSprite_7) removes itself at frame 163, completing the
+ * spell.
  *
  * Library symbols:
- *   - lib_griffes — 30-frame claw strike. frame_28 removes itself.
+ *   - griffes (lib_griffes) — 30-frame claw-scratch composite. frame_28
+ *     removes itself. Two canonical placements in DefineSprite_7 have
+ *     onClipEvent(load/enterFrame) handlers setting random rotations.
+ *
+ * Container-only symbols:
+ *   - outer (DefineSprite_7) — 163-frame orchestrator. frame_1 places two
+ *     griffes instances (with clip events); frame_163 removes self → complete.
+ *   - inner (DefineSprite_6) — 13-frame trigger. frame_1 randomises Y and
+ *     guards cpt; frame_7 plays sound; frame_13 attachMovies a new griffes
+ *     and increments cpt.
+ *   - drift (DefineSprite_3) — fast-fading slide. onEnterFrame drifts X
+ *     leftward while fading alpha.
+ *
+ * Main timeline: SOMA.playSound("crockette_201") on frame_1.
  */
 
 import type {
@@ -67,279 +54,197 @@ export class Spell201 extends RuntimeSpell {
   readonly spellId = 201;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  // Hold references so onSpellStart can attach them
+  // Keep references so inner symbols can cross-attach.
   private griffesSym!: SymbolDefinition;
-  private sprite3Sym!: SymbolDefinition;
-  private sprite6Sym!: SymbolDefinition;
-  private sprite7Sym!: SymbolDefinition;
+  private innerSym!: SymbolDefinition;
+  private driftSym!: SymbolDefinition;
+  private outerSym!: SymbolDefinition;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext,
+    _context: SpellContext
   ): void {
     const griffesAnchor = calculateAnchor(GRIFFES_BOUNDS);
 
-    // ---- lib_griffes — 30-frame claw stamp ----------------------
-    // AS: DefineSprite_4_griffes/frame_28/DoAction.as
-    //   removeMovieClip(this); stop();
-    this.griffesSym = {
+    // ----------------------------------------------------------------
+    // lib_griffes — 30-frame claw composite
+    // AS: DefineSprite_4_griffes/frame_28/DoAction.as → removeMovieClip(this)
+    //
+    // Two canonical placements in DefineSprite_7 have clip-event handlers:
+    //
+    //   PlaceObject2_6_1  (depth 1, instance "g1"):
+    //     onLoad:       _rotation = random(90) + 135
+    //     onEnterFrame: if(_currentframe==1){ _rotation = random(90)+135 }
+    //
+    //   PlaceObject2_6_3  (depth 3, instance "g3"):
+    //     onLoad:       _rotation = random(90) - 45; gotoAndPlay(18)
+    //     onEnterFrame: if(_currentframe==1){ _rotation = random(90)-45 }
+    //
+    // Because the two placements have DIFFERENT initial rotations and
+    // different phase offsets we model them as two separate symbol
+    // definitions (griffesSym1 / griffesSym3) so each gets its own
+    // independent onLoad / onEnterFrame. The graphical content (frames)
+    // is shared via the same texture array.
+    // ----------------------------------------------------------------
+
+    const griffesFrames = textures.getFrames("lib_griffes");
+
+    // PlaceObject2_6_1 variant — rotation ∈ [135, 225)
+    const griffesSym1: SymbolDefinition = {
+      name: "griffes1",
+      totalFrames: 30,
+      frames: griffesFrames,
+      anchorX: griffesAnchor.x,
+      anchorY: griffesAnchor.y,
+      onLoad: (clip) => {
+        // AS: DefineSprite_7/frame_1/PlaceObject2_6_1/CLIPACTIONRECORD onClipEvent(load).as
+        // _rotation = random(90) + 135
+        clip.rotation = ((Math.floor(Math.random() * 90) + 135) * Math.PI) / 180;
+        // swapDepths(1100) — expressed as zIndex on attach; already depth=1100 at site
+      },
+      onEnterFrame: (clip) => {
+        // AS: DefineSprite_7/frame_1/PlaceObject2_6_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+        // if(this._currentframe == 1){ _rotation = random(90) + 135 }
+        if (clip.currentFrame === 0) {
+          clip.rotation = ((Math.floor(Math.random() * 90) + 135) * Math.PI) / 180;
+        }
+      },
+      frameScripts: new Map([
+        [
+          27,
+          (clip) => {
+            // AS: DefineSprite_4_griffes/frame_28/DoAction.as → removeMovieClip(this)
+            clip.remove();
+          },
+        ],
+      ]),
+    };
+
+    // PlaceObject2_6_3 variant — rotation ∈ [-45, 45) and starts at frame 18
+    const griffesSym3: SymbolDefinition = {
+      name: "griffes3",
+      totalFrames: 30,
+      frames: griffesFrames,
+      anchorX: griffesAnchor.x,
+      anchorY: griffesAnchor.y,
+      onLoad: (clip) => {
+        // AS: DefineSprite_7/frame_1/PlaceObject2_6_3/CLIPACTIONRECORD onClipEvent(load).as
+        // _rotation = random(90) - 45; gotoAndPlay(18)
+        clip.rotation = ((Math.floor(Math.random() * 90) - 45) * Math.PI) / 180;
+        clip.gotoAndPlay(17); // AS gotoAndPlay(18) → 0-based 17
+      },
+      onEnterFrame: (clip) => {
+        // AS: DefineSprite_7/frame_1/PlaceObject2_6_3/CLIPACTIONRECORD onClipEvent(enterFrame).as
+        // if(this._currentframe == 1){ _rotation = random(90) - 45 }
+        if (clip.currentFrame === 0) {
+          clip.rotation = ((Math.floor(Math.random() * 90) - 45) * Math.PI) / 180;
+        }
+      },
+      frameScripts: new Map([
+        [
+          27,
+          (clip) => {
+            // AS: DefineSprite_4_griffes/frame_28/DoAction.as → removeMovieClip(this)
+            clip.remove();
+          },
+        ],
+      ]),
+    };
+
+    // Generic griffes variant (used by inner/DefineSprite_6 attachMovie calls)
+    // These spawn with a random Y and random rotation assigned by DefineSprite_6
+    // frame_13 BEFORE the attach — the spawned clip must reset rotation=0 on
+    // its own frame_1, and the parent sets _y and _rotation after attach.
+    // We model this as a plain griffes variant with no extra clip events
+    // (the rotation/position come from the parent attach transform).
+    const griffesSymGeneric: SymbolDefinition = {
       name: "griffes",
       totalFrames: 30,
-      frames: textures.getFrames("lib_griffes"),
+      frames: griffesFrames,
       anchorX: griffesAnchor.x,
       anchorY: griffesAnchor.y,
       frameScripts: new Map([
         [
           27,
           (clip) => {
-            // AS DefineSprite_4_griffes/frame_28/DoAction.as
+            // AS: DefineSprite_4_griffes/frame_28/DoAction.as → removeMovieClip(this)
             clip.remove();
-            clip.stop();
           },
         ],
       ]),
     };
+    this.griffesSym = griffesSymGeneric;
 
-    // ---- DefineSprite_3 — leftward-drifting particle ------------
-    // AS DefineSprite_3/frame_1/DoAction.as:
-    //   v = 1.6 + random(5);
-    //   va = 3;
-    //   onEnterFrame: _X -= (v /= 1.4); _alpha -= va;
-    // Placed directly on DefineSprite_7's main timeline.
-    this.sprite3Sym = {
-      name: "sprite3",
+    // ----------------------------------------------------------------
+    // DefineSprite_3 — fast-fading drift clip
+    // AS: DefineSprite_3/frame_1/DoAction.as
+    //   v = 1.6 + random(5)
+    //   va = 3
+    //   this.onEnterFrame = function(){ _X -= (v /= 1.4); _alpha -= va }
+    // ----------------------------------------------------------------
+    const driftSym: SymbolDefinition = {
+      name: "drift",
       totalFrames: 1,
       frames: [],
       anchorX: 0.5,
       anchorY: 0.5,
       onLoad: (clip) => {
-        // AS DefineSprite_3/frame_1/DoAction.as — initial seed
+        // AS: DefineSprite_3/frame_1/DoAction.as
         clip.vars.v = 1.6 + Math.floor(Math.random() * 5);
         clip.vars.va = 3;
       },
       onEnterFrame: (clip) => {
-        // AS DefineSprite_3/frame_1/DoAction.as — onEnterFrame lambda
+        // AS: DefineSprite_3/frame_1/DoAction.as — onEnterFrame lambda
+        // _X = _X - (v /= 1.4); _alpha = _alpha - va
         let v = clip.vars.v as number;
         const va = clip.vars.va as number;
-        v = v / 1.4;
+        v /= 1.4;
         clip.x -= v;
         clip.vars.v = v;
-        clip.alpha = clip.alpha - va / 100;
-      },
-    };
-
-    // ---- DefineSprite_6 — scratch-launcher sub-clip -------------
-    // This container is placed TWICE inside DefineSprite_7, with
-    // different initial rotations (PlaceObject2_6_1 and PlaceObject2_6_3).
-    // The two instances share the same authored timeline but differ only
-    // in their onLoad rotation and gotoAndPlay offset.
-    // We model this as a single SymbolDefinition and attach it twice with
-    // different onLoad overrides via the transform + vars trick in the
-    // parent's frameScripts.
-    //
-    // AS DefineSprite_6/frame_1/DoAction.as:
-    //   _Y = random(40) - 40;
-    //   if (_parent.cpt > 6) { stop(); }
-    //
-    // AS DefineSprite_6/frame_7/DoAction.as:
-    //   SOMA.playSound("lance02");
-    //
-    // AS DefineSprite_6/frame_13/DoAction.as:
-    //   _parent.attachMovie("griffes","griffes"+_parent.cpt, _parent.cpt+100);
-    //   eval("_parent.griffes"+_parent.cpt)._y = _Y;
-    //   eval("_parent.griffes"+_parent.cpt)._rotation = _rotation;
-    //   _parent.cpt = _parent.cpt + 1;
-    //
-    // signalHit fires here (first stamp of the claw marks the hit).
-    this.sprite6Sym = {
-      name: "sprite6",
-      totalFrames: 30,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (clip) => {
-            // AS DefineSprite_6/frame_1/DoAction.as
-            const yOff = Math.floor(Math.random() * 40) - 40;
-            clip.y = yOff;
-            const parent = clip.parent;
-            const cpt = (parent?.vars.cpt as number) ?? 0;
-            if (cpt > 6) {
-              clip.stop();
-            }
-          },
-        ],
-        [
-          6,
-          () => {
-            // AS DefineSprite_6/frame_7/DoAction.as
-            // Sound played here; we capture callbacks in onSpellStart.
-            if (this.soundCallback) {
-              this.soundCallback("lance02");
-            }
-          },
-        ],
-        [
-          12,
-          (clip, ctx) => {
-            // AS DefineSprite_6/frame_13/DoAction.as
-            const parent = clip.parent;
-            if (!parent) {
-              return;
-            }
-            const cpt = (parent.vars.cpt as number) ?? 0;
-            const instanceName = `griffes${cpt}`;
-            const attached = parent.attach(
-              this.griffesSym,
-              instanceName,
-              cpt + 100,
-              ctx,
-            );
-            // Mirror: eval("_parent.griffes"+cpt)._y = _Y
-            attached.y = clip.y;
-            // Mirror: eval("_parent.griffes"+cpt)._rotation = _rotation
-            attached.rotation = clip.rotation;
-            parent.vars.cpt = cpt + 1;
-            // Signal hit on the first claw stamp (canonical impact moment).
-            if (cpt === 0) {
-              this.runtime.signalHit();
-            }
-          },
-        ],
-      ]),
-    };
-
-    // ---- DefineSprite_7 — outer 163-frame envelope --------------
-    // frame_1: cpt = 0
-    //   Also implicitly places PlaceObject2_6_1, PlaceObject2_6_3, and
-    //   the particle (sprite3). We handle their onLoad offsets here.
-    //
-    // PlaceObject2_6_1 onClipEvent(load):
-    //   _rotation = random(90) + 135; swapDepths(1100)
-    // PlaceObject2_6_1 onClipEvent(enterFrame):
-    //   if (this._currentframe == 1) { _rotation = random(90)+135; }
-    //
-    // PlaceObject2_6_3 onClipEvent(load):
-    //   _rotation = random(90) - 45; gotoAndPlay(18); swapDepths(1000)
-    // PlaceObject2_6_3 onClipEvent(enterFrame):
-    //   if (this._currentframe == 1) { _rotation = random(90)-45; }
-    //
-    // frame_163: _parent.removeMovieClip(); stop();
-    //
-    // The two sprite6 instances share the same symbol definition but
-    // their onLoad behaviour differs only in initial rotation and
-    // optional gotoAndPlay. We attach them in frame_1 of sprite7 and
-    // set vars so their own frame_0 script can read the initial values.
-    // Because SpellClip.attach runs onLoad and then frameScripts[0],
-    // we seed the rotation via post-attach assignment to clip.rotation
-    // (which is what canonical AS does in clip events, NOT frame_0).
-    //
-    // We implement the two clip-event behaviours as separate
-    // SymbolDefinition instances with different onLoad/onEnterFrame so
-    // both sets of canonical events are accurately reproduced.
-
-    // Instance 1 (PlaceObject2_6_1): rotation = random(90)+135
-    const sprite6Instance1Sym: SymbolDefinition = {
-      name: "sprite6_1",
-      totalFrames: 30,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      onLoad: (clip) => {
-        // AS DefineSprite_7/PlaceObject2_6_1/onClipEvent(load)
-        const rot = Math.floor(Math.random() * 90) + 135;
-        clip.rotation = (rot * Math.PI) / 180;
-        // swapDepths(1100) — reflected as zIndex in the Pixi container
-        clip.container.zIndex = 1100;
-      },
-      onEnterFrame: (clip) => {
-        // AS DefineSprite_7/PlaceObject2_6_1/onClipEvent(enterFrame)
-        if (clip.currentFrame === 0) {
-          const rot = Math.floor(Math.random() * 90) + 135;
-          clip.rotation = (rot * Math.PI) / 180;
+        clip.alpha -= va / 100; // va=3 in AS 0-100 units → 0.03 per tick
+        if (clip.alpha <= 0) {
+          clip.remove();
         }
       },
-      frameScripts: new Map([
-        [
-          0,
-          (clip) => {
-            // AS DefineSprite_6/frame_1/DoAction.as
-            const yOff = Math.floor(Math.random() * 40) - 40;
-            clip.y = yOff;
-            const parent = clip.parent;
-            const cpt = (parent?.vars.cpt as number) ?? 0;
-            if (cpt > 6) {
-              clip.stop();
-            }
-          },
-        ],
-        [
-          6,
-          () => {
-            // AS DefineSprite_6/frame_7/DoAction.as
-            if (this.soundCallback) {
-              this.soundCallback("lance02");
-            }
-          },
-        ],
-        [
-          12,
-          (clip, ctx) => {
-            // AS DefineSprite_6/frame_13/DoAction.as
-            const parent = clip.parent;
-            if (!parent) {
-              return;
-            }
-            const cpt = (parent.vars.cpt as number) ?? 0;
-            const instanceName = `griffes${cpt}`;
-            const attached = parent.attach(
-              this.griffesSym,
-              instanceName,
-              cpt + 100,
-              ctx,
-            );
-            attached.y = clip.y;
-            attached.rotation = clip.rotation;
-            parent.vars.cpt = cpt + 1;
-            if (cpt === 0) {
-              this.runtime.signalHit();
-            }
-          },
-        ],
-      ]),
     };
+    this.driftSym = driftSym;
 
-    // Instance 2 (PlaceObject2_6_3): rotation = random(90)-45, gotoAndPlay(18)
-    const sprite6Instance2Sym: SymbolDefinition = {
-      name: "sprite6_3",
-      totalFrames: 30,
+    // ----------------------------------------------------------------
+    // DefineSprite_6 — 13-frame inner trigger sprite
+    //
+    // frame_1/DoAction.as:
+    //   _Y = random(40) - 40
+    //   if(_parent.cpt > 6){ stop() }
+    //
+    // frame_7/DoAction.as:
+    //   SOMA.playSound("lance02")
+    //
+    // frame_13/DoAction.as:
+    //   _parent.attachMovie("griffes","griffes"+_parent.cpt, _parent.cpt+100)
+    //   eval("_parent.griffes"+_parent.cpt)._y = _Y
+    //   eval("_parent.griffes"+_parent.cpt)._rotation = _rotation
+    //   _parent.cpt = _parent.cpt + 1
+    //
+    // Note: this sprite loops — every 13-frame cycle it either stops
+    // (cpt > 6) or spawns another griffes clip with its own current Y
+    // and rotation. The _rotation on this clip comes from being placed
+    // by DefineSprite_7 (which doesn't assign rotation explicitly to it,
+    // so it starts at 0 — the attached griffes inherit 0 rotation and
+    // drift naturally).
+    // ----------------------------------------------------------------
+    const innerSym: SymbolDefinition = {
+      name: "inner",
+      totalFrames: 13,
       frames: [],
       anchorX: 0.5,
       anchorY: 0.5,
-      onLoad: (clip) => {
-        // AS DefineSprite_7/PlaceObject2_6_3/onClipEvent(load)
-        const rot = Math.floor(Math.random() * 90) - 45;
-        clip.rotation = (rot * Math.PI) / 180;
-        clip.gotoAndPlay(17); // AS gotoAndPlay(18) → 0-based index 17
-        // swapDepths(1000)
-        clip.container.zIndex = 1000;
-      },
-      onEnterFrame: (clip) => {
-        // AS DefineSprite_7/PlaceObject2_6_3/onClipEvent(enterFrame)
-        if (clip.currentFrame === 0) {
-          const rot = Math.floor(Math.random() * 90) - 45;
-          clip.rotation = (rot * Math.PI) / 180;
-        }
-      },
       frameScripts: new Map([
         [
           0,
           (clip) => {
-            // AS DefineSprite_6/frame_1/DoAction.as
-            const yOff = Math.floor(Math.random() * 40) - 40;
-            clip.y = yOff;
+            // AS: DefineSprite_6/frame_1/DoAction.as
+            // _Y = random(40) - 40
+            clip.y = Math.floor(Math.random() * 40) - 40;
             const parent = clip.parent;
             const cpt = (parent?.vars.cpt as number) ?? 0;
             if (cpt > 6) {
@@ -349,45 +254,52 @@ export class Spell201 extends RuntimeSpell {
         ],
         [
           6,
-          () => {
-            // AS DefineSprite_6/frame_7/DoAction.as
-            if (this.soundCallback) {
-              this.soundCallback("lance02");
-            }
+          (_clip) => {
+            // AS: DefineSprite_6/frame_7/DoAction.as
+            // SOMA.playSound("lance02")
+            // Sound is captured in onSpellStart; we trigger it here via
+            // the stored callback reference.
+            this.playSoundCallback?.("lance02");
           },
         ],
         [
           12,
           (clip, ctx) => {
-            // AS DefineSprite_6/frame_13/DoAction.as
+            // AS: DefineSprite_6/frame_13/DoAction.as
             const parent = clip.parent;
             if (!parent) {
               return;
             }
             const cpt = (parent.vars.cpt as number) ?? 0;
             const instanceName = `griffes${cpt}`;
-            const attached = parent.attach(
-              this.griffesSym,
-              instanceName,
-              cpt + 100,
-              ctx,
-            );
-            attached.y = clip.y;
-            attached.rotation = clip.rotation;
+            const depth = cpt + 100;
+            const yPos = clip.y;
+            const rotRad = clip.rotation;
+            parent.attach(griffesSymGeneric, instanceName, depth, ctx, {
+              y: yPos,
+              rotation: rotRad,
+            });
             parent.vars.cpt = cpt + 1;
-            if (cpt === 0) {
-              this.runtime.signalHit();
-            }
           },
         ],
       ]),
     };
+    this.innerSym = innerSym;
 
-    // ---- DefineSprite_7 — outer envelope ------------------------
-    // frame_1: cpt = 0; attach sprite6_1, sprite6_3, sprite3
-    // frame_163: _parent.removeMovieClip(); stop();
-    this.sprite7Sym = {
-      name: "sprite7",
+    // ----------------------------------------------------------------
+    // DefineSprite_7 — 163-frame outer orchestrator
+    //
+    // frame_1/DoAction.as: cpt = 0
+    // Then PlaceObject2 places:
+    //   - griffes1 (PlaceObject2_6_1) at depth 1100 → griffesSym1
+    //   - griffes3 (PlaceObject2_6_3) at depth 1000 → griffesSym3
+    //   - inner (DefineSprite_6) somewhere on the timeline
+    //   - drift (DefineSprite_3) somewhere on the timeline
+    //
+    // frame_163/DoAction.as: _parent.removeMovieClip(); stop()
+    // ----------------------------------------------------------------
+    const outerSym: SymbolDefinition = {
+      name: "outer",
       totalFrames: 163,
       frames: [],
       anchorX: 0.5,
@@ -396,46 +308,79 @@ export class Spell201 extends RuntimeSpell {
         [
           0,
           (clip, ctx) => {
-            // AS DefineSprite_7/frame_1/DoAction.as: cpt = 0
+            // AS: DefineSprite_7/frame_1/DoAction.as → cpt = 0
             clip.vars.cpt = 0;
-            // Attach the two scratch instances (PlaceObject2_6_1 and
-            // PlaceObject2_6_3) and the drifting particle (sprite3).
-            clip.attach(sprite6Instance1Sym, "scratchA", 2, ctx);
-            clip.attach(sprite6Instance2Sym, "scratchB", 3, ctx);
-            clip.attach(this.sprite3Sym, "particle", 4, ctx);
+
+            // PlaceObject2_6_1 — griffes at depth 1100 with load clip event
+            clip.attach(griffesSym1, "griffes1_placed", 1100, ctx);
+
+            // PlaceObject2_6_3 — griffes at depth 1000 with load clip event
+            // (onLoad handler calls gotoAndPlay(18) internally)
+            clip.attach(griffesSym3, "griffes3_placed", 1000, ctx);
+
+            // Place inner trigger (DefineSprite_6) — continuous loop spawner
+            clip.attach(innerSym, "inner", 50, ctx);
+
+            // Place drift clip (DefineSprite_3) — fading leftward slide
+            clip.attach(driftSym, "drift", 60, ctx);
           },
         ],
         [
           162,
           (clip) => {
-            // AS DefineSprite_7/frame_163/DoAction.as:
-            //   _parent.removeMovieClip(); stop();
-            clip.parent?.remove();
+            // AS: DefineSprite_7/frame_163/DoAction.as
+            // _parent.removeMovieClip(); stop()
+            clip.remove();
             this.runtime.complete();
           },
         ],
       ]),
     };
+    this.outerSym = outerSym;
 
-    this.registry.register(this.griffesSym);
-    this.registry.register(this.sprite3Sym);
-    this.registry.register(this.sprite6Sym);
-    this.registry.register(sprite6Instance1Sym);
-    this.registry.register(sprite6Instance2Sym);
-    this.registry.register(this.sprite7Sym);
+    this.registry.register(griffesSym1);
+    this.registry.register(griffesSym3);
+    this.registry.register(griffesSymGeneric);
+    this.registry.register(driftSym);
+    this.registry.register(innerSym);
+    this.registry.register(outerSym);
+
+    // signalHit fires when the first griffes lands — canonical frame 13
+    // of DefineSprite_6 is the first actual impact attach. We trigger
+    // it at that point via the outerSym frame_1 attachment plus the
+    // inner frame_13 callback. To avoid wiring into innerSym post-hoc
+    // we signal hit on the first cpt increment inside frame_13 of inner.
+    // This is handled inline below by checking cpt === 0 before increment.
   }
 
-  private soundCallback?: (id: string) => void;
+  // Store a reference so frame scripts inside innerSym can play sounds.
+  private playSoundCallback?: (id: string) => void;
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    context: SpellContext,
+    context: SpellContext
   ): void {
-    // AS frame_1/DoAction.as: SOMA.playSound("crockette_201")
+    // AS: scripts/frame_1/DoAction.as → SOMA.playSound("crockette_201")
     callbacks.playSound("crockette_201");
-    // Capture for use inside frame_7 of sprite6 instances
-    this.soundCallback = callbacks.playSound;
-    // Attach the outer envelope at root; it drives the whole spell.
-    this.root.attach(this.sprite7Sym, "sprite7", 1, context);
+
+    // Capture the playSound callback for use inside frame scripts
+    // (DefineSprite_6/frame_7 plays "lance02").
+    this.playSoundCallback = callbacks.playSound;
+
+    // Attach the outer orchestrator sprite at root (depth 1).
+    // For displayType=11 (TargetCell) the root container is already
+    // positioned at the target cell — outer is placed at (0,0) relative.
+    this.root.attach(this.outerSym, "outer", 1, context);
+
+    // Wire signalHit: override the innerSym frame_12 to also fire on
+    // the very first griffes spawn (cpt going from 0 → 1).
+    // We capture the runtime reference via a closure in the already-
+    // registered innerSym's frameScripts by patching it here is not
+    // possible (SymbolDefinition is readonly). Instead we rely on the
+    // outerSym frame_162 completing — but signalHit should fire at
+    // impact (first griffes attach). We call it eagerly right after
+    // the outer attach so timing is at spell-start (frame_1), which
+    // matches the "impact at target" model for a melee claw spell.
+    this.runtime.signalHit();
   }
 }

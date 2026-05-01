@@ -1,40 +1,49 @@
 /**
- * Spell 208 — Boule de Feu / Renvoi de Sort (Osamodas rock throw).
+ * Spell 208 — Flèche de Givre (Cra ice arrow / earth arrow).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/208/scripts/scripts/
  *
- * displayType=30 (ProjectileBallistic).
- *   - Has both `move` and `shoot` symbols (harness expects them).
- *   - `move` (DefineSprite_15) contains a PlaceObject2_14_8 child whose
- *     onEnterFrame oscillates _yscale, plus a frame_1 DoAction that wires
- *     an onEnterFrame callback on `move` itself to trail `fumee` smoke particles.
- *   - `shoot` (DefineSprite_26) contains a PlaceObject2_25_1 child (sprite_25)
- *     that spawns `plumes` feather particles and accumulates `pierres` stone chips.
- *     frame_1 resets _rotation to -_parent.angle (upright override).
- *     frame_97 removes _parent (outer mc) + stop → spell complete.
- *   - The harness fires signalHit automatically at landing; do NOT call it again.
+ * displayType=30 (ProjectileBallistic). The harness attaches `move` at
+ * caster, drives a parabolic arc to target, then attaches `shoot` at
+ * impact. Evidence:
+ *   - DefineSprite_15_move/frame_1/DoAction.as accesses `this._x`,
+ *     `this._y`, and `this._parent.level` — the canonical projectile-
+ *     in-flight pattern.
+ *   - DefineSprite_26_shoot/frame_1/DoAction.as does `_rotation =
+ *     -_parent.angle` and DefineSprite_26_shoot/frame_97/DoAction.as
+ *     does `_parent.removeMovieClip()` — canonical 97-frame burn at
+ *     target after landing.
+ *   - move spawns `fumee` smoke trail particles during flight.
  *
  * Library symbols:
- *   - lib_fumee  (36-frame smoke puff) — frame_1 randomises rotation; frame_8
- *     jumps forward random(7) frames; frame_36 removes self.
- *   - lib_plumes (1-frame feather)     — onLoad seeds random drift; onEnterFrame
- *     fades + drifts while _Y < 0, oscillating rotation.
- *   - lib_pierres (1-frame stone chip) — onLoad seeds ballistic vars; onEnterFrame
- *     drives outward scatter + angle-driven drift + alpha fade.
+ *   - fumee      — 36-frame smoke puff spawned along the flight path.
+ *                  frame_1 randomises rotation; frame_8 skips forward
+ *                  randomly; frame_36 removes self.
+ *   - plumes     — 1-frame feather particle. onLoad seeds velocity/
+ *                  scale/rotation physics. onEnterFrame drives Y drift
+ *                  + rotation oscillation + alpha fade.
+ *   - pierres    — 1-frame stone chip particle. onLoad seeds velocity,
+ *                  angle-based acceleration, scale. onEnterFrame drives
+ *                  position + rotation + deceleration + fade + removal.
+ *   - sprite25   — 20-frame impact composite (directlyDynamic: true).
+ *                  Placed inside shoot at depth 1. onLoad (PlaceObject2)
+ *                  sets scale to 60%. frame_20 stops. Also hosts the
+ *                  "plumes" spawning logic (frame_1 attaches 10 plumes)
+ *                  and the pierres spawning loop (onEnterFrame on its
+ *                  inner PlaceObject2_23_2).
+ *   - move       — container. frame_1 onEnterFrame spawns fumee trail.
+ *                  PlaceObject2_14_8 onEnterFrame oscillates yscale.
+ *   - shoot      — container, 97 frames. frame_1 sets rotation to
+ *                  -_parent.angle and attaches sprite25 at depth 1.
+ *                  frame_97 removes outer mc → complete().
  *
- * Container symbols (no authored visual frames):
- *   - move  (DefineSprite_15) — 1-frame container. frame_1 wires smoke trail.
- *   - shoot (DefineSprite_26) — 97-frame container. frame_1 places sprite_25
- *     inner composite; frame_97 completes.
+ * Main timeline: SOMA.playSound("flèche") — exact sound key unknown
+ * from scripts; no explicit playSound found in provided AS, so
+ * onSpellStart is minimal.
  *
- * The inner sprite_25 (DefineSprite_25) is a sub-symbol that lives inside
- * `shoot`. It has its own authored timeline (20 frames, stops at 20) and a
- * PlaceObject2_23_2 clip that accumulates `pierres` over time. It also spawns
- * 10 `plumes` on frame_1. We model it as a nested SymbolDefinition.
- *
- * Main timeline: no SOMA.playSound in the visible scripts; onSpellStart is
- * minimal (the harness handles move/shoot attachment for displayType 30).
+ * Harness drives signalHit automatically at ballistic landing
+ * (displayType=30). Do NOT call signalHit manually.
  */
 
 import type {
@@ -49,40 +58,45 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-// ---------------------------------------------------------------------------
-// Manifest bounds for calculateAnchor
-// ---------------------------------------------------------------------------
-
+// ---- Manifest bounds for calculateAnchor ----
 const FUMEE_BOUNDS = {
   width: 20.15,
   height: 17.8,
   offsetX: -10.7,
   offsetY: -8.8,
 };
-
 const PLUMES_BOUNDS = {
   width: 21.75,
   height: 6.65,
   offsetX: -14,
   offsetY: -34.45,
 };
-
 const PIERRES_BOUNDS = {
   width: 16.15,
   height: 20.5,
   offsetX: -8.15,
   offsetY: -8.6,
 };
+const SPRITE25_BOUNDS = {
+  width: 103.9,
+  height: 103.9,
+  offsetX: -54.05,
+  offsetY: -95.35,
+};
 
 export class Spell208 extends RuntimeSpell {
   readonly spellId = 208;
   readonly displayType = SpellDisplayType.ProjectileBallistic;
 
-  // Keep references so nested symbol defs can cross-reference each other
+  // Symbols are stored as fields so onSpellStart and frameScripts can
+  // reference them before registerSymbols completes — safe because all
+  // accesses happen in callbacks (post-init).
   private fumeeSym!: SymbolDefinition;
   private plumesSym!: SymbolDefinition;
   private pierresSym!: SymbolDefinition;
   private sprite25Sym!: SymbolDefinition;
+  private moveSym!: SymbolDefinition;
+  private shootSym!: SymbolDefinition;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
@@ -91,13 +105,16 @@ export class Spell208 extends RuntimeSpell {
     const fumeeAnchor = calculateAnchor(FUMEE_BOUNDS);
     const plumesAnchor = calculateAnchor(PLUMES_BOUNDS);
     const pierresAnchor = calculateAnchor(PIERRES_BOUNDS);
+    const sprite25Anchor = calculateAnchor(SPRITE25_BOUNDS);
 
-    // ---- lib_fumee — 36-frame smoke puff -------------------------------
-    // frame_1:  AS DefineSprite_22_fumee/frame_1/DoAction.as
+    // ----------------------------------------------------------------
+    // lib_fumee — 36-frame smoke puff spawned along flight path
+    // ----------------------------------------------------------------
+    // AS: DefineSprite_22_fumee/frame_1/DoAction.as
     //   _rotation = random(360);
-    // frame_8:  AS DefineSprite_22_fumee/frame_8/DoAction.as
+    // AS: DefineSprite_22_fumee/frame_8/DoAction.as
     //   gotoAndPlay(_currentframe + random(7));
-    // frame_36: AS DefineSprite_22_fumee/frame_36/DoAction.as
+    // AS: DefineSprite_22_fumee/frame_36/DoAction.as
     //   this.removeMovieClip();
     this.fumeeSym = {
       name: "fumee",
@@ -110,8 +127,7 @@ export class Spell208 extends RuntimeSpell {
           0,
           (clip) => {
             // AS DefineSprite_22_fumee/frame_1/DoAction.as
-            const deg = Math.floor(Math.random() * 360);
-            clip.rotation = (deg * Math.PI) / 180;
+            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
           },
         ],
         [
@@ -119,12 +135,10 @@ export class Spell208 extends RuntimeSpell {
           (clip) => {
             // AS DefineSprite_22_fumee/frame_8/DoAction.as
             // gotoAndPlay(_currentframe + random(7))
-            // _currentframe is 1-based in AS; here clip.currentFrame is 0-based.
-            // After tickOneFrame advances to frame index 7, currentFrame == 7.
-            // AS equivalent: gotoAndPlay(8 + random(7)) → gotoAndPlay(8..14)
-            // 0-based: gotoAndPlay(7 + random(7)) → indices 7..13
+            // currentFrame here is 7 (0-based), AS sees frame 8.
+            // Jump forward 0-6 frames from current position.
             const jump = Math.floor(Math.random() * 7);
-            clip.gotoAndPlay(7 + jump);
+            clip.gotoAndPlay(clip.currentFrame + jump);
           },
         ],
         [
@@ -137,10 +151,12 @@ export class Spell208 extends RuntimeSpell {
       ]),
     };
 
-    // ---- lib_plumes — feather particle ---------------------------------
-    // AS DefineSprite_18_plumes/frame_1/PlaceObject2_17_1/
-    //   CLIPACTIONRECORD onClipEvent(load).as
-    //   CLIPACTIONRECORD onClipEvent(enterFrame).as
+    // ----------------------------------------------------------------
+    // lib_plumes — 1-frame feather particle
+    // ----------------------------------------------------------------
+    // AS: DefineSprite_18_plumes/frame_1/PlaceObject2_17_1/
+    //     CLIPACTIONRECORD onClipEvent(load).as
+    //     onClipEvent(enterFrame).as
     this.plumesSym = {
       name: "plumes",
       totalFrames: 1,
@@ -148,17 +164,7 @@ export class Spell208 extends RuntimeSpell {
       anchorX: plumesAnchor.x,
       anchorY: plumesAnchor.y,
       onLoad: (clip) => {
-        // AS onClipEvent(load):
-        //   if(random(2) == 1) { _xscale = -_xscale; }
-        //   t = 40 + random(60);
-        //   _xscale = t;  _yscale = t;
-        //   duree = 40 + random(30);
-        //   vy = -5 - 15 * Math.random();
-        //   vx = -10 + 20 * Math.random();
-        //   vch = 0.2 + 0.3 * Math.random();
-        //   vr = 0.1 + 0.3 * Math.random();
-        //   amp = 30 + random(70);
-        //   time = 0;  a = 0;
+        // AS DefineSprite_18_plumes/frame_1/PlaceObject2_17_1/onClipEvent(load)
         if (Math.floor(Math.random() * 2) === 1) {
           clip.scaleX = -clip.scaleX;
         }
@@ -175,30 +181,24 @@ export class Spell208 extends RuntimeSpell {
         clip.vars.a = 0;
       },
       onEnterFrame: (clip) => {
-        // AS onClipEvent(enterFrame):
-        //   if(time++ > duree) { _alpha -= 10; }
-        //   if(_Y < 0) {
-        //     _Y = _Y + (vy += vch);
-        //     _X += vx;
-        //     vy *= 0.9;  vx *= 0.9;
-        //     amp *= 0.98;
-        //     _rotation = amp * Math.cos(a += vr);
-        //   }
-        let time = clip.vars.time as number;
+        // AS DefineSprite_18_plumes/frame_1/PlaceObject2_17_1/onClipEvent(enterFrame)
         const duree = clip.vars.duree as number;
+        let time = clip.vars.time as number;
+        let vy = clip.vars.vy as number;
+        let vx = clip.vars.vx as number;
+        let vch = clip.vars.vch as number;
+        let amp = clip.vars.amp as number;
+        let a = clip.vars.a as number;
+        const vr = clip.vars.vr as number;
+
+        time++;
+        clip.vars.time = time;
+
         if (time > duree) {
-          clip.alpha = Math.max(0, clip.alpha - 10 / 100);
+          clip.alpha = clip.alpha - 10 / 100;
         }
-        clip.vars.time = time + 1;
 
         if (clip.y < 0) {
-          let vy = clip.vars.vy as number;
-          let vx = clip.vars.vx as number;
-          let amp = clip.vars.amp as number;
-          let a = clip.vars.a as number;
-          const vch = clip.vars.vch as number;
-          const vr = clip.vars.vr as number;
-
           vy += vch;
           clip.y = clip.y + vy;
           clip.x = clip.x + vx;
@@ -206,7 +206,7 @@ export class Spell208 extends RuntimeSpell {
           vx *= 0.9;
           amp *= 0.98;
           a += vr;
-          // AS rotation in degrees → radians
+          // AS rotation in degrees
           clip.rotation = (amp * Math.cos(a) * Math.PI) / 180;
 
           clip.vars.vy = vy;
@@ -217,21 +217,22 @@ export class Spell208 extends RuntimeSpell {
       },
     };
 
-    // ---- lib_pierres — stone chip particle -----------------------------
-    // AS DefineSprite_6_pierres/frame_1/PlaceObject2_5_1/
-    //   CLIPACTIONRECORD onClipEvent(load).as
-    //   CLIPACTIONRECORD onClipEvent(enterFrame).as
+    // ----------------------------------------------------------------
+    // lib_pierres — 1-frame stone chip particle
+    // ----------------------------------------------------------------
+    // AS: DefineSprite_6_pierres/frame_1/PlaceObject2_5_1/
+    //     CLIPACTIONRECORD onClipEvent(load).as
+    //     CLIPACTIONRECORD onClipEvent(enterFrame).as
     //
-    // NOTE: The pierres clip is placed as PlaceObject2_5_1 inside
-    // DefineSprite_6_pierres. The parent traversal in the AS is deep:
-    //   _parent._parent._parent._parent._parent.angle
-    // Walking from the pierres clip:
-    //   pierres clip → pierres symbol wrapper (PlaceObject2 child of sprite_6)
-    //   → sprite_6 (pierres symbol instance inside sprite_25)
-    //   → sprite_25 (inside shoot)
-    //   → shoot (root child)
-    //   → root (has vars.angle set by harness)
-    // So we walk clip.parent?.parent?.parent?.parent to reach root.
+    // Note: "pierres" is placed via PlaceObject2 on a PARENT container.
+    // The parent container is what moves (_parent._x, _parent._y).
+    // The "pierres" clip itself handles rotation + self-relative _X/_Y.
+    // We collapse the _parent._x/_y scatter into the onLoad (seeded on
+    // the container) and apply it to the clip's parent via clip.parent.
+    // The _parent._parent._parent._parent._parent.angle traversal is:
+    //   pierres (clip) → parent container (pierresContainer) →
+    //   sprite25 → shoot → root
+    // which collapses to: clip.parent?.parent?.parent?.parent
     this.pierresSym = {
       name: "pierres",
       totalFrames: 1,
@@ -239,92 +240,78 @@ export class Spell208 extends RuntimeSpell {
       anchorX: pierresAnchor.x,
       anchorY: pierresAnchor.y,
       onLoad: (clip) => {
-        // AS onClipEvent(load):
-        //   vd = 30 + random(30);
-        //   gotoAndPlay(random(4) + 1);
-        //   vx = 15 * (Math.random() - 0.5);
-        //   vy = 15 * (Math.random() - 0.5);
-        //   an = _parent._parent._parent._parent._parent.angle + 3.1415;
-        //   v2x = Math.cos(an) * 2;
-        //   v2y = Math.sin(an) * 5;
-        //   _parent._x = 20 * (Math.random() - 0.5);
-        //   _parent._y = 10 * (Math.random() - 0.5);
-        //   t = 60 + 40 * Math.random();
-        //   v = -10;
-        //   _xscale = t;  _yscale = t;
-        //   vr = 60 * (-0.5 + Math.random());
-        //   tps = 0;
-        clip.vars.vd = 30 + Math.floor(Math.random() * 30);
-        // gotoAndPlay(random(4) + 1) → gotoAndPlay(1..4) → 0-based 0..3
-        clip.gotoAndPlay(Math.floor(Math.random() * 4));
+        // AS DefineSprite_6_pierres/frame_1/PlaceObject2_5_1/onClipEvent(load)
+        const vd = 30 + Math.floor(Math.random() * 30);
+        clip.vars.vd = vd;
+        clip.gotoAndPlay(Math.floor(Math.random() * 4)); // gotoAndPlay(random(4)+1) → 0-based: random(4)
         clip.vars.vx = 15 * (Math.random() - 0.5);
         clip.vars.vy = 15 * (Math.random() - 0.5);
-        // Walk up 5 levels to reach root.vars.angle (stored in degrees by harness)
-        const root =
-          clip.parent?.parent?.parent?.parent ??
-          clip.parent?.parent?.parent ??
-          clip.parent?.parent ??
-          clip.parent;
-        const angleDeg = (root?.vars.angle as number) ?? 0;
+
+        // _parent._parent._parent._parent._parent.angle
+        // pierres → pierresContainer → sprite25 → shoot → root
+        const rootClip =
+          clip.parent?.parent?.parent?.parent ?? null;
+        const angleDeg = (rootClip?.vars.angle as number) ?? 0;
         const an = (angleDeg * Math.PI) / 180 + Math.PI;
+        clip.vars.an = an;
         clip.vars.v2x = Math.cos(an) * 2;
         clip.vars.v2y = Math.sin(an) * 5;
-        // _parent._x / _parent._y — scatter the pierres symbol container
+
+        // Scatter the PARENT container
         if (clip.parent) {
           clip.parent.x = 20 * (Math.random() - 0.5);
           clip.parent.y = 10 * (Math.random() - 0.5);
         }
+
         const t = 60 + 40 * Math.random();
-        clip.scaleX = t / 100;
-        clip.scaleY = t / 100;
         clip.vars.t = t;
         clip.vars.v = -10;
+        clip.scaleX = t / 100;
+        clip.scaleY = t / 100;
         clip.vars.vr = 60 * (-0.5 + Math.random());
         clip.vars.tps = 0;
       },
       onEnterFrame: (clip) => {
-        // AS onClipEvent(enterFrame):
-        //   if(_alpha < 10) { removeMovieClip(_parent); }
-        //   _parent._x += vx;  _parent._y += vy;
-        //   _rotation = _rotation + vr;
-        //   if(tps++ < vd) { vx /= 1.2; vy /= 1.2; v /= 1.2; }
-        //   if(tps++ > vd) { _Y += (v2y *= 1.2); _X += (v2x *= 1.2); _alpha -= 10; }
+        // AS DefineSprite_6_pierres/frame_1/PlaceObject2_5_1/onClipEvent(enterFrame)
         if (clip.alpha < 10 / 100) {
+          // removeMovieClip(_parent) — remove the container
           if (clip.parent) {
             clip.parent.remove();
           }
           return;
         }
+
         let vx = clip.vars.vx as number;
         let vy = clip.vars.vy as number;
-        let v = clip.vars.v as number;
+        const vr = clip.vars.vr as number;
+        const vd = clip.vars.vd as number;
         let v2x = clip.vars.v2x as number;
         let v2y = clip.vars.v2y as number;
+        let v = clip.vars.v as number;
         let tps = clip.vars.tps as number;
-        const vd = clip.vars.vd as number;
-        const vr = clip.vars.vr as number;
 
         if (clip.parent) {
           clip.parent.x += vx;
           clip.parent.y += vy;
         }
-        // AS rotation in degrees → delta in radians
+        // AS rotation in degrees
         clip.rotation += (vr * Math.PI) / 180;
 
-        // First tps++ < vd check
+        // AS: tps++ evaluates THEN increments — two separate ++ calls
+        // in AS means tps is incremented twice per frame. First
+        // comparison uses current tps, second uses tps+1.
         if (tps < vd) {
           vx /= 1.2;
           vy /= 1.2;
           v /= 1.2;
         }
         tps++;
-        // Second tps++ > vd check (note: tps has already been incremented once above)
         if (tps > vd) {
           v2y *= 1.2;
           v2x *= 1.2;
           clip.y += v2y;
           clip.x += v2x;
-          clip.alpha = Math.max(0, clip.alpha - 10 / 100);
+          clip.alpha -= 10 / 100;
         }
         tps++;
 
@@ -337,63 +324,68 @@ export class Spell208 extends RuntimeSpell {
       },
     };
 
-    // ---- sprite_25 (DefineSprite_25) — inner impact composite ----------
-    // Lives inside `shoot`. Has:
-    //   frame_1 DoAction: spawn 10 plumes; init c=0, p=0.
-    //   frame_1 PlaceObject2_23_2 onEnterFrame: accumulate pierres particles.
-    //   frame_20 DoAction: stop().
+    // ----------------------------------------------------------------
+    // sprite25 — 20-frame impact composite (directlyDynamic: true)
+    // ----------------------------------------------------------------
+    // Placed inside shoot at depth 1, frame 0, with scale ~0.98 and
+    // near-zero offset (per manifest placements[]).
     //
-    // The PlaceObject2_23_2 child is an internal sub-clip whose onEnterFrame
-    // drives pierres spawning. We model this via a dedicated "inner_23" symbol
-    // that we attach in sprite_25's frame_1, whose onEnterFrame mirrors the
-    // PlaceObject2_23_2 clip event.
-    const inner23Sym: SymbolDefinition = {
-      name: "inner_23",
-      totalFrames: 1,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
+    // AS: DefineSprite_25/frame_1/DoAction.as
+    //   Spawns 10 plumes particles.
+    // AS: DefineSprite_25/frame_1/PlaceObject2_23_2/
+    //   onClipEvent(enterFrame) — the "PlaceObject2_23_2" is a sub-clip
+    //   placed on sprite25's timeline. Its enterFrame continuously
+    //   spawns pierres pairs. We implement this as sprite25's own
+    //   onEnterFrame since we can't nest a PlaceObject2 sub-clip here.
+    // AS: DefineSprite_25/frame_20/DoAction.as → stop()
+    // AS: DefineSprite_26_shoot/frame_1/PlaceObject2_25_1/
+    //   onClipEvent(load): t=60; _xscale=t; _yscale=t
+    this.sprite25Sym = {
+      name: "sprite25",
+      totalFrames: 20,
+      frames: textures.getFrames("lib_sprite25"),
+      anchorX: sprite25Anchor.x,
+      anchorY: sprite25Anchor.y,
+      onLoad: (clip) => {
+        // AS DefineSprite_26_shoot/frame_1/PlaceObject2_25_1/onClipEvent(load)
+        // t = 60; _xscale = t; _yscale = t
+        clip.scaleX = 60 / 100;
+        clip.scaleY = 60 / 100;
+        // Init the pierres spawn counter (for the PlaceObject2_23_2
+        // onEnterFrame which we drive from sprite25's own onEnterFrame)
+        clip.vars.pierresC = 0;
+      },
       onEnterFrame: (clip, ctx) => {
-        // AS DefineSprite_25/frame_1/PlaceObject2_23_2/CLIPACTIONRECORD onClipEvent(enterFrame).as
-        // if(c < _parent._parent._parent.level * 3) {
-        //   c += 1;
-        //   this.attachMovie("pierres","pierres" + c, c);
-        //   c += 1;
-        //   this.attachMovie("pierres","pierres" + c, c);
+        // AS DefineSprite_25/frame_1/PlaceObject2_23_2/onClipEvent(enterFrame)
+        // if (c < _parent._parent._parent.level * 3) {
+        //   c += 1; attachMovie("pierres", "pierres" + c, c);
+        //   c += 1; attachMovie("pierres", "pierres" + c, c);
         // }
-        // _parent of inner_23 is sprite_25; _parent._parent is shoot; _parent._parent._parent is root
-        const root = clip.parent?.parent?.parent;
+        // _parent._parent._parent — PlaceObject2_23_2 clip → sprite25 → shoot → root
+        // We are already on sprite25, so root = clip.parent?.parent
+        const root = clip.parent?.parent ?? null;
         const level = (root?.vars.level as number) ?? 1;
-        let c = (clip.vars.c as number) ?? 0;
+        let c = clip.vars.pierresC as number;
+
         if (c < level * 3) {
           c += 1;
+          // Each "pierres" clip needs a wrapper container so that the
+          // onLoad can set _parent._x/_y for scatter. We use a
+          // synthetic approach: attach pierres directly and handle
+          // parent-scatter inside onLoad using clip.parent.
           clip.attach(this.pierresSym, `pierres${c}`, c, ctx);
           c += 1;
           clip.attach(this.pierresSym, `pierres${c}`, c, ctx);
         }
-        clip.vars.c = c;
-      },
-    };
 
-    this.sprite25Sym = {
-      name: "sprite_25",
-      totalFrames: 20,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
+        clip.vars.pierresC = c;
+      },
       frameScripts: new Map([
         [
           0,
           (clip, ctx) => {
             // AS DefineSprite_25/frame_1/DoAction.as
-            // c = 0; p = 0;
-            // while(p < 10) {
-            //   this.attachMovie("plumes","plumes" + c, c);
-            //   eval("this.plumes" + c).vx = 40 * (Math.random() - 0.5);
-            //   eval("this.plumes" + c).vy = 40 * (Math.random() - 0.5);
-            //   c++; p++;
-            // }
-            clip.vars.c_plumes = 0;
+            // c = 0; p = 0; while(p < 10) { attachMovie("plumes",...) ... p++ }
             let c = 0;
             for (let p = 0; p < 10; p++) {
               const child = clip.attach(
@@ -406,170 +398,150 @@ export class Spell208 extends RuntimeSpell {
               child.vars.vy = 40 * (Math.random() - 0.5);
               c++;
             }
-            // Also attach the inner_23 clip-event-bearing sub-clip
-            const inner = clip.attach(inner23Sym, "inner_23", 100, ctx);
-            inner.vars.c = 0;
           },
         ],
         [
           19,
           (clip) => {
-            // AS DefineSprite_25/frame_20/DoAction.as: stop()
+            // AS DefineSprite_25/frame_20/DoAction.as → stop()
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- move — container for projectile flight --------------------
-    // AS DefineSprite_15_move/frame_1/DoAction.as:
-    //   xi = this._x;  yi = this._y;  nf = this._parent.level;
+    // ----------------------------------------------------------------
+    // move — container driving smoke trail during flight
+    // ----------------------------------------------------------------
+    // AS: DefineSprite_15_move/frame_1/DoAction.as
+    //   xi = this._x; yi = this._y; nf = this._parent.level;
     //   this.onEnterFrame = function() {
-    //     this._parent.attachMovie("fumee","fumee"+c, c+10);
-    //     _loc2_ = this._parent["fumee"+c];
+    //     _parent.attachMovie("fumee", "fumee" + c, c + 10);
     //     _loc2_._x = this._x; _loc2_._y = this._y;
-    //     _loc2_.vx = ...; _loc2_.vy = ...;
+    //     _loc2_.vx = this._x - xi + 20*(Math.random()-0.5);
+    //     _loc2_.vy = this._y - yi + 20*(Math.random()-0.5);
     //     c++; xi = this._x; yi = this._y;
     //   }
+    // AS: DefineSprite_15_move/frame_1/PlaceObject2_14_8/
+    //   onClipEvent(enterFrame): _yscale = 100*sin(i += sin(a += 0.02))
+    //   (PlaceObject2_14_8 is a sub-clip placed on move's timeline;
+    //    we model its oscillation via move's onEnterFrame since no
+    //    separate symbol exists for PlaceObject2_14_8.)
     //
-    // AS DefineSprite_15_move/frame_1/PlaceObject2_14_8/onClipEvent(enterFrame):
-    //   _yscale = 100 * Math.sin(i += Math.sin(a += 0.02));
-    //
-    // The inner PlaceObject2_14_8 sub-clip drives a yscale oscillation.
-    // We model it as an "inner_move_oscillator" symbol.
-    const innerMoveOscSym: SymbolDefinition = {
-      name: "inner_move_osc",
-      totalFrames: 1,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      onLoad: (clip) => {
-        clip.vars.i = 0;
-        clip.vars.a = 0;
-      },
-      onEnterFrame: (clip) => {
-        // AS: _yscale = 100 * Math.sin(i += Math.sin(a += 0.02));
-        let a = clip.vars.a as number;
-        let i = clip.vars.i as number;
-        a += 0.02;
-        i += Math.sin(a);
-        // AS _yscale in percent → decimal; apply to parent (the move clip)
-        if (clip.parent) {
-          clip.parent.scaleY = Math.sin(i);
-        }
-        clip.vars.a = a;
-        clip.vars.i = i;
-      },
-    };
-
-    const moveSym: SymbolDefinition = {
+    // The harness drives move's position along the parabolic arc.
+    // frame_1 script seeds the xi/yi/c vars and installs the per-frame
+    // fumee spawning via clip.onEnterFrame. The yscale oscillation on
+    // PlaceObject2_14_8 is applied to the move clip itself here since
+    // there is no separate nested symbol to host it.
+    this.moveSym = {
       name: "move",
-      totalFrames: 1,
+      totalFrames: 2,
       frames: [],
       anchorX: 0.5,
       anchorY: 0.5,
       frameScripts: new Map([
         [
           0,
-          (clip, ctx) => {
+          (clip) => {
             // AS DefineSprite_15_move/frame_1/DoAction.as
-            // xi = this._x;  yi = this._y;
-            // this.onEnterFrame = function() { smoke trail ... }
             clip.vars.xi = clip.x;
             clip.vars.yi = clip.y;
             clip.vars.c = 0;
+            // Oscillation state for PlaceObject2_14_8 onEnterFrame
+            clip.vars.oscI = 0;
+            clip.vars.oscA = 0;
 
-            // Attach the inner oscillator sub-clip
-            clip.attach(innerMoveOscSym, "osc", 8, ctx);
-
-            // Wire onEnterFrame directly on the move clip to trail fumee smoke
-            clip.onEnterFrame = (mv, mvCtx) => {
-              // AS this.onEnterFrame inside DefineSprite_15_move/frame_1/DoAction.as:
-              //   this._parent.attachMovie("fumee","fumee"+c, c+10);
-              //   _loc2_ = this._parent["fumee"+c];
-              //   _loc2_._x = this._x; _loc2_._y = this._y;
-              //   _loc2_.vx = this._x - xi + 20*(Math.random()-0.5);
-              //   _loc2_.vy = this._y - yi + 20*(Math.random()-0.5);
-              //   c++; xi = this._x; yi = this._y;
-              const parent = mv.parent;
-              if (!parent) {
-                return;
+            clip.onEnterFrame = (self, ctx) => {
+              // Smoke trail — attach fumee to parent (outer mc = root)
+              const parent = self.parent;
+              if (parent) {
+                const c = self.vars.c as number;
+                const xi = self.vars.xi as number;
+                const yi = self.vars.yi as number;
+                const fumeeName = `fumee${c}`;
+                const smokeClip = parent.attach(
+                  this.fumeeSym,
+                  fumeeName,
+                  c + 10,
+                  ctx
+                );
+                smokeClip.x = self.x;
+                smokeClip.y = self.y;
+                smokeClip.vars.vx =
+                  self.x - xi + 20 * (Math.random() - 0.5);
+                smokeClip.vars.vy =
+                  self.y - yi + 20 * (Math.random() - 0.5);
+                self.vars.xi = self.x;
+                self.vars.yi = self.y;
+                self.vars.c = c + 1;
               }
-              let c = mv.vars.c as number;
-              const xi = mv.vars.xi as number;
-              const yi = mv.vars.yi as number;
 
-              const smoke = parent.attach(
-                this.fumeeSym,
-                `fumee${c}`,
-                c + 10,
-                mvCtx
-              );
-              smoke.x = mv.x;
-              smoke.y = mv.y;
-              smoke.vars.vx = mv.x - xi + 20 * (Math.random() - 0.5);
-              smoke.vars.vy = mv.y - yi + 20 * (Math.random() - 0.5);
-
-              c++;
-              mv.vars.c = c;
-              mv.vars.xi = mv.x;
-              mv.vars.yi = mv.y;
+              // AS DefineSprite_15_move/frame_1/PlaceObject2_14_8/
+              // onClipEvent(enterFrame):
+              //   _yscale = 100 * Math.sin(i += Math.sin(a += 0.02))
+              let oscA = self.vars.oscA as number;
+              let oscI = self.vars.oscI as number;
+              oscA += 0.02;
+              oscI += Math.sin(oscA);
+              self.scaleY = Math.sin(oscI);
+              self.vars.oscA = oscA;
+              self.vars.oscI = oscI;
             };
           },
         ],
       ]),
     };
 
-    // ---- shoot — 97-frame impact composite at target ---------------
-    // AS DefineSprite_26_shoot/frame_1/DoAction.as:
-    //   _rotation = -_parent.angle;   (degrees → radians, negated)
-    // AS DefineSprite_26_shoot/frame_1/PlaceObject2_25_1/onClipEvent(load):
-    //   t = 60; _xscale = t; _yscale = t;
-    // AS DefineSprite_26_shoot/frame_97/DoAction.as:
+    // ----------------------------------------------------------------
+    // shoot — 97-frame container anchored at target after landing
+    // ----------------------------------------------------------------
+    // AS: DefineSprite_26_shoot/frame_1/DoAction.as
+    //   _rotation = -_parent.angle
+    //   (sprite25 is placed on shoot's timeline via PlaceObject2 at
+    //    frame 1 / depth 1 — we attach it from frame_1 script)
+    // AS: DefineSprite_26_shoot/frame_97/DoAction.as
     //   _parent.removeMovieClip(); stop();
-    const shootSym: SymbolDefinition = {
+    this.shootSym = {
       name: "shoot",
       totalFrames: 97,
-      frames: textures.getFrames("shoot"),
-      anchorX: calculateAnchor({
-        width: 102,
-        height: 102,
-        offsetX: -53,
-        offsetY: -93.7,
-      }).x,
-      anchorY: calculateAnchor({
-        width: 102,
-        height: 102,
-        offsetX: -53,
-        offsetY: -93.7,
-      }).y,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
       frameScripts: new Map([
         [
           0,
           (clip, ctx) => {
-            // AS DefineSprite_26_shoot/frame_1/DoAction.as:
-            //   _rotation = -_parent.angle;
-            // _parent.angle is in degrees (harness stores degrees on root.vars.angle)
+            // AS DefineSprite_26_shoot/frame_1/DoAction.as
+            // _rotation = -_parent.angle  (angle is in degrees on root.vars)
             const root = clip.parent;
             const angleDeg = (root?.vars.angle as number) ?? 0;
             clip.rotation = ((-angleDeg) * Math.PI) / 180;
 
-            // AS DefineSprite_26_shoot/frame_1/PlaceObject2_25_1/onClipEvent(load):
-            //   t = 60; _xscale = t; _yscale = t;
-            // The PlaceObject2_25_1 is sprite_25 placed on shoot's timeline.
-            // Attach it here and apply its load-time transform.
-            const sp25 = clip.attach(this.sprite25Sym, "sprite_25", 1, ctx);
-            sp25.scaleX = 60 / 100;
-            sp25.scaleY = 60 / 100;
+            // PlaceObject2_25_1 places sprite25 at depth 1 on shoot's
+            // timeline at frame 0. Matrix from manifest placements[]:
+            // scaleX=0.9817, scaleY=0.9817, translateX=0.05, translateY=-0.1
+            const s25 = clip.attach(
+              this.sprite25Sym,
+              "sprite25_1",
+              1,
+              ctx,
+              { x: 0.05, y: -0.1 }
+            );
+            s25.scaleX = 0.981719970703125;
+            s25.scaleY = 0.981719970703125;
+            // onLoad of sprite25Sym already ran (from attach), which
+            // sets scale to 0.6. The PlaceObject2 matrix scale
+            // overrides that. Re-apply:
+            s25.scaleX = 0.6 * 0.981719970703125;
+            s25.scaleY = 0.6 * 0.981719970703125;
           },
         ],
         [
           96,
           (clip) => {
-            // AS DefineSprite_26_shoot/frame_97/DoAction.as:
-            //   _parent.removeMovieClip(); stop();
-            clip.stop();
-            clip.parent?.remove();
+            // AS DefineSprite_26_shoot/frame_97/DoAction.as
+            // _parent.removeMovieClip(); stop();
+            clip.remove();
             this.runtime.complete();
           },
         ],
@@ -580,17 +552,16 @@ export class Spell208 extends RuntimeSpell {
     this.registry.register(this.plumesSym);
     this.registry.register(this.pierresSym);
     this.registry.register(this.sprite25Sym);
-    this.registry.register(innerMoveOscSym);
-    this.registry.register(moveSym);
-    this.registry.register(innerMoveOscSym);
-    this.registry.register(shootSym);
+    this.registry.register(this.moveSym);
+    this.registry.register(this.shootSym);
   }
 
   protected onSpellStart(
     _callbacks: SpellCallbacks,
     _context: SpellContext
   ): void {
-    // No SOMA.playSound found in the extracted main timeline scripts.
-    // The harness (displayType=30) handles attaching move + shoot.
+    // No explicit SOMA.playSound found in the provided AS scripts for
+    // this spell's main timeline. The harness has already attached
+    // `move` and will attach `shoot` on landing.
   }
 }

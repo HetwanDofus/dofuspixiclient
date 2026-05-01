@@ -1,29 +1,27 @@
 /**
- * Spell 402 — (Iop/unknown, single-target impact).
+ * Spell 402 — (Unknown name, likely a Sadida/Eniripsa spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/402/scripts/scripts/
  *
- * displayType=11 (TargetCell). There are no library symbols, no `move`/`shoot`/
- * `duplicate` references, no caster-relative positioning, and no dual-anchor
- * logic. The spell is a single authored 141-frame composite animation
- * (anim1) anchored at the target cell. The only AS scripts are:
+ * displayType=11 (TargetCell). The spell has no projectile motion, no caster
+ * reference, no duplicate/beam logic, and no dual-anchored timelines. It is
+ * a single composite animation ("anim1") that plays at the target cell and
+ * removes itself at frame 139, signalling completion. This is the canonical
+ * TargetCell impact pattern.
  *
- *   DefineSprite_16/frame_1/DoAction.as   → SOMA.playSound("gonfle")
- *   DefineSprite_16/frame_139/DoAction.as → stop(); _parent.removeMovieClip()
+ * Library symbols: none (librarySymbols[] is empty in the manifest).
  *
- * `DefineSprite_16` is the top-level sprite backing the `anim1` animation.
- * frame_1  fires on the very first frame: plays a sound.
- * frame_139 stops playback and removes itself, signalling completion.
+ * Main timeline (DefineSprite_16):
+ *   - frame_1/DoAction.as:   SOMA.playSound("gonfle")
+ *   - frame_139/DoAction.as: stop(); _parent.removeMovieClip()
  *
- * Library symbols: none (librarySymbols[] is absent / empty in manifest).
+ * The single animation "anim1" (141 frames, composite) is registered as the
+ * root symbol. The harness places the root at the target cell. frame_0 plays
+ * the sound; frame_138 (0-based) stops and completes the spell.
  *
- * Main timeline: implicit — anim1 is placed on the main timeline by the
- * harness as the root clip. onSpellStart plays the canonical sound.
- *
- * Hit signal: fired at frame_1 (first impact frame), matching the typical
- * TargetCell pattern where the animation starts at the target and the hit
- * is simultaneous with the first frame.
+ * signalHit: fired at frame_1 (frame index 0, the first frame of impact) —
+ * the spell hits the moment it starts playing at the target cell.
  */
 
 import type {
@@ -49,38 +47,45 @@ export class Spell402 extends RuntimeSpell {
   readonly spellId = 402;
   readonly displayType = SpellDisplayType.TargetCell;
 
+  private anim1Sym!: SymbolDefinition;
+
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // DefineSprite_16 is the single authored timeline exposed as "anim1"
-    // in animations[]. It has no librarySymbols entry, so we use the bare
-    // "anim1" key (no lib_ prefix).
-    const anim1Sym: SymbolDefinition = {
+    // ---- anim1 — main composite animation at target cell ---------
+    // Canonical: DefineSprite_16 (the single timeline in the SWF).
+    // frame_1/DoAction.as:   SOMA.playSound("gonfle")
+    // frame_139/DoAction.as: stop(); _parent.removeMovieClip()
+    //
+    // The manifest lists "anim1" in animations[] (NOT librarySymbols[]),
+    // so textures are loaded under the bare key "anim1" (no lib_ prefix).
+    this.anim1Sym = {
       name: "anim1",
       totalFrames: 141,
       frames: textures.getFrames("anim1"),
       anchorX: anim1Anchor.x,
       anchorY: anim1Anchor.y,
-
       frameScripts: new Map([
         [
           0,
-          (clip) => {
-            // AS DefineSprite_16/frame_1/DoAction.as
-            // SOMA.playSound("gonfle") is handled in onSpellStart;
-            // signal hit on the first visible frame at the target cell.
+          (_clip) => {
+            // AS DefineSprite_16/frame_1/DoAction.as:
+            //   SOMA.playSound("gonfle");
+            // Sound is played in onSpellStart (main timeline frame_1 fires
+            // before the runtime ticks). No action needed here beyond
+            // signalling the hit — the spell lands on the first visible frame.
             this.runtime.signalHit();
           },
         ],
         [
           138,
           (clip) => {
-            // AS DefineSprite_16/frame_139/DoAction.as
-            // stop();
-            // _parent.removeMovieClip();
+            // AS DefineSprite_16/frame_139/DoAction.as:
+            //   stop();
+            //   _parent.removeMovieClip();
             clip.stop();
             clip.remove();
             this.runtime.complete();
@@ -89,7 +94,7 @@ export class Spell402 extends RuntimeSpell {
       ]),
     };
 
-    this.registry.register(anim1Sym);
+    this.registry.register(this.anim1Sym);
   }
 
   protected onSpellStart(
@@ -99,15 +104,9 @@ export class Spell402 extends RuntimeSpell {
     // AS DefineSprite_16/frame_1/DoAction.as: SOMA.playSound("gonfle")
     callbacks.playSound("gonfle");
 
-    // Attach the anim1 symbol as the root's single child so the runtime
-    // ticks it from frame 0. For TargetCell the root is already at the
-    // target cell; anim1 sits at (0,0) within that container.
-    const sym = this.registry["symbols"]?.get("anim1") ??
-      // resolve via the registry's public API
-      this.registry.resolve("anim1");
-
-    if (sym) {
-      this.root.attach(sym, "anim1", 1, context);
-    }
+    // Attach the main animation at the root so the runtime ticks it.
+    // For TargetCell the root container is already positioned at the
+    // target cell by the harness/spell-view — no additional offset needed.
+    this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

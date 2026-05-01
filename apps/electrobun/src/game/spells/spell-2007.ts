@@ -1,26 +1,28 @@
 /**
- * Spell 2007 — (Unknown spell name).
+ * Spell 2007 — (Unknown spell, likely a simple impact/effect).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2007/scripts/scripts/
  *
- * displayType=11 (TargetCell). This spell has a single authored animation
- * (`anim1`, 72 frames) with no library symbols, no `attachMovie` calls,
- * and no projectile/beam/caster logic. The only script is:
- *   DefineSprite_19/frame_70/DoAction.as → `_parent.removeMovieClip()`
- * which fires at frame 70 (0-based: 69), removes the outer mc, and signals
- * spell completion. The animation plays entirely at the target cell.
+ * displayType=11 (TargetCell). This spell has a single animation (`anim1`,
+ * 72 frames) with no library symbols and no projectile logic. The only AS
+ * script is `DefineSprite_19/frame_70/DoAction.as` which calls
+ * `_parent.removeMovieClip()` — i.e. the animation removes its parent (the
+ * outer mc) at frame 70, signalling spell completion.
  *
- * Library symbols: none (librarySymbols[] is absent/empty in manifest).
+ * Since there are no library symbols and no `librarySymbols[]` in the
+ * manifest, `registerSymbols` registers a single `anim1` symbol whose
+ * 72-frame timeline plays at the target cell. The `DefineSprite_19` is the
+ * container that holds `anim1`; its frame 70 (0-based: 69) fires
+ * `_parent.removeMovieClip()`. We model this as a frameScript on the
+ * `anim1` symbol at index 69 that calls `clip.parent?.remove()` and
+ * `this.runtime.complete()`.
  *
- * Main timeline: single `anim1` animation attached at root; no sound cue
- * present in the manifest scripts.
+ * signalHit is called at the start of the animation (frame 0) since this
+ * is a pure impact effect with no projectile phase.
  *
- * The `anim1` symbol is the sole visual: 72 frames of authored SVG content.
- * frame_70 (0-based 69) removes the parent → complete.
- * We also fire signalHit at the same frame since that is the canonical
- * impact moment for a TargetCell impact spell (no separate hit frame is
- * authored in the AS).
+ * Library symbols: none (no librarySymbols[] in manifest).
+ * Main timeline: attach `anim1` at root on spell start.
  */
 
 import type {
@@ -54,13 +56,10 @@ export class Spell2007 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1 — 72-frame target-cell impact animation ----------
-    // No library symbol entry; this is the bare `animations[]` entry
-    // named "anim1". Use textures.getFrames("anim1") (no lib_ prefix).
-    //
-    // AS DefineSprite_19/frame_70/DoAction.as:
-    //   _parent.removeMovieClip();
-    // → frameScripts[69]: remove parent, signal hit + complete.
+    // ---- anim1 — 72-frame impact animation at target cell --------
+    // Single animation from manifest.animations[0].
+    // AS DefineSprite_19/frame_70/DoAction.as: _parent.removeMovieClip()
+    // → fires at 0-based frame index 69.
     this.anim1Sym = {
       name: "anim1",
       totalFrames: 72,
@@ -69,12 +68,19 @@ export class Spell2007 extends RuntimeSpell {
       anchorY: anim1Anchor.y,
       frameScripts: new Map([
         [
+          0,
+          (_clip) => {
+            // Signal hit on first frame — this is a pure impact effect
+            // with no projectile phase; damage popups appear immediately.
+            this.runtime.signalHit();
+          },
+        ],
+        [
           69,
           (clip) => {
-            // AS DefineSprite_19/frame_70/DoAction.as: _parent.removeMovieClip()
-            // This is the outer mc removal — signal hit (impact moment) and
-            // spell completion simultaneously.
-            this.runtime.signalHit();
+            // AS DefineSprite_19/frame_70/DoAction.as:
+            //   _parent.removeMovieClip();
+            // Removes the outer mc and signals spell completion.
             clip.parent?.remove();
             this.runtime.complete();
           },
@@ -89,8 +95,8 @@ export class Spell2007 extends RuntimeSpell {
     _callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Main timeline frame_1: place anim1 at root.
-    // No SOMA.playSound call is present in the manifest scripts.
+    // Main timeline: attach anim1 at root so it starts playing immediately.
+    // No SOMA.playSound call present in the canonical AS scripts.
     this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

@@ -1,51 +1,42 @@
 /**
- * Spell 705 — Grinaspic (unknown class, likely Sadida or similar).
+ * Spell 705 — Grina (Iop/Ecaflip grinding slash).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/705/scripts/scripts/
  *
- * displayType=11 (TargetCell). There is no `move`/`shoot`/`duplicate` symbol,
- * no caster-side reference, no dual-anchor pattern. The spell is a single
- * impact animation anchored at the target cell. The `anim1` animation in
- * manifest.json is the only top-level content; `librarySymbols` is empty so
- * there is no `lib_` prefix anywhere.
+ * displayType=11 (TargetCell). No projectile motion, no caster reference,
+ * no dual-anchored world-absolute layout. The spell is a pure impact
+ * animation at the target cell. DefineSprite_11 is the outer container
+ * (main timeline host) that plays the sound on frame_1 and removes its
+ * parent on frame_106. The manifest has a single `animations` entry
+ * ("anim1", 108 frames) with no `librarySymbols[]`, confirming this is
+ * a self-contained composite animation — all visual content is baked
+ * into the pre-rendered anim1 frames, but the timeline scripts
+ * (signalHit, complete) must still be driven at runtime.
  *
- * AS layout:
- *   - DefineSprite_11 — outer container, 106+ frames.
- *       frame_1:  SOMA.playSound("grina_705").
- *       frame_106: _parent.removeMovieClip(); stop() — spell complete.
- *   - DefineSprite_5 — sub-sprite with 3 trajectory labels (traj1).
- *       frame_1:  random(2) branch — all three branches call
- *                 gotoAndStop("traj1"); play() (all identical).
- *       frame_58: stop().
- *       frame_118: stop().
- *       frame_178: stop().
- *   - DefineSprite_3 — small randomised sub-sprite.
- *       frame_1: gotoAndStop(random(3) + 1).
- *   - DefineSprite_9 — brief sub-composite.
- *       frame_103: this.removeMovieClip().
- *   - DefineSprite_10 — another sub-composite.
- *       frame_49: stop().
+ * Symbol layout (all from manifest.animations, NOT librarySymbols):
+ *   - "anim1" — 108-frame composite impact animation.
+ *       frame_1  (idx 0):  SOMA.playSound("grina_705")  [DefineSprite_11/frame_1]
+ *       frame_106 (idx 105): _parent.removeMovieClip(); stop() → complete()
+ *                            [DefineSprite_11/frame_106]
  *
- * The manifest has no librarySymbols[]; the entire animation is authored
- * into the composite `anim1` timeline (108 frames). signalHit is fired at
- * the canonical impact moment — we use frame 12 (approximately 1/9 of the
- * way through, conventional for this pattern), but since the AS source does
- * not call `this.end()` explicitly the clearest canonical choice is the
- * moment the sound fires (frame_1 = index 0) for instant spells; here we
- * use a mid-animation frame consistent with the visual impact. The safest
- * canonical mapping given the absence of an explicit `end()` call is frame
- * index 0 (impact starts immediately). complete() fires at frame 105
- * (AS frame_106: _parent.removeMovieClip()).
+ * Additional sprites referenced in scripts (DefineSprite_3, _5, _9, _10)
+ * are internal sub-composites whose scripts (random trajectory selection,
+ * sub-timeline stops) are baked into the composite anim1 frames. They do
+ * not appear in librarySymbols[] and are not attached at runtime by AS
+ * `attachMovie` calls — the manifest's single `anim1` animation covers
+ * them. No symbols need to be registered beyond anim1 itself.
  *
- * Main timeline (implicit): places the DefineSprite_11 composite which
- * in turn plays the full animation. We model the whole thing as a single
- * `anim1` symbol whose frameScripts replicate the nested sprite behaviours
- * at the correct absolute frame indices within the composite.
+ * signalHit: fired at the canonical impact frame. DefineSprite_11 is the
+ * outer mc; its frame_106 is the removal frame. The composite animation
+ * has stopFrame=105 and fadingFrame=104, suggesting the hit lands around
+ * frame 12-15 (the first visual impact in the anim). Conservatively we
+ * fire signalHit at frame 1 (index 0) since there is no explicit "end()"
+ * call in the AS — the damage applies as the animation begins. Adjust
+ * if a later frame is observed to be more accurate.
  *
- * Because `librarySymbols` is empty and the animation is a flat composite,
- * we register a single `anim1` symbol with the full 108-frame texture array
- * and embed all frame-script logic there.
+ * Main timeline: SOMA.playSound("grina_705") on frame_1 of the outer
+ * DefineSprite_11 (= anim1 frame 0). onSpellStart fires the sound.
  */
 
 import type {
@@ -71,42 +62,24 @@ export class Spell705 extends RuntimeSpell {
   readonly spellId = 705;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  private anim1Sym!: SymbolDefinition;
-
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1 — composite impact animation at target cell ------
-    // This is the sole content of the spell. The manifest has no
-    // librarySymbols[], so we use the bare name "anim1" (no lib_ prefix)
-    // and textures.getFrames("anim1").
-    //
-    // Nested sprite behaviours are folded into frameScripts at the
-    // absolute composite frame indices:
-    //
-    //   frame_1   (index 0):  DefineSprite_11/frame_1 — sound already
-    //                         handled in onSpellStart; no additional action.
-    //   frame_3   (index 2):  DefineSprite_3/frame_1 — gotoAndStop(random(3)+1)
-    //                         is internal randomisation within the composite;
-    //                         the composite texture already bakes a single
-    //                         branch visually, so no runtime action needed.
-    //   frame_5   (index 4):  DefineSprite_5/frame_1 — all branches lead to
-    //                         gotoAndStop("traj1"); play() — effectively a
-    //                         no-op for the composite (already playing).
-    //   Approximate hit frame (index 0): signalHit fires immediately because
-    //                         the impact visual begins on frame 1.
-    //   frame_106 (index 105): DefineSprite_11/frame_106 —
-    //                         _parent.removeMovieClip(); stop() → complete().
-    //
-    // DefineSprite_9/frame_103 (self-remove) and
-    // DefineSprite_10/frame_49 (stop) are internal sub-sprite signals
-    // that do not affect the outer timeline; the composite textures
-    // handle them visually already.
-
-    this.anim1Sym = {
+    // ---- anim1 — 108-frame composite impact animation ------------
+    // Hosts the canonical DefineSprite_11 outer timeline.
+    // AS DefineSprite_11/frame_1/DoAction.as: SOMA.playSound("grina_705")
+    //   → sound is fired from onSpellStart instead (main timeline pattern).
+    // AS DefineSprite_11/frame_106/DoAction.as: _parent.removeMovieClip(); stop()
+    //   → clip.parent?.remove() + this.runtime.complete()
+    // Internal sprites DefineSprite_3, _5, _9, _10 are sub-composites
+    // whose trajectory/stop logic is embedded in the composite SVG frames;
+    // their scripts select random trajectories at frame_1 and stop at
+    // various sub-frames, all of which are fully captured in the rendered
+    // anim1 composite. No attachMovie calls reference them externally.
+    const anim1Sym: SymbolDefinition = {
       name: "anim1",
       totalFrames: 108,
       frames: textures.getFrames("anim1"),
@@ -114,39 +87,44 @@ export class Spell705 extends RuntimeSpell {
       anchorY: anim1Anchor.y,
       frameScripts: new Map([
         [
-          // AS DefineSprite_11/frame_1/DoAction.as — sound fired in
-          // onSpellStart; signal hit immediately as the impact begins.
           0,
           (_clip) => {
+            // AS DefineSprite_11/frame_1/DoAction.as:
+            // SOMA.playSound("grina_705") — fired in onSpellStart instead.
+            // Signal hit as the animation begins (no explicit end() call in AS).
             this.runtime.signalHit();
           },
         ],
         [
-          // AS DefineSprite_11/frame_106/DoAction.as:
-          //   _parent.removeMovieClip(); stop();
-          // frame_106 in AS → index 105 here.
           105,
           (clip) => {
+            // AS DefineSprite_11/frame_106/DoAction.as:
+            // _parent.removeMovieClip(); stop();
+            // clip is anim1 (the outer mc's representative); its parent is root.
             clip.stop();
-            clip.remove();
+            clip.parent?.remove();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
-    this.registry.register(this.anim1Sym);
+    this.registry.register(anim1Sym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS DefineSprite_11/frame_1/DoAction.as: SOMA.playSound("grina_705");
+    // AS DefineSprite_11/frame_1/DoAction.as: SOMA.playSound("grina_705")
     callbacks.playSound("grina_705");
 
-    // Attach the composite anim1 at depth 1 on the root — mirrors the
-    // implicit main-timeline placement of DefineSprite_11 at frame_1.
-    this.root.attach(this.anim1Sym, "anim1", 1, context);
+    // Attach anim1 as the single top-level child of root.
+    // The harness for TargetCell positions root at the target cell;
+    // anim1 at (0,0) relative to root lands exactly on target.
+    const anim1Sym = this.registry.resolve("anim1");
+    if (anim1Sym) {
+      this.root.attach(anim1Sym, "anim1", 1, context);
+    }
   }
 }

@@ -5,6 +5,8 @@ namespace App\Command;
 use Arakne\Swf\Extractor\Drawer\Converter\Converter;
 use Arakne\Swf\Extractor\Sprite\SpriteDefinition;
 use Arakne\Swf\Extractor\SwfExtractor;
+use Arakne\Swf\Extractor\Timeline\Timeline;
+use Arakne\Swf\Parser\Structure\Action\Type as ActionValueType;
 use Arakne\Swf\SwfFile;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -16,21 +18,38 @@ use function sprintf;
 
 /**
  * Extract color-zone metadata from static-shape SWFs (artworks, emblems,
- * auras, alignments). Walks the timeline recursively, parses GAC.applyColor
- * calls on each body-part sprite, and emits a per-id metadata.json with the
- * same shape character-sprite metadata uses:
+ * auras, alignments). Walks the timeline recursively, parses zone-marker
+ * AS2 calls on each body-part sprite, and emits a per-id metadata.json with
+ * the same shape character-sprite metadata uses:
  *
  *   { gfxId, colorZones: { "1": [#hex, ...], ... }, colorMapping: { "1": N } }
  *
- * Static shapes differ from character sprites in two ways we accommodate
- * here: (a) they have no accessory slots, (b) the depth of the body-part
- * timeline varies by export — some wrap in an outer sprite, some don't. We
- * handle both by recursing until we hit SpriteDefinitions whose actions
- * contain applyColor, rather than hard-coding the 2-level nesting the main
- * character extractor relies on.
+ * Two zone-marker mechanisms are recognized — they're the same canonical
+ * pattern with different host-callback names:
+ *
+ *   - `GAC.applyColor(this, zone)` — used by character sprites and chevauchors
+ *     (host: dofus.aks.GAC). The call lives on a body-part sprite's own
+ *     timeline; `this` is the sprite, so we extract fills from the sprite
+ *     whose actions we're scanning.
+ *
+ *   - `this.stringCourseColor(<namedClip>, zone)` — used by `artworks/big`
+ *     portrait SWFs (host: `dofus.graphics.gapi.ui.StringCourse`, which
+ *     injects the `stringCourseColor` callback on the loaded artwork's
+ *     content; PlayerShop uses the same hook). The call lives on the
+ *     SWF's *root* timeline, and the target clip is referenced by its
+ *     PlaceObject2 name (e.g. "cheveux", "cape", "shirt"). We resolve
+ *     the named FrameObject and extract fills from its underlying
+ *     SpriteDefinition.
+ *
+ * Both mechanisms can use a Constant Pool (ActionConstantPool) so the
+ * method-name push lands as a Constant8/Constant16 index. We resolve
+ * those via the active pool while scanning, so `in_array('applyColor', ...)`
+ * works regardless of how the SWF compiler chose to encode strings.
  */
 class ExtractStaticMetadataCommand extends Command
 {
+    private const ZONE_MARKER_METHODS = ['applyColor', 'stringCourseColor'];
+
     private Converter $converter;
 
     protected function configure(): void
@@ -112,16 +131,23 @@ class ExtractStaticMetadataCommand extends Command
         }
 
         $colorZones = [];
-        // Walk the full character graph recursively looking for body-part
-        // sprites whose frame actions call GAC.applyColor. We rely on the
-        // SWF's exported symbols — artworks / emblems / auras always export
-        // their root sprite.
+
         try {
+            // (1) Sprite-internal `GAC.applyColor` markers (sprites, chevauchors,
+            //     and any static SWF that uses the same in-sprite pattern). The
+            //     export table is the canonical entry point for sprites.
             foreach ($ext->exported() as $name => $characterId) {
                 $char = $ext->character($characterId);
                 if (!($char instanceof SpriteDefinition)) continue;
                 $this->walkForZones($char, $colorZones, 0);
             }
+
+            // (2) Root-timeline `stringCourseColor(namedClip, zone)` markers
+            //     (artworks/big and any UI-loaded artwork whose host injects
+            //     the `stringCourseColor` callback). artworks/big SWFs export
+            //     no symbols; the pattern only shows up here.
+            $this->scanRootForStringCourseColor($ext, $colorZones);
+
             $ext->release();
         } catch (\Exception $e) {
             return null;
@@ -145,7 +171,7 @@ class ExtractStaticMetadataCommand extends Command
     private function walkForZones(SpriteDefinition $sprite, array &$zones, int $depth): void
     {
         if ($depth > 6) return; // guard against cycles
-        $this->scanTimelineActions($sprite, $zones);
+        $this->scanSpriteActionsForApplyColor($sprite, $zones);
 
         try {
             $frames = $this->getFrames($sprite->timeline());
@@ -165,10 +191,10 @@ class ExtractStaticMetadataCommand extends Command
 
     /**
      * For every frame in this sprite's timeline, parse DoAction records for
-     * `GAC.applyColor(clip, zone)` calls. When found, scrape unique fill hex
+     * `GAC.applyColor(this, zone)` calls. When found, scrape unique fill hex
      * colors from the sprite's rendered SVG and bucket them under the zone id.
      */
-    private function scanTimelineActions(SpriteDefinition $sprite, array &$zones): void
+    private function scanSpriteActionsForApplyColor(SpriteDefinition $sprite, array &$zones): void
     {
         try {
             $frames = $this->getFrames($sprite->timeline());
@@ -188,32 +214,185 @@ class ExtractStaticMetadataCommand extends Command
                 } catch (\Exception $e) {
                     continue;
                 }
-                $pushStack = [];
-                foreach ($records as $rec) {
-                    $opcode = $this->getOpcode($rec);
-                    $data = $this->getData($rec);
-
-                    if ($opcode === 'ActionPush' && is_array($data)) {
-                        foreach ($data as $v) {
-                            if (is_object($v)) $pushStack[] = $this->valueFromPush($v);
-                        }
-                    } elseif ($opcode === 'ActionCallMethod') {
-                        if (in_array('applyColor', $pushStack, true)) {
-                            $zone = null;
-                            foreach ($pushStack as $v) {
-                                if (is_int($v) && $v >= 1 && $v <= 3) { $zone = $v; break; }
-                            }
-                            if ($zone !== null) {
-                                $colors = $this->extractFillColors($sprite);
-                                if (!isset($zones[$zone])) $zones[$zone] = [];
-                                $zones[$zone] = array_merge($zones[$zone], $colors);
-                            }
-                        }
-                        $pushStack = [];
-                    }
+                foreach ($this->iterateMethodCalls($records) as $call) {
+                    if ($call['method'] !== 'applyColor') continue;
+                    $zone = $this->findZoneInt($call['stack']);
+                    if ($zone === null) continue;
+                    $colors = $this->extractFillColors($sprite);
+                    if (!isset($zones[$zone])) $zones[$zone] = [];
+                    $zones[$zone] = array_merge($zones[$zone], $colors);
                 }
             }
         }
+    }
+
+    /**
+     * Scan the SWF's root timeline for `stringCourseColor(namedClip, zone)`
+     * calls. Each call's named target points at a FrameObject whose
+     * underlying SpriteDefinition holds the fills we want to bucket under
+     * that zone.
+     */
+    private function scanRootForStringCourseColor(SwfExtractor $ext, array &$zones): void
+    {
+        try {
+            $timeline = $ext->timeline();
+        } catch (\Exception $e) {
+            return;
+        }
+        if (!$timeline instanceof Timeline) return;
+
+        // Collect named children from all root frames so we can resolve
+        // call targets by name. PlaceObject2 names are stable across the
+        // single-frame artworks we care about, but iterate defensively.
+        $namedChildren = [];
+        try {
+            $rootFrames = $this->getFrames($timeline);
+        } catch (\Exception $e) {
+            $rootFrames = [];
+        }
+        foreach ($rootFrames as $frame) {
+            $objects = $this->getObjects($frame) ?? [];
+            foreach ($objects as $obj) {
+                $name = $this->getFrameObjectName($obj);
+                if ($name === null || $name === '') continue;
+                $child = $this->getChildObject($obj);
+                if ($child instanceof SpriteDefinition && !isset($namedChildren[$name])) {
+                    $namedChildren[$name] = $child;
+                }
+            }
+        }
+
+        foreach ($rootFrames as $frame) {
+            try {
+                $actions = $this->getActions($frame);
+            } catch (\Exception $e) {
+                continue;
+            }
+            foreach ($actions as $tag) {
+                try {
+                    $records = $this->getActionRecords($tag);
+                } catch (\Exception $e) {
+                    continue;
+                }
+                foreach ($this->iterateMethodCalls($records) as $call) {
+                    if ($call['method'] !== 'stringCourseColor') continue;
+                    $zone = $this->findZoneInt($call['stack']);
+                    if ($zone === null) continue;
+
+                    $target = $this->findTargetName($call['stack'], $namedChildren);
+                    if ($target === null || !isset($namedChildren[$target])) {
+                        // Couldn't resolve target — bail rather than colour
+                        // every fill in the SWF under one zone (which would
+                        // wrongly merge zones).
+                        continue;
+                    }
+
+                    $colors = $this->extractFillColors($namedChildren[$target]);
+                    if (!isset($zones[$zone])) $zones[$zone] = [];
+                    $zones[$zone] = array_merge($zones[$zone], $colors);
+                }
+            }
+        }
+    }
+
+    /**
+     * Generator: walks an action-record stream, tracks the active constant
+     * pool, and yields one descriptor per `ActionCallMethod`:
+     *   ['method' => string|null, 'stack' => mixed[]]
+     * The stack items are pre-resolved (Constant8/Constant16 → string from
+     * pool), so callers can do `in_array('applyColor', $stack, true)`.
+     */
+    private function iterateMethodCalls(array $records): \Generator
+    {
+        $constantPool = [];
+        $pushStack = [];
+
+        foreach ($records as $rec) {
+            $opcode = $this->getOpcode($rec);
+            $data = $this->getData($rec);
+
+            if ($opcode === 'ActionConstantPool' && is_array($data)) {
+                $constantPool = $data;
+                continue;
+            }
+
+            if ($opcode === 'ActionPush' && is_array($data)) {
+                foreach ($data as $v) {
+                    if (is_object($v)) {
+                        $pushStack[] = $this->resolvePushValue($v, $constantPool);
+                    }
+                }
+                continue;
+            }
+
+            if ($opcode === 'ActionCallMethod') {
+                // Stack on entry (top→bottom): methodName, object, argCount, args...
+                // The method name is the LAST value pushed before CallMethod,
+                // which is the last entry of $pushStack at this point.
+                $method = null;
+                if (!empty($pushStack)) {
+                    $top = $pushStack[count($pushStack) - 1];
+                    if (is_string($top)) $method = $top;
+                }
+                yield ['method' => $method, 'stack' => $pushStack];
+                $pushStack = [];
+            }
+        }
+    }
+
+    /**
+     * Resolve one ActionPush Value object to its concrete payload.
+     * Constant8/Constant16 indices are dereferenced via the active pool;
+     * everything else returns the raw `value` field.
+     */
+    private function resolvePushValue(object $v, array $constantPool)
+    {
+        $rc = new \ReflectionClass($v);
+        $type = null;
+        if ($rc->hasProperty('type')) {
+            $tp = $rc->getProperty('type');
+            $tp->setAccessible(true);
+            $type = $tp->getValue($v);
+        }
+        $value = null;
+        if ($rc->hasProperty('value')) {
+            $vp = $rc->getProperty('value');
+            $vp->setAccessible(true);
+            $value = $vp->getValue($v);
+        }
+
+        if ($type instanceof ActionValueType
+            && ($type === ActionValueType::Constant8 || $type === ActionValueType::Constant16)
+            && is_int($value)
+            && isset($constantPool[$value])
+        ) {
+            return $constantPool[$value];
+        }
+        return $value;
+    }
+
+    private function findZoneInt(array $stack): ?int
+    {
+        foreach ($stack as $v) {
+            if (is_int($v) && $v >= 1 && $v <= 3) return $v;
+        }
+        return null;
+    }
+
+    /**
+     * Pull the named target argument from a stringCourseColor call. The AS2
+     * idiom is `this.stringCourseColor(<name>, zone)`, which compiles to
+     * `push zone, push <name>, getVariable, push 2, push "this", getVariable,
+     * push "stringCourseColor", callMethod` — the resolved push stack
+     * therefore contains the literal "<name>" string. We pick the first
+     * stack entry that's a known named child.
+     */
+    private function findTargetName(array $stack, array $namedChildren): ?string
+    {
+        foreach ($stack as $v) {
+            if (is_string($v) && isset($namedChildren[$v])) return $v;
+        }
+        return null;
     }
 
     private function extractFillColors(SpriteDefinition $sprite): array
@@ -247,6 +426,7 @@ class ExtractStaticMetadataCommand extends Command
     private function getFrames($timeline): array
     {
         $rc = new \ReflectionClass($timeline);
+        if (!$rc->hasProperty('frames')) return [];
         $fp = $rc->getProperty('frames');
         $fp->setAccessible(true);
         return $fp->getValue($timeline) ?? [];
@@ -279,6 +459,16 @@ class ExtractStaticMetadataCommand extends Command
         return $op->getValue($frameObject);
     }
 
+    private function getFrameObjectName($frameObject): ?string
+    {
+        $rc = new \ReflectionClass($frameObject);
+        if (!$rc->hasProperty('name')) return null;
+        $np = $rc->getProperty('name');
+        $np->setAccessible(true);
+        $v = $np->getValue($frameObject);
+        return is_string($v) ? $v : null;
+    }
+
     private function getActionRecords($tag): array
     {
         $rc = new \ReflectionClass($tag);
@@ -303,19 +493,5 @@ class ExtractStaticMetadataCommand extends Command
         $dp = $rc->getProperty('data');
         $dp->setAccessible(true);
         return $dp->getValue($record);
-    }
-
-    private function valueFromPush(object $v)
-    {
-        $rc = new \ReflectionClass($v);
-        foreach (['value', 'constant'] as $prop) {
-            if ($rc->hasProperty($prop)) {
-                $p = $rc->getProperty($prop);
-                $p->setAccessible(true);
-                $raw = $p->getValue($v);
-                if ($raw !== null) return $raw;
-            }
-        }
-        return null;
     }
 }

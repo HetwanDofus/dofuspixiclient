@@ -1,46 +1,35 @@
 /**
- * Spell 2200 — Aspiration (Xelor / Sacrier style beam-like pull effect).
+ * Spell 2200 — (Unknown name, likely a Cra/water-style beam spell).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2200/scripts/scripts/
  *
- * displayType=50 (WorldAbsolute). Evidence:
- *   - DefineSprite_28/frame_4/DoAction.as reads `_parent.cellFrom.x` and
- *     `_parent.cellFrom.y` to position itself, plus `_parent.angle` for
- *     rotation — the canonical dual-anchor / world-relative pattern.
- *   - No `move`/`shoot`/`duplicate` symbols; no ballistic / linear harness
- *     wiring needed. The spell positions its own children at world coords.
- *   - manifest.json has no `librarySymbols[]` entries — all three animations
- *     (sprite_15, sprite_26, sprite_28) are in `animations[]` only.
+ * displayType=50 (WorldAbsolute). The canonical DefineSprite_28/frame_4/DoAction.as
+ * positions sprite_28 at `_parent.cellFrom.x / _parent.cellFrom.y - 20` with
+ * `_rotation = _parent.angle`, which is the "position self at world coords read from
+ * _parent" pattern — definitive WorldAbsolute. The harness stores cellFrom/cellTo/angle
+ * on root.vars and leaves container at world (0,0).
  *
- * AS layout:
- *   - Main timeline frame_2/DoAction.as: SOMA.playSound("aspiration"); stop();
- *     → `onSpellStart` plays the sound and attaches sprite_15 + sprite_28
- *       (the two authored timelines that run in parallel).
+ * Manifest animations (NO librarySymbols[] — all symbols are in animations[]):
+ *   - sprite_15 — 42-frame caster-side burst effect (no AS scripts → plays to end implicitly).
+ *     Not referenced by any AS script in the manifest scripts list; however it is present
+ *     as an animation and likely placed on the main timeline alongside the others.
+ *     Given the AS only scripts DefineSprite_26 and DefineSprite_28, sprite_15 is a
+ *     silent cosmetic placed implicitly at (cellFrom) by the main timeline.
+ *   - sprite_26 — 48-frame streaking particle. frame_1 randomises _Y offset and flips
+ *     _yscale with 1-in-4 chance. frame_48 stops. Placed inside sprite_28 by the
+ *     original SWF (sprite_28 is composite / isComposite=true).
+ *   - sprite_28 — 99-frame composite beam/aspiration container.
+ *       frame_4:  position self at cellFrom, apply angle rotation.
+ *       frame_52: this.end() → signalHit.
+ *       frame_97: stop(); _parent.removeMovieClip() → complete().
  *
- *   - sprite_28 (99-frame composite beam):
- *       frame_4  : position self at cellFrom (world coords), rotate to angle.
- *       frame_52 : this.end() → signalHit (damage popup).
- *       frame_97 : stop(); _parent.removeMovieClip() → spell complete.
+ * Main timeline (frame_2/DoAction.as): SOMA.playSound("aspiration"); stop();
+ * The main timeline implicitly places sprite_28 (and sprite_15) at depth on frame_1.
+ * We attach them explicitly in onSpellStart.
  *
- *   - sprite_26 (48-frame particle streamer):
- *       frame_1  : random Y scatter ±10 px; 25% chance flip yscale.
- *       frame_48 : stop().
- *     Spawned inside sprite_28 (sprite_28 attaches it — but since we have no
- *     explicit attachMovie in the AS scripts for sprite_26 it is placed on
- *     the authored timeline of sprite_28 as a child; we model it as a
- *     sub-symbol registered and attached by sprite_28's frame_4 logic).
- *
- *   - sprite_15 (42-frame impact burst at target cell):
- *     No explicit frame scripts — plays through and removes itself.
- *     Positioned at cellTo by onSpellStart.
- *
- * Library symbols (all in animations[], NOT librarySymbols[]):
- *   - sprite_15 — 42-frame impact burst at target. No frame scripts.
- *   - sprite_26 — 48-frame particle streamer. frame_1 random scatter;
- *                  frame_48 stop().
- *   - sprite_28 — 99-frame composite beam. frame_4 positions at cellFrom;
- *                  frame_52 signalHit; frame_97 complete.
+ * Since librarySymbols[] is empty, textures are loaded WITHOUT the "lib_" prefix.
+ * All three symbols use textures.getFrames("<name>") directly.
  */
 
 import type {
@@ -55,6 +44,7 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
+// Bounds from manifest.json animations[]
 const SPRITE_15_BOUNDS = {
   width: 193.15,
   height: 169.75,
@@ -86,16 +76,16 @@ export class Spell2200 extends RuntimeSpell {
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext
+    _context: SpellContext,
   ): void {
     const sprite15Anchor = calculateAnchor(SPRITE_15_BOUNDS);
     const sprite26Anchor = calculateAnchor(SPRITE_26_BOUNDS);
     const sprite28Anchor = calculateAnchor(SPRITE_28_BOUNDS);
 
-    // ---- sprite_15 — 42-frame impact burst at target cell --------
-    // No frame scripts in canonical AS. Plays through its 42 frames
-    // and then stops (no removeMovieClip — the outer spell completes
-    // via sprite_28's frame_97). Positioned at cellTo in onSpellStart.
+    // ---- sprite_15 — 42-frame caster-side burst/impact effect ----
+    // No AS scripts reference this symbol's timeline directly; it plays
+    // through its 42 frames as a pure visual. Positioned at cellFrom by
+    // the main timeline (we attach it in onSpellStart).
     this.sprite15Sym = {
       name: "sprite_15",
       totalFrames: 42,
@@ -104,12 +94,18 @@ export class Spell2200 extends RuntimeSpell {
       anchorY: sprite15Anchor.y,
     };
 
-    // ---- sprite_26 — 48-frame particle streamer ------------------
-    // AS DefineSprite_26/frame_1/DoAction.as:
+    // ---- sprite_26 — 48-frame streaking beam particle ------------
+    // AS scripts/scripts/DefineSprite_26/frame_1/DoAction.as:
     //   _Y = 20 * (-0.5 + Math.random());
-    //   if(random(4) == 1) { _yscale = -_yscale; }
-    // AS DefineSprite_26/frame_48/DoAction.as:
+    //   if (random(4) == 1) { _yscale = -_yscale; }
+    //
+    // AS scripts/scripts/DefineSprite_26/frame_48/DoAction.as:
     //   stop();
+    //
+    // This symbol is placed inside sprite_28 (the composite container).
+    // The frame_1 script randomises Y position and randomly flips vertical
+    // scale. Since there are no onClipEvent handlers (no CLIPACTIONRECORD
+    // entries in the manifest scripts list), only frameScripts are needed.
     this.sprite26Sym = {
       name: "sprite_26",
       totalFrames: 48,
@@ -118,40 +114,42 @@ export class Spell2200 extends RuntimeSpell {
       anchorY: sprite26Anchor.y,
       frameScripts: new Map([
         [
+          // AS DefineSprite_26/frame_1/DoAction.as (0-based index 0)
           0,
           (clip) => {
-            // AS DefineSprite_26/frame_1/DoAction.as
+            // _Y = 20 * (-0.5 + Math.random())
             clip.y = 20 * (-0.5 + Math.random());
+            // if (random(4) == 1) { _yscale = -_yscale; }
             if (Math.floor(Math.random() * 4) === 1) {
               clip.scaleY = -clip.scaleY;
             }
           },
         ],
         [
+          // AS DefineSprite_26/frame_48/DoAction.as (0-based index 47)
           47,
           (clip) => {
-            // AS DefineSprite_26/frame_48/DoAction.as
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- sprite_28 — 99-frame composite beam --------------------
-    // AS DefineSprite_28/frame_4/DoAction.as:
+    // ---- sprite_28 — 99-frame composite beam/aspiration container ---
+    // isComposite=true: contains sprite_26 as a child placed on its
+    // timeline. We attach sprite_26 at frame_1 (index 0) of sprite_28.
+    //
+    // AS scripts/scripts/DefineSprite_28/frame_4/DoAction.as (index 3):
     //   _X = _parent.cellFrom.x;
     //   _Y = _parent.cellFrom.y - 20;
     //   _rotation = _parent.angle;
-    // AS DefineSprite_28/frame_52/DoAction.as:
-    //   this.end();   → signalHit
-    // AS DefineSprite_28/frame_97/DoAction.as:
-    //   stop();
-    //   this._parent.removeMovieClip();  → spell complete
     //
-    // sprite_28 is a composite that includes sprite_26 as an authored
-    // child in its timeline. We attach sprite_26 at frame_4 alongside
-    // the positioning logic so it starts playing from the same moment
-    // the beam is positioned.
+    // AS scripts/scripts/DefineSprite_28/frame_52/DoAction.as (index 51):
+    //   this.end();  → signalHit
+    //
+    // AS scripts/scripts/DefineSprite_28/frame_97/DoAction.as (index 96):
+    //   stop();
+    //   this._parent.removeMovieClip();  → complete()
     this.sprite28Sym = {
       name: "sprite_28",
       totalFrames: 99,
@@ -160,9 +158,20 @@ export class Spell2200 extends RuntimeSpell {
       anchorY: sprite28Anchor.y,
       frameScripts: new Map([
         [
-          3,
+          // Attach the composite child sprite_26 at frame_1 (index 0) of
+          // sprite_28. The SWF places it implicitly on frame_1 of the
+          // composite timeline. It has its own frame_1 script that fires
+          // via attach().
+          0,
           (clip, ctx) => {
-            // AS DefineSprite_28/frame_4/DoAction.as
+            clip.attach(this.sprite26Sym, "sprite_26", 1, ctx);
+          },
+        ],
+        [
+          // AS DefineSprite_28/frame_4/DoAction.as (0-based index 3)
+          // Position self at cellFrom with angle rotation.
+          3,
+          (clip) => {
             const root = clip.parent;
             const cellFrom = root?.vars.cellFrom as
               | { x: number; y: number }
@@ -172,25 +181,23 @@ export class Spell2200 extends RuntimeSpell {
               clip.x = cellFrom.x;
               clip.y = cellFrom.y - 20;
             }
+            // AS: _rotation = _parent.angle  (degrees → radians)
             clip.rotation = (angleDeg * Math.PI) / 180;
-            // Attach the sprite_26 particle streamer as an authored
-            // child of the beam (it lives inside sprite_28's timeline).
-            clip.attach(this.sprite26Sym, "sprite_26", 1, ctx);
           },
         ],
         [
+          // AS DefineSprite_28/frame_52/DoAction.as (0-based index 51)
+          // this.end() → signal hit (damage popup at target).
           51,
           () => {
-            // AS DefineSprite_28/frame_52/DoAction.as
-            // this.end() → signalHit (damage popup at target)
             this.runtime.signalHit();
           },
         ],
         [
+          // AS DefineSprite_28/frame_97/DoAction.as (0-based index 96)
+          // stop(); this._parent.removeMovieClip();
           96,
           (clip) => {
-            // AS DefineSprite_28/frame_97/DoAction.as
-            // stop(); this._parent.removeMovieClip();
             clip.stop();
             clip.parent?.remove();
             this.runtime.complete();
@@ -206,25 +213,27 @@ export class Spell2200 extends RuntimeSpell {
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    context: SpellContext
+    context: SpellContext,
   ): void {
-    // AS frame_2/DoAction.as: SOMA.playSound("aspiration"); stop();
+    // AS scripts/scripts/frame_2/DoAction.as:
+    //   SOMA.playSound("aspiration"); stop();
     callbacks.playSound("aspiration");
 
-    // Place sprite_15 (impact burst) at the target cell.
-    // displayType=50: container is at world (0,0), so we use world coords.
-    const sprite15 = this.root.attach(
-      this.sprite15Sym,
-      "sprite_15",
-      1,
-      context
-    );
-    sprite15.x = context.cellTo.x;
-    sprite15.y = context.cellTo.y;
+    // Implicit main-timeline frame_1 placement of sprite_28 and sprite_15.
+    // sprite_28 is the primary beam composite; sprite_15 is the caster burst.
+    // Both are attached here so they start ticking from the next runtime frame.
+    //
+    // For displayType=50 (WorldAbsolute), the container is at world (0,0).
+    // sprite_28 positions itself at cellFrom in its own frame_4 script.
+    // sprite_15 is placed at cellFrom directly.
+    const cellFrom = context.cellFrom;
 
-    // Place sprite_28 (beam) at the root. It will position itself at
-    // cellFrom on its frame_4. Start it at (0,0) for now; frame_4
-    // will override via _parent.cellFrom.
     this.root.attach(this.sprite28Sym, "sprite_28", 2, context);
+
+    // sprite_15 — caster burst: position at cellFrom directly since it
+    // has no self-positioning frame script.
+    const s15 = this.root.attach(this.sprite15Sym, "sprite_15", 1, context);
+    s15.x = cellFrom.x;
+    s15.y = cellFrom.y;
   }
 }

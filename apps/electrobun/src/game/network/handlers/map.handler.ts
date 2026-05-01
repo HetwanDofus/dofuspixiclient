@@ -238,8 +238,16 @@ export class MapHandler {
       const numeric = numericId(entry.spriteId);
       const isMonsterGroup =
         entry.spriteType === 3 /* SPRITE_TYPE_MONSTER_GROUP */;
+      // For monster groups the nameplate stays empty — the roster +
+      // level + 5-star difficulty are rendered by the hover panel
+      // (`MonsterGroupTooltip`, modelled on canonical
+      // `dofus.graphics.battlefield.TextWithTitleOverHead`). Painting a
+      // multi-line "Name (Lvl)\nName (Lvl)\n…" roster as the in-world
+      // nameplate left a permanent wall of text above the sprite even
+      // when the player wasn't hovering it; canonical only shows the
+      // rich panel on `_rollOver` and clears it on `_rollOut`.
       const displayName = isMonsterGroup
-        ? `Groupe (${entry.monsters.length})`
+        ? ""
         : entry.name || `Actor ${entry.spriteId}`;
 
       await battlefield.addWorldActor({
@@ -256,7 +264,12 @@ export class MapHandler {
         // through lets the PlayerRenderer paint the right ring color
         // as soon as fight-mode flips on.
         team: entry.team,
-        ...(isMonsterGroup ? { monsterGroup: entry.monsters } : {}),
+        ...(isMonsterGroup
+          ? {
+              monsterGroup: entry.monsters,
+              monsterGroupBonus: entry.monsterGroupBonus,
+            }
+          : {}),
       });
 
       if (isSelf) {

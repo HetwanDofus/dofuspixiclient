@@ -1,0 +1,155 @@
+/*
+ * Floating damage / AP / MP / heal points layer.
+ *
+ * Mirrors the canonical Dofus 1.29 SWF clip
+ * (`assets/sources/clips/points/<style>/<type>.swf`) using browser-
+ * native CSS animation. Each point is a wrapper <div> with two child
+ * <span> siblings (the SWF's cid=4 relief stack: depth-3 bright fill
+ * on top, depth-1 darker clone offset 1 SWF px below). A single
+ * @keyframes drives the per-frame matrix (sx, sy, tx, ty) and
+ * opacity; per-clip color keyframes drive the cxform fade-in /
+ * fade-out (skipped entirely when the SWF ships identity cxform).
+ *
+ * Camera tracking uses CSS variables only — the React parent
+ * registers the layer DOM node with the DamagePointsTracker, which
+ * sets `--ax / --ay / --cs` per pre-tick directly via
+ * `element.style.setProperty`. No React reconciliation per frame.
+ *
+ * Font properties (font-family, font-weight, base font-size) are
+ * NOT declared here — they cascade from the React parent so callers
+ * can theme without touching this file. We only override font-size
+ * with `calc(1em * var(--cs))` so the camera zoom multiplies the
+ * inherited base — this gives crisp text at any zoom because the
+ * browser re-rasterises glyphs at the displayed pixel size, rather
+ * than bilinear-scaling a fixed-size texture (which would blur).
+ */
+
+/* Tailwind v4: this file is imported lazily from `DamagePoints.tsx`
+   (not part of the main entry CSS chain), so Tailwind needs an
+   explicit `@reference` to find utility definitions for `@apply`. */
+@reference "../../window/mainview/index.css";
+
+/* ── @property declarations ─────────────────────────────────── */
+
+/* Camera scale — written by DamagePointsTracker per pre-tick.
+   `<number>` so font-size: calc(1em * var(--cs)) and the per-frame
+   transform's calc() expressions see it as a unit-less multiplier. */
+@property --cs {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+
+/* Anchor in canvas-relative pixels — written by tracker per tick. */
+@property --ax {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --ay {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* Per-frame matrix curve — set by the per-clip @keyframes on the
+   wrapper. tx, ty are in WORLD (= SWF) pixels; the wrapper's
+   transform multiplies them by `1px * var(--cs)` to land in canvas
+   pixels at the live zoom. sx, sy are unit-less scale factors
+   (canonical SWF: non-uniform — frame 1 of damage critical is
+   3.01 × 1.59). All inherited so the spans inside the wrapper
+   read the same values for their `transform`. */
+@property --pt-tx { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --pt-ty { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --pt-sx { syntax: "<number>"; inherits: true; initial-value: 1; }
+@property --pt-sy { syntax: "<number>"; inherits: true; initial-value: 1; }
+@property --pt-opacity {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+
+/* Per-clip colour vars — set either statically (identity cxform)
+   or via @keyframes (white-flash fade-in on damage style 1).
+   `<color>` syntax means the browser interpolates in sRGB across
+   keyframes, which matches Flash's CXform semantics. */
+@property --bright-color {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: white;
+}
+@property --shadow-color {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: black;
+}
+
+/* ── Layout ─────────────────────────────────────────────────── */
+
+@layer components {
+  /* The single layer container — registered with the tracker by
+     <DamagePoints> on mount. Sits in HudOverlay's canvas-aligned
+     wrapper; absolute positioning lands in CSS-pixel canvas-
+     relative coordinates. */
+  .dofus-points-layer {
+    @apply pointer-events-none absolute inset-0 overflow-visible;
+    z-index: 5;
+  }
+
+  /* One floating point. `--ax / --ay` is the cell anchor (canvas
+     px), `--cs` is camera scale, both written by the tracker per
+     tick. The wrapper hosts the curve animation (sets --pt-* per
+     frame); the inner spans read those vars and apply the visual
+     transform. Font properties cascade from a parent set by React. */
+  .dofus-point {
+    @apply absolute pointer-events-none select-none whitespace-pre;
+    left: var(--ax);
+    top: var(--ay);
+    /* Camera-zoom multiplies the inherited base font size. `1em`
+       resolves against the PARENT'S font-size (the layer's), not
+       this rule's — so we don't double-apply the multiplier. */
+    font-size: calc(1em * var(--cs));
+    line-height: 1;
+    /* Centre the wrapper on the anchor; the per-frame transform
+       on the children handles the rest of the curve. */
+    transform: translate(-50%, -50%);
+    transform-origin: 50% 50%;
+  }
+
+  /* The two relief layers. Both occupy the same (0, 0) origin
+     inside the wrapper; the shadow gets a +1 SWF-px Y offset via
+     the `translate` property (independent of the per-frame
+     `transform`). The compose order in the spec is:
+        translate ∘ rotate ∘ scale ∘ transform
+     so the per-frame `transform: scale(sx, sy)` runs OUTERMOST and
+     scales the +1 logical px offset by `sy` — matching canonical
+     where cid=5's scale wraps cid=4's internal +1 placement. */
+  .dofus-point__shadow,
+  .dofus-point__bright {
+    @apply absolute left-0 top-0 inline-block;
+    color: var(--bright-color);
+    /* World-pixel translate × camera scale → canvas px translate.
+       Per-frame `--pt-tx / --pt-ty` come from the @keyframes; the
+       multiplication by `var(--cs)` happens at render time so the
+       float follows zoom while the curve interpolates correctly. */
+    transform:
+      translate(
+        calc(var(--pt-tx) * var(--cs) * 1px),
+        calc(var(--pt-ty) * var(--cs) * 1px)
+      )
+      scale(var(--pt-sx), var(--pt-sy));
+    transform-origin: 50% 50%;
+    opacity: var(--pt-opacity);
+  }
+
+  .dofus-point__shadow {
+    color: var(--shadow-color);
+    /* Canonical SWF cid=4 depth-1: ty=+1 in SWF units. The
+       `translate` property is composed BEFORE the per-frame
+       transform (spec order), so the per-frame scale(sx, sy)
+       applies to it — at frame 1 (sy=1.59), the +1 offset reads
+       as +1.59 logical px, matching cid=5's scale of cid=4's
+       internal placement. Multiplied by --cs to scale with zoom. */
+    translate: 0 calc(1px * var(--cs));
+  }
+}

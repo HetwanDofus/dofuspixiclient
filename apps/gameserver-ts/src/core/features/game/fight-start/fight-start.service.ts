@@ -3,6 +3,7 @@ import type { PlayerPresenceEntry } from "@modules/player-presence/player-presen
 import { create } from "@bufbuild/protobuf";
 import {
   GameMovementSchema,
+  type SpriteMovementEntry,
   SpriteMovementEntrySchema,
 } from "@dofus/proto/game_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
@@ -15,6 +16,7 @@ import {
 } from "@modules/fight/core/fight.states";
 import { FighterKind, FightType, TeamSide } from "@modules/fight/fight.types";
 import { FightRegistryService } from "@modules/fight/registry/fight.registry";
+import { MapMonsterService } from "@modules/monsters/map-monster.service";
 import { PlayerPresenceService } from "@modules/player-presence/player-presence.service";
 import { PlayersRepository } from "@modules/players/players.repository";
 import { SpellsRepository } from "@modules/spells/spells.repository";
@@ -52,6 +54,16 @@ export interface MonsterGroupInfo {
 export class FightStartService {
   private readonly logger = new Logger(FightStartService.name);
 
+  // Monotonically-decrementing counter for monster fighter IDs. Starts far
+  // below the small negative range used by `MapMonsterService.nextGroupId`
+  // (which begins at -1) so a monster fighter id can never collide with a
+  // live monster group's world-actor id. Sequential allocation also
+  // eliminates the birthday-paradox collisions the previous
+  // `groupId * 1000 + Math.random() * 1000` scheme produced (~3% per fight
+  // for 8-mob groups), which surfaced as two fighters sharing one spriteId
+  // and the client's `Map<spriteId, fighter>` collapsing to a single slot.
+  private nextMonsterFighterId = -1_000_000;
+
   constructor(
     private readonly registry: FightRegistryService,
     private readonly frames: GatewayFrameService,
@@ -59,7 +71,8 @@ export class FightStartService {
     private readonly spells: SpellsRepository,
     private readonly challenges: FightChallengeService,
     private readonly presence: PlayerPresenceService,
-    private readonly stats: StatsService
+    private readonly stats: StatsService,
+    private readonly mapMonsters: MapMonsterService
   ) {}
 
   async startPvM(
@@ -117,22 +130,53 @@ export class FightStartService {
 
     const groupSpriteId = String(group.groupId);
 
-    // Remove the monster group from the player's own map view before
-    // entering fight mode. Without this the group lingers behind the
-    // fight overlay.
+    // Hide every roleplay sprite on the player's map before entering
+    // fight mode — the engaged group, every OTHER monster group still on
+    // the map, and every other player. Without this, those sprites stay
+    // rendered through the fight: the renderer reuses the world-actors
+    // layer for fighters (battlefield-scene.ts:setFightMode) and pulls
+    // their team from `SpriteMovementEntry.team`, which proto3 defaults
+    // to 0 when not set during roleplay. Result: every leftover sprite
+    // pops a player-team ground ring at its random spawn cell the moment
+    // combat starts, producing ghost "duplicate" mobs scattered across
+    // non-placement cells. Canonical 1.29 hides the world layer entirely
+    // during a fight; we approximate by REMOVE-ing the sprites server-
+    // side and re-ADDing them in `FightEndService.endFight`.
+    const hideEntries: SpriteMovementEntry[] = [
+      create(SpriteMovementEntrySchema, {
+        operation: 2, // REMOVE
+        spriteId: groupSpriteId,
+      }),
+    ];
+
+    for (const otherGroup of this.mapMonsters.groupsOnMap(group.mapId)) {
+      if (otherGroup.id !== group.groupId) {
+        hideEntries.push(
+          create(SpriteMovementEntrySchema, {
+            operation: 2, // REMOVE
+            spriteId: String(otherGroup.id),
+          })
+        );
+      }
+    }
+
+    for (const otherPlayer of this.presence.onMap(group.mapId)) {
+      if (otherPlayer.characterId !== player.characterId) {
+        hideEntries.push(
+          create(SpriteMovementEntrySchema, {
+            operation: 2, // REMOVE
+            spriteId: otherPlayer.characterId,
+          })
+        );
+      }
+    }
+
     this.frames.broadcast(
       [sessionId],
       create(DofusMessageSchema, {
         payload: {
           case: "gameMovement",
-          value: create(GameMovementSchema, {
-            entries: [
-              create(SpriteMovementEntrySchema, {
-                operation: 2, // REMOVE
-                spriteId: groupSpriteId,
-              }),
-            ],
-          }),
+          value: create(GameMovementSchema, { entries: hideEntries }),
         },
       })
     );
@@ -225,14 +269,29 @@ export class FightStartService {
     const playerStats = await this.players.findStats(player.characterId);
     await this.players.loadPresence(player.characterId);
 
+    // Canonical Dofus 1.29 max-LP formula (mirrors
+    // StatsService.broadcastAccountStats:166): base 50 + 5 per level +
+    // total vitality. We intentionally use this rather than just
+    // `playerData.life` because the DB column stores CURRENT life, not
+    // the cap — a player walking into the fight at 200/1050 would
+    // otherwise spawn as 200/200 (lpMax=lp=200) and cap at the wrong
+    // ceiling for the rest of the fight.
+    const totalVit =
+      (playerStats?.vitality ?? 0) + (equipStats.vitality ?? 0);
+    const lifeMax = 50 + 5 * playerData.level + totalVit;
+
     const fighter = Fighter.fromPlayer(sessionId, {
       id: Number(player.characterId),
       name: player.name,
       level: playerData.level,
       life: playerData.life,
+      lifeMax,
       direction: player.direction,
       sex: playerData.sex,
       gfx: playerData.gfx,
+      color1: player.color1,
+      color2: player.color2,
+      color3: player.color3,
       stats: {
         strength: playerStats?.strength ?? 0,
         vitality: playerStats?.vitality ?? 0,
@@ -249,9 +308,9 @@ export class FightStartService {
 
   private addMonsters(fight: Fight, group: MonsterGroupInfo): void {
     for (const member of group.members) {
-      const monsterId = group.groupId * 1000 + Math.random() * 1000;
+      const monsterId = this.nextMonsterFighterId--;
       const monsterFighter = new Fighter(
-        Math.floor(monsterId),
+        monsterId,
         FighterKind.Monster,
         member.name,
         member.life,

@@ -1,41 +1,39 @@
 /**
- * Spell 912 — Flèche Empoisonnée (Cra poison arrow).
+ * Spell 912 — Flèche de Recul (Cra wind/push arrow).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/912/scripts/scripts/
  *
  * displayType=51 (WorldAbsoluteAlt). Two parallel authored timelines:
- *   - sprite_20  — caster-side timeline (45 frames): positions itself at
- *                  cellFrom on frame_1, rotated to face target; stops at
- *                  frame_43.
- *   - sprite_35  — target-side timeline (129 frames): positions itself at
- *                  cellTo on frame_1, rotated to angle; fires sound at
- *                  frame_10; signals hit + plays sound at frame_76;
- *                  removes outer mc at frame_127.
+ *   - sprite_20 (45 frames): caster-side bow-draw animation, anchored at cellFrom.
+ *     Positions self at _parent.cellFrom, rotates to _parent.angle. Stops at frame_43.
+ *   - sprite_35 (129 frames): target-side impact animation, anchored at cellTo.
+ *     Positions self at _parent.cellTo, rotates to _parent.angle.
+ *     frame_10: plays "jet_912" sound.
+ *     frame_76: plays "jet_912b" sound + signals hit (this.end()).
+ *     frame_127: _parent.removeMovieClip() → spell complete.
+ *   - sprite_30 (42 frames): a rotation/scale-randomised sparkle particle,
+ *     attached inside sprite_35 (it is NOT a librarySymbol direct-dynamic sprite,
+ *     but it IS placed on the main sprite_35 composite as a child; we treat it as
+ *     a container-only symbol whose frame_1 seeds random rotation/scale and whose
+ *     frame_40 stops it).
  *
- * sprite_35 embeds a child symbol (DefineSprite_27, canonically referenced
- * by sprite_35 but represented in the animations list as sprite_30). The
- * child (sprite_30) has its own authored 42-frame timeline with:
- *   frame_1: random rotation + scale; frame_40: stop().
- * Its placed instance (PlaceObject2_26_1 inside DefineSprite_27) carries
- * clip events:
- *   onLoad:      counter-rotate to cancel parent rotation.
- *   onEnterFrame: randomise alpha each frame (flicker).
- *
- * Because librarySymbols[] is empty in the manifest, there is NO lib_ prefix
- * anywhere — all textures use their bare animation names.
+ * Library symbol:
+ *   - sprite27 (characterId=27, directlyDynamic=true): placed inside sprite_35
+ *     at frame 24 (0-based) at depth 4. It has an onClipEvent(load) that counter-
+ *     rotates itself relative to its parent's rotation, and an onClipEvent(enterFrame)
+ *     that pulses _alpha randomly between 50–149. The combat-exporter has extracted
+ *     it as lib_sprite27_0.svg.
  *
  * Main timeline (frame_2/DoAction.as): SOMA.playSound("jet_903"); stop();
- * Both sprite_20 and sprite_35 are attached in onSpellStart mirroring the
- * implicit main-timeline PlaceObject2 placements.
+ * The harness for WorldAbsoluteAlt (51) stores cellFrom/cellTo/angle on root.vars.
+ * Both sprite_20 and sprite_35 are attached from onSpellStart and self-position
+ * via root.vars.cellFrom / root.vars.cellTo in their frame_1 scripts.
  *
- * Sound schedule (canonical):
- *   frame_2  (main timeline) → "jet_903"
- *   frame_10 (sprite_35)     → "jet_912"
- *   frame_76 (sprite_35)     → "jet_912b"
- *
- * signalHit fires at sprite_35 frame_76 (this.end() in canonical AS).
- * complete() fires at sprite_35 frame_127 (_parent.removeMovieClip()).
+ * Sounds schedule:
+ *   frame 1 of main timeline: jet_903 (fired in onSpellStart)
+ *   sprite_35 frame_10: jet_912
+ *   sprite_35 frame_76: jet_912b
  */
 
 import type {
@@ -50,21 +48,30 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-const SPRITE_20_BOUNDS = {
+// ---- Manifest bounds for library / animation symbols ----
+
+const SPRITE27_BOUNDS = {
+  width: 24.75,
+  height: 20.8,
+  offsetX: -12.55,
+  offsetY: -12.95,
+};
+
+const SPRITE20_BOUNDS = {
   width: 186.6,
   height: 41.2,
   offsetX: 5.15,
   offsetY: -25.1,
 };
 
-const SPRITE_30_BOUNDS = {
+const SPRITE30_BOUNDS = {
   width: 75.05,
   height: 1.05,
   offsetX: 0,
   offsetY: -1.05,
 };
 
-const SPRITE_35_BOUNDS = {
+const SPRITE35_BOUNDS = {
   width: 147.8,
   height: 103,
   offsetX: -72.85,
@@ -76,8 +83,9 @@ export class Spell912 extends RuntimeSpell {
   readonly displayType = SpellDisplayType.WorldAbsoluteAlt;
 
   private sprite20Sym!: SymbolDefinition;
-  private sprite30Sym!: SymbolDefinition;
   private sprite35Sym!: SymbolDefinition;
+  private sprite27Sym!: SymbolDefinition;
+  private sprite30Sym!: SymbolDefinition;
 
   private soundCallback?: (id: string) => void;
 
@@ -85,64 +93,59 @@ export class Spell912 extends RuntimeSpell {
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
-    const sprite20Anchor = calculateAnchor(SPRITE_20_BOUNDS);
-    const sprite30Anchor = calculateAnchor(SPRITE_30_BOUNDS);
-    const sprite35Anchor = calculateAnchor(SPRITE_35_BOUNDS);
+    const sprite27Anchor = calculateAnchor(SPRITE27_BOUNDS);
+    const sprite20Anchor = calculateAnchor(SPRITE20_BOUNDS);
+    const sprite30Anchor = calculateAnchor(SPRITE30_BOUNDS);
+    const sprite35Anchor = calculateAnchor(SPRITE35_BOUNDS);
 
-    // ---- sprite_30 — flickering inner particle (DefineSprite_27 child) ----
-    // PlaceObject2_26_1 inside DefineSprite_27 carries two clip events.
-    //
-    // AS: DefineSprite_27/frame_1/PlaceObject2_26_1/CLIPACTIONRECORD onClipEvent(load).as
+    // ---- sprite27 — clipEvent-driven sparkle glyph (lib symbol) ----
+    // Placed inside sprite_35 at parent frame 24 (0-based), depth 4.
+    // AS DefineSprite_27/frame_1/PlaceObject2_26_1/CLIPACTIONRECORD onClipEvent(load).as:
     //   _rotation = -_parent._parent._rotation;
-    //
-    // AS: DefineSprite_27/frame_1/PlaceObject2_26_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    // AS DefineSprite_27/frame_1/PlaceObject2_26_1/CLIPACTIONRECORD onClipEvent(enterFrame).as:
     //   _alpha = random(100) + 50;
-    //
-    // AS: DefineSprite_30/frame_1/DoAction.as
-    //   _rotation = random(360);
-    //   t = random(50) + 50;
-    //   _xscale = t;
-    //   _yscale = t;
-    //
-    // AS: DefineSprite_30/frame_40/DoAction.as
+    this.sprite27Sym = {
+      name: "sprite27",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_sprite27"),
+      anchorX: sprite27Anchor.x,
+      anchorY: sprite27Anchor.y,
+      onLoad: (clip) => {
+        // AS: _rotation = -_parent._parent._rotation
+        // clip.parent is sprite_35 clip inside sprite_35Sym's hierarchy.
+        // _parent._parent in AS = clip.parent (sprite_35 clip), whose
+        // rotation was set from _parent.angle in sprite_35's frame_1.
+        const parentRotation = clip.parent?.rotation ?? 0;
+        clip.rotation = -parentRotation;
+      },
+      onEnterFrame: (clip) => {
+        // AS: _alpha = random(100) + 50  (range 50-149 in AS 0-100 units)
+        // Convert: (50 + random 0..99) / 100
+        clip.alpha = (Math.floor(Math.random() * 100) + 50) / 100;
+      },
+    };
+
+    // ---- sprite30 — randomised sparkle particle placed in sprite_35 ----
+    // sprite_30 appears in animations[] (not librarySymbols) but is used
+    // inside the sprite_35 composite. We model it as a symbol so sprite_35
+    // can attach live instances with random rotation/scale per the AS.
+    // AS DefineSprite_30/frame_1/DoAction.as:
+    //   _rotation = random(360); t = random(50)+50; _xscale = t; _yscale = t;
+    // AS DefineSprite_30/frame_40/DoAction.as:
     //   stop();
     this.sprite30Sym = {
-      name: "sprite_30",
+      name: "sprite30",
       totalFrames: 42,
       frames: textures.getFrames("sprite_30"),
       anchorX: sprite30Anchor.x,
       anchorY: sprite30Anchor.y,
-      onLoad: (clip) => {
-        // AS: DefineSprite_30/frame_1/DoAction.as (initial placement actions)
-        // and PlaceObject2_26_1/onClipEvent(load) counter-rotation.
-        // frame_1 DoAction fires during attach() as frameScripts[0], so
-        // onLoad handles the clip-event(load) counter-rotation only.
-        // _rotation = -_parent._parent._rotation
-        // clip.parent is sprite_35; sprite_35.rotation is in radians already.
-        const grandparent = clip.parent;
-        if (grandparent) {
-          clip.rotation = -grandparent.rotation;
-        }
-      },
-      onEnterFrame: (clip) => {
-        // AS: PlaceObject2_26_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-        // _alpha = random(100) + 50;
-        // AS alpha 50-150 range → clamp to 0-1. Values > 100 in AS clamp to 100%.
-        const rawAlpha = Math.floor(Math.random() * 100) + 50;
-        clip.alpha = Math.min(rawAlpha, 100) / 100;
-      },
       frameScripts: new Map([
         [
           0,
           (clip) => {
-            // AS: DefineSprite_30/frame_1/DoAction.as
-            // _rotation = random(360);
-            // t = random(50) + 50;
-            // _xscale = t; _yscale = t;
-            const rot = Math.floor(Math.random() * 360);
-            clip.rotation = (rot * Math.PI) / 180;
+            // AS DefineSprite_30/frame_1/DoAction.as
+            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
             const t = Math.floor(Math.random() * 50) + 50;
-            clip.vars.t = t;
             clip.scaleX = t / 100;
             clip.scaleY = t / 100;
           },
@@ -150,21 +153,17 @@ export class Spell912 extends RuntimeSpell {
         [
           39,
           (clip) => {
-            // AS: DefineSprite_30/frame_40/DoAction.as
-            // stop();
+            // AS DefineSprite_30/frame_40/DoAction.as: stop()
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- sprite_20 — caster-side timeline (45 frames) ----------------------
-    // AS: DefineSprite_20/frame_1/DoAction.as
-    //   _X = _parent.cellFrom.x;
-    //   _Y = _parent.cellFrom.y - 30;
-    //   _rotation = _parent.angle;
-    //
-    // AS: DefineSprite_20/frame_43/DoAction.as
+    // ---- sprite_20 — caster-side bow-draw animation ----
+    // AS DefineSprite_20/frame_1/DoAction.as:
+    //   _X = _parent.cellFrom.x; _Y = _parent.cellFrom.y - 30; _rotation = _parent.angle;
+    // AS DefineSprite_20/frame_43/DoAction.as:
     //   stop();
     this.sprite20Sym = {
       name: "sprite_20",
@@ -176,9 +175,7 @@ export class Spell912 extends RuntimeSpell {
         [
           0,
           (clip) => {
-            // AS: DefineSprite_20/frame_1/DoAction.as
-            // _X = _parent.cellFrom.x; _Y = _parent.cellFrom.y - 30;
-            // _rotation = _parent.angle;
+            // AS DefineSprite_20/frame_1/DoAction.as
             const root = clip.parent;
             const cellFrom = root?.vars.cellFrom as
               | { x: number; y: number }
@@ -194,30 +191,30 @@ export class Spell912 extends RuntimeSpell {
         [
           42,
           (clip) => {
-            // AS: DefineSprite_20/frame_43/DoAction.as
-            // stop();
+            // AS DefineSprite_20/frame_43/DoAction.as: stop()
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- sprite_35 — target-side timeline (129 frames) ---------------------
-    // AS: DefineSprite_35/frame_1/DoAction.as
-    //   _X = _parent.cellTo.x; _Y = _parent.cellTo.y - 30;
-    //   _rotation = _parent.angle;
-    //
-    // AS: DefineSprite_35/frame_10/DoAction.as
+    // ---- sprite_35 — target-side impact timeline (129 frames) ----
+    // AS DefineSprite_35/frame_1/DoAction.as:
+    //   _X = _parent.cellTo.x; _Y = _parent.cellTo.y - 30; _rotation = _parent.angle;
+    // AS DefineSprite_35/frame_10/DoAction.as:
     //   SOMA.playSound("jet_912");
-    //
-    // AS: DefineSprite_35/frame_76/DoAction.as
+    // AS DefineSprite_35/frame_76/DoAction.as:
     //   SOMA.playSound("jet_912b");
-    //
-    // AS: DefineSprite_35/frame_76/DoAction_2.as
+    // AS DefineSprite_35/frame_76/DoAction_2.as:
     //   this.end(); → signalHit
+    // AS DefineSprite_35/frame_127/DoAction.as:
+    //   _parent.removeMovieClip(); → spell complete
     //
-    // AS: DefineSprite_35/frame_127/DoAction.as
-    //   _parent.removeMovieClip(); → complete
+    // The manifest's librarySymbols entry for sprite27 has placements
+    // on parentSpriteId=35 at frame 24 (0-based index 23), depth 4,
+    // with a PlaceObject2 matrix and color transforms that tween across
+    // frames 24–81. We attach at frame 23 and let the clip event
+    // handlers drive its alpha/rotation dynamically as canonical AS does.
     this.sprite35Sym = {
       name: "sprite_35",
       totalFrames: 129,
@@ -227,10 +224,8 @@ export class Spell912 extends RuntimeSpell {
       frameScripts: new Map([
         [
           0,
-          (clip, ctx) => {
-            // AS: DefineSprite_35/frame_1/DoAction.as
-            // _X = _parent.cellTo.x; _Y = _parent.cellTo.y - 30;
-            // _rotation = _parent.angle;
+          (clip) => {
+            // AS DefineSprite_35/frame_1/DoAction.as
             const root = clip.parent;
             const cellTo = root?.vars.cellTo as
               | { x: number; y: number }
@@ -241,27 +236,40 @@ export class Spell912 extends RuntimeSpell {
               clip.y = cellTo.y - 30;
             }
             clip.rotation = (angleDeg * Math.PI) / 180;
-            // DefineSprite_27 (the sprite_30 child container) is authored as
-            // a placed instance inside sprite_35 from its first frame. We
-            // attach it here so it starts ticking alongside the parent.
-            clip.attach(this.sprite30Sym, "sprite_30_inst", 1, ctx);
           },
         ],
         [
           9,
           () => {
-            // AS: DefineSprite_35/frame_10/DoAction.as
-            // SOMA.playSound("jet_912");
+            // AS DefineSprite_35/frame_10/DoAction.as: SOMA.playSound("jet_912")
             this.soundCallback?.("jet_912");
+          },
+        ],
+        [
+          23,
+          (clip, ctx) => {
+            // Canonical PlaceObject2 placement of sprite27 at frame 24 (0-based 23),
+            // depth 4. Initial matrix from placements[0]:
+            //   translateX: -1.85, translateY: 6.65, scaleX/Y: ~0.7336, alphaMult: 79
+            // The onLoad and onEnterFrame of sprite27Sym drive the dynamic behavior.
+            clip.attach(this.sprite27Sym, "sprite27_4", 4, ctx, {
+              x: -1.85,
+              y: 6.65,
+            });
+            // Apply initial alpha from placement colorTransform.alphaMult = 79 / 256
+            const s27 = clip.children.get("sprite27_4");
+            if (s27) {
+              s27.scaleX = 0.7336;
+              s27.scaleY = 0.7336;
+              s27.alpha = 79 / 256;
+            }
           },
         ],
         [
           75,
           () => {
-            // AS: DefineSprite_35/frame_76/DoAction.as
-            // SOMA.playSound("jet_912b");
-            // AS: DefineSprite_35/frame_76/DoAction_2.as
-            // this.end(); → signalHit
+            // AS DefineSprite_35/frame_76/DoAction.as: SOMA.playSound("jet_912b")
+            // AS DefineSprite_35/frame_76/DoAction_2.as: this.end() → signalHit
             this.soundCallback?.("jet_912b");
             this.runtime.signalHit();
           },
@@ -269,15 +277,15 @@ export class Spell912 extends RuntimeSpell {
         [
           126,
           (clip) => {
-            // AS: DefineSprite_35/frame_127/DoAction.as
-            // _parent.removeMovieClip();
-            clip.parent?.remove();
+            // AS DefineSprite_35/frame_127/DoAction.as: _parent.removeMovieClip()
+            clip.remove();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
+    this.registry.register(this.sprite27Sym);
     this.registry.register(this.sprite30Sym);
     this.registry.register(this.sprite20Sym);
     this.registry.register(this.sprite35Sym);
@@ -287,14 +295,15 @@ export class Spell912 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS: scripts/frame_2/DoAction.as
-    // SOMA.playSound("jet_903"); stop();
+    // Capture sound callback so frame scripts can fire sounds later.
     this.soundCallback = callbacks.playSound;
+
+    // AS scripts/frame_2/DoAction.as: SOMA.playSound("jet_903"); stop();
     callbacks.playSound("jet_903");
 
-    // Implicit main-timeline placement of sprite_20 (caster-side) and
-    // sprite_35 (target-side) — mirrors the authored PlaceObject2 entries
-    // on the main timeline that the AS compiler exposes as frame_1 placements.
+    // Attach the two parallel authored timelines to the root.
+    // For WorldAbsoluteAlt (51) the container is at world (0,0);
+    // each sprite's frame_1 self-positions at cellFrom / cellTo.
     this.root.attach(this.sprite20Sym, "sprite20", 1, context);
     this.root.attach(this.sprite35Sym, "sprite35", 2, context);
   }

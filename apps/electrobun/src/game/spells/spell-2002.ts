@@ -1,32 +1,30 @@
 /**
- * Spell 2002 — (Unknown name, likely a Cra or elemental impact spell).
+ * Spell 2002 — (Unknown, likely a target-cell impact spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2002/scripts/scripts/
  *
- * displayType=11 (TargetCell). There are no move/shoot/duplicate symbols,
- * no caster-side references, no dual-anchored worldAbsolute pattern. A
- * single authored timeline (sprite_9, 54 frames) is placed on the main
- * timeline, positions itself at cellTo on frame_4, signals hit on
- * frame_19, and removes its parent (completing the spell) on frame_40.
- * This is the canonical single-impact-at-target pattern → TargetCell (11).
+ * displayType=11 (TargetCell). There is no `move`, `shoot`, `duplicate`,
+ * or `_parent.cellFrom` reference — the single symbol `sprite_9` positions
+ * itself at `_parent.cellTo` on its first meaningful frame (frame_4), which
+ * is the canonical pattern for a target-anchored impact. No caster reference,
+ * no projectile arc, no beam line → TargetCell.
  *
- * Library symbols: none (librarySymbols[] is empty in manifest.json).
+ * Library symbols: none (librarySymbols[] is empty in the manifest).
  *
  * Animations:
- *   - sprite_9 (54 frames, isComposite) — the full impact animation.
- *       frame_4:  _X = _parent.cellTo.x; _Y = _parent.cellTo.y
- *                 (positions itself at target in world coords; since
- *                 displayType=11 the container is already at cellTo,
- *                 but the canonical AS uses _parent.cellTo directly —
- *                 we mirror it faithfully using root.vars.cellTo).
- *       frame_19: this.end() → signalHit (damage popup).
- *       frame_40: _parent.removeMovieClip() → spell complete.
+ *   - sprite_9 — 54-frame composite impact animation.
+ *       frame_4  (index 3): position self at _parent.cellTo.
+ *       frame_19 (index 18): this.end() → signalHit.
+ *       frame_40 (index 39): _parent.removeMovieClip() → spell complete.
  *
- * Main timeline: frame_2/DoAction.as → stop(). No sound.
+ * Main timeline: frame_2/DoAction.as → stop(). No sound. sprite_9 is
+ * placed on the main timeline (the sole animation entry), attached in
+ * onSpellStart.
  *
- * Because librarySymbols[] is empty, sprite_9 is registered using the
- * bare "sprite_9" key (no "lib_" prefix) with bounds from animations[0].
+ * Note: sprite_9 has NO `lib_` prefix because it appears only in
+ * `animations[]`, not in `librarySymbols[]`. Textures are fetched via
+ * `textures.getFrames("sprite_9")`.
  */
 
 import type {
@@ -60,8 +58,8 @@ export class Spell2002 extends RuntimeSpell {
   ): void {
     const sprite9Anchor = calculateAnchor(SPRITE_9_BOUNDS);
 
-    // sprite_9 — 54-frame impact animation anchored at target cell.
-    // Not in librarySymbols[], so textures key has NO "lib_" prefix.
+    // ---- sprite_9 — 54-frame target-cell impact animation --------
+    // No lib_ prefix: appears only in animations[], not librarySymbols[].
     this.sprite9Sym = {
       name: "sprite_9",
       totalFrames: 54,
@@ -75,8 +73,6 @@ export class Spell2002 extends RuntimeSpell {
             // AS: DefineSprite_9/frame_4/DoAction.as
             // _X = _parent.cellTo.x;
             // _Y = _parent.cellTo.y;
-            // Position self at the target cell using world coords
-            // stored on root.vars by the harness (mirrors _parent.cellTo).
             const root = clip.parent;
             const cellTo = root?.vars.cellTo as
               | { x: number; y: number }
@@ -89,9 +85,9 @@ export class Spell2002 extends RuntimeSpell {
         ],
         [
           18,
-          (_clip) => {
+          () => {
             // AS: DefineSprite_9/frame_19/DoAction.as
-            // this.end() → damage popup at target.
+            // this.end() → signalHit (damage popup at target).
             this.runtime.signalHit();
           },
         ],
@@ -114,9 +110,9 @@ export class Spell2002 extends RuntimeSpell {
     _callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Main timeline frame_2/DoAction.as: stop()
-    // No SOMA.playSound call present in canonical AS.
-    // Attach sprite_9 on the main timeline (implicit placement in canonical SWF).
+    // Main timeline: frame_2/DoAction.as → stop(); no sound.
+    // sprite_9 is placed on the main timeline — attach it so it starts
+    // ticking from the next runtime frame.
     this.root.attach(this.sprite9Sym, "sprite9", 1, context);
   }
 }

@@ -1,36 +1,32 @@
 /**
- * Spell 1055 — Vlad (unknown class, likely Sram/Xelor based on sound "vlad_804").
+ * Spell 1055 — (Vladala / Sacrieur spike spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/1055/scripts/scripts/
  *
- * displayType=50 (WorldAbsolute). Two parallel authored timelines placed on the
- * main timeline frame_2: sprite_8 (117-frame, caster-anchored spire burst with
- * particle system) and sprite_9 (27-frame, target-anchored impact). Both position
- * themselves via _parent.cellFrom / _parent.cellTo on their onLoad events,
- * which is the canonical WorldAbsolute pattern.
+ * displayType=50 (WorldAbsolute). Two authored sprite timelines are placed on
+ * the main timeline at frame_2 — one positioned at cellFrom (sprite_8, depth 1)
+ * and one at cellTo (sprite_9, depth 6). The harness exposes cellFrom/cellTo
+ * on root.vars; the per-sprite frame_1 scripts read those to position themselves
+ * at world coords. This is the canonical WorldAbsolute dual-anchored pattern.
  *
  * Library symbols:
- *   - lib_spire — single-frame upward-drifting spike particle. onLoad seeds va
- *     (alpha decay rate), alpha, scale, velocity v, and frame variant (1 or 2
- *     based on parent.c parity). onEnterFrame scales up, drifts upward with
- *     friction, fades alpha; removes parent when alpha < 0.
+ *   - lib_spire — single-frame spike particle. onLoad seeds va, alpha, scale,
+ *     velocity v, and frames to 1 or 2 based on parent.c % 2. onEnterFrame
+ *     grows yscale by 1.02x, drifts up (v decays 0.97x), fades by va per tick,
+ *     removes self when alpha < 0.
  *
- * Main timeline (frame_2/DoAction.as): stop(). Two clips (sprite_8 at depth 1,
- * sprite_9 at depth 6) are placed on the main timeline with onLoad positioning.
+ * Authored timelines (registered as container symbols):
+ *   - sprite_8 — 117-frame caster-side composite. frame_4 plays sound
+ *     "vlad_804" and spawns 10 spire particles from the PlaceObject2_7_4
+ *     onClipEvent(load). frame_115 calls _parent.removeMovieClip → complete.
+ *   - sprite_9 — 27-frame target-side timeline. frame_10 calls this.end()
+ *     → signalHit.
  *
- * sprite_8 (DefineSprite_8):
- *   - frame_4/PlaceObject2_7_4/onClipEvent(load): spawns 10 spire particles
- *     at self's position with random Y offsets, copies rotation.
- *   - frame_4/DoAction.as: plays sound "vlad_804".
- *   - frame_115/DoAction.as: _parent.removeMovieClip() → spell complete.
- *
- * sprite_9 (DefineSprite_9):
- *   - frame_10/DoAction.as: this.end() → signalHit.
- *
- * Both sprite_8 and sprite_9 only appear in animations[] (not librarySymbols[]),
- * so their texture keys have NO lib_ prefix. lib_spire is in librarySymbols[] so
- * it uses the lib_ prefix.
+ * Main timeline (frame_2/DoAction.as): stop(). The two sprites are placed via
+ * PlaceObject2_8_1 (depth 1 → cellFrom) and PlaceObject2_8_6 (depth 6 → cellTo).
+ * Their onClipEvent(load) scripts position them at cellFrom/cellTo respectively.
+ * We attach them explicitly in onSpellStart after registering symbols.
  */
 
 import type {
@@ -62,13 +58,20 @@ export class Spell1055 extends RuntimeSpell {
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext,
+    _context: SpellContext
   ): void {
     const spireAnchor = calculateAnchor(SPIRE_BOUNDS);
 
-    // ---- lib_spire — upward-drifting spike particle ---------------
-    // AS: DefineSprite_3_spire/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
-    // AS: DefineSprite_3_spire/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    // ---- lib_spire — spike/spire particle ----------------------------------------
+    // Canonical sources:
+    //   DefineSprite_3_spire/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
+    //   DefineSprite_3_spire/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    //
+    // The "spire" symbol itself (DefineSprite_3_spire) is a 2-frame sprite whose
+    // frame is chosen on load based on parent.c % 2. PlaceObject2_2_1 is an inner
+    // placed object inside spire; because the combat exporter exports the whole
+    // symbol as lib_spire (including its 2 visual frames), we treat the CLIPACTION
+    // handlers as belonging directly to the lib_spire SymbolDefinition.
     this.spireSym = {
       name: "spire",
       totalFrames: 2,
@@ -76,49 +79,53 @@ export class Spell1055 extends RuntimeSpell {
       anchorX: spireAnchor.x,
       anchorY: spireAnchor.y,
       onLoad: (clip) => {
-        // AS onClipEvent(load):
-        //   va = 1 + random(2.5)  → random(2.5) in AS = Math.floor(Math.random() * 2.5) = 0 or 1
-        //   _alpha = 50 + random(50)
-        //   _yscale = 80
-        //   _xscale = 80 + random(80)
-        //   v = 0.67 + 1.67 * Math.random()
-        //   if (_parent.c % 2 == 0) gotoAndStop(2) else gotoAndStop(1)
+        // AS DefineSprite_3_spire/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
         clip.vars.va = 1 + Math.floor(Math.random() * 2.5);
         clip.alpha = (50 + Math.floor(Math.random() * 50)) / 100;
         clip.scaleY = 80 / 100;
         clip.scaleX = (80 + Math.floor(Math.random() * 80)) / 100;
         clip.vars.v = 0.67 + 1.67 * Math.random();
-        const parentC = (clip.parent?.vars.c as number) ?? 1;
-        if (parentC % 2 === 0) {
-          clip.gotoAndStop(1); // AS gotoAndStop(2) → 0-based index 1
+        // Choose frame based on parent.c % 2
+        const c = (clip.parent?.vars.c as number) ?? 1;
+        if (c % 2 === 0) {
+          clip.gotoAndStop(1); // gotoAndStop(2) → 0-based index 1
         } else {
-          clip.gotoAndStop(0); // AS gotoAndStop(1) → 0-based index 0
+          clip.gotoAndStop(0); // gotoAndStop(1) → 0-based index 0
         }
       },
       onEnterFrame: (clip) => {
-        // AS onClipEvent(enterFrame):
-        //   _yscale = _yscale * 1.02
-        //   _Y = _Y - (v *= 0.97)
-        //   _alpha = _alpha - va
-        //   if (_alpha < 0) _parent.removeMovieClip()
-        clip.scaleY = clip.scaleY * 1.02;
+        // AS DefineSprite_3_spire/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
         let v = clip.vars.v as number;
-        v *= 0.97;
-        clip.vars.v = v;
-        clip.y -= v;
+        let alphaPct = clip.alpha * 100; // work in AS 0-100 units
         const va = clip.vars.va as number;
-        const newAlpha = clip.alpha * 100 - va;
-        clip.alpha = newAlpha / 100;
-        if (newAlpha < 0) {
-          clip.parent?.remove();
+
+        clip.scaleY = clip.scaleY * 1.02;
+        v *= 0.97;
+        clip.y -= v;
+        alphaPct -= va;
+        clip.alpha = alphaPct / 100;
+        clip.vars.v = v;
+
+        if (alphaPct < 0) {
+          // _parent.removeMovieClip() — removes the spire clip itself
+          clip.remove();
         }
       },
     };
 
-    // ---- sprite_8 — caster-side 117-frame timeline ---------------
-    // Positions itself at cellFrom on load.
-    // frame_4: spawns 10 spire particles + plays sound.
-    // frame_115: _parent.removeMovieClip() → spell complete.
+    // ---- sprite_8 — 117-frame caster-side composite ------------------------------------
+    // Canonical sources:
+    //   DefineSprite_8/frame_4/DoAction.as  → playSound("vlad_804")
+    //   DefineSprite_8/frame_4/PlaceObject2_7_4/CLIPACTIONRECORD onClipEvent(load).as
+    //     → spawn 10 spire particles
+    //   DefineSprite_8/frame_115/DoAction.as → _parent.removeMovieClip()
+    //
+    // The PlaceObject2_7_4 at frame_4 places a "spawner" container at (x,y) of self.
+    // Its onClipEvent(load) immediately attachMovie 10 spire instances to itself.
+    // We model this directly in frame_4's frameScript by attaching 10 spires to the
+    // sprite_8 clip at appropriate y offsets, mirroring the canonical _X/_Y logic.
+    // (The "PlaceObject2_7_4" wrapper has no further handlers of its own beyond the
+    // one-shot load, so we fold the 10 attaches directly into sprite_8's frame_4 script.)
     this.sprite8Sym = {
       name: "sprite_8",
       totalFrames: 117,
@@ -136,9 +143,8 @@ export class Spell1055 extends RuntimeSpell {
         offsetY: -182.45,
       }).y,
       onLoad: (clip) => {
-        // AS frame_2/PlaceObject2_8_1/CLIPACTIONRECORD onClipEvent(load).as:
-        //   _X = _parent.cellFrom.x
-        //   _Y = _parent.cellFrom.y
+        // AS frame_2/PlaceObject2_8_1/CLIPACTIONRECORD onClipEvent(load).as
+        // _X = _parent.cellFrom.x; _Y = _parent.cellFrom.y;
         const root = clip.parent;
         const cellFrom = root?.vars.cellFrom as { x: number; y: number } | undefined;
         if (cellFrom) {
@@ -150,59 +156,34 @@ export class Spell1055 extends RuntimeSpell {
         [
           3,
           (clip, ctx) => {
-            // AS DefineSprite_8/frame_4/PlaceObject2_7_4/CLIPACTIONRECORD onClipEvent(load).as
-            // and DefineSprite_8/frame_4/DoAction.as
-            //
-            // The PlaceObject at frame_4 places a child MC at depth 4 (PlaceObject2_7_4),
-            // whose onClipEvent(load) spawns 10 spire particles inside it using
-            // eval("spire" + c) references (i.e. attaching to that child MC).
-            // We model this by creating an intermediate container "spireContainer" and
-            // attaching the spire children to it; the container inherits the clip's
-            // position/rotation so eval("spire"+c)._x = _X etc. works correctly.
-            //
-            // The PlaceObject child itself is positioned at clip._X, clip._Y with
-            // clip._rotation from the authored SWF — since sprite_8 was placed at
-            // cellFrom in onLoad, the container's position is already the right
-            // world position. The spires are attached TO the container at offsets
-            // relative to the container (eval("spire"+c)._y = _Y - random(50) means
-            // relative to the container's own registration, so Y offset = -random(50)).
-            //
-            // AS: c = 1; while (c <= 10) { attachMovie("spire","spire"+c,c); ... c++ }
-            // Note: loop is 1-based c <= 10 (10 iterations)
-            const containerSym: SymbolDefinition = {
-              name: "_spireContainer",
-              totalFrames: 1,
-              frames: [],
-              anchorX: 0.5,
-              anchorY: 0.5,
-              onLoad: (container, innerCtx) => {
-                // AS DefineSprite_8/frame_4/PlaceObject2_7_4/CLIPACTIONRECORD onClipEvent(load).as:
-                //   c = 1; while (c <= 10) { attachMovie("spire","spire"+c, c); set props; c++ }
-                // eval("spire"+c)._x = _X and _y = _Y - random(50) are in the CONTAINER's
-                // local coord space (_X/_Y of the PlaceObject MC, which is 0,0 locally).
-                // _rotation = _rotation means copy the container's rotation.
-                for (let c = 1; c <= 10; c++) {
-                  const spireChild = container.attach(
-                    this.spireSym,
-                    `spire${c}`,
-                    c,
-                    innerCtx,
-                  );
-                  spireChild.x = 0; // eval("spire"+c)._x = _X (container's local X = 0)
-                  spireChild.y = 0 - Math.floor(Math.random() * 50); // _Y - random(50)
-                  spireChild.rotation = container.rotation; // _rotation = _rotation
-                  spireChild.vars.c = c;
-                }
-              },
-            };
-            // Register the ephemeral container sym in registry so attach works
-            this.registry.register(containerSym);
-            clip.attach(containerSym, "_spireContainerInst", 4, ctx);
-
             // AS DefineSprite_8/frame_4/DoAction.as: SOMA.playSound("vlad_804")
-            // Sound playback from a frame script — use the stored callback
+            // Sound is played from the callbacks captured in onSpellStart;
+            // the manifest lists this sound at frame 3 (0-based = frame_4 in AS).
+            // We capture callbacks via the soundCallback field set in onSpellStart.
             if (this.soundCallback) {
               this.soundCallback("vlad_804");
+            }
+
+            // AS DefineSprite_8/frame_4/PlaceObject2_7_4/CLIPACTIONRECORD onClipEvent(load).as
+            // c = 1; while (c <= 10) {
+            //   this.attachMovie("spire","spire"+c,c);
+            //   eval("spire"+c)._x = _X;  ← position at self's current x
+            //   eval("spire"+c)._y = _Y - random(50);
+            //   eval("spire"+c)._rotation = _rotation;
+            //   eval("spire"+c).c = c;
+            //   c++;
+            // }
+            // The spawner object (_X, _Y) is positioned AT clip's own world position
+            // (already set by onLoad to cellFrom). Within clip-local coords, the
+            // spawner sits at (0, 0) relative to the clip. So spires get x=0,
+            // y = -random(50) in clip-local coords, with clip.rotation passed through.
+            for (let c = 1; c <= 10; c++) {
+              const spireClip = clip.attach(this.spireSym, `spire${c}`, c, ctx);
+              spireClip.x = 0;
+              spireClip.y = -Math.floor(Math.random() * 50);
+              spireClip.rotation = clip.rotation;
+              // Pass c so spire's onLoad can read _parent.c
+              spireClip.vars.c = c;
             }
           },
         ],
@@ -210,7 +191,7 @@ export class Spell1055 extends RuntimeSpell {
           114,
           (clip) => {
             // AS DefineSprite_8/frame_115/DoAction.as: _parent.removeMovieClip()
-            // This is the outer mc removal — signal completion.
+            // This is the outermost mc removal → spell complete.
             clip.remove();
             this.runtime.complete();
           },
@@ -218,9 +199,11 @@ export class Spell1055 extends RuntimeSpell {
       ]),
     };
 
-    // ---- sprite_9 — target-side 27-frame impact timeline ---------
-    // Positions itself at cellTo on load.
-    // frame_10: this.end() → signalHit.
+    // ---- sprite_9 — 27-frame target-side timeline --------------------------------
+    // Canonical sources:
+    //   frame_2/PlaceObject2_8_6/CLIPACTIONRECORD onClipEvent(load).as
+    //     → _X = _parent.cellTo.x; _Y = _parent.cellTo.y
+    //   DefineSprite_9/frame_10/DoAction.as → this.end() → signalHit
     this.sprite9Sym = {
       name: "sprite_9",
       totalFrames: 27,
@@ -228,9 +211,8 @@ export class Spell1055 extends RuntimeSpell {
       anchorX: 0.5,
       anchorY: 0.5,
       onLoad: (clip) => {
-        // AS frame_2/PlaceObject2_8_6/CLIPACTIONRECORD onClipEvent(load).as:
-        //   _X = _parent.cellTo.x
-        //   _Y = _parent.cellTo.y
+        // AS frame_2/PlaceObject2_8_6/CLIPACTIONRECORD onClipEvent(load).as
+        // _X = _parent.cellTo.x; _Y = _parent.cellTo.y
         const root = clip.parent;
         const cellTo = root?.vars.cellTo as { x: number; y: number } | undefined;
         if (cellTo) {
@@ -258,16 +240,18 @@ export class Spell1055 extends RuntimeSpell {
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    context: SpellContext,
+    context: SpellContext
   ): void {
-    // Capture sound callback for use in frame scripts
-    this.soundCallback = callbacks.playSound.bind(callbacks);
+    // Capture sound callback so frame scripts inside sprite_8 can play sounds.
+    this.soundCallback = callbacks.playSound;
 
     // AS frame_2/DoAction.as: stop()
-    // The main timeline stops at frame 2 which has sprite_8 (depth 1) and
-    // sprite_9 (depth 6) placed on it with onLoad positioning scripts.
-    // We attach them here so they start ticking from the next runtime frame.
-    this.root.attach(this.sprite8Sym, "sprite8", 1, context);
-    this.root.attach(this.sprite9Sym, "sprite9", 6, context);
+    // The main timeline stops at frame_2. We attach the two authored timelines
+    // that are placed on the main timeline at frame_2:
+    //   PlaceObject2_8_1 (depth 1) → sprite_8, positioned at cellFrom
+    //   PlaceObject2_8_6 (depth 6) → sprite_9, positioned at cellTo
+    // Their onLoad handlers perform the world-coordinate positioning.
+    this.root.attach(this.sprite8Sym, "sprite8_1", 1, context);
+    this.root.attach(this.sprite9Sym, "sprite9_6", 6, context);
   }
 }

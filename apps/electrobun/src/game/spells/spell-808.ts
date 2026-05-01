@@ -1,62 +1,43 @@
 /**
- * Spell 808 — (Earth impact / explosion spell).
+ * Spell 808 — Earth explosion with bouncing stone particles.
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/808/scripts/scripts/
  *
- * displayType=11 (TargetCell). The spell has no projectile motion, no caster
- * reference, no dual-anchored timelines — a single impact animation plays at
- * the target cell. The manifest has one `animations[]` entry (`anim1`, 180
- * frames) and one `librarySymbols[]` entry (`pierres`, a bouncing rock
- * particle). No `move`/`shoot`/`duplicate` symbols present.
+ * displayType=11 (TargetCell). Single impact at target cell, no projectile,
+ * no caster reference. The entire animation plays at the target cell.
  *
- * Canonical AS layout:
- *
- *   - DefineSprite_16 (outer wrapper, 178-frame container):
- *       frame_178: `_parent.removeMovieClip(); stop();` → spell complete.
- *
- *   - DefineSprite_13 (impact flash / sound trigger, 46 frames):
- *       frame_1:  SOMA.playSound("explosion")
- *       frame_46: stop()
- *
- *   - DefineSprite_7 (animated impact sprite, 106 frames):
- *       frame_1:  gotoAndPlay(random(45) + 2)  — starts at random frame 2-46
- *       frame_106: stop()
- *
- *   - DefineSprite_15 (pierres spawner, 1 frame):
- *       frame_1 PlaceObject2_14_17 onClipEvent(load):
- *         attaches 3 `pierres` instances (c=0,1,2)
- *
- *   - lib_pierres — single-frame bouncing rock particle:
- *       onClipEvent(load): seeds vx/vy/t/v/vr, positions parent at random offset
- *       onClipEvent(enterFrame): integrates position with gravity, bounce on Y=0,
- *         stops when velocity is negligible
- *
- * The anim1 animation (180 frames) is the main baked composite. The outer
- * DefineSprite_16 drives the spell lifetime to frame 178 where it removes
- * itself. signalHit is fired at frame 13 of DefineSprite_13 (the "explosion"
- * frame, i.e. when the sound plays and the impact flash begins — frame_1 of
- * that sprite fires the sound).
- *
- * Since the manifest's `librarySymbols` is sparse (only `pierres`), and the
- * other DefineSprites (7, 13, 15, 16) are not listed in librarySymbols, they
- * are represented as container-only SymbolDefinitions with `frames: []`.
- * The `anim1` animation is the top-level visual and is attached via onSpellStart.
+ * SWF structure:
+ *   - DefineSprite_16 — outer 178-frame container (modelled as "anim1").
+ *     Places sprite15 instances at frames 1, 7, and 13 (0-based: 0, 6, 12).
+ *     frame_178 (0-based: 177) calls _parent.removeMovieClip() + stop()
+ *     → this.runtime.complete().
+ *   - DefineSprite_13 — 46-frame impact burst placed inside DefineSprite_16.
+ *     frame_1: SOMA.playSound("explosion"); frame_46: stop().
+ *     Its visual timeline is part of the composite anim1 SVG frames.
+ *   - DefineSprite_7 — randomised sub-sprite inside DefineSprite_13.
+ *     frame_1: gotoAndPlay(random(45)+2); frame_106: stop().
+ *     Its visual timeline is part of the composite anim1 SVG frames.
+ *   - DefineSprite_15 / sprite15 (directlyDynamic: true, kind: "clipEvent"):
+ *     onClipEvent(load): attaches 3 "pierres" stone particle children.
+ *     This MUST be ported to onLoad — it is NOT captured in pre-rendered SVGs.
+ *   - DefineSprite_3_pierres / pierres — stone particle (1 frame).
+ *     onClipEvent(load): seeds vx, vy, scatter position, scale, alpha, v, vr.
+ *     onClipEvent(enterFrame): integrates ballistic motion with bounce at y=0.
+ *     Both MUST be ported to onLoad/onEnterFrame — they are NOT captured in
+ *     pre-rendered SVGs and drive all dynamic particle movement at runtime.
  *
  * Library symbols:
- *   - lib_pierres — rock particle. onLoad seeds vx/vy/t/v/vr, positions
- *     _parent at random offset. onEnterFrame: gravity+bounce simulation,
- *     stops when settled.
- *   - sprite_15 (pierres spawner) — container, attaches 3 pierres on load.
- *   - sprite_13 (flash/sound) — 46-frame container, plays sound on frame_1,
- *     stop on frame_46. signalHit fired at frame_1 (impact moment).
- *   - sprite_7 (impact anim) — 106-frame container, random seek on frame_1,
- *     stop on frame_106.
- *   - sprite_16 (outer wrapper) — 178-frame container, removes outer mc and
- *     signals complete on frame_178.
- *   - anim1 — 180-frame baked composite, top-level visual.
+ *   - pierres — stone particle. onLoad seeds physics vars. onEnterFrame
+ *     integrates ballistic drift + vertical bounce + settling.
+ *   - sprite15 — clipEvent wrapper. onLoad attaches 3 "pierres" children.
+ *   - anim1 — outer 178-frame container. frameScripts place sprite15 at
+ *     the canonical frames and signal completion at frame 178.
  *
- * Main timeline: `onSpellStart` attaches sprite_16 at depth 1.
+ * signalHit: fired at anim1 frameScripts[0] (frame_1 of DefineSprite_16),
+ * which is the canonical explosion impact moment.
+ *
+ * Main timeline: onSpellStart plays "explosion" sound and attaches anim1.
  */
 
 import type {
@@ -78,6 +59,13 @@ const PIERRES_BOUNDS = {
   offsetY: -1.7,
 };
 
+const SPRITE15_BOUNDS = {
+  width: 145.85,
+  height: 437.15,
+  offsetX: -54.25,
+  offsetY: -418.2,
+};
+
 const ANIM1_BOUNDS = {
   width: 258.3,
   height: 480.45,
@@ -91,21 +79,28 @@ export class Spell808 extends RuntimeSpell {
 
   private pierresSym!: SymbolDefinition;
   private sprite15Sym!: SymbolDefinition;
-  private sprite13Sym!: SymbolDefinition;
-  private sprite7Sym!: SymbolDefinition;
-  private sprite16Sym!: SymbolDefinition;
   private anim1Sym!: SymbolDefinition;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext,
+    _context: SpellContext
   ): void {
     const pierresAnchor = calculateAnchor(PIERRES_BOUNDS);
+    const sprite15Anchor = calculateAnchor(SPRITE15_BOUNDS);
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- lib_pierres — bouncing rock particle --------------------
-    // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
-    // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    // ---- pierres — stone particle with full ballistic physics ------
+    // The onLoad and onEnterFrame below port the canonical CLIPACTIONRECORD
+    // scripts verbatim. These handlers run at runtime per-tick and are the
+    // sole source of particle motion — they are NOT represented in the
+    // pre-rendered SVG frames in any way.
+    //
+    // Note on AS structure: the CLIPACTIONRECORD lives on PlaceObject2_2_1
+    // INSIDE DefineSprite_3_pierres. In AS terms "this" = the inner placed
+    // child, "_parent" = the pierres sprite container. The inner child's
+    // _Y / _rotation are the vertical bounce state; _parent._x/_y are the
+    // horizontal scatter drift. We model this by tracking driftX/driftY
+    // separately from innerY/innerRotation and composing them onto clip.x/y.
     this.pierresSym = {
       name: "pierres",
       totalFrames: 1,
@@ -113,218 +108,235 @@ export class Spell808 extends RuntimeSpell {
       anchorX: pierresAnchor.x,
       anchorY: pierresAnchor.y,
       onLoad: (clip) => {
-        // AS onClipEvent(load):
-        //   vx = 5 * (Math.random() - 0.5)
-        //   vy = 2 * (Math.random() - 0.5)
-        //   _parent._x = 20 * (Math.random() - 0.5)
-        //   _parent._y = 10 * (Math.random() - 0.5)
-        //   t = 60 + 40 * Math.random()
-        //   _xscale = t; _yscale = t; _alpha = 20 + random(90)
-        //   v = -12 * Math.random() - 3
-        //   vr = 40 * (-0.5 + Math.random())
+        // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/
+        //     CLIPACTIONRECORD onClipEvent(load).as
+        //
+        // vx = 5 * (Math.random() - 0.5);
+        // vy = 2 * (Math.random() - 0.5);
+        // _parent._x = 20 * (Math.random() - 0.5);
+        // _parent._y = 10 * (Math.random() - 0.5);
+        // t = 60 + 40 * Math.random();
+        // _xscale = t; _yscale = t;
+        // _alpha = 20 + random(90);
+        // v = -12 * Math.random() - 3;
+        // vr = 40 * (-0.5 + Math.random());
         clip.vars.vx = 5 * (Math.random() - 0.5);
         clip.vars.vy = 2 * (Math.random() - 0.5);
-        // _parent._x / _parent._y — pierres' parent is the pierres clip itself
-        // in canonical AS the inner child's load event sets _parent._x/y,
-        // meaning the pierres container (clip) gets repositioned.
-        // In our model the clip IS the pierres instance (the sprite definition
-        // already carries the visual). We apply the position offset directly
-        // on the clip, mirroring the effect of _parent._x assignment.
-        clip.x = 20 * (Math.random() - 0.5);
-        clip.y = 10 * (Math.random() - 0.5);
+        const driftX = 20 * (Math.random() - 0.5);
+        const driftY = 10 * (Math.random() - 0.5);
+        clip.vars.driftX = driftX;
+        clip.vars.driftY = driftY;
+        clip.x = driftX;
+        clip.y = driftY;
         const t = 60 + 40 * Math.random();
+        clip.vars.t = t;
         clip.scaleX = t / 100;
         clip.scaleY = t / 100;
         clip.alpha = (20 + Math.floor(Math.random() * 90)) / 100;
         clip.vars.v = -12 * Math.random() - 3;
         clip.vars.vr = 40 * (-0.5 + Math.random());
-        clip.vars.t = t;
-        // Internal Y position for bounce simulation (separate from clip.y which
-        // tracks the _parent._x/_y offset set in load). We track _Y as a var.
-        clip.vars.localY = 0;
+        // innerY / innerRotation model the inner placed child's _Y / _rotation
+        clip.vars.innerY = 0;
+        clip.vars.innerRotation = 0;
       },
       onEnterFrame: (clip) => {
-        // AS onClipEvent(enterFrame):
-        //   _parent._x += vx; _parent._y += vy
-        //   if(t != 1) {
-        //     _Y += v; _rotation += vr; v += 1.5
-        //     if(_Y > 0) { vx/=2; vy/=2; _rotation=0; _Y=0; v=(-v)/4;
-        //       if(Math.abs(v)<1) { vx=0; vy=0; t=1; } } }
-        const vx = clip.vars.vx as number;
-        const vy = clip.vars.vy as number;
-        const t = clip.vars.t as number;
+        // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/
+        //     CLIPACTIONRECORD onClipEvent(enterFrame).as
+        //
+        // _parent._x += vx;
+        // _parent._y += vy;
+        // if (t != 1) {
+        //   _Y = _Y + v;
+        //   _rotation = _rotation + vr;
+        //   v += 1.5;
+        //   if (_Y > 0) {
+        //     vx /= 2; vy /= 2;
+        //     _rotation = 0; _Y = 0;
+        //     v = (-v) / 4;
+        //     if (Math.abs(v) < 1) { vx = 0; vy = 0; t = 1; }
+        //   }
+        // }
+        let vx = clip.vars.vx as number;
+        let vy = clip.vars.vy as number;
+        let t = clip.vars.t as number;
+        let v = clip.vars.v as number;
+        const vr = clip.vars.vr as number;
+        let innerY = clip.vars.innerY as number;
+        let innerRotation = clip.vars.innerRotation as number;
+        let driftX = clip.vars.driftX as number;
+        let driftY = clip.vars.driftY as number;
 
-        // _parent._x += vx — move the container (clip) in X/Y
-        clip.x += vx;
-        clip.y += vy;
+        // _parent._x += vx; _parent._y += vy;
+        driftX += vx;
+        driftY += vy;
 
         if (t !== 1) {
-          let v = clip.vars.v as number;
-          let localY = clip.vars.localY as number;
-          let vr = clip.vars.vr as number;
-
-          localY += v;
-          // AS rotation in degrees → radians delta
-          clip.rotation += (vr * Math.PI) / 180;
+          innerY += v;
+          innerRotation += vr;
           v += 1.5;
 
-          if (localY > 0) {
-            clip.vars.vx = vx / 2;
-            clip.vars.vy = vy / 2;
-            clip.rotation = 0;
-            localY = 0;
+          if (innerY > 0) {
+            vx /= 2;
+            vy /= 2;
+            innerRotation = 0;
+            innerY = 0;
             v = (-v) / 4;
             if (Math.abs(v) < 1) {
-              clip.vars.vx = 0;
-              clip.vars.vy = 0;
-              clip.vars.t = 1;
+              vx = 0;
+              vy = 0;
+              t = 1;
             }
           }
-
-          clip.vars.v = v;
-          clip.vars.localY = localY;
-          clip.vars.vr = vr;
         }
+
+        // Compose scatter drift + vertical bounce into clip position/rotation
+        clip.x = driftX;
+        clip.y = driftY + innerY;
+        clip.rotation = (innerRotation * Math.PI) / 180;
+
+        clip.vars.vx = vx;
+        clip.vars.vy = vy;
+        clip.vars.t = t;
+        clip.vars.v = v;
+        clip.vars.innerY = innerY;
+        clip.vars.innerRotation = innerRotation;
+        clip.vars.driftX = driftX;
+        clip.vars.driftY = driftY;
       },
     };
 
-    // ---- sprite_15 — pierres spawner (1-frame container) ---------
-    // AS: DefineSprite_15/frame_1/PlaceObject2_14_17/CLIPACTIONRECORD onClipEvent(load).as
-    //   c=0; while(c<3) { this.attachMovie("pierres","pierres"+c,c); c++; }
+    // ---- sprite15 — clipEvent wrapper, onLoad attaches 3 pierres ---
+    // directlyDynamic: true. The CLIPACTIONRECORD onClipEvent(load) on
+    // PlaceObject2_14_17 inside DefineSprite_15 attaches 3 "pierres"
+    // children. This runs at runtime via onLoad and is NOT present in
+    // any pre-rendered SVG frame.
     this.sprite15Sym = {
-      name: "sprite_15",
+      name: "sprite15",
       totalFrames: 1,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
+      frames: textures.getFrames("lib_sprite15"),
+      anchorX: sprite15Anchor.x,
+      anchorY: sprite15Anchor.y,
       onLoad: (clip, ctx) => {
-        // AS onClipEvent(load) for PlaceObject2_14_17 inside DefineSprite_15
+        // AS: DefineSprite_15/frame_1/PlaceObject2_14_17/
+        //     CLIPACTIONRECORD onClipEvent(load).as
+        //
+        // c = 0;
+        // while (c < 3) {
+        //   this.attachMovie("pierres", "pierres" + c, c);
+        //   c++;
+        // }
         for (let c = 0; c < 3; c++) {
           clip.attach(this.pierresSym, `pierres${c}`, c, ctx);
         }
       },
     };
 
-    // ---- sprite_13 — impact flash / sound (46-frame container) --
-    // AS: DefineSprite_13/frame_1/DoAction.as → SOMA.playSound("explosion")
-    // AS: DefineSprite_13/frame_46/DoAction.as → stop()
-    // signalHit is fired here at frame_1 (impact moment, sound plays).
-    this.sprite13Sym = {
-      name: "sprite_13",
-      totalFrames: 46,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (_clip) => {
-            // AS DefineSprite_13/frame_1/DoAction.as: SOMA.playSound("explosion")
-            // Sound is played via onSpellStart at the outer level (main timeline).
-            // Here we signal hit as this is the canonical impact moment.
-            this.runtime.signalHit();
-          },
-        ],
-        [
-          45,
-          (clip) => {
-            // AS DefineSprite_13/frame_46/DoAction.as: stop()
-            clip.stop();
-          },
-        ],
-      ]),
-    };
-
-    // ---- sprite_7 — impact animated sprite (106-frame container) -
-    // AS: DefineSprite_7/frame_1/DoAction.as → gotoAndPlay(random(45) + 2)
-    // AS: DefineSprite_7/frame_106/DoAction.as → stop()
-    this.sprite7Sym = {
-      name: "sprite_7",
-      totalFrames: 106,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (clip) => {
-            // AS DefineSprite_7/frame_1/DoAction.as: gotoAndPlay(random(45) + 2)
-            // AS gotoAndPlay(N) → clip.gotoAndPlay(N - 1)
-            // random(45) gives 0-44, +2 gives 2-46, -1 for 0-based gives 1-45
-            clip.gotoAndPlay(Math.floor(Math.random() * 45) + 1);
-          },
-        ],
-        [
-          105,
-          (clip) => {
-            // AS DefineSprite_7/frame_106/DoAction.as: stop()
-            clip.stop();
-          },
-        ],
-      ]),
-    };
-
-    // ---- sprite_16 — outer wrapper (178-frame container) ---------
-    // AS: DefineSprite_16/frame_178/DoAction.as → _parent.removeMovieClip(); stop()
-    // This is the outermost container; its removal signals spell completion.
-    // It also hosts sprite_13, sprite_7, sprite_15, and anim1 as children.
-    this.sprite16Sym = {
-      name: "sprite_16",
-      totalFrames: 178,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          177,
-          (clip) => {
-            // AS DefineSprite_16/frame_178/DoAction.as: _parent.removeMovieClip(); stop()
-            clip.remove();
-            this.runtime.complete();
-          },
-        ],
-      ]),
-      onLoad: (clip, ctx) => {
-        // Attach child sprites that are placed on DefineSprite_16's timeline.
-        // sprite_13 (sound/flash), sprite_7 (random-start anim), sprite_15
-        // (pierres spawner), and anim1 (baked composite) are all children of
-        // the outer wrapper in the canonical SWF.
-        clip.attach(this.anim1Sym, "anim1", 1, ctx);
-        clip.attach(this.sprite13Sym, "sprite13", 2, ctx);
-        clip.attach(this.sprite7Sym, "sprite7", 3, ctx);
-        clip.attach(this.sprite15Sym, "sprite15", 4, ctx);
-      },
-    };
-
-    // ---- anim1 — 180-frame baked composite (main visual) --------
-    // Listed in manifest animations[] only (not librarySymbols[]) so
-    // textures are loaded with the bare name "anim1" (no lib_ prefix).
+    // ---- anim1 — outer 178-frame container (DefineSprite_16) -------
+    // Models the outermost authored sprite. Its SVG frames carry the
+    // authored static visual content of the explosion burst timeline.
+    // The dynamic sprite15 particle instances are attached via frameScripts
+    // at the canonical placement frames.
+    //
+    // Placement schedule from manifest librarySymbols[1] (sprite15):
+    //   frame 0  (AS frame_1):  depth 19, scaleX 1.19085, x=15.85,  y=-11.8
+    //   frame 6  (AS frame_7):  depth 1,  scaleX 1.15904, x=-70.45, y=-14.6
+    //   frame 12 (AS frame_13): depth 37, scaleX 1.15904, x=-9.25,  y=28.7
+    //
+    // frame_178 (0-based 177): _parent.removeMovieClip() → complete().
     this.anim1Sym = {
       name: "anim1",
       totalFrames: 180,
       frames: textures.getFrames("anim1"),
       anchorX: anim1Anchor.x,
       anchorY: anim1Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS: DefineSprite_16 places sprite15 at depth 19 on frame_1.
+            // matrix: {scaleX:1.19085693359375, scaleY:1, rotateSkew0:0,
+            //          rotateSkew1:0, translateX:15.85, translateY:-11.8}
+            // Also: DefineSprite_13/frame_1/DoAction.as fires playSound —
+            // handled in onSpellStart. Signal hit at this canonical impact frame.
+            const inst = clip.attach(
+              this.sprite15Sym,
+              "sprite15_d19",
+              19,
+              ctx
+            );
+            inst.x = 15.85;
+            inst.y = -11.8;
+            inst.scaleX = 1.19085693359375;
+            inst.scaleY = 1;
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          6,
+          (clip, ctx) => {
+            // AS: DefineSprite_16 places sprite15 at depth 1 on frame_7.
+            // matrix: {scaleX:1.1590423583984375, scaleY:1, rotateSkew0:0,
+            //          rotateSkew1:0, translateX:-70.45, translateY:-14.6}
+            const inst = clip.attach(
+              this.sprite15Sym,
+              "sprite15_d1",
+              1,
+              ctx
+            );
+            inst.x = -70.45;
+            inst.y = -14.6;
+            inst.scaleX = 1.1590423583984375;
+            inst.scaleY = 1;
+          },
+        ],
+        [
+          12,
+          (clip, ctx) => {
+            // AS: DefineSprite_16 places sprite15 at depth 37 on frame_13.
+            // matrix: {scaleX:1.1590423583984375, scaleY:1, rotateSkew0:0,
+            //          rotateSkew1:0, translateX:-9.25, translateY:28.7}
+            const inst = clip.attach(
+              this.sprite15Sym,
+              "sprite15_d37",
+              37,
+              ctx
+            );
+            inst.x = -9.25;
+            inst.y = 28.7;
+            inst.scaleX = 1.1590423583984375;
+            inst.scaleY = 1;
+          },
+        ],
+        [
+          177,
+          (clip) => {
+            // AS: DefineSprite_16/frame_178/DoAction.as
+            //   _parent.removeMovieClip();
+            //   stop();
+            clip.remove();
+            this.runtime.complete();
+          },
+        ],
+      ]),
     };
 
     this.registry.register(this.pierresSym);
     this.registry.register(this.sprite15Sym);
-    this.registry.register(this.sprite13Sym);
-    this.registry.register(this.sprite7Sym);
-    this.registry.register(this.sprite16Sym);
     this.registry.register(this.anim1Sym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    context: SpellContext,
+    context: SpellContext
   ): void {
-    // AS DefineSprite_13/frame_1/DoAction.as: SOMA.playSound("explosion")
-    // The manifest also lists this sound at frame 0. Play it at spell start.
+    // AS: DefineSprite_13/frame_1/DoAction.as — SOMA.playSound("explosion")
+    // DefineSprite_13 is placed on frame_1 of DefineSprite_16; its frame_1
+    // fires the sound. We fire it here at spell start matching canonical timing.
     callbacks.playSound("explosion");
 
-    // Attach the outer wrapper (sprite_16) which in turn attaches all
-    // child sprites (anim1, sprite_13, sprite_7, sprite_15) in its onLoad.
-    this.root.attach(this.sprite16Sym, "sprite16", 1, context);
+    // Attach the outer anim1 container (DefineSprite_16) at the root.
+    // This mirrors the canonical main SWF timeline placing DefineSprite_16
+    // at depth 1 on frame_1.
+    this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

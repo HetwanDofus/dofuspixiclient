@@ -1,16 +1,12 @@
-import type { LiveMonsterGroup } from "@modules/monsters/map-monster.service";
 import type { HandlerContext } from "@shared/gateway-adapter/ws-router";
 import { create } from "@bufbuild/protobuf";
-import { CharacterColorsSchema, SpriteType } from "@dofus/proto/common_pb";
 import {
   type GameCreateRequest,
   GameCreateRequestSchema,
   GameCreateSchema,
   GameMovementSchema,
-  MonsterGroupMemberSchema,
   type SpriteMovementEntry,
   SpriteMovementEntry_Operation,
-  SpriteMovementEntrySchema,
 } from "@dofus/proto/game_pb";
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { SpellListSchema } from "@dofus/proto/spells_pb";
@@ -18,6 +14,7 @@ import { AccessoriesService } from "@modules/inventory/accessories.service";
 import { buildMapData } from "@modules/maps/maps.build-data";
 import { MapsRepository } from "@modules/maps/maps.repository";
 import { MapMonsterService } from "@modules/monsters/map-monster.service";
+import { monsterGroupToSpriteEntry } from "@modules/monsters/map-monster.sprite-entry";
 import { PlayerPresenceService } from "@modules/player-presence/player-presence.service";
 import { toSpriteEntry } from "@modules/player-presence/player-presence.sprite-entry";
 import { PlayersRepository } from "@modules/players/players.repository";
@@ -29,7 +26,6 @@ import { MessageHandler } from "@shared/gateway-adapter/message-handler.decorato
 import { SessionRegistry } from "@shared/gateway-adapter/session-registry";
 
 const DEFAULT_COLOR = -1;
-const DEFAULT_SCALE = 100;
 
 @Injectable()
 export class EnterGameHandler {
@@ -133,7 +129,7 @@ export class EnterGameHandler {
     let monsterEntries: SpriteMovementEntry[] = [];
     try {
       const monsterGroups = await this.mapMonsters.ensureSpawned(player.mapId);
-      monsterEntries = monsterGroups.map(groupToSpriteEntry);
+      monsterEntries = monsterGroups.map(monsterGroupToSpriteEntry);
     } catch (err) {
       this.logger.error(
         `failed to spawn monsters on map=${player.mapId}: ${err instanceof Error ? err.message : String(err)}`
@@ -199,33 +195,4 @@ export class EnterGameHandler {
       })
     );
   }
-}
-
-function groupToSpriteEntry(group: LiveMonsterGroup): SpriteMovementEntry {
-  const leader = group.members[0];
-  return create(SpriteMovementEntrySchema, {
-    operation: SpriteMovementEntry_Operation.ADD,
-    spriteType: SpriteType.MONSTER_GROUP,
-    spriteId: String(group.id),
-    cellId: group.cellId,
-    direction: group.direction,
-    gfxId: leader?.gfx ?? 0,
-    scaleX: DEFAULT_SCALE,
-    scaleY: DEFAULT_SCALE,
-    colors: create(CharacterColorsSchema, {
-      color1: leader?.color1 ?? DEFAULT_COLOR,
-      color2: leader?.color2 ?? DEFAULT_COLOR,
-      color3: leader?.color3 ?? DEFAULT_COLOR,
-    }),
-    monsters: group.members.map((m) =>
-      create(MonsterGroupMemberSchema, {
-        templateId: m.templateId,
-        level: m.level,
-        gfxId: m.gfx,
-        color1: m.color1,
-        color2: m.color2,
-        color3: m.color3,
-      })
-    ),
-  });
 }

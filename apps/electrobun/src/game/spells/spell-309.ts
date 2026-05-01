@@ -1,30 +1,32 @@
 /**
- * Spell 309 — Setag (Sram trap-style ground effect).
+ * Spell 309 — Setag (Ecaflip tarot card strike).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/309/scripts/scripts/
  *
- * displayType=11 (TargetCell). The single sprite_91 positions itself at
- * _parent.cellTo on frame_1 — that's an impact at the target cell, no
- * projectile, no caster reference beyond cellTo. Single authored timeline,
- * 144 frames, with four sound cues and a signalHit at frame_127, removal
- * at frame_142.
+ * displayType=11 (TargetCell). The spell has a single animated sprite
+ * (sprite_91) that positions itself at cellTo on frame_1 and plays a
+ * 144-frame authored timeline. No attachMovie calls, no projectile
+ * motion, no library symbols — the content is entirely driven by the
+ * sprite_91 timeline which is placed on the main timeline (implicitly
+ * by the SWF's authored frame_1 PlaceObject2).
  *
- * Library symbols: none (librarySymbols[] is empty in manifest). The sole
- * content is `sprite_91` which appears in `animations[]` and is attached
- * by the main timeline as a direct child.
+ * The main timeline has `stop()` at frame_2, meaning the outer SWF
+ * halts at frame 2 while sprite_91 plays out independently.
  *
- * Main timeline: frame_2/DoAction.as → stop(). The implicit frame_1
- * placement of sprite_91 is reproduced by attaching it in onSpellStart.
+ * sprite_91 timeline events:
+ *   frame_1  (index 0):  position at cellTo.x / cellTo.y
+ *   frame_16 (index 15): SOMA.playSound("setag_309a")
+ *   frame_43 (index 42): SOMA.playSound("setag_309b")
+ *   frame_70 (index 69): SOMA.playSound("setag_309b")
+ *   frame_118 (index 117): SOMA.playSound("setag_309b")
+ *   frame_127 (index 126): this.end() → signalHit
+ *   frame_142 (index 141): _parent.removeMovieClip() → complete
  *
- * sprite_91 frame scripts (144 frames):
- *   frame_1   → position self at cellTo
- *   frame_16  → SOMA.playSound("setag_309a")
- *   frame_43  → SOMA.playSound("setag_309b")
- *   frame_70  → SOMA.playSound("setag_309b")
- *   frame_118 → SOMA.playSound("setag_309b")
- *   frame_127 → this.end() → signalHit
- *   frame_142 → _parent.removeMovieClip() → complete()
+ * Library symbols: none (sprite_91 is in animations[], not librarySymbols[]).
+ *
+ * Main timeline: frame_2/DoAction.as → stop() (no-op from our side since
+ * the harness root doesn't auto-play; onSpellStart attaches sprite_91).
  */
 
 import type {
@@ -59,8 +61,8 @@ export class Spell309 extends RuntimeSpell {
   ): void {
     const sprite91Anchor = calculateAnchor(SPRITE_91_BOUNDS);
 
-    // sprite_91 — 144-frame ground effect anchored at target cell.
-    // No lib_ prefix: this symbol is in animations[] only, not librarySymbols[].
+    // sprite_91 lives in animations[] (not librarySymbols[]), so textures
+    // are accessed under the bare name "sprite_91" (no lib_ prefix).
     this.sprite91Sym = {
       name: "sprite_91",
       totalFrames: 144,
@@ -73,6 +75,10 @@ export class Spell309 extends RuntimeSpell {
           (clip) => {
             // AS DefineSprite_91/frame_1/DoAction.as
             // _X = _parent.cellTo.x; _Y = _parent.cellTo.y;
+            // For displayType=11 the container is already anchored at
+            // cellTo, so the sprite's local (0,0) IS cellTo. This
+            // explicit positioning matches that behaviour. We still
+            // honour the canonical script for correctness.
             const root = clip.parent;
             const cellTo = root?.vars.cellTo as
               | { x: number; y: number }
@@ -119,7 +125,7 @@ export class Spell309 extends RuntimeSpell {
           126,
           () => {
             // AS DefineSprite_91/frame_127/DoAction.as
-            // this.end() → damage popup at target.
+            // this.end() → canonical hit signal (damage popup at target).
             this.runtime.signalHit();
           },
         ],
@@ -127,7 +133,7 @@ export class Spell309 extends RuntimeSpell {
           141,
           (clip) => {
             // AS DefineSprite_91/frame_142/DoAction.as
-            // _parent.removeMovieClip(); → spell complete.
+            // _parent.removeMovieClip() → spell complete.
             clip.parent?.remove();
             this.runtime.complete();
           },
@@ -142,11 +148,13 @@ export class Spell309 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture sound callback for use inside frame scripts.
+    // Capture the sound callback so frame scripts can play sounds.
     this.soundCallback = callbacks.playSound;
 
-    // Main timeline implicit frame_1 placement of sprite_91.
-    // frame_2/DoAction.as: stop(); — the main timeline stops after placing the child.
+    // Main timeline frame_1: implicitly places sprite_91 at depth 1.
+    // frame_2/DoAction.as → stop() (the outer container halts; sprite_91
+    // continues independently, which the runtime already handles since
+    // each clip ticks its own timeline).
     this.root.attach(this.sprite91Sym, "sprite91", 1, context);
   }
 }

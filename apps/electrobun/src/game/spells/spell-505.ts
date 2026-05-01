@@ -1,32 +1,25 @@
 /**
- * Spell 505 — Many (unknown Dofus class, likely Sadida or similar).
+ * Spell 505 — Maîtrise des Armes (or equivalent Feca/Sacrier shield-type spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/505/scripts/scripts/
  *
- * displayType=11 (TargetCell). The spell has no projectile motion, no
- * `move`/`shoot`/`duplicate` symbols, and no `cellFrom`/`cellTo` world-
- * absolute positioning logic. The single `anim1` animation plays at the
- * target cell. The manifest lists no `librarySymbols[]` — only a bare
- * `animations: [{name: "anim1", ...}]` entry, so textures are loaded
- * via `textures.getFrames("anim1")` (no `lib_` prefix).
+ * displayType=11 (TargetCell). There is no projectile, no caster reference,
+ * no move/shoot/duplicate symbol. The single animation (anim1) plays at the
+ * target cell. The DefineSprite_16 timeline is the only authored sprite:
+ *   - frame_4/DoAction.as: positions self at _parent.cellFrom.x/y and calls
+ *     this.end() (signalHit).
+ *   - frame_121/DoAction.as: _parent.removeMovieClip() + stop() → spell complete.
  *
- * AS layout:
- *   - `DefineSprite_16` — the main animation sprite (123 frames).
- *       frame_4  (AS frame_4): position self at _parent.cellFrom; call
- *                this.end() → signalHit.
- *       frame_121 (AS frame_121): _parent.removeMovieClip(); stop()
- *                → spell complete.
- *   - `frame_1/DoAction.as` (main timeline): SOMA.playSound("many_505").
+ * Main timeline frame_1/DoAction.as: SOMA.playSound("many_505").
  *
- * The `anim1` animation in the manifest corresponds to `DefineSprite_16`
- * at runtime. We register it as a symbol named "anim1" and attach it
- * from `onSpellStart` so the harness (TargetCell) positions the container
- * at the target cell, then the sprite optionally repositions itself to
- * cellFrom on frame_4 for the hit signal.
+ * Library symbols: none (librarySymbols[] is empty in manifest).
+ * The single `anim1` animation entry provides all 123 pre-rendered composite
+ * frames for DefineSprite_16.
  *
- * signalHit: frame_4 of DefineSprite_16 → `this.end()` canonical.
- * complete:  frame_121 of DefineSprite_16 → `_parent.removeMovieClip()`.
+ * Signal map:
+ *   - signalHit  at frame_4  (AS: this.end())   → frameScripts index 3
+ *   - complete   at frame_121 (AS: _parent.removeMovieClip()) → frameScripts index 120
  */
 
 import type {
@@ -41,6 +34,7 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
+// Bounds from manifest animations[0]
 const ANIM1_BOUNDS = {
   width: 518,
   height: 409.35,
@@ -60,8 +54,9 @@ export class Spell505 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1 (DefineSprite_16) — main animation at target -----
-    // 123 frames total; frame_4 fires signalHit, frame_121 completes.
+    // DefineSprite_16 — the single authored timeline (123 frames).
+    // Textures come from the bare "anim1" key (no lib_ prefix — this
+    // symbol lives in animations[], not librarySymbols[]).
     this.anim1Sym = {
       name: "anim1",
       totalFrames: 123,
@@ -72,10 +67,10 @@ export class Spell505 extends RuntimeSpell {
         [
           3,
           (clip) => {
-            // AS scripts/DefineSprite_16/frame_4/DoAction.as:
-            //   _X = _parent.cellFrom.x;
-            //   _Y = _parent.cellFrom.y;
-            //   this.end();
+            // AS DefineSprite_16/frame_4/DoAction.as
+            // _X = _parent.cellFrom.x;
+            // _Y = _parent.cellFrom.y;
+            // this.end();  ← signalHit
             const root = clip.parent;
             const cellFrom = root?.vars.cellFrom as
               | { x: number; y: number }
@@ -90,11 +85,11 @@ export class Spell505 extends RuntimeSpell {
         [
           120,
           (clip) => {
-            // AS scripts/DefineSprite_16/frame_121/DoAction.as:
-            //   _parent.removeMovieClip();
-            //   stop();
+            // AS DefineSprite_16/frame_121/DoAction.as
+            // _parent.removeMovieClip();
+            // stop();
             clip.stop();
-            clip.parent?.remove();
+            clip.remove();
             this.runtime.complete();
           },
         ],
@@ -108,12 +103,11 @@ export class Spell505 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS scripts/frame_1/DoAction.as:
-    //   SOMA.playSound("many_505");
+    // AS frame_1/DoAction.as: SOMA.playSound("many_505");
     callbacks.playSound("many_505");
 
-    // Attach the main animation sprite at depth 1 on the root.
-    // The container is already positioned at cellTo by TargetCell harness.
+    // Attach the DefineSprite_16 timeline at the root so it starts
+    // ticking from the next runtime frame.
     this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

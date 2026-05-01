@@ -1,4 +1,5 @@
 import type { DofusPathfinding } from "@dofus/grid";
+import { clampFightDirection } from "@dofus/grid";
 import type { Sprite } from "pixi.js";
 import { ColorMatrixFilter, Container, Graphics, Ticker } from "pixi.js";
 
@@ -25,13 +26,18 @@ import {
   type PlayerAnimationValue,
 } from "@/game/scene/player/animation";
 import {
-  drawFighterGroundCircle,
-  drawHPBar,
+  applyFighterCircleTeam,
+  createFighterGroundCircle,
   drawPlayerPlaceholder,
+  FighterOverheadPanel,
 } from "@/game/scene/player/graphics";
 import { PlayerMovement } from "@/game/scene/player/movement";
-import { PlayerNameplate } from "@/game/scene/player/nameplate";
 import { PlayerPerfMonitor } from "@/game/scene/player/perf";
+import {
+  clearPlayerNameplates,
+  hidePlayerNameplate,
+  setPlayerNameplate,
+} from "@/hud/world/player-nameplate-store";
 import { PlayerSpriteController } from "@/game/scene/player/sprite-controller";
 import {
   type ActivePlayer,
@@ -46,14 +52,18 @@ const log = createLogger("PlayerRenderer");
 const GHOST_VIEW_ALPHA = 0.8;
 
 /**
- * ColorMatrix that mirrors the Flash color transform
+ * ColorMatrix mirroring the canonical Flash colour transform
  * `{ra:60, rb:102, ga:60, gb:102, ba:60, bb:102}` from
- * Sprite.as:98 (the original 1.29 "selected sprite" look). Each
- * channel is multiplied by 0.6 then offset by 102/255 ≈ 0.4, which
- * brightens shadows without blowing out highlights — the washed-out
- * pop the client uses on the active fighter.
+ * `ank.battlefield.mc.Sprite.select` (Sprite.as:93-105). Multiplies
+ * each channel by 0.6 then adds 102/255 ≈ 0.4 — the warm yellowy
+ * "highlighted sprite" wash the canonical client applies on
+ * `selectSprite(true)`.
+ *
+ * In canonical 1.29 this filter fires on **roll-over**, NOT on the
+ * active turn (active turn is conveyed by the timeline pointer +
+ * StringCourse banner + cell highlight VFX, not a sprite tint).
  */
-function buildActiveTurnFilter(): ColorMatrixFilter {
+function buildHoverSelectFilter(): ColorMatrixFilter {
   const f = new ColorMatrixFilter();
   const offset = 102 / 255;
   // prettier-ignore
@@ -83,37 +93,23 @@ function buildActiveTurnFilter(): ColorMatrixFilter {
 }
 
 /**
- * Combat only recognises the four isometric-cardinal facings
- * (1=SE, 3=SW, 5=NW, 7=NE). An even direction coming from roleplay
- * (E/S/W/N — cells that aren't reachable in a fight) gets snapped to
- * the nearest odd that keeps the sprite's left/right orientation:
- *   0 (E — right-facing) → 1 (SE)    —— Dofus's canonical "front"
- *   2 (S — front)        → 1 (SE)    —— same default front pose
- *   4 (W — left-facing)  → 3 (SW)    —— mirror of the E case
- *   6 (N — back)         → 5 (NW)    —— mirror of the S case
+ * Canonical anchor offset above the sprite for the world-space
+ * TextOverHead. Mirrors `dofus.Constants.DEFAULT_SPRITE_HEIGHT = 50`
+ * — `addSpriteOverHeadItem` attaches the overhead clip at
+ * `(0, -DEFAULT_SPRITE_HEIGHT)` in sprite-local space.
  */
-function clampFightDirection(dir: number): number {
-  if ((dir & 1) === 1) {
-    return dir;
-  }
-  switch (dir) {
-    case 0:
-    case 2:
-      return 1;
-    case 4:
-      return 3;
-    case 6:
-      return 5;
-    default:
-      return 1;
-  }
-}
+const NAMEPLATE_OFFSET_Y = -50;
 
 /**
  * Map-level coordinator that owns the player registry + the PIXI parent
  * container. Per-player concerns (sprite loading, animation, movement,
- * nameplate, mount layers, HP, perf) live in focused collaborators that
+ * mount layers, HP, perf) live in focused collaborators that
  * receive an ActivePlayer reference to read/mutate.
+ *
+ * The world-space TextOverHead nameplate (out-of-fight name box) lives
+ * in React DOM — `apps/electrobun/src/hud/world/PlayerNameplate.tsx`.
+ * This class pushes show / hide / position-update events to the store;
+ * the React component renders them.
  */
 export class PlayerRenderer {
   private container: Container;
@@ -142,6 +138,12 @@ export class PlayerRenderer {
   private activeTurnPlayerId: number | null = null;
   private unsubPreTick: () => void;
   private unsubPostTick: () => void;
+  /**
+   * Player ids whose React nameplate is currently visible. Tracked
+   * here so the post-tick hook can refresh anchor positions for
+   * exactly the visible set (no per-frame work for hidden ones).
+   */
+  private readonly visibleNameplateIds = new Set<number>();
 
   private readonly sprites: PlayerSpriteController;
   private readonly movement: PlayerMovement;
@@ -172,6 +174,7 @@ export class PlayerRenderer {
       players: () => this.players,
       spriteController: () => this.sprites,
       calculateZIndex: (cellId) => this.calculateZIndex(cellId),
+      isFight: () => this.fightMode,
     });
 
     this.unsubPreTick = this.scene.onPreTick(() => this.onPreTick());
@@ -250,13 +253,27 @@ export class PlayerRenderer {
       player.hp = data.hp ?? player.hp;
       player.maxHp = data.maxHp ?? player.maxHp;
 
-      if (player.hpBar.visible) {
-        drawHPBar(player.hpBar, player.hp, player.maxHp, player.team);
-      }
+      // Always update the overhead panel — visibility is hover-gated,
+      // so the panel just stays in sync without triggering re-render
+      // on hidden fighters.
+      player.overhead.setHp(player.hp, player.maxHp);
     }
 
     if (data.name !== undefined) {
-      player.nameplate.setName(data.name);
+      player.displayName = data.name;
+      player.overhead.setName(data.name);
+      // If the nameplate is currently shown, refresh its text in the
+      // store so a name update mid-hover lands without waiting for
+      // the next show/hide cycle.
+      if (this.visibleNameplateIds.has(id)) {
+        const anchor = this.computeNameplateAnchor(player);
+        setPlayerNameplate({
+          id,
+          name: data.name,
+          anchorX: anchor.x,
+          anchorY: anchor.y,
+        });
+      }
     }
   }
 
@@ -286,13 +303,22 @@ export class PlayerRenderer {
     options?: {
       revertTo?: PlayerAnimationValue;
       /**
-       * Fires once when a one-shot animation reaches its last frame.
-       * Used for canonical sequencer-blocking semantics — e.g. cast
-       * pose completes → THEN spell visual launches (mirrors
-       * SpriteHandler.as:782 `addAction(18, true=blocking, setAnim)`
-       * before `addAction(20, addEffect)`).
+       * Fires at the canonical `applyEnd` frame (mid-anim, the spell-LAUNCH
+       * hook in `GlobalSpriteHandler.applyEnd → sequencer.onActionEnd()`).
+       * Used to start the spell visual once the windup peaks — mirrors
+       * `SpriteHandler.as:782 addAction(18, blocking=true, setAnim)`
+       * before `addAction(20, addEffect)`.
        */
       onComplete?: () => void;
+      /**
+       * Fires when the one-shot animation reaches its actual last frame.
+       * This is the HIT moment — for close-combat punch the fist
+       * contacts; for ranged casts the windup is fully resolved and any
+       * spell-visual would be in flight. Damage popups / recoil pose
+       * canonical fire at this point (GA;100 actions queue AFTER the
+       * cast/visual sequence on the same per-sprite Sequencer).
+       */
+      onLastFrame?: () => void;
     }
   ): void {
     const player = this.players.get(id);
@@ -307,6 +333,8 @@ export class PlayerRenderer {
     // queued cast→idle revert.
     player.revertTo = null;
     player.onAnimComplete = null;
+    player.onAnimLastFrame = null;
+    player.animDataAtRequest = null;
     if (options?.revertTo && isOneShotAnimation(animation)) {
       player.revertTo = options.revertTo;
       // Reset the frame counter so the one-shot anim plays from frame 0
@@ -317,7 +345,24 @@ export class PlayerRenderer {
     if (options?.onComplete && isOneShotAnimation(animation)) {
       player.onAnimComplete = options.onComplete;
     }
+    if (options?.onLastFrame && isOneShotAnimation(animation)) {
+      player.onAnimLastFrame = options.onLastFrame;
+    }
     const baseAnim = getAnimationBaseFromType(animation);
+    // Snapshot the current animation data BEFORE delegating to
+    // sprite-controller. The lifecycle gate fires hooks only after the
+    // controller's `apply()` has swapped `currentAnimData` to a new
+    // reference, which guarantees the requested animation has actually
+    // been installed (regardless of any fallback the loader picked
+    // through MONSTER_ANIM_FALLBACKS or SUFFIX_FALLBACKS). For the
+    // sync-cached case `apply()` runs inline below, so the snapshot is
+    // immediately stale and the gate opens on the next tick.
+    if (
+      isOneShotAnimation(animation) &&
+      (options?.revertTo || options?.onComplete || options?.onLastFrame)
+    ) {
+      player.animDataAtRequest = player.currentAnimData;
+    }
     this.sprites.switch(player, baseAnim, player.direction);
   }
 
@@ -342,7 +387,10 @@ export class PlayerRenderer {
    *      this anim, fall back to firing both signals at the last frame.
    */
   private checkAnimRevert(player: ActivePlayer): void {
-    if ((!player.revertTo && !player.onAnimComplete) || !player.currentAnimData) {
+    if (
+      (!player.revertTo && !player.onAnimComplete && !player.onAnimLastFrame) ||
+      !player.currentAnimData
+    ) {
       return;
     }
     if (!isOneShotAnimation(player.animation)) {
@@ -351,6 +399,27 @@ export class PlayerRenderer {
       // setAnimation.
       player.revertTo = null;
       player.onAnimComplete = null;
+      player.onAnimLastFrame = null;
+      player.animDataAtRequest = null;
+      return;
+    }
+    // Wait for sprite-controller's apply() to swap currentAnimData to
+    // the new animation. Until then, `frameIndex >= lastFrame` would
+    // be true on tick zero against the OLD animation's small frame
+    // count (often a 1-frame idle), firing all the lifecycle hooks
+    // before the requested anim has even started — that's the bug
+    // showing up as "hit triggers at the wrong time", and it gets
+    // worse on monsters because their loader falls through
+    // MONSTER_ANIM_FALLBACKS (anim0 → anim1) and SUFFIX_FALLBACKS
+    // (R → S → L) before settling on what's actually shipped, so the
+    // load takes longer and the bogus early fire is more visible.
+    // Reference equality on `currentAnimData` is fallback-agnostic:
+    // any apply() swaps the reference, regardless of what name the
+    // loader landed on.
+    if (
+      player.animDataAtRequest !== null &&
+      player.animDataAtRequest === player.currentAnimData
+    ) {
       return;
     }
     const total =
@@ -372,10 +441,21 @@ export class PlayerRenderer {
       player.onAnimComplete = null;
       onComplete();
     }
+    // Fire the hit hook at the actual last frame — this is the moment
+    // the canonical Sequencer treats the cast/melee sequence as
+    // "completed" (the inner timeline's stop() lands on the last
+    // frame), so any subsequent action queued behind the spell can
+    // run. Damage popups + recoil pose hang off this signal.
+    if (player.onAnimLastFrame && player.frameIndex >= lastFrame) {
+      const onLastFrame = player.onAnimLastFrame;
+      player.onAnimLastFrame = null;
+      onLastFrame();
+    }
     // Revert only when the animation has actually finished playing.
     if (player.revertTo && player.frameIndex >= lastFrame) {
       const next = player.revertTo;
       player.revertTo = null;
+      player.animDataAtRequest = null;
       this.setAnimation(player.id, next);
     }
   }
@@ -419,7 +499,23 @@ export class PlayerRenderer {
   }
 
   getPlayerName(id: number): string | null {
-    return this.players.get(id)?.nameplate.getName() ?? null;
+    return this.players.get(id)?.displayName ?? null;
+  }
+
+  /** True while the player renderer is in fight mode. Read by picking. */
+  isFightMode(): boolean {
+    return this.fightMode;
+  }
+
+  /**
+   * Look string the player was registered with (`gfx|c1|c2|c3|acc1,..`).
+   * The StringCourse turn-change banner needs this to re-rasterise the
+   * fighter's portrait via Vello with the correct color zones +
+   * accessory composition — same input format CharacterSpriteLoader
+   * accepts.
+   */
+  getPlayerLook(id: number): string | null {
+    return this.players.get(id)?.look ?? null;
   }
 
   getPlayerPickingData(
@@ -442,12 +538,71 @@ export class PlayerRenderer {
 
   showName(id: number): void {
     const f = this.players.get(id);
-    f?.nameplate.show(f.container);
+    if (!f) {
+      return;
+    }
+    // Canonical TextOverHead is suppressed during fights — the
+    // HealthBarOverHead replaces it (`DofusBattlefield.as:889/910`
+    // sets `_loc10_ = ""` so the `if(_loc10_ != "")` branch at line
+    // 1058 skips). The picking layer also gates this, but enforcing
+    // it here too means a stray showName() call from anywhere can't
+    // accidentally double-overlay during combat.
+    if (this.fightMode) {
+      return;
+    }
+    this.visibleNameplateIds.add(id);
+    const anchor = this.computeNameplateAnchor(f);
+    setPlayerNameplate({
+      id,
+      name: f.displayName,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
+    });
   }
 
   hideName(id: number): void {
-    const f = this.players.get(id);
-    f?.nameplate.hide(f.container);
+    if (!this.visibleNameplateIds.delete(id)) {
+      return;
+    }
+    hidePlayerNameplate(id);
+  }
+
+  private computeNameplateAnchor(
+    player: ActivePlayer
+  ): { x: number; y: number } {
+    // `getGlobalPosition` walks every parent transform (zoom + pan
+    // included), returning the canvas-stage position in CSS pixels —
+    // exactly the coord space `HudOverlay`'s wrapper uses.
+    const global = player.container.toGlobal({ x: 0, y: NAMEPLATE_OFFSET_Y });
+    return { x: global.x, y: global.y };
+  }
+
+  /**
+   * Refresh anchor positions for every visible nameplate. Called
+   * once per post-tick so the React panels follow movement and
+   * camera pans without round-tripping through rAF.
+   */
+  private flushVisibleNameplates(): void {
+    if (this.visibleNameplateIds.size === 0) {
+      return;
+    }
+    for (const id of this.visibleNameplateIds) {
+      const player = this.players.get(id);
+      if (!player) {
+        // Player got cleaned up while still in the visible set —
+        // tidy up so we don't keep firing setState for a ghost.
+        this.visibleNameplateIds.delete(id);
+        hidePlayerNameplate(id);
+        continue;
+      }
+      const anchor = this.computeNameplateAnchor(player);
+      setPlayerNameplate({
+        id,
+        name: player.displayName,
+        anchorX: anchor.x,
+        anchorY: anchor.y,
+      });
+    }
   }
 
   // ── Camera / map sync ───────────────────────────────────────────────
@@ -483,12 +638,16 @@ export class PlayerRenderer {
     const res = Math.max(2, Math.ceil(event.zoom));
 
     for (const player of this.players.values()) {
-      player.nameplate.setResolution(res);
+      player.overhead.setResolution(res);
     }
 
     this.spriteLoader.setZoom(event.zoom);
     this.sprites.reloadAll(this.players.values());
     this.pickingSystem?.markDirty();
+    // Camera-zoom change moves canvas-relative anchor coords for every
+    // visible nameplate. Push the new positions immediately so the
+    // panels don't lag behind the canvas until the next tick.
+    this.flushVisibleNameplates();
   }
 
   // ── Lifecycle ───────────────────────────────────────────────────────
@@ -499,6 +658,8 @@ export class PlayerRenderer {
     for (const actor of Array.from(this.playerActors.values())) {
       this.scene.remove(actor.id);
     }
+    this.visibleNameplateIds.clear();
+    clearPlayerNameplates();
   }
 
   destroy(): void {
@@ -524,8 +685,8 @@ export class PlayerRenderer {
       sprite: null,
       placeholderGraphics: display.placeholderGraphics,
       groundCircle: display.groundCircle,
-      nameplate: display.nameplate,
-      hpBar: display.hpBar,
+      overhead: display.overhead,
+      displayName: data.name,
       cellId: data.cellId,
       direction,
       team: data.team,
@@ -545,11 +706,15 @@ export class PlayerRenderer {
       movePixelSpeed: move.movePixelSpeed,
       useRun: move.useRun,
       isMounting: !!data.mount,
+      isCharacter: data.isCharacter ?? data.isPlayer,
+      speedModerator: move.speedModerator,
       moving: move.moving,
       spriteLoading: false,
       pendingAnim: null,
       revertTo: null,
       onAnimComplete: null,
+      onAnimLastFrame: null,
+      animDataAtRequest: null,
       look: data.look,
       linkedChildren: [],
       mount: data.mount,
@@ -561,9 +726,8 @@ export class PlayerRenderer {
   private createPlayerContainer(data: PlayerSpriteData): {
     container: Container;
     placeholderGraphics: Graphics;
-    groundCircle: Graphics | null;
-    nameplate: PlayerNameplate;
-    hpBar: Graphics;
+    groundCircle: Sprite | null;
+    overhead: FighterOverheadPanel;
   } {
     const container = new Container();
     container.label = `player-${data.id}`;
@@ -575,8 +739,12 @@ export class PlayerRenderer {
     // negative zIndex on the sortable container. Always created so a
     // mid-game fight-mode toggle doesn't need to mutate the display
     // list; visibility is gated on `fightMode` so roleplay stays clean.
-    const groundCircle = new Graphics();
-    drawFighterGroundCircle(groundCircle, data.team);
+    //
+    // Backed by the canonical circle.swf vector (encoded inline as an
+    // SVG data URL in `graphics.ts`); pixi raster-tints it per team —
+    // the previous Graphics.ellipse + 2px stroke aliased noticeably at
+    // common zoom levels.
+    const groundCircle = createFighterGroundCircle(data.team);
     groundCircle.zIndex = -10;
     groundCircle.visible = this.fightMode;
     container.addChild(groundCircle);
@@ -585,11 +753,19 @@ export class PlayerRenderer {
     drawPlayerPlaceholder(placeholderGraphics, data.team, data.direction);
     container.addChild(placeholderGraphics);
 
-    const nameplate = new PlayerNameplate(data.name);
-
-    // HP bar hidden for world actors in roleplay mode; shown by fight UI.
-    const hpBar = new Graphics();
-    hpBar.visible = false;
+    // Canonical Dofus 1.29 HealthBarOverHead — rounded black panel
+    // with name + red HP bar (with LP value text on it). Hidden by
+    // default; the picking layer toggles visibility on hover during
+    // fights (mirrors DofusBattlefield.onSpriteRollOver/Out).
+    //
+    // The roleplay TextOverHead (compact name) lives in React DOM —
+    // see `apps/electrobun/src/hud/world/PlayerNameplate.tsx`. We
+    // don't add a PIXI nameplate child anymore.
+    const overhead = new FighterOverheadPanel(data.name);
+    overhead.container.zIndex = 10;
+    overhead.setHp(data.hp, data.maxHp);
+    overhead.setVisible(false);
+    container.addChild(overhead.container);
 
     const pos = getCellPositionWithSlope(
       data.cellId,
@@ -597,13 +773,25 @@ export class PlayerRenderer {
       this.groundLevel,
       this.cellDataMap
     );
-    container.x = pos.x;
-    container.y = pos.y;
-    container.zIndex = this.calculateZIndex(data.cellId);
+    // `pixelOffset` lets monster-group siblings spread around the
+    // leader's cell so all members are visible as individual sprites.
+    // The z-index is bumped by the offset's y so a sibling drawn
+    // slightly back stays behind the leader instead of clipping in
+    // front when a slope places them on the same scanline.
+    const ox = data.pixelOffset?.x ?? 0;
+    const oy = data.pixelOffset?.y ?? 0;
+    container.x = pos.x + ox;
+    container.y = pos.y + oy;
+    container.zIndex = this.calculateZIndex(data.cellId) + Math.round(oy);
 
     this.container.addChild(container);
 
-    return { container, placeholderGraphics, groundCircle, nameplate, hpBar };
+    return {
+      container,
+      placeholderGraphics,
+      groundCircle,
+      overhead,
+    };
   }
 
   /**
@@ -617,17 +805,48 @@ export class PlayerRenderer {
    */
   setFightMode(enabled: boolean): void {
     this.fightMode = enabled;
+    if (enabled) {
+      // Canonical onSpriteRollOver in fights uses HealthBarOverHead
+      // (the panel) and skips the TextOverHead branch (`_loc10_=""`,
+      // `if(_loc10_ != "")` at DofusBattlefield.as:1058). Drop any
+      // roleplay-side nameplate that survived the transition so we
+      // don't double-overlay above the fighter.
+      this.visibleNameplateIds.clear();
+      clearPlayerNameplates();
+    }
     for (const player of this.players.values()) {
       if (player.groundCircle) {
         player.groundCircle.visible = enabled;
       }
-      if (enabled) {
+      // Overhead panel is hover-only (canonical Dofus 1.29: the
+      // HealthBarOverHead appears on `onSpriteRollOver` and is
+      // removed on `onSpriteRollOut`). When fight mode ends, force-
+      // hide so a stale panel doesn't linger into roleplay.
+      if (!enabled) {
+        player.overhead.setVisible(false);
+      } else {
+        // Pre-render at current values so the panel is correct the
+        // moment the hover hook flips it on.
+        player.overhead.setHp(player.hp, player.maxHp);
         const clamped = clampFightDirection(player.direction);
         if (clamped !== player.direction) {
           this.setDirection(player.id, clamped);
         }
       }
     }
+  }
+
+  /**
+   * Show / hide the overhead panel above a single fighter. Wired to
+   * the picking layer's hover callback so the panel follows the cursor.
+   */
+  setHpBarVisible(id: number, visible: boolean): void {
+    const player = this.players.get(id);
+    if (!player) return;
+    if (visible) {
+      player.overhead.setHp(player.hp, player.maxHp);
+    }
+    player.overhead.setVisible(visible && this.fightMode);
   }
 
   /**
@@ -643,7 +862,7 @@ export class PlayerRenderer {
     }
     player.team = team;
     if (player.groundCircle) {
-      drawFighterGroundCircle(player.groundCircle, team);
+      applyFighterCircleTeam(player.groundCircle, team);
     }
   }
 
@@ -658,24 +877,35 @@ export class PlayerRenderer {
    * no battlefield-level "active turn" indicator — only the sprite
    * brightness.
    */
+  /**
+   * Track which fighter currently has the turn baton. Canonical 1.29
+   * does NOT tint the active fighter — that's a roll-over-only effect
+   * (see `setHoverHighlight`). Active turn is communicated through
+   * the timeline pointer + StringCourse banner + on-cell highlight
+   * VFX. Kept as a hook so other systems (timeline tint, banner
+   * chrono) can react to the change without re-deriving it.
+   */
   setActiveTurnPlayer(id: number | null): void {
     if (this.activeTurnPlayerId === id) {
       return;
     }
-    const prev = this.activeTurnPlayerId;
     this.activeTurnPlayerId = id;
-    if (prev !== null) {
-      const p = this.players.get(prev);
-      if (p?.sprite) {
-        p.sprite.filters = [];
-      }
+  }
+
+  /**
+   * Apply the canonical Sprite.select colour transform on hover, and
+   * remove it on un-hover. Mirrors `Sprite.select(bool)` in
+   * `ank/battlefield/mc/Sprite.as`. Wired from BattlefieldPicking's
+   * onHover callback so every fighter (player or monster) gets the
+   * same yellowy wash that 1.29 uses to communicate "this sprite is
+   * selected".
+   */
+  setHoverHighlight(id: number, hovered: boolean): void {
+    const player = this.players.get(id);
+    if (!player?.sprite) {
+      return;
     }
-    if (id !== null) {
-      const p = this.players.get(id);
-      if (p?.sprite) {
-        p.sprite.filters = [buildActiveTurnFilter()];
-      }
-    }
+    player.sprite.filters = hovered ? [buildHoverSelectFilter()] : [];
   }
 
   private registerPlayerActor(
@@ -761,6 +991,9 @@ export class PlayerRenderer {
       this.removePlayer(childId);
     }
 
+    if (this.visibleNameplateIds.delete(id)) {
+      hidePlayerNameplate(id);
+    }
     this.container.removeChild(player.container);
     player.container.destroy({ children: true });
     this.players.delete(id);
@@ -782,6 +1015,11 @@ export class PlayerRenderer {
     const flushT0 = performance.now();
     this.spriteLoader.getAtlas()?.flush();
     this.perf.recordFlush(flushT0);
+
+    // Push fresh canvas-relative anchors to the React nameplate
+    // store so the panels follow movement + camera pans without a
+    // dedicated DOM-side rAF loop. No-op when nothing is visible.
+    this.flushVisibleNameplates();
 
     this.perf.endFrame(
       Ticker.shared.deltaMS,

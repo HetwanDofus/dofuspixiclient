@@ -10,6 +10,7 @@ import {
   getCellPositionWithSlope,
   getClampedDeltaMs,
   getMovementOffset,
+  getRunLimit,
   PlayerAnimation,
   shouldUseRun,
   startMovementSegment,
@@ -34,6 +35,12 @@ export interface PlayerMovementDeps {
   players(): Map<number, ActivePlayer>;
   spriteController(): PlayerSpriteController;
   calculateZIndex(cellId: number): number;
+  /**
+   * Whether the renderer is currently in fight mode. Used to pick the
+   * AS2 `runLimit` (3 in fight for everyone, 3 for Characters
+   * elsewhere, 6 for non-Characters on the overworld).
+   */
+  isFight(): boolean;
 }
 
 /**
@@ -63,10 +70,16 @@ export class PlayerMovement {
         return;
       }
 
-      // Mounted players always walk (mount speed); others pick walk/run by path length.
+      // Mounted players always walk (mount speed); others pick walk/run
+      // by path length using the AS2 per-context runLimit (3 for
+      // Characters always, 6 for non-Characters on the overworld).
+      const runLimit = getRunLimit({
+        isCharacter: player.isCharacter,
+        isFight: this.deps.isFight(),
+      });
       const useRun = player.isMounting
         ? false
-        : shouldUseRun(normalized.length);
+        : shouldUseRun(normalized.length, runLimit);
       player.path = normalized;
       player.pathIndex = 0;
       player.useRun = useRun;
@@ -305,6 +318,7 @@ export class PlayerMovement {
       movePixelSpeed: player.movePixelSpeed,
       useRun: player.useRun,
       isMounting: player.isMounting,
+      speedModerator: player.speedModerator,
       moving: player.moving,
     };
   }

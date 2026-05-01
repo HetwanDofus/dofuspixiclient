@@ -1,55 +1,81 @@
 /**
- * Spell 815 — Vlad's Punch (Sacrieur-style impact spell).
+ * Spell 815 — Vlad's Punch (likely a Sacrier/melee spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/815/scripts/scripts/
  *
- * displayType=11 (TargetCell). No projectile motion, no caster reference,
- * no `_parent.cellFrom` / `_parent.cellTo` world-absolute positioning —
- * all content is anchored at the target cell. The manifest has a single
- * `animations[]` entry (`anim1`, no librarySymbols), meaning all authored
- * frame content is driven by the main timeline composite.
+ * displayType=11 (TargetCell). No projectile motion symbols (move/shoot/duplicate),
+ * no caster-relative anchoring, no dual-timeline world-absolute pattern. The spell
+ * plays entirely at the target cell. Single `anim1` animation in the manifest with
+ * no librarySymbols[] — all content is driven by authored timeline clips.
  *
- * Canonical AS layout:
+ * AS layout:
  *   - Main timeline frame_1: SOMA.playSound("vlad_806")
- *   - DefineSprite_3 (anim1 wrapper): frame_1 sets _rotation = random(360),
- *     _alpha = 50. Used as a display wrapper for the anim1 composite.
- *   - DefineSprite_6 (inner burst, t=variant): frame_1 plays "punch" sound
- *     and seeds scale-up animation; frame_19 stops.
- *   - DefineSprite_7 (variant, t=7): frame_1 seeds t=7; frame_22 signals
- *     hit; frame_91 removes outer mc + stops.
- *   - DefineSprite_8 (variant, t=11): frame_1 seeds t=11; frame_64 signals
- *     hit; frame_106 removes outer mc + stops.
- *   - DefineSprite_9 (variant, t=20): frame_1 seeds t=20; frame_79 signals
- *     hit; frame_118 removes outer mc + stops.
- *   - DefineSprite_10 (variant, t=25): frame_1 seeds t=25; frame_79 signals
- *     hit; frame_121 removes outer mc + stops.
- *   - DefineSprite_11 (variant, t=33): frame_1 seeds t=33; frame_79 signals
- *     hit; frame_121 removes outer mc + stops.
- *   - DefineSprite_12: frame_1 does gotoAndStop(_parent.level) — selects
- *     which variant sub-sprite to show based on spell level.
+ *   - DefineSprite_6 (the "outer" container, 19 frames):
+ *       frame_1: SOMA.playSound("punch") + scale-up particle logic (t = random+t, xscale/yscale
+ *                ramp via onEnterFrame).
+ *       frame_19: stop()
+ *   - DefineSprite_3 (single-frame flash/rotation sprite):
+ *       frame_1: _rotation = random(360); _alpha = 50
+ *   - DefineSprite_12 (level-selector):
+ *       frame_1: gotoAndStop(_parent.level)
+ *       Each level-frame presumably shows a different sized impact.
+ *   - DefineSprite_7 (t=7, 91 frames):
+ *       frame_1: t = 7
+ *       frame_22: this.end() → signalHit
+ *       frame_91: _parent._parent.removeMovieClip(); stop() → complete
+ *   - DefineSprite_8 (t=11, 106 frames):
+ *       frame_1: t = 11
+ *       frame_64: this.end() → signalHit
+ *       frame_106: _parent._parent.removeMovieClip(); stop() → complete
+ *   - DefineSprite_9 (t=20, 118 frames):
+ *       frame_1: t = 20
+ *       frame_79: this.end() → signalHit
+ *       frame_118: _parent._parent.removeMovieClip(); stop() → complete
+ *   - DefineSprite_10 (t=25, 121 frames):
+ *       frame_1: t = 25
+ *       frame_79: this.end() → signalHit
+ *       frame_121: _parent._parent.removeMovieClip(); stop() → complete
+ *   - DefineSprite_11 (t=33, 121 frames):
+ *       frame_1: t = 33
+ *       frame_79: this.end() → signalHit
+ *       frame_121: _parent._parent.removeMovieClip(); stop() → complete
  *
- * Because `librarySymbols` is empty in the manifest, all symbols use bare
- * texture keys (no "lib_" prefix). The single `anim1` animation is used
- * for the main visual. The DefineSprite_* containers are orchestration
- * shells registered as container-only symbols (frames: []) except for
- * DefineSprite_3 which wraps the anim1 frames, and DefineSprite_6 which
- * has its own scale-up burst visual.
+ * The manifest has no librarySymbols[]. The animations[] list has a single
+ * entry "anim1" (5 frames, composite). These DefineSprites are internal
+ * timeline symbols — we model them as container SymbolDefinitions with
+ * frames: [] (container-only) since their visual content is the composite
+ * anim1 frames, not separate lib_ textures.
  *
- * The level-select pattern (DefineSprite_12 → gotoAndStop(level)) picks
- * which duration variant fires. The variants differ only in their `t`
- * (lifetime/scale seed) and the frame at which they signal hit vs. remove.
- * We expose all variants as separate symbols and wire DefineSprite_12's
- * frame_1 to select the right child via gotoAndStop(level - 1).
+ * The DefineSprite_12 "level selector" picks which sub-animation plays
+ * based on spell level. The five levels map to the five `anim1` frames.
+ * DefineSprite_3 adds a random-rotation flash overlay.
  *
- * Longest-lived symbol across all levels:
- *   - level 1: DefineSprite_7 → 91 frames
- *   - level 2: DefineSprite_8 → 106 frames
- *   - level 3: DefineSprite_9 → 118 frames
- *   - level 4: DefineSprite_10 → 121 frames
- *   - level 5: DefineSprite_11 → 121 frames
- *   - level 6: (reuses DefineSprite_11 or DefineSprite_9 — use 11)
- * complete() is called from whichever variant's removal frame fires.
+ * The DefineSprite_6 is the impact "punch" wrapper that positions the
+ * level-selector and rotation-flash child and plays the punch sound.
+ * Its onEnterFrame scales up the outer container rapidly then slows
+ * (t /= 1.6 decay).
+ *
+ * DefineSprites 7, 8, 9, 10, 11 appear to be level-specific impact
+ * timelines (t=7 → level 1, t=11 → level 2, t=20 → level 3,
+ * t=25 → level 4, t=33 → level 5). They each call this.end() at their
+ * hit frame and _parent._parent.removeMovieClip() at their last frame.
+ * The outer structure likely attachMovies one of these based on level,
+ * wrapping DefineSprite_6 inside it.
+ *
+ * Since there is no explicit attachMovie chain in the AS (the manifest
+ * has no librarySymbols), and the manifest has a single composite
+ * "anim1" with 5 frames (one per level), we model each DefineSprite as
+ * a SymbolDefinition. DefineSprite_12's gotoAndStop(_parent.level) maps
+ * frame index = level - 1 (0-based), selecting the correct anim1 frame.
+ *
+ * The outermost per-level sprites (7/8/9/10/11) wrap the entire
+ * animation; the spell selects one based on context.level. We attach
+ * the appropriate sprite from onSpellStart.
+ *
+ * Library symbol → texture mapping: Since librarySymbols[] is EMPTY,
+ * we use bare texture names (no lib_ prefix). The "anim1" animation
+ * is the visual content for DefineSprite_3/12/6.
  */
 
 import type {
@@ -64,7 +90,7 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-// anim1 bounds from manifest animations[0]
+// anim1 bounds from manifest.json animations[0]
 const ANIM1_BOUNDS = {
   width: 238.25,
   height: 242.35,
@@ -76,12 +102,12 @@ export class Spell815 extends RuntimeSpell {
   readonly spellId = 815;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  // Keep references to variant symbols for use in DefineSprite_12's frame_1
-  private ds7Sym!: SymbolDefinition;
-  private ds8Sym!: SymbolDefinition;
-  private ds9Sym!: SymbolDefinition;
-  private ds10Sym!: SymbolDefinition;
-  private ds11Sym!: SymbolDefinition;
+  // Hold refs for use in onSpellStart
+  private sprite7Sym!: SymbolDefinition;
+  private sprite8Sym!: SymbolDefinition;
+  private sprite9Sym!: SymbolDefinition;
+  private sprite10Sym!: SymbolDefinition;
+  private sprite11Sym!: SymbolDefinition;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
@@ -90,13 +116,13 @@ export class Spell815 extends RuntimeSpell {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
     const anim1Frames = textures.getFrames("anim1");
 
-    // ---- DefineSprite_3 — anim1 wrapper with random rotation + 50% alpha ----
-    // AS scripts/DefineSprite_3/frame_1/DoAction.as:
+    // ---- DefineSprite_3 — single-frame rotation+alpha flash ------
+    // AS DefineSprite_3/frame_1/DoAction.as:
     //   _rotation = random(360);
     //   _alpha = 50;
-    const ds3Sym: SymbolDefinition = {
+    const sprite3Sym: SymbolDefinition = {
       name: "sprite3",
-      totalFrames: anim1Frames.length > 0 ? anim1Frames.length : 5,
+      totalFrames: 1,
       frames: anim1Frames,
       anchorX: anim1Anchor.x,
       anchorY: anim1Anchor.y,
@@ -104,7 +130,7 @@ export class Spell815 extends RuntimeSpell {
         [
           0,
           (clip) => {
-            // AS scripts/DefineSprite_3/frame_1/DoAction.as
+            // AS DefineSprite_3/frame_1/DoAction.as
             clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
             clip.alpha = 50 / 100;
           },
@@ -112,16 +138,48 @@ export class Spell815 extends RuntimeSpell {
       ]),
     };
 
-    // ---- DefineSprite_6 — inner burst visual, level-parameterised t ----
-    // AS scripts/DefineSprite_6/frame_1/DoAction.as:
+    // ---- DefineSprite_12 — level-selector (5 frames = 5 levels) --
+    // AS DefineSprite_12/frame_1/DoAction.as:
+    //   gotoAndStop(_parent.level);
+    // Selects the anim1 frame corresponding to the spell level (1-5).
+    const sprite12Sym: SymbolDefinition = {
+      name: "sprite12",
+      totalFrames: 5,
+      frames: anim1Frames,
+      anchorX: anim1Anchor.x,
+      anchorY: anim1Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_12/frame_1/DoAction.as
+            // gotoAndStop(_parent.level) — level is 1-based, convert to 0-based
+            const parent = clip.parent;
+            const level = (parent?.vars.level as number) ?? 1;
+            clip.gotoAndStop(Math.max(0, Math.min(level - 1, 4)));
+          },
+        ],
+      ]),
+    };
+
+    // ---- DefineSprite_6 — punch impact wrapper (19 frames) -------
+    // AS DefineSprite_6/frame_1/DoAction.as:
     //   SOMA.playSound("punch");
-    // AS scripts/DefineSprite_6/frame_1/DoAction_2.as:
+    // AS DefineSprite_6/frame_1/DoAction_2.as:
     //   t = random(_parent.t) + _parent.t;
     //   _xscale = 0; _yscale = 0;
-    //   onEnterFrame: _xscale += t; _yscale += t; t /= 1.6;
-    // AS scripts/DefineSprite_6/frame_19/DoAction.as:
+    //   this.onEnterFrame = function() {
+    //     _xscale = _xscale + t; _yscale = _yscale + t;
+    //     t /= 1.6;
+    //   };
+    // AS DefineSprite_6/frame_19/DoAction.as:
     //   stop();
-    const ds6Sym: SymbolDefinition = {
+    //
+    // Note: SOMA.playSound is only available via callbacks in onSpellStart.
+    // DefineSprite_6 is attached as a child of the per-level sprites (7-11),
+    // so its "punch" sound will fire when the outer level-sprite's timeline
+    // attaches it. We capture the sound callback at init time.
+    const sprite6Sym: SymbolDefinition = {
       name: "sprite6",
       totalFrames: 19,
       frames: [],
@@ -131,50 +189,57 @@ export class Spell815 extends RuntimeSpell {
         [
           0,
           (clip, ctx) => {
-            // AS scripts/DefineSprite_6/frame_1/DoAction.as + DoAction_2.as
-            // Note: sound "punch" is played here in canonical AS. We cannot
-            // call callbacks from a frameScript directly, but the manifest
-            // also lists "punch" on frame 0 of the main sounds list and
-            // DefineSprite_6/frame_1 also references it. We play it via
-            // the stored callback.
-            //
-            // Seed the scale-up animation vars.
-            const parentT = (clip.parent?.vars.t as number) ?? 7;
+            // AS DefineSprite_6/frame_1/DoAction.as: SOMA.playSound("punch")
+            // Sound is fired via the stored callback (see onSpellStart).
+            this.punchCallback?.("punch");
+
+            // AS DefineSprite_6/frame_1/DoAction_2.as:
+            //   t = random(_parent.t) + _parent.t;
+            //   _xscale = 0; _yscale = 0;
+            //   this.onEnterFrame = function() { ... };
+            const parentT = (clip.parent?.vars.t as number) ?? 10;
             const t = Math.floor(Math.random() * parentT) + parentT;
             clip.vars.t = t;
             clip.scaleX = 0;
             clip.scaleY = 0;
-            // Attach the anim1 visual wrapper (sprite3) at depth 1
-            clip.attach(ds3Sym, "anim1wrapper", 1, ctx);
+
+            // Attach visual children: sprite3 (flash) and sprite12 (level selector)
+            clip.attach(sprite3Sym, "sprite3", 1, ctx);
+            clip.attach(sprite12Sym, "sprite12", 2, ctx);
+            // Pass level down so sprite12 can read _parent.level
+            clip.vars.level = ctx.level;
+
+            // onEnterFrame is set via the SymbolDefinition's onEnterFrame below,
+            // but the canonical AS sets it inline in frame_1. We model it via the
+            // symbol's onEnterFrame field — it is already wired. Nothing more needed here.
           },
         ],
         [
           18,
           (clip) => {
-            // AS scripts/DefineSprite_6/frame_19/DoAction.as: stop()
+            // AS DefineSprite_6/frame_19/DoAction.as: stop()
             clip.stop();
           },
         ],
       ]),
       onEnterFrame: (clip) => {
-        // AS scripts/DefineSprite_6/frame_1/DoAction_2.as onEnterFrame:
-        //   _xscale += t; _yscale += t; t /= 1.6;
-        // Only run after t has been seeded (frame_1 onLoad sets it)
-        const t = clip.vars.t as number | undefined;
-        if (t === undefined) {
+        // AS DefineSprite_6/frame_1/DoAction_2.as onEnterFrame:
+        //   _xscale = _xscale + t; _yscale = _yscale + t; t /= 1.6;
+        const t = clip.vars.t as number;
+        if (t === undefined || t === null) {
           return;
         }
-        clip.scaleX += t / 100;
-        clip.scaleY += t / 100;
+        clip.scaleX = clip.scaleX + t / 100;
+        clip.scaleY = clip.scaleY + t / 100;
         clip.vars.t = t / 1.6;
       },
     };
 
-    // ---- DefineSprite_7 — variant t=7, hit at frame 22, remove at frame 91 ----
-    // AS scripts/DefineSprite_7/frame_1/DoAction.as: t = 7
-    // AS scripts/DefineSprite_7/frame_22/DoAction.as: this.end() → signalHit
-    // AS scripts/DefineSprite_7/frame_91/DoAction.as: _parent._parent.removeMovieClip(); stop()
-    this.ds7Sym = {
+    // ---- DefineSprite_7 — level-1 outer timeline (t=7, 91 frames) --
+    // AS DefineSprite_7/frame_1/DoAction.as:   t = 7;
+    // AS DefineSprite_7/frame_22/DoAction.as:  this.end() → signalHit
+    // AS DefineSprite_7/frame_91/DoAction.as:  _parent._parent.removeMovieClip(); stop()
+    this.sprite7Sym = {
       name: "sprite7",
       totalFrames: 91,
       frames: [],
@@ -184,39 +249,36 @@ export class Spell815 extends RuntimeSpell {
         [
           0,
           (clip, ctx) => {
-            // AS scripts/DefineSprite_7/frame_1/DoAction.as
+            // AS DefineSprite_7/frame_1/DoAction.as: t = 7
             clip.vars.t = 7;
-            clip.attach(ds6Sym, "burst", 1, ctx);
+            clip.vars.level = ctx.level;
+            // Attach the punch-impact child
+            clip.attach(sprite6Sym, "sprite6", 1, ctx);
           },
         ],
         [
           21,
           () => {
-            // AS scripts/DefineSprite_7/frame_22/DoAction.as: this.end()
+            // AS DefineSprite_7/frame_22/DoAction.as: this.end() → signalHit
             this.runtime.signalHit();
           },
         ],
         [
           90,
           (clip) => {
-            // AS scripts/DefineSprite_7/frame_91/DoAction.as:
-            //   _parent._parent.removeMovieClip(); stop()
-            // _parent._parent from sprite7's perspective:
-            //   sprite7 → ds12 container → root
-            // We remove the ds12 container and complete.
-            clip.parent?.remove();
+            // AS DefineSprite_7/frame_91/DoAction.as: _parent._parent.removeMovieClip(); stop()
+            clip.remove();
             this.runtime.complete();
-            clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- DefineSprite_8 — variant t=11, hit at frame 64, remove at frame 106 ----
-    // AS scripts/DefineSprite_8/frame_1/DoAction.as: t = 11
-    // AS scripts/DefineSprite_8/frame_64/DoAction.as: this.end() → signalHit
-    // AS scripts/DefineSprite_8/frame_106/DoAction.as: _parent._parent.removeMovieClip(); stop()
-    this.ds8Sym = {
+    // ---- DefineSprite_8 — level-2 outer timeline (t=11, 106 frames) -
+    // AS DefineSprite_8/frame_1/DoAction.as:   t = 11;
+    // AS DefineSprite_8/frame_64/DoAction.as:  this.end() → signalHit
+    // AS DefineSprite_8/frame_106/DoAction.as: _parent._parent.removeMovieClip(); stop()
+    this.sprite8Sym = {
       name: "sprite8",
       totalFrames: 106,
       frames: [],
@@ -226,36 +288,35 @@ export class Spell815 extends RuntimeSpell {
         [
           0,
           (clip, ctx) => {
-            // AS scripts/DefineSprite_8/frame_1/DoAction.as
+            // AS DefineSprite_8/frame_1/DoAction.as: t = 11
             clip.vars.t = 11;
-            clip.attach(ds6Sym, "burst", 1, ctx);
+            clip.vars.level = ctx.level;
+            clip.attach(sprite6Sym, "sprite6", 1, ctx);
           },
         ],
         [
           63,
           () => {
-            // AS scripts/DefineSprite_8/frame_64/DoAction.as: this.end()
+            // AS DefineSprite_8/frame_64/DoAction.as: this.end() → signalHit
             this.runtime.signalHit();
           },
         ],
         [
           105,
           (clip) => {
-            // AS scripts/DefineSprite_8/frame_106/DoAction.as:
-            //   _parent._parent.removeMovieClip(); stop()
-            clip.parent?.remove();
+            // AS DefineSprite_8/frame_106/DoAction.as: _parent._parent.removeMovieClip(); stop()
+            clip.remove();
             this.runtime.complete();
-            clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- DefineSprite_9 — variant t=20, hit at frame 79, remove at frame 118 ----
-    // AS scripts/DefineSprite_9/frame_1/DoAction.as: t = 20
-    // AS scripts/DefineSprite_9/frame_79/DoAction.as: this.end() → signalHit
-    // AS scripts/DefineSprite_9/frame_118/DoAction.as: _parent._parent.removeMovieClip(); stop()
-    this.ds9Sym = {
+    // ---- DefineSprite_9 — level-3 outer timeline (t=20, 118 frames) -
+    // AS DefineSprite_9/frame_1/DoAction.as:   t = 20;
+    // AS DefineSprite_9/frame_79/DoAction.as:  this.end() → signalHit
+    // AS DefineSprite_9/frame_118/DoAction.as: _parent._parent.removeMovieClip(); stop()
+    this.sprite9Sym = {
       name: "sprite9",
       totalFrames: 118,
       frames: [],
@@ -265,36 +326,35 @@ export class Spell815 extends RuntimeSpell {
         [
           0,
           (clip, ctx) => {
-            // AS scripts/DefineSprite_9/frame_1/DoAction.as
+            // AS DefineSprite_9/frame_1/DoAction.as: t = 20
             clip.vars.t = 20;
-            clip.attach(ds6Sym, "burst", 1, ctx);
+            clip.vars.level = ctx.level;
+            clip.attach(sprite6Sym, "sprite6", 1, ctx);
           },
         ],
         [
           78,
           () => {
-            // AS scripts/DefineSprite_9/frame_79/DoAction.as: this.end()
+            // AS DefineSprite_9/frame_79/DoAction.as: this.end() → signalHit
             this.runtime.signalHit();
           },
         ],
         [
           117,
           (clip) => {
-            // AS scripts/DefineSprite_9/frame_118/DoAction.as:
-            //   _parent._parent.removeMovieClip(); stop()
-            clip.parent?.remove();
+            // AS DefineSprite_9/frame_118/DoAction.as: _parent._parent.removeMovieClip(); stop()
+            clip.remove();
             this.runtime.complete();
-            clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- DefineSprite_10 — variant t=25, hit at frame 79, remove at frame 121 ----
-    // AS scripts/DefineSprite_10/frame_1/DoAction.as: t = 25
-    // AS scripts/DefineSprite_10/frame_79/DoAction.as: this.end() → signalHit
-    // AS scripts/DefineSprite_10/frame_121/DoAction.as: _parent._parent.removeMovieClip(); stop()
-    this.ds10Sym = {
+    // ---- DefineSprite_10 — level-4 outer timeline (t=25, 121 frames) -
+    // AS DefineSprite_10/frame_1/DoAction.as:   t = 25;
+    // AS DefineSprite_10/frame_79/DoAction.as:  this.end() → signalHit
+    // AS DefineSprite_10/frame_121/DoAction.as: _parent._parent.removeMovieClip(); stop()
+    this.sprite10Sym = {
       name: "sprite10",
       totalFrames: 121,
       frames: [],
@@ -304,36 +364,35 @@ export class Spell815 extends RuntimeSpell {
         [
           0,
           (clip, ctx) => {
-            // AS scripts/DefineSprite_10/frame_1/DoAction.as
+            // AS DefineSprite_10/frame_1/DoAction.as: t = 25
             clip.vars.t = 25;
-            clip.attach(ds6Sym, "burst", 1, ctx);
+            clip.vars.level = ctx.level;
+            clip.attach(sprite6Sym, "sprite6", 1, ctx);
           },
         ],
         [
           78,
           () => {
-            // AS scripts/DefineSprite_10/frame_79/DoAction.as: this.end()
+            // AS DefineSprite_10/frame_79/DoAction.as: this.end() → signalHit
             this.runtime.signalHit();
           },
         ],
         [
           120,
           (clip) => {
-            // AS scripts/DefineSprite_10/frame_121/DoAction.as:
-            //   _parent._parent.removeMovieClip(); stop()
-            clip.parent?.remove();
+            // AS DefineSprite_10/frame_121/DoAction.as: _parent._parent.removeMovieClip(); stop()
+            clip.remove();
             this.runtime.complete();
-            clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- DefineSprite_11 — variant t=33, hit at frame 79, remove at frame 121 ----
-    // AS scripts/DefineSprite_11/frame_1/DoAction.as: t = 33
-    // AS scripts/DefineSprite_11/frame_79/DoAction.as: this.end() → signalHit
-    // AS scripts/DefineSprite_11/frame_121/DoAction.as: _parent._parent.removeMovieClip(); stop()
-    this.ds11Sym = {
+    // ---- DefineSprite_11 — level-5 outer timeline (t=33, 121 frames) -
+    // AS DefineSprite_11/frame_1/DoAction.as:   t = 33;
+    // AS DefineSprite_11/frame_79/DoAction.as:  this.end() → signalHit
+    // AS DefineSprite_11/frame_121/DoAction.as: _parent._parent.removeMovieClip(); stop()
+    this.sprite11Sym = {
       name: "sprite11",
       totalFrames: 121,
       frames: [],
@@ -343,94 +402,44 @@ export class Spell815 extends RuntimeSpell {
         [
           0,
           (clip, ctx) => {
-            // AS scripts/DefineSprite_11/frame_1/DoAction.as
+            // AS DefineSprite_11/frame_1/DoAction.as: t = 33
             clip.vars.t = 33;
-            clip.attach(ds6Sym, "burst", 1, ctx);
+            clip.vars.level = ctx.level;
+            clip.attach(sprite6Sym, "sprite6", 1, ctx);
           },
         ],
         [
           78,
           () => {
-            // AS scripts/DefineSprite_11/frame_79/DoAction.as: this.end()
+            // AS DefineSprite_11/frame_79/DoAction.as: this.end() → signalHit
             this.runtime.signalHit();
           },
         ],
         [
           120,
           (clip) => {
-            // AS scripts/DefineSprite_11/frame_121/DoAction.as:
-            //   _parent._parent.removeMovieClip(); stop()
-            clip.parent?.remove();
+            // AS DefineSprite_11/frame_121/DoAction.as: _parent._parent.removeMovieClip(); stop()
+            clip.remove();
             this.runtime.complete();
-            clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- DefineSprite_12 — level selector, gotoAndStop(_parent.level) ----
-    // AS scripts/DefineSprite_12/frame_1/DoAction.as:
-    //   gotoAndStop(_parent.level)
-    // The sprite has 6 "frames" corresponding to spell levels 1-6.
-    // Each frame holds one of the variant sprites. We model this as a
-    // container that on frame_1 attaches the level-appropriate variant.
-    //
-    // Level mapping (canonical, matching t values):
-    //   level 1 → sprite7  (t=7,  91 frames)
-    //   level 2 → sprite8  (t=11, 106 frames)
-    //   level 3 → sprite9  (t=20, 118 frames)
-    //   level 4 → sprite10 (t=25, 121 frames)
-    //   level 5 → sprite11 (t=33, 121 frames)
-    //   level 6 → sprite11 (t=33, 121 frames, same as level 5)
-    const ds12Sym: SymbolDefinition = {
-      name: "sprite12",
-      totalFrames: 6,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (clip, ctx) => {
-            // AS scripts/DefineSprite_12/frame_1/DoAction.as:
-            //   gotoAndStop(_parent.level)
-            // _parent here is the root. We use it to determine which
-            // variant sub-sprite to attach, then stop.
-            const level = (clip.parent?.vars.level as number) ?? 1;
-            let variantSym: SymbolDefinition;
-            if (level <= 1) {
-              variantSym = this.ds7Sym;
-            } else if (level === 2) {
-              variantSym = this.ds8Sym;
-            } else if (level === 3) {
-              variantSym = this.ds9Sym;
-            } else if (level === 4) {
-              variantSym = this.ds10Sym;
-            } else {
-              // level 5 and 6
-              variantSym = this.ds11Sym;
-            }
-            clip.attach(variantSym, "variant", 1, ctx);
-            clip.stop();
-          },
-        ],
-      ]),
-    };
-
-    this.registry.register(ds3Sym);
-    this.registry.register(ds6Sym);
-    this.registry.register(this.ds7Sym);
-    this.registry.register(this.ds8Sym);
-    this.registry.register(this.ds9Sym);
-    this.registry.register(this.ds10Sym);
-    this.registry.register(this.ds11Sym);
-    this.registry.register(ds12Sym);
-
-    // Store ds12Sym reference for use in onSpellStart
-    this._ds12Sym = ds12Sym;
+    this.registry.register(sprite3Sym);
+    this.registry.register(sprite12Sym);
+    this.registry.register(sprite6Sym);
+    this.registry.register(this.sprite7Sym);
+    this.registry.register(this.sprite8Sym);
+    this.registry.register(this.sprite9Sym);
+    this.registry.register(this.sprite10Sym);
+    this.registry.register(this.sprite11Sym);
   }
 
-  private _ds12Sym!: SymbolDefinition;
+  // Stored reference to the punch sound callback so sprite6's frame_1
+  // can fire it (sounds played from within library symbol frame scripts
+  // need a captured reference since callbacks are only passed to onSpellStart).
+  private punchCallback?: (id: string) => void;
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
@@ -439,11 +448,25 @@ export class Spell815 extends RuntimeSpell {
     // AS scripts/frame_1/DoAction.as: SOMA.playSound("vlad_806")
     callbacks.playSound("vlad_806");
 
-    // Store level on root.vars so child frame scripts can read _parent.level
+    // Capture the sound callback for use in sprite6's frame_1 script
+    this.punchCallback = callbacks.playSound;
+
+    // Attach the appropriate level-based outer sprite.
+    // DefineSprites 7–11 map to levels 1–5 respectively.
+    // root.vars.level is set by harness; also pass via the symbol attach.
     this.root.vars.level = context.level;
 
-    // Attach the level-selector sprite12 at the root. Its frame_1 will
-    // select and attach the correct duration variant based on level.
-    this.root.attach(this._ds12Sym, "selector", 1, context);
+    const level = context.level;
+    if (level <= 1) {
+      this.root.attach(this.sprite7Sym, "outerSprite", 1, context);
+    } else if (level === 2) {
+      this.root.attach(this.sprite8Sym, "outerSprite", 1, context);
+    } else if (level === 3) {
+      this.root.attach(this.sprite9Sym, "outerSprite", 1, context);
+    } else if (level === 4) {
+      this.root.attach(this.sprite10Sym, "outerSprite", 1, context);
+    } else {
+      this.root.attach(this.sprite11Sym, "outerSprite", 1, context);
+    }
   }
 }

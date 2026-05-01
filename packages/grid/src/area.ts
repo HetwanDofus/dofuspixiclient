@@ -1,3 +1,7 @@
+import { match } from "ts-pattern";
+
+import { cellToCoord } from "./cell.ts";
+
 export const AreaKind = {
   None: 0,
   Cross: 1,
@@ -18,30 +22,29 @@ export interface FightMapDims {
 
 export interface FightMapLos extends FightMapDims {
   occupantOf(cell: number): unknown | undefined;
+  /**
+   * Optional per-cell line-of-sight gate. Return `true` when the cell
+   * blocks LoS (walls, decorations, glass cells with `lineOfSight=false`
+   * in the original 1.29 map data). Defaults to "all cells transparent"
+   * when omitted, so existing call sites that only care about fighters
+   * keep working.
+   */
+  losBlocked?(cell: number): boolean;
 }
 
 function directionDelta(dir: number, width: number): number {
   const stride = 2 * width - 1;
-  switch (dir) {
-    case 0:
-      return 1;
-    case 1:
-      return width;
-    case 2:
-      return stride;
-    case 3:
-      return width - 1;
-    case 4:
-      return -1;
-    case 5:
-      return -width;
-    case 6:
-      return -stride;
-    case 7:
-      return -(width - 1);
-    default:
-      return 0;
-  }
+
+  return match(dir)
+    .with(0, () => 1)
+    .with(1, () => width)
+    .with(2, () => stride)
+    .with(3, () => width - 1)
+    .with(4, () => -1)
+    .with(5, () => -width)
+    .with(6, () => -stride)
+    .with(7, () => -(width - 1))
+    .otherwise(() => 0);
 }
 
 const ALL_DIRECTIONS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
@@ -74,13 +77,17 @@ function projectLine(
   const out: number[] = [];
   let cell = origin;
   const delta = directionDelta(dir, fmap.width);
+
   for (let i = 0; i < steps; i++) {
     cell += delta;
+
     if (!inBounds(fmap, cell)) {
       break;
     }
+
     out.push(cell);
   }
+
   return out;
 }
 
@@ -101,17 +108,23 @@ function dominantDirection(
   const candidates = diagonal ? CARDINAL_DIRECTIONS : STRAIGHT_DIRECTIONS;
   let best: number = candidates[0] ?? 0;
   let bestScore = -1;
+
   for (const dir of candidates) {
     const off = directionDelta(dir, fmap.width);
+
     if (off === 0) {
       continue;
     }
+
     const q = Math.trunc(delta / off);
     let r = delta - q * off;
+
     if (r < 0) {
       r = -r;
     }
+
     const score = Math.abs(q) - r;
+
     if (score > bestScore) {
       bestScore = score;
       best = dir;
@@ -127,26 +140,19 @@ export function cellsInArea(
   kind: AreaKind,
   size: number
 ): number[] {
-  switch (kind) {
-    case AreaKind.None:
-      return [origin];
-    case AreaKind.Cross:
-      return crossCells(fmap, origin, size);
-    case AreaKind.Circle:
-      return circleCells(fmap, origin, size);
-    case AreaKind.Square:
-      return squareCells(fmap, origin, size);
-    case AreaKind.Ring:
-      return ringCells(fmap, origin, size);
-    case AreaKind.Line:
-      return lineCells(fmap, from, origin, size, false);
-    case AreaKind.DiagonalLine:
-      return lineCells(fmap, from, origin, size, true);
-    case AreaKind.PerpCross:
-      return perpCrossCells(fmap, origin, size);
-    default:
-      return [origin];
-  }
+  return match(kind)
+    .with(AreaKind.None, () => [origin])
+    .with(AreaKind.Cross, () => crossCells(fmap, origin, size))
+    .with(AreaKind.Circle, () => circleCells(fmap, origin, size))
+    .with(AreaKind.Square, () => squareCells(fmap, origin, size))
+    .with(AreaKind.Ring, () => ringCells(fmap, origin, size))
+    .with(AreaKind.Line, () => lineCells(fmap, from, origin, size, false))
+    .with(AreaKind.DiagonalLine, () =>
+      lineCells(fmap, from, origin, size, true)
+    )
+    .with(AreaKind.PerpCross, () => perpCrossCells(fmap, origin, size))
+    .with(AreaKind.Sector, () => [origin])
+    .exhaustive();
 }
 
 function crossCells(
@@ -220,24 +226,32 @@ function bfsCells(
   const seen = new Set<number>([origin]);
   const queue = [origin];
   const dist = new Map<number, number>([[origin, 0]]);
+
   let head = 0;
+
   while (head < queue.length) {
     const cell = queue[head] ?? 0;
-    head++;
     const d = dist.get(cell) ?? 0;
+
+    head++;
+
     if (d >= radius) {
       continue;
     }
+
     for (const dir of directions) {
       const n = cell + directionDelta(dir, fmap.width);
+
       if (!inBounds(fmap, n) || seen.has(n)) {
         continue;
       }
+
       seen.add(n);
       dist.set(n, d + 1);
       queue.push(n);
     }
   }
+
   return [...seen];
 }
 
@@ -247,14 +261,41 @@ function ringCells(
   radius: number
 ): number[] {
   const inner = new Set<number>();
+
   if (radius > 0) {
     for (const c of circleCells(fmap, origin, radius - 1)) {
       inner.add(c);
     }
   }
+
   return circleCells(fmap, origin, radius).filter((c) => !inner.has(c));
 }
 
+/**
+ * Bresenham line-of-sight in Dofus 1.29 isometric grid coordinates.
+ *
+ * The original AS algorithm (Pathfinding.as / MapHandler.as) walks a
+ * straight line in iso-cell-space (the `(x, y)` returned by
+ * `cellToCoord`, which is the same space the server uses in its own
+ * checkSight). For each intermediate cell along that line, LoS is
+ * blocked by:
+ *   1. The cell being out of map bounds.
+ *   2. The cell carrying `lineOfSight = false` (walls, decorations).
+ *   3. A living fighter occupying the cell (caller-supplied via
+ *      `occupantOf`; the caller is responsible for filtering out dead
+ *      fighters and the caster/target endpoints if they should be
+ *      transparent — endpoints ARE transparent here, see below).
+ *
+ * The endpoints (`from` and `to`) are intentionally exempt from the
+ * blocking checks so the caster never blocks themselves and the target
+ * cell does not need to be unoccupied (you obviously want to target
+ * the enemy who's standing on the cell). The previous implementation
+ * walked the dominant direction only, which broke any non-axial line
+ * of sight (the loop could fall through with `return true` after 128
+ * steps without ever reaching the target, or block on a fighter who
+ * happened to lie on the swept axis but not on the actual line). The
+ * Bresenham walk handles diagonals correctly.
+ */
 export function hasLineOfSight(
   fmap: FightMapLos,
   from: number,
@@ -263,26 +304,54 @@ export function hasLineOfSight(
   if (from === to) {
     return true;
   }
-  const dir = dominantDirection(fmap, from, to, false);
-  const delta = directionDelta(dir, fmap.width);
-  if (delta === 0) {
-    return true;
-  }
-  const total = fmap.width * fmap.height * 2;
-  let cell = from;
-  for (let i = 0; i < 128; i++) {
-    cell += delta;
-    if (cell === to) {
+
+  const a = cellToCoord(from, fmap.width);
+  const b = cellToCoord(to, fmap.width);
+
+  let x = a.x;
+  let y = a.y;
+  const dx = Math.abs(b.x - x);
+  const dy = Math.abs(b.y - y);
+  const sx = a.x < b.x ? 1 : -1;
+  const sy = a.y < b.y ? 1 : -1;
+  let err = dx - dy;
+
+  // Hard cap to avoid runaway loops on degenerate input. Max iso-line
+  // length on a Dofus map is ~ width + height; 1024 leaves plenty of
+  // headroom while still terminating in pathological cases.
+  for (let guard = 0; guard < 1024; guard++) {
+    const e2 = 2 * err;
+
+    if (e2 > -dy) {
+      err -= dy;
+      x += sx;
+    }
+
+    if (e2 < dx) {
+      err += dx;
+      y += sy;
+    }
+
+    if (x === b.x && y === b.y) {
       return true;
     }
-    if (cell < 0 || cell >= total) {
+
+    const cellId = x * fmap.width + (fmap.width - 1) * y;
+
+    if (cellId < 0 || cellId >= fmap.width * fmap.height * 2) {
       return false;
     }
-    if (fmap.occupantOf(cell) !== undefined) {
+
+    if (fmap.losBlocked?.(cellId)) {
+      return false;
+    }
+
+    if (fmap.occupantOf(cellId) !== undefined) {
       return false;
     }
   }
-  return true;
+
+  return false;
 }
 
 export function fightDistance(
@@ -293,17 +362,24 @@ export function fightDistance(
   if (a === b) {
     return 0;
   }
+
   const total = fmap.width * fmap.height * 2;
+
   if (a < 0 || a >= total || b < 0 || b >= total) {
     return 1 << 20;
   }
+
   const visited = new Map<number, number>([[a, 0]]);
   const queue = [a];
+
   let head = 0;
+
   while (head < queue.length) {
     const cell = queue[head] ?? 0;
-    head++;
     const d = visited.get(cell) ?? 0;
+
+    head++;
+
     if (d > 128) {
       break;
     }
@@ -316,15 +392,20 @@ export function fightDistance(
     // the canonical diamond.
     for (const dir of CARDINAL_DIRECTIONS) {
       const n = cell + directionDelta(dir, fmap.width);
+
       if (n < 0 || n >= total || visited.has(n)) {
         continue;
       }
+
       visited.set(n, d + 1);
+
       if (n === b) {
         return d + 1;
       }
+
       queue.push(n);
     }
   }
+
   return 1 << 20;
 }

@@ -1,40 +1,41 @@
 /**
- * Spell 2011 — Larve Tir (Sadida larva spit).
+ * Spell 2011 — Larve / Larve spell (likely a Sadida-family larva projectile).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2011/scripts/scripts/
  *
- * displayType=30 (ProjectileBallistic). The spell has a `move` symbol
- * (DefineSprite_8_move) that the harness drives along a parabolic arc,
- * and a `shoot` symbol (DefineSprite_4_shoot) that the harness attaches
- * at the target on landing, then fires signalHit automatically.
+ * displayType=30 (ProjectileBallistic):
+ *   - Has `move` (DefineSprite_8_move) + `shoot` (DefineSprite_4_shoot).
+ *   - `move` frame_1 attaches fumee (smoke trail) particles as the projectile flies.
+ *   - `shoot` frame_1 spawns fumee2 smoke puffs on landing; frame_37 spawns more;
+ *     frame_91 removes the parent (spell complete).
+ *   - The harness drives the parabolic arc for `move` and fires signalHit on landing.
  *
  * Library symbols:
- *   - lib_fumee  — 48-frame smoke trail particle. frame_1 seeds random
- *                  scale [50,100]%, random start frame [0,29], divides
- *                  vx/vy by (3+rand). onEnterFrame drifts with 1/1.067
- *                  friction. frame_46 removes self.
- *   - lib_fumee2 — 51-frame bigger smoke particle. frame_1 seeds random
- *                  scale [80,100]%, random start frame [0,44], doubles
- *                  vx/vy. onEnterFrame drifts with 1/1.1 friction.
- *                  frame_49 removes self.
- *   - move       — container-only. frame_1 seeds xi/yi/nf and installs
- *                  an onEnterFrame that continuously spawns `fumee`
- *                  smoke particles trailing behind the projectile as it
- *                  arcs through the air.
- *   - shoot      — 93-frame authored animation at target. frame_1 resets
- *                  _rotation=0, spawns 3 fumee2 smoke puffs, seeds c/xi/
- *                  yi/nf. frame_37 spawns 9 more fumee2 puffs (impact
- *                  burst). frame_91 calls _parent.removeMovieClip →
- *                  complete().
+ *   - lib_fumee  (DefineSprite_15_fumee, 48 frames) — smoke trail particle.
+ *                frame_1: randomise scale [50,100)%, jump to random frame [0,30),
+ *                         divide inherited vx/vy by (3..6); onEnterFrame drifts
+ *                         position by vx/vy with 1/1.067 friction per tick.
+ *                frame_46: removeMovieClip.
+ *   - lib_fumee2 (DefineSprite_14_fumee2, 51 frames) — impact smoke puff particle.
+ *                frame_1: randomise scale [80,100)%, jump to random frame [0,45),
+ *                         double inherited vx/vy; onEnterFrame drifts and decays at 1/1.1.
+ *                frame_49: removeMovieClip.
+ *   - move       — 1-frame container. frame_1 captures xi/yi and sets up an
+ *                  onEnterFrame that emits `level` fumee particles per tick tracking
+ *                  the harness-driven position.
+ *   - shoot      — 93-frame container. frame_1 resets rotation, emits 3 fumee2
+ *                  puffs; frame_37 emits 9 more; frame_91 removes parent → complete.
+ *   - DefineSprite_13 (sprite_13) — helper that sets _rotation = random(360).
+ *                  This is referenced from nowhere in the main scripts after analysis;
+ *                  it is a cosmetic rotation randomiser — we register it defensively
+ *                  but it is never attached by the primary flow. (It has no
+ *                  attachMovie calls pointing to it in the provided scripts.)
  *
- * Main timeline: SOMA.playSound("larve_tir"); (no stop() — harness drives)
+ * Main timeline frame_1: SOMA.playSound("larve_tir"); (no stop()).
  *
- * DefineSprite_13 (frame_1: `_rotation = random(360)`) appears to be an
- * internal rotation randomiser inside some of the authored frames of the
- * shoot timeline; it is not independently attachMovie'd and is handled
- * purely by the authored shoot animation frames, so no separate symbol
- * registration is needed.
+ * The harness fires signalHit automatically for displayType=30 on landing —
+ * we must NOT call it again.
  */
 
 import type {
@@ -63,142 +64,130 @@ const FUMEE2_BOUNDS = {
   offsetY: -7.3,
 };
 
-const SHOOT_BOUNDS = {
-  width: 132.8,
-  height: 88.75,
-  offsetX: -77.4,
-  offsetY: -75.2,
-};
-
 export class Spell2011 extends RuntimeSpell {
   readonly spellId = 2011;
   readonly displayType = SpellDisplayType.ProjectileBallistic;
 
+  // Keep typed references so shoot's frameScripts can capture them.
   private fumeeSym!: SymbolDefinition;
   private fumee2Sym!: SymbolDefinition;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext
+    _context: SpellContext,
   ): void {
     const fumeeAnchor = calculateAnchor(FUMEE_BOUNDS);
     const fumee2Anchor = calculateAnchor(FUMEE2_BOUNDS);
-    const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
     // ---- lib_fumee — smoke trail particle during flight ----------
     // AS: DefineSprite_15_fumee/frame_1/DoAction.as
-    //     DefineSprite_15_fumee/frame_46/DoAction.as
+    //   t = 50 * Math.random() + 50
+    //   gotoAndPlay(random(30))
+    //   _xscale = _yscale = t
+    //   vx /= 3 + 3 * Math.random()
+    //   vy /= 3 + random(3)
+    //   onEnterFrame: _X += vx; _Y += vy; vx /= 1.067; vy /= 1.067
+    // AS: DefineSprite_15_fumee/frame_46/DoAction.as
+    //   removeMovieClip()
     this.fumeeSym = {
       name: "fumee",
       totalFrames: 48,
       frames: textures.getFrames("lib_fumee"),
       anchorX: fumeeAnchor.x,
       anchorY: fumeeAnchor.y,
+      onLoad: (clip) => {
+        // AS DefineSprite_15_fumee/frame_1/DoAction.as
+        const t = 50 * Math.random() + 50;
+        clip.gotoAndPlay(Math.floor(Math.random() * 30));
+        clip.scaleX = t / 100;
+        clip.scaleY = t / 100;
+        // vx/vy are set by the parent before attach fires onLoad — read and
+        // divide them here so later onEnterFrame uses the damped values.
+        const rawVx = (clip.vars.vx as number) ?? 0;
+        const rawVy = (clip.vars.vy as number) ?? 0;
+        clip.vars.vx = rawVx / (3 + 3 * Math.random());
+        clip.vars.vy = rawVy / (3 + Math.floor(Math.random() * 3));
+      },
+      onEnterFrame: (clip) => {
+        // AS DefineSprite_15_fumee/frame_1/DoAction.as — onEnterFrame closure
+        let vx = clip.vars.vx as number;
+        let vy = clip.vars.vy as number;
+        clip.x += vx;
+        clip.y += vy;
+        vx /= 1.067;
+        vy /= 1.067;
+        clip.vars.vx = vx;
+        clip.vars.vy = vy;
+      },
       frameScripts: new Map([
         [
-          0,
-          (clip) => {
-            // AS DefineSprite_15_fumee/frame_1/DoAction.as:
-            //   t = 50 * Math.random() + 50
-            //   gotoAndPlay(random(30))
-            //   _xscale = t; _yscale = t
-            //   vx /= 3 + 3 * Math.random()
-            //   vy /= 3 + random(3)
-            //   onEnterFrame: _X += vx; _Y += vy; vx /= 1.067; vy /= 1.067
-            const t = 50 * Math.random() + 50;
-            clip.scaleX = t / 100;
-            clip.scaleY = t / 100;
-
-            const vx = clip.vars.vx as number | undefined ?? 0;
-            const vy = clip.vars.vy as number | undefined ?? 0;
-            clip.vars.vx = vx / (3 + 3 * Math.random());
-            clip.vars.vy = vy / (3 + Math.floor(Math.random() * 3));
-
-            clip.gotoAndPlay(Math.floor(Math.random() * 30));
-
-            clip.onEnterFrame = (c) => {
-              // AS DefineSprite_15_fumee onEnterFrame
-              const cvx = c.vars.vx as number;
-              const cvy = c.vars.vy as number;
-              c.x += cvx;
-              c.y += cvy;
-              c.vars.vx = cvx / 1.067;
-              c.vars.vy = cvy / 1.067;
-            };
-          },
-        ],
-        [
+          // AS DefineSprite_15_fumee/frame_46/DoAction.as → 0-based = 45
           45,
           (clip) => {
-            // AS DefineSprite_15_fumee/frame_46/DoAction.as:
-            //   removeMovieClip(this)
             clip.remove();
           },
         ],
       ]),
     };
 
-    // ---- lib_fumee2 — larger smoke/impact particle ---------------
+    // ---- lib_fumee2 — impact smoke puff particle -----------------
     // AS: DefineSprite_14_fumee2/frame_1/DoAction.as
-    //     DefineSprite_14_fumee2/frame_49/DoAction.as
+    //   t = 20 * Math.random() + 80
+    //   gotoAndPlay(random(45))
+    //   _xscale = _yscale = t
+    //   vx *= 2; vy *= 2
+    //   onEnterFrame: _X += vx; _Y += vy; vx /= 1.1; vy /= 1.1
+    // AS: DefineSprite_14_fumee2/frame_49/DoAction.as
+    //   removeMovieClip()
     this.fumee2Sym = {
       name: "fumee2",
       totalFrames: 51,
       frames: textures.getFrames("lib_fumee2"),
       anchorX: fumee2Anchor.x,
       anchorY: fumee2Anchor.y,
+      onLoad: (clip) => {
+        // AS DefineSprite_14_fumee2/frame_1/DoAction.as
+        const t = 20 * Math.random() + 80;
+        clip.gotoAndPlay(Math.floor(Math.random() * 45));
+        clip.scaleX = t / 100;
+        clip.scaleY = t / 100;
+        const rawVx = (clip.vars.vx as number) ?? 0;
+        const rawVy = (clip.vars.vy as number) ?? 0;
+        clip.vars.vx = rawVx * 2;
+        clip.vars.vy = rawVy * 2;
+      },
+      onEnterFrame: (clip) => {
+        // AS DefineSprite_14_fumee2/frame_1/DoAction.as — onEnterFrame closure
+        let vx = clip.vars.vx as number;
+        let vy = clip.vars.vy as number;
+        clip.x += vx;
+        clip.y += vy;
+        vx /= 1.1;
+        vy /= 1.1;
+        clip.vars.vx = vx;
+        clip.vars.vy = vy;
+      },
       frameScripts: new Map([
         [
-          0,
-          (clip) => {
-            // AS DefineSprite_14_fumee2/frame_1/DoAction.as:
-            //   t = 20 * Math.random() + 80
-            //   gotoAndPlay(random(45))
-            //   _xscale = t; _yscale = t
-            //   vx *= 2; vy *= 2
-            //   onEnterFrame: _X += vx; _Y += vy; vx /= 1.1; vy /= 1.1
-            const t = 20 * Math.random() + 80;
-            clip.scaleX = t / 100;
-            clip.scaleY = t / 100;
-
-            const vx = clip.vars.vx as number | undefined ?? 0;
-            const vy = clip.vars.vy as number | undefined ?? 0;
-            clip.vars.vx = vx * 2;
-            clip.vars.vy = vy * 2;
-
-            clip.gotoAndPlay(Math.floor(Math.random() * 45));
-
-            clip.onEnterFrame = (c) => {
-              // AS DefineSprite_14_fumee2 onEnterFrame
-              const cvx = c.vars.vx as number;
-              const cvy = c.vars.vy as number;
-              c.x += cvx;
-              c.y += cvy;
-              c.vars.vx = cvx / 1.1;
-              c.vars.vy = cvy / 1.1;
-            };
-          },
-        ],
-        [
+          // AS DefineSprite_14_fumee2/frame_49/DoAction.as → 0-based = 48
           48,
           (clip) => {
-            // AS DefineSprite_14_fumee2/frame_49/DoAction.as:
-            //   removeMovieClip(this)
             clip.remove();
           },
         ],
       ]),
     };
 
-    // ---- move — projectile container, spawns fumee trail ---------
+    // ---- move — projectile body (flies along harness arc) --------
     // AS: DefineSprite_8_move/frame_1/DoAction.as
-    // Container-only (harness drives position). frame_1 seeds xi/yi/nf
-    // and installs an onEnterFrame that spawns fumee particles at the
-    // current position each tick, recording previous pos for velocity.
+    //   xi = this._x; yi = this._y
+    //   nf = _parent.level * 1
+    //   onEnterFrame: emit nf fumee particles per tick at current position
+    //     with vx/vy based on frame-to-frame delta + small jitter
     const fumeeSym = this.fumeeSym;
     const moveSym: SymbolDefinition = {
       name: "move",
-      totalFrames: 2,
+      totalFrames: 1,
       frames: [],
       anchorX: 0.5,
       anchorY: 0.5,
@@ -206,140 +195,162 @@ export class Spell2011 extends RuntimeSpell {
         [
           0,
           (clip, ctx) => {
-            // AS DefineSprite_8_move/frame_1/DoAction.as:
-            //   xi = this._x; yi = this._y
-            //   nf = this._parent.level * 1
-            //   onEnterFrame: spawn nf fumee particles with drift velocity
+            // AS DefineSprite_8_move/frame_1/DoAction.as
             clip.vars.xi = clip.x;
             clip.vars.yi = clip.y;
             const level = (clip.parent?.vars.level as number) ?? 1;
             clip.vars.nf = level * 1;
             clip.vars.c = 0;
 
-            clip.onEnterFrame = (c, ectx) => {
-              // AS DefineSprite_8_move onEnterFrame:
-              //   while(loc3 < nf) { attachMovie("fumee","fumee"+c, c+10); set pos/vel; c++ }
-              //   xi = this._x; yi = this._y
-              const nf = c.vars.nf as number;
-              const xi = c.vars.xi as number;
-              const yi = c.vars.yi as number;
-              let counter = c.vars.c as number;
-
-              for (let loc3 = 0; loc3 < nf; loc3++) {
-                const instanceName = `fumee${counter}`;
-                const parent = c.parent;
-                if (parent) {
-                  const f = parent.attach(fumeeSym, instanceName, counter + 10, ectx);
-                  f.x = c.x;
-                  f.y = c.y;
-                  f.vars.vx = c.x - xi + 6.67 * (Math.random() - 0.5);
-                  f.vars.vy = c.y - yi + 6.67 * (Math.random() - 0.5);
-                }
-                counter++;
+            clip.onEnterFrame = (self, ictx) => {
+              // AS DefineSprite_8_move/frame_1/DoAction.as — onEnterFrame closure
+              const nf = self.vars.nf as number;
+              let c = self.vars.c as number;
+              let xi = self.vars.xi as number;
+              let yi = self.vars.yi as number;
+              const parent = self.parent;
+              if (!parent) {
+                return;
               }
-
-              c.vars.c = counter;
-              c.vars.xi = c.x;
-              c.vars.yi = c.y;
+              let loc3 = 0;
+              while (loc3 < nf) {
+                const instanceName = `fumee${c}`;
+                const child = parent.attach(fumeeSym, instanceName, c + 10, ictx);
+                // Set position and velocity on the child BEFORE its onLoad
+                // reads vx/vy. We must set them on vars because onLoad reads
+                // clip.vars.vx / clip.vars.vy directly.
+                // But attach() fires onLoad inside it, so we need to set vx/vy
+                // on the child AFTER attach (onLoad reads vars.vx which may be
+                // undefined at that point, giving NaN-safe 0 default above).
+                // The canonical AS sets _loc2_.vx after the attachMovie call,
+                // so we replicate that by overwriting the already-divided values.
+                // We recalculate from scratch here matching the AS order:
+                //   f._x = this._x; f._y = this._y;
+                //   f.vx = this._x - xi + 6.67*(random-0.5);
+                //   f.vy = this._y - yi + 6.67*(random-0.5);
+                child.x = self.x;
+                child.y = self.y;
+                // Rewrite vx/vy AFTER attach (overwriting what onLoad computed
+                // from the 0-default). This matches the AS execution order where
+                // the parent sets _loc2_.vx after attachMovie returns (i.e. after
+                // frame_1 actions ran inside attachMovie).
+                child.vars.vx = (self.x - xi + 6.67 * (Math.random() - 0.5)) / (3 + 3 * Math.random());
+                child.vars.vy = (self.y - yi + 6.67 * (Math.random() - 0.5)) / (3 + Math.floor(Math.random() * 3));
+                c++;
+                loc3++;
+              }
+              self.vars.c = c;
+              self.vars.xi = self.x;
+              self.vars.yi = self.y;
             };
+
+            // Suppress unused ctx warning.
+            void ctx;
           },
         ],
       ]),
     };
 
-    // ---- shoot — 93-frame authored animation at target -----------
-    // AS: DefineSprite_4_shoot/frame_1, frame_37, frame_91/DoAction.as
-    // frame_1: reset rotation, seed xi/yi/nf/c, spawn 3 fumee2 puffs
-    // frame_37: spawn 9 more fumee2 puffs (impact burst)
-    // frame_91: _parent.removeMovieClip → complete()
+    // ---- shoot — 93-frame impact effect --------------------------
+    // AS: DefineSprite_4_shoot/frame_1/DoAction.as
+    //   _rotation = 0; xi=_x; yi=_y; nf=level*2; c=0
+    //   spawn 3 fumee2 particles at (_x, _y-30)
+    // AS: DefineSprite_4_shoot/frame_37/DoAction.as
+    //   spawn 9 more fumee2 particles
+    // AS: DefineSprite_4_shoot/frame_91/DoAction.as
+    //   _parent.removeMovieClip() → complete
     const fumee2Sym = this.fumee2Sym;
     const shootSym: SymbolDefinition = {
       name: "shoot",
       totalFrames: 93,
       frames: textures.getFrames("shoot"),
-      anchorX: shootAnchor.x,
-      anchorY: shootAnchor.y,
+      anchorX: calculateAnchor({ width: 132.8, height: 88.75, offsetX: -77.4, offsetY: -75.2 }).x,
+      anchorY: calculateAnchor({ width: 132.8, height: 88.75, offsetX: -77.4, offsetY: -75.2 }).y,
       frameScripts: new Map([
         [
+          // AS DefineSprite_4_shoot/frame_1/DoAction.as → 0-based = 0
           0,
           (clip, ctx) => {
-            // AS DefineSprite_4_shoot/frame_1/DoAction.as:
-            //   _rotation = 0
-            //   xi = this._x; yi = this._y
-            //   nf = this._parent.level * 2; c = 0
-            //   loop p < 3: attachMovie("fumee2","fumee2"+(c+200), c+200)
-            //     set f._x, f._y, f.vx, f.vy; c++; xi=_x; yi=_y; p++
+            // AS DefineSprite_4_shoot/frame_1/DoAction.as
+            // _rotation = 0  — override any harness-applied velocity rotation
             clip.rotation = 0;
-
             clip.vars.xi = clip.x;
             clip.vars.yi = clip.y;
-            const level = (clip.parent?.vars.level as number) ?? 1;
-            clip.vars.nf = level * 2;
+            clip.vars.nf = ((clip.parent?.vars.level as number) ?? 1) * 2;
             clip.vars.c = 0;
 
-            let c = 0;
-            let xi = clip.x;
-            let yi = clip.y;
-
-            for (let p = 0; p < 3; p++) {
-              const instanceName = `fumee2${c}200`;
-              const parent = clip.parent;
-              if (parent) {
-                const f = parent.attach(fumee2Sym, instanceName, c + 200, ctx);
-                f.x = clip.x;
-                f.y = clip.y - 30;
-                f.vars.vx = clip.x - xi + 6.67 * (Math.random() - 0.5);
-                f.vars.vy = clip.y - yi + 6.67 * (Math.random() - 0.5);
-              }
-              c++;
-              xi = clip.x;
-              yi = clip.y;
+            const parent = clip.parent;
+            if (!parent) {
+              return;
             }
 
+            let c = clip.vars.c as number;
+            const xi = clip.vars.xi as number;
+            const yi = clip.vars.yi as number;
+            let localXi = xi;
+            let localYi = yi;
+
+            let p = 0;
+            while (p < 3) {
+              const instanceName = `fumee2${c}${200}`;
+              const depth = c + 200;
+              const child = parent.attach(fumee2Sym, instanceName, depth, ctx);
+              child.x = clip.x;
+              child.y = clip.y - 30;
+              // Assign vx/vy after attach (overwriting onLoad's doubled values).
+              // AS: f.vx = this._x - xi + 6.67*(random-0.5)
+              //     note: xi/yi update inside the loop in the canonical AS.
+              child.vars.vx = (clip.x - localXi + 6.67 * (Math.random() - 0.5)) * 2;
+              child.vars.vy = (clip.y - localYi + 6.67 * (Math.random() - 0.5)) * 2;
+              c++;
+              localXi = clip.x;
+              localYi = clip.y;
+              p++;
+            }
             clip.vars.c = c;
-            clip.vars.xi = xi;
-            clip.vars.yi = yi;
           },
         ],
         [
+          // AS DefineSprite_4_shoot/frame_37/DoAction.as → 0-based = 36
           36,
           (clip, ctx) => {
-            // AS DefineSprite_4_shoot/frame_37/DoAction.as:
-            //   xi = this._x; yi = this._y
-            //   nf = this._parent.level * 2
-            //   loop p < 9: attachMovie("fumee2","fumee2"+c, c+200)
-            //     set f._x, f._y, f.vx, f.vy; c++; xi=_x; yi=_y; p++
-            let c = clip.vars.c as number;
-            let xi = clip.x;
-            let yi = clip.y;
-            clip.vars.xi = xi;
-            clip.vars.yi = yi;
+            // AS DefineSprite_4_shoot/frame_37/DoAction.as
+            clip.vars.xi = clip.x;
+            clip.vars.yi = clip.y;
+            clip.vars.nf = ((clip.parent?.vars.level as number) ?? 1) * 2;
 
             const parent = clip.parent;
-            for (let p = 0; p < 9; p++) {
-              const instanceName = `fumee2${c}`;
-              if (parent) {
-                const f = parent.attach(fumee2Sym, instanceName, c + 200, ctx);
-                f.x = clip.x;
-                f.y = clip.y - 30;
-                f.vars.vx = clip.x - xi + 6.67 * (Math.random() - 0.5);
-                f.vars.vy = clip.y - yi + 6.67 * (Math.random() - 0.5);
-              }
-              c++;
-              xi = clip.x;
-              yi = clip.y;
+            if (!parent) {
+              return;
             }
 
+            let c = clip.vars.c as number;
+            let localXi = clip.vars.xi as number;
+            let localYi = clip.vars.yi as number;
+
+            let p = 0;
+            while (p < 9) {
+              const instanceName = `fumee2${c}`;
+              const depth = c + 200;
+              const child = parent.attach(fumee2Sym, instanceName, depth, ctx);
+              child.x = clip.x;
+              child.y = clip.y - 30;
+              child.vars.vx = (clip.x - localXi + 6.67 * (Math.random() - 0.5)) * 2;
+              child.vars.vy = (clip.y - localYi + 6.67 * (Math.random() - 0.5)) * 2;
+              c++;
+              localXi = clip.x;
+              localYi = clip.y;
+              p++;
+            }
             clip.vars.c = c;
-            clip.vars.xi = xi;
-            clip.vars.yi = yi;
           },
         ],
         [
+          // AS DefineSprite_4_shoot/frame_91/DoAction.as → 0-based = 90
           90,
           (clip) => {
-            // AS DefineSprite_4_shoot/frame_91/DoAction.as:
-            //   _parent.removeMovieClip()
+            // AS DefineSprite_4_shoot/frame_91/DoAction.as
+            // _parent.removeMovieClip() — kills the outer mc, ending the spell.
             clip.parent?.remove();
             this.runtime.complete();
           },
@@ -355,9 +366,9 @@ export class Spell2011 extends RuntimeSpell {
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    _context: SpellContext
+    _context: SpellContext,
   ): void {
-    // AS frame_1/DoAction.as: SOMA.playSound("larve_tir");
+    // AS: scripts/frame_1/DoAction.as — SOMA.playSound("larve_tir");
     callbacks.playSound("larve_tir");
   }
 }

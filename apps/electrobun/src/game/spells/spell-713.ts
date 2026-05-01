@@ -1,50 +1,41 @@
 /**
- * Spell 713 — Grinaspic (or similar earth/thorn spell).
+ * Spell 713 — Grina (Sram trap/ground effect).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/713/scripts/scripts/
  *
- * displayType=11 (TargetCell). There is no `move`, `shoot`, `duplicate`, or
- * dual-anchor logic in the canonical AS. The manifest has a single `anim1`
- * animation entry (no `librarySymbols[]`), and the AS scripts describe a
- * self-contained composite timeline anchored at the target cell. This is the
- * classic "impact at target" pattern.
+ * displayType=11 (TargetCell). This spell has no projectile motion, no
+ * caster-anchored content, no dual-timeline world-absolute layout. It is
+ * a single animation anchored at the target cell. The AS main timeline
+ * plays a sound; a single composite sprite (the outer DefineSprite_9)
+ * drives the animation. A PlaceObject2 at frame 82 of DefineSprite_9 places
+ * a child clip (DefineSprite_8) with an onClipEvent(enterFrame) that fades
+ * out _parent._alpha by 2.3 per tick. The outer sprite stops and removes
+ * itself at frame 133.
  *
- * AS layout:
- *   - frame_1/DoAction.as: SOMA.playSound("grina_704")
- *   - DefineSprite_9 — outer container, 133-frame timeline:
- *       frame_133/DoAction.as: stop(); _parent.removeMovieClip();
- *       frame_82/PlaceObject2_8_26/onClipEvent(enterFrame): _parent._alpha -= 2.3
- *         (a child placed at frame 82 carries this clip event that fades its
- *          parent — i.e. the DefineSprite_9 container — by 2.3/100 per frame)
- *   - DefineSprite_3 — random-frame selector (3 variants):
- *       frame_1/DoAction.as: gotoAndStop(random(3) + 1)
- *   - DefineSprite_5 — trajectory sub-sprite:
- *       frame_1:   a = random(2); gotoAndStop("traj1"); play()
- *       frame_58:  stop()
- *       frame_118: stop()
- *       frame_178: stop()
+ * Library symbols:
+ *   - anim1 — the main 135-frame composite animation (animations[] only,
+ *     no librarySymbols[] entry). Drives the whole visual. frame_133
+ *     stops the clip and calls _parent.removeMovieClip() (→ complete()).
+ *   - "fadeChild" (DefineSprite_8_26 placed via PlaceObject2 at frame_82
+ *     of DefineSprite_9) — invisible container whose sole job is to run
+ *     onClipEvent(enterFrame) that decrements _parent._alpha by 2.3 each
+ *     tick. Registered as a SymbolDefinition with onEnterFrame handler.
  *
- * Since librarySymbols[] is empty in the manifest, `anim1` is the sole
- * animation and is rendered as a direct symbol. No lib_ prefix is used.
+ * Main timeline: SOMA.playSound("grina_704"); (no stop, single frame).
  *
- * The outer DefineSprite_9 drives the spell lifetime: frame 133 calls
- * _parent.removeMovieClip() → this.runtime.complete(). The fade-out clip
- * event on the child placed at frame 82 fades the parent (DefineSprite_9
- * symbol clip) starting from frame 82; we model that as an onEnterFrame on
- * the child that mutates its parent.
+ * DefineSprite_5 and DefineSprite_3 appear in the scripts but they are
+ * internal sub-sprites within the pre-rendered composite anim1 SVG frames
+ * (DefineSprite_5 just picks a random trajectory label "traj1" and plays —
+ * all three branches do the same thing; DefineSprite_3 picks a random
+ * stop frame 1-3). These sub-sprites are fully captured in the composite
+ * anim1 frames and do not need runtime clip wiring.
  *
- * signalHit is fired at the first meaningful impact frame — we choose frame
- * 13 of DefineSprite_9 as a reasonable early-impact moment consistent with
- * the `anim1` composite visual (the animation's `stopFrame=132` and
- * `fadingFrame=131` suggest the main impact is well within the first third
- * of the timeline). Since there is no canonical "this.end()" or explicit hit
- * frame in the AS scripts, we use the first frame of the outer sprite as the
- * hit signal (frame 0 of DefineSprite_9), which is idiomatic for TargetCell
- * impact spells.
- *
- * Library symbols: none (librarySymbols[] is empty).
- * Main timeline: SOMA.playSound("grina_704").
+ * The critical runtime behavior is the fade: at frame 82 a child clip is
+ * placed on DefineSprite_9 (= the anim1 clip) and its onEnterFrame fires
+ * each tick, subtracting 2.3 from the parent's _alpha (0-100 in AS → 0-1
+ * in TS, so we subtract 2.3/100 per tick). This IS NOT captured in the
+ * SVG frames and MUST be implemented here.
  */
 
 import type {
@@ -70,31 +61,29 @@ export class Spell713 extends RuntimeSpell {
   readonly spellId = 713;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  private anim1Sym!: SymbolDefinition;
-
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- fader child — placed at frame 82 of the outer sprite ----
-    // AS: DefineSprite_9/frame_82/PlaceObject2_8_26/CLIPACTIONRECORD
-    //     onClipEvent(enterFrame).as
-    //   _parent._alpha -= 2.3;
+    // ---- fadeChild — the PlaceObject2_8_26 child placed at frame 82 ----
+    // AS: scripts/DefineSprite_9/frame_82/PlaceObject2_8_26/
+    //     CLIPACTIONRECORD onClipEvent(enterFrame).as
     //
-    // This is a child with no visual content whose sole purpose is to
-    // carry the enterFrame clip event that fades out its parent (the
-    // anim1 outer sprite). We model it as a container-only symbol.
-    const faderSym: SymbolDefinition = {
-      name: "fader",
+    // This is a zero-size container clip (DefineSprite_8) placed by the
+    // authoring tool at frame 82 of the outer DefineSprite_9. Its only
+    // purpose is to hold the enterFrame handler that fades the parent.
+    // It has no visual content of its own.
+    const fadeChildSym: SymbolDefinition = {
+      name: "fadeChild",
       totalFrames: 1,
       frames: [],
       anchorX: 0.5,
       anchorY: 0.5,
       onEnterFrame: (clip) => {
-        // AS: DefineSprite_9/frame_82/PlaceObject2_8_26/onClipEvent(enterFrame)
-        // _parent._alpha -= 2.3  (Flash alpha is 0-100, TS is 0-1)
+        // AS: _parent._alpha -= 2.3;
+        // AS alpha is 0-100; TS alpha is 0-1, so subtract 2.3/100.
         const parent = clip.parent;
         if (parent) {
           parent.alpha = Math.max(0, parent.alpha - 2.3 / 100);
@@ -102,13 +91,15 @@ export class Spell713 extends RuntimeSpell {
       },
     };
 
-    // ---- anim1 — composite 135-frame outer sprite (DefineSprite_9) --
-    // AS: DefineSprite_9/frame_133/DoAction.as: stop(); _parent.removeMovieClip();
+    // ---- anim1 — the main composite animation (135 frames) ----------
+    // Sourced from animations[0] (no librarySymbols entry → no lib_ prefix).
     //
-    // frame_1 (index 0): signal hit (first frame of impact visual)
-    // frame_82 (index 81): attach fader child that starts fading the sprite
-    // frame_133 (index 132): stop(); _parent.removeMovieClip() → complete()
-    this.anim1Sym = {
+    // frameScripts:
+    //   frame_82 (index 81): PlaceObject2_8_26 — attach fadeChild.
+    //     AS: DefineSprite_9/frame_82 places the child with enterFrame handler.
+    //   frame_133 (index 132): stop(); _parent.removeMovieClip();
+    //     AS: DefineSprite_9/frame_133/DoAction.as
+    const anim1Sym: SymbolDefinition = {
       name: "anim1",
       totalFrames: 135,
       frames: textures.getFrames("anim1"),
@@ -116,24 +107,11 @@ export class Spell713 extends RuntimeSpell {
       anchorY: anim1Anchor.y,
       frameScripts: new Map([
         [
-          0,
-          (_clip) => {
-            // First frame of impact — signal hit to combat system.
-            // No canonical explicit "end()" call; TargetCell spells
-            // conventionally signal hit at the start of the visual.
-            this.runtime.signalHit();
-          },
-        ],
-        [
           81,
           (clip, ctx) => {
-            // AS: DefineSprite_9/frame_82 — a child (PlaceObject2_8_26)
-            // is placed here carrying onClipEvent(enterFrame) that fades
-            // _parent._alpha by 2.3 per frame. We attach our fader
-            // container to model this.
-            if (!clip.children.has("fader")) {
-              clip.attach(faderSym, "fader", 26, ctx);
-            }
+            // AS: DefineSprite_9/frame_82 — PlaceObject2_8_26 places the
+            // fade-driving child clip (onClipEvent enterFrame fades parent).
+            clip.attach(fadeChildSym, "fadeChild", 26, ctx);
           },
         ],
         [
@@ -142,27 +120,35 @@ export class Spell713 extends RuntimeSpell {
             // AS: DefineSprite_9/frame_133/DoAction.as
             // stop(); _parent.removeMovieClip();
             clip.stop();
-            clip.parent?.remove();
+            // Signal hit at the final removal frame — this is a TargetCell
+            // spell so the harness does NOT fire signalHit automatically.
+            // The canonical hit timing is when the effect resolves at the
+            // target, which is effectively at this removal frame.
+            this.runtime.signalHit();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
-    this.registry.register(faderSym);
-    this.registry.register(this.anim1Sym);
+    this.registry.register(fadeChildSym);
+    this.registry.register(anim1Sym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS: frame_1/DoAction.as — SOMA.playSound("grina_704");
+    // AS: scripts/frame_1/DoAction.as
+    // SOMA.playSound("grina_704");
     callbacks.playSound("grina_704");
 
-    // Attach the main composite animation (DefineSprite_9) as the root
-    // child. For TargetCell the root container is already positioned at
-    // the target cell; the anim1 symbol renders its impact there.
-    this.root.attach(this.anim1Sym, "anim1", 1, context);
+    // Attach the main anim1 clip at the root so it starts ticking.
+    // The outer DefineSprite_9 IS the anim1 symbol — it plays from
+    // frame 1 and drives the whole spell.
+    const anim1Sym = this.registry.resolve("anim1");
+    if (anim1Sym) {
+      this.root.attach(anim1Sym, "anim1", 1, context);
+    }
   }
 }

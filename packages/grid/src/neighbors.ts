@@ -1,3 +1,5 @@
+import { match } from "ts-pattern";
+
 import { cellToRowCol } from "./cell.ts";
 import { getDirOffsets } from "./directions.ts";
 
@@ -14,26 +16,28 @@ export function isValidDirection(
   totalRows: number
 ): boolean {
   const W = mapWidth;
-  switch (dir) {
-    case 0: // EAST — same row, next col
-      return col < (isLong ? W - 1 : W - 2);
-    case 1: // SE — to adjacent row below
-      return isLong ? row < totalRows - 1 && col < W - 1 : row < totalRows - 1;
-    case 2: // SOUTH — skip a row
-      return row + 2 < totalRows;
-    case 3: // SW — to adjacent row below
-      return isLong ? row < totalRows - 1 && col > 0 : row < totalRows - 1;
-    case 4: // WEST — same row, prev col
-      return col > 0;
-    case 5: // NW — to adjacent row above
-      return isLong ? row > 0 && col > 0 : row > 0;
-    case 6: // NORTH — skip a row
-      return row >= 2;
-    case 7: // NE — to adjacent row above
-      return isLong ? row > 0 && col < W - 1 : row > 0;
-    default:
-      return false;
-  }
+  return match(dir)
+    // EAST — same row, next col
+    .with(0, () => col < (isLong ? W - 1 : W - 2))
+    // SE — to adjacent row below
+    .with(1, () =>
+      isLong ? row < totalRows - 1 && col < W - 1 : row < totalRows - 1
+    )
+    // SOUTH — skip a row
+    .with(2, () => row + 2 < totalRows)
+    // SW — to adjacent row below
+    .with(3, () =>
+      isLong ? row < totalRows - 1 && col > 0 : row < totalRows - 1
+    )
+    // WEST — same row, prev col
+    .with(4, () => col > 0)
+    // NW — to adjacent row above
+    .with(5, () => (isLong ? row > 0 && col > 0 : row > 0))
+    // NORTH — skip a row
+    .with(6, () => row >= 2)
+    // NE — to adjacent row above
+    .with(7, () => (isLong ? row > 0 && col < W - 1 : row > 0))
+    .otherwise(() => false);
 }
 
 /**

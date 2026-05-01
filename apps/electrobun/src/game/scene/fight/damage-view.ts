@@ -1,19 +1,25 @@
-import { Container, Text, TextStyle } from "pixi.js";
+import type { Container } from "pixi.js";
 
-import type { Scene } from "@/game/scene/scene";
 import {
   DEFAULT_GROUND_LEVEL,
   DEFAULT_MAP_WIDTH,
 } from "@/game/constants/battlefield";
-import { Z_DAMAGE_VIEW } from "@/game/constants/z-index";
 import {
   type CellData,
   getCellPosition,
   getSlopeYOffset,
 } from "@/game/datacenter/cell";
-import { Element } from "@/game/fight/types";
-import { Actor, type ActorId, freshActorId } from "@/game/scene/actor";
-import { TICKABLE, type Tickable } from "@/game/scene/capabilities";
+import type { Scene } from "@/game/scene/scene";
+import {
+  addDamagePoint,
+  clearDamagePoints,
+  damagePointsStore,
+  removeDamagePoint,
+} from "@/hud/fight/damage-points-store";
+import {
+  type AnchorResolver,
+  damagePointsTracker,
+} from "@/hud/fight/damage-points-tracker";
 
 export const DamageType = {
   DAMAGE: "damage",
@@ -33,129 +39,143 @@ export interface DamageDisplayConfig {
   critical?: boolean;
 }
 
-const ELEMENT_COLORS: Record<number, number> = {
-  [Element.NEUTRAL]: 0xffffff,
-  [Element.EARTH]: 0x8b4513,
-  [Element.FIRE]: 0xff4500,
-  [Element.WATER]: 0x1e90ff,
-  [Element.AIR]: 0x90ee90,
+// Canonical Dofus 1.29 maps DamageType → CLIP_POINT_TYPE_*:
+//   DAMAGE → 0   AP → 1   MP → 2   HEAL → 3   SHIELD/QUANTITY → 4
+const TYPE_TO_CLIP_INDEX: Record<DamageTypeValue, number> = {
+  [DamageType.DAMAGE]: 0,
+  [DamageType.AP]: 1,
+  [DamageType.MP]: 2,
+  [DamageType.HEAL]: 3,
+  [DamageType.SHIELD]: 4,
 };
 
-const TYPE_COLORS: Record<DamageTypeValue, number> = {
-  [DamageType.DAMAGE]: 0xff0000,
-  [DamageType.HEAL]: 0x00ff00,
-  [DamageType.AP]: 0x0099ff,
-  [DamageType.MP]: 0x00ff99,
-  [DamageType.SHIELD]: 0x9966ff,
+// Canonical playAllPointAnim ordering (FightPointAnimManager.as:96):
+//   LIFE_POINT (damage / heal) → ACTION_POINT (AP) → MOVEMENT_POINT (MP)
+// SHIELD is a custom QUANTITY clip placed last so it never preempts
+// canonical types.
+const TYPE_DISPLAY_ORDER: Record<DamageTypeValue, number> = {
+  [DamageType.DAMAGE]: 0,
+  [DamageType.HEAL]: 0,
+  [DamageType.AP]: 1,
+  [DamageType.MP]: 2,
+  [DamageType.SHIELD]: 3,
 };
+
+// Style 1 = canonical critical / extended pop (50 frames, finishFrame
+// at 37 → next queued point starts at f37 while fade-out plays).
+// Style 0 = legacy compact variant (26 frames, runs to completion
+// before the next can queue). All type variants within a style share
+// the same timing — only the embedded text colour differs.
+const DEFAULT_POINT_STYLE = 1;
+const STYLE_TIMING: Record<number, { totalFrames: number; finishFrame: number }> = {
+  0: { totalFrames: 26, finishFrame: 26 },
+  1: { totalFrames: 50, finishFrame: 37 },
+};
+
+// Canonical Dofus 1.29 host runs the main timeline at 30 fps. The
+// SWFs are authored at 60 fps but Flash plays them at the host fps,
+// so a 50-frame critical takes 50/30 = 1.667s on screen.
+const POINT_FPS = 30;
+
+// `Constants._SafeStr_664 = 50` — see `__Packages/.../battlefield/
+// %1E%1C%06.as:38`. The original `addSpritePoints` (battlefield
+// %13%18.as:760) attaches the point clip at `(spriteX, spriteY - 50)`.
+// We anchor at the cell position (= sprite feet) and add the same
+// 50 px upward when projecting.
+const POINTS_TOP_OFFSET = 50;
 
 export interface DamageRendererConfig {
   mapWidth?: number;
   groundLevel?: number;
-  animationDuration?: number;
-  floatDistance?: number;
+  /** Window (ms) within which simultaneous damage events on the same cell
+   *  are coalesced into a single floating number. Mirrors canonical
+   *  `RegroupDamage` option (~50ms). */
   groupDelay?: number;
   cellDataMap?: Map<number, CellData>;
 }
 
-/**
- * Tickable actor for a single floating damage number.
- * Self-removes from scene when animation completes.
- */
-class DamageTextActor extends Actor implements Tickable {
-  readonly id: ActorId;
-  readonly [TICKABLE] = true as const;
-
-  private elapsed = 0;
-
-  constructor(
-    private readonly scene: Scene,
-    private readonly text: Text,
-    private readonly startY: number,
-    private readonly floatDistance: number,
-    private readonly duration: number,
-    private readonly onComplete: (text: Text) => void
-  ) {
-    super();
-    this.id = freshActorId();
-  }
-
-  update(dt: number): void {
-    this.elapsed += dt;
-    const progress = this.elapsed / this.duration;
-
-    if (progress >= 1) {
-      this.scene.remove(this.id);
-      return;
-    }
-
-    const eased = 1 - (1 - progress) * (1 - progress);
-    this.text.y = this.startY - this.floatDistance * eased;
-
-    if (progress > 0.5) {
-      this.text.alpha = 1 - (progress - 0.5) * 2;
-    }
-  }
-
-  dispose(): void {
-    this.onComplete(this.text);
-  }
-}
+let nextDamagePointId = 1;
 
 /**
- * Damage number renderer.
- * Spawns DamageTextActor instances into the scene; scene drives animation
- * via its Tickable bucket. No direct Ticker.shared.add.
+ * Damage / AP / MP / heal renderer. The on-screen visuals are pure
+ * CSS — see `apps/electrobun/src/hud/fight/points.css` (static layout
+ * + `@property` declarations) and `points.generated.css` (per-clip
+ * `@keyframes` compiled from the SWF manifests by the asset pipeline).
+ *
+ * This class is the producer side: it batches incoming damage events
+ * through a 50ms regroup window, serialises stacked points per cell
+ * via the canonical `_aPointsList[sID]` queue, and pushes spawn
+ * entries to the React store. The React component mounts a `<div>`
+ * with the right className to select the right keyframe trio. The
+ * `DamagePointsTracker` keeps the per-instance CSS variables
+ * (`--ax / --ay / --cs`) in sync with the camera every pre-tick by
+ * writing directly to the DOM — no React reconciliation per frame.
+ *
+ * The constructor takes a Pixi `Container` (the parent transform we
+ * project anchors through via `toGlobal`) and a `Scene` for tick
+ * registration. The Pixi container is otherwise unused — points
+ * never enter the canvas tree.
  */
 export class DamageRenderer {
-  private container: Container;
-  private textPool: Text[] = [];
   private mapWidth: number;
   private groundLevel: number;
-  private animationDuration: number;
-  private floatDistance: number;
   private groupDelay: number;
-  private pendingDamage: Map<number, DamageDisplayConfig[]> = new Map();
-  private lastFlush: number = 0;
   private cellDataMap: Map<number, CellData>;
-  private readonly scene: Scene;
-  private readonly spawnedIds = new Set<ActorId>();
+
+  private readonly pendingDamage = new Map<number, DamageDisplayConfig[]>();
+  private lastFlush = 0;
+  private readonly cellQueues = new Map<number, DamageDisplayConfig[]>();
+  /** Live point ids — drained on `clear` so the store can release them. */
+  private readonly liveIds = new Set<number>();
+
+  private readonly parentContainer: Container | null;
   private readonly unsubPreTick: () => void;
 
   constructor(
-    parentContainer: Container,
+    parentContainer: Container | null,
     scene: Scene,
     config: DamageRendererConfig = {}
   ) {
     this.mapWidth = config.mapWidth ?? DEFAULT_MAP_WIDTH;
     this.groundLevel = config.groundLevel ?? DEFAULT_GROUND_LEVEL;
-    this.animationDuration = config.animationDuration ?? 1500;
-    this.floatDistance = config.floatDistance ?? 50;
     this.groupDelay = config.groupDelay ?? 50;
     this.cellDataMap = config.cellDataMap ?? new Map();
-    this.scene = scene;
+    this.parentContainer = parentContainer;
 
-    this.container = new Container();
-    this.container.label = "damage-renderer";
-    this.container.sortableChildren = true;
+    // Per pre-tick: drain the regroup window into per-cell queues
+    // and push fresh anchors onto every live point's DOM node.
+    const resolver = this.makeResolver();
+    this.unsubPreTick = scene.onPreTick(() => {
+      this.flushIfDue();
+      damagePointsTracker.flush(resolver);
+    });
+  }
 
-    parentContainer.addChild(this.container);
-
-    for (let i = 0; i < 20; i++) {
-      this.textPool.push(this.createText());
-    }
-
-    this.unsubPreTick = this.scene.onPreTick(() => this.flushIfDue());
+  /** Build the closure the tracker invokes to get a cell's live
+   *  canvas-relative anchor + camera scale. */
+  private makeResolver(): AnchorResolver {
+    return (cellId) => {
+      const worldPos = this.getCellPos(cellId);
+      const localY = worldPos.y - POINTS_TOP_OFFSET;
+      const parent = this.parentContainer;
+      if (!parent) {
+        return { x: worldPos.x, y: localY, cs: 1 };
+      }
+      const global = parent.toGlobal({ x: worldPos.x, y: localY });
+      // `worldTransform.a` is the cumulative X scale through every
+      // ancestor (mapContainer × fightContainer × ...). Same value
+      // canonical Flash would use to rasterise the embedded text
+      // after parent zoom propagation.
+      return { x: global.x, y: global.y, cs: parent.worldTransform.a || 1 };
+    };
   }
 
   showDamage(config: DamageDisplayConfig): void {
     let pending = this.pendingDamage.get(config.cellId);
-
     if (!pending) {
       pending = [];
       this.pendingDamage.set(config.cellId, pending);
     }
-
     pending.push(config);
 
     if (performance.now() - this.lastFlush > this.groupDelay) {
@@ -175,28 +195,59 @@ export class DamageRenderer {
   private flushPending(): void {
     this.lastFlush = performance.now();
 
-    for (const [, damages] of this.pendingDamage) {
+    for (const [cellId, damages] of this.pendingDamage) {
       const combined = this.combineDamages(damages);
-
-      for (let i = 0; i < combined.length; i++) {
-        const damage = combined[i];
-        const offset = i * 15;
-        this.displayDamage(damage, offset);
+      combined.sort(
+        (a, b) => TYPE_DISPLAY_ORDER[a.type] - TYPE_DISPLAY_ORDER[b.type]
+      );
+      const queue = this.getOrCreateQueue(cellId);
+      const wasIdle = queue.length === 0;
+      for (const damage of combined) {
+        queue.push(damage);
+      }
+      // Canonical: `if(_aPointsList[sID].length == 1) loadPointClip`
+      // — only the head plays; subsequent items wait for finishFrame.
+      if (wasIdle && queue.length > 0) {
+        this.spawnHead(cellId);
       }
     }
 
     this.pendingDamage.clear();
   }
 
+  private getOrCreateQueue(cellId: number): DamageDisplayConfig[] {
+    let q = this.cellQueues.get(cellId);
+    if (!q) {
+      q = [];
+      this.cellQueues.set(cellId, q);
+    }
+    return q;
+  }
+
+  private spawnHead(cellId: number): void {
+    const head = this.cellQueues.get(cellId)?.[0];
+    if (!head) return;
+    this.spawnPoint(head);
+  }
+
+  private advanceQueue(cellId: number): void {
+    const queue = this.cellQueues.get(cellId);
+    if (!queue) return;
+    queue.shift();
+    if (queue.length === 0) {
+      this.cellQueues.delete(cellId);
+      return;
+    }
+    this.spawnHead(cellId);
+  }
+
   private combineDamages(
     damages: DamageDisplayConfig[]
   ): DamageDisplayConfig[] {
     const byType = new Map<string, DamageDisplayConfig>();
-
     for (const damage of damages) {
       const key = `${damage.type}-${damage.element ?? 0}`;
       const existing = byType.get(key);
-
       if (existing) {
         existing.value += damage.value;
         existing.critical = existing.critical || damage.critical;
@@ -204,7 +255,6 @@ export class DamageRenderer {
         byType.set(key, { ...damage });
       }
     }
-
     return Array.from(byType.values());
   }
 
@@ -216,149 +266,89 @@ export class DamageRenderer {
     return { x: pos.x, y: pos.y + getSlopeYOffset(slope) };
   }
 
-  private displayDamage(
-    config: DamageDisplayConfig,
-    yOffset: number = 0
-  ): void {
-    const text = this.acquireText();
-    const pos = this.getCellPos(config.cellId);
-
-    text.x = pos.x;
-    text.y = pos.y - yOffset;
-
-    let displayValue = String(Math.abs(config.value));
-
-    if (config.critical) {
-      displayValue += "!";
+  private spawnPoint(config: DamageDisplayConfig): void {
+    const styleIdx = DEFAULT_POINT_STYLE;
+    const typeIdx = TYPE_TO_CLIP_INDEX[config.type];
+    const timing = STYLE_TIMING[styleIdx];
+    if (!timing) {
+      this.advanceQueue(config.cellId);
+      return;
     }
 
-    if (
-      config.type === DamageType.HEAL ||
-      config.type === DamageType.AP ||
-      config.type === DamageType.MP
-    ) {
-      displayValue = `+${displayValue}`;
-    } else if (config.type === DamageType.DAMAGE) {
-      displayValue = `-${displayValue}`;
-    }
-
-    text.text = displayValue;
-
-    let color: number;
-
-    if (config.type === DamageType.DAMAGE && config.element !== undefined) {
-      color = ELEMENT_COLORS[config.element] ?? TYPE_COLORS[DamageType.DAMAGE];
+    // Canonical sign formatting from `FightPointAnimManager.as:32-34`:
+    //   var _loc7_ = (!_loc5_ ? " " : "+") + String(nValue);
+    // Positives prefixed with "+", negatives prefixed with " " (a
+    // literal SPACE — the minus sign is already in `String(nValue)`,
+    // and the leading space exists so positive and negative widths
+    // align in the centred autoSize textfield).
+    let signed: number;
+    if (config.type === DamageType.DAMAGE) {
+      signed = -Math.abs(config.value);
+    } else if (config.type === DamageType.HEAL) {
+      signed = Math.abs(config.value);
     } else {
-      color = TYPE_COLORS[config.type];
+      // AP / MP / SHIELD respect the sign the caller passed.
+      signed = config.value;
     }
+    const text =
+      signed > 0 ? `+${signed}` : signed < 0 ? ` ${signed}` : "0";
 
-    text.style.fill = color;
-    text.style.fontSize = config.critical ? 18 : 14;
+    const id = nextDamagePointId++;
+    this.liveIds.add(id);
 
-    text.visible = true;
-    text.alpha = 1;
-    text.zIndex = Z_DAMAGE_VIEW + this.spawnedIds.size;
-
-    const actor = new DamageTextActor(
-      this.scene,
+    addDamagePoint({
+      id,
+      cellId: config.cellId,
       text,
-      text.y,
-      this.floatDistance,
-      this.animationDuration,
-      (t) => {
-        this.spawnedIds.delete(actor.id);
-        this.releaseText(t);
-      }
-    );
-
-    this.spawnedIds.add(actor.id);
-    this.scene.add(actor);
-  }
-
-  private acquireText(): Text {
-    const pooled = this.textPool.pop();
-
-    if (pooled) {
-      this.container.addChild(pooled);
-      return pooled;
-    }
-
-    const text = this.createText();
-    this.container.addChild(text);
-    return text;
-  }
-
-  private releaseText(text: Text): void {
-    text.visible = false;
-
-    if (text.parent) {
-      text.parent.removeChild(text);
-    }
-
-    this.textPool.push(text);
-  }
-
-  private createText(): Text {
-    const style = new TextStyle({
-      fontFamily: "Arial",
-      fontSize: 14,
-      fontWeight: "bold",
-      fill: 0xffffff,
-      stroke: { color: 0x000000, width: 3 },
-      align: "center",
+      styleIdx,
+      typeIdx,
+      totalFrames: timing.totalFrames,
+      finishFrame: timing.finishFrame,
+      fps: POINT_FPS,
+      onFinishFrame: () => this.advanceQueue(config.cellId),
+      onComplete: () => {
+        this.liveIds.delete(id);
+      },
     });
-
-    const text = new Text({ text: "", style });
-    text.anchor.set(0.5, 0.5);
-    text.visible = false;
-
-    return text;
   }
 
   setMapDimensions(width: number, groundLevel?: number): void {
     this.mapWidth = width;
-
     if (groundLevel !== undefined) {
       this.groundLevel = groundLevel;
     }
   }
 
-  setOffset(x: number, y: number): void {
-    this.container.x = x;
-    this.container.y = y;
-  }
+  /** Legacy hook — kept for `fight-ui.updateFightOffset` API compat.
+   *  The DOM-rendered points track the camera by walking the parent
+   *  Pixi container's worldTransform per tick, so explicit offset /
+   *  scale setters are no-ops. */
+  setOffset(_x: number, _y: number): void {}
+  setScale(_scale: number): void {}
+  onResize(_event: { zoom: number }): void {}
 
-  setScale(scale: number): void {
-    this.container.scale.set(scale);
-  }
-
-  onResize(event: { zoom: number }): void {
-    this.setScale(event.zoom);
-  }
-
-  getContainer(): Container {
-    return this.container;
+  /** Returns null under the DOM renderer — kept for API compat. */
+  getContainer(): Container | null {
+    return null;
   }
 
   clear(): void {
-    for (const id of Array.from(this.spawnedIds)) {
-      this.scene.remove(id);
+    for (const id of this.liveIds) {
+      removeDamagePoint(id);
     }
-
-    this.spawnedIds.clear();
+    this.liveIds.clear();
+    this.cellQueues.clear();
     this.pendingDamage.clear();
+    clearDamagePoints();
+    damagePointsTracker.clear();
   }
 
   destroy(): void {
     this.unsubPreTick();
     this.clear();
-
-    for (const text of this.textPool) {
-      text.destroy();
-    }
-
-    this.textPool = [];
-
-    this.container.destroy();
   }
 }
+
+/** Re-exported for tests / dev tools that want to peek at the store
+ *  without importing the hud module directly. */
+export { damagePointsStore };

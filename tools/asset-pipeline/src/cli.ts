@@ -13,6 +13,7 @@ import type { CategoryDef, CategoryTraits } from "./category.ts";
 import { logger } from "./logger.ts";
 import { compileAccessories } from "./stages/compile/accessories.ts";
 import { compileItems } from "./stages/compile/items.ts";
+import { compilePointsCss } from "./stages/compile/points-css.ts";
 import { compileSpellIcons } from "./stages/compile/spell-icons.ts";
 import { compileSpells } from "./stages/compile/spells.ts";
 import { compileSprites } from "./stages/compile/sprites.ts";
@@ -20,6 +21,7 @@ import { compileStaticCategory } from "./stages/compile/static.ts";
 import { compileStaticTileCategory } from "./stages/compile/static-tile.ts";
 import { compileTiles, type TileKind } from "./stages/compile/tiles.ts";
 import { extractAccessories } from "./stages/extract/accessories.ts";
+import { extractPoints } from "./stages/extract/points.ts";
 import { extractBundleSymbols } from "./stages/extract/bundle.ts";
 import { extractItems } from "./stages/extract/items.ts";
 import { extractSprites } from "./stages/extract/sprites.ts";
@@ -639,6 +641,29 @@ program
       process.exit(1);
     }
     await publishCategory(category.name);
+  });
+
+program
+  .command("points")
+  .description(
+    "Extract floating damage/AP/MP/heal point clips into JSON manifests AND compile them into apps/electrobun/src/hud/fight/points.generated.css with @keyframes that drive the canonical SWF curve via @property-typed CSS variables."
+  )
+  .action(async () => {
+    const ex = await extractPoints();
+    logger.info(
+      { outputDir: ex.outputDir, count: ex.count },
+      "points extracted"
+    );
+    const css = await compilePointsCss();
+    logger.info(
+      {
+        outputPath: css.outputPath,
+        clips: css.clips,
+        bytes: css.bytes,
+        durationMs: css.durationMs,
+      },
+      "points CSS compiled"
+    );
   });
 
 program

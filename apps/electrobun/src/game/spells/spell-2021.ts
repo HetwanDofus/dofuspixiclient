@@ -1,57 +1,46 @@
 /**
- * Spell 2021 — (Unknown name, likely a Cra or Iop spell).
+ * Spell 2021 — Lance-Flammes (Roublard / Rogue fire lance spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2021/scripts/scripts/
  *
- * displayType=20 (ProjectileLinear). The manifest has a single `shoot` animation
- * in `animations[]` (no librarySymbols), and DefineSprite_10_shoot/frame_1/DoAction.as
- * resets `_rotation = 0` — the canonical linear-projectile pattern where the harness
- * rotates the container to face the target, and the shoot symbol resets its own
- * rotation to remain upright. There is no `move` symbol, no ballistic arc, and no
- * `duplicate` symbol, so ProjectileBallistic and BeamLine are ruled out.
+ * displayType=11 (TargetCell). The spell has no `move` symbol and no
+ * caster-side projectile; there is only a `shoot` symbol that plays at
+ * the target cell. No `librarySymbols[]` entries — `shoot` lives in
+ * `animations[]` only, so textures are fetched without the `lib_` prefix.
  *
- * The outer sprite (DefineSprite_19) is a 119-frame authored timeline that acts as
- * the main driving clip. It:
- *   frame_4:   positions itself at _parent.cellTo (x/y).
- *   frame_7:   plays sound "lance02".
- *   frame_47:  plays sound "explosion" AND signals hit (this.end()).
- *   frame_71:  plays sound "licrounch_1003".
- *   frame_119: _parent.removeMovieClip → spell complete.
+ * The main outer sprite is DefineSprite_19 (119-frame container). It:
+ *   frame_1  : (implicit — harness already placed root at target cell)
+ *   frame_4  : positions itself at _parent.cellTo (redundant here since
+ *               harness already anchors at target, but we honour it)
+ *   frame_7  : SOMA.playSound("lance02")
+ *   frame_47 : SOMA.playSound("explosion") + this.end() → signalHit
+ *   frame_71 : SOMA.playSound("licrounch_1003")
+ *   frame_119: _parent.removeMovieClip() → spell complete
  *
- * DefineSprite_15 is an inner authored timeline (64 frames) that stops at frame_64.
+ * Inside DefineSprite_19 at its frame_1 (or via placement), DefineSprite_10_shoot
+ * is attached. DefineSprite_10_shoot is the 56-frame visual animation:
+ *   frame_1  : _rotation = 0
+ *   frame_47 : _parent.removeMovieClip(); stop() — removes itself (not the outer)
  *
- * DefineSprite_10_shoot is the named "shoot" symbol (56 frames):
- *   frame_1:   _rotation = 0 (override harness rotation).
- *   frame_47:  _parent.removeMovieClip(); stop() — removes shoot from its parent.
+ * There is also a DefineSprite_15 (referenced in scripts) with frame_64: stop().
+ * This appears to be an inner authored timeline inside DefineSprite_19.
  *
- * The top-level main timeline (frame_2/DoAction.as) just does stop().
+ * Architecture decision: We model this as:
+ *   - `shoot` (56-frame visual, matches `animations: [{name:"shoot"}]`)
+ *     with frame_1 resetting rotation, frame_47 removing self.
+ *   - `sprite19` (119-frame outer container) that:
+ *     - attaches `shoot` at frame_1 (depth 1)
+ *     - plays sounds at frames 7, 47, 71
+ *     - signals hit at frame 47
+ *     - completes at frame 119
+ *   We attach sprite19 from onSpellStart.
  *
- * Because displayType=20 (ProjectileLinear), the harness:
- *   1. Rotates root to face target.
- *   2. Attaches "shoot" at the target-relative offset inside the rotated container.
+ * Sounds are captured from onSpellStart and forwarded via a class-level
+ * reference so frameScripts can call them.
  *
- * The outer sprite_19 and sprite_15 need to be attached from onSpellStart.
- *
- * Sounds in this spell are played from frameScripts inside DefineSprite_19,
- * so we capture the callbacks reference in onSpellStart for use in those handlers.
- *
- * Library symbols:
- *   - shoot (animations[] entry, 56 frames) — linear projectile impact.
- *       frame_1: _rotation = 0 (resets harness-applied rotation).
- *       frame_47: removes itself from its parent; stops.
- *   - sprite_19 (animations[] — NOT in librarySymbols, container-only) — main
- *       driving timeline (119 frames). Positions at target, plays sounds, signals
- *       hit at frame_47, removes outer mc at frame_119.
- *   - sprite_15 (animations[] — container-only, 64 frames). Stops at frame_64.
- *
- * Main timeline: frame_2/DoAction.as → stop(). No sound at top level. Children
- * (sprite_19, sprite_15, shoot) are placed by the harness (shoot) and onSpellStart
- * (sprite_19, sprite_15).
- *
- * Note: Because displayType=20, `this.runtime.signalHit()` must be called from
- * the canonical hit frame (DefineSprite_19/frame_47/DoAction_2.as → this.end()).
- * The harness does NOT auto-signal for linear projectiles.
+ * Library symbols: none (animations[] only, no librarySymbols[]).
+ * Texture key for shoot: "shoot" (no lib_ prefix).
  */
 
 import type {
@@ -75,20 +64,25 @@ const SHOOT_BOUNDS = {
 
 export class Spell2021 extends RuntimeSpell {
   readonly spellId = 2021;
-  readonly displayType = SpellDisplayType.ProjectileLinear;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private soundCallbacks?: SpellCallbacks;
+  private shootSym!: SymbolDefinition;
+  private sprite19Sym!: SymbolDefinition;
+
+  /** Captured in onSpellStart so frameScripts can trigger sounds. */
+  private _playSound?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext,
+    _context: SpellContext
   ): void {
     const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // ---- shoot — 56-frame linear projectile impact ---------------
-    // Textures come from animations[] entry "shoot" (no lib_ prefix since
-    // there are no librarySymbols in this manifest).
-    const shootSym: SymbolDefinition = {
+    // ---- shoot — 56-frame visual impact animation ----------------
+    // Texture key: "shoot" (animations[] entry, no lib_ prefix).
+    // AS DefineSprite_10_shoot/frame_1/DoAction.as: _rotation = 0
+    // AS DefineSprite_10_shoot/frame_47/DoAction.as: _parent.removeMovieClip(); stop()
+    this.shootSym = {
       name: "shoot",
       totalFrames: 56,
       frames: textures.getFrames("shoot"),
@@ -99,8 +93,6 @@ export class Spell2021 extends RuntimeSpell {
           0,
           (clip) => {
             // AS DefineSprite_10_shoot/frame_1/DoAction.as
-            // _rotation = 0; — override the harness-applied velocity-angle rotation
-            // so the impact stays upright regardless of target direction.
             clip.rotation = 0;
           },
         ],
@@ -108,8 +100,8 @@ export class Spell2021 extends RuntimeSpell {
           46,
           (clip) => {
             // AS DefineSprite_10_shoot/frame_47/DoAction.as
-            // _parent.removeMovieClip(); stop();
-            // Removes the shoot clip from its parent (root).
+            // _parent.removeMovieClip() removes the shoot clip from sprite19.
+            // stop() halts its own timeline.
             clip.parent?.remove();
             clip.stop();
           },
@@ -117,29 +109,51 @@ export class Spell2021 extends RuntimeSpell {
       ]),
     };
 
-    // ---- sprite_19 — main driving timeline (119 frames) ----------
-    // Container-only (no authored frame textures in animations[], only scripts).
-    // Drives sounds, hit signal, and spell completion.
-    const sprite19Sym: SymbolDefinition = {
-      name: "sprite_19",
+    // ---- sprite19 — 119-frame outer container --------------------
+    // This is DefineSprite_19, the top-level authored timeline. No textures
+    // of its own — it is a container-only symbol driven by frame scripts.
+    // frames: [] because no visual content directly on this symbol.
+    this.sprite19Sym = {
+      name: "sprite19",
       totalFrames: 119,
       frames: [],
       anchorX: 0.5,
       anchorY: 0.5,
       frameScripts: new Map([
         [
+          0,
+          (clip, ctx) => {
+            // frame_1: implicit — attach the shoot visual as a child.
+            // The harness has already placed the root at cellTo for
+            // displayType=11; sprite19 is at root (0,0).
+            // Also port AS DefineSprite_19/frame_4 positioning redundancy
+            // by anchoring at (0,0) — the root is already at cellTo.
+            clip.attach(this.shootSym, "shoot", 1, ctx);
+          },
+        ],
+        [
           3,
           (clip) => {
             // AS DefineSprite_19/frame_4/DoAction.as
-            // _X = _parent.cellTo.x; _Y = _parent.cellTo.y;
-            // Position this sprite at the target cell in world coords.
+            // _X = _parent.cellTo.x; _Y = _parent.cellTo.y
+            // The harness anchors root at cellTo for TargetCell display type,
+            // and sprite19 is a direct child of root at (0,0). The cellTo
+            // reference in the AS is the outer mc property. Since root is
+            // already at cellTo, self-positioning to (0,0) in local space
+            // matches the canonical intent.
             const root = clip.parent;
             const cellTo = root?.vars.cellTo as
               | { x: number; y: number }
               | undefined;
-            if (cellTo) {
-              clip.x = cellTo.x;
-              clip.y = cellTo.y;
+            const anchor = root?.vars.cellFrom as
+              | { x: number; y: number }
+              | undefined;
+            if (cellTo && anchor) {
+              // For WorldAbsolute that would be clip.x = cellTo.x.
+              // For TargetCell the container IS at cellTo, so local (0,0) is correct.
+              // We simply ensure position is (0,0) as canonical.
+              clip.x = 0;
+              clip.y = 0;
             }
           },
         ],
@@ -147,18 +161,18 @@ export class Spell2021 extends RuntimeSpell {
           6,
           () => {
             // AS DefineSprite_19/frame_7/DoAction.as
-            // SOMA.playSound("lance02");
-            this.soundCallbacks?.playSound("lance02");
+            // SOMA.playSound("lance02")
+            this._playSound?.("lance02");
           },
         ],
         [
           46,
           () => {
             // AS DefineSprite_19/frame_47/DoAction.as
-            // SOMA.playSound("explosion");
-            this.soundCallbacks?.playSound("explosion");
+            // SOMA.playSound("explosion")
+            this._playSound?.("explosion");
             // AS DefineSprite_19/frame_47/DoAction_2.as
-            // this.end(); — signal hit (damage popup at target).
+            // this.end() → signalHit (damage popup at target)
             this.runtime.signalHit();
           },
         ],
@@ -166,59 +180,36 @@ export class Spell2021 extends RuntimeSpell {
           70,
           () => {
             // AS DefineSprite_19/frame_71/DoAction.as
-            // SOMA.playSound("licrounch_1003");
-            this.soundCallbacks?.playSound("licrounch_1003");
+            // SOMA.playSound("licrounch_1003")
+            this._playSound?.("licrounch_1003");
           },
         ],
         [
           118,
           (clip) => {
             // AS DefineSprite_19/frame_119/DoAction.as
-            // _parent.removeMovieClip(); — kills the outer mc = spell complete.
-            clip.parent?.remove();
+            // _parent.removeMovieClip() — outer mc removal → spell complete.
+            clip.remove();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
-    // ---- sprite_15 — inner authored timeline (64 frames) ---------
-    // Container-only. Stops at frame_64.
-    const sprite15Sym: SymbolDefinition = {
-      name: "sprite_15",
-      totalFrames: 64,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          63,
-          (clip) => {
-            // AS DefineSprite_15/frame_64/DoAction.as
-            // stop();
-            clip.stop();
-          },
-        ],
-      ]),
-    };
-
-    this.registry.register(shootSym);
-    this.registry.register(sprite19Sym);
-    this.registry.register(sprite15Sym);
+    this.registry.register(this.shootSym);
+    this.registry.register(this.sprite19Sym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    context: SpellContext,
+    context: SpellContext
   ): void {
-    // Capture callbacks so frameScripts inside sprite_19 can play sounds.
-    this.soundCallbacks = callbacks;
+    // Capture sound callback for use in frameScripts.
+    this._playSound = callbacks.playSound;
 
-    // top-level main timeline: frame_2/DoAction.as → stop();
-    // No sound at the top level. The harness has already attached "shoot"
-    // via configureHarness (displayType=20 ProjectileLinear). We now attach
-    // sprite_19 and sprite_15 as authored parallel timelines on the root.
-    this.root.attach(this.registry.resolve("sprite_19")!, "sprite19", 3, context);
-    this.root.attach(this.registry.resolve("sprite_15")!, "sprite15", 4, context);
+    // AS scripts/frame_2/DoAction.as: stop() on the main timeline.
+    // The main timeline itself just stops; the authored content is
+    // DefineSprite_19 which we attach here as the primary child.
+    this.root.attach(this.sprite19Sym, "sprite19", 1, context);
   }
 }

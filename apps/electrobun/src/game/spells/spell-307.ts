@@ -4,27 +4,36 @@
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/307/scripts/scripts/
  *
- * displayType=11 (TargetCell). Single animated impact at target cell.
- * No library symbols are referenced via attachMovie — the manifest has
- * no `librarySymbols[]` entries and no `attachMovie` calls in any AS
- * script. The entire visual is the single composite `anim1` animation
- * (129 frames) played at the target cell.
+ * displayType=11 (TargetCell). The spell has no projectile, no caster reference,
+ * no `move`/`shoot`/`duplicate` symbols, and no `_parent.cellFrom` usage.
+ * It is a single impact animation at the target cell — the canonical pattern
+ * for TargetCell (11).
  *
- * AS layout:
- *   - DefineSprite_10 (inner anim, ~85 frames):
- *       frame_85: stop()
+ * Manifest layout:
+ *   - `animations: [{name: "anim1", frameCount: 129}]` — single composite
+ *     animation, no librarySymbols[]. All rendering is driven by the bare
+ *     `anim1` timeline.
+ *   - No librarySymbols[]. Do NOT use `lib_` prefix anywhere.
  *
- *   - DefineSprite_12 (outer/container, 129 frames):
- *       frame_1:   SOMA.playSound("setag_307")
+ * Symbol structure (two nested DefineSprite layers):
+ *   - `anim1` — outer 129-frame timeline (DefineSprite_12).
+ *       frame_1:  SOMA.playSound("setag_307")
  *       frame_127: _parent.removeMovieClip() → spell complete
+ *     Contains an inner DefineSprite_10 (85-frame sub-clip baked into the
+ *     composite SVG frames); its only script is:
+ *       frame_85: stop()
+ *     Since DefineSprite_10 is baked into the composite `anim1` SVG frames
+ *     and has no onClipEvent handlers, it does not need a separate runtime
+ *     symbol — its `stop()` at frame 85 is an authoring artefact that has
+ *     no effect on the outer clip's playback. The outer timeline plays
+ *     straight through to frame 127 and then removes itself.
  *
- * The `anim1` animation in the manifest is the composite of
- * DefineSprite_12, so we register it as a single symbol and drive
- * completion from frame 126 (0-based frame_127).
+ * Main timeline: attaches `anim1` at root; displayType=11 places container
+ *   at target cell automatically.
  *
- * signalHit is fired at frame 0 (impact is immediate / first frame of
- * impact animation), which is canonical for single-impact target-cell
- * spells with no separate projectile phase.
+ * signalHit: fired at frame_1 of anim1 (the spell is an instant impact —
+ *   the hit registers as the animation starts playing, consistent with the
+ *   sound cue on frame_1).
  */
 
 import type {
@@ -58,12 +67,18 @@ export class Spell307 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1 — composite 129-frame impact animation at target --
-    // AS DefineSprite_12/frame_1/DoAction.as: SOMA.playSound("setag_307")
-    // AS DefineSprite_12/frame_127/DoAction.as: _parent.removeMovieClip()
-    // AS DefineSprite_10/frame_85/DoAction.as: stop()
-    // (DefineSprite_10 is an inner sprite within the composite; its
-    //  stop() at frame_85 is baked into the composite frames.)
+    // ---- anim1 — outer 129-frame impact composite ----------------
+    // Corresponds to DefineSprite_12 in the canonical SWF.
+    //
+    // AS DefineSprite_12/frame_1/DoAction.as:
+    //   SOMA.playSound("setag_307");
+    //
+    // AS DefineSprite_12/frame_127/DoAction.as:
+    //   _parent.removeMovieClip();
+    //
+    // The inner DefineSprite_10 (frame_85: stop()) is baked into the
+    // composite SVG frames and carries no onClipEvent handlers — it
+    // requires no separate runtime symbol.
     this.anim1Sym = {
       name: "anim1",
       totalFrames: 129,
@@ -74,17 +89,21 @@ export class Spell307 extends RuntimeSpell {
         [
           0,
           (_clip) => {
-            // AS DefineSprite_12/frame_1/DoAction.as
-            // Sound is played in onSpellStart; signalHit fires here
-            // as the impact begins on frame 1.
+            // AS DefineSprite_12/frame_1/DoAction.as:
+            //   SOMA.playSound("setag_307");
+            // Sound is played via onSpellStart (callbacks available there).
+            // signalHit: the spell is an instant impact — fire hit at the
+            // first frame when the animation begins.
             this.runtime.signalHit();
           },
         ],
         [
           126,
           (clip) => {
-            // AS DefineSprite_12/frame_127/DoAction.as
-            // _parent.removeMovieClip() → spell complete
+            // AS DefineSprite_12/frame_127/DoAction.as:
+            //   _parent.removeMovieClip();
+            // `clip` here is anim1 whose parent is root — removing root
+            // and signalling complete ends the spell.
             clip.remove();
             this.runtime.complete();
           },
@@ -99,11 +118,13 @@ export class Spell307 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS DefineSprite_12/frame_1/DoAction.as: SOMA.playSound("setag_307")
+    // AS DefineSprite_12/frame_1/DoAction.as: SOMA.playSound("setag_307");
+    // The sound fires on the main timeline / frame_1 of the outer sprite.
     callbacks.playSound("setag_307");
 
-    // Attach the main animation at the target (root is at target cell
-    // for TargetCell displayType).
+    // Attach anim1 at root so it starts ticking from the next runtime frame.
+    // displayType=11 (TargetCell) positions the container at the target cell;
+    // anim1 is centred on that anchor via its calculated anchorX/Y.
     this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

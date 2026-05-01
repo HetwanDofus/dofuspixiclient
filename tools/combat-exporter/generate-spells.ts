@@ -30,6 +30,11 @@ import { join, resolve } from 'path';
 const TOOL_DIR = resolve(import.meta.dirname!);
 const REPO_ROOT = resolve(TOOL_DIR, '../..');
 const SPELL_ANIMS_DIR = join(TOOL_DIR, 'output/spell-anims');
+// svg-spritesheet output: per-animation atlas.json files carry the
+// content-hash dedup result (frameOrder + duplicates + unique frames[]).
+// The AI MUST consult these to compute the right SymbolDefinition.totalFrames
+// — see "Deduplicated frame count" in the prompt.
+const SPELL_ATLAS_DIR = join(REPO_ROOT, 'assets/spritesheets/spells');
 // Runtime path — the Vite glob in spell-module-loader.ts loads from here.
 const SPELLS_OUT_DIR = join(REPO_ROOT, 'apps/electrobun/src/game/spells');
 const GUIDE_PATH = join(TOOL_DIR, 'test-player/src/spells/CLAUDE.md');
@@ -48,10 +53,45 @@ const REF_103_PATH = join(SPELLS_OUT_DIR, 'spell-103.ts');
 const REF_909_PATH = join(SPELLS_OUT_DIR, 'spell-909.ts');
 
 /**
- * Spells that have hand-perfected RuntimeSpell ports — the generator
- * must NOT overwrite them and uses them as in-prompt references.
+ * JSON registry of hand-perfected spell IDs. The generator skips these
+ * and a sibling `notes` map documents WHY each one is protected. Edit
+ * the file directly to lock additional spell-<id>.ts modules from
+ * AI overwrite — do NOT add IDs here in code.
  */
-const PROTECTED_SPELL_IDS = new Set<number>([103, 909, 911]);
+const PROTECTED_SPELLS_JSON = join(TOOL_DIR, 'protected-spells.json');
+
+interface ProtectedSpellsRegistry {
+  ids: number[];
+  notes?: Record<string, string>;
+}
+
+async function loadProtectedSpellIds(): Promise<Set<number>> {
+  if (!(await exists(PROTECTED_SPELLS_JSON))) {
+    console.warn(
+      `[generate-spells] ${PROTECTED_SPELLS_JSON} missing — no spells will be protected from overwrite`,
+    );
+    return new Set();
+  }
+  try {
+    const raw = await readText(PROTECTED_SPELLS_JSON);
+    const parsed = JSON.parse(raw) as ProtectedSpellsRegistry;
+    if (!Array.isArray(parsed.ids)) {
+      throw new Error('`ids` must be an array of numeric spell IDs');
+    }
+    const set = new Set<number>();
+    for (const id of parsed.ids) {
+      if (!Number.isFinite(id) || !Number.isInteger(id) || id <= 0) {
+        throw new Error(`invalid spell id ${id} in protected-spells.json`);
+      }
+      set.add(id);
+    }
+    return set;
+  } catch (err) {
+    throw new Error(
+      `[generate-spells] failed to read ${PROTECTED_SPELLS_JSON}: ${(err as Error).message}`,
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -164,11 +204,115 @@ async function collectASFiles(dir: string): Promise<{ path: string; content: str
   return results;
 }
 
+/**
+ * Per-animation atlas summary read from the svg-spritesheet output.
+ *
+ * The svg-spritesheet runs content-hash dedup over all logical frames of an
+ * animation: identical frames (post-`_parent.removeMovieClip()` placeholders,
+ * "still" sections of the timeline, etc.) collapse into a single unique
+ * cell in the atlas. The runtime's vello renderer rasterises ONE GPU cell
+ * per unique frame and the JS-side texture array is built off that — it
+ * does NOT have a logical→cell mapping, so a SymbolDefinition that
+ * declares `totalFrames = <logical count>` will tick the playhead past
+ * the last unique cell and the texture lookup wraps back into frame 0
+ * ("the animation restarts at frame 1 after the end" symptom).
+ *
+ * This summary surfaces the dedup result so the prompt can tell the AI
+ * to use the LAST unique logical frame index + 1 as `totalFrames`, and
+ * to remap the canonical `_parent.removeMovieClip()` script frame to the
+ * matching unique-cell frame.
+ *
+ * Layout:
+ *   assets/spritesheets/spells/<id>/atlas.json                (single-anim)
+ *   assets/spritesheets/spells/<id>/<animName>/atlas.json     (multi-anim)
+ */
+interface AnimAtlasSummary {
+  animation: string;
+  logicalFrameCount: number;
+  uniqueFrameCount: number;
+  /** Last logical frame index that has a unique cell (highest non-deduped). */
+  lastUniqueLogicalIndex: number;
+  /** Map of dedup'd logical frame id → canonical id (truncated to 8 entries for prompt brevity). */
+  duplicatesPreview: Record<string, string>;
+  duplicatesTotal: number;
+}
+
+async function collectAtlasSummaries(spellId: number): Promise<AnimAtlasSummary[]> {
+  const root = join(SPELL_ATLAS_DIR, String(spellId));
+  if (!(await exists(root))) {
+    return [];
+  }
+
+  const summaries: AnimAtlasSummary[] = [];
+
+  // Single-anim layout: <id>/atlas.json
+  const flatPath = join(root, 'atlas.json');
+  if (await exists(flatPath)) {
+    const summary = await readAtlasJson(flatPath);
+    if (summary) summaries.push(summary);
+    return summaries;
+  }
+
+  // Multi-anim layout: <id>/<animName>/atlas.json
+  const entries = await readdir(root, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const path = join(root, entry.name, 'atlas.json');
+    if (!(await exists(path))) continue;
+    const summary = await readAtlasJson(path, entry.name);
+    if (summary) summaries.push(summary);
+  }
+  return summaries;
+}
+
+async function readAtlasJson(
+  path: string,
+  fallbackName?: string,
+): Promise<AnimAtlasSummary | null> {
+  try {
+    const raw = await readText(path);
+    const json = JSON.parse(raw) as {
+      animation?: string;
+      frames?: { id: string }[];
+      frameOrder?: string[];
+      duplicates?: Record<string, string>;
+    };
+    const animation = json.animation ?? fallbackName ?? '?';
+    const frameOrder = json.frameOrder ?? [];
+    const uniqueIds = new Set((json.frames ?? []).map((f) => f.id));
+    let lastUniqueLogicalIndex = -1;
+    for (let i = 0; i < frameOrder.length; i++) {
+      if (uniqueIds.has(frameOrder[i])) {
+        lastUniqueLogicalIndex = i;
+      }
+    }
+    const duplicates = json.duplicates ?? {};
+    const dupKeys = Object.keys(duplicates);
+    const duplicatesPreview: Record<string, string> = {};
+    for (const k of dupKeys.slice(0, 4).concat(dupKeys.slice(-4))) {
+      duplicatesPreview[k] = duplicates[k];
+    }
+    return {
+      animation,
+      logicalFrameCount: frameOrder.length,
+      uniqueFrameCount: uniqueIds.size,
+      lastUniqueLogicalIndex,
+      duplicatesPreview,
+      duplicatesTotal: dupKeys.length,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Spell discovery
 // ---------------------------------------------------------------------------
 
-async function discoverSpells(opts: Options): Promise<SpellInfo[]> {
+async function discoverSpells(
+  opts: Options,
+  protectedIds: Set<number>,
+): Promise<SpellInfo[]> {
   const spells: SpellInfo[] = [];
   const entries = await readdir(SPELL_ANIMS_DIR, { withFileTypes: true });
 
@@ -185,7 +329,7 @@ async function discoverSpells(opts: Options): Promise<SpellInfo[]> {
     // PreRenderedSpell fallback. The legacy `requiresTypeScript`
     // flag is ignored at discovery time.
 
-    if (PROTECTED_SPELL_IDS.has(id)) continue;
+    if (protectedIds.has(id)) continue;
     const hasExisting = await exists(join(SPELLS_OUT_DIR, `spell-${id}.ts`));
     if (opts.skipExisting && hasExisting) continue;
 
@@ -305,6 +449,17 @@ ${ref909}
 async function loadSpellContext(spell: SpellInfo): Promise<string> {
   const manifest = await readText(spell.manifestPath);
   const asFiles = await collectASFiles(spell.scriptsDir);
+  const atlasSummaries = await collectAtlasSummaries(spell.id);
+
+  // Surface CLIPACTIONRECORD files explicitly so the prompt cannot
+  // "miss" them — these are the dynamic per-frame scripts that drive
+  // particle physics, alpha pulses, spirals, etc. The single biggest
+  // class of generation failures has been the model claiming these are
+  // "baked into the pre-rendered SVG frames" — they are NOT, and that
+  // claim ships visibly broken animations.
+  const clipFiles = asFiles.filter((f) => f.path.includes('CLIPACTIONRECORD'));
+  const loadFiles = clipFiles.filter((f) => f.path.includes('(load)'));
+  const enterFrameFiles = clipFiles.filter((f) => f.path.includes('(enterFrame)'));
 
   let context = `# Generate TypeScript for Spell ${spell.id}
 
@@ -325,6 +480,60 @@ ${file.content}
 `;
   }
 
+  if (clipFiles.length > 0) {
+    context += `
+## ⚠️ CLIPACTIONRECORD inventory — ${clipFiles.length} script(s) MUST be ported
+
+This spell ships ${loadFiles.length} \`onClipEvent(load)\` and ${enterFrameFiles.length} \`onClipEvent(enterFrame)\` script(s). Each one drives dynamic per-frame behavior (position, scale, rotation, alpha, removal) that runs in the Flash player at runtime — Arakne's pre-rendered SVGs ONLY capture static PlaceObject2 transforms, never the per-tick state changes these scripts produce. Skipping any of them ships a visibly broken spell.
+
+Files that MUST be ported:
+${clipFiles.map((f) => `- ${f.path}`).join('\n')}
+
+For each PlaceObject2_X_Y directory with a CLIPACTIONRECORD:
+1. Identify the sprite character (DefineSprite_X based on the parent dir name pattern)
+2. Register a SymbolDefinition for that sprite with the bounds from manifest \`librarySymbols[]\` or its placement context
+3. Implement \`onLoad\` from \`CLIPACTIONRECORD onClipEvent(load).as\` (one-shot init: random seeds, vars setup)
+4. Implement \`onEnterFrame\` from \`CLIPACTIONRECORD onClipEvent(enterFrame).as\` (per-tick physics + transform mutation)
+5. Attach the symbol via the parent's frameScripts (mirroring the canonical \`PlaceObject2\` placement frame), or via the harness for displayType 30/31
+
+`;
+  }
+
+  if (atlasSummaries.length > 0) {
+    context += `
+## ⚠️ Deduplicated frame counts — \`totalFrames\` MUST be the unique-cell count
+
+The svg-spritesheet content-hash dedupes identical frames across the timeline.
+The runtime's vello renderer rasterises ONE GPU cell per UNIQUE frame, and the
+Pixi texture array is built off that cell layout. There is NO logical→cell
+mapping at runtime — \`framesArr[i]\` is a Texture pointing to strip cell \`i\`,
+not to canonical frame \`i\`'s rendered content. So if your SymbolDefinition
+declares \`totalFrames\` = the canonical SWF frame count and the timeline ticks
+past the last unique cell, \`framesArr[currentFrame]\` either falls back to
+frame 0 or wraps onto a wrong atlas cell — the visible "anim restarts at
+frame 1 after the end" symptom.
+
+Per-animation dedup result for THIS spell (read from
+\`assets/spritesheets/spells/${spell.id}/[<anim>/]atlas.json\`):
+
+${atlasSummaries
+  .map(
+    (s) => `- **${s.animation}**: logical=${s.logicalFrameCount}, unique=${s.uniqueFrameCount}, lastUniqueLogicalIndex=${s.lastUniqueLogicalIndex}, duplicates=${s.duplicatesTotal}${
+      s.duplicatesTotal > 0
+        ? `\n  Sample dedup: ${Object.entries(s.duplicatesPreview).map(([k, v]) => `${k}→${v}`).join(', ')}${s.duplicatesTotal > 8 ? ' …' : ''}`
+        : ''
+    }`,
+  )
+  .join('\n')}
+
+Rules for \`totalFrames\` and frame-script remapping:
+1. **Set \`totalFrames\` = \`lastUniqueLogicalIndex + 1\`** for each animation, NOT the canonical SWF \`frameCount\` from manifest.json. Example: spell 108 anim1 has logical=129 / unique=88 / lastUniqueLogicalIndex=87 → \`totalFrames: 88\`.
+2. **Remap canonical script frames that fall in the deduped tail.** Walk the canonical AS frame index N — if N > lastUniqueLogicalIndex, use \`lastUniqueLogicalIndex\` instead. Example: AS \`frame_127\` (= 0-idx 126) on a 129/88 animation → use \`frameScripts.set(${'lastUniqueLogicalIndex'}, ...)\` (= 87 in the example), not 126. The visual is identical because the trimmed frames were dedup'd to the same cell anyway.
+3. **Container-only symbols (\`frames: []\`, no atlas) are unaffected** — keep their declared \`totalFrames\` from the SWF.
+4. **Inline numeric constants** (\`totalFrames: 88\`, \`frameScripts.set(87, ...)\`). Do NOT extract these into a \`UNIQUE_COUNT\` constant — the prompt audit greps for raw numbers matching the per-animation table above.
+`;
+  }
+
   context += `
 ## Instructions
 
@@ -342,6 +551,7 @@ Hard requirements:
 - For displayType 30/31 (ProjectileBallistic): the harness fires \`runtime.signalHit()\` automatically on landing — you must NOT call it again from your code
 - For all other displayTypes: call \`this.runtime.signalHit()\` from the canonical hit frame
 - Call \`this.runtime.complete()\` from the frame script that mirrors the canonical \`_parent.removeMovieClip()\` of the outer mc (usually the final frame of the longest-lived sprite/shoot)
+- CRITICAL — never claim CLIPACTIONRECORD behaviors are "baked into pre-rendered SVG frames", "fully baked", or "no need to re-implement at runtime". They are NOT. Each onLoad and onEnterFrame must be ported 1:1 to a SymbolDefinition handler. Comments containing those phrases are a generation failure.
 
 AS → TS translation rules:
 - Frame numbers: AS \`frame_N\` → \`frameScripts.set(N - 1, ...)\` (0-based). Inline the number, don't extract it as a constant
@@ -356,10 +566,24 @@ AS → TS translation rules:
 - Symbol textures: ALWAYS \`textures.getFrames("lib_<name>")\` for library symbols (note the \`lib_\` prefix); never assume frame indices
 
 Symbol registration:
-- For each \`librarySymbols[]\` entry in manifest.json that AS \`attachMovie\`s, build a \`SymbolDefinition\` with: \`name\` (matches the attachMovie string), \`totalFrames\` (from manifest), \`frames: textures.getFrames("lib_<name>")\`, anchorX/anchorY from \`calculateAnchor({width, height, offsetX, offsetY})\` using the librarySymbols entry's bounds, plus appropriate onLoad/onEnterFrame/frameScripts hand-ported from the AS files
+- For each \`librarySymbols[]\` entry in manifest.json that AS \`attachMovie\`s, build a \`SymbolDefinition\` with: \`name\` (matches the attachMovie string), \`totalFrames\` = \`lastUniqueLogicalIndex + 1\` from the per-animation atlas summary (NOT the SWF \`frameCount\` from manifest.json — see "Deduplicated frame counts" above), \`frames: textures.getFrames("lib_<name>")\`, anchorX/anchorY from \`calculateAnchor({width, height, offsetX, offsetY})\` using the librarySymbols entry's bounds, plus appropriate onLoad/onEnterFrame/frameScripts hand-ported from the AS files. When the canonical AS \`frame_<N>/DoAction.as\` index N falls past \`lastUniqueLogicalIndex\`, register the script at \`lastUniqueLogicalIndex\` instead (the dedup'd tail is visually identical to the last unique cell).
 - For container-only symbols (e.g. spell 103's \`move\` and \`shoot\`): \`frames: []\`, anchorX/Y: 0.5, with frameScripts driving attaches/sound/completion
 - For displayType 30/31, you MUST register \`move\` and \`shoot\` symbols (the harness expects them by name)
 - For displayType 40/41, you MUST register \`duplicate\` (and optionally \`shoot\` for 41)
+
+CLIPACTIONRECORD-driven library symbols (kind: "clipEvent" in manifest.librarySymbols):
+- These are sprites that the SWF places via PlaceObject2 with onClipEvent handlers attached. The combat-exporter has STRIPPED them from the parent's pre-rendered SVG and exported them as separate library symbols (frame textures under \`lib_<name>_*.svg\`). The runtime must attach a live clip for each placement so the dynamic handlers actually run.
+- Two flavors, distinguished by \`directlyDynamic\` in the manifest entry:
+  1. **directlyDynamic: true** — the sprite owns CLIPACTIONRECORDs in its own scripts directory (\`scripts/scripts/DefineSprite_<characterId>/.../CLIPACTIONRECORD onClipEvent(*).as\`). Port these to the SymbolDefinition's \`onLoad\` and \`onEnterFrame\` handlers — they drive per-tick particle physics, alpha pulses, spirals, removeMovieClip lifecycle.
+  2. **directlyDynamic: false** — a "wrapper" sprite. Has no handlers of its own. Its only job is to attach the dynamic descendants listed under nested-parent placements. Use \`frames: textures.getFrames("lib_<name>")\` (often empty) and a \`frameScripts.set(0, ...)\` that calls \`clip.attach(...)\` for each child library symbol whose \`placements[].parentSpriteId === <this sprite's characterId>\`.
+- The \`placements[]\` array tells you WHEN, WHERE, and WITH WHAT TRANSFORM to attach this symbol:
+  - \`parentSpriteId\` — the SWF sprite whose timeline contains this placement. The OUTERMOST symbols (parentSpriteId === the main animation's sprite ID, usually the highest-numbered DefineSprite) get attached from \`onSpellStart\` or root \`frameScripts\`. Inner ones get attached from their parent library symbol's frameScripts.
+  - \`frame\` — 0-indexed parent frame at which to attach. \`kind: "place"\` = call \`clip.attach(...)\` here; \`kind: "move"\` = mutate the existing clip's matrix/colorTransform (often inside an \`onEnterFrame\` per-frame check, or a frameScripts entry for that specific frame).
+  - \`matrix\` — pixel-space affine. Apply as \`clip.x = matrix.translateX; clip.y = matrix.translateY; clip.scaleX = matrix.scaleX; …\` after attaching. (rotateSkew0/1 ≠ 0 indicates rotation/skew — convert via \`Math.atan2\`.)
+  - \`colorTransform.alphaMult\` — 0–256 alpha multiplier. Apply as \`clip.alpha = alphaMult / 256\`.
+  - \`ratio\` — staggered-instance offset (set by the Macromedia authoring tool); when present and >0, the AS \`onEnterFrame\` should be initialized with a phase offset of \`ratio\` ticks. For most cases honour this only as the placement frame.
+- For sprites with MANY placements at the same parent frame (e.g. spell 101's sprite3 has 9 placements all at frame 0 of sprite4 with different depths/transforms), attach 9 separate clips in the parent's \`frameScripts.set(0, ...)\`. Don't try to merge them — each instance has independent var state for its handlers.
+- For sprites with placements that have \`kind: "move"\` (tween updates), the cleanest port is: at \`kind: "place"\` frames, capture an attachment reference; at \`kind: "move"\` frames in the parent's frameScripts, mutate that reference's matrix/colorTransform. For long color-tween schedules (e.g. 50+ move entries), prefer interpolating in the parent's onEnterFrame using the start/end keyframes you can read from \`placements[]\`.
 
 Quality:
 - Lead the file with a docstring describing the spell, its canonical AS layout, and your displayType choice
@@ -398,7 +622,12 @@ interface ValidationResult {
   errors: string[];
 }
 
-function validateOutput(code: string, spellId: number): ValidationResult {
+function validateOutput(
+  code: string,
+  spellId: number,
+  asFiles: { path: string; content: string }[],
+  manifestJson: string | null,
+): ValidationResult {
   const errors: string[] = [];
 
   if (!code || code.length < 50) {
@@ -458,6 +687,92 @@ function validateOutput(code: string, spellId: number): ValidationResult {
     errors.push('Do not override `init`, `update`, `isComplete`, or `destroy` — RuntimeSpell handles them. Drive completion via frame scripts calling `this.runtime.complete()`.');
   }
 
+  // Anti-pattern: model claiming CLIPACTIONRECORD behaviors are "baked"
+  // into the pre-rendered SVG frames. They are NOT — the SVGs only
+  // capture static PlaceObject2 transforms. Skipping them produces
+  // visibly broken animations (static / wrong position / no motion),
+  // which is exactly the user-visible bug spell-101 originally shipped.
+  const bakedClaimPatterns: { pattern: RegExp; explain: string }[] = [
+    { pattern: /baked into the (pre[- ]rendered )?(svg )?frames/i, explain: '"baked into the pre-rendered frames"' },
+    { pattern: /fully baked/i, explain: '"fully baked"' },
+    { pattern: /(no need to (re-?implement|port).*at runtime|do not need to re-?implement.*at runtime)/i, explain: '"no need to (re-)implement at runtime"' },
+    { pattern: /clip[- ]event behavi[ou]rs?[^.]*(baked|pre[- ]rendered|exporter)/i, explain: '"clip-event behaviours are baked / pre-rendered"' },
+    { pattern: /the composition tree is baked/i, explain: '"the composition tree is baked"' },
+    { pattern: /visual[- ]only.*no game[- ]logic side effects/i, explain: '"visual-only, no game-logic side effects" (used to justify skipping a port)' },
+  ];
+  for (const { pattern, explain } of bakedClaimPatterns) {
+    if (pattern.test(code)) {
+      errors.push(
+        `Forbidden claim ${explain} — CLIPACTIONRECORD scripts are NOT baked into the SVGs. ` +
+          `Port every onClipEvent(load) and onClipEvent(enterFrame) script to a SymbolDefinition's onLoad / onEnterFrame handler.`,
+      );
+    }
+  }
+
+  // Coverage check: if the spell ships CLIPACTIONRECORDs, the generated
+  // class must have at least one corresponding onLoad / onEnterFrame
+  // handler. Otherwise the dynamics never run at runtime.
+  const clipFiles = asFiles.filter((f) => f.path.includes('CLIPACTIONRECORD'));
+  if (clipFiles.length > 0) {
+    const loadCount = clipFiles.filter((f) => f.path.includes('(load)')).length;
+    const enterCount = clipFiles.filter((f) => f.path.includes('(enterFrame)')).length;
+    const hasOnLoadHandler = /\bonLoad\s*:/.test(code);
+    const hasOnEnterHandler = /\bonEnterFrame\s*:/.test(code);
+
+    if (loadCount > 0 && !hasOnLoadHandler) {
+      errors.push(
+        `Source has ${loadCount} CLIPACTIONRECORD onClipEvent(load) script(s) but the generated TS has NO \`onLoad:\` handler on any SymbolDefinition. Each onClipEvent(load) must be ported as a SymbolDefinition's onLoad — that's where particle physics seed values (i, v, vx, p, …) get initialized.`,
+      );
+    }
+    if (enterCount > 0 && !hasOnEnterHandler) {
+      errors.push(
+        `Source has ${enterCount} CLIPACTIONRECORD onClipEvent(enterFrame) script(s) but the generated TS has NO \`onEnterFrame:\` handler on any SymbolDefinition. Each onClipEvent(enterFrame) must be ported as a SymbolDefinition's onEnterFrame — these scripts drive per-tick particle physics, alpha pulses, spirals, and removeMovieClip lifecycle that the pre-rendered SVGs do NOT capture.`,
+      );
+    }
+  }
+
+  // Manifest-level coverage: every clipEvent library symbol must be
+  // both REGISTERED (a SymbolDefinition with the matching name) AND
+  // ATTACHED (clip.attach call) somewhere in the code. Registering
+  // without attaching means the symbol exists but is never instantiated
+  // — its handlers never run. This is the exact bug spell-101.ts shipped
+  // with: 5 SymbolDefinitions registered, only sprite14 ever attached.
+  if (manifestJson !== null) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(manifestJson);
+    } catch {
+      parsed = null;
+    }
+    if (parsed && typeof parsed === 'object') {
+      const libSyms = (parsed as { librarySymbols?: unknown[] }).librarySymbols;
+      if (Array.isArray(libSyms)) {
+        for (const sym of libSyms) {
+          if (typeof sym !== 'object' || sym === null) continue;
+          const s = sym as { name?: string; kind?: string; directlyDynamic?: boolean; characterId?: number };
+          if (s.kind !== 'clipEvent' || typeof s.name !== 'string') continue;
+          const reSymName = new RegExp(`name\\s*:\\s*['"]${s.name}['"]`);
+          const reAttach = new RegExp(
+            `\\.attach\\s*\\([\\s\\S]*?\\b${s.name}Sym\\b` +
+              `|\\.attach\\s*\\([\\s\\S]*?this\\.${s.name}\\b` +
+              `|\\.attach\\s*\\([\\s\\S]*?\\b${s.name}\\b`,
+          );
+          if (!reSymName.test(code)) {
+            errors.push(
+              `Library symbol "${s.name}" (clipEvent, ${s.directlyDynamic ? 'directlyDynamic' : 'wrapper'}) not registered. Build a SymbolDefinition with \`name: "${s.name}"\` and \`frames: textures.getFrames("lib_${s.name}")\`. ${s.directlyDynamic ? `Port its onLoad/onEnterFrame from scripts/scripts/DefineSprite_${s.characterId ?? '?'}/.../CLIPACTIONRECORD onClipEvent(*).as` : 'Use frameScripts to clip.attach inner library symbols whose placements[].parentSpriteId matches this characterId.'}`,
+            );
+            continue;
+          }
+          if (!reAttach.test(code)) {
+            errors.push(
+              `Library symbol "${s.name}" is registered but never attached via \`clip.attach(...)\`. Use the \`placements[]\` schedule from manifest.librarySymbols (parentSpriteId, frame, depth, matrix, colorTransform) to attach instances at the canonical frames — without this, the symbol's handlers never run.`,
+            );
+          }
+        }
+      }
+    }
+  }
+
   return { valid: errors.length === 0, errors };
 }
 
@@ -515,6 +830,12 @@ async function generateSpell(
   try {
     const spellContext = await loadSpellContext(spell);
     const messages: Message[] = [{ role: 'user', content: spellContext }];
+    // Re-collect AS files once for validation (cheap on disk; same set
+    // loadSpellContext already enumerated). Used to drive the
+    // CLIPACTIONRECORD coverage check + clipEvent library-symbol
+    // register/attach check (which also reads the manifest).
+    const asFiles = await collectASFiles(spell.scriptsDir);
+    const manifestJson = await readText(spell.manifestPath).catch(() => null);
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       let responseText: string;
@@ -553,7 +874,7 @@ async function generateSpell(
         };
       }
 
-      const validation = validateOutput(code, spell.id);
+      const validation = validateOutput(code, spell.id, asFiles, manifestJson);
       if (!validation.valid) {
         if (attempt < MAX_ATTEMPTS - 1) {
           // Feed validation errors back to the model
@@ -646,8 +967,27 @@ async function main() {
   console.log(`  Concurrency: ${opts.concurrency}`);
   console.log('');
 
+  const protectedIds = await loadProtectedSpellIds();
+  console.log(
+    `  Protected spells (read from protected-spells.json): ${
+      protectedIds.size === 0
+        ? '(none)'
+        : [...protectedIds].sort((a, b) => a - b).join(', ')
+    }`,
+  );
+  console.log('');
+
+  // If the user explicitly asked for a single protected spell, refuse
+  // up front rather than silently generating nothing.
+  if (opts.spellId !== undefined && protectedIds.has(opts.spellId)) {
+    console.error(
+      `Error: spell ${opts.spellId} is listed in protected-spells.json — refusing to overwrite. Remove it from the list first.`,
+    );
+    process.exit(1);
+  }
+
   // Discover spells
-  const spells = await discoverSpells(opts);
+  const spells = await discoverSpells(opts, protectedIds);
 
   if (spells.length === 0) {
     console.log('No spells to generate.');

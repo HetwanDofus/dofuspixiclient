@@ -1,31 +1,42 @@
 /**
- * Spell 411 — Lakam (Feca shield/buff spell).
+ * Spell 411 — Lakam (Osamodas).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/411/scripts/scripts/
  *
- * displayType=10 (CasterCell). The spell has no projectile, no target-anchored
- * impact, and no dual-anchored world-absolute layout. The single animation
- * (`anim1`) plays at the caster cell — a classic self-buff / shield pattern.
- * No `librarySymbols[]` entries exist in the manifest; `anim1` is the sole
- * animation and is referenced directly via `textures.getFrames("anim1")`.
+ * displayType=11 (TargetCell). Single composite animation (`anim1`) anchored
+ * at the target cell. No librarySymbols[] entries — no runtime-spawned
+ * particles via attachMovie. The manifest's animations[] has a single entry
+ * `anim1` (150 frames).
  *
- * Library symbols:
- *   - DefineSprite_5 (anim1 sub-sprite, 109 frames):
- *       frame_1: random initial rotation, random scale [30,80]%, gotoAndPlay(random(21))
- *       frame_109: stop()
- *   - DefineSprite_8 (outer container, 148 frames):
- *       frame_148: _parent.removeMovieClip() + stop() → spell complete
+ * Inner symbols (statically placed on the anim1 timeline, NOT attachMovie'd):
+ *   - DefineSprite_5 — particle placed on anim1's timeline. frame_1 seeds
+ *     random rotation/scale/phase via gotoAndPlay; frame_109 stops it.
+ *     Because these are statically placed (PlaceObject2 without a library
+ *     symbol link), their visual output is captured in the per-frame anim1
+ *     SVGs. However, their timeline scripts drive playback branching that
+ *     affects the composite frames.
+ *   - DefineSprite_8 — the outer wrapper (= anim1 itself, 150 frames).
+ *     frame_148: `_parent.removeMovieClip(); stop();` — removes the spell
+ *     and signals completion.
  *
- * Main timeline: SOMA.playSound("lakam_409"); (frame_1/DoAction.as)
+ * DefineSprite_5 frame scripts:
+ *   - frame_1: `_rotation = random(360); t = random(50)+30; _xscale=t;
+ *               _yscale=t; gotoAndPlay(random(21));`
+ *   - frame_109: `stop();`
+ *   These drive the internal particle timeline only (no onClipEvent handlers).
+ *   Since DefineSprite_5 has no CLIPACTIONRECORD onLoad/onEnterFrame, there
+ *   are no per-tick physics to port — only the frameScripts matter, and those
+ *   affect DefineSprite_5's own internal playback (random start phase clamped
+ *   to [0,20], stops at frame 109). The anim1 symbol itself is what the runtime
+ *   ticks; the inner sprite's randomised phase is already expressed across the
+ *   150 composite frames.
  *
- * Signal timing:
- *   - signalHit: fired at frame_1 of the outer container (instant self-buff,
- *     damage/effect applies immediately on cast).
- *   - complete: fired at frame_148 of DefineSprite_8 via _parent.removeMovieClip().
+ * Main timeline (frame_1/DoAction.as): SOMA.playSound("lakam_409");
  *
- * No `librarySymbols[]` in manifest — textures loaded via bare animation name
- * `"anim1"` (NO `lib_` prefix).
+ * Signal flow:
+ *   - signalHit: frame 0 of anim1 (instant impact, no projectile).
+ *   - complete: frame 147 of anim1 (AS frame_148 → _parent.removeMovieClip()).
  */
 
 import type {
@@ -49,9 +60,7 @@ const ANIM1_BOUNDS = {
 
 export class Spell411 extends RuntimeSpell {
   readonly spellId = 411;
-  readonly displayType = SpellDisplayType.CasterCell;
-
-  private anim1Sym!: SymbolDefinition;
+  readonly displayType = SpellDisplayType.TargetCell;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
@@ -59,37 +68,31 @@ export class Spell411 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- DefineSprite_5 — rotating/scaled sub-sprite (109 frames) ----
-    // This is the inner animated sprite that DefineSprite_8 (the outer
-    // container, = anim1) places on its timeline. Since the manifest has
-    // no librarySymbols[], the whole animation is baked into anim1's
-    // frame textures. We model the outer anim1 directly as the registered
-    // symbol with the frame scripts of DefineSprite_8 (the outermost
-    // sprite), using anim1's 150-frame texture strip.
+    // ---- anim1 — 150-frame composite at target cell --------------
+    // Outer symbol is DefineSprite_8 (150 frames). Contains statically
+    // placed DefineSprite_5 particles (no attachMovie, no CLIPACTIONRECORD).
     //
-    // The canonical SWF places DefineSprite_5 instances inside
-    // DefineSprite_8; however, since all visual content is pre-composited
-    // into the exported anim1 frames, we drive the lifecycle purely via
-    // the outer DefineSprite_8 frame scripts on the anim1 symbol.
+    // AS DefineSprite_8/frame_148/DoAction.as:
+    //   _parent.removeMovieClip(); stop();
     //
-    // DefineSprite_5/frame_1/DoAction.as:
+    // AS DefineSprite_5/frame_1/DoAction.as (inner static placement):
     //   _rotation = random(360);
     //   t = random(50) + 30;
     //   _xscale = t; _yscale = t;
     //   gotoAndPlay(random(21));
     //
-    // DefineSprite_5/frame_109/DoAction.as:
+    // AS DefineSprite_5/frame_109/DoAction.as (inner static placement):
     //   stop();
     //
-    // These are inner-clip behaviours baked into the composite anim1
-    // frames — no runtime attachMovie for DefineSprite_5 is needed
-    // because the manifest has no librarySymbols[] entry for it.
-    //
-    // DefineSprite_8/frame_148/DoAction.as:
-    //   _parent.removeMovieClip();
-    //   stop();
-
-    this.anim1Sym = {
+    // DefineSprite_5 has no CLIPACTIONRECORD onClipEvent(load) or
+    // onClipEvent(enterFrame) — only frameScripts. Its random phase
+    // (gotoAndPlay(random(21))) and scale seeding happen on frame_1 of
+    // its own authored timeline. These are statically placed instances
+    // (not library symbols) so the anim1 SymbolDefinition's frameScripts
+    // handle the outer timeline; the inner particles' frame_1 randomisation
+    // affects only their own internal playback and is expressed through
+    // the composite anim1 frame textures.
+    const anim1Sym: SymbolDefinition = {
       name: "anim1",
       totalFrames: 150,
       frames: textures.getFrames("anim1"),
@@ -98,19 +101,16 @@ export class Spell411 extends RuntimeSpell {
       frameScripts: new Map([
         [
           0,
-          (_clip) => {
-            // AS DefineSprite_8 frame_1 (implicit — outer container starts).
-            // Signal hit at the first frame: this is a self-buff, so the
-            // effect applies immediately when the animation begins.
+          (_clip, _ctx) => {
+            // Frame 1 of anim1: instant impact spell — signal hit immediately.
             this.runtime.signalHit();
           },
         ],
         [
           147,
-          (clip) => {
+          (clip, _ctx) => {
             // AS DefineSprite_8/frame_148/DoAction.as:
-            //   _parent.removeMovieClip();
-            //   stop();
+            //   _parent.removeMovieClip(); stop();
             clip.stop();
             clip.remove();
             this.runtime.complete();
@@ -119,20 +119,20 @@ export class Spell411 extends RuntimeSpell {
       ]),
     };
 
-    this.registry.register(this.anim1Sym);
+    this.registry.register(anim1Sym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS scripts/frame_1/DoAction.as:
-    //   SOMA.playSound("lakam_409");
+    // AS scripts/frame_1/DoAction.as: SOMA.playSound("lakam_409");
     callbacks.playSound("lakam_409");
 
-    // Attach the anim1 composite as a child of the root so it starts
-    // ticking from the next runtime frame. For CasterCell the root is
-    // anchored at the caster cell; anim1 is placed at root-local (0,0).
-    this.root.attach(this.anim1Sym, "anim1", 1, context);
+    // Attach anim1 to root so it starts ticking from the next runtime frame.
+    const anim1Sym = this.registry.resolve("anim1");
+    if (anim1Sym) {
+      this.root.attach(anim1Sym, "anim1", 1, context);
+    }
   }
 }

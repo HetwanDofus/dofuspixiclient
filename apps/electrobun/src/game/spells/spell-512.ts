@@ -1,47 +1,66 @@
 /**
- * Spell 512 — Éboulement (Sacrieur earth-rock impact).
+ * Spell 512 — Éboulement (Sadida earth-rock spell).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/512/scripts/scripts/
  *
  * displayType=11 (TargetCell). The main animated content (sprite_42) positions
- * itself at _parent.cellTo in its own frame_1 DoAction_2.as, which is the
- * canonical target-cell pattern. No projectile motion, no caster reference,
- * no dual-anchored WorldAbsolute needed — the outer container sits at the
- * target cell and sprite_42 reads _parent.cellTo for its own placement (which
- * in TargetCell mode resolves to (0,0) since the container IS already at
- * cellTo). The sprite_27 sub-animation randomises its start frame.
+ * itself at _parent.cellTo on its own frame_1, and the outer main timeline
+ * just stops. No projectile motion, no caster reference for the main clip —
+ * it is an impact at target cell.
+ *
+ * AS layout:
+ *   - Main timeline (frame_2/DoAction.as): stop(). One frame of content places
+ *     sprite_42 on the stage (implicitly, frame_1).
+ *   - sprite_42 (213-frame composite): the main impact animation.
+ *       frame_1 (DoAction.as):  SOMA.playSound("licrounch_1008")
+ *       frame_1 (DoAction_2.as): _X = _parent.cellTo.x; _Y = _parent.cellTo.y
+ *       frame_7: Two authored PlaceObject2 children with clip events:
+ *           PlaceObject2_6_7  — a sprite that shakes (random X/Y offset each frame)
+ *           PlaceObject2_10_9 — a sprite (sprite_10, 2-frame) that wobbles rotation
+ *                               driven by a sine-accumulator, toggling between
+ *                               gotoAndStop(1) and gotoAndStop(2).
+ *       frame_55 (DoAction.as): SOMA.playSound("many_512b")
+ *       frame_61 (DoAction.as): this.end() → signalHit
+ *       frame_61: PlaceObject2_35_12 placed with onClipEvent(load) that
+ *                 attachMovie("pierres", "pierresN", N) 7 times.
+ *       frame_211 (DoAction.as): _parent.removeMovieClip() → complete()
+ *
+ *   - sprite_27 (93-frame, projectile/debris visual): frame_1 does
+ *     gotoAndPlay(random(30)) to randomise start frame.
+ *
+ *   - lib_pierres (library symbol, 1-frame stone particle):
+ *       onClipEvent(load):  seed vx, vy, _parent._x/_y scatter, t, scale,
+ *                           alpha, v, vr.
+ *       onClipEvent(enterFrame): physics — drift parent X/Y, bounce on Y=0,
+ *                                 settle when t==1.
+ *
+ *   - sprite_10 (2-frame inline visual used by the wobble sprite):
+ *     No scripts of its own — just animated frames toggled by sprite_42's
+ *     PlaceObject2_10_9 enterFrame handler (gotoAndStop(1) or gotoAndStop(2)).
+ *
+ * The two PlaceObject2 children in sprite_42/frame_7 are "inline" authored
+ * placements baked into the composite sprite_42 SVG frames.  However their
+ * CLIPACTIONRECORD handlers (shaking + wobble) are purely runtime and must
+ * be reproduced via live SpellClip instances attached at frame 7.
+ *
+ * The stone-particle "pierres" container (PlaceObject2_35_12 in frame_61) is
+ * a wrapper clip with no own handlers — its onClipEvent(load) fires once and
+ * attaches 7 lib_pierres children.  We model it as a container SymbolDefinition
+ * whose frameScripts[0] spawns the 7 particles.
  *
  * Library symbols:
- *   - lib_pierres — small rock/pebble particle. onLoad seeds vx, vy, scatter
- *     position on parent, scale, alpha, vertical velocity v, rotation velocity vr.
- *     onEnterFrame drives physics: horizontal drift, vertical arc, bounce on
- *     ground (Y=0), eventual rest (t=1 sentinel stops movement).
+ *   - lib_pierres — 1-frame stone particle. onLoad seeds physics vars. onEnterFrame
+ *                   integrates drift + bounce + settle.
  *
- * Main timeline:
- *   - frame_2/DoAction.as: stop() — single-frame outer timeline.
+ * Inline authored children of sprite_42 (registered as container symbols):
+ *   - shake_sprite  — wobbles X/Y ±2.5px each frame (PlaceObject2_6_7).
+ *   - wobble_sprite — sine-driven rotation toggling sprite_10's 2 frames (PlaceObject2_10_9).
+ *   - pierres_container — spawns 7 lib_pierres particles on load (PlaceObject2_35_12).
  *
- * sprite_42 (213-frame, isComposite, target-anchored):
- *   - frame_1 DoAction.as:   SOMA.playSound("licrounch_1008")
- *   - frame_1 DoAction_2.as: _X = _parent.cellTo.x; _Y = _parent.cellTo.y
- *     (resolves to 0,0 in TargetCell mode since container is already at target)
- *   - frame_7:  PlaceObject2_6_7 (shake child) + PlaceObject2_10_9 (spinner child)
- *                come into existence; their clip events drive shake/spin.
- *   - frame_55 DoAction.as:  SOMA.playSound("many_512b")
- *   - frame_61 DoAction.as:  this.end() → signalHit
- *   - frame_61 PlaceObject2_35_12 onClipEvent(load): attach 7 "pierres" particles
- *   - frame_211 DoAction.as: _parent.removeMovieClip() → complete()
- *
- * sprite_27 (93-frame sub-animation inside sprite_42 composite):
- *   - frame_1 DoAction.as: gotoAndPlay(random(30)) → randomises loop start
- *
- * sprite_10 (2-frame sub-animation, the spinner visual inside sprite_42):
- *   Used by PlaceObject2_10_9's clip events to switch between frame 1 and 2
- *   based on |vr| > 100 threshold.
- *
- * Sounds: licrounch_1008 at frame_1, many_512b at frame_55 of sprite_42.
- * Both are fired from sprite_42 frameScripts; the outer onSpellStart has no
- * sound (frame_2/DoAction.as is just stop()).
+ * Sounds:
+ *   - "licrounch_1008" at sprite_42 frame_1.
+ *   - "many_512b"      at sprite_42 frame_55.
  */
 
 import type {
@@ -56,6 +75,8 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
+// ---- Manifest bounds --------------------------------------------------------
+
 const PIERRES_BOUNDS = {
   width: 6.4,
   height: 3.85,
@@ -63,28 +84,28 @@ const PIERRES_BOUNDS = {
   offsetY: -2.2,
 };
 
-const SPRITE27_BOUNDS = {
+const SPRITE_27_BOUNDS = {
   width: 64.75,
   height: 46.25,
   offsetX: -29.8,
   offsetY: -43.6,
 };
 
-const SPRITE28_BOUNDS = {
+const SPRITE_28_BOUNDS = {
   width: 106.55,
   height: 99.3,
   offsetX: -53.95,
   offsetY: -45.05,
 };
 
-const SPRITE42_BOUNDS = {
+const SPRITE_42_BOUNDS = {
   width: 120.6,
   height: 163.35,
   offsetX: -60.4,
   offsetY: -142.55,
 };
 
-const SPRITE10_BOUNDS = {
+const SPRITE_10_BOUNDS = {
   width: 33,
   height: 44,
   offsetX: -4.55,
@@ -95,43 +116,44 @@ export class Spell512 extends RuntimeSpell {
   readonly spellId = 512;
   readonly displayType = SpellDisplayType.TargetCell;
 
+  // Capture sound callback for use in frame scripts
   private soundCallback?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
+    // ---- lib_pierres — stone fragment particle -------------------
+    // AS: scripts/DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/
+    //     CLIPACTIONRECORD onClipEvent(load).as
+    //     CLIPACTIONRECORD onClipEvent(enterFrame).as
     const pierresAnchor = calculateAnchor(PIERRES_BOUNDS);
-    const sprite27Anchor = calculateAnchor(SPRITE27_BOUNDS);
-    const sprite28Anchor = calculateAnchor(SPRITE28_BOUNDS);
-    const sprite42Anchor = calculateAnchor(SPRITE42_BOUNDS);
-    const sprite10Anchor = calculateAnchor(SPRITE10_BOUNDS);
-
-    // ---- lib_pierres — rock/pebble particle ----------------------
-    // onLoad: AS DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
-    // onEnterFrame: AS DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
     const pierresSym: SymbolDefinition = {
       name: "pierres",
       totalFrames: 1,
       frames: textures.getFrames("lib_pierres"),
       anchorX: pierresAnchor.x,
       anchorY: pierresAnchor.y,
+
       onLoad: (clip) => {
-        // AS: vx = 5 * (Math.random() - 0.5)
-        // AS: vy = 2 * (Math.random() - 0.5)
-        // AS: _parent._x = 20 * (Math.random() - 0.5)
-        // AS: _parent._y = 10 * (Math.random() - 0.5)
-        // AS: t = 60 + 40 * Math.random()
-        // AS: _xscale = t; _yscale = t
-        // AS: _alpha = 20 + random(90)
-        // AS: v = -5 * Math.random() - 5
-        // AS: vr = 40 * (-0.5 + Math.random())
+        // AS: DefineSprite_3_pierres / PlaceObject2_2_1 / onClipEvent(load)
+        //   vx = 5 * (Math.random() - 0.5)
+        //   vy = 2 * (Math.random() - 0.5)
+        //   _parent._x = 20 * (Math.random() - 0.5)
+        //   _parent._y = 10 * (Math.random() - 0.5)
+        //   t = 60 + 40 * Math.random()
+        //   _xscale = t; _yscale = t; _alpha = 20 + random(90)
+        //   v = -5 * Math.random() - 5
+        //   vr = 40 * (-0.5 + Math.random())
+        //
+        // NOTE: In canonical AS, "this" is the inner sprite and
+        // "_parent" is the pierres clip itself.  We model both as the
+        // same SpellClip (the particle IS the rendered sprite), so
+        // _parent._x / _parent._y map to clip.x / clip.y.
         clip.vars.vx = 5 * (Math.random() - 0.5);
         clip.vars.vy = 2 * (Math.random() - 0.5);
-        if (clip.parent) {
-          clip.parent.x = 20 * (Math.random() - 0.5);
-          clip.parent.y = 10 * (Math.random() - 0.5);
-        }
+        clip.x = 20 * (Math.random() - 0.5);
+        clip.y = 10 * (Math.random() - 0.5);
         const t = 60 + 40 * Math.random();
         clip.vars.t = t;
         clip.scaleX = t / 100;
@@ -140,49 +162,80 @@ export class Spell512 extends RuntimeSpell {
         clip.vars.v = -5 * Math.random() - 5;
         clip.vars.vr = 40 * (-0.5 + Math.random());
       },
+
       onEnterFrame: (clip) => {
-        // AS: _parent._x += vx; _parent._y += vy
-        // AS: if (t != 1) { _Y += v; _rotation += vr; v += 0.5; if (_Y > 0) { bounce / settle } }
-        const vx = clip.vars.vx as number;
-        const vy = clip.vars.vy as number;
+        // AS: DefineSprite_3_pierres / PlaceObject2_2_1 / onClipEvent(enterFrame)
+        //   _parent._x += vx
+        //   _parent._y += vy
+        //   if(t != 1) {
+        //     _Y = _Y + v; _rotation = _rotation + vr; v += 0.5
+        //     if(_Y > 0) {
+        //       vx /= 2; vy /= 2; _rotation = 0; _Y = 0
+        //       v = (-v) / 4
+        //       if(Math.abs(v) < 1) { vx = 0; vy = 0; t = 1 }
+        //     }
+        //   }
+        let vx = clip.vars.vx as number;
+        let vy = clip.vars.vy as number;
+        let v = clip.vars.v as number;
+        let vr = clip.vars.vr as number;
         const t = clip.vars.t as number;
 
-        if (clip.parent) {
-          clip.parent.x += vx;
-          clip.parent.y += vy;
-        }
+        clip.x += vx;
+        clip.y += vy;
 
         if (t !== 1) {
-          let v = clip.vars.v as number;
-          const vr = clip.vars.vr as number;
-
-          clip.y += v;
+          // _Y here is the inner sprite's local Y relative to its parent
+          // (the pierres clip). We store it in vars.innerY.
+          let innerY = (clip.vars.innerY as number | undefined) ?? 0;
+          innerY += v;
           clip.rotation += (vr * Math.PI) / 180;
           v += 0.5;
-          clip.vars.v = v;
 
-          if (clip.y > 0) {
-            clip.vars.vx = vx / 2;
-            clip.vars.vy = vy / 2;
+          if (innerY > 0) {
+            vx /= 2;
+            vy /= 2;
             clip.rotation = 0;
-            clip.y = 0;
-            const newV = (-v) / 4;
-            clip.vars.v = newV;
-            if (Math.abs(newV) < 1) {
-              clip.vars.vx = 0;
-              clip.vars.vy = 0;
+            innerY = 0;
+            v = (-v) / 4;
+            if (Math.abs(v) < 1) {
+              vx = 0;
+              vy = 0;
               clip.vars.t = 1;
             }
           }
+
+          clip.vars.innerY = innerY;
+          clip.vars.v = v;
+          clip.vars.vr = vr;
+          clip.vars.vx = vx;
+          clip.vars.vy = vy;
         }
       },
     };
 
-    // ---- sprite_10 — 2-frame spinner visual ----------------------
-    // Used by PlaceObject2_10_9's enterFrame: switches gotoAndStop(1) or (2)
-    // based on |vr| > 100. Registered so it can be resolved if needed as
-    // a container child inside sprite_42 composite. Since it's an animations[]
-    // entry (not a librarySymbol), we use bare name "sprite_10".
+    // ---- pierres_container — wrapper placed at sprite_42 frame_61 ----
+    // AS: DefineSprite_42/frame_61/PlaceObject2_35_12/CLIPACTIONRECORD onClipEvent(load)
+    //   c = 0; while (c < 7) { this.attachMovie("pierres","pierres"+c,c); c++ }
+    // This wrapper has no authored visual frames of its own.
+    const pierresContainerSym: SymbolDefinition = {
+      name: "pierres_container",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+
+      onLoad: (clip, ctx) => {
+        // AS: DefineSprite_42/frame_61/PlaceObject2_35_12/onClipEvent(load)
+        for (let c = 0; c < 7; c++) {
+          clip.attach(pierresSym, `pierres${c}`, c, ctx);
+        }
+      },
+    };
+
+    // ---- sprite_10 — 2-frame wobble visual (toggled by wobble_sprite) ----
+    // No own scripts. Registered so wobble_sprite can gotoAndStop its frames.
+    const sprite10Anchor = calculateAnchor(SPRITE_10_BOUNDS);
     const sprite10Sym: SymbolDefinition = {
       name: "sprite_10",
       totalFrames: 2,
@@ -191,28 +244,108 @@ export class Spell512 extends RuntimeSpell {
       anchorY: sprite10Anchor.y,
     };
 
-    // ---- sprite_27 — 93-frame sub-animation (looping rock imagery) -
-    // AS DefineSprite_27/frame_1/DoAction.as: gotoAndPlay(random(30))
-    // Randomises start frame so multiple instances don't look synchronised.
+    // ---- shake_sprite — shakes position ±2.5px each frame ---------------
+    // AS: DefineSprite_42/frame_7/PlaceObject2_6_7/CLIPACTIONRECORD onClipEvent(load)
+    //   y = _Y
+    // AS: DefineSprite_42/frame_7/PlaceObject2_6_7/CLIPACTIONRECORD onClipEvent(enterFrame)
+    //   _X = (Math.random() - 0.5) * 5
+    //   _Y = (Math.random() - 0.5) * 5 + y
+    // This is an inline authored placement baked into sprite_42's composite SVG
+    // visually, but its per-frame behavior must be driven live.
+    const shakeSpriteSym: SymbolDefinition = {
+      name: "shake_sprite",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+
+      onLoad: (clip) => {
+        // AS: DefineSprite_42/frame_7/PlaceObject2_6_7/onClipEvent(load)
+        //   y = _Y
+        clip.vars.baseY = clip.y;
+      },
+
+      onEnterFrame: (clip) => {
+        // AS: DefineSprite_42/frame_7/PlaceObject2_6_7/onClipEvent(enterFrame)
+        //   _X = (Math.random() - 0.5) * 5
+        //   _Y = (Math.random() - 0.5) * 5 + y
+        const baseY = clip.vars.baseY as number;
+        clip.x = (Math.random() - 0.5) * 5;
+        clip.y = (Math.random() - 0.5) * 5 + baseY;
+      },
+    };
+
+    // ---- wobble_sprite — sine-driven rotation, toggles sprite_10 frames ---
+    // AS: DefineSprite_42/frame_7/PlaceObject2_10_9/CLIPACTIONRECORD onClipEvent(load)
+    //   i = 0
+    // AS: DefineSprite_42/frame_7/PlaceObject2_10_9/CLIPACTIONRECORD onClipEvent(enterFrame)
+    //   _rotation = _rotation + vr
+    //   vr = 46.6 * Math.sin(i += Math.random())
+    //   if(Math.abs(vr) > 100) { gotoAndStop(2) } else { gotoAndStop(1) }
+    // The wobble_sprite itself is a container that holds a sprite_10 instance.
+    // In canonical AS the PlaceObject2_10_9 is a sprite that authors placed
+    // with a sub-sprite. We model it as a container with sprite_10 as a child.
+    const wobbleSpriteSym: SymbolDefinition = {
+      name: "wobble_sprite",
+      totalFrames: 2,
+      frames: textures.getFrames("sprite_10"),
+      anchorX: calculateAnchor(SPRITE_10_BOUNDS).x,
+      anchorY: calculateAnchor(SPRITE_10_BOUNDS).y,
+
+      onLoad: (clip) => {
+        // AS: DefineSprite_42/frame_7/PlaceObject2_10_9/onClipEvent(load)
+        //   i = 0
+        clip.vars.i = 0;
+        clip.vars.vr = 0;
+      },
+
+      onEnterFrame: (clip) => {
+        // AS: DefineSprite_42/frame_7/PlaceObject2_10_9/onClipEvent(enterFrame)
+        //   _rotation = _rotation + vr
+        //   vr = 46.6 * Math.sin(i += Math.random())
+        //   if(Math.abs(vr) > 100) { gotoAndStop(2) } else { gotoAndStop(1) }
+        let vr = clip.vars.vr as number;
+        let i = clip.vars.i as number;
+
+        clip.rotation += (vr * Math.PI) / 180;
+        i += Math.random();
+        vr = 46.6 * Math.sin(i);
+
+        if (Math.abs(vr) > 100) {
+          clip.gotoAndStop(1); // AS gotoAndStop(2) → 0-based index 1
+        } else {
+          clip.gotoAndStop(0); // AS gotoAndStop(1) → 0-based index 0
+        }
+
+        clip.vars.vr = vr;
+        clip.vars.i = i;
+      },
+    };
+
+    // ---- sprite_27 — debris/dust visual (93 frames, randomised start) -----
+    // AS: DefineSprite_27/frame_1/DoAction.as: gotoAndPlay(random(30))
+    const sprite27Anchor = calculateAnchor(SPRITE_27_BOUNDS);
     const sprite27Sym: SymbolDefinition = {
       name: "sprite_27",
       totalFrames: 93,
       frames: textures.getFrames("sprite_27"),
       anchorX: sprite27Anchor.x,
       anchorY: sprite27Anchor.y,
+
       frameScripts: new Map([
         [
           0,
           (clip) => {
-            // AS DefineSprite_27/frame_1/DoAction.as: gotoAndPlay(random(30))
+            // AS: DefineSprite_27/frame_1/DoAction.as
+            //   gotoAndPlay(random(30))
             clip.gotoAndPlay(Math.floor(Math.random() * 30));
           },
         ],
       ]),
     };
 
-    // ---- sprite_28 — 81-frame composite (part of sprite_42 visual) -
-    // No authored scripts; purely visual content inside the composite.
+    // ---- sprite_28 — secondary impact visual (81 frames, no scripts) ------
+    const sprite28Anchor = calculateAnchor(SPRITE_28_BOUNDS);
     const sprite28Sym: SymbolDefinition = {
       name: "sprite_28",
       totalFrames: 81,
@@ -221,144 +354,82 @@ export class Spell512 extends RuntimeSpell {
       anchorY: sprite28Anchor.y,
     };
 
-    // ---- sprite_42 — 213-frame main composite, target-anchored ---
-    // frame_1 DoAction.as:   SOMA.playSound("licrounch_1008")
-    // frame_1 DoAction_2.as: _X = _parent.cellTo.x; _Y = _parent.cellTo.y
-    //   (in TargetCell mode container IS at cellTo, so cellTo offset = 0,0)
-    // frame_7: PlaceObject2_6_7 (shake) + PlaceObject2_10_9 (spinner) go live
-    //   their clip events run from this frame forward — modelled as onEnterFrame
-    //   handlers seeded in frame_7's frameScript.
-    // frame_55 DoAction.as:  SOMA.playSound("many_512b")
-    // frame_61 DoAction.as:  this.end() → signalHit
-    // frame_61 PlaceObject2_35_12 onClipEvent(load): attach 7 pierres
-    // frame_211 DoAction.as: _parent.removeMovieClip() → complete()
-    //
-    // The shake child (PlaceObject2_6_7) and spinner child (PlaceObject2_10_9)
-    // are placed by the SWF at frame 7 as part of the composite. We model
-    // them as vars on the clip and drive their behaviour from sprite_42's
-    // own onEnterFrame (since they are authored children of the composite,
-    // not separately attached via attachMovie). The shaker randomises X/Y
-    // each frame; the spinner oscillates rotation and switches its visual
-    // between two sub-frames.
+    // ---- sprite_42 — main 213-frame impact timeline ----------------------
+    // frame_1  DoAction.as:   SOMA.playSound("licrounch_1008")
+    // frame_1  DoAction_2.as: _X = _parent.cellTo.x; _Y = _parent.cellTo.y
+    // frame_7  places shake_sprite and wobble_sprite (both with clip events)
+    // frame_55 DoAction.as:   SOMA.playSound("many_512b")
+    // frame_61 DoAction.as:   this.end() → signalHit
+    //          PlaceObject2_35_12 placed → pierres_container onLoad spawns 7 pierres
+    // frame_211 DoAction.as:  _parent.removeMovieClip() → complete()
+    const sprite42Anchor = calculateAnchor(SPRITE_42_BOUNDS);
     const sprite42Sym: SymbolDefinition = {
       name: "sprite_42",
       totalFrames: 213,
       frames: textures.getFrames("sprite_42"),
       anchorX: sprite42Anchor.x,
       anchorY: sprite42Anchor.y,
-      onEnterFrame: (clip) => {
-        // Drive the shake child (PlaceObject2_6_7) logic once it's live (frame>=7).
-        // AS DefineSprite_42/frame_7/PlaceObject2_6_7/CLIPACTIONRECORD onClipEvent(enterFrame).as:
-        //   _X = (Math.random() - 0.5) * 5; _Y = (Math.random() - 0.5) * 5 + y
-        if (clip.currentFrame >= 6 && clip.vars.shakeActive) {
-          const shakeY = clip.vars.shakeY as number;
-          clip.vars.shakeOffsetX = (Math.random() - 0.5) * 5;
-          clip.vars.shakeOffsetY = (Math.random() - 0.5) * 5 + shakeY;
-        }
 
-        // Drive the spinner child (PlaceObject2_10_9) logic once live (frame>=7).
-        // AS DefineSprite_42/frame_7/PlaceObject2_10_9/CLIPACTIONRECORD onClipEvent(enterFrame).as:
-        //   _rotation = _rotation + vr; vr = 46.6 * sin(i += random()); if (|vr|>100) gotoAndStop(2) else gotoAndStop(1)
-        if (clip.currentFrame >= 6 && clip.vars.spinnerActive) {
-          let spinnerRot = clip.vars.spinnerRot as number;
-          let spinnerVr = clip.vars.spinnerVr as number;
-          let spinnerI = clip.vars.spinnerI as number;
-          spinnerI += Math.random();
-          spinnerVr = 46.6 * Math.sin(spinnerI);
-          spinnerRot += spinnerVr;
-          clip.vars.spinnerRot = spinnerRot;
-          clip.vars.spinnerVr = spinnerVr;
-          clip.vars.spinnerI = spinnerI;
-          // The visual switch (gotoAndStop 1 or 2) applies to the sub-sprite
-          // inside the composite; modelled as a vars flag for rendering reference.
-          if (Math.abs(spinnerVr) > 100) {
-            clip.vars.spinnerFrame = 1; // frame 2 (0-based: 1)
-          } else {
-            clip.vars.spinnerFrame = 0; // frame 1 (0-based: 0)
-          }
-        }
-      },
       frameScripts: new Map([
         [
           0,
-          (clip) => {
-            // AS DefineSprite_42/frame_1/DoAction.as: SOMA.playSound("licrounch_1008")
-            if (this.soundCallback) {
-              this.soundCallback("licrounch_1008");
-            }
-            // AS DefineSprite_42/frame_1/DoAction_2.as:
+          (clip, ctx) => {
+            // AS: DefineSprite_42/frame_1/DoAction.as
+            //   SOMA.playSound("licrounch_1008")
+            this.soundCallback?.("licrounch_1008");
+
+            // AS: DefineSprite_42/frame_1/DoAction_2.as
             //   _X = _parent.cellTo.x; _Y = _parent.cellTo.y
-            // In TargetCell mode the container is already at cellTo, so
-            // cellTo in local coords = (0, 0). Set explicitly for fidelity.
+            // For displayType=11 (TargetCell), the harness anchors the
+            // container at cellTo. sprite_42 is a direct child of root,
+            // so here _parent is root. We read cellTo from root.vars.
             const root = clip.parent;
-            const cellTo = root?.vars.cellTo as { x: number; y: number } | undefined;
-            const anchor = root?.vars.cellFrom as { x: number; y: number } | undefined;
-            // For TargetCell, container origin IS at cellTo, so local offset = 0.
-            // But to match the AS exactly: _X = cellTo.x, _Y = cellTo.y
-            // means position in parent (root) coords. Root container is at cellTo,
-            // so sprite_42 should be at (0,0) relative to root. cellTo - anchor
-            // gives local. For TargetCell anchor = target, so delta = 0.
-            if (cellTo && anchor) {
-              clip.x = cellTo.x - anchor.x;
-              clip.y = cellTo.y - anchor.y;
-            } else {
-              clip.x = 0;
-              clip.y = 0;
+            const cellTo = root?.vars.cellTo as
+              | { x: number; y: number }
+              | undefined;
+            if (cellTo) {
+              clip.x = cellTo.x;
+              clip.y = cellTo.y;
             }
           },
         ],
         [
           6,
-          (clip) => {
-            // AS frame_7: PlaceObject2_6_7 (shake child) placed.
-            // onClipEvent(load): y = _Y  → record current Y as baseline.
-            // AS DefineSprite_42/frame_7/PlaceObject2_6_7/CLIPACTIONRECORD onClipEvent(load).as
-            clip.vars.shakeActive = true;
-            clip.vars.shakeY = clip.y;
-            clip.vars.shakeOffsetX = 0;
-            clip.vars.shakeOffsetY = 0;
-
-            // AS frame_7: PlaceObject2_10_9 (spinner child) placed.
-            // onClipEvent(load): i = 0
-            // AS DefineSprite_42/frame_7/PlaceObject2_10_9/CLIPACTIONRECORD onClipEvent(load).as
-            clip.vars.spinnerActive = true;
-            clip.vars.spinnerI = 0;
-            clip.vars.spinnerVr = 0;
-            clip.vars.spinnerRot = 0;
-            clip.vars.spinnerFrame = 0;
+          (clip, ctx) => {
+            // AS: DefineSprite_42/frame_7 places:
+            //   PlaceObject2_6_7  → shake_sprite (clip events: load seeds baseY,
+            //                        enterFrame randomises X/Y)
+            //   PlaceObject2_10_9 → wobble_sprite (clip events: load seeds i=0,
+            //                        enterFrame sine rotation + frame toggle)
+            clip.attach(shakeSpriteSym, "shake_sprite", 7, ctx);
+            clip.attach(wobbleSpriteSym, "wobble_sprite", 9, ctx);
           },
         ],
         [
           54,
-          () => {
-            // AS DefineSprite_42/frame_55/DoAction.as: SOMA.playSound("many_512b")
-            if (this.soundCallback) {
-              this.soundCallback("many_512b");
-            }
+          (_clip) => {
+            // AS: DefineSprite_42/frame_55/DoAction.as
+            //   SOMA.playSound("many_512b")
+            this.soundCallback?.("many_512b");
           },
         ],
         [
           60,
           (clip, ctx) => {
-            // AS DefineSprite_42/frame_61/DoAction.as: this.end() → signalHit
+            // AS: DefineSprite_42/frame_61/DoAction.as
+            //   this.end() → signal hit (damage popup)
             this.runtime.signalHit();
 
-            // AS DefineSprite_42/frame_61/PlaceObject2_35_12/CLIPACTIONRECORD onClipEvent(load).as:
-            //   c = 0; while (c < 7) { this.attachMovie("pierres","pierres"+c,c); c++; }
-            // The PlaceObject2_35_12 is a container placed at frame_61 inside the
-            // sprite_42 composite. We model it as a direct child of clip (sprite_42)
-            // with the pierres attached to it. Since we attach them directly on clip,
-            // the parent._x/_y scatter in pierres onLoad will affect the clip-level
-            // offset for each stone container — this matches the canonical structure.
-            for (let c = 0; c < 7; c++) {
-              clip.attach(pierresSym, `pierres${c}`, c, ctx);
-            }
+            // AS: DefineSprite_42/frame_61 also places PlaceObject2_35_12
+            //   (the pierres_container) whose onClipEvent(load) spawns 7 pierres.
+            clip.attach(pierresContainerSym, "pierres_container", 12, ctx);
           },
         ],
         [
           210,
           (clip) => {
-            // AS DefineSprite_42/frame_211/DoAction.as: _parent.removeMovieClip()
+            // AS: DefineSprite_42/frame_211/DoAction.as
+            //   _parent.removeMovieClip()
             clip.remove();
             this.runtime.complete();
           },
@@ -367,7 +438,10 @@ export class Spell512 extends RuntimeSpell {
     };
 
     this.registry.register(pierresSym);
+    this.registry.register(pierresContainerSym);
     this.registry.register(sprite10Sym);
+    this.registry.register(shakeSpriteSym);
+    this.registry.register(wobbleSpriteSym);
     this.registry.register(sprite27Sym);
     this.registry.register(sprite28Sym);
     this.registry.register(sprite42Sym);
@@ -377,12 +451,13 @@ export class Spell512 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture sound callback so frameScripts can fire sounds later.
+    // Capture sound callback for use inside frame scripts
     this.soundCallback = callbacks.playSound;
 
-    // Main outer timeline: frame_2/DoAction.as is just stop() — no sound here.
-    // sprite_42 is the sole authored child on the main timeline; attach it so
-    // it starts ticking. Its own frame_1 scripts handle positioning + first sound.
+    // The main timeline has 2 frames; frame_2/DoAction.as is just stop().
+    // Frame_1 implicitly places sprite_42 on the stage. We attach it here
+    // so it begins ticking from the first runtime frame.
+    // sprite_42's own frame_1 script positions it at cellTo and plays sound.
     const sprite42Sym = this.registry.resolve("sprite_42");
     if (sprite42Sym) {
       this.root.attach(sprite42Sym, "sprite42", 1, context);

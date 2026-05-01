@@ -1,52 +1,48 @@
 /**
- * Spell 1214 — Pandawa attack/static spell.
+ * Spell 1214 — Pandawa Attack (Pandawa class spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ *
  * Canonical AS source: tools/combat-exporter/output/spell-anims/1214/scripts/scripts/
  *
- * displayType=11 (TargetCell). The spell has no `move`/`shoot`/`duplicate`
- * symbols and no caster-reference logic. It places a `staticR` animation
- * at or near the target cell (via onClipEvent(load) positioning in the
- * main timeline). The main timeline has a frame_13 that calls `this.end()`
- * (signalHit), and a frame_172 that calls `stop(); this.removeMovieClip()`
- * (complete). The `staticR` symbol (DefineSprite_192_staticR) is the primary
- * visual: a 201-frame composite with randomised scale/flip on frame_1,
- * a sound on frame_4, a looping/stop decision on frame_58 with a child that
- * fades after 44 frames.
+ * displayType=50 (WorldAbsolute). The main timeline places the
+ * `staticR` composite animation (DefineSprite_192_staticR) three times
+ * at different frames, each time positioning the instance at
+ * `_parent.cellTo` with an angle-based offset. This world-coord
+ * anchoring pattern maps to WorldAbsolute (container at 0,0; children
+ * position themselves using root.vars.cellTo + root.vars.angle).
  *
- * The main timeline places `staticR` instances at different offsets on
- * frames 4, 10, and 19 with varying `d` offsets and depth swaps based on
- * `_parent.angle`. We model each as an attach in `onSpellStart` (frame 1)
- * with onLoad positioning, since the main timeline fires them as clip events
- * on placed instances.
+ * Three main-timeline staticR placements, each with onClipEvent(load):
+ *   frame_4  (index 3):  staticR_1   at cellTo, depth 10 (no angle offset)
+ *   frame_10 (index 9):  staticR_139 at cellTo + dx/dy with d=27
+ *   frame_19 (index 18): staticR_277 at cellTo + dx/dy with d=53
+ *
+ * The main timeline ends at frame_172 which calls stop() + removeMovieClip().
+ * Main timeline frame_13: this.end() → signalHit.
+ *
+ * DefineSprite_192_staticR (201 frames):
+ *   frame_1:  randomize scale [80,100]%, possibly flip X
+ *   frame_4:  play sound "impact_lourd"
+ *   frame_58: 49/50 chance to stop; child clip (PlaceObject2_184_137)
+ *             counts 44 frames then fades alpha by 3.34/frame
+ *
+ * The PlaceObject2_184_137 child at frame_58 is modeled as a sub-symbol
+ * "staticR_fadeChild" with onLoad (seeds c=0) and onEnterFrame (fades
+ * parent alpha after 44 frames).
  *
  * Library symbols:
- *   - staticR (DefineSprite_192_staticR, 201 frames) — the main composite
- *     lightning/static visual. frame_1 randomises scale (80-100%) and
- *     optionally flips X. frame_4 plays "impact_lourd". frame_58 has a
- *     random stop and a fading child whose alpha decrements after 44 frames.
+ *   - staticR          — 201-frame composite. frame_1 scale/flip; frame_4 sound;
+ *                        frame_58 stops and attaches fadeChild.
+ *   - staticR_fadeChild — behavioral child placed at frame_58. onLoad seeds c=0.
+ *                         onEnterFrame: if(c++ > 44) _parent._alpha -= 3.34.
+ *   - staticR_at_1     — wrapper for placement at frame_4: onLoad positions at cellTo.
+ *   - staticR_at_139   — wrapper for placement at frame_10: onLoad positions with d=27.
+ *   - staticR_at_277   — wrapper for placement at frame_19: onLoad positions with d=53.
  *
- * Animations in manifest (no librarySymbols[] entries — all symbols appear
- * only in animations[]):
- *   - "staticR"  — the main static animation (201 frames)
- *   - "16_67"    — 15-frame sub-animation
- *   - "16_45"    — 15-frame sub-animation
- *
- * Main timeline:
- *   - frame_4:   place staticR instance at cellTo (depth 10)
- *   - frame_10:  place staticR instance at cellTo + offset d=27
- *   - frame_13:  this.end() → signalHit
- *   - frame_19:  place staticR instance at cellTo + offset d=53
- *   - frame_172: stop(); this.removeMovieClip() → complete
- *
- * Sounds: "pandit_spell", "death_fall", "pandit_death", "hit_defaut",
- *         "impact_lourd", "pandit_attak", "ouginac_epee", "pandit_fire"
- *
- * GAC.applyAnim / GAC.applyEnd calls inside the DefineSprite_* scripts are
- * character-animation controller calls that operate on the fighter sprite
- * (not on spell visuals). They are no-ops in the spell runtime context and
- * are omitted. Similarly, swapDepths() on the placed instances is handled
- * by the depth parameter we pass to attach().
+ * (The various DefineSprite_160/158/166/168/150/152/etc. symbols are internal
+ * character animation sprites with GAC.applyAnim/GAC.applyEnd calls —
+ * fighter-state management baked into the composite staticR frames, not
+ * library symbols the spell attaches via attachMovie.)
  */
 
 import type {
@@ -61,7 +57,7 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-// Bounds from manifest animations[] — "staticR" entry (no lib_ prefix, not in librarySymbols)
+// Bounds from manifest animations[] entry for "staticR"
 const STATIC_R_BOUNDS = {
   width: 56.3,
   height: 138,
@@ -71,70 +67,77 @@ const STATIC_R_BOUNDS = {
 
 export class Spell1214 extends RuntimeSpell {
   readonly spellId = 1214;
-  readonly displayType = SpellDisplayType.TargetCell;
+  readonly displayType = SpellDisplayType.WorldAbsolute;
 
-  // Hold a reference to the symbol so onSpellStart can attach it
+  // Hold references so onSpellStart can attach them
   private staticRSym!: SymbolDefinition;
+  private staticRAt1Sym!: SymbolDefinition;
+  private staticRAt139Sym!: SymbolDefinition;
+  private staticRAt277Sym!: SymbolDefinition;
+
+  // Hold sound callback for use inside frameScripts
+  private soundCallback?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
     const staticRAnchor = calculateAnchor(STATIC_R_BOUNDS);
+    const self = this;
 
-    // ---- staticR — main 201-frame lightning/static composite ----
-    // No librarySymbols[] entry in manifest — texture key is "staticR" (bare name).
+    // ---- staticR_fadeChild — behavioral fade child ---------------
+    // Placed inside DefineSprite_192_staticR at frame_58.
     //
-    // AS DefineSprite_192_staticR/frame_1/DoAction.as:
-    //   ta = 80 + random(20);
-    //   _xscale = ta; _yscale = ta;
-    //   if (random(2) == 1) { _xscale = -_xscale; }
-    //
-    // AS DefineSprite_192_staticR/frame_4/DoAction.as:
-    //   SOMA.playSound("impact_lourd");
-    //
-    // AS DefineSprite_192_staticR/frame_58/DoAction.as:
-    //   if (random(50) != 1) { stop(); }
-    //
-    // AS DefineSprite_192_staticR/frame_58/PlaceObject2_184_137/onClipEvent(load):
+    // AS DefineSprite_192_staticR/frame_58/PlaceObject2_184_137/
+    //   CLIPACTIONRECORD onClipEvent(load).as:
     //   c = 0;
-    // AS DefineSprite_192_staticR/frame_58/PlaceObject2_184_137/onClipEvent(enterFrame):
-    //   if (c++ > 44) { _parent._alpha -= 3.34; }
     //
-    // The child clip placed at frame_58 (PlaceObject2_184_137) is an internal
-    // authored child of the staticR sprite. Since the runtime treats staticR
-    // as a single animated sprite (frames[] drives its texture), we model the
-    // fade-out behaviour by attaching a virtual "fade" child at frame 58 that
-    // decrements alpha on the parent staticR clip.
-
-    // Define a lightweight "fade" symbol for the internal fade-out child
-    const fadeSym: SymbolDefinition = {
-      name: "_internal_fade",
+    // AS DefineSprite_192_staticR/frame_58/PlaceObject2_184_137/
+    //   CLIPACTIONRECORD onClipEvent(enterFrame).as:
+    //   if(c++ > 44) { _parent._alpha -= 3.34; }
+    const fadeChildSym: SymbolDefinition = {
+      name: "staticR_fadeChild",
       totalFrames: 1,
       frames: [],
       anchorX: 0.5,
       anchorY: 0.5,
-      // AS frame_58/PlaceObject2_184_137/onClipEvent(load): c = 0
+
       onLoad: (clip) => {
+        // AS DefineSprite_192_staticR/frame_58/PlaceObject2_184_137/
+        //   CLIPACTIONRECORD onClipEvent(load).as
         clip.vars.c = 0;
       },
-      // AS frame_58/PlaceObject2_184_137/onClipEvent(enterFrame):
-      //   if (c++ > 44) { _parent._alpha -= 3.34; }
+
       onEnterFrame: (clip) => {
+        // AS DefineSprite_192_staticR/frame_58/PlaceObject2_184_137/
+        //   CLIPACTIONRECORD onClipEvent(enterFrame).as
         const c = clip.vars.c as number;
         clip.vars.c = c + 1;
         if (c > 44) {
           const parent = clip.parent;
           if (parent) {
+            // AS: _parent._alpha -= 3.34  (Flash 0-100 → TS 0-1)
             parent.alpha = Math.max(0, parent.alpha - 3.34 / 100);
           }
         }
       },
     };
 
-    // Capture playSound for use inside frameScripts
-    let playSoundFn: ((id: string) => void) | undefined;
-
+    // ---- staticR (DefineSprite_192_staticR) ----------------------
+    // 201-frame composite animation. Shared definition used by all
+    // three placements (each placement wrapper delegates to this).
+    //
+    // AS DefineSprite_192_staticR/frame_1/DoAction.as:
+    //   ta = 80 + random(20);
+    //   _xscale = ta; _yscale = ta;
+    //   if(random(2) == 1) { _xscale = -_xscale; }
+    //
+    // AS DefineSprite_192_staticR/frame_4/DoAction.as:
+    //   SOMA.playSound("impact_lourd");
+    //
+    // AS DefineSprite_192_staticR/frame_58/DoAction.as:
+    //   if(random(50) != 1) { stop(); }
+    //   [also places PlaceObject2_184_137 → attach fadeChildSym]
     this.staticRSym = {
       name: "staticR",
       totalFrames: 201,
@@ -142,145 +145,280 @@ export class Spell1214 extends RuntimeSpell {
       anchorX: staticRAnchor.x,
       anchorY: staticRAnchor.y,
 
-      // AS DefineSprite_192_staticR/frame_1/DoAction.as
       frameScripts: new Map([
         [
+          // AS DefineSprite_192_staticR/frame_1/DoAction.as
           0,
           (clip) => {
-            // ta = 80 + random(20); _xscale = ta; _yscale = ta;
-            // if (random(2) == 1) { _xscale = -_xscale; }
             const ta = 80 + Math.floor(Math.random() * 20);
             clip.scaleX = ta / 100;
             clip.scaleY = ta / 100;
             if (Math.floor(Math.random() * 2) === 1) {
-              clip.scaleX = -clip.scaleX;
+              clip.scaleX = -(ta / 100);
             }
           },
         ],
         [
-          3,
           // AS DefineSprite_192_staticR/frame_4/DoAction.as
+          3,
           (_clip) => {
-            playSoundFn?.("impact_lourd");
+            self.soundCallback?.("impact_lourd");
           },
         ],
         [
-          57,
           // AS DefineSprite_192_staticR/frame_58/DoAction.as
-          // if (random(50) != 1) { stop(); }
-          // Also attach the internal fade child (PlaceObject2_184_137)
+          57,
           (clip, ctx) => {
+            // Place the fade child (PlaceObject2_184_137) — its onLoad
+            // and onEnterFrame drive the alpha decay on this clip.
+            clip.attach(fadeChildSym, "fadeChild", 137, ctx);
+            // 49/50 chance to stop the staticR timeline here.
             if (Math.floor(Math.random() * 50) !== 1) {
               clip.stop();
-            }
-            // Attach the fade child (models the PlaceObject2_184_137 clip event)
-            if (!clip.children.has("_fade")) {
-              clip.attach(fadeSym, "_fade", 184, ctx);
             }
           },
         ],
       ]),
     };
 
-    // Expose playSoundFn setter so onSpellStart can wire it in
-    this._playSoundSetter = (fn: (id: string) => void) => {
-      playSoundFn = fn;
+    // ---- Placement wrappers — one per main-timeline PlaceObject2 --
+    // Each placement has a distinct onClipEvent(load) that positions
+    // the staticR content clip in world coords using _parent.cellTo
+    // and _parent.angle. We model each as a thin wrapper symbol whose
+    // onLoad fires the positioning logic, then its frame_1 attaches
+    // the actual staticR content as a child.
+
+    // -- staticR_at_1 (frame_4 placement, d=0, depth=10) ----------
+    // AS scripts/frame_4/PlaceObject2_192_staticR_1/
+    //   CLIPACTIONRECORD onClipEvent(load).as:
+    //   _X = _parent.cellTo.x;
+    //   _Y = _parent.cellTo.y;
+    //   this.swapDepths(10);
+    this.staticRAt1Sym = {
+      name: "staticR_at_1",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+
+      onLoad: (clip) => {
+        // AS scripts/frame_4/PlaceObject2_192_staticR_1/
+        //   CLIPACTIONRECORD onClipEvent(load).as
+        const root = clip.parent;
+        const cellTo = root?.vars.cellTo as { x: number; y: number } | undefined;
+        if (cellTo) {
+          clip.x = cellTo.x;
+          clip.y = cellTo.y;
+        }
+        // swapDepths(10) is handled by the depth param in attach()
+      },
+
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            clip.attach(self.staticRSym, "staticR", 1, ctx);
+          },
+        ],
+      ]),
     };
 
-    // Register symbols (fade is internal, no need to register separately
-    // since it is only ever attached by staticR's frame_58 script)
-    this.registry.register(this.staticRSym);
-  }
+    // -- staticR_at_139 (frame_10 placement, d=27) -----------------
+    // AS scripts/frame_10/PlaceObject2_192_staticR_139/
+    //   CLIPACTIONRECORD onClipEvent(load).as:
+    //   d = 27;
+    //   if(_parent.angle < 0) { swapDepths(5); dy = -d/2; }
+    //   else                  { swapDepths(15); dy = d/2; }
+    //   if(Math.abs(_parent.angle) > 90) { dx = -d; } else { dx = d; }
+    //   _X = _parent.cellTo.x + dx;
+    //   _Y = _parent.cellTo.y + dy;
+    this.staticRAt139Sym = {
+      name: "staticR_at_139",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
 
-  // Internal setter used to wire playSound into frameScripts closure
-  private _playSoundSetter?: (fn: (id: string) => void) => void;
+      onLoad: (clip) => {
+        // AS scripts/frame_10/PlaceObject2_192_staticR_139/
+        //   CLIPACTIONRECORD onClipEvent(load).as
+        const root = clip.parent;
+        const cellTo = root?.vars.cellTo as { x: number; y: number } | undefined;
+        const angleDeg = (root?.vars.angle as number) ?? 0;
+        const d = 27;
+        let dx: number;
+        let dy: number;
+
+        if (angleDeg < 0) {
+          dy = -d / 2;
+        } else {
+          dy = d / 2;
+        }
+
+        if (Math.abs(angleDeg) > 90) {
+          dx = -d;
+        } else {
+          dx = d;
+        }
+
+        if (cellTo) {
+          clip.x = cellTo.x + dx;
+          clip.y = cellTo.y + dy;
+        }
+        // swapDepths(5 or 15) handled by caller depth param
+      },
+
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            clip.attach(self.staticRSym, "staticR", 1, ctx);
+          },
+        ],
+      ]),
+    };
+
+    // -- staticR_at_277 (frame_19 placement, d=53) -----------------
+    // AS scripts/frame_19/PlaceObject2_192_staticR_277/
+    //   CLIPACTIONRECORD onClipEvent(load).as:
+    //   d = 53;
+    //   if(_parent.angle < 0) { swapDepths(5); dy = -d/2; }
+    //   else                  { swapDepths(15); dy = d/2; }
+    //   if(Math.abs(_parent.angle) > 90) { dx = -d; } else { dx = d; }
+    //   _X = _parent.cellTo.x + dx;
+    //   _Y = _parent.cellTo.y + dy;
+    this.staticRAt277Sym = {
+      name: "staticR_at_277",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+
+      onLoad: (clip) => {
+        // AS scripts/frame_19/PlaceObject2_192_staticR_277/
+        //   CLIPACTIONRECORD onClipEvent(load).as
+        const root = clip.parent;
+        const cellTo = root?.vars.cellTo as { x: number; y: number } | undefined;
+        const angleDeg = (root?.vars.angle as number) ?? 0;
+        const d = 53;
+        let dx: number;
+        let dy: number;
+
+        if (angleDeg < 0) {
+          dy = -d / 2;
+        } else {
+          dy = d / 2;
+        }
+
+        if (Math.abs(angleDeg) > 90) {
+          dx = -d;
+        } else {
+          dx = d;
+        }
+
+        if (cellTo) {
+          clip.x = cellTo.x + dx;
+          clip.y = cellTo.y + dy;
+        }
+        // swapDepths(5 or 15) handled by caller depth param
+      },
+
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            clip.attach(self.staticRSym, "staticR", 1, ctx);
+          },
+        ],
+      ]),
+    };
+
+    this.registry.register(fadeChildSym);
+    this.registry.register(this.staticRSym);
+    this.registry.register(this.staticRAt1Sym);
+    this.registry.register(this.staticRAt139Sym);
+    this.registry.register(this.staticRAt277Sym);
+  }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Wire the sound callback into the staticR frameScripts closure
-    this._playSoundSetter?.(callbacks.playSound);
+    // Capture sound callback for use inside frameScripts
+    this.soundCallback = callbacks.playSound;
 
-    // Main timeline sounds (frame 1 implied by playSound calls across
-    // multiple child sprites — the top-level sounds at frame 0 in manifest
-    // are "pandit_spell", "death_fall", "pandit_death")
+    // Main timeline frame_1 sounds (manifest sounds[] at frame 0)
     callbacks.playSound("pandit_spell");
     callbacks.playSound("death_fall");
     callbacks.playSound("pandit_death");
 
-    // ---- frame_4: place first staticR at cellTo (depth 10) ------
-    // AS frame_4/PlaceObject2_192_staticR_1/onClipEvent(load):
-    //   _X = _parent.cellTo.x; _Y = _parent.cellTo.y;
-    //   this.swapDepths(10);
-    // For displayType=11 (TargetCell), root is already anchored at cellTo,
-    // so the local offset is (0, 0).
-    this.root.attach(this.staticRSym, "staticR1", 10, context, {
-      x: 0,
-      y: 0,
-    });
+    // Determine depth for angle-offset placements (mirrors swapDepths
+    // logic from the onClipEvent(load) scripts — we pick the depth
+    // before attaching so the attach() call uses the right zIndex).
+    const angleDeg = context.angle;
+    const angleOffsetDepth = angleDeg < 0 ? 5 : 15;
 
-    // ---- frame_10: place second staticR at cellTo + offset d=27 -
-    // AS frame_10/PlaceObject2_192_staticR_139/onClipEvent(load):
-    //   d = 27;
-    //   if (_parent.angle < 0) { swapDepths(5); dy = -d/2; }
-    //   else { swapDepths(15); dy = d/2; }
-    //   if (Math.abs(_parent.angle) > 90) { dx = -d; } else { dx = d; }
-    //   _X = _parent.cellTo.x + dx; _Y = _parent.cellTo.y + dy;
-    // Since root is at cellTo (TargetCell), local position = (dx, dy).
-    {
-      const d = 27;
-      const angleDeg = context.angle; // degrees, stored on context
-      const dy = angleDeg < 0 ? -d / 2 : d / 2;
-      const dx = Math.abs(angleDeg) > 90 ? -d : d;
-      const depth2 = angleDeg < 0 ? 5 : 15;
-      this.root.attach(this.staticRSym, "staticR2", depth2, context, {
-        x: dx,
-        y: dy,
-      });
-    }
+    // ----------------------------------------------------------------
+    // frame_4 (index 3): PlaceObject2_192_staticR_1
+    // AS scripts/frame_4/PlaceObject2_192_staticR_1/
+    //   CLIPACTIONRECORD onClipEvent(load).as — ports to onLoad above.
+    // ----------------------------------------------------------------
+    this.root.attach(
+      this.staticRAt1Sym,
+      "staticR_wrapper_1",
+      10,
+      context,
+    );
 
-    // ---- frame_19: place third staticR at cellTo + offset d=53 --
-    // AS frame_19/PlaceObject2_192_staticR_277/onClipEvent(load):
-    //   d = 53;
-    //   if (_parent.angle < 0) { swapDepths(5); dy = -d/2; }
-    //   else { swapDepths(15); dy = d/2; }
-    //   if (Math.abs(_parent.angle) > 90) { dx = -d; } else { dx = d; }
-    //   _X = _parent.cellTo.x + dx; _Y = _parent.cellTo.y + dy;
-    {
-      const d = 53;
-      const angleDeg = context.angle;
-      const dy = angleDeg < 0 ? -d / 2 : d / 2;
-      const dx = Math.abs(angleDeg) > 90 ? -d : d;
-      const depth3 = angleDeg < 0 ? 5 : 15;
-      this.root.attach(this.staticRSym, "staticR3", depth3, context, {
-        x: dx,
-        y: dy,
-      });
-    }
+    // ----------------------------------------------------------------
+    // frame_10 (index 9): PlaceObject2_192_staticR_139
+    // AS scripts/frame_10/PlaceObject2_192_staticR_139/
+    //   CLIPACTIONRECORD onClipEvent(load).as — ports to onLoad above.
+    // ----------------------------------------------------------------
+    this.root.attach(
+      this.staticRAt139Sym,
+      "staticR_wrapper_139",
+      angleOffsetDepth,
+      context,
+    );
 
-    // ---- frame_13: this.end() → signalHit -----------------------
-    // We model the main-timeline frame_13 script as a frame script on
-    // the root. Since the root SpellClip starts ticking after onSpellStart,
-    // we set its onEnterFrame to a one-shot counter that fires at frame 13.
-    // However, the cleanest approach is to register a root-level frameScript
-    // via a dedicated wrapper symbol on the root. Instead, we use the root's
-    // vars to track the main timeline frame, driven by onEnterFrame.
+    // ----------------------------------------------------------------
+    // frame_19 (index 18): PlaceObject2_192_staticR_277
+    // AS scripts/frame_19/PlaceObject2_192_staticR_277/
+    //   CLIPACTIONRECORD onClipEvent(load).as — ports to onLoad above.
+    // ----------------------------------------------------------------
+    this.root.attach(
+      this.staticRAt277Sym,
+      "staticR_wrapper_277",
+      angleOffsetDepth,
+      context,
+    );
+
+    // ----------------------------------------------------------------
+    // Wire main-timeline frame_13 (signalHit) and frame_172 (complete)
+    // via root onEnterFrame tick counter.
     //
-    // AS frame_13/DoAction.as: this.end();
-    // AS frame_172/DoAction.as: stop(); this.removeMovieClip();
-    this.root.vars._mainFrame = 0;
-    this.root.onEnterFrame = (_clip) => {
-      const mf = (this.root.vars._mainFrame as number) + 1;
-      this.root.vars._mainFrame = mf;
+    // AS scripts/frame_13/DoAction.as: this.end();
+    // AS scripts/frame_172/DoAction.as: stop(); this.removeMovieClip();
+    // ----------------------------------------------------------------
+    let hitFired = false;
+    let completeFired = false;
+    let rootFrameCount = 0;
 
-      if (mf === 13) {
-        // AS frame_13/DoAction.as: this.end() → signalHit
+    this.root.onEnterFrame = (_clip, _ctx) => {
+      rootFrameCount++;
+
+      // frame_13 (index 12) → signalHit
+      // AS scripts/frame_13/DoAction.as: this.end();
+      if (!hitFired && rootFrameCount >= 12) {
+        hitFired = true;
         this.runtime.signalHit();
       }
 
-      if (mf === 172) {
-        // AS frame_172/DoAction.as: stop(); this.removeMovieClip();
+      // frame_172 (index 171) → stop + removeMovieClip (complete)
+      // AS scripts/frame_172/DoAction.as: stop(); this.removeMovieClip();
+      if (!completeFired && rootFrameCount >= 171) {
+        completeFired = true;
         this.root.onEnterFrame = null;
         this.runtime.complete();
       }

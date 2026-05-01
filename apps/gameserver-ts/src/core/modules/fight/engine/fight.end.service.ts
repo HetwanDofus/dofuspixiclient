@@ -1,11 +1,11 @@
 import type { FightChallenge } from "@modules/fight/challenges/fight.challenge.base";
 import type { Fight } from "@modules/fight/core/fight.entity";
 import { create } from "@bufbuild/protobuf";
-import { SpriteType } from "@dofus/proto/common_pb";
 import {
   FightResultSchema,
   GameEndSchema,
   GameMovementSchema,
+  type SpriteMovementEntry,
   SpriteMovementEntry_Operation,
   SpriteMovementEntrySchema,
 } from "@dofus/proto/game_pb";
@@ -14,7 +14,10 @@ import { FightHistoryRepository } from "@modules/fight/engine/fight.history.repo
 import { FightType, type TeamSide } from "@modules/fight/fight.types";
 import { FightRegistryService } from "@modules/fight/registry/fight.registry";
 import { MapTransitionService } from "@modules/maps/maps.transition.service";
+import { MapMonsterService } from "@modules/monsters/map-monster.service";
+import { monsterGroupToSpriteEntry } from "@modules/monsters/map-monster.sprite-entry";
 import { PlayerPresenceService } from "@modules/player-presence/player-presence.service";
+import { toSpriteEntry } from "@modules/player-presence/player-presence.sprite-entry";
 import { PlayersRepository } from "@modules/players/players.repository";
 import { Injectable, Logger } from "@nestjs/common";
 import { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
@@ -29,7 +32,8 @@ export class FightEndService {
     private readonly historyRepo: FightHistoryRepository,
     private readonly players: PlayersRepository,
     private readonly presence: PlayerPresenceService,
-    private readonly transition: MapTransitionService
+    private readonly transition: MapTransitionService,
+    private readonly mapMonsters: MapMonsterService
   ) {}
 
   async endFight(fight: Fight): Promise<void> {
@@ -232,39 +236,66 @@ export class FightEndService {
         continue;
       }
 
-      const mapSessions = this.presence.sessionsOnMap(
+      // Re-add the survivor's sprite to the map for everyone — INCLUDING
+      // the surviving player themselves. The fight broadcast a REMOVE
+      // for every fighter at the start of `endFight` (including self),
+      // so without an ADD back the local view sits empty after the
+      // fight-end dialog dismisses and the player thinks they're stuck.
+      // We reuse `toSpriteEntry` (the same helper enter-game uses for
+      // map-load spawn) so the entry includes colors + accessories —
+      // building it inline by hand here was previously dropping all
+      // gear so the player respawned naked.
+      const otherSessions = this.presence.sessionsOnMap(
         presence.mapId,
         String(fighter.player.id)
       );
-      if (mapSessions.length === 0) {
-        continue;
-      }
+      const allSessions = [fighter.sessionId, ...otherSessions];
 
-      // Send ADD sprite for this player to everyone else on the map
       this.frames.broadcast(
-        mapSessions,
+        allSessions,
         create(DofusMessageSchema, {
           payload: {
             case: "gameMovement",
             value: create(GameMovementSchema, {
               entries: [
-                create(SpriteMovementEntrySchema, {
-                  operation: SpriteMovementEntry_Operation.ADD,
-                  spriteType: SpriteType.CHARACTER,
-                  spriteId: String(fighter.player.id),
-                  cellId: presence.cellId,
-                  direction: presence.direction,
-                  name: presence.name,
-                  level: presence.level,
-                  gfxId: presence.gfx,
-                  scaleX: 100,
-                  scaleY: 100,
-                }),
+                toSpriteEntry(presence, SpriteMovementEntry_Operation.ADD),
               ],
             }),
           },
         })
       );
+
+      // Re-add the rest of the world state (every still-living monster
+      // group + every other player) to THIS survivor's view. We REMOVE-d
+      // these from their view in `FightStartService.startPvM` to keep
+      // ghost roleplay sprites from bleeding into the fight overlay, so
+      // we have to put them back when the fight ends or the map looks
+      // empty until the player crosses an edge and re-enters.
+      const worldEntries: SpriteMovementEntry[] = [];
+
+      for (const otherPlayer of this.presence.onMap(presence.mapId)) {
+        if (otherPlayer.characterId !== presence.characterId) {
+          worldEntries.push(
+            toSpriteEntry(otherPlayer, SpriteMovementEntry_Operation.ADD)
+          );
+        }
+      }
+
+      for (const liveGroup of this.mapMonsters.groupsOnMap(presence.mapId)) {
+        worldEntries.push(monsterGroupToSpriteEntry(liveGroup));
+      }
+
+      if (worldEntries.length > 0) {
+        this.frames.broadcast(
+          [fighter.sessionId],
+          create(DofusMessageSchema, {
+            payload: {
+              case: "gameMovement",
+              value: create(GameMovementSchema, { entries: worldEntries }),
+            },
+          })
+        );
+      }
     }
 
     // Cleanup

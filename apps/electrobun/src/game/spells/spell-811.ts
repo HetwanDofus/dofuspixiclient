@@ -1,34 +1,34 @@
 /**
- * Spell 811 — Licorne (Eniripsa or similar class spell).
+ * Spell 811 — Lichrounch (Osamodas).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/811/scripts/scripts/
  *
- * displayType=11 (TargetCell). This spell has no projectile, no caster reference,
- * no dual-anchor pattern, and no `move`/`shoot`/`duplicate` symbols. It is a
- * single impact animation anchored at the target cell. The manifest has only one
- * `animations[]` entry (`anim1`, 114 frames) and no `librarySymbols[]`.
+ * displayType=11 (TargetCell). No projectile motion, no caster reference,
+ * single impact animation playing at the target cell. The manifest has no
+ * librarySymbols[] entries — the entire animation is a single `anim1`
+ * entry in `animations[]`, driven by two authored DefineSprite_17 frame
+ * scripts (frame_1 plays sound, frame_112 removes the outer mc).
+ * DefineSprite_6 is a sub-sprite whose frame_1 does `gotoAndPlay(random(45)+2)`
+ * to randomize its starting frame — this is embedded inside the composite
+ * `anim1` frames rather than being a separately attachMovie'd symbol;
+ * the composite SVG frames already capture all per-frame visual states.
  *
- * Canonical AS layout:
- *   - DefineSprite_6/frame_1/DoAction.as:
- *       gotoAndPlay(random(45) + 2);
- *       This is the inner anim clip that randomises its start frame (2..46).
+ * Architecture:
+ *   - One `anim1` SymbolDefinition (114 frames, pre-rendered SVG composite).
+ *   - frameScripts:
+ *       frame 0  (AS frame_1):  SOMA.playSound("licrounch_1008") + signalHit.
+ *       frame 111 (AS frame_112): _parent.removeMovieClip() → complete().
+ *   - onSpellStart attaches `anim1` at root depth 1 so the timeline starts.
  *
- *   - DefineSprite_17/frame_1/DoAction.as:
- *       SOMA.playSound("licrounch_1008");
- *       This is the outer wrapper sprite whose frame_1 plays the sound.
+ * The DefineSprite_6 sub-sprite randomised gotoAndPlay is baked into the
+ * composite SVG timeline (the extractor renders all possible states per
+ * frame), so it does not require a separate runtime SymbolDefinition.
  *
- *   - DefineSprite_17/frame_112/DoAction.as:
- *       _parent.removeMovieClip();
- *       Outer wrapper removes itself (= spell complete) at frame 112.
+ * Main timeline: no explicit frame_1 DoAction beyond sounds embedded in
+ * DefineSprite_17. onSpellStart attaches anim1 and forwards the sound.
  *
- * Since `librarySymbols` is empty in the manifest, we register the animation
- * using the bare `anim1` key (NO `lib_` prefix). The outer sprite (DefineSprite_17)
- * drives the 114-frame timeline; we attach it as the sole child in onSpellStart.
- *
- * signalHit is fired at frame 1 (frame_1 of DefineSprite_17, i.e. the moment the
- * impact sound plays), which is the canonical impact moment. complete() is fired
- * at frame 111 (AS frame_112, 0-based = 111).
+ * Library symbols: none (librarySymbols[] is empty in manifest).
  */
 
 import type {
@@ -54,8 +54,7 @@ export class Spell811 extends RuntimeSpell {
   readonly spellId = 811;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  private innerClipSym!: SymbolDefinition;
-  private outerClipSym!: SymbolDefinition;
+  private anim1Sym!: SymbolDefinition;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
@@ -63,13 +62,16 @@ export class Spell811 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- DefineSprite_6 — inner animated clip --------------------
-    // AS DefineSprite_6/frame_1/DoAction.as:
-    //   gotoAndPlay(random(45) + 2);
-    // Randomises start frame to somewhere in [2..46] (AS 1-based),
-    // i.e. 0-based frames [1..45].
-    this.innerClipSym = {
-      name: "innerClip",
+    // anim1 — 114-frame composite impact animation at target cell.
+    // AS DefineSprite_17/frame_1/DoAction.as:  SOMA.playSound("licrounch_1008")
+    // AS DefineSprite_17/frame_112/DoAction.as: _parent.removeMovieClip()
+    // DefineSprite_6/frame_1/DoAction.as:       gotoAndPlay(random(45)+2)
+    // — DefineSprite_6 is a sub-sprite rendered into the composite SVG
+    //   frames; its random-offset behaviour is represented in the
+    //   pre-rendered composite timeline, so no separate runtime symbol
+    //   is needed for it.
+    this.anim1Sym = {
+      name: "anim1",
       totalFrames: 114,
       frames: textures.getFrames("anim1"),
       anchorX: anim1Anchor.x,
@@ -77,75 +79,37 @@ export class Spell811 extends RuntimeSpell {
       frameScripts: new Map([
         [
           0,
-          (clip) => {
-            // AS DefineSprite_6/frame_1/DoAction.as:
-            //   gotoAndPlay(random(45) + 2);
-            // random(45) → Math.floor(Math.random() * 45), range [0..44]
-            // + 2 → AS 1-based frame [2..46], 0-based [1..45]
-            const startFrame = Math.floor(Math.random() * 45) + 1;
-            clip.gotoAndPlay(startFrame);
-          },
-        ],
-      ]),
-    };
-
-    // ---- DefineSprite_17 — outer wrapper timeline ----------------
-    // AS DefineSprite_17/frame_1/DoAction.as:
-    //   SOMA.playSound("licrounch_1008");
-    // AS DefineSprite_17/frame_112/DoAction.as:
-    //   _parent.removeMovieClip();
-    //
-    // The outer clip is a 114-frame container that:
-    //   - plays the sound on entry (frame_1 → signalHit)
-    //   - removes its parent (= spell complete) at frame_112 (0-based: 111)
-    //
-    // We treat it as a container that holds the inner clip as its
-    // visual content. The inner clip's frame textures supply the rendering.
-    this.outerClipSym = {
-      name: "outerClip",
-      totalFrames: 114,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (clip, ctx) => {
-            // AS DefineSprite_17/frame_1/DoAction.as:
-            //   SOMA.playSound("licrounch_1008");
-            // Sound is fired by onSpellStart directly; signal hit here
-            // as the canonical impact moment.
+          (_clip, _ctx) => {
+            // AS DefineSprite_17/frame_1/DoAction.as
+            // Sound is played via onSpellStart; signalHit fires at
+            // the first frame when the impact visual begins.
             this.runtime.signalHit();
-            // Attach the inner animated clip as child of the outer wrapper.
-            clip.attach(this.innerClipSym, "innerClip", 1, ctx);
           },
         ],
         [
           111,
           (clip) => {
-            // AS DefineSprite_17/frame_112/DoAction.as:
-            //   _parent.removeMovieClip();
-            // _parent here is the root (outer mc of the spell), so this
-            // is the canonical spell completion trigger.
-            clip.remove();
+            // AS DefineSprite_17/frame_112/DoAction.as
+            // _parent.removeMovieClip() — outer mc removal signals
+            // spell completion.
+            clip.parent?.remove();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
-    this.registry.register(this.innerClipSym);
-    this.registry.register(this.outerClipSym);
+    this.registry.register(this.anim1Sym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS DefineSprite_17/frame_1/DoAction.as: SOMA.playSound("licrounch_1008");
+    // AS DefineSprite_17/frame_1/DoAction.as: SOMA.playSound("licrounch_1008")
     callbacks.playSound("licrounch_1008");
 
-    // Attach the outer wrapper clip at the root so it starts ticking.
-    this.root.attach(this.outerClipSym, "outerClip", 1, context);
+    // Attach the main animation clip at root so it begins ticking.
+    this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

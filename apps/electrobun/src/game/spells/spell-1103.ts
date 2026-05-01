@@ -1,47 +1,37 @@
 /**
- * Spell 1103 — Aute (Flûte/Bard-type spell).
+ * Spell 1103 — Flûte des Eniripsa (Eniripsa flute heal).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/1103/scripts/scripts/
  *
- * displayType=11 (TargetCell). This spell has no projectile motion, no
- * caster-anchor, no duplicate/beam logic, and no WorldAbsolute dual-anchor
- * pattern. A single animated timeline plays at the target cell. Chosen by
- * elimination: no `move`/`shoot`/`duplicate` symbols, no `cellFrom`/`cellTo`
- * position logic in the scripts, single impact at target → TargetCell.
+ * displayType=11 (TargetCell). No projectile, no caster reference, no
+ * `move`/`shoot`/`duplicate` symbols. A single impact animation at the
+ * target cell. The manifest has no librarySymbols[] entries — all content
+ * is driven by the top-level animations[] (sprite_3, sprite_5, sprite_6)
+ * placed directly on the main timeline.
  *
- * Manifest layout:
- *   - animations[]:
- *       sprite_3  — 250-frame composite animation (isComposite=true)
- *       sprite_5  — 124-frame simple animation
- *       sprite_6  — 48-frame composite animation; has a frame_47 script
- *                   that loops back: gotoAndPlay(30)
+ * Main timeline layout:
+ *   frame_1/DoAction.as  : SOMA.playSound("aute_1103")
+ *   frame_137/DoAction.as: this.end()           → signalHit
+ *   frame_159/DoAction.as: this.removeMovieClip() → spell complete
  *
- *   - librarySymbols[]: (empty — no attachMovie calls in AS)
+ * Library symbols: none (librarySymbols[] is absent / empty).
  *
- * Main timeline scripts:
- *   frame_1/DoAction.as   → SOMA.playSound("aute_1103")
- *   frame_137/DoAction.as → this.end()  → signalHit
- *   frame_159/DoAction.as → this.removeMovieClip() → spell complete
+ * Authored sprites (from animations[]):
+ *   - sprite_3 — 250-frame composite (oscillating circles or glyph, isComposite).
+ *                Played on the main timeline for the full duration.
+ *   - sprite_5 — 124-frame non-composite sprite (main flute anim).
+ *                Played on the main timeline.
+ *   - sprite_6 — 48-frame composite. Has its own frame_47 script:
+ *                `gotoAndPlay(30)` → loops back to frame 30 (0-based: 29).
+ *                Played on the main timeline.
  *
- * DefineSprite_6/frame_47/DoAction.as → gotoAndPlay(30) on sprite_6's
- * own timeline (loop frames 30-47 indefinitely while the outer timeline
- * runs to frame 159).
+ * The main timeline is a single 159-frame sequence. All three authored
+ * sprites are placed as children and tick in parallel. The outer mc
+ * drives signalHit at frame 137 and completion at frame 159.
  *
- * The manifest has NO librarySymbols entries, so there are NO `lib_`
- * prefixed texture lookups. All animations are registered as top-level
- * symbols using their bare manifest names. The two parallel animated
- * sprites (sprite_3, sprite_5, sprite_6) are placed on the main timeline
- * as authored children — we attach them explicitly in onSpellStart and
- * drive the outer timeline's frame_137/frame_159 callbacks from the
- * sprite_6 symbol (the longest-lived authored piece at 48 frames with
- * an internal loop, outlasting sprite_5's 124 frames within the outer
- * 159-frame timeline).
- *
- * Since the outer mc main timeline carries frame_137 (signalHit) and
- * frame_159 (complete), we model the outer timeline as the root clip's
- * own driving symbol — a 159-frame "outer" symbol that registers those
- * frame callbacks and whose stop/complete signals are fired from there.
+ * Because librarySymbols[] is empty we use bare animation names
+ * (no "lib_" prefix) for textures.getFrames().
  */
 
 import type {
@@ -56,7 +46,8 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-// Bounds from manifest animations[] entries (no librarySymbols present).
+// ---- Manifest bounds for each authored animation -------------------------
+
 const SPRITE_3_BOUNDS = {
   width: 80.5,
   height: 80.5,
@@ -82,6 +73,7 @@ export class Spell1103 extends RuntimeSpell {
   readonly spellId = 1103;
   readonly displayType = SpellDisplayType.TargetCell;
 
+  // Symbols held as instance fields so onSpellStart can reference them.
   private sprite3Sym!: SymbolDefinition;
   private sprite5Sym!: SymbolDefinition;
   private sprite6Sym!: SymbolDefinition;
@@ -94,8 +86,11 @@ export class Spell1103 extends RuntimeSpell {
     const sprite5Anchor = calculateAnchor(SPRITE_5_BOUNDS);
     const sprite6Anchor = calculateAnchor(SPRITE_6_BOUNDS);
 
-    // ---- sprite_3 — 250-frame composite animation at target ------
-    // No frame scripts in canonical AS for this symbol.
+    // ---- sprite_3 — 250-frame composite oscillating glyph ---------------
+    // No AS frame scripts for this symbol. Plays through all 250 frames
+    // and loops (default Flash behaviour for a clip without stop()).
+    // It runs in parallel with the outer timeline; the outer mc removal
+    // at frame_159 terminates everything.
     this.sprite3Sym = {
       name: "sprite_3",
       totalFrames: 250,
@@ -104,8 +99,9 @@ export class Spell1103 extends RuntimeSpell {
       anchorY: sprite3Anchor.y,
     };
 
-    // ---- sprite_5 — 124-frame simple animation at target ---------
-    // No frame scripts in canonical AS for this symbol.
+    // ---- sprite_5 — 124-frame main flute animation -----------------------
+    // No AS frame scripts for this symbol. Plays through 124 frames and
+    // then loops. Outer mc termination at frame_159 cleans it up.
     this.sprite5Sym = {
       name: "sprite_5",
       totalFrames: 124,
@@ -114,10 +110,12 @@ export class Spell1103 extends RuntimeSpell {
       anchorY: sprite5Anchor.y,
     };
 
-    // ---- sprite_6 — 48-frame composite animation, loops 30-47 ---
-    // AS DefineSprite_6/frame_47/DoAction.as: gotoAndPlay(30)
-    // This symbol loops internally between frames 30 and 47 (0-based:
-    // 29 and 46) for the lifetime of the outer timeline.
+    // ---- sprite_6 — 48-frame composite with loop-back script ------------
+    // AS: scripts/DefineSprite_6/frame_47/DoAction.as
+    //   gotoAndPlay(30);
+    // frame_47 (0-based: 46) → gotoAndPlay(30) means AS 1-based frame 30
+    // → 0-based index 29. So sprite_6 plays frames 0-46, then loops from
+    // frame 29 onward indefinitely until the outer mc removes it.
     this.sprite6Sym = {
       name: "sprite_6",
       totalFrames: 48,
@@ -139,32 +137,43 @@ export class Spell1103 extends RuntimeSpell {
     this.registry.register(this.sprite5Sym);
     this.registry.register(this.sprite6Sym);
 
-    // ---- outer timeline driver — 159-frame root-level container --
-    // The main SWF timeline carries frame_137 (this.end → signalHit)
-    // and frame_159 (this.removeMovieClip → complete). We model this
-    // as a container-only symbol placed on the root so these frame
-    // callbacks fire at the right absolute frame counts.
+    // ---- Outer "main timeline" container --------------------------------
+    // The main SWF timeline drives signalHit at frame 137 and complete at
+    // frame 159. We model this as a single long-lived container symbol
+    // attached at the root, whose frameScripts carry the canonical actions.
     //
-    // The outer mc also implicitly places sprite_3, sprite_5, sprite_6
-    // as authored children — those are attached from onSpellStart.
-    const outerSym: SymbolDefinition = {
-      name: "outer",
+    // The three authored sprites are placed as children of this container
+    // at depth 1/2/3 on frame_1 (their placement frames in the authored
+    // SWF timeline). Because all placements happen at frame_1 we attach
+    // them in the frame_0 script of the container.
+    const mainSym: SymbolDefinition = {
+      name: "main_timeline",
       totalFrames: 159,
       frames: [],
       anchorX: 0.5,
       anchorY: 0.5,
       frameScripts: new Map([
         [
+          0,
+          (clip, ctx) => {
+            // AS: implicit placement of sprite_3, sprite_5, sprite_6
+            // on the main timeline at frame_1.
+            clip.attach(this.sprite3Sym, "sprite3", 1, ctx);
+            clip.attach(this.sprite5Sym, "sprite5", 2, ctx);
+            clip.attach(this.sprite6Sym, "sprite6", 3, ctx);
+          },
+        ],
+        [
           136,
           () => {
-            // AS: frame_137/DoAction.as → this.end()
+            // AS: scripts/frame_137/DoAction.as → this.end()
             this.runtime.signalHit();
           },
         ],
         [
           158,
           (clip) => {
-            // AS: frame_159/DoAction.as → this.removeMovieClip()
+            // AS: scripts/frame_159/DoAction.as → this.removeMovieClip()
             clip.remove();
             this.runtime.complete();
           },
@@ -172,27 +181,24 @@ export class Spell1103 extends RuntimeSpell {
       ]),
     };
 
-    this.registry.register(outerSym);
+    this.registry.register(mainSym);
+
+    // Store for use in onSpellStart.
+    this._mainSym = mainSym;
   }
+
+  private _mainSym!: SymbolDefinition;
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS: frame_1/DoAction.as → SOMA.playSound("aute_1103")
+    // AS: scripts/frame_1/DoAction.as → SOMA.playSound("aute_1103")
     callbacks.playSound("aute_1103");
 
-    // Attach the outer timeline driver so frame_137 and frame_159
-    // fire at the correct absolute frames.
-    const outerSym = this.registry.resolve("outer");
-    if (outerSym) {
-      this.root.attach(outerSym, "outer", 1, context);
-    }
-
-    // Attach the three authored animated children that the main
-    // timeline places implicitly as authored PlaceObject entries.
-    this.root.attach(this.sprite3Sym, "sprite3", 2, context);
-    this.root.attach(this.sprite5Sym, "sprite5", 3, context);
-    this.root.attach(this.sprite6Sym, "sprite6", 4, context);
+    // Attach the main timeline container at root. The harness has already
+    // finished (TargetCell just leaves root at (0,0) relative to the
+    // target anchor), so children attached here are positioned correctly.
+    this.root.attach(this._mainSym, "main_timeline", 1, context);
   }
 }

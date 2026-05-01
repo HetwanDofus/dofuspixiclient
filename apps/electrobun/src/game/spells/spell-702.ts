@@ -1,42 +1,40 @@
 /**
- * Spell 702 — Grina (Sacrieur / Sram area-of-effect ground attack).
+ * Spell 702 — Grinande (Ecaflip grinding aura).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/702/scripts/scripts/
  *
- * displayType=11 (TargetCell). No projectile, no caster-reference logic,
- * no dual-anchored world-absolute placement — all content renders at the
- * target cell. The canonical scripts contain no `move`/`shoot`/`duplicate`
- * symbols and no `_parent.cellFrom`/`_parent.cellTo` reads.
+ * displayType=11 (TargetCell). No move/shoot/duplicate symbols, no
+ * caster-relative projectile logic. All content plays at the target cell.
  *
- * Manifest has no `librarySymbols[]` entries — all five sprites are in
- * `animations[]` only. Texture keys therefore use bare names (NO `lib_`
- * prefix).
+ * Authored timeline layout (all placed on main timeline frame_1):
  *
- * Authored timeline structure (all from animations[]):
- *   - sprite_5  (6 frames)   — small glint/spark; frame_1 jumps to a
- *                              random still frame via gotoAndStop(random(8)+1).
- *   - sprite_6  (57 frames)  — mid-size hit burst composite.
- *   - sprite_8  (123 frames) — looping ground-slash composite. frame_1
- *                              jumps to a random frame in [2,101] to
- *                              de-sync instances; frame_121 loops back
- *                              to frame 2.
- *   - sprite_9  (120 frames) — large ground-crack composite; frame_118
- *                              stops (stopFrame hint matches).
- *   - sprite_11 (186 frames) — longest-lived composite. A clip placed
- *                              on frame_157 fades its parent's alpha by
- *                              3.33/tick via onEnterFrame. frame_184
- *                              calls `_parent._parent.removeMovieClip()`
- *                              — two hops up from the inner clip → the
- *                              outer mc / spell root → this.runtime.complete().
+ *   sprite_5  (6-frame) — static splash decoration.
+ *             frame_1: gotoAndStop(random(8)+1) → random hold frame.
  *
- * signalHit: fired at sprite_6 frame_1 (first impact frame visible).
- * complete:  fired by sprite_11 frame_184 script (outermost removal).
+ *   sprite_6  (57-frame composite) — impact burst / ring, plays through.
  *
- * Main timeline frame_1: SOMA.playSound("grina_702").
- * All five sprites are implicitly placed on the main timeline at depth 1-5
- * and start ticking from the next runtime frame after onSpellStart attaches
- * them.
+ *   sprite_8  (123-frame composite) — looping spin.
+ *             frame_1:   gotoAndPlay(random(100)+2) — random staggered start.
+ *             frame_121: gotoAndPlay(2) — loops back past frame_1.
+ *
+ *   sprite_9  (120-frame composite, stopFrame=117) — charge-up / aftermath.
+ *             frame_118: stop().
+ *             frame_1 is the canonical impact moment → signalHit fired here.
+ *
+ *   sprite_11 (186-frame composite) — long aftermath overlay.
+ *             frame_157: attaches lib_sprite11 (depth 69, scale=0.7) which
+ *                        carries the onClipEvent(enterFrame) alpha-decay handler.
+ *             frame_184: _parent._parent.removeMovieClip() → spell complete.
+ *
+ * Library symbols (manifest.librarySymbols):
+ *   - sprite11 (characterId 11, directlyDynamic: true, 186 frames)
+ *     Textures: lib_sprite11.
+ *     onEnterFrame: `_parent._alpha -= 3.33` — fades the sprite_11 host clip.
+ *     Attached from sprite_11's frameScripts at frame 156 (AS frame_157),
+ *     depth 69, with placement matrix (scaleX=0.7, scaleY=0.7, y=-0.05).
+ *
+ * Main timeline (frame_1/DoAction.as): SOMA.playSound("grina_702").
  */
 
 import type {
@@ -86,6 +84,13 @@ const SPRITE11_BOUNDS = {
   offsetY: -59.7,
 };
 
+const LIB_SPRITE11_BOUNDS = {
+  width: 195.75,
+  height: 109.4,
+  offsetX: -88.1,
+  offsetY: -59.7,
+};
+
 export class Spell702 extends RuntimeSpell {
   readonly spellId = 702;
   readonly displayType = SpellDisplayType.TargetCell;
@@ -105,14 +110,33 @@ export class Spell702 extends RuntimeSpell {
     const sprite8Anchor = calculateAnchor(SPRITE8_BOUNDS);
     const sprite9Anchor = calculateAnchor(SPRITE9_BOUNDS);
     const sprite11Anchor = calculateAnchor(SPRITE11_BOUNDS);
+    const libSprite11Anchor = calculateAnchor(LIB_SPRITE11_BOUNDS);
 
-    // ---- sprite_5 — small glint spark (6 frames) ----------------
-    // AS DefineSprite_5/frame_1/DoAction.as:
+    // ---- lib_sprite11 — alpha-decay particle (directlyDynamic: true) ----
+    // Placed inside sprite_11 at frame 157 (depth 69) with scale 0.7.
+    // AS: DefineSprite_11/frame_157/PlaceObject2_10_69/
+    //       CLIPACTIONRECORD onClipEvent(enterFrame).as
+    //   _parent._alpha -= 3.33;
+    const libSprite11Sym: SymbolDefinition = {
+      name: "sprite11",
+      totalFrames: 186,
+      frames: textures.getFrames("lib_sprite11"),
+      anchorX: libSprite11Anchor.x,
+      anchorY: libSprite11Anchor.y,
+      onEnterFrame: (clip) => {
+        // AS: DefineSprite_11/frame_157/PlaceObject2_10_69/
+        //       CLIPACTIONRECORD onClipEvent(enterFrame).as
+        // _parent._alpha -= 3.33  (AS 0-100 scale → subtract 3.33/100 in TS)
+        const parent = clip.parent;
+        if (parent) {
+          parent.alpha = Math.max(0, parent.alpha - 3.33 / 100);
+        }
+      },
+    };
+
+    // ---- sprite_5 — 6-frame static splash decoration ----------------
+    // AS: DefineSprite_5/frame_1/DoAction.as
     //   gotoAndStop(random(8) + 1);
-    // Jumps to a random still frame in [1,8]. Since the asset only has
-    // 6 frames the effective range is [0,5] (0-based), but we port the
-    // AS faithfully: gotoAndStop(random(8)+1) → gotoAndStop(N-1) where
-    // N = floor(random*8)+1, so 0-based target = floor(random*8).
     this.sprite5Sym = {
       name: "sprite_5",
       totalFrames: 6,
@@ -123,40 +147,27 @@ export class Spell702 extends RuntimeSpell {
         [
           0,
           (clip) => {
-            // AS DefineSprite_5/frame_1/DoAction.as: gotoAndStop(random(8) + 1)
-            const target = Math.floor(Math.random() * 8);
-            clip.gotoAndStop(target);
+            // AS: DefineSprite_5/frame_1/DoAction.as — gotoAndStop(random(8)+1)
+            const target = Math.floor(Math.random() * 8) + 1;
+            clip.gotoAndStop(target - 1);
           },
         ],
       ]),
     };
 
-    // ---- sprite_6 — mid-size hit burst (57 frames) ---------------
-    // No frame scripts in the canonical AS for this symbol beyond playing
-    // through. We use it to signal the hit on its first frame (frame_1 =
-    // index 0), which is the canonical moment of impact visibility.
+    // ---- sprite_6 — 57-frame impact burst, plays through once -------
+    // No frame scripts in canonical AS for this sprite. Plays through.
     this.sprite6Sym = {
       name: "sprite_6",
       totalFrames: 57,
       frames: textures.getFrames("sprite_6"),
       anchorX: sprite6Anchor.x,
       anchorY: sprite6Anchor.y,
-      frameScripts: new Map([
-        [
-          0,
-          (_clip) => {
-            // Impact frame — signal hit to the combat sequencer.
-            this.runtime.signalHit();
-          },
-        ],
-      ]),
     };
 
-    // ---- sprite_8 — looping ground-slash (123 frames) ------------
-    // AS DefineSprite_8/frame_1/DoAction.as:
-    //   gotoAndPlay(random(100) + 2);
-    // AS DefineSprite_8/frame_121/DoAction.as:
-    //   gotoAndPlay(2);
+    // ---- sprite_8 — 123-frame looping spin --------------------------
+    // AS: DefineSprite_8/frame_1/DoAction.as  — gotoAndPlay(random(100)+2)
+    // AS: DefineSprite_8/frame_121/DoAction.as — gotoAndPlay(2)
     this.sprite8Sym = {
       name: "sprite_8",
       totalFrames: 123,
@@ -167,7 +178,7 @@ export class Spell702 extends RuntimeSpell {
         [
           0,
           (clip) => {
-            // AS DefineSprite_8/frame_1/DoAction.as: gotoAndPlay(random(100) + 2)
+            // AS: DefineSprite_8/frame_1/DoAction.as — gotoAndPlay(random(100)+2)
             const target = Math.floor(Math.random() * 100) + 2;
             clip.gotoAndPlay(target - 1);
           },
@@ -175,16 +186,16 @@ export class Spell702 extends RuntimeSpell {
         [
           120,
           (clip) => {
-            // AS DefineSprite_8/frame_121/DoAction.as: gotoAndPlay(2)
+            // AS: DefineSprite_8/frame_121/DoAction.as — gotoAndPlay(2)
             clip.gotoAndPlay(1);
           },
         ],
       ]),
     };
 
-    // ---- sprite_9 — large ground-crack (120 frames) --------------
-    // AS DefineSprite_9/frame_118/DoAction.as:
-    //   stop();
+    // ---- sprite_9 — 120-frame charge-up / aftermath -----------------
+    // AS: DefineSprite_9/frame_118/DoAction.as — stop();
+    // Frame 0 fires signalHit — sprite_9 is the canonical impact visual.
     this.sprite9Sym = {
       name: "sprite_9",
       totalFrames: 120,
@@ -193,66 +204,55 @@ export class Spell702 extends RuntimeSpell {
       anchorY: sprite9Anchor.y,
       frameScripts: new Map([
         [
+          0,
+          (_clip) => {
+            // sprite_9 frame_1 is the canonical impact moment for this spell.
+            this.runtime.signalHit();
+          },
+        ],
+        [
           117,
           (clip) => {
-            // AS DefineSprite_9/frame_118/DoAction.as: stop()
+            // AS: DefineSprite_9/frame_118/DoAction.as — stop();
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- sprite_11 — longest-lived composite (186 frames) --------
-    // AS DefineSprite_11/frame_157/PlaceObject2_10_69/CLIPACTIONRECORD
-    //   onClipEvent(enterFrame).as:
-    //   _parent._alpha -= 3.33;
-    //   (the inner placed clip fades its direct parent = sprite_11 clip)
-    //
-    // AS DefineSprite_11/frame_184/DoAction.as:
-    //   _parent._parent.removeMovieClip();
-    //   Two hops: from the inner clip's perspective _parent = sprite_11,
-    //   _parent._parent = the outer mc = our root → complete().
-    //   We express the fade via an onEnterFrame on the sprite_11 clip
-    //   itself (activated at frame_157) using a vars flag, since the
-    //   canonical placed-object clip event has no direct SymbolDefinition
-    //   equivalent — instead we track activation in frameScripts[156] and
-    //   perform the fade from the sprite_11 onEnterFrame.
+    // ---- sprite_11 — 186-frame aftermath overlay --------------------
+    // AS: DefineSprite_11/frame_157 — PlaceObject2 attaches lib_sprite11
+    //     (characterId 11) at depth 69 with scale 0.7, y=-0.05.
+    // AS: DefineSprite_11/frame_184/DoAction.as
+    //     _parent._parent.removeMovieClip() → spell complete.
     this.sprite11Sym = {
       name: "sprite_11",
       totalFrames: 186,
       frames: textures.getFrames("sprite_11"),
       anchorX: sprite11Anchor.x,
       anchorY: sprite11Anchor.y,
-      onEnterFrame: (clip) => {
-        // AS DefineSprite_11/frame_157/PlaceObject2_10_69/
-        //   CLIPACTIONRECORD onClipEvent(enterFrame).as:
-        //   _parent._alpha -= 3.33;
-        // The fade only starts once the inner placed clip becomes active
-        // at frame_157. We gate on a vars flag set in frameScripts[156].
-        if (clip.vars.fading) {
-          clip.alpha = Math.max(0, clip.alpha - 3.33 / 100);
-        }
-      },
       frameScripts: new Map([
         [
           156,
-          (clip) => {
-            // frame_157: the canonical placed object (PlaceObject2_10_69)
-            // becomes active here and its onClipEvent(load) fires, then
-            // its onClipEvent(enterFrame) runs each tick. We activate the
-            // fade flag at this frame to mirror that timing.
-            clip.vars.fading = true;
+          (clip, ctx) => {
+            // AS: DefineSprite_11/frame_157 — PlaceObject2_10_69 places
+            // sprite11 (characterId 11) at depth 69.
+            // Placement matrix from manifest: scaleX=0.6999969482421875,
+            // scaleY=0.6999969482421875, translateX=0, translateY=-0.05.
+            const child = clip.attach(libSprite11Sym, "sprite11_69", 69, ctx);
+            child.scaleX = 0.6999969482421875;
+            child.scaleY = 0.6999969482421875;
+            child.x = 0;
+            child.y = -0.05;
           },
         ],
         [
           183,
           (clip) => {
-            // AS DefineSprite_11/frame_184/DoAction.as:
-            //   _parent._parent.removeMovieClip();
-            // From the perspective of a script running IN sprite_11's
-            // own timeline, _parent is the root, so _parent._parent
-            // would be one level above the root — effectively the outer
-            // mc. We call complete() to end the spell.
+            // AS: DefineSprite_11/frame_184/DoAction.as
+            // _parent._parent.removeMovieClip()
+            // clip is sprite_11; clip.parent is root (the outer mc).
+            // We remove sprite_11 and signal completion.
             clip.remove();
             this.runtime.complete();
           },
@@ -260,6 +260,7 @@ export class Spell702 extends RuntimeSpell {
       ]),
     };
 
+    this.registry.register(libSprite11Sym);
     this.registry.register(this.sprite5Sym);
     this.registry.register(this.sprite6Sym);
     this.registry.register(this.sprite8Sym);
@@ -271,16 +272,16 @@ export class Spell702 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS frame_1/DoAction.as: SOMA.playSound("grina_702");
+    // AS: scripts/frame_1/DoAction.as — SOMA.playSound("grina_702");
     callbacks.playSound("grina_702");
 
-    // The main timeline implicitly places all five sprites as authored
-    // children. Attach them so they start ticking from the next runtime
-    // frame. Depths 1-5 mirror the canonical authored placement order.
-    this.root.attach(this.sprite5Sym, "sprite5", 1, context);
-    this.root.attach(this.sprite6Sym, "sprite6", 2, context);
-    this.root.attach(this.sprite8Sym, "sprite8", 3, context);
-    this.root.attach(this.sprite9Sym, "sprite9", 4, context);
-    this.root.attach(this.sprite11Sym, "sprite11", 5, context);
+    // Attach all main-timeline sprites. These are implicit PlaceObject2
+    // placements on the main SWF timeline at frame_1; we attach them
+    // here in onSpellStart so they start ticking from the first runtime frame.
+    this.root.attach(this.sprite5Sym, "sprite_5", 1, context);
+    this.root.attach(this.sprite6Sym, "sprite_6", 2, context);
+    this.root.attach(this.sprite8Sym, "sprite_8", 3, context);
+    this.root.attach(this.sprite9Sym, "sprite_9", 4, context);
+    this.root.attach(this.sprite11Sym, "sprite_11", 5, context);
   }
 }

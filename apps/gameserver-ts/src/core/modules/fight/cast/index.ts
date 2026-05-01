@@ -1,4 +1,5 @@
 export type {
+  CastResolution,
   CastResult,
   FightRegistry,
   SpellPort,

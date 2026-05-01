@@ -1,41 +1,37 @@
 /**
- * Spell 2008 — (Unknown name, likely a Cra/Osa fire/impact spell).
+ * Spell 2008 — Lichrounch (Osamodas or similar).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2008/scripts/scripts/
  *
- * displayType=11 (TargetCell). The spell has a single authored sprite
- * (DefineSprite_32) that positions itself at `_parent.cellTo` on frame_1,
- * plays a 67-frame timeline, and removes its parent (the outer mc) on frame_67.
- * There is no projectile motion, no caster reference, no `move`/`shoot`
- * library symbols — this is a straight impact-at-target animation.
+ * displayType=11 (TargetCell). The spell has a single authored symbol
+ * `DefineSprite_18_shoot` (84-frame impact animation) plus an outer
+ * `DefineSprite_32` container that:
+ *   - frame_1: positions self at cellTo, plays "licrounch_1003" sound
+ *   - frame_25: fires signalHit (this.end()) + plays "explosion" sound
+ *   - frame_67: calls _parent.removeMovieClip() → spell complete
  *
- * The `animations[]` entry `shoot` (84 frames, DefineSprite_18_shoot) is a
- * separate authored composite whose frame_70 calls `stop()`. It provides the
- * visual frames for DefineSprite_32. Since it appears only in `animations[]`
- * (not in `librarySymbols[]`), textures are fetched without the `lib_` prefix.
+ * The `DefineSprite_18_shoot` inner symbol is the 84-frame rendered
+ * animation; it stops at frame_70 (= index 69).
  *
- * Library symbols: none (librarySymbols[] is absent/empty in manifest).
+ * There are no library symbols (librarySymbols[] is absent from manifest).
+ * The `shoot` animation is listed directly in animations[] and drives
+ * the visual via the `shoot` symbol registered as a container with its
+ * 84 frame textures.
  *
- * Main timeline (frame_2/DoAction.as): stop() — the main SWF halts on frame 2.
- * The canonical sounds are embedded in DefineSprite_32's timeline:
- *   - frame_1:  SOMA.playSound("licrounch_1003")
- *   - frame_25: SOMA.playSound("explosion")
+ * The outer sprite (DefineSprite_32) acts as the root-level clip that
+ * positions everything at cellTo and sequences timing. Since displayType=11
+ * the container is already anchored at the target cell, so the
+ * frame_1 positioning (`_X = _parent.cellTo.x; _Y = _parent.cellTo.y`)
+ * is equivalent to placing the child at the world target position —
+ * but since our container IS at the target, we position the shoot child
+ * at (0,0) relative to the container.
  *
- * DefineSprite_32 timeline actions:
- *   - frame_1  (DoAction.as):   SOMA.playSound("licrounch_1003")
- *   - frame_1  (DoAction_2.as): _X = _parent.cellTo.x; _Y = _parent.cellTo.y
- *   - frame_25 (DoAction.as):   SOMA.playSound("explosion")
- *   - frame_25 (DoAction_2.as): this.end() → signalHit
- *   - frame_67 (DoAction.as):   _parent.removeMovieClip() → complete
+ * Main timeline (frame_2/DoAction.as): stop() — the outer SWF stops
+ * immediately; the inner DefineSprite_32 drives the timeline.
  *
- * DefineSprite_18_shoot (the visual content symbol):
- *   - frame_70 (DoAction.as):   stop()
- *
- * Since DefineSprite_32 is the outer-mc-level sprite (the harness places it
- * as the root's child at TargetCell), we model it as the `shoot` symbol
- * registered under the name "shoot" with textures from `textures.getFrames("shoot")`.
- * The runtime attaches it from onSpellStart.
+ * Library symbols: none (librarySymbols[] absent).
+ * Animations: shoot (84 frames) — rendered SVG sequence.
  */
 
 import type {
@@ -62,7 +58,7 @@ export class Spell2008 extends RuntimeSpell {
   readonly displayType = SpellDisplayType.TargetCell;
 
   private shootSym!: SymbolDefinition;
-  private soundCallback?: (id: string) => void;
+  private outerSym!: SymbolDefinition;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
@@ -70,65 +66,63 @@ export class Spell2008 extends RuntimeSpell {
   ): void {
     const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // ---- shoot (DefineSprite_32) — 67-frame impact at target ----
-    // Visual frames come from DefineSprite_18_shoot (animations[] entry "shoot",
-    // 84 frames); DefineSprite_18_shoot/frame_70/DoAction.as: stop().
-    // DefineSprite_32 hosts the timeline scripts and positions itself at cellTo.
-    //
-    // We model this as a single symbol named "shoot" whose frame textures are
-    // the authored "shoot" animation frames (no lib_ prefix — not in librarySymbols).
-    // The totalFrames is 67 (the outer sprite's authored length, which drives
-    // completion). The inner stop() at frame 70 of the visual content is
-    // subsumed by the outer sprite's own timeline completing at frame 67.
+    // ---- shoot — 84-frame impact animation (DefineSprite_18_shoot) ----
+    // AS DefineSprite_18_shoot/frame_70/DoAction.as: stop()
     this.shootSym = {
       name: "shoot",
-      totalFrames: 67,
+      totalFrames: 84,
       frames: textures.getFrames("shoot"),
       anchorX: shootAnchor.x,
       anchorY: shootAnchor.y,
       frameScripts: new Map([
         [
-          0,
+          69,
           (clip) => {
-            // AS DefineSprite_32/frame_1/DoAction.as: SOMA.playSound("licrounch_1003")
-            this.soundCallback?.("licrounch_1003");
+            // AS: DefineSprite_18_shoot/frame_70/DoAction.as → stop()
+            clip.stop();
+          },
+        ],
+      ]),
+    };
 
-            // AS DefineSprite_32/frame_1/DoAction_2.as:
-            //   _X = _parent.cellTo.x;
-            //   _Y = _parent.cellTo.y;
-            // For displayType=11 (TargetCell), the root container is already
-            // anchored at cellTo in world coords. The sprite positions itself
-            // at cellTo in world absolute terms, which inside the container
-            // local space means (0, 0). However the canonical AS reads
-            // _parent.cellTo directly, so we do the same here.
-            const root = clip.parent;
-            const cellTo = root?.vars.cellTo as
-              | { x: number; y: number }
-              | undefined;
-            if (cellTo) {
-              // container anchor is already at cellTo, so local (0,0) is correct.
-              // We still set explicitly to mirror canonical _X/_Y assignment.
-              clip.x = 0;
-              clip.y = 0;
-            }
+    // ---- outer container (DefineSprite_32) -------------------------
+    // This wraps the shoot symbol and sequences:
+    //   frame_1: position at cellTo, play "licrounch_1003"
+    //   frame_25: this.end() → signalHit + play "explosion"
+    //   frame_67: _parent.removeMovieClip() → spell complete
+    //
+    // Since the container is at the target cell (displayType=11) and
+    // the canonical AS sets _X/_Y to cellTo, the shoot child is
+    // placed at (0,0) in container-local coords (they coincide).
+    this.outerSym = {
+      name: "outer",
+      totalFrames: 67,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS: DefineSprite_32/frame_1/DoAction.as → SOMA.playSound("licrounch_1003")
+            // AS: DefineSprite_32/frame_1/DoAction_2.as → _X = _parent.cellTo.x; _Y = _parent.cellTo.y
+            // Container (displayType=11) is already anchored at cellTo in world space,
+            // so placing shoot at (0,0) local matches the canonical _parent.cellTo position.
+            clip.attach(this.shootSym, "shoot", 1, ctx, { x: 0, y: 0 });
           },
         ],
         [
           24,
-          (clip) => {
-            // AS DefineSprite_32/frame_25/DoAction.as: SOMA.playSound("explosion")
-            this.soundCallback?.("explosion");
-
-            // AS DefineSprite_32/frame_25/DoAction_2.as: this.end() → signalHit
-            void clip; // clip reference kept for consistency
+          () => {
+            // AS: DefineSprite_32/frame_25/DoAction.as → SOMA.playSound("explosion")
+            // AS: DefineSprite_32/frame_25/DoAction_2.as → this.end() → signalHit
             this.runtime.signalHit();
           },
         ],
         [
           66,
           (clip) => {
-            // AS DefineSprite_32/frame_67/DoAction.as: _parent.removeMovieClip()
-            // The outer mc is the root; signal completion and remove.
+            // AS: DefineSprite_32/frame_67/DoAction.as → _parent.removeMovieClip()
             clip.remove();
             this.runtime.complete();
           },
@@ -137,17 +131,18 @@ export class Spell2008 extends RuntimeSpell {
     };
 
     this.registry.register(this.shootSym);
+    this.registry.register(this.outerSym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture sound callback so frame scripts can fire sounds.
-    this.soundCallback = callbacks.playSound;
-
-    // Main timeline: frame_2/DoAction.as → stop(). The outer SWF halts on
-    // frame 2 after having placed the DefineSprite_32 child. We attach it here.
-    this.root.attach(this.shootSym, "shoot", 1, context);
+    // AS: DefineSprite_32/frame_1/DoAction.as → SOMA.playSound("licrounch_1003")
+    // Sound is played when the outer clip starts (frame_1). We play it here
+    // at spell start and also attach the outer container to the root.
+    callbacks.playSound("licrounch_1003");
+    // Attach the outer sequencing container at the root (target cell).
+    this.root.attach(this.outerSym, "outer", 1, context);
   }
 }

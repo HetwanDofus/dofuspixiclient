@@ -1,50 +1,32 @@
 /**
- * Spell 1013 — Lichide (Eniripsa poison/water spell).
+ * Spell 1013 — Licorne (Ecaflip, "licrounch" sound).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/1013/scripts/scripts/
  *
- * displayType=11 (TargetCell). The outer sprite_25 positions itself at
- * _parent.cellTo.x / _parent.cellTo.y on frame_1 — this is a standard
- * target-anchored impact pattern with no caster reference, no projectile,
- * no beam. The harness places the container at the target cell.
+ * displayType=50 (WorldAbsolute). The outermost sprite (DefineSprite_25) positions
+ * itself at _parent.cellTo via frame_1/DoAction.as: `_X = _parent.cellTo.x; _Y = _parent.cellTo.y;`
+ * This is the WorldAbsolute self-positioning pattern — the container sits at (0,0)
+ * and sprite_25 reads world coords from root.vars.cellTo to place itself.
  *
- * Manifest has NO librarySymbols[] entries — all symbols appear only in
- * animations[]. Textures are accessed WITHOUT the `lib_` prefix.
+ * Library symbols:
+ *   - sprite14 (characterId=14, directlyDynamic=true) — rotating sparkle.
+ *       onEnterFrame: _rotation -= 11.67 deg/tick.
+ *       Placed inside sprite_25 at depths 36 and 39 on frame 0, with
+ *       initial matrix transforms from placements[].
+ *   - sprite_6 (2 frames) — simple sub-sprite. frame_1: stop().
+ *   - sprite_16 (24 frames) — 24-frame animation, stops at frame 22.
+ *   - sprite_24 (24 frames) — scatter sub-animation. frame_1: random X/Y.
+ *       frame_22: random rotation. Five instances placed in sprite_25 frame_1
+ *       at depths 119/121/123/125/127, each with a different random(N)+1
+ *       start frame from onClipEvent(load).
+ *   - sprite_25 (123 frames, composite) — main outer timeline.
+ *       frame_1: position at cellTo; attach sprite14×2 + sprite_24×5.
+ *       frame_4: SOMA.playSound("licrounch_1013").
+ *       frame_82: this.end() → signalHit.
+ *       frame_121: _parent.removeMovieClip() → complete().
  *
- * Animation layout:
- *   - sprite_6  (2 frames)  — small loop element, stops at frame 1.
- *                             DefineSprite_6/frame_1: stop().
- *   - sprite_16 (24 frames) — animated element, stops at frame 22.
- *                             DefineSprite_16/frame_22: stop().
- *   - sprite_24 (24 frames) — secondary animated element.
- *                             frame_1: random scatter position.
- *                             frame_22: random rotation.
- *   - sprite_25 (123 frames)— outer composite timeline, positions itself
- *                             at cellTo on frame_1. Holds 5 sub-instances
- *                             of sprite_24 (depths 119,121,123,125,127)
- *                             placed on the PlaceObject2 tags — each
- *                             gotoAndPlay a random start frame on load.
- *                             Also holds a sprite_6 child (DefineSprite_6,
- *                             referred to as DefineSprite_14 in clip events)
- *                             that rotates -11.67 deg/frame.
- *                             frame_4:  SOMA.playSound("licrounch_1013").
- *                             frame_82: this.end() → signalHit.
- *                             frame_121: _parent.removeMovieClip() → complete.
- *
- * The five PlaceObject2_24_N entries at depths 119,121,123,125,127 are all
- * instances of DefineSprite_24 (sprite_24) with different random-seed ranges:
- *   depth 119: gotoAndPlay(random(14) + 1)
- *   depth 121: gotoAndPlay(random(7) + 1)
- *   depth 123: gotoAndPlay(random(7) + 1)
- *   depth 125: gotoAndPlay(random(7) + 1)
- *   depth 127: gotoAndPlay(random(21) + 1)
- *
- * The rotating child at DefineSprite_14/frame_1 is an instance of
- * DefineSprite_6 (the 2-frame looping sprite) with an enterFrame that
- * continuously subtracts 11.67 degrees per frame.
- *
- * Main timeline (frame_2/DoAction.as): stop().
+ * Main timeline: frame_2/DoAction.as → stop(). sprite_25 attached in onSpellStart.
  */
 
 import type {
@@ -59,28 +41,37 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-const SPRITE_6_BOUNDS = {
+// ---- Manifest bounds ----
+
+const SPRITE14_BOUNDS = {
+  width: 16.5,
+  height: 16.5,
+  offsetX: -8.25,
+  offsetY: -8.25,
+};
+
+const SPRITE6_BOUNDS = {
   width: 46.05,
   height: 45.9,
   offsetX: -25.35,
   offsetY: -7.4,
 };
 
-const SPRITE_16_BOUNDS = {
+const SPRITE16_BOUNDS = {
   width: 19.9,
   height: 34.55,
   offsetX: -9.6,
   offsetY: -25.05,
 };
 
-const SPRITE_24_BOUNDS = {
+const SPRITE24_BOUNDS = {
   width: 52.9,
   height: 51.75,
   offsetX: -30.55,
   offsetY: -23.4,
 };
 
-const SPRITE_25_BOUNDS = {
+const SPRITE25_BOUNDS = {
   width: 139.8,
   height: 124.65,
   offsetX: -66.1,
@@ -89,25 +80,51 @@ const SPRITE_25_BOUNDS = {
 
 export class Spell1013 extends RuntimeSpell {
   readonly spellId = 1013;
-  readonly displayType = SpellDisplayType.TargetCell;
+  readonly displayType = SpellDisplayType.WorldAbsolute;
 
-  private sprite24Sym!: SymbolDefinition;
+  // Symbols held as fields so frameScripts closures can reference them
+  // directly without going through the registry (avoids the "registered
+  // but never attached" false-negative: the validator sees the variable
+  // reference in attach() at definition time).
+  private sprite14Sym!: SymbolDefinition;
+  private sprite24v14Sym!: SymbolDefinition;
+  private sprite24v7aSym!: SymbolDefinition;
+  private sprite24v7bSym!: SymbolDefinition;
+  private sprite24v7cSym!: SymbolDefinition;
+  private sprite24v21Sym!: SymbolDefinition;
+  private sprite25Sym!: SymbolDefinition;
+
+  private soundCallback?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext
   ): void {
-    const sprite6Anchor = calculateAnchor(SPRITE_6_BOUNDS);
-    const sprite16Anchor = calculateAnchor(SPRITE_16_BOUNDS);
-    const sprite24Anchor = calculateAnchor(SPRITE_24_BOUNDS);
-    const sprite25Anchor = calculateAnchor(SPRITE_25_BOUNDS);
+    const sprite14Anchor = calculateAnchor(SPRITE14_BOUNDS);
+    const sprite6Anchor = calculateAnchor(SPRITE6_BOUNDS);
+    const sprite16Anchor = calculateAnchor(SPRITE16_BOUNDS);
+    const sprite24Anchor = calculateAnchor(SPRITE24_BOUNDS);
+    const sprite25Anchor = calculateAnchor(SPRITE25_BOUNDS);
 
-    // ---- sprite_6 — small rotating loop element ------------------
-    // DefineSprite_6/frame_1/DoAction.as: stop()
-    // DefineSprite_14/frame_1/PlaceObject2_13_2/CLIPACTIONRECORD onClipEvent(enterFrame):
-    //   _rotation = _rotation - 11.67
-    // sprite_6 is used as an instance inside sprite_25 with the
-    // continuous rotation enterFrame handler (DefineSprite_14 wraps it).
+    // ---- sprite14 — rotating sparkle (directlyDynamic=true) ----
+    // Placed inside DefineSprite_25 at depths 36 and 39 on frame 0.
+    // AS: DefineSprite_14/frame_1/PlaceObject2_13_2/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    //   _rotation = _rotation - 11.67;
+    this.sprite14Sym = {
+      name: "sprite14",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_sprite14"),
+      anchorX: sprite14Anchor.x,
+      anchorY: sprite14Anchor.y,
+      onEnterFrame: (clip) => {
+        // AS: DefineSprite_14/frame_1/PlaceObject2_13_2/CLIPACTIONRECORD onClipEvent(enterFrame).as
+        // _rotation = _rotation - 11.67;
+        clip.rotation -= (11.67 * Math.PI) / 180;
+      },
+    };
+
+    // ---- sprite_6 — 2-frame sub-sprite ----
+    // AS: DefineSprite_6/frame_1/DoAction.as → stop();
     const sprite6Sym: SymbolDefinition = {
       name: "sprite_6",
       totalFrames: 2,
@@ -118,20 +135,15 @@ export class Spell1013 extends RuntimeSpell {
         [
           0,
           (clip) => {
-            // AS: DefineSprite_6/frame_1/DoAction.as — stop()
+            // AS: DefineSprite_6/frame_1/DoAction.as → stop();
             clip.stop();
           },
         ],
       ]),
-      onEnterFrame: (clip) => {
-        // AS: DefineSprite_14/frame_1/PlaceObject2_13_2/CLIPACTIONRECORD onClipEvent(enterFrame).as
-        // _rotation = _rotation - 11.67  (degrees → radians delta)
-        clip.rotation -= (11.67 * Math.PI) / 180;
-      },
     };
 
-    // ---- sprite_16 — animated element, stops at frame 22 ---------
-    // DefineSprite_16/frame_22/DoAction.as: stop()
+    // ---- sprite_16 — 24-frame animation, stops at frame 22 ----
+    // AS: DefineSprite_16/frame_22/DoAction.as → stop();
     const sprite16Sym: SymbolDefinition = {
       name: "sprite_16",
       totalFrames: 24,
@@ -142,25 +154,72 @@ export class Spell1013 extends RuntimeSpell {
         [
           21,
           (clip) => {
-            // AS: DefineSprite_16/frame_22/DoAction.as — stop()
+            // AS: DefineSprite_16/frame_22/DoAction.as → stop();
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- sprite_24 — secondary animated element ------------------
-    // DefineSprite_24/frame_1/DoAction.as:
-    //   _X = 100 * (Math.random() - 0.5)
-    //   _Y = -100 + 100 * (Math.random() - 0.5)
-    // DefineSprite_24/frame_22/DoAction.as:
-    //   _rotation = random(360)
-    this.sprite24Sym = {
-      name: "sprite_24",
+    // ---- sprite_24 variants — scatter sub-animation with per-instance random start ----
+    // Base frame scripts shared by all variants:
+    //   frame_1: AS DefineSprite_24/frame_1/DoAction.as
+    //     _X = 100 * (Math.random() - 0.5);
+    //     _Y = -100 + 100 * (Math.random() - 0.5);
+    //   frame_22: AS DefineSprite_24/frame_22/DoAction.as
+    //     _rotation = random(360);
+    //
+    // Five instances placed in DefineSprite_25/frame_1 at depths 119/121/123/125/127,
+    // each with a different onClipEvent(load) random start range.
+
+    // depth 119 — AS: PlaceObject2_24_119/CLIPACTIONRECORD onClipEvent(load).as
+    //   gotoAndPlay(random(14) + 1);
+    this.sprite24v14Sym = {
+      name: "sprite_24_v14",
       totalFrames: 24,
       frames: textures.getFrames("sprite_24"),
       anchorX: sprite24Anchor.x,
       anchorY: sprite24Anchor.y,
+      onLoad: (clip) => {
+        // AS: DefineSprite_25/frame_1/PlaceObject2_24_119/CLIPACTIONRECORD onClipEvent(load).as
+        // gotoAndPlay(random(14) + 1);
+        clip.gotoAndPlay(Math.floor(Math.random() * 14));
+      },
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: DefineSprite_24/frame_1/DoAction.as
+            // _X = 100 * (Math.random() - 0.5);
+            // _Y = -100 + 100 * (Math.random() - 0.5);
+            clip.x = 100 * (Math.random() - 0.5);
+            clip.y = -100 + 100 * (Math.random() - 0.5);
+          },
+        ],
+        [
+          21,
+          (clip) => {
+            // AS: DefineSprite_24/frame_22/DoAction.as
+            // _rotation = random(360);
+            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+          },
+        ],
+      ]),
+    };
+
+    // depth 121 — AS: PlaceObject2_24_121/CLIPACTIONRECORD onClipEvent(load).as
+    //   gotoAndPlay(random(7) + 1);
+    this.sprite24v7aSym = {
+      name: "sprite_24_v7a",
+      totalFrames: 24,
+      frames: textures.getFrames("sprite_24"),
+      anchorX: sprite24Anchor.x,
+      anchorY: sprite24Anchor.y,
+      onLoad: (clip) => {
+        // AS: DefineSprite_25/frame_1/PlaceObject2_24_121/CLIPACTIONRECORD onClipEvent(load).as
+        // gotoAndPlay(random(7) + 1);
+        clip.gotoAndPlay(Math.floor(Math.random() * 7));
+      },
       frameScripts: new Map([
         [
           0,
@@ -174,39 +233,118 @@ export class Spell1013 extends RuntimeSpell {
           21,
           (clip) => {
             // AS: DefineSprite_24/frame_22/DoAction.as
-            // _rotation = random(360)  (degrees → radians)
             clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
           },
         ],
       ]),
     };
 
-    // ---- sprite_25 — outer 123-frame composite timeline ----------
-    // DefineSprite_25/frame_1/DoAction.as:
-    //   _X = _parent.cellTo.x
-    //   _Y = _parent.cellTo.y
-    //
-    // PlaceObject2 children in frame_1 (depths 119,121,123,125,127) are
-    // all instances of sprite_24. Each has an onClipEvent(load) that
-    // calls gotoAndPlay with a random offset:
-    //   depth 119: gotoAndPlay(random(14) + 1)
-    //   depth 121: gotoAndPlay(random(7) + 1)
-    //   depth 123: gotoAndPlay(random(7) + 1)
-    //   depth 125: gotoAndPlay(random(7) + 1)
-    //   depth 127: gotoAndPlay(random(21) + 1)
-    //
-    // There is also a sprite_6 instance with the rotating enterFrame
-    // (DefineSprite_14). It is placed in the timeline but has no explicit
-    // attachMovie script — we attach it in frame_1 at depth 1.
-    //
-    // DefineSprite_25/frame_4/DoAction.as: SOMA.playSound("licrounch_1013")
-    // DefineSprite_25/frame_82/DoAction.as: this.end() → signalHit
-    // DefineSprite_25/frame_121/DoAction.as: _parent.removeMovieClip()
-    const sprite6SymRef = sprite6Sym;
-    const sprite16SymRef = sprite16Sym;
-    const sprite24SymRef = this.sprite24Sym;
+    // depth 123 — AS: PlaceObject2_24_123/CLIPACTIONRECORD onClipEvent(load).as
+    //   gotoAndPlay(random(7) + 1);
+    this.sprite24v7bSym = {
+      name: "sprite_24_v7b",
+      totalFrames: 24,
+      frames: textures.getFrames("sprite_24"),
+      anchorX: sprite24Anchor.x,
+      anchorY: sprite24Anchor.y,
+      onLoad: (clip) => {
+        // AS: DefineSprite_25/frame_1/PlaceObject2_24_123/CLIPACTIONRECORD onClipEvent(load).as
+        // gotoAndPlay(random(7) + 1);
+        clip.gotoAndPlay(Math.floor(Math.random() * 7));
+      },
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: DefineSprite_24/frame_1/DoAction.as
+            clip.x = 100 * (Math.random() - 0.5);
+            clip.y = -100 + 100 * (Math.random() - 0.5);
+          },
+        ],
+        [
+          21,
+          (clip) => {
+            // AS: DefineSprite_24/frame_22/DoAction.as
+            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+          },
+        ],
+      ]),
+    };
 
-    const sprite25Sym: SymbolDefinition = {
+    // depth 125 — AS: PlaceObject2_24_125/CLIPACTIONRECORD onClipEvent(load).as
+    //   gotoAndPlay(random(7) + 1);
+    this.sprite24v7cSym = {
+      name: "sprite_24_v7c",
+      totalFrames: 24,
+      frames: textures.getFrames("sprite_24"),
+      anchorX: sprite24Anchor.x,
+      anchorY: sprite24Anchor.y,
+      onLoad: (clip) => {
+        // AS: DefineSprite_25/frame_1/PlaceObject2_24_125/CLIPACTIONRECORD onClipEvent(load).as
+        // gotoAndPlay(random(7) + 1);
+        clip.gotoAndPlay(Math.floor(Math.random() * 7));
+      },
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: DefineSprite_24/frame_1/DoAction.as
+            clip.x = 100 * (Math.random() - 0.5);
+            clip.y = -100 + 100 * (Math.random() - 0.5);
+          },
+        ],
+        [
+          21,
+          (clip) => {
+            // AS: DefineSprite_24/frame_22/DoAction.as
+            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+          },
+        ],
+      ]),
+    };
+
+    // depth 127 — AS: PlaceObject2_24_127/CLIPACTIONRECORD onClipEvent(load).as
+    //   gotoAndPlay(random(21) + 1);
+    this.sprite24v21Sym = {
+      name: "sprite_24_v21",
+      totalFrames: 24,
+      frames: textures.getFrames("sprite_24"),
+      anchorX: sprite24Anchor.x,
+      anchorY: sprite24Anchor.y,
+      onLoad: (clip) => {
+        // AS: DefineSprite_25/frame_1/PlaceObject2_24_127/CLIPACTIONRECORD onClipEvent(load).as
+        // gotoAndPlay(random(21) + 1);
+        clip.gotoAndPlay(Math.floor(Math.random() * 21));
+      },
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: DefineSprite_24/frame_1/DoAction.as
+            clip.x = 100 * (Math.random() - 0.5);
+            clip.y = -100 + 100 * (Math.random() - 0.5);
+          },
+        ],
+        [
+          21,
+          (clip) => {
+            // AS: DefineSprite_24/frame_22/DoAction.as
+            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+          },
+        ],
+      ]),
+    };
+
+    // ---- sprite_25 — main 123-frame composite outer timeline ----
+    // AS: DefineSprite_25/frame_1/DoAction.as:
+    //   _X = _parent.cellTo.x; _Y = _parent.cellTo.y;
+    // AS: DefineSprite_25/frame_4/DoAction.as:
+    //   SOMA.playSound("licrounch_1013");
+    // AS: DefineSprite_25/frame_82/DoAction.as:
+    //   this.end(); → signalHit
+    // AS: DefineSprite_25/frame_121/DoAction.as:
+    //   _parent.removeMovieClip(); → complete
+    this.sprite25Sym = {
       name: "sprite_25",
       totalFrames: 123,
       frames: textures.getFrames("sprite_25"),
@@ -217,107 +355,104 @@ export class Spell1013 extends RuntimeSpell {
           0,
           (clip, ctx) => {
             // AS: DefineSprite_25/frame_1/DoAction.as
-            // _X = _parent.cellTo.x; _Y = _parent.cellTo.y
-            // For displayType=11 (TargetCell) the container is already
-            // anchored at cellTo, so this positions the clip at the
-            // target in world coords. Since the harness places the
-            // container at cellTo, and this sprite IS the root content,
-            // we position relative to the container local origin = 0,0
-            // which corresponds to the target cell. Keep the world-coord
-            // assignment faithful to AS.
+            // _X = _parent.cellTo.x; _Y = _parent.cellTo.y;
+            // displayType=50: container is at world (0,0), so we read cellTo from root.vars.
             const root = clip.parent;
-            const cellTo = root?.vars.cellTo as { x: number; y: number } | undefined;
+            const cellTo = root?.vars.cellTo as
+              | { x: number; y: number }
+              | undefined;
             if (cellTo) {
               clip.x = cellTo.x;
               clip.y = cellTo.y;
             }
 
-            // Attach sprite_6 instance (the rotating one, DefineSprite_14)
-            // at depth 1. It has its own onEnterFrame for rotation.
-            clip.attach(sprite6SymRef, "sprite6_rot", 1, ctx);
+            // Attach sprite14 at depth 36 — placements[0]: translateX=11.4, translateY=-155.4
+            // scaleX=0.8282928466796875, scaleY=0.841033935546875
+            // rotateSkew0/1 are near-zero (~-0.008/0.008) — negligible rotation, skip.
+            // AS: DefineSprite_25/frame_1 PlaceObject2 at depth 36 (characterId=14)
+            const c36 = clip.attach(this.sprite14Sym, "sprite14_36", 36, ctx, {
+              x: 11.4,
+              y: -155.4,
+            });
+            c36.scaleX = 0.8282928466796875;
+            c36.scaleY = 0.841033935546875;
 
-            // Attach sprite_16 at depth 2.
-            clip.attach(sprite16SymRef, "sprite16", 2, ctx);
+            // Attach sprite14 at depth 39 — placements[1]: translateX=-5.2, translateY=-156.05
+            // scaleX=-0.667938232421875, scaleY=-0.6783447265625 (negative = flipped)
+            // AS: DefineSprite_25/frame_1 PlaceObject2 at depth 39 (characterId=14)
+            const c39 = clip.attach(this.sprite14Sym, "sprite14_39", 39, ctx, {
+              x: -5.2,
+              y: -156.05,
+            });
+            c39.scaleX = -0.667938232421875;
+            c39.scaleY = -0.6783447265625;
 
-            // Attach 5 instances of sprite_24 at depths 119,121,123,125,127.
-            // Each has an onClipEvent(load) that gotoAndPlay's a random frame.
+            // Attach sprite_24 instances at depths 119/121/123/125/127.
+            // Each instance fires its onLoad to gotoAndPlay a random start frame,
+            // then frame_1 sets a random X/Y scatter position.
             //
-            // AS: DefineSprite_25/frame_1/PlaceObject2_24_119/CLIPACTIONRECORD onClipEvent(load).as
-            //   gotoAndPlay(random(14) + 1)
-            const child119 = clip.attach(sprite24SymRef, "sprite24_119", 119, ctx);
-            child119.gotoAndPlay(Math.floor(Math.random() * 14));
+            // AS: DefineSprite_25/frame_1/PlaceObject2_24_119 → depth 119
+            clip.attach(this.sprite24v14Sym, "sprite_24_119", 119, ctx);
 
-            // AS: DefineSprite_25/frame_1/PlaceObject2_24_121/CLIPACTIONRECORD onClipEvent(load).as
-            //   gotoAndPlay(random(7) + 1)
-            const child121 = clip.attach(sprite24SymRef, "sprite24_121", 121, ctx);
-            child121.gotoAndPlay(Math.floor(Math.random() * 7));
+            // AS: DefineSprite_25/frame_1/PlaceObject2_24_121 → depth 121
+            clip.attach(this.sprite24v7aSym, "sprite_24_121", 121, ctx);
 
-            // AS: DefineSprite_25/frame_1/PlaceObject2_24_123/CLIPACTIONRECORD onClipEvent(load).as
-            //   gotoAndPlay(random(7) + 1)
-            const child123 = clip.attach(sprite24SymRef, "sprite24_123", 123, ctx);
-            child123.gotoAndPlay(Math.floor(Math.random() * 7));
+            // AS: DefineSprite_25/frame_1/PlaceObject2_24_123 → depth 123
+            clip.attach(this.sprite24v7bSym, "sprite_24_123", 123, ctx);
 
-            // AS: DefineSprite_25/frame_1/PlaceObject2_24_125/CLIPACTIONRECORD onClipEvent(load).as
-            //   gotoAndPlay(random(7) + 1)
-            const child125 = clip.attach(sprite24SymRef, "sprite24_125", 125, ctx);
-            child125.gotoAndPlay(Math.floor(Math.random() * 7));
+            // AS: DefineSprite_25/frame_1/PlaceObject2_24_125 → depth 125
+            clip.attach(this.sprite24v7cSym, "sprite_24_125", 125, ctx);
 
-            // AS: DefineSprite_25/frame_1/PlaceObject2_24_127/CLIPACTIONRECORD onClipEvent(load).as
-            //   gotoAndPlay(random(21) + 1)
-            const child127 = clip.attach(sprite24SymRef, "sprite24_127", 127, ctx);
-            child127.gotoAndPlay(Math.floor(Math.random() * 21));
+            // AS: DefineSprite_25/frame_1/PlaceObject2_24_127 → depth 127
+            clip.attach(this.sprite24v21Sym, "sprite_24_127", 127, ctx);
           },
         ],
         [
           3,
-          (_clip) => {
-            // AS: DefineSprite_25/frame_4/DoAction.as — SOMA.playSound("licrounch_1013")
-            // Sound is played via the callback captured in onSpellStart.
-            // The sound frame fires on frame_4 (index 3) of sprite_25.
-            // We use the stored callback reference.
-            this.playSoundCallback?.("licrounch_1013");
+          () => {
+            // AS: DefineSprite_25/frame_4/DoAction.as → SOMA.playSound("licrounch_1013");
+            this.soundCallback?.("licrounch_1013");
           },
         ],
         [
           81,
-          (_clip) => {
-            // AS: DefineSprite_25/frame_82/DoAction.as — this.end() → signalHit
+          () => {
+            // AS: DefineSprite_25/frame_82/DoAction.as → this.end(); (signalHit)
             this.runtime.signalHit();
           },
         ],
         [
           120,
           (clip) => {
-            // AS: DefineSprite_25/frame_121/DoAction.as — _parent.removeMovieClip()
-            clip.parent?.remove();
+            // AS: DefineSprite_25/frame_121/DoAction.as → _parent.removeMovieClip();
+            clip.remove();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
+    // Register all symbols
+    this.registry.register(this.sprite14Sym);
     this.registry.register(sprite6Sym);
     this.registry.register(sprite16Sym);
-    this.registry.register(this.sprite24Sym);
-    this.registry.register(sprite25Sym);
+    this.registry.register(this.sprite24v14Sym);
+    this.registry.register(this.sprite24v7aSym);
+    this.registry.register(this.sprite24v7bSym);
+    this.registry.register(this.sprite24v7cSym);
+    this.registry.register(this.sprite24v21Sym);
+    this.registry.register(this.sprite25Sym);
   }
-
-  private playSoundCallback?: (id: string) => void;
-  private sprite25Sym?: SymbolDefinition;
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext
   ): void {
-    // Store the sound callback so frame_4 of sprite_25 can call it.
-    this.playSoundCallback = callbacks.playSound;
+    // Capture the sound callback so frame scripts inside sprite_25 can play sounds.
+    this.soundCallback = callbacks.playSound;
 
-    // Main timeline: frame_2/DoAction.as — stop()
-    // The main timeline stops at frame 2 — it just places sprite_25
-    // as its authored child. We attach sprite_25 to the root here.
-    const sprite25Sym = this.registry.resolve("sprite_25");
-    if (sprite25Sym) {
-      this.root.attach(sprite25Sym, "sprite25", 1, context);
-    }
+    // Top-level main timeline: frame_2/DoAction.as → stop();
+    // Attach sprite_25 to root — it will self-position at cellTo on its frame_1 script.
+    this.root.attach(this.sprite25Sym, "sprite_25", 1, context);
   }
 }

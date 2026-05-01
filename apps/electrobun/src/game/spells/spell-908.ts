@@ -1,39 +1,45 @@
 /**
- * Spell 908 — Flèche de Recul (Cra retreat arrow).
+ * Spell 908 — Flèche de Glace / Ice Arrow (Cra).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/908/scripts/scripts/
  *
- * displayType=30 (ProjectileBallistic). Detection rationale:
- *   - Has both `move` and `shoot` symbols.
- *   - `move` carries a 2-frame authored content with a PlaceObject child that
- *     has onClipEvent(load) + onClipEvent(enterFrame) — the canonical "spinner
- *     during flight" particle attached inside the moving projectile.
- *   - `shoot` is an 84-frame impact timeline with `_rotation = 0` in frame_1
- *     (the canonical override of harness-applied velocity angle), and
- *     `_parent.removeMovieClip()` at frame_70 — identical pattern to spell 103.
- *   - The harness drives the parabolic arc, attaches `shoot` on landing, and
- *     calls `runtime.signalHit()` automatically — we must NOT call it again.
+ * displayType=30 (ProjectileBallistic). The spell has a `move` symbol (container
+ * with a single placed child that wobbles during flight) and a `shoot` symbol
+ * (84-frame authored impact animation). The harness attaches `move` at the caster,
+ * drives it along a parabolic arc to the target, then attaches `shoot` at the
+ * target on landing and fires signalHit automatically.
  *
  * Library symbols:
- *   - `move`  — 2-frame projectile container. The authored child (PlaceObject2_12_1)
- *               is a spinner: onLoad seeds `a=45` and scale from level; onEnterFrame
- *               oscillates rotation as `90 + a*cos(i+=0.5)` with `a /= 1.1` decay.
- *               Because this child is placed by the SWF's authored timeline (not by
- *               attachMovie in a DoAction script), we register a dedicated symbol for
- *               it ("moveChild") and attach it from move's frame_0 script.
- *   - `shoot` — 84-frame impact animation with authored SVG frames. frame_1 resets
- *               `_rotation = 0`; frame_4 plays the "wab_2005b" sound; frame_70
- *               calls `_parent.removeMovieClip()` → spell complete.
+ *   - move (DefineSprite_13): container-only. PlaceObject2_12_1 places a child
+ *     whose onClipEvent(load) seeds `a=45`, `t=10+3*level`, and sets its scale
+ *     to t%. onClipEvent(enterFrame) oscillates rotation: `_rotation = 90 + a*cos(i+=0.5)`
+ *     with amplitude decay `a /= 1.1`. This is the spinning/wobbling ice shard
+ *     during the projectile flight.
+ *   - shoot (DefineSprite_6): 84-frame authored impact. frame_1 resets rotation
+ *     to 0 (canonical override of harness-applied velocity angle). frame_4 plays
+ *     sound "wab_2005b". frame_70 calls `_parent.removeMovieClip()` + `stop()` →
+ *     signals spell completion.
  *
- * Main timeline: no explicit DoAction scripts found — harness attaches `move`
- * automatically for displayType 30. `onSpellStart` is a no-op (sound is played
- * from within shoot's frame_4 script).
+ * Main timeline: no sound on frame_1. The harness handles move/shoot attachment.
  *
- * Note on sound: `SOMA.playSound("wab_2005b")` fires from
- * DefineSprite_6_shoot/frame_4/DoAction.as, which runs inside the shoot symbol
- * after landing. We capture `callbacks.playSound` in a private field during
- * `onSpellStart` and invoke it from the frame_4 script.
+ * Signals:
+ *   - signalHit: fired by the harness (ProjectileBallistic) on landing — NOT
+ *     called from per-spell code.
+ *   - complete: fired from shoot's frame_70 script.
+ *
+ * NOTE: The `move` symbol has a CLIPACTIONRECORD-driven child (PlaceObject2_12_1).
+ * The manifest has no `librarySymbols[]` entries, so the child clip is registered
+ * as an inline anonymous symbol attached from move's frameScripts[0]. The child
+ * shares `move`'s authored frames (no separate texture strip), so it uses
+ * `frames: []` (container with onLoad/onEnterFrame handlers driving the visual
+ * via rotation/scale only, since the wobbling shard is part of the `move`
+ * animation strip itself).
+ *
+ * Because `librarySymbols[]` is empty in the manifest, we do NOT use any `lib_`
+ * prefix for texture keys. The `shoot` animation is loaded as `textures.getFrames("shoot")`.
+ * The `move` child is a runtime-only clip with no separate texture (it reads from
+ * the parent move clip's rendered visual).
  */
 
 import type {
@@ -59,29 +65,23 @@ export class Spell908 extends RuntimeSpell {
   readonly spellId = 908;
   readonly displayType = SpellDisplayType.ProjectileBallistic;
 
-  private playSoundFn?: (id: string) => void;
+  private soundCallback?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext
+    _context: SpellContext,
   ): void {
     const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // ---- moveChild — the spinning particle placed inside `move` ----
-    // This corresponds to PlaceObject2_12_1 inside DefineSprite_13_move/frame_1.
-    // It has no authored frame textures of its own (it's the SWF's internally
-    // placed object); we render it as a container-only clip whose physics are
-    // driven entirely by onLoad + onEnterFrame.
+    // ---- inline child symbol for move's PlaceObject2_12_1 -------
+    // AS: DefineSprite_13_move/frame_1/PlaceObject2_12_1/
+    //     CLIPACTIONRECORD onClipEvent(load).as +
+    //     CLIPACTIONRECORD onClipEvent(enterFrame).as
     //
-    // AS DefineSprite_13_move/frame_1/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(load).as
-    //   a = 45;
-    //   t = 10 + 3 * _parent._parent.level;
-    //   _xscale = t;
-    //   _yscale = t;
-    //
-    // AS DefineSprite_13_move/frame_1/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-    //   _rotation = 90 + a * Math.cos(i += 0.5);
-    //   a /= 1.1;
+    // This is the wobbling shard child placed inside the move container.
+    // It has no separate texture strip — its visual is contributed by
+    // the move animation itself. We register it as a pure-logic clip
+    // (frames: []) so the onLoad/onEnterFrame handlers run correctly.
     const moveChildSym: SymbolDefinition = {
       name: "moveChild",
       totalFrames: 1,
@@ -89,34 +89,41 @@ export class Spell908 extends RuntimeSpell {
       anchorX: 0.5,
       anchorY: 0.5,
       onLoad: (clip) => {
-        // AS: a = 45; t = 10 + 3 * _parent._parent.level;
-        // _parent._parent for this clip: moveChild → move → root
-        const root = clip.parent?.parent ?? clip.parent;
-        const level = (root?.vars.level as number) ?? 1;
+        // AS: DefineSprite_13_move/frame_1/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(load).as
+        //   a = 45;
+        //   t = 10 + 3 * _parent._parent.level;
+        //   _xscale = t;
+        //   _yscale = t;
         clip.vars.a = 45;
+        // _parent._parent is move's parent (the harness root), which has level on vars
+        const root = clip.parent?.parent;
+        const level = (root?.vars.level as number) ?? 1;
         const t = 10 + 3 * level;
+        clip.vars.t = t;
         clip.scaleX = t / 100;
         clip.scaleY = t / 100;
+        // initialise i for the enterFrame oscillation
         clip.vars.i = 0;
       },
       onEnterFrame: (clip) => {
-        // AS: _rotation = 90 + a * Math.cos(i += 0.5); a /= 1.1;
+        // AS: DefineSprite_13_move/frame_1/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+        //   _rotation = 90 + a * Math.cos(i += 0.5);
+        //   a /= 1.1;
         let a = clip.vars.a as number;
         let i = clip.vars.i as number;
         i += 0.5;
-        const rotDeg = 90 + a * Math.cos(i);
-        clip.rotation = (rotDeg * Math.PI) / 180;
+        // AS rotation in degrees → convert to radians for Pixi
+        clip.rotation = ((90 + a * Math.cos(i)) * Math.PI) / 180;
         a /= 1.1;
         clip.vars.a = a;
         clip.vars.i = i;
       },
     };
 
-    // ---- move — 2-frame projectile container ---------------------
-    // The harness attaches this at root(0,0) and drives the parabolic arc.
-    // frame_1 (index 0): attach the spinning child placed by the authored SWF timeline.
-    // The `move` symbol itself has no authored visual frames; the spinner is
-    // its only content. We use frames:[] (container-only).
+    // ---- move — container for flight phase -----------------------
+    // AS: DefineSprite_13_move
+    // 1-frame container-only symbol. frame_1 places the wobbling child
+    // (PlaceObject2_12_1) whose clip events drive the shard animation.
     const moveSym: SymbolDefinition = {
       name: "move",
       totalFrames: 2,
@@ -127,23 +134,20 @@ export class Spell908 extends RuntimeSpell {
         [
           0,
           (clip, ctx) => {
-            // AS DefineSprite_13_move/frame_1: PlaceObject2_12_1 placed with
-            // its clip events. We replicate this as an explicit attach of the
-            // moveChild symbol.
-            clip.attach(moveChildSym, "moveChild", 1, ctx);
+            // AS: DefineSprite_13_move frame_1 — PlaceObject2_12_1 places
+            // the dynamic child at depth 1. Attach the inline child symbol
+            // so its onLoad and onEnterFrame run for the duration of flight.
+            clip.attach(moveChildSym, "moveChild1", 1, ctx);
           },
         ],
       ]),
     };
 
     // ---- shoot — 84-frame impact animation -----------------------
-    // Has authored SVG frame textures (from animations[] "shoot" entry).
-    // No lib_ prefix: the manifest has no librarySymbols[] entry for it —
-    // "shoot" appears only in animations[], so we use textures.getFrames("shoot").
-    //
-    // AS DefineSprite_6_shoot/frame_1/DoAction.as:   _rotation = 0;
-    // AS DefineSprite_6_shoot/frame_4/DoAction.as:   SOMA.playSound("wab_2005b");
-    // AS DefineSprite_6_shoot/frame_70/DoAction.as:  _parent.removeMovieClip(); stop();
+    // AS: DefineSprite_6_shoot
+    // frame_1: _rotation = 0  (canonical override of harness velocity angle)
+    // frame_4: SOMA.playSound("wab_2005b")
+    // frame_70: _parent.removeMovieClip(); stop()  → spell complete
     const shootSym: SymbolDefinition = {
       name: "shoot",
       totalFrames: 84,
@@ -154,27 +158,30 @@ export class Spell908 extends RuntimeSpell {
         [
           0,
           (clip) => {
-            // AS DefineSprite_6_shoot/frame_1/DoAction.as
-            // Override the harness-applied velocity-angle rotation so the
-            // impact animation plays upright regardless of arc steepness.
+            // AS: DefineSprite_6_shoot/frame_1/DoAction.as
+            //   _rotation = 0;
+            // Canonical override: resets the velocity-angle rotation the
+            // harness applied when attaching shoot, so the impact renders
+            // upright regardless of arc angle.
             clip.rotation = 0;
           },
         ],
         [
           3,
           () => {
-            // AS DefineSprite_6_shoot/frame_4/DoAction.as
-            // SOMA.playSound("wab_2005b") — fired at impact frame 4.
-            this.playSoundFn?.("wab_2005b");
+            // AS: DefineSprite_6_shoot/frame_4/DoAction.as
+            //   SOMA.playSound("wab_2005b");
+            this.soundCallback?.("wab_2005b");
           },
         ],
         [
           69,
           (clip) => {
-            // AS DefineSprite_6_shoot/frame_70/DoAction.as
-            // _parent.removeMovieClip(); stop();
-            // _parent here is the outer mc (root), so this ends the spell.
-            clip.remove();
+            // AS: DefineSprite_6_shoot/frame_70/DoAction.as
+            //   _parent.removeMovieClip();
+            //   stop();
+            clip.stop();
+            clip.parent?.remove();
             this.runtime.complete();
           },
         ],
@@ -188,12 +195,13 @@ export class Spell908 extends RuntimeSpell {
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    _context: SpellContext
+    _context: SpellContext,
   ): void {
-    // Capture playSound so frame scripts inside shoot can call it.
-    this.playSoundFn = callbacks.playSound;
-    // No main-timeline sound or child attaches for this spell —
-    // the harness handles attaching `move` for displayType 30,
-    // and the impact sound fires from shoot's frame_4 script.
+    // Capture the playSound callback so frameScripts inside shoot can
+    // use it for the frame_4 sound trigger.
+    this.soundCallback = callbacks.playSound;
+    // Main timeline frame_1: no explicit SOMA.playSound call on the
+    // main timeline for spell 908. The harness has already attached
+    // `move`; sound fires from shoot's frame_4 on landing.
   }
 }

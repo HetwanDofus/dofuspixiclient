@@ -142,6 +142,25 @@ export async function wireVelloLoaders(
   );
   getSpellIconRenderer().init(vello, ctx.app.renderer);
 
+  // StringCourse turn-change banner artwork — canonical Game.as:389
+  // loads `ARTWORKS_BIG_PATH + gfxFileName + ".swf"` for the active
+  // fighter; we serve those as `.dofassets` published by the asset
+  // pipeline and rasterize through the same Vello + Pixi extract path
+  // the spell-icon renderer uses.
+  const { getFighterPortraitRenderer } = await import(
+    "@/game/render/fighter-portrait-renderer"
+  );
+  getFighterPortraitRenderer().init(vello, ctx.app.renderer);
+
+  // Generic UI dofasset renderer — backs the canonical loader.swf
+  // panels (UI_StringCourse parchment, etc.) by path. Same Vello +
+  // Pixi extract pipeline; React mounts the resulting canvas as the
+  // panel background.
+  const { getUiAssetRenderer } = await import(
+    "@/game/render/ui-asset-renderer"
+  );
+  getUiAssetRenderer().init(vello, ctx.app.renderer);
+
   const spriteLoader = ctx.characterSpriteLoader;
   ctx.engine.debugInfo = () => {
     const atlas = spriteLoader.getAtlas();

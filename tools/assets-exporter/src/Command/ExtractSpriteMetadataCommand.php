@@ -27,67 +27,32 @@ class ExtractSpriteMetadataCommand extends Command
     private const SPRITES_PATH = __DIR__ . '/../../../../assets/sources/clips/sprites';
 
     /**
-     * Color zone remapping table from GlobalSpriteHandler.getColorIndex().
-     * Maps gfxId → [baseZone => actualColorIndex].
-     * Only gfxIds that deviate from default (identity) mapping are listed.
+     * Per-class colour-zone permutation. Empty by design — see WHY below.
+     *
+     * The original entries here were copied from
+     * `GlobalSpriteHandler.getColorIndex()` in canonical AS2. That function
+     * IS canonical, but it is only invoked through the
+     * `applyHeadColor / applyBodyColor / applyBottomColor` wrappers, and the
+     * vanilla class sprites (10/11/20/21/.../120/121) DO NOT call those
+     * wrappers — they call `applyColor(this, N)` directly with a literal N,
+     * which `GlobalSpriteHandler.applyColor` then resolves with
+     * `_loc5_["color" + nZone]` (identity, no permutation).
+     *
+     * Verified by string-dumping the SWFs: sprite/10.swf only references
+     * `applyColor` / `applyAccessory`, never the head/body/bottom wrappers.
+     * Wrapper usage shows up only on a small set of cosmetic SWFs (9274,
+     * 9280, 9294 and `clips/sprites/accessories/a5-a8.swf`,
+     * `clips/items/82/*.swf`). Those need their own extraction path; for
+     * the breed sprites the right answer is identity.
+     *
+     * Symptom of applying the old (wrong) table on Iop class 10:
+     * `color2 = red` ended up tinting the skin/hair zone (sprite AS2 zone 3
+     * → permuted to player_color_index 2) instead of the blue-clothing
+     * zone (AS2 zone 2). The artwork side, which I built with identity, was
+     * tinting the cape — visible mismatch between sprite and StringCourse
+     * preview, despite both being canonical-correct in their own logic.
      */
-    private const COLOR_MAPPINGS = [
-        // Feca 10/11
-        '10' => [1 => 3, 2 => 1, 3 => 2], '11' => [1 => 3, 2 => 1, 3 => 2],
-        '9224' => [1 => 3, 2 => 1, 3 => 2], '9225' => [1 => 3, 2 => 1, 3 => 2],
-        '9248' => [1 => 3, 2 => 1, 3 => 2], '9249' => [1 => 3, 2 => 1, 3 => 2],
-        // Osa 20/21
-        '20' => [1 => 2, 2 => 3, 3 => 1], '21' => [1 => 2, 2 => 3, 3 => 1],
-        '9226' => [1 => 2, 2 => 3, 3 => 1], '9227' => [1 => 2, 2 => 3, 3 => 1],
-        '9250' => [1 => 2, 2 => 3, 3 => 1], '9251' => [1 => 2, 2 => 3, 3 => 1],
-        // Enutrof 30/31
-        '30' => [1 => 3, 2 => 1, 3 => 2], '31' => [1 => 3, 2 => 1, 3 => 2],
-        '9228' => [1 => 3, 2 => 1, 3 => 2], '9229' => [1 => 3, 2 => 1, 3 => 2],
-        '9252' => [1 => 3, 2 => 1, 3 => 2], '9253' => [1 => 3, 2 => 1, 3 => 2],
-        // Sram 40/41
-        '40' => [1 => 2, 2 => 3, 3 => 1], '41' => [1 => 2, 2 => 3, 3 => 1],
-        '9230' => [1 => 2, 2 => 3, 3 => 1], '9231' => [1 => 2, 2 => 3, 3 => 1],
-        '9254' => [1 => 2, 2 => 3, 3 => 1], '9255' => [1 => 2, 2 => 3, 3 => 1],
-        // Xelor 50/51
-        '50' => [1 => 2, 2 => 3, 3 => 1], '51' => [1 => 2, 2 => 3, 3 => 1],
-        '9232' => [1 => 2, 2 => 3, 3 => 1], '9233' => [1 => 2, 2 => 3, 3 => 1],
-        '9256' => [1 => 2, 2 => 3, 3 => 1], '9257' => [1 => 2, 2 => 3, 3 => 1],
-        // Eca 60
-        '60' => [1 => 2, 2 => 3, 3 => 1],
-        '9234' => [1 => 2, 2 => 3, 3 => 1], '9258' => [1 => 2, 2 => 3, 3 => 1],
-        // Eca 61
-        '61' => [1 => 1, 2 => 3, 3 => 2],
-        '9235' => [1 => 1, 2 => 3, 3 => 2], '9259' => [1 => 1, 2 => 3, 3 => 2],
-        // Eni 70/71, Iop 80/81
-        '70' => [1 => 2, 2 => 3, 3 => 1], '71' => [1 => 2, 2 => 3, 3 => 1],
-        '80' => [1 => 2, 2 => 3, 3 => 1], '81' => [1 => 2, 2 => 3, 3 => 1],
-        '9236' => [1 => 2, 2 => 3, 3 => 1], '9237' => [1 => 2, 2 => 3, 3 => 1],
-        '9238' => [1 => 2, 2 => 3, 3 => 1], '9260' => [1 => 2, 2 => 3, 3 => 1],
-        '9261' => [1 => 2, 2 => 3, 3 => 1], '9262' => [1 => 2, 2 => 3, 3 => 1],
-        '9263' => [1 => 2, 2 => 3, 3 => 1],
-        // Cra 90/91 — identity mapping
-        '90' => [1 => 1, 2 => 2, 3 => 3], '91' => [1 => 1, 2 => 2, 3 => 3],
-        '9239' => [1 => 1, 2 => 2, 3 => 3], '9240' => [1 => 1, 2 => 2, 3 => 3],
-        '9264' => [1 => 1, 2 => 2, 3 => 3], '9265' => [1 => 1, 2 => 2, 3 => 3],
-        // Sadida 100
-        '100' => [1 => 3, 2 => 2, 3 => 1],
-        '9241' => [1 => 3, 2 => 2, 3 => 1], '9266' => [1 => 3, 2 => 2, 3 => 1],
-        // Sadida 101
-        '101' => [1 => 1, 2 => 3, 3 => 2],
-        '9242' => [1 => 1, 2 => 3, 3 => 2], '9267' => [1 => 1, 2 => 3, 3 => 2],
-        // Sacri 110/111
-        '110' => [1 => 2, 2 => 3, 3 => 1], '111' => [1 => 2, 2 => 3, 3 => 1],
-        '9243' => [1 => 2, 2 => 3, 3 => 1], '9244' => [1 => 2, 2 => 3, 3 => 1],
-        '9268' => [1 => 2, 2 => 3, 3 => 1], '9269' => [1 => 2, 2 => 3, 3 => 1],
-        // Pandawa 120/121
-        '120' => [1 => 1, 2 => 3, 3 => 2], '121' => [1 => 1, 2 => 3, 3 => 2],
-        '8010' => [1 => 1, 2 => 3, 3 => 2], '8011' => [1 => 1, 2 => 3, 3 => 2],
-        '1264' => [1 => 1, 2 => 3, 3 => 2],
-        '7030' => [1 => 1, 2 => 3, 3 => 2], '7031' => [1 => 1, 2 => 3, 3 => 2],
-        '9245' => [1 => 1, 2 => 3, 3 => 2], '9246' => [1 => 1, 2 => 3, 3 => 2],
-        '9247' => [1 => 1, 2 => 3, 3 => 2], '9270' => [1 => 1, 2 => 3, 3 => 2],
-        '9271' => [1 => 1, 2 => 3, 3 => 2],
-    ];
+    private const COLOR_MAPPINGS = [];
 
     private string $outputBase;
 

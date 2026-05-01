@@ -235,30 +235,53 @@ function SpellHotbarCell({ spell, fight, onCast }: SpellHotbarCellProps) {
           * (`hud/components/Tooltip.tsx`) so spell tooltips float above
           * world-map / fight / conquest panels. */}
         <Tooltip.Positioner sideOffset={6} style={{ zIndex: 999999 }}>
+          {/*
+            Canonical Dofus 1.29 spell tooltip styling — sourced from
+            `dofus.graphics.gapi.styles.DofusStylePackage`:
+              • bg `ExtraLightBrownSpellFullInfosStylizedRectangle` (cream
+                #EDE5CC, 10px corner radius)
+              • title `BrownCenterBigBoldLabel` (Font2 size 13, dark brown
+                #514A3C bold)
+              • body `FilterLabel` (Font1 size 11, dark brown #514A3C bold)
+              • AP-cost emphasis: `OrangeLeftMediumBoldLabel` (#FF6800)
+            Earlier we shipped a dark-theme bubble (#2b2a24 bg, gold
+            title) which read as a generic web tooltip rather than
+            anything Ankama drew.
+          */}
           <Tooltip.Popup
             className={
-              "max-w-xs rounded bg-[#2b2a24] px-3 py-2 text-xs " +
-              "text-[#f1e9d4] shadow-lg border border-[#5a5240] " +
+              "max-w-xs rounded-[6px] border border-[#514a3c] " +
+              "bg-[#ede5cc] px-[8px] py-[6px] " +
+              "text-[11px] leading-snug text-[#514a3c] " +
+              "shadow-[0_2px_6px_rgba(0,0,0,0.45)] " +
               "font-[Verdana,sans-serif] whitespace-pre-wrap"
             }
           >
-            <div className="font-bold text-[#ffd27a]">
+            <div className="text-[13px] font-bold leading-tight">
               {spell.name}
-              <span className="ml-2 text-[#a49a82]">Niv. {spell.level}</span>
+              <span className="ml-2 text-[11px] font-normal text-[#7a7060]">
+                Niv. {spell.level}
+              </span>
             </div>
             {fight !== "idle" && (
-              <div className="mt-1 text-[#a49a82]">
-                {spell.apCost} PA · portée{" "}
+              <div className="mt-[2px] font-bold">
+                <span className="text-[#e87a0d]">{spell.apCost} PA</span>
+                <span className="text-[#7a7060]"> · portée </span>
                 {spell.rangeMin === spell.rangeMax
                   ? spell.rangeMin
                   : `${spell.rangeMin}–${spell.rangeMax}`}
-                {spell.cooldownRemaining > 0
-                  ? ` · ${spell.cooldownRemaining} tour(s) restant(s)`
-                  : ""}
+                {spell.cooldownRemaining > 0 && (
+                  <span className="text-[#7a7060]">
+                    {" · "}
+                    {spell.cooldownRemaining} tour(s) restant(s)
+                  </span>
+                )}
               </div>
             )}
             {spell.description && (
-              <div className="mt-1 leading-snug">{spell.description}</div>
+              <div className="mt-[3px] font-normal text-[#3a3528]">
+                {spell.description}
+              </div>
             )}
           </Tooltip.Popup>
         </Tooltip.Positioner>
@@ -293,11 +316,23 @@ export function BannerReact({ onSelectSpell }: BannerReactProps = {}) {
     spellsStore.getSnapshot,
   );
 
-  const hp = stats?.hp ?? 100;
-  const maxHp = stats?.maxHp ?? 100;
   const fight = useFightMode();
   const cast = useSpellCast();
   const { isFighting } = fight;
+
+  // During a fight the live LP/LPmax for our sprite live in fightStore
+  // (FIGHTER_UPSERT seeds them on placement, FIGHTER_UPDATE patches
+  // them on every damage/heal/turn snapshot). characterStore.stats is
+  // a roleplay snapshot taken at login and never refreshed mid-fight,
+  // so reading it during combat shows pre-fight HP and never moves.
+  // Outside combat the fightStore mirror is empty, so we fall back to
+  // the character snapshot.
+  const myFighter =
+    isFighting && fight.mySpriteId
+      ? fight.fighters.get(fight.mySpriteId)
+      : undefined;
+  const hp = myFighter?.hp ?? stats?.hp ?? 100;
+  const maxHp = myFighter?.maxHp ?? stats?.maxHp ?? 100;
 
   /**
    * Project the SpellEntry list into fixed HOTBAR_SLOTS cells, keyed by

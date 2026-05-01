@@ -22,6 +22,7 @@ export {
   MAX_SPRITES_ON_CELL,
 } from "./constants.ts";
 export {
+  clampFightDirection,
   DIR_CHANGE_PENALTY,
   DIR_COSTS,
   Direction,

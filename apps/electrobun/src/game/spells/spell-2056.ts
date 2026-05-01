@@ -1,33 +1,51 @@
 /**
- * Spell 2056 — (Unknown name, likely a Cra/projectile spell).
+ * Spell 2056 — Unknown spell (likely a Sacrier/Iop ground-impact effect).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2056/scripts/scripts/
  *
- * displayType=51 (WorldAbsoluteAlt). Two parallel authored timelines:
- *   - sprite_3 (24 frames): caster-side arrow/beam. frame_1 positions at cellFrom,
+ * displayType=51 (WorldAbsoluteAlt). Detected because:
+ *   - DefineSprite_3/frame_1 reads `_parent.cellFrom.x` / `_parent.cellFrom.y`
+ *     and `_parent.angle` — caster-anchored sprite.
+ *   - DefineSprite_8/frame_1 reads `_parent.cellTo.x` / `_parent.cellTo.y`
+ *     — target-anchored sprite.
+ *   - Both sprites position themselves in world coords → WorldAbsolute pattern.
+ *
+ * Canonical AS layout:
+ *   - main timeline: 2 frames. frame_2/DoAction.as → stop().
+ *     frame_1 implicitly places sprite_3 (caster beam) and sprite_8 (target impact).
+ *
+ *   - DefineSprite_3 (sprite_3) — 24-frame caster-side beam/arrow:
+ *       frame_1: rotate to _parent.angle, position at cellFrom.
+ *       frame_22: stop().
+ *
+ *   - DefineSprite_8 (sprite_8) — 144-frame target-side impact composite:
+ *       frame_1: call this.end() → signalHit; position self at cellTo.
+ *       frame_7: places a bouncing particle (PlaceObject2_5_1) with
+ *                onClipEvent(load) and onClipEvent(enterFrame).
+ *       frame_109: places a fading overlay (PlaceObject2_7_3) with
+ *                  onClipEvent(enterFrame) that subtracts alpha.
+ *       frame_142: _parent.removeMovieClip(); stop() → spell complete.
+ *
+ * Library symbols:
+ *   - "sprite_3" — caster beam, 24 frames. frame_1 positions at cellFrom +
  *     rotates to angle. frame_22 stops.
- *   - sprite_8 (144 frames): target-side impact. frame_1 calls this.end() (signalHit)
- *     and positions at cellTo. frame_7 places a sub-sprite (PlaceObject2_5_1) with
- *     bounce physics. frame_109 places a sub-sprite (PlaceObject2_7_3) that fades
- *     the parent. frame_142 removes parent and stops (spell complete).
+ *   - "sprite_8" — target impact composite, 144 frames. Drives signalHit on
+ *     frame_1, attaches bounce particle on frame_7, attaches fade overlay on
+ *     frame_109, removes self and calls complete() on frame_142.
+ *   - "bounceParticle" (internal, mapped to PlaceObject2_5_1 sprite inside
+ *     sprite_8): onLoad seeds physics vars; onEnterFrame runs gravity/bounce.
+ *   - "fadeOverlay" (internal, mapped to PlaceObject2_7_3 sprite inside
+ *     sprite_8): onEnterFrame decrements alpha by 10/100 per tick.
  *
- * The harness for WorldAbsoluteAlt only seeds root.vars (cellFrom, cellTo, angle,
- * level). Both sprite_3 and sprite_8 position themselves at world coords via
- * _parent.cellFrom / _parent.cellTo. signalHit is called from sprite_8's frame_1
- * (this.end()). complete() is called from sprite_8's frame_142.
+ * Main timeline: no sound found in frame_2/DoAction.as; only stop().
  *
- * Library symbols: none (librarySymbols[] is empty in the manifest).
- * Both sprite_3 and sprite_8 are in animations[] only — no lib_ prefix.
- *
- * The sub-sprite at PlaceObject2_5_1 (frame_7 of sprite_8) has bounce physics:
- *   onLoad: seed g, amp, vx, vy, f, vrot
- *   onEnterFrame: bounce on Y=0 with friction, move parent
- *
- * The sub-sprite at PlaceObject2_7_3 (frame_109 of sprite_8) fades:
- *   onEnterFrame: _parent._alpha -= 10 (i.e. sprite_8's alpha decreases 10/100 per frame)
- *
- * Main timeline: frame_2/DoAction.as → stop(). No sound in the canonical AS.
+ * Note on manifest: `librarySymbols` is absent/empty — ALL symbols live in
+ * `animations[]` only. Therefore textures are accessed WITHOUT the `lib_`
+ * prefix, using bare animation names: "sprite_3", "sprite_8".
+ * The bounceParticle and fadeOverlay are sub-sprites inside sprite_8's
+ * authored composite frames — they are driven by clip events at runtime
+ * and are modelled as container-only SymbolDefinitions (frames: []).
  */
 
 import type {
@@ -42,7 +60,7 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-// sprite_3 bounds from manifest animations[]
+// Bounds from manifest animations[] entries (no librarySymbols present).
 const SPRITE_3_BOUNDS = {
   width: 105.95,
   height: 0.1,
@@ -50,7 +68,6 @@ const SPRITE_3_BOUNDS = {
   offsetY: -0.1,
 };
 
-// sprite_8 bounds from manifest animations[]
 const SPRITE_8_BOUNDS = {
   width: 66.4,
   height: 15.4,
@@ -67,89 +84,103 @@ export class Spell2056 extends RuntimeSpell {
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext
+    _context: SpellContext,
   ): void {
     const sprite3Anchor = calculateAnchor(SPRITE_3_BOUNDS);
     const sprite8Anchor = calculateAnchor(SPRITE_8_BOUNDS);
 
-    // ---- sub-sprite for bounce physics (PlaceObject2_5_1 inside sprite_8 frame_7) ----
-    // This is an inline clip placed by sprite_8's frame_7 with clip events.
-    // We model it as a registered symbol so sprite_8's frameScripts can attach it.
-    // It has no authored textures (container-only), physics driven by onLoad/onEnterFrame.
-    const bounceSym: SymbolDefinition = {
-      name: "_bounce_particle",
+    // ---- bounceParticle — gravity-bounce particle attached at frame_7 ----
+    // This is the sprite placed by DefineSprite_8/frame_7/PlaceObject2_5_1.
+    // It has no authored visual content of its own — it is a container whose
+    // clip events drive physics. frames: [] because it is container-only.
+    //
+    // AS: DefineSprite_8/frame_7/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as
+    const bounceParticleSym: SymbolDefinition = {
+      name: "bounceParticle",
       totalFrames: 1,
       frames: [],
       anchorX: 0.5,
       anchorY: 0.5,
-      // AS: DefineSprite_8/frame_7/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as
       onLoad: (clip) => {
+        // AS: g = 0.83; amp = 2.5;
+        // AS: vx = 2 * amp * (-0.5 + Math.random());
+        // AS: vy = amp * (-0.5 + Math.random());
+        // AS: f = -5 - random(5);
+        // AS: vrot = -100 + random(200);
         clip.vars.g = 0.83;
         clip.vars.amp = 2.5;
-        clip.vars.vx = 2 * 2.5 * (-0.5 + Math.random());
-        clip.vars.vy = 2.5 * (-0.5 + Math.random());
+        const amp = clip.vars.amp as number;
+        clip.vars.vx = 2 * amp * (-0.5 + Math.random());
+        clip.vars.vy = amp * (-0.5 + Math.random());
         clip.vars.f = -5 - Math.floor(Math.random() * 5);
         clip.vars.vrot = -100 + Math.floor(Math.random() * 200);
       },
-      // AS: DefineSprite_8/frame_7/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
       onEnterFrame: (clip) => {
+        // AS: DefineSprite_8/frame_7/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+        // AS: _rotation == vrot;   ← NOTE: this is == (comparison), NOT =.
+        //     This is a canonical AS2 no-op (equality check result discarded).
+        //     We faithfully reproduce it as a no-op.
+        // AS: _parent._x += vx;
+        // AS: _parent._y += vy;
+        // AS: _Y = _Y + (f += g);
+        // AS: if(_Y > 0) { bounce logic }
         const g = clip.vars.g as number;
         let amp = clip.vars.amp as number;
         let vx = clip.vars.vx as number;
         let vy = clip.vars.vy as number;
         let f = clip.vars.f as number;
-        const vrot = clip.vars.vrot as number;
 
-        // AS: _rotation == vrot  (note: == not = in canonical AS, this is a no-op comparison)
-        // Per canonical AS this is a comparison (==), not assignment. No-op — intentionally skip.
+        // _rotation == vrot → no-op (comparison, not assignment)
 
-        // AS: _parent._x += vx; _parent._y += vy;
-        // _parent here is sprite_8 (the outer clip that contains this bounce particle)
+        // _parent._x += vx  — move the parent container (sprite_8 sub-clip)
         const parent = clip.parent;
         if (parent) {
           parent.x += vx;
           parent.y += vy;
         }
 
-        // AS: _Y = _Y + (f += g)
+        // _Y = _Y + (f += g)
         f += g;
-        clip.y = clip.y + f;
-        clip.vars.f = f;
+        clip.y += f;
 
-        // AS: if(_Y > 0) { bounce }
+        // Bounce when hitting ground (y > 0 in Flash local coords)
         if (clip.y > 0) {
-          // AS: vrot *= 0.5 (but vrot is a local var, not reassigned back — canonical quirk, skip)
-          // AS: _Y = 0
+          // AS: vrot *= 0.5;
+          // AS: _Y = 0;
+          // AS: f = (-f) / 2;
+          // AS: amp *= 0.6;
+          // AS: vx = amp * (-0.5 + Math.random());
+          // AS: vy = amp * (-0.5 + Math.random());
+          clip.vars.vrot = (clip.vars.vrot as number) * 0.5;
           clip.y = 0;
-          // AS: f = (-f) / 2
-          clip.vars.f = (-f) / 2;
-          // AS: amp *= 0.6
+          f = (-f) / 2;
           amp *= 0.6;
-          clip.vars.amp = amp;
-          // AS: vx = amp * (-0.5 + Math.random())
           vx = amp * (-0.5 + Math.random());
-          clip.vars.vx = vx;
-          // AS: vy = amp * (-0.5 + Math.random())
           vy = amp * (-0.5 + Math.random());
-          clip.vars.vy = vy;
-        } else {
-          clip.vars.vx = vx;
-          clip.vars.vy = vy;
         }
+
+        clip.vars.f = f;
+        clip.vars.amp = amp;
+        clip.vars.vx = vx;
+        clip.vars.vy = vy;
       },
     };
 
-    // ---- sub-sprite for fade (PlaceObject2_7_3 inside sprite_8 frame_109) ----
-    // Container-only clip; onEnterFrame decrements parent alpha by 10 each frame.
-    const fadeSym: SymbolDefinition = {
-      name: "_fade_controller",
+    // ---- fadeOverlay — alpha-fade overlay attached at frame_109 ----
+    // Placed by DefineSprite_8/frame_109/PlaceObject2_7_3 with only
+    // an onClipEvent(enterFrame) that reduces parent alpha.
+    // frames: [] — container-only.
+    //
+    // AS: DefineSprite_8/frame_109/PlaceObject2_7_3/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    const fadeOverlaySym: SymbolDefinition = {
+      name: "fadeOverlay",
       totalFrames: 1,
       frames: [],
       anchorX: 0.5,
       anchorY: 0.5,
-      // AS: DefineSprite_8/frame_109/PlaceObject2_7_3/CLIPACTIONRECORD onClipEvent(enterFrame).as
       onEnterFrame: (clip) => {
-        // AS: _parent._alpha -= 10  (parent is sprite_8)
+        // AS: _parent._alpha -= 10;
+        // Affects the sprite_8 clip's alpha. 10 in AS 0-100 scale = 0.1 in 0-1.
         const parent = clip.parent;
         if (parent) {
           parent.alpha = Math.max(0, parent.alpha - 10 / 100);
@@ -157,9 +188,13 @@ export class Spell2056 extends RuntimeSpell {
       },
     };
 
-    // ---- sprite_3 — caster-side arrow/beam (24 frames) ----------
-    // frame_1: position at cellFrom, rotate to angle
-    // frame_22: stop()
+    // ---- sprite_3 — caster-side beam/arrow (24 frames) ----
+    // AS: DefineSprite_3/frame_1/DoAction.as
+    //   _rotation = _parent.angle;
+    //   _X = _parent.cellFrom.x;
+    //   _Y = _parent.cellFrom.y;
+    // AS: DefineSprite_3/frame_22/DoAction.as
+    //   stop();
     this.sprite3Sym = {
       name: "sprite_3",
       totalFrames: 24,
@@ -171,9 +206,6 @@ export class Spell2056 extends RuntimeSpell {
           0,
           (clip) => {
             // AS: DefineSprite_3/frame_1/DoAction.as
-            // _rotation = _parent.angle;
-            // _X = _parent.cellFrom.x;
-            // _Y = _parent.cellFrom.y;
             const root = clip.parent;
             const angleDeg = (root?.vars.angle as number) ?? 0;
             const cellFrom = root?.vars.cellFrom as
@@ -189,19 +221,22 @@ export class Spell2056 extends RuntimeSpell {
         [
           21,
           (clip) => {
-            // AS: DefineSprite_3/frame_22/DoAction.as
-            // stop();
+            // AS: DefineSprite_3/frame_22/DoAction.as → stop()
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- sprite_8 — target-side impact (144 frames) -------------
-    // frame_1: this.end() → signalHit; position at cellTo
-    // frame_7: attach bounce particle sub-sprite
-    // frame_109: attach fade controller sub-sprite
-    // frame_142: _parent.removeMovieClip(); stop() → complete()
+    // ---- sprite_8 — target-side impact composite (144 frames) ----
+    // AS: DefineSprite_8/frame_1/DoAction.as
+    //   this.end();           → signalHit
+    //   _X = _parent.cellTo.x;
+    //   _Y = _parent.cellTo.y;
+    // AS: DefineSprite_8/frame_7 places bounceParticle (PlaceObject2_5_1)
+    // AS: DefineSprite_8/frame_109 places fadeOverlay (PlaceObject2_7_3)
+    // AS: DefineSprite_8/frame_142/DoAction.as
+    //   _parent.removeMovieClip(); stop(); → complete
     this.sprite8Sym = {
       name: "sprite_8",
       totalFrames: 144,
@@ -213,9 +248,7 @@ export class Spell2056 extends RuntimeSpell {
           0,
           (clip) => {
             // AS: DefineSprite_8/frame_1/DoAction.as
-            // this.end();
-            // _X = _parent.cellTo.x;
-            // _Y = _parent.cellTo.y;
+            // this.end() → signalHit (damage popup at target)
             this.runtime.signalHit();
             const root = clip.parent;
             const cellTo = root?.vars.cellTo as
@@ -230,49 +263,44 @@ export class Spell2056 extends RuntimeSpell {
         [
           6,
           (clip, ctx) => {
-            // AS: DefineSprite_8/frame_7 — PlaceObject2_5_1 placed with clipEvents
-            // This is the frame where the bounce particle is placed on sprite_8.
-            clip.attach(bounceSym, "_bounce_particle_1", 5, ctx);
+            // AS: DefineSprite_8/frame_7 — PlaceObject2_5_1 places bounceParticle
+            // Attach the bounce particle at depth 1 inside sprite_8.
+            clip.attach(bounceParticleSym, "bounceParticle", 1, ctx);
           },
         ],
         [
           108,
           (clip, ctx) => {
-            // AS: DefineSprite_8/frame_109 — PlaceObject2_7_3 placed with clipEvents
-            // This is the frame where the fade controller is placed on sprite_8.
-            clip.attach(fadeSym, "_fade_controller_3", 7, ctx);
+            // AS: DefineSprite_8/frame_109 — PlaceObject2_7_3 places fadeOverlay
+            // Attach the fade overlay at depth 3 inside sprite_8.
+            clip.attach(fadeOverlaySym, "fadeOverlay", 3, ctx);
           },
         ],
         [
           141,
           (clip) => {
             // AS: DefineSprite_8/frame_142/DoAction.as
-            // _parent.removeMovieClip();
-            // stop();
-            clip.stop();
-            const parent = clip.parent;
-            if (parent) {
-              parent.remove();
-            }
+            // _parent.removeMovieClip(); stop();
+            clip.remove();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
-    this.registry.register(bounceSym);
-    this.registry.register(fadeSym);
+    this.registry.register(bounceParticleSym);
+    this.registry.register(fadeOverlaySym);
     this.registry.register(this.sprite3Sym);
     this.registry.register(this.sprite8Sym);
   }
 
   protected onSpellStart(
     _callbacks: SpellCallbacks,
-    context: SpellContext
+    context: SpellContext,
   ): void {
-    // AS: scripts/frame_2/DoAction.as → stop()
-    // No sound in the canonical main timeline.
-    // Attach both authored timelines to root so they start ticking immediately.
+    // AS: frame_2/DoAction.as → stop() only; no sound.
+    // Implicit frame_1 placement of sprite_3 (caster beam) and
+    // sprite_8 (target impact) on the main timeline.
     this.root.attach(this.sprite3Sym, "sprite_3", 1, context);
     this.root.attach(this.sprite8Sym, "sprite_8", 2, context);
   }

@@ -1,0 +1,604 @@
+/*
+ * GENERATED — do not edit.
+ * Source: apps/electrobun/public/assets/dofassets/points/<style>/<type>.json
+ * Producer: tools/asset-pipeline/src/stages/compile/points-css.ts
+ *
+ * Run `bun run pipeline points` to regenerate. Each (style, type)
+ * pair compiles into one curve @keyframes (animating the
+ * @property-typed CSS variables --pt-tx / --pt-ty / --pt-sx /
+ * --pt-sy / --pt-opacity that the spans in points.css read) plus
+ * either a pair of cxform colour @keyframes (when the SWF carries
+ * a non-identity cxform such as the damage white-flash) or a pair
+ * of static --bright-color / --shadow-color rules (identity cxform —
+ * AP, MP, etc. ship without any colour animation).
+ */
+
+/* ── style=0 type=0 (26 frames @ 30fps = 866.67ms, color 0xff0000) ── */
+.dofus-point--0-0 {
+  animation: dofus-point-0-0-curve 866.67ms linear forwards;
+}
+.dofus-point--0-0 .dofus-point__bright { --bright-color: rgb(255, 0, 0); }
+.dofus-point--0-0 .dofus-point__shadow { --shadow-color: rgb(153, 0, 0); }
+
+@keyframes dofus-point-0-0-curve {
+  0% { --pt-tx: 0; --pt-ty: 10.3; --pt-sx: 1.82; --pt-sy: 1.82; --pt-opacity: 1; }
+  4% { --pt-tx: 0; --pt-ty: 6.25; --pt-sx: 2.0067; --pt-sy: 2.0067; --pt-opacity: 1; }
+  8% { --pt-tx: 0; --pt-ty: 2.15; --pt-sx: 2.1933; --pt-sy: 2.1933; --pt-opacity: 1; }
+  12% { --pt-tx: 0; --pt-ty: -1.9; --pt-sx: 2.38; --pt-sy: 2.38; --pt-opacity: 1; }
+  16% { --pt-tx: 0; --pt-ty: -5.95; --pt-sx: 2.5667; --pt-sy: 2.5667; --pt-opacity: 1; }
+  20% { --pt-tx: 0; --pt-ty: -10.05; --pt-sx: 2.7533; --pt-sy: 2.7533; --pt-opacity: 1; }
+  24% { --pt-tx: 0; --pt-ty: -14.1; --pt-sx: 2.94; --pt-sy: 2.94; --pt-opacity: 1; }
+  28% { --pt-tx: 0; --pt-ty: -18.15; --pt-sx: 3.1266; --pt-sy: 3.1266; --pt-opacity: 1; }
+  32% { --pt-tx: 0; --pt-ty: -22.3; --pt-sx: 3.3133; --pt-sy: 3.3133; --pt-opacity: 1; }
+  36% { --pt-tx: 0; --pt-ty: -26.2; --pt-sx: 3.5; --pt-sy: 3.5; --pt-opacity: 1; }
+  40% { --pt-tx: 0; --pt-ty: -26.05; --pt-sx: 3.3438; --pt-sy: 3.3438; --pt-opacity: 1; }
+  44% { --pt-tx: 0; --pt-ty: -26; --pt-sx: 3.1876; --pt-sy: 3.1876; --pt-opacity: 1; }
+  48% { --pt-tx: 0; --pt-ty: -25.9; --pt-sx: 3.0313; --pt-sy: 3.0313; --pt-opacity: 1; }
+  52% { --pt-tx: 0; --pt-ty: -25.85; --pt-sx: 2.875; --pt-sy: 2.875; --pt-opacity: 1; }
+  56% { --pt-tx: 0; --pt-ty: -25.75; --pt-sx: 2.7188; --pt-sy: 2.7188; --pt-opacity: 1; }
+  60% { --pt-tx: 0; --pt-ty: -25.75; --pt-sx: 2.5626; --pt-sy: 2.5626; --pt-opacity: 1; }
+  64% { --pt-tx: 0; --pt-ty: -25.6; --pt-sx: 2.4063; --pt-sy: 2.4063; --pt-opacity: 1; }
+  68% { --pt-tx: 0; --pt-ty: -25.55; --pt-sx: 2.25; --pt-sy: 2.25; --pt-opacity: 1; }
+  72% { --pt-tx: 0; --pt-ty: -25.45; --pt-sx: 2.0938; --pt-sy: 2.0938; --pt-opacity: 1; }
+  76% { --pt-tx: 0; --pt-ty: -25.4; --pt-sx: 1.9375; --pt-sy: 1.9375; --pt-opacity: 1; }
+  80% { --pt-tx: 0; --pt-ty: -25.35; --pt-sx: 1.7813; --pt-sy: 1.7813; --pt-opacity: 1; }
+  84% { --pt-tx: 0; --pt-ty: -25.25; --pt-sx: 1.625; --pt-sy: 1.625; --pt-opacity: 1; }
+  88% { --pt-tx: 0; --pt-ty: -25.2; --pt-sx: 1.4688; --pt-sy: 1.4688; --pt-opacity: 1; }
+  92% { --pt-tx: 0; --pt-ty: -25.15; --pt-sx: 1.3125; --pt-sy: 1.3125; --pt-opacity: 1; }
+  96% { --pt-tx: 0; --pt-ty: -25.05; --pt-sx: 1.1563; --pt-sy: 1.1563; --pt-opacity: 1; }
+  100% { --pt-tx: 0; --pt-ty: -25; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+}
+
+/* ── style=0 type=1 (26 frames @ 30fps = 866.67ms, color 0x0000ff) ── */
+.dofus-point--0-1 {
+  animation: dofus-point-0-1-curve 866.67ms linear forwards;
+}
+.dofus-point--0-1 .dofus-point__bright { --bright-color: rgb(0, 0, 255); }
+.dofus-point--0-1 .dofus-point__shadow { --shadow-color: rgb(0, 0, 153); }
+
+@keyframes dofus-point-0-1-curve {
+  0% { --pt-tx: 0; --pt-ty: 10.3; --pt-sx: 1.82; --pt-sy: 1.82; --pt-opacity: 1; }
+  4% { --pt-tx: 0; --pt-ty: 6.25; --pt-sx: 2.0067; --pt-sy: 2.0067; --pt-opacity: 1; }
+  8% { --pt-tx: 0; --pt-ty: 2.15; --pt-sx: 2.1933; --pt-sy: 2.1933; --pt-opacity: 1; }
+  12% { --pt-tx: 0; --pt-ty: -1.9; --pt-sx: 2.38; --pt-sy: 2.38; --pt-opacity: 1; }
+  16% { --pt-tx: 0; --pt-ty: -5.95; --pt-sx: 2.5667; --pt-sy: 2.5667; --pt-opacity: 1; }
+  20% { --pt-tx: 0; --pt-ty: -10.05; --pt-sx: 2.7533; --pt-sy: 2.7533; --pt-opacity: 1; }
+  24% { --pt-tx: 0; --pt-ty: -14.1; --pt-sx: 2.94; --pt-sy: 2.94; --pt-opacity: 1; }
+  28% { --pt-tx: 0; --pt-ty: -18.15; --pt-sx: 3.1266; --pt-sy: 3.1266; --pt-opacity: 1; }
+  32% { --pt-tx: 0; --pt-ty: -22.3; --pt-sx: 3.3133; --pt-sy: 3.3133; --pt-opacity: 1; }
+  36% { --pt-tx: 0; --pt-ty: -26.2; --pt-sx: 3.5; --pt-sy: 3.5; --pt-opacity: 1; }
+  40% { --pt-tx: 0; --pt-ty: -26.05; --pt-sx: 3.3438; --pt-sy: 3.3438; --pt-opacity: 1; }
+  44% { --pt-tx: 0; --pt-ty: -26; --pt-sx: 3.1876; --pt-sy: 3.1876; --pt-opacity: 1; }
+  48% { --pt-tx: 0; --pt-ty: -25.9; --pt-sx: 3.0313; --pt-sy: 3.0313; --pt-opacity: 1; }
+  52% { --pt-tx: 0; --pt-ty: -25.85; --pt-sx: 2.875; --pt-sy: 2.875; --pt-opacity: 1; }
+  56% { --pt-tx: 0; --pt-ty: -25.75; --pt-sx: 2.7188; --pt-sy: 2.7188; --pt-opacity: 1; }
+  60% { --pt-tx: 0; --pt-ty: -25.75; --pt-sx: 2.5626; --pt-sy: 2.5626; --pt-opacity: 1; }
+  64% { --pt-tx: 0; --pt-ty: -25.6; --pt-sx: 2.4063; --pt-sy: 2.4063; --pt-opacity: 1; }
+  68% { --pt-tx: 0; --pt-ty: -25.55; --pt-sx: 2.25; --pt-sy: 2.25; --pt-opacity: 1; }
+  72% { --pt-tx: 0; --pt-ty: -25.45; --pt-sx: 2.0938; --pt-sy: 2.0938; --pt-opacity: 1; }
+  76% { --pt-tx: 0; --pt-ty: -25.4; --pt-sx: 1.9375; --pt-sy: 1.9375; --pt-opacity: 1; }
+  80% { --pt-tx: 0; --pt-ty: -25.35; --pt-sx: 1.7813; --pt-sy: 1.7813; --pt-opacity: 1; }
+  84% { --pt-tx: 0; --pt-ty: -25.25; --pt-sx: 1.625; --pt-sy: 1.625; --pt-opacity: 1; }
+  88% { --pt-tx: 0; --pt-ty: -25.2; --pt-sx: 1.4688; --pt-sy: 1.4688; --pt-opacity: 1; }
+  92% { --pt-tx: 0; --pt-ty: -25.15; --pt-sx: 1.3125; --pt-sy: 1.3125; --pt-opacity: 1; }
+  96% { --pt-tx: 0; --pt-ty: -25.05; --pt-sx: 1.1563; --pt-sy: 1.1563; --pt-opacity: 1; }
+  100% { --pt-tx: 0; --pt-ty: -25; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+}
+
+/* ── style=0 type=2 (26 frames @ 30fps = 866.67ms, color 0x006600) ── */
+.dofus-point--0-2 {
+  animation: dofus-point-0-2-curve 866.67ms linear forwards;
+}
+.dofus-point--0-2 .dofus-point__bright { --bright-color: rgb(0, 102, 0); }
+.dofus-point--0-2 .dofus-point__shadow { --shadow-color: rgb(0, 61, 0); }
+
+@keyframes dofus-point-0-2-curve {
+  0% { --pt-tx: 0; --pt-ty: 10.3; --pt-sx: 1.82; --pt-sy: 1.82; --pt-opacity: 1; }
+  4% { --pt-tx: 0; --pt-ty: 6.25; --pt-sx: 2.0067; --pt-sy: 2.0067; --pt-opacity: 1; }
+  8% { --pt-tx: 0; --pt-ty: 2.15; --pt-sx: 2.1933; --pt-sy: 2.1933; --pt-opacity: 1; }
+  12% { --pt-tx: 0; --pt-ty: -1.9; --pt-sx: 2.38; --pt-sy: 2.38; --pt-opacity: 1; }
+  16% { --pt-tx: 0; --pt-ty: -5.95; --pt-sx: 2.5667; --pt-sy: 2.5667; --pt-opacity: 1; }
+  20% { --pt-tx: 0; --pt-ty: -10.05; --pt-sx: 2.7533; --pt-sy: 2.7533; --pt-opacity: 1; }
+  24% { --pt-tx: 0; --pt-ty: -14.1; --pt-sx: 2.94; --pt-sy: 2.94; --pt-opacity: 1; }
+  28% { --pt-tx: 0; --pt-ty: -18.15; --pt-sx: 3.1266; --pt-sy: 3.1266; --pt-opacity: 1; }
+  32% { --pt-tx: 0; --pt-ty: -22.3; --pt-sx: 3.3133; --pt-sy: 3.3133; --pt-opacity: 1; }
+  36% { --pt-tx: 0; --pt-ty: -26.2; --pt-sx: 3.5; --pt-sy: 3.5; --pt-opacity: 1; }
+  40% { --pt-tx: 0; --pt-ty: -26.05; --pt-sx: 3.3438; --pt-sy: 3.3438; --pt-opacity: 1; }
+  44% { --pt-tx: 0; --pt-ty: -26; --pt-sx: 3.1876; --pt-sy: 3.1876; --pt-opacity: 1; }
+  48% { --pt-tx: 0; --pt-ty: -25.9; --pt-sx: 3.0313; --pt-sy: 3.0313; --pt-opacity: 1; }
+  52% { --pt-tx: 0; --pt-ty: -25.85; --pt-sx: 2.875; --pt-sy: 2.875; --pt-opacity: 1; }
+  56% { --pt-tx: 0; --pt-ty: -25.75; --pt-sx: 2.7188; --pt-sy: 2.7188; --pt-opacity: 1; }
+  60% { --pt-tx: 0; --pt-ty: -25.75; --pt-sx: 2.5626; --pt-sy: 2.5626; --pt-opacity: 1; }
+  64% { --pt-tx: 0; --pt-ty: -25.6; --pt-sx: 2.4063; --pt-sy: 2.4063; --pt-opacity: 1; }
+  68% { --pt-tx: 0; --pt-ty: -25.55; --pt-sx: 2.25; --pt-sy: 2.25; --pt-opacity: 1; }
+  72% { --pt-tx: 0; --pt-ty: -25.45; --pt-sx: 2.0938; --pt-sy: 2.0938; --pt-opacity: 1; }
+  76% { --pt-tx: 0; --pt-ty: -25.4; --pt-sx: 1.9375; --pt-sy: 1.9375; --pt-opacity: 1; }
+  80% { --pt-tx: 0; --pt-ty: -25.35; --pt-sx: 1.7813; --pt-sy: 1.7813; --pt-opacity: 1; }
+  84% { --pt-tx: 0; --pt-ty: -25.25; --pt-sx: 1.625; --pt-sy: 1.625; --pt-opacity: 1; }
+  88% { --pt-tx: 0; --pt-ty: -25.2; --pt-sx: 1.4688; --pt-sy: 1.4688; --pt-opacity: 1; }
+  92% { --pt-tx: 0; --pt-ty: -25.15; --pt-sx: 1.3125; --pt-sy: 1.3125; --pt-opacity: 1; }
+  96% { --pt-tx: 0; --pt-ty: -25.05; --pt-sx: 1.1563; --pt-sy: 1.1563; --pt-opacity: 1; }
+  100% { --pt-tx: 0; --pt-ty: -25; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+}
+
+/* ── style=0 type=3 (26 frames @ 30fps = 866.67ms, color 0xff0000) ── */
+.dofus-point--0-3 {
+  animation: dofus-point-0-3-curve 866.67ms linear forwards;
+}
+.dofus-point--0-3 .dofus-point__bright { --bright-color: rgb(255, 0, 0); }
+.dofus-point--0-3 .dofus-point__shadow { --shadow-color: rgb(153, 0, 0); }
+
+@keyframes dofus-point-0-3-curve {
+  0% { --pt-tx: 0; --pt-ty: 10.3; --pt-sx: 1.82; --pt-sy: 1.82; --pt-opacity: 1; }
+  4% { --pt-tx: 0; --pt-ty: 6.25; --pt-sx: 2.0067; --pt-sy: 2.0067; --pt-opacity: 1; }
+  8% { --pt-tx: 0; --pt-ty: 2.15; --pt-sx: 2.1933; --pt-sy: 2.1933; --pt-opacity: 1; }
+  12% { --pt-tx: 0; --pt-ty: -1.9; --pt-sx: 2.38; --pt-sy: 2.38; --pt-opacity: 1; }
+  16% { --pt-tx: 0; --pt-ty: -5.95; --pt-sx: 2.5667; --pt-sy: 2.5667; --pt-opacity: 1; }
+  20% { --pt-tx: 0; --pt-ty: -10.05; --pt-sx: 2.7533; --pt-sy: 2.7533; --pt-opacity: 1; }
+  24% { --pt-tx: 0; --pt-ty: -14.1; --pt-sx: 2.94; --pt-sy: 2.94; --pt-opacity: 1; }
+  28% { --pt-tx: 0; --pt-ty: -18.15; --pt-sx: 3.1266; --pt-sy: 3.1266; --pt-opacity: 1; }
+  32% { --pt-tx: 0; --pt-ty: -22.3; --pt-sx: 3.3133; --pt-sy: 3.3133; --pt-opacity: 1; }
+  36% { --pt-tx: 0; --pt-ty: -26.2; --pt-sx: 3.5; --pt-sy: 3.5; --pt-opacity: 1; }
+  40% { --pt-tx: 0; --pt-ty: -26.05; --pt-sx: 3.3438; --pt-sy: 3.3438; --pt-opacity: 1; }
+  44% { --pt-tx: 0; --pt-ty: -26; --pt-sx: 3.1876; --pt-sy: 3.1876; --pt-opacity: 1; }
+  48% { --pt-tx: 0; --pt-ty: -25.9; --pt-sx: 3.0313; --pt-sy: 3.0313; --pt-opacity: 1; }
+  52% { --pt-tx: 0; --pt-ty: -25.85; --pt-sx: 2.875; --pt-sy: 2.875; --pt-opacity: 1; }
+  56% { --pt-tx: 0; --pt-ty: -25.75; --pt-sx: 2.7188; --pt-sy: 2.7188; --pt-opacity: 1; }
+  60% { --pt-tx: 0; --pt-ty: -25.75; --pt-sx: 2.5626; --pt-sy: 2.5626; --pt-opacity: 1; }
+  64% { --pt-tx: 0; --pt-ty: -25.6; --pt-sx: 2.4063; --pt-sy: 2.4063; --pt-opacity: 1; }
+  68% { --pt-tx: 0; --pt-ty: -25.55; --pt-sx: 2.25; --pt-sy: 2.25; --pt-opacity: 1; }
+  72% { --pt-tx: 0; --pt-ty: -25.45; --pt-sx: 2.0938; --pt-sy: 2.0938; --pt-opacity: 1; }
+  76% { --pt-tx: 0; --pt-ty: -25.4; --pt-sx: 1.9375; --pt-sy: 1.9375; --pt-opacity: 1; }
+  80% { --pt-tx: 0; --pt-ty: -25.35; --pt-sx: 1.7813; --pt-sy: 1.7813; --pt-opacity: 1; }
+  84% { --pt-tx: 0; --pt-ty: -25.25; --pt-sx: 1.625; --pt-sy: 1.625; --pt-opacity: 1; }
+  88% { --pt-tx: 0; --pt-ty: -25.2; --pt-sx: 1.4688; --pt-sy: 1.4688; --pt-opacity: 1; }
+  92% { --pt-tx: 0; --pt-ty: -25.15; --pt-sx: 1.3125; --pt-sy: 1.3125; --pt-opacity: 1; }
+  96% { --pt-tx: 0; --pt-ty: -25.05; --pt-sx: 1.1563; --pt-sy: 1.1563; --pt-opacity: 1; }
+  100% { --pt-tx: 0; --pt-ty: -25; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+}
+
+/* ── style=0 type=4 (26 frames @ 30fps = 866.67ms, color 0xb04600) ── */
+.dofus-point--0-4 {
+  animation: dofus-point-0-4-curve 866.67ms linear forwards;
+}
+.dofus-point--0-4 .dofus-point__bright { --bright-color: rgb(176, 70, 0); }
+.dofus-point--0-4 .dofus-point__shadow { --shadow-color: rgb(106, 42, 0); }
+
+@keyframes dofus-point-0-4-curve {
+  0% { --pt-tx: 0; --pt-ty: 10.3; --pt-sx: 1.82; --pt-sy: 1.82; --pt-opacity: 1; }
+  4% { --pt-tx: 0; --pt-ty: 6.25; --pt-sx: 2.0067; --pt-sy: 2.0067; --pt-opacity: 1; }
+  8% { --pt-tx: 0; --pt-ty: 2.15; --pt-sx: 2.1933; --pt-sy: 2.1933; --pt-opacity: 1; }
+  12% { --pt-tx: 0; --pt-ty: -1.9; --pt-sx: 2.38; --pt-sy: 2.38; --pt-opacity: 1; }
+  16% { --pt-tx: 0; --pt-ty: -5.95; --pt-sx: 2.5667; --pt-sy: 2.5667; --pt-opacity: 1; }
+  20% { --pt-tx: 0; --pt-ty: -10.05; --pt-sx: 2.7533; --pt-sy: 2.7533; --pt-opacity: 1; }
+  24% { --pt-tx: 0; --pt-ty: -14.1; --pt-sx: 2.94; --pt-sy: 2.94; --pt-opacity: 1; }
+  28% { --pt-tx: 0; --pt-ty: -18.15; --pt-sx: 3.1266; --pt-sy: 3.1266; --pt-opacity: 1; }
+  32% { --pt-tx: 0; --pt-ty: -22.3; --pt-sx: 3.3133; --pt-sy: 3.3133; --pt-opacity: 1; }
+  36% { --pt-tx: 0; --pt-ty: -26.2; --pt-sx: 3.5; --pt-sy: 3.5; --pt-opacity: 1; }
+  40% { --pt-tx: 0; --pt-ty: -26.05; --pt-sx: 3.3438; --pt-sy: 3.3438; --pt-opacity: 1; }
+  44% { --pt-tx: 0; --pt-ty: -26; --pt-sx: 3.1876; --pt-sy: 3.1876; --pt-opacity: 1; }
+  48% { --pt-tx: 0; --pt-ty: -25.9; --pt-sx: 3.0313; --pt-sy: 3.0313; --pt-opacity: 1; }
+  52% { --pt-tx: 0; --pt-ty: -25.85; --pt-sx: 2.875; --pt-sy: 2.875; --pt-opacity: 1; }
+  56% { --pt-tx: 0; --pt-ty: -25.75; --pt-sx: 2.7188; --pt-sy: 2.7188; --pt-opacity: 1; }
+  60% { --pt-tx: 0; --pt-ty: -25.75; --pt-sx: 2.5626; --pt-sy: 2.5626; --pt-opacity: 1; }
+  64% { --pt-tx: 0; --pt-ty: -25.6; --pt-sx: 2.4063; --pt-sy: 2.4063; --pt-opacity: 1; }
+  68% { --pt-tx: 0; --pt-ty: -25.55; --pt-sx: 2.25; --pt-sy: 2.25; --pt-opacity: 1; }
+  72% { --pt-tx: 0; --pt-ty: -25.45; --pt-sx: 2.0938; --pt-sy: 2.0938; --pt-opacity: 1; }
+  76% { --pt-tx: 0; --pt-ty: -25.4; --pt-sx: 1.9375; --pt-sy: 1.9375; --pt-opacity: 1; }
+  80% { --pt-tx: 0; --pt-ty: -25.35; --pt-sx: 1.7813; --pt-sy: 1.7813; --pt-opacity: 1; }
+  84% { --pt-tx: 0; --pt-ty: -25.25; --pt-sx: 1.625; --pt-sy: 1.625; --pt-opacity: 1; }
+  88% { --pt-tx: 0; --pt-ty: -25.2; --pt-sx: 1.4688; --pt-sy: 1.4688; --pt-opacity: 1; }
+  92% { --pt-tx: 0; --pt-ty: -25.15; --pt-sx: 1.3125; --pt-sy: 1.3125; --pt-opacity: 1; }
+  96% { --pt-tx: 0; --pt-ty: -25.05; --pt-sx: 1.1563; --pt-sy: 1.1563; --pt-opacity: 1; }
+  100% { --pt-tx: 0; --pt-ty: -25; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+}
+
+/* ── style=1 type=0 (50 frames @ 30fps = 1666.67ms, color 0xff3300) ── */
+.dofus-point--1-0 {
+  animation: dofus-point-1-0-curve 1666.67ms linear forwards;
+}
+.dofus-point--1-0 .dofus-point__bright {
+  animation: dofus-point-1-0-bright 1666.67ms linear forwards;
+}
+.dofus-point--1-0 .dofus-point__shadow {
+  animation: dofus-point-1-0-shadow 1666.67ms linear forwards;
+}
+
+@keyframes dofus-point-1-0-curve {
+  0% { --pt-tx: 0; --pt-ty: 8.4; --pt-sx: 3.01; --pt-sy: 1.59; --pt-opacity: 1; }
+  2.0408% { --pt-tx: 9.7; --pt-ty: 4.6; --pt-sx: 2.7665; --pt-sy: 1.5185; --pt-opacity: 1; }
+  4.0816% { --pt-tx: 0; --pt-ty: 1.05; --pt-sx: 2.5388; --pt-sy: 1.4517; --pt-opacity: 1; }
+  6.1224% { --pt-tx: 8.15; --pt-ty: -2.25; --pt-sx: 2.3268; --pt-sy: 1.3895; --pt-opacity: 1; }
+  8.1633% { --pt-tx: 7.45; --pt-ty: -5.35; --pt-sx: 2.1306; --pt-sy: 1.3318; --pt-opacity: 1; }
+  10.2041% { --pt-tx: 0; --pt-ty: -8.2; --pt-sx: 1.95; --pt-sy: 1.2788; --pt-opacity: 1; }
+  12.2449% { --pt-tx: 0; --pt-ty: -10.8; --pt-sx: 1.7851; --pt-sy: 1.2304; --pt-opacity: 1; }
+  14.2857% { --pt-tx: 5.75; --pt-ty: -13.15; --pt-sx: 1.6359; --pt-sy: 1.1866; --pt-opacity: 1; }
+  16.3265% { --pt-tx: 5.25; --pt-ty: -15.25; --pt-sx: 1.5024; --pt-sy: 1.1475; --pt-opacity: 1; }
+  18.3673% { --pt-tx: 0; --pt-ty: -17.05; --pt-sx: 1.3847; --pt-sy: 1.1129; --pt-opacity: 1; }
+  20.4082% { --pt-tx: 0; --pt-ty: -18.7; --pt-sx: 1.2826; --pt-sy: 1.0829; --pt-opacity: 1; }
+  22.449% { --pt-tx: 0; --pt-ty: -20.05; --pt-sx: 1.1963; --pt-sy: 1.0576; --pt-opacity: 1; }
+  24.4898% { --pt-tx: 0; --pt-ty: -21.1; --pt-sx: 1.1256; --pt-sy: 1.0369; --pt-opacity: 1; }
+  26.5306% { --pt-tx: 0; --pt-ty: -22; --pt-sx: 1.0706; --pt-sy: 1.0207; --pt-opacity: 1; }
+  28.5714% { --pt-tx: 0; --pt-ty: -22.6; --pt-sx: 1.0314; --pt-sy: 1.0092; --pt-opacity: 1; }
+  30.6122% { --pt-tx: 0; --pt-ty: -23; --pt-sx: 1.0078; --pt-sy: 1.0023; --pt-opacity: 1; }
+  32.6531% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  34.6939% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  36.7347% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  38.7755% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  40.8163% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  42.8571% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  44.898% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  46.9388% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  48.9796% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  51.0204% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  53.0612% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  55.102% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  57.1429% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  59.1837% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  61.2245% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  63.2653% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  65.3061% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  67.3469% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  69.3878% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  71.4286% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  73.4694% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  75.5102% { --pt-tx: 0; --pt-ty: -25; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.8516; }
+  77.551% { --pt-tx: 0; --pt-ty: -26.8; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.7148; }
+  79.5918% { --pt-tx: 0; --pt-ty: -28.4; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.5898; }
+  81.6327% { --pt-tx: 0; --pt-ty: -29.85; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.4805; }
+  83.6735% { --pt-tx: 0; --pt-ty: -31.15; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.3789; }
+  85.7143% { --pt-tx: 0; --pt-ty: -32.3; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.2891; }
+  87.7551% { --pt-tx: 0; --pt-ty: -33.3; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.2148; }
+  89.7959% { --pt-tx: 0; --pt-ty: -34.15; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.1484; }
+  91.8367% { --pt-tx: 0; --pt-ty: -34.8; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.0938; }
+  93.8776% { --pt-tx: 0; --pt-ty: -35.35; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.0547; }
+  95.9184% { --pt-tx: 0; --pt-ty: -35.75; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.0234; }
+  97.9592% { --pt-tx: 0; --pt-ty: -35.95; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.0078; }
+  100% { --pt-tx: 0; --pt-ty: -36.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0; }
+}
+
+@keyframes dofus-point-1-0-bright {
+  0% { --bright-color: rgb(255, 192, 176); }
+  2.0408% { --bright-color: rgb(255, 175, 155); }
+  4.0816% { --bright-color: rgb(255, 159, 135); }
+  6.1224% { --bright-color: rgb(254, 144, 116); }
+  8.1633% { --bright-color: rgb(254, 130, 99); }
+  10.2041% { --bright-color: rgb(254, 117, 83); }
+  12.2449% { --bright-color: rgb(255, 106, 69); }
+  14.2857% { --bright-color: rgb(255, 96, 56); }
+  16.3265% { --bright-color: rgb(255, 86, 44); }
+  18.3673% { --bright-color: rgb(255, 78, 34); }
+  20.4082% { --bright-color: rgb(255, 71, 25); }
+  22.449% { --bright-color: rgb(255, 65, 17); }
+  24.4898% { --bright-color: rgb(255, 60, 11); }
+  26.5306% { --bright-color: rgb(255, 56, 6); }
+  28.5714% { --bright-color: rgb(255, 53, 3); }
+  30.6122% { --bright-color: rgb(255, 52, 1); }
+  32.6531% { --bright-color: rgb(255, 51, 0); }
+  34.6939% { --bright-color: rgb(255, 51, 0); }
+  36.7347% { --bright-color: rgb(255, 51, 0); }
+  38.7755% { --bright-color: rgb(255, 51, 0); }
+  40.8163% { --bright-color: rgb(255, 51, 0); }
+  42.8571% { --bright-color: rgb(255, 51, 0); }
+  44.898% { --bright-color: rgb(255, 51, 0); }
+  46.9388% { --bright-color: rgb(255, 51, 0); }
+  48.9796% { --bright-color: rgb(255, 51, 0); }
+  51.0204% { --bright-color: rgb(255, 51, 0); }
+  53.0612% { --bright-color: rgb(255, 51, 0); }
+  55.102% { --bright-color: rgb(255, 51, 0); }
+  57.1429% { --bright-color: rgb(255, 51, 0); }
+  59.1837% { --bright-color: rgb(255, 51, 0); }
+  61.2245% { --bright-color: rgb(255, 51, 0); }
+  63.2653% { --bright-color: rgb(255, 51, 0); }
+  65.3061% { --bright-color: rgb(255, 51, 0); }
+  67.3469% { --bright-color: rgb(255, 51, 0); }
+  69.3878% { --bright-color: rgb(255, 51, 0); }
+  71.4286% { --bright-color: rgb(255, 51, 0); }
+  73.4694% { --bright-color: rgb(255, 51, 0); }
+  75.5102% { --bright-color: rgb(255, 51, 0); }
+  77.551% { --bright-color: rgb(255, 51, 0); }
+  79.5918% { --bright-color: rgb(255, 51, 0); }
+  81.6327% { --bright-color: rgb(255, 51, 0); }
+  83.6735% { --bright-color: rgb(255, 51, 0); }
+  85.7143% { --bright-color: rgb(255, 51, 0); }
+  87.7551% { --bright-color: rgb(255, 51, 0); }
+  89.7959% { --bright-color: rgb(255, 51, 0); }
+  91.8367% { --bright-color: rgb(255, 51, 0); }
+  93.8776% { --bright-color: rgb(255, 51, 0); }
+  95.9184% { --bright-color: rgb(255, 51, 0); }
+  97.9592% { --bright-color: rgb(255, 51, 0); }
+  100% { --bright-color: rgb(255, 51, 0); }
+}
+
+@keyframes dofus-point-1-0-shadow {
+  0% { --shadow-color: rgb(223, 185, 176); }
+  2.0408% { --shadow-color: rgb(215, 167, 155); }
+  4.0816% { --shadow-color: rgb(207, 149, 135); }
+  6.1224% { --shadow-color: rgb(199, 133, 116); }
+  8.1633% { --shadow-color: rgb(192, 118, 99); }
+  10.2041% { --shadow-color: rgb(186, 104, 83); }
+  12.2449% { --shadow-color: rgb(181, 91, 69); }
+  14.2857% { --shadow-color: rgb(176, 80, 56); }
+  16.3265% { --shadow-color: rgb(171, 69, 44); }
+  18.3673% { --shadow-color: rgb(167, 61, 34); }
+  20.4082% { --shadow-color: rgb(163, 53, 25); }
+  22.449% { --shadow-color: rgb(160, 46, 17); }
+  24.4898% { --shadow-color: rgb(158, 40, 11); }
+  26.5306% { --shadow-color: rgb(156, 36, 6); }
+  28.5714% { --shadow-color: rgb(155, 33, 3); }
+  30.6122% { --shadow-color: rgb(154, 32, 1); }
+  32.6531% { --shadow-color: rgb(153, 31, 0); }
+  34.6939% { --shadow-color: rgb(153, 31, 0); }
+  36.7347% { --shadow-color: rgb(153, 31, 0); }
+  38.7755% { --shadow-color: rgb(153, 31, 0); }
+  40.8163% { --shadow-color: rgb(153, 31, 0); }
+  42.8571% { --shadow-color: rgb(153, 31, 0); }
+  44.898% { --shadow-color: rgb(153, 31, 0); }
+  46.9388% { --shadow-color: rgb(153, 31, 0); }
+  48.9796% { --shadow-color: rgb(153, 31, 0); }
+  51.0204% { --shadow-color: rgb(153, 31, 0); }
+  53.0612% { --shadow-color: rgb(153, 31, 0); }
+  55.102% { --shadow-color: rgb(153, 31, 0); }
+  57.1429% { --shadow-color: rgb(153, 31, 0); }
+  59.1837% { --shadow-color: rgb(153, 31, 0); }
+  61.2245% { --shadow-color: rgb(153, 31, 0); }
+  63.2653% { --shadow-color: rgb(153, 31, 0); }
+  65.3061% { --shadow-color: rgb(153, 31, 0); }
+  67.3469% { --shadow-color: rgb(153, 31, 0); }
+  69.3878% { --shadow-color: rgb(153, 31, 0); }
+  71.4286% { --shadow-color: rgb(153, 31, 0); }
+  73.4694% { --shadow-color: rgb(153, 31, 0); }
+  75.5102% { --shadow-color: rgb(153, 31, 0); }
+  77.551% { --shadow-color: rgb(153, 31, 0); }
+  79.5918% { --shadow-color: rgb(153, 31, 0); }
+  81.6327% { --shadow-color: rgb(153, 31, 0); }
+  83.6735% { --shadow-color: rgb(153, 31, 0); }
+  85.7143% { --shadow-color: rgb(153, 31, 0); }
+  87.7551% { --shadow-color: rgb(153, 31, 0); }
+  89.7959% { --shadow-color: rgb(153, 31, 0); }
+  91.8367% { --shadow-color: rgb(153, 31, 0); }
+  93.8776% { --shadow-color: rgb(153, 31, 0); }
+  95.9184% { --shadow-color: rgb(153, 31, 0); }
+  97.9592% { --shadow-color: rgb(153, 31, 0); }
+  100% { --shadow-color: rgb(153, 31, 0); }
+}
+
+/* ── style=1 type=1 (50 frames @ 30fps = 1666.67ms, color 0x0033ff) ── */
+.dofus-point--1-1 {
+  animation: dofus-point-1-1-curve 1666.67ms linear forwards;
+}
+.dofus-point--1-1 .dofus-point__bright { --bright-color: rgb(0, 51, 255); }
+.dofus-point--1-1 .dofus-point__shadow { --shadow-color: rgb(0, 31, 153); }
+
+@keyframes dofus-point-1-1-curve {
+  0% { --pt-tx: 0; --pt-ty: 8.4; --pt-sx: 2.2289; --pt-sy: 1; --pt-opacity: 1; }
+  2.0408% { --pt-tx: 0; --pt-ty: 4.6; --pt-sx: 2.08; --pt-sy: 1; --pt-opacity: 1; }
+  4.0816% { --pt-tx: 0.05; --pt-ty: 1.05; --pt-sx: 1.9408; --pt-sy: 1; --pt-opacity: 1; }
+  6.1224% { --pt-tx: 0; --pt-ty: -2.3; --pt-sx: 1.8112; --pt-sy: 1; --pt-opacity: 1; }
+  8.1633% { --pt-tx: 0.05; --pt-ty: -5.35; --pt-sx: 1.6912; --pt-sy: 1; --pt-opacity: 1; }
+  10.2041% { --pt-tx: 0.1; --pt-ty: -8.2; --pt-sx: 1.5808; --pt-sy: 1; --pt-opacity: 1; }
+  12.2449% { --pt-tx: 0.05; --pt-ty: -10.75; --pt-sx: 1.48; --pt-sy: 1; --pt-opacity: 1; }
+  14.2857% { --pt-tx: 0.1; --pt-ty: -13.1; --pt-sx: 1.3888; --pt-sy: 1; --pt-opacity: 1; }
+  16.3265% { --pt-tx: 0.1; --pt-ty: -15.2; --pt-sx: 1.3072; --pt-sy: 1; --pt-opacity: 1; }
+  18.3673% { --pt-tx: 0.15; --pt-ty: -17.05; --pt-sx: 1.2352; --pt-sy: 1; --pt-opacity: 1; }
+  20.4082% { --pt-tx: 0.15; --pt-ty: -18.65; --pt-sx: 1.1728; --pt-sy: 1; --pt-opacity: 1; }
+  22.449% { --pt-tx: 0.1; --pt-ty: -20; --pt-sx: 1.12; --pt-sy: 1; --pt-opacity: 1; }
+  24.4898% { --pt-tx: 0.15; --pt-ty: -21.1; --pt-sx: 1.0768; --pt-sy: 1; --pt-opacity: 1; }
+  26.5306% { --pt-tx: 0.15; --pt-ty: -21.95; --pt-sx: 1.0432; --pt-sy: 1; --pt-opacity: 1; }
+  28.5714% { --pt-tx: 0.15; --pt-ty: -22.55; --pt-sx: 1.0192; --pt-sy: 1; --pt-opacity: 1; }
+  30.6122% { --pt-tx: 0.15; --pt-ty: -22.95; --pt-sx: 1.0048; --pt-sy: 1; --pt-opacity: 1; }
+  32.6531% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  34.6939% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  36.7347% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  38.7755% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  40.8163% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  42.8571% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  44.898% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  46.9388% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  48.9796% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  51.0204% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  53.0612% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  55.102% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  57.1429% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  59.1837% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  61.2245% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  63.2653% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  65.3061% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  67.3469% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  69.3878% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  71.4286% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  73.4694% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  75.5102% { --pt-tx: 0; --pt-ty: -24.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.9219; }
+  77.551% { --pt-tx: 0; --pt-ty: -25.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.8477; }
+  79.5918% { --pt-tx: 0; --pt-ty: -26.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.7695; }
+  81.6327% { --pt-tx: 0; --pt-ty: -27.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.6914; }
+  83.6735% { --pt-tx: 0; --pt-ty: -28.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.6172; }
+  85.7143% { --pt-tx: 0; --pt-ty: -29.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.5391; }
+  87.7551% { --pt-tx: 0.05; --pt-ty: -30; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.4609; }
+  89.7959% { --pt-tx: 0.05; --pt-ty: -31; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.3828; }
+  91.8367% { --pt-tx: 0.05; --pt-ty: -32; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.3086; }
+  93.8776% { --pt-tx: 0.05; --pt-ty: -33; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.2305; }
+  95.9184% { --pt-tx: 0.05; --pt-ty: -33.95; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.1523; }
+  97.9592% { --pt-tx: 0.05; --pt-ty: -34.95; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.0781; }
+  100% { --pt-tx: 0; --pt-ty: -36.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0; }
+}
+
+/* ── style=1 type=2 (50 frames @ 30fps = 1666.67ms, color 0x339900) ── */
+.dofus-point--1-2 {
+  animation: dofus-point-1-2-curve 1666.67ms linear forwards;
+}
+.dofus-point--1-2 .dofus-point__bright { --bright-color: rgb(51, 153, 0); }
+.dofus-point--1-2 .dofus-point__shadow { --shadow-color: rgb(31, 92, 0); }
+
+@keyframes dofus-point-1-2-curve {
+  0% { --pt-tx: 0; --pt-ty: 8.4; --pt-sx: 2.2289; --pt-sy: 1; --pt-opacity: 1; }
+  2.0408% { --pt-tx: 0; --pt-ty: 4.6; --pt-sx: 2.08; --pt-sy: 1; --pt-opacity: 1; }
+  4.0816% { --pt-tx: 0.05; --pt-ty: 1.05; --pt-sx: 1.9408; --pt-sy: 1; --pt-opacity: 1; }
+  6.1224% { --pt-tx: 0; --pt-ty: -2.3; --pt-sx: 1.8112; --pt-sy: 1; --pt-opacity: 1; }
+  8.1633% { --pt-tx: 0.05; --pt-ty: -5.35; --pt-sx: 1.6912; --pt-sy: 1; --pt-opacity: 1; }
+  10.2041% { --pt-tx: 0.1; --pt-ty: -8.2; --pt-sx: 1.5808; --pt-sy: 1; --pt-opacity: 1; }
+  12.2449% { --pt-tx: 0.05; --pt-ty: -10.75; --pt-sx: 1.48; --pt-sy: 1; --pt-opacity: 1; }
+  14.2857% { --pt-tx: 0.1; --pt-ty: -13.1; --pt-sx: 1.3888; --pt-sy: 1; --pt-opacity: 1; }
+  16.3265% { --pt-tx: 0.1; --pt-ty: -15.2; --pt-sx: 1.3072; --pt-sy: 1; --pt-opacity: 1; }
+  18.3673% { --pt-tx: 0.15; --pt-ty: -17.05; --pt-sx: 1.2352; --pt-sy: 1; --pt-opacity: 1; }
+  20.4082% { --pt-tx: 0.15; --pt-ty: -18.65; --pt-sx: 1.1728; --pt-sy: 1; --pt-opacity: 1; }
+  22.449% { --pt-tx: 0.1; --pt-ty: -20; --pt-sx: 1.12; --pt-sy: 1; --pt-opacity: 1; }
+  24.4898% { --pt-tx: 0.15; --pt-ty: -21.1; --pt-sx: 1.0768; --pt-sy: 1; --pt-opacity: 1; }
+  26.5306% { --pt-tx: 0.15; --pt-ty: -21.95; --pt-sx: 1.0432; --pt-sy: 1; --pt-opacity: 1; }
+  28.5714% { --pt-tx: 0.15; --pt-ty: -22.55; --pt-sx: 1.0192; --pt-sy: 1; --pt-opacity: 1; }
+  30.6122% { --pt-tx: 0.15; --pt-ty: -22.95; --pt-sx: 1.0048; --pt-sy: 1; --pt-opacity: 1; }
+  32.6531% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  34.6939% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  36.7347% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  38.7755% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  40.8163% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  42.8571% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  44.898% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  46.9388% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  48.9796% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  51.0204% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  53.0612% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  55.102% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  57.1429% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  59.1837% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  61.2245% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  63.2653% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  65.3061% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  67.3469% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  69.3878% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  71.4286% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  73.4694% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  75.5102% { --pt-tx: 0; --pt-ty: -24.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.9219; }
+  77.551% { --pt-tx: 0; --pt-ty: -25.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.8477; }
+  79.5918% { --pt-tx: 0; --pt-ty: -26.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.7695; }
+  81.6327% { --pt-tx: 0; --pt-ty: -27.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.6914; }
+  83.6735% { --pt-tx: 0; --pt-ty: -28.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.6172; }
+  85.7143% { --pt-tx: 0; --pt-ty: -29.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.5391; }
+  87.7551% { --pt-tx: 0.05; --pt-ty: -30; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.4609; }
+  89.7959% { --pt-tx: 0.05; --pt-ty: -31; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.3828; }
+  91.8367% { --pt-tx: 0.05; --pt-ty: -32; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.3086; }
+  93.8776% { --pt-tx: 0.05; --pt-ty: -33; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.2305; }
+  95.9184% { --pt-tx: 0.05; --pt-ty: -33.95; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.1523; }
+  97.9592% { --pt-tx: 0.05; --pt-ty: -34.95; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.0781; }
+  100% { --pt-tx: 0; --pt-ty: -36.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0; }
+}
+
+/* ── style=1 type=3 (50 frames @ 30fps = 1666.67ms, color 0xff0033) ── */
+.dofus-point--1-3 {
+  animation: dofus-point-1-3-curve 1666.67ms linear forwards;
+}
+.dofus-point--1-3 .dofus-point__bright { --bright-color: rgb(255, 0, 51); }
+.dofus-point--1-3 .dofus-point__shadow { --shadow-color: rgb(153, 0, 31); }
+
+@keyframes dofus-point-1-3-curve {
+  0% { --pt-tx: 0; --pt-ty: 8.4; --pt-sx: 3.0099; --pt-sy: 1.59; --pt-opacity: 1; }
+  2.0408% { --pt-tx: -0.05; --pt-ty: 4.55; --pt-sx: 2.7665; --pt-sy: 1.5186; --pt-opacity: 1; }
+  4.0816% { --pt-tx: 0; --pt-ty: 0.95; --pt-sx: 2.5389; --pt-sy: 1.4517; --pt-opacity: 1; }
+  6.1224% { --pt-tx: -0.05; --pt-ty: -2.35; --pt-sx: 2.3269; --pt-sy: 1.3895; --pt-opacity: 1; }
+  8.1633% { --pt-tx: -0.05; --pt-ty: -5.45; --pt-sx: 2.1306; --pt-sy: 1.3319; --pt-opacity: 1; }
+  10.2041% { --pt-tx: -0.05; --pt-ty: -8.3; --pt-sx: 1.95; --pt-sy: 1.2789; --pt-opacity: 1; }
+  12.2449% { --pt-tx: -0.1; --pt-ty: -10.85; --pt-sx: 1.7851; --pt-sy: 1.2305; --pt-opacity: 1; }
+  14.2857% { --pt-tx: -0.05; --pt-ty: -13.25; --pt-sx: 1.636; --pt-sy: 1.1867; --pt-opacity: 1; }
+  16.3265% { --pt-tx: -0.05; --pt-ty: -15.3; --pt-sx: 1.5025; --pt-sy: 1.1475; --pt-opacity: 1; }
+  18.3673% { --pt-tx: -0.1; --pt-ty: -17.15; --pt-sx: 1.3847; --pt-sy: 1.1129; --pt-opacity: 1; }
+  20.4082% { --pt-tx: -0.1; --pt-ty: -18.8; --pt-sx: 1.2826; --pt-sy: 1.083; --pt-opacity: 1; }
+  22.449% { --pt-tx: -0.05; --pt-ty: -20.15; --pt-sx: 1.1963; --pt-sy: 1.0576; --pt-opacity: 1; }
+  24.4898% { --pt-tx: -0.1; --pt-ty: -21.2; --pt-sx: 1.1256; --pt-sy: 1.0369; --pt-opacity: 1; }
+  26.5306% { --pt-tx: -0.1; --pt-ty: -22.1; --pt-sx: 1.0707; --pt-sy: 1.0208; --pt-opacity: 1; }
+  28.5714% { --pt-tx: -0.1; --pt-ty: -22.7; --pt-sx: 1.0314; --pt-sy: 1.0092; --pt-opacity: 1; }
+  30.6122% { --pt-tx: -0.1; --pt-ty: -23.05; --pt-sx: 1.0078; --pt-sy: 1.0023; --pt-opacity: 1; }
+  32.6531% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  34.6939% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  36.7347% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  38.7755% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  40.8163% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  42.8571% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  44.898% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  46.9388% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  48.9796% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  51.0204% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  53.0612% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  55.102% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1.0111; --pt-sy: 1.0111; --pt-opacity: 1; }
+  57.1429% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1.0444; --pt-sy: 1.0444; --pt-opacity: 1; }
+  59.1837% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1.1; --pt-sy: 1.1; --pt-opacity: 1; }
+  61.2245% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1.1778; --pt-sy: 1.1778; --pt-opacity: 1; }
+  63.2653% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1.2778; --pt-sy: 1.2778; --pt-opacity: 1; }
+  65.3061% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1.4; --pt-sy: 1.4; --pt-opacity: 1; }
+  67.3469% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1.2778; --pt-sy: 1.2778; --pt-opacity: 1; }
+  69.3878% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1.1778; --pt-sy: 1.1778; --pt-opacity: 1; }
+  71.4286% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1.1; --pt-sy: 1.1; --pt-opacity: 1; }
+  73.4694% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1.0444; --pt-sy: 1.0444; --pt-opacity: 1; }
+  75.5102% { --pt-tx: 0; --pt-ty: -24.1; --pt-sx: 1.0111; --pt-sy: 1.0111; --pt-opacity: 0.9219; }
+  77.551% { --pt-tx: 0; --pt-ty: -25.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.8477; }
+  79.5918% { --pt-tx: 0; --pt-ty: -26.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.7695; }
+  81.6327% { --pt-tx: 0; --pt-ty: -27.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.6914; }
+  83.6735% { --pt-tx: 0; --pt-ty: -28.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.6172; }
+  85.7143% { --pt-tx: 0; --pt-ty: -29.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.5391; }
+  87.7551% { --pt-tx: 0; --pt-ty: -30.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.4609; }
+  89.7959% { --pt-tx: 0; --pt-ty: -31.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.3828; }
+  91.8367% { --pt-tx: 0; --pt-ty: -32.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.3086; }
+  93.8776% { --pt-tx: 0; --pt-ty: -33.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.2305; }
+  95.9184% { --pt-tx: 0; --pt-ty: -34.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.1523; }
+  97.9592% { --pt-tx: 0; --pt-ty: -35.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.0781; }
+  100% { --pt-tx: 0; --pt-ty: -36.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0; }
+}
+
+/* ── style=1 type=4 (50 frames @ 30fps = 1666.67ms, color 0xcc6600) ── */
+.dofus-point--1-4 {
+  animation: dofus-point-1-4-curve 1666.67ms linear forwards;
+}
+.dofus-point--1-4 .dofus-point__bright { --bright-color: rgb(204, 102, 0); }
+.dofus-point--1-4 .dofus-point__shadow { --shadow-color: rgb(123, 61, 0); }
+
+@keyframes dofus-point-1-4-curve {
+  0% { --pt-tx: 0; --pt-ty: 8.4; --pt-sx: 2.2289; --pt-sy: 1; --pt-opacity: 1; }
+  2.0408% { --pt-tx: 0; --pt-ty: 4.6; --pt-sx: 2.08; --pt-sy: 1; --pt-opacity: 1; }
+  4.0816% { --pt-tx: 0.05; --pt-ty: 1.05; --pt-sx: 1.9408; --pt-sy: 1; --pt-opacity: 1; }
+  6.1224% { --pt-tx: 0; --pt-ty: -2.3; --pt-sx: 1.8112; --pt-sy: 1; --pt-opacity: 1; }
+  8.1633% { --pt-tx: 0.05; --pt-ty: -5.35; --pt-sx: 1.6912; --pt-sy: 1; --pt-opacity: 1; }
+  10.2041% { --pt-tx: 0.1; --pt-ty: -8.2; --pt-sx: 1.5808; --pt-sy: 1; --pt-opacity: 1; }
+  12.2449% { --pt-tx: 0.05; --pt-ty: -10.75; --pt-sx: 1.48; --pt-sy: 1; --pt-opacity: 1; }
+  14.2857% { --pt-tx: 0.1; --pt-ty: -13.1; --pt-sx: 1.3888; --pt-sy: 1; --pt-opacity: 1; }
+  16.3265% { --pt-tx: 0.1; --pt-ty: -15.2; --pt-sx: 1.3072; --pt-sy: 1; --pt-opacity: 1; }
+  18.3673% { --pt-tx: 0.15; --pt-ty: -17.05; --pt-sx: 1.2352; --pt-sy: 1; --pt-opacity: 1; }
+  20.4082% { --pt-tx: 0.15; --pt-ty: -18.65; --pt-sx: 1.1728; --pt-sy: 1; --pt-opacity: 1; }
+  22.449% { --pt-tx: 0.1; --pt-ty: -20; --pt-sx: 1.12; --pt-sy: 1; --pt-opacity: 1; }
+  24.4898% { --pt-tx: 0.15; --pt-ty: -21.1; --pt-sx: 1.0768; --pt-sy: 1; --pt-opacity: 1; }
+  26.5306% { --pt-tx: 0.15; --pt-ty: -21.95; --pt-sx: 1.0432; --pt-sy: 1; --pt-opacity: 1; }
+  28.5714% { --pt-tx: 0.15; --pt-ty: -22.55; --pt-sx: 1.0192; --pt-sy: 1; --pt-opacity: 1; }
+  30.6122% { --pt-tx: 0.15; --pt-ty: -22.95; --pt-sx: 1.0048; --pt-sy: 1; --pt-opacity: 1; }
+  32.6531% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  34.6939% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  36.7347% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  38.7755% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  40.8163% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  42.8571% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  44.898% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  46.9388% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  48.9796% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  51.0204% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  53.0612% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  55.102% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  57.1429% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  59.1837% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  61.2245% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  63.2653% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  65.3061% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  67.3469% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  69.3878% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  71.4286% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  73.4694% { --pt-tx: 0; --pt-ty: -23.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 1; }
+  75.5102% { --pt-tx: 0; --pt-ty: -24.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.9219; }
+  77.551% { --pt-tx: 0; --pt-ty: -25.1; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.8477; }
+  79.5918% { --pt-tx: 0; --pt-ty: -26.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.7695; }
+  81.6327% { --pt-tx: 0; --pt-ty: -27.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.6914; }
+  83.6735% { --pt-tx: 0; --pt-ty: -28.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.6172; }
+  85.7143% { --pt-tx: 0; --pt-ty: -29.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.5391; }
+  87.7551% { --pt-tx: 0.05; --pt-ty: -30; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.4609; }
+  89.7959% { --pt-tx: 0.05; --pt-ty: -31; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.3828; }
+  91.8367% { --pt-tx: 0.05; --pt-ty: -32; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.3086; }
+  93.8776% { --pt-tx: 0.05; --pt-ty: -33; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.2305; }
+  95.9184% { --pt-tx: 0.05; --pt-ty: -33.95; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.1523; }
+  97.9592% { --pt-tx: 0.05; --pt-ty: -34.95; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0.0781; }
+  100% { --pt-tx: 0; --pt-ty: -36.05; --pt-sx: 1; --pt-sy: 1; --pt-opacity: 0; }
+}

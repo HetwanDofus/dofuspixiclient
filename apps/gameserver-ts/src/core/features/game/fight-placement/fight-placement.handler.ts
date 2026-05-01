@@ -17,6 +17,7 @@ import { PlacementState } from "@modules/fight/core/fight.states";
 import { FightLifecycleService } from "@modules/fight/engine/fight.lifecycle.service";
 import { FighterKind, StateName } from "@modules/fight/fight.types";
 import { FightRegistryService } from "@modules/fight/registry/fight.registry";
+import { fighterColors } from "@features/game/fight-start/fight-start.shared";
 import { Injectable } from "@nestjs/common";
 import { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
 import { MessageHandler } from "@shared/gateway-adapter/message-handler.decorator";
@@ -62,6 +63,14 @@ export class FightPlacementHandler {
                 spriteType: SpriteType.CHARACTER,
                 spriteId: String(fighter.id),
                 cellId: fighter.cell,
+                // Without `direction` on this UPDATE the client falls
+                // back to undefined → 0/SE (Sprite.as:59) and never
+                // refreshes the placement-facing the engine just set.
+                // Result: fighters during placement face their stale
+                // roleplay direction; once the fight starts the engine
+                // re-emits direction and they snap to the correct
+                // SE/NW orientation.
+                direction: fighter.direction,
                 lp: fighter.lp,
                 lpMax: fighter.lpMax,
                 ap: fighter.ap,
@@ -73,6 +82,7 @@ export class FightPlacementHandler {
                     ? fighter.monsterGfx
                     : (fighter.player?.gfx ?? 0),
                 name: fighter.name,
+                colors: fighterColors(fighter),
               }),
             ],
           }),

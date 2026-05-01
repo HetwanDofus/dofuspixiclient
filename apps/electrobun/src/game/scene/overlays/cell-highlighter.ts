@@ -1,6 +1,5 @@
-import { Container, Graphics } from "pixi.js";
-
 import { Direction, getDirOffsets } from "@dofus/grid";
+import { Container, Graphics } from "pixi.js";
 
 import {
   CELL_HALF_HEIGHT,
@@ -25,6 +24,15 @@ export const HighlightType = {
   MOVEMENT: "movement",
   MOVEMENT_PATH: "movement-path",
   ATTACK: "attack",
+  // Spell range layer 1 — the canonical `gfx.drawZone(...)` polygon.
+  // Dark-blue 30% fill with a 1px solid border tracing the outer
+  // perimeter; covers EVERY cell in the radius (including ones where
+  // the spell can't actually be cast). See `GameManager.as:400`.
+  SPELL_RANGE_OUTLINE: "spell-range-outline",
+  // Spell range layer 2 — the canonical `drawAllowedZone` per-cell
+  // tint. Lighter blue 50% painted on each cell that passes
+  // `checkCanLaunchSpellOnCell` (LoS + valid target). Stacks ON TOP
+  // of `SPELL_RANGE_OUTLINE`. See `GameManager.as:470`.
   SPELL_RANGE: "spell-range",
   SPELL_ZONE: "spell-zone",
   SPELL_ZONE_INVALID: "spell-zone-invalid",
@@ -42,24 +50,43 @@ export type HighlightTypeValue =
 /**
  * Highlight colors by type.
  */
-// Dofus 1.29 palette, 1:1 with assets/sources/client-code/dofus/Constants.as
-// (decimal → hex):
-//   CELL_MOVE_RANGE_COLOR   = 39168    → 0x009900 (green,  reachable range via drawZone)
-//   CELL_SPELL_RANGE_COLOR  = 2385558  → 0x246696 (blue,   spell range)
+// Dofus 1.29 palette, 1:1 with `dofus/Constants.as` and the call-site
+// chooser in `dofus.managers.GameManager.drawSpellRange` /
+// `drawAllowedZone` (decimal → hex):
+//   CELL_MOVE_RANGE_COLOR   = 39168    → 0x009900 (green,  movement range — drawZone)
+//   CELL_SPELL_RANGE_COLOR  = 2385558  → 0x246696 (dark blue, spell range polygon —
+//                                                  drawZone, 30% fill + 1px border;
+//                                                  visible only on the cells that
+//                                                  end up "out of LoS / blocked")
+//   "spell allowed" cells   = 26316    → 0x0066CC (lighter blue, drawn per-cell at 50%
+//                                                  via `gfx.select(...)` for every cell
+//                                                  that passes
+//                                                  `checkCanLaunchSpellOnCell` — see
+//                                                  GameManager.as:470)
 //   CELL_PATH_COLOR         = 16737792 → 0xFF6600 (orange, hovered path & AoE preview)
-//   CELL_PATH_OVER_COLOR    = 16737792 → 0xFF6600 (orange, hovered path — 1.29 uses
-//                                                 this on rollover via gfx.select,
-//                                                 see InteractionsManager.as:91)
+//   CELL_PATH_OVER_COLOR    = 16737792 → 0xFF6600 (orange, hovered path on rollover —
+//                                                  InteractionsManager.as:91)
 //   CELL_PATH_SELECT_COLOR  = 2385558  → 0x246696 (blue,   on-release flash)
-//   CELL_SPELL_EFFECT_COLOR = 16737792 → 0xFF6600 (orange, spell effect)
+//   CELL_SPELL_EFFECT_COLOR = 16737792 → 0xFF6600 (orange, spell AoE)
 //   TEAMS_COLOR             = [16711680, 255] → [0xFF0000, 0x0000FF]
 //                              team 0 = red, team 1 = blue
 const HIGHLIGHT_COLORS: Record<HighlightTypeValue, number> = {
   [HighlightType.MOVEMENT]: 0x009900,
   [HighlightType.MOVEMENT_PATH]: 0xff6600,
   [HighlightType.ATTACK]: 0xff6600,
-  [HighlightType.SPELL_RANGE]: 0x246696,
+  // Spell range underlay polygon — `CELL_SPELL_RANGE_COLOR = 2385558`
+  // = `0x246696`. Drawn via `gfx.drawZone` as ONE filled diamond at
+  // 30% alpha + a 1px full-opacity border on the outer perimeter.
+  [HighlightType.SPELL_RANGE_OUTLINE]: 0x246696,
+  // Spell range per-cell allowed tint — `26316 = 0x0066CC`. Painted
+  // by canonical `drawAllowedZone` with `gfx.select(cell, 26316,
+  // "spell", 50, false)` on every cell that passes
+  // `checkCanLaunchSpellOnCell` (LoS + valid target).
+  [HighlightType.SPELL_RANGE]: 0x0066cc,
   [HighlightType.SPELL_ZONE]: 0xff6600,
+  // Out-of-range / out-of-LoS hover flash — bright red so the player
+  // can't miss it. Not in the canonical palette but matches what we
+  // already use for the placement-team-0 ring.
   [HighlightType.SPELL_ZONE_INVALID]: 0xff0000,
   [HighlightType.PLACEMENT_TEAM_0]: 0xff0000,
   [HighlightType.PLACEMENT_TEAM_1]: 0x0000ff,
@@ -75,30 +102,37 @@ const HIGHLIGHT_COLORS: Record<HighlightTypeValue, number> = {
   [HighlightType.TRAP]: 0xff8000,
 };
 
-// Alphas extracted from the original client's two rendering paths:
+// Alphas mirror the original client's two rendering paths:
 //   - `gfx.select(...)` — used for placement cells (MapHandler.as:1013,
 //     1022), the hovered path (InteractionsManager.as:91), and the
-//     SELECT layer in general. Flash default is `_alpha = 100` (i.e.
-//     fully opaque) per SelectionHandler.as:99.
+//     SELECT layer in general. Flash default is `_alpha = 100` (fully
+//     opaque) per SelectionHandler.as:99.
 //   - `gfx.drawZone(...)` — used for the reachable-range ring and
 //     spell range via Zone.as which always fills at
-//     `Zone.ALPHA = 30` (= 0.30 after the 0–100 → 0–1 rescale).
+//     `Zone.ALPHA = 30` (= 0.30 after the 0-100 → 0-1 rescale) AND
+//     traces a `lineStyle(1, color, 100)` border around it (line 109,
+//     249, 346 of `mc/Zone.as`). The border at 100% opacity is what
+//     makes a 30%-alpha fill stand out against any tile background;
+//     drop the border and the same fill reads as "too transparent",
+//     which is exactly what we shipped.
 const HIGHLIGHT_ALPHA: Record<HighlightTypeValue, number> = {
+  // Movement-range polygon — canonical `Zone.ALPHA = 30`.
   [HighlightType.MOVEMENT]: 0.3,
   [HighlightType.MOVEMENT_PATH]: 1.0,
   [HighlightType.ATTACK]: 0.3,
-  [HighlightType.SPELL_RANGE]: 0.3,
+  // Spell range outline polygon — canonical `Zone.ALPHA = 30`.
+  [HighlightType.SPELL_RANGE_OUTLINE]: 0.3,
+  // Spell range per-cell allowed tint — canonical `gfx.select(...,
+  // 50, ...)` → `_alpha = 50`.
+  [HighlightType.SPELL_RANGE]: 0.5,
+  // AoE preview polygon — `Zone.drawCircle` 30%.
   [HighlightType.SPELL_ZONE]: 0.3,
-  [HighlightType.SPELL_ZONE_INVALID]: 0.4,
+  // Out-of-range hover flash — opaque so the rejection reads.
+  [HighlightType.SPELL_ZONE_INVALID]: 0.5,
   [HighlightType.PLACEMENT_TEAM_0]: 1.0,
   [HighlightType.PLACEMENT_TEAM_1]: 1.0,
   [HighlightType.SELECTED]: 1.0,
   [HighlightType.HOVER]: 0.3,
-  // Glyphs & traps render exactly like the canonical Zone.as: 30%
-  // alpha translucent fill across the WHOLE zone polygon (one fill
-  // operation, never per-cell — per-cell would create banding
-  // wherever cell diamonds overlap), with a 1px solid border on the
-  // outer perimeter at full alpha. The 30% mirrors `Zone.ALPHA = 30`.
   [HighlightType.GLYPH]: 0.3,
   [HighlightType.TRAP]: 0.3,
 };
@@ -111,6 +145,56 @@ const ZONE_SHAPE_TYPES: ReadonlySet<HighlightTypeValue> = new Set([
   HighlightType.GLYPH,
   HighlightType.TRAP,
 ]);
+
+// Per-vertex inset applied to the per-cell diamond fills (placement /
+// path / selected / hover). Measured from the canonical
+// `clips/gfx/cell.swf` `s1` shape (flat-cell highlight): bounds are
+// (-507, -256) → (509, 260) twips = 50.8 × 25.8 px. Our cell is
+// 53 × 27 px (CELL_WIDTH × CELL_HEIGHT), so the canonical inset is:
+//
+//   X: (53 - 50.8) / 2 ≈ 1.1 px per side
+//   Y: (27 - 25.8) / 2 ≈ 0.6 px per side
+//
+// The slope variants `s2`..`s15` shift the *upper* extents (taller
+// shape for raised slopes) but keep the same horizontal/lower inset,
+// so 1.1 / 0.6 gives a visually-identical gap to canonical for every
+// flat cell — which is the vast majority of cells in any fight.
+const HIGHLIGHT_INSET_PX_X = 1.1;
+const HIGHLIGHT_INSET_PX_Y = 0.6;
+
+// Highlight types that render via the canonical `gfx.drawZone(...)` path
+// (`ank.battlefield.mc.Zone.drawCircle`): one filled polygon over the
+// whole zone at 30% alpha + a 1px full-opacity stroke tracing the outer
+// perimeter. The stroke is what makes the translucent fill stand out
+// against the tile bitmap.
+//
+// Note: `SPELL_RANGE` is NOT in this set — canonical paints the spell
+// range as PER-CELL `gfx.select(...)` calls in `drawAllowedZone`
+// (GameManager.as:470), at the brighter `0x0066CC` colour and 50%
+// alpha. Routing it through `drawZone` would give us the dim
+// underlay-only look that doesn't match the original client.
+//
+// `MOVEMENT` and `ATTACK` use the canonical Zone polygon path
+// (DofusBattlefield.as:1378 calls `gfx.drawZone(... CELL_MOVE_RANGE_COLOR
+// ... "C")`). `SPELL_ZONE` (the AoE pointer) and `SPELL_ZONE_INVALID`
+// (the "blocked" underlay) also use the polygon path. `GLYPH` / `TRAP`
+// follow the same renderer for their persistent ground markers.
+const ZONE_FILL_TYPES: ReadonlySet<HighlightTypeValue> = new Set([
+  HighlightType.MOVEMENT,
+  HighlightType.ATTACK,
+  // Layer 1 of canonical spell-range rendering — drawn first, BENEATH
+  // the per-cell allowed tint (`SPELL_RANGE`).
+  HighlightType.SPELL_RANGE_OUTLINE,
+  HighlightType.SPELL_ZONE,
+]);
+
+// Highlight types that render via the canonical `gfx.select(...)` path:
+// each cell is its own filled diamond at the type's alpha (typically
+// full opacity). This keeps placement cells visibly separated and the
+// hovered movement path drawing one diamond per step.
+//   - PLACEMENT_TEAM_0/1 — MapHandler.as:1013,1022
+//   - MOVEMENT_PATH      — InteractionsManager.as:91 hovered path
+//   - SELECTED / HOVER   — single-cell selection flash
 
 /**
  * Cell highlight configuration.
@@ -351,6 +435,10 @@ export class CellHighlighter extends Actor implements Rendered {
       HighlightType.PLACEMENT_TEAM_1,
       HighlightType.MOVEMENT,
       HighlightType.MOVEMENT_PATH,
+      // Canonical spell-range = layer 1 (outline polygon) UNDER
+      // layer 2 (per-cell allowed tint). Order matters: the polygon
+      // paints first so the per-cell tint sits visibly on top.
+      HighlightType.SPELL_RANGE_OUTLINE,
       HighlightType.SPELL_RANGE,
       HighlightType.ATTACK,
       HighlightType.GLYPH,
@@ -383,8 +471,24 @@ export class CellHighlighter extends Actor implements Rendered {
       const color = HIGHLIGHT_COLORS[type];
       const alpha = HIGHLIGHT_ALPHA[type];
 
-      for (const cellId of cells) {
-        this.drawCellHighlight(cellId, color, alpha);
+      if (ZONE_FILL_TYPES.has(type)) {
+        // Canonical `gfx.drawZone(...)` path (mc/Zone.as line 106-112):
+        // one filled polygon over the whole zone at 30% alpha PLUS a
+        // `lineStyle(1, color, 100)` border tracing the outer perimeter
+        // at full opacity. The border is what makes the translucent
+        // fill legible against textured tiles — without it the spell
+        // range / movement ring read as "too transparent".
+        this.drawZoneShape(cells, color, alpha);
+      } else {
+        // Canonical `gfx.select(...)` path: each cell renders as its
+        // own filled diamond. Adjacent diamonds shrink by
+        // HIGHLIGHT_INSET_PX so neighbours stay visually separated —
+        // the gap canonical Dofus 1.29 gets for free from the
+        // `clips/gfx/cell.swf` `s<slope>` symbols which carry a
+        // built-in 2-3px border-of-air on every side.
+        for (const cellId of cells) {
+          this.drawCellHighlight(cellId, color, alpha);
+        }
       }
     }
   }
@@ -415,31 +519,34 @@ export class CellHighlighter extends Actor implements Rendered {
       return;
     }
 
-    // Trace the OUTER perimeter of the zone as a single closed
-    // polygon, then draw it with ONE fill + ONE stroke. This is what
-    // `ank.battlefield.mc.Zone.drawCircle(_loc6_.beginFill, drawCircleBorder,
-    // _loc6_.endFill)` does in canonical Dofus 1.29 — a single big
-    // outlined polygon, not 13 individual cell tints. Per-cell tints
-    // (the previous approach) showed visible internal anti-aliased
-    // seams between diamonds, reading as a "checker" pattern even
-    // when the math was correct.
-    const perimeter = this.tracePerimeter(cellIds);
-    if (perimeter.length === 0) {
-      return;
+    // Trace EVERY connected sub-region of the zone as its own closed
+    // polygon, then draw each with ONE fill + ONE stroke. Mirrors
+    // `ank.battlefield.mc.Zone.drawCircle(_loc6_.beginFill,
+    // drawCircleBorder, _loc6_.endFill)` in canonical Dofus 1.29.
+    //
+    // Why "every" sub-region: in the Dofus iso grid the four NE / SE /
+    // SW / NW neighbours of a cell are NOT themselves 4-way connected
+    // to one another (they're at (±1, ±1) and meet only via the centre
+    // cell). A melee range (rangeMin=1, rangeMax=1) therefore breaks
+    // into 4 disjoint single-cell loops; an earlier version only
+    // emitted the first sub-loop, so the user saw a single highlighted
+    // cell where they expected the full 4-petal range.
+    const loops = this.tracePerimeterLoops(cellIds);
+    for (const perimeter of loops) {
+      const flat: number[] = [];
+      for (const p of perimeter) {
+        flat.push(p.x, p.y);
+      }
+      this.graphics
+        .poly(flat)
+        .fill({ color, alpha })
+        .stroke({ color, width: 1, alpha: 1 });
     }
-    const flat: number[] = [];
-    for (const p of perimeter) {
-      flat.push(p.x, p.y);
-    }
-    this.graphics
-      .poly(flat)
-      .fill({ color, alpha })
-      .stroke({ color, width: 1, alpha: 1 });
   }
 
   /**
-   * Trace the outer perimeter of the union of cells as an ordered
-   * list of corner points (closed polygon). Algorithm:
+   * Trace the outer perimeter(s) of the union of cells as a list of
+   * closed polygons. Algorithm:
    *
    *   1. For each cell, look at its 4 diagonal neighbours (NE/SE/SW/
    *      NW — these correspond to the 4 edges of the cell's diamond
@@ -449,16 +556,20 @@ export class CellHighlighter extends Actor implements Rendered {
    *      clockwise order: NE = top→right, SE = right→bottom,
    *      SW = bottom→left, NW = left→top. This guarantees that
    *      consecutive boundary edges share an endpoint.
-   *   3. Walk the edges by chaining each edge's `end` to the next
-   *      edge's `start`, producing a closed polyline.
+   *   3. Walk the edge graph as many times as there are unvisited
+   *      starts, emitting one closed polygon per connected sub-region.
    *
-   * Works for any non-overlapping set of cells (Cb / Cc / Cross /
-   * Line / Ring). Disconnected regions emit only the first sub-loop
-   * (acceptable for glyph/trap which are always one connected zone).
+   * Returning EVERY sub-loop (not just the first) is mandatory for
+   * Dofus melee ranges: in the iso grid the four NE/SE/SW/NW cells
+   * around the caster aren't 4-way connected to each other (each
+   * cell's four neighbours are at (±1, ±1) which doesn't include the
+   * other three), so a `rangeMin=1, rangeMax=1` spell breaks into 4
+   * disjoint single-cell perimeters. Same applies to ring shapes,
+   * cross arms, etc.
    */
-  private tracePerimeter(
+  private tracePerimeterLoops(
     cellIds: Set<number>
-  ): { x: number; y: number }[] {
+  ): Array<{ x: number; y: number }[]> {
     const dirOffsets = getDirOffsets(this.mapWidth);
     const NE = dirOffsets[Direction.NORTH_EAST] ?? 0;
     const SE = dirOffsets[Direction.SOUTH_EAST] ?? 0;
@@ -468,7 +579,15 @@ export class CellHighlighter extends Actor implements Rendered {
     // Boundary edges keyed by their start corner (rounded screen
     // coords serialised as "x|y" so two edges can lookup the next
     // segment cheaply without floating-point fuzziness).
-    const edges = new Map<string, { startKey: string; endKey: string; start: { x: number; y: number }; end: { x: number; y: number } }>();
+    const edges = new Map<
+      string,
+      {
+        startKey: string;
+        endKey: string;
+        start: { x: number; y: number };
+        end: { x: number; y: number };
+      }
+    >();
     const k = (p: { x: number; y: number }): string =>
       `${Math.round(p.x)}|${Math.round(p.y)}`;
 
@@ -481,15 +600,30 @@ export class CellHighlighter extends Actor implements Rendered {
 
       if (!cellIds.has(cellId + NE)) {
         const sk = k(top);
-        edges.set(sk, { startKey: sk, endKey: k(right), start: top, end: right });
+        edges.set(sk, {
+          startKey: sk,
+          endKey: k(right),
+          start: top,
+          end: right,
+        });
       }
       if (!cellIds.has(cellId + SE)) {
         const sk = k(right);
-        edges.set(sk, { startKey: sk, endKey: k(bottom), start: right, end: bottom });
+        edges.set(sk, {
+          startKey: sk,
+          endKey: k(bottom),
+          start: right,
+          end: bottom,
+        });
       }
       if (!cellIds.has(cellId + SW)) {
         const sk = k(bottom);
-        edges.set(sk, { startKey: sk, endKey: k(left), start: bottom, end: left });
+        edges.set(sk, {
+          startKey: sk,
+          endKey: k(left),
+          start: bottom,
+          end: left,
+        });
       }
       if (!cellIds.has(cellId + NW)) {
         const sk = k(left);
@@ -501,29 +635,47 @@ export class CellHighlighter extends Actor implements Rendered {
       return [];
     }
 
-    // Walk: start from any edge, follow end → next start, until cycle.
-    const firstEdge = edges.values().next().value;
-    if (!firstEdge) return [];
-
-    const polygon: { x: number; y: number }[] = [];
-    let current = firstEdge;
+    const loops: Array<{ x: number; y: number }[]> = [];
     const visited = new Set<string>();
-    // Cap iterations to edges.size to defend against pathological
-    // inputs (disconnected zone, broken neighbour graph). Polygon size
-    // for a glyph maxes out at ~20 edges — this loop is cheap.
-    for (let i = 0; i <= edges.size; i++) {
-      if (visited.has(current.startKey)) break;
-      visited.add(current.startKey);
-      polygon.push(current.start);
-      const next = edges.get(current.endKey);
-      if (!next) break;
-      current = next;
+
+    // Repeatedly seed a new walk from any unvisited edge until every
+    // edge has been emitted. Each walk produces one closed polygon —
+    // disconnected sub-regions get their own loop.
+    for (const seed of edges.values()) {
+      if (visited.has(seed.startKey)) {
+        continue;
+      }
+
+      const polygon: { x: number; y: number }[] = [];
+      let current = seed;
+      // Cap at edges.size to defend against pathological inputs (a
+      // broken neighbour graph could otherwise loop forever).
+      for (let i = 0; i <= edges.size; i++) {
+        if (visited.has(current.startKey)) {
+          break;
+        }
+        visited.add(current.startKey);
+        polygon.push(current.start);
+        const next = edges.get(current.endKey);
+        if (!next) {
+          break;
+        }
+        current = next;
+      }
+      if (polygon.length >= 3) {
+        loops.push(polygon);
+      }
     }
-    return polygon;
+    return loops;
   }
 
   /**
-   * Draw a single cell highlight.
+   * Draw a single cell as a filled diamond — canonical `gfx.select(...)`
+   * path. The diamond is shrunk by HIGHLIGHT_INSET_PX so adjacent cells
+   * stay visually separated; without the inset, two neighbouring fills
+   * share an edge in the diamond tessellation and read as one merged
+   * polygon (the "checkerboard" the user sees on placement / path
+   * highlights when this gap is missing).
    */
   private drawCellHighlight(
     cellId: number,
@@ -531,22 +683,26 @@ export class CellHighlighter extends Actor implements Rendered {
     alpha: number
   ): void {
     const pos = this.getCellPos(cellId);
+    const halfW = CELL_HALF_WIDTH - HIGHLIGHT_INSET_PX_X;
+    const halfH = CELL_HALF_HEIGHT - HIGHLIGHT_INSET_PX_Y;
 
-    // Diamond shape centered at pos (matching original AS CELL_COORD for groundSlope=1)
+    // Diamond centred at pos. Mirrors the original AS `CELL_COORD` for
+    // groundSlope=1 (`ank.battlefield.Constants.CELL_COORD[1]`), which
+    // is the only slope used for placement / path / selection cells.
     const points = [
       pos.x,
-      pos.y - CELL_HALF_HEIGHT, // Top
-      pos.x + CELL_HALF_WIDTH,
-      pos.y, // Right
+      pos.y - halfH, // top
+      pos.x + halfW,
+      pos.y, // right
       pos.x,
-      pos.y + CELL_HALF_HEIGHT, // Bottom
-      pos.x - CELL_HALF_WIDTH,
-      pos.y, // Left
+      pos.y + halfH, // bottom
+      pos.x - halfW,
+      pos.y, // left
     ];
 
     // Fill only — the original's `s<slope>` library shapes from
-    // clips/gfx/cell.swf are pure filled polygons with `stroke="none"`,
-    // so we draw without a border to match.
+    // `clips/gfx/cell.swf` are pure filled polygons with `stroke="none"`,
+    // so no border here. The HIGHLIGHT_INSET takes care of the gap.
     this.graphics.poly(points);
     this.graphics.fill({ color, alpha });
   }

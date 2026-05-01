@@ -1,4 +1,5 @@
 import type {
+  CastResolution,
   CastResult,
   FightRegistry,
   SpellPort,
@@ -23,6 +24,7 @@ import {
 } from "@modules/fight/map/fight.area";
 
 export type {
+  CastResolution,
   CastResult,
   FightRegistry,
   SpellPort,
@@ -45,7 +47,16 @@ export class CastSpellUseCase {
     return this.spells.spellLevel(spellId, level);
   }
 
-  async execute(sessionId: string, params: string): Promise<CastResult> {
+  /**
+   * Phase 1 of a player cast — validate, roll critical/failure,
+   * pre-resolve trigger spells. **Pure** with respect to the fight
+   * state: no AP spent, no LP changed, no GAs emitted. Throws
+   * CastError on validation failure (no fight, not your turn, no AP,
+   * out of range, no LOS, on cooldown, blocked by module, unknown
+   * spell). Returns a `CastResolution` snapshot the caller hands to
+   * `apply()` once it has broadcast directionChange + spellLaunch.
+   */
+  async resolve(sessionId: string, params: string): Promise<CastResolution> {
     const fight = this.registry.bySession(sessionId);
     if (!fight || fight.state.name !== StateName.Active) {
       throw new CastError("no_fight", "not in a fight");
@@ -62,9 +73,56 @@ export class CastSpellUseCase {
     }
 
     const { spellId, targetCell, level } = parseCastParams(params);
-    return this.runCast(fight, active, caster, spellId, targetCell, level);
+    return this.resolveCast(fight, active, caster, spellId, targetCell, level);
   }
 
+  /**
+   * Same as `resolve()`, but for callers that already hold the fight
+   * + caster references (Monster AI in fight.lifecycle.service.ts).
+   */
+  async resolveFor(
+    fight: Fight,
+    caster: Fighter,
+    spellId: number,
+    targetCell: number,
+    level: number
+  ): Promise<CastResolution> {
+    if (fight.state.name !== StateName.Active) {
+      throw new CastError("no_fight", "not in a fight");
+    }
+    const active = fight.state as ActiveState;
+    return this.resolveCast(fight, active, caster, spellId, targetCell, level);
+  }
+
+  /**
+   * Phase 2 — mutate fighter state and broadcast effect GAs (damage,
+   * heal, status, summons, death). Must be called AFTER the caller
+   * has broadcast `directionChange` + `spellLaunch`, otherwise the
+   * client will receive the damage GA before its `onSpellCast` had a
+   * chance to install the `spellSequencer` gate, and the popup fires
+   * instantly instead of waiting for the spell visual.
+   */
+  apply(resolution: CastResolution): CastResult {
+    return this.runApply(resolution);
+  }
+
+  /**
+   * One-shot wrapper for callers that don't care about ordering
+   * (tests, monster AI without visuals). Equivalent to resolve+apply
+   * with no broadcasts in between — preserves the bad ordering on
+   * purpose because the existing Monster AI path doesn't broadcast a
+   * spellLaunch anyway.
+   */
+  async execute(sessionId: string, params: string): Promise<CastResult> {
+    const resolution = await this.resolve(sessionId, params);
+    return this.apply(resolution);
+  }
+
+  /**
+   * One-shot wrapper for callers that already hold the fight + caster
+   * references (Monster AI). Same caveat as `execute`: no broadcasts
+   * between phases.
+   */
   async castFor(
     fight: Fight,
     caster: Fighter,
@@ -72,21 +130,24 @@ export class CastSpellUseCase {
     targetCell: number,
     level: number
   ): Promise<CastResult> {
-    if (fight.state.name !== StateName.Active) {
-      throw new CastError("no_fight", "not in a fight");
-    }
-    const active = fight.state as ActiveState;
-    return this.runCast(fight, active, caster, spellId, targetCell, level);
+    const resolution = await this.resolveFor(
+      fight,
+      caster,
+      spellId,
+      targetCell,
+      level
+    );
+    return this.apply(resolution);
   }
 
-  private async runCast(
+  private async resolveCast(
     fight: Fight,
     active: ActiveState,
     caster: Fighter,
     spellId: number,
     targetCell: number,
     level: number
-  ): Promise<CastResult> {
+  ): Promise<CastResolution> {
     const spell = await this.spells.spellLevel(spellId, level);
     if (!spell) {
       throw new CastError("no_spell", "spell not learned / unknown");
@@ -155,6 +216,59 @@ export class CastSpellUseCase {
       Math.floor(Math.random() * spell.failureRate) === 0;
     castCtx.critical = critical;
 
+    // Pre-resolve trigger spells for glyph/trap/summon effects. These
+    // effects encode the trigger spell ID in `effect.min`; handlers
+    // need its element to colour the deployed entity (e.g. fire glyphs
+    // = orange, water glyphs = blue). Doing this before apply() keeps
+    // the per-effect loop synchronous and lets us await spell loading
+    // outside the broadcast-sensitive critical section.
+    const effects = critical ? spell.criticalEffects : spell.effects;
+    const triggerCache = new Map<number, SpellLevel>();
+    for (const eff of effects) {
+      const isSpawn = eff.id === 400 || eff.id === 401 || eff.id === 185;
+      if (!isSpawn) {
+        continue;
+      }
+      const triggerId = eff.min;
+      if (triggerId <= 0 || triggerCache.has(triggerId)) {
+        continue;
+      }
+      const lvl = await this.spells.spellLevel(triggerId, 1);
+      if (lvl) {
+        triggerCache.set(triggerId, lvl);
+      }
+    }
+
+    return {
+      fight,
+      active,
+      caster,
+      spell,
+      spellId,
+      level,
+      targetCell,
+      critical,
+      failure,
+      triggerCache,
+      castCtx,
+    };
+  }
+
+  private runApply(resolution: CastResolution): CastResult {
+    const {
+      fight,
+      active,
+      caster,
+      spell,
+      spellId,
+      level,
+      targetCell,
+      critical,
+      failure,
+      triggerCache,
+      castCtx,
+    } = resolution;
+
     caster.spendAp(spell.apCost);
 
     const result: CastResult = {
@@ -174,23 +288,6 @@ export class CastSpellUseCase {
 
     const effects = critical ? spell.criticalEffects : spell.effects;
     const seen = new Set<number>();
-
-    // Pre-resolve trigger spells for glyph/trap/summon effects. These
-    // effects encode the trigger spell ID in `effect.min`; handlers
-    // need its element to colour the deployed entity (e.g. fire glyphs
-    // = orange, water glyphs = blue). Doing this before the per-effect
-    // loop keeps the EffectHandler signature synchronous.
-    const triggerCache = new Map<number, SpellLevel>();
-    for (const eff of effects) {
-      const isSpawn = eff.id === 400 || eff.id === 401 || eff.id === 185;
-      if (!isSpawn) continue;
-      const triggerId = eff.min;
-      if (triggerId <= 0 || triggerCache.has(triggerId)) continue;
-      const lvl = await this.spells.spellLevel(triggerId, 1);
-      if (lvl) {
-        triggerCache.set(triggerId, lvl);
-      }
-    }
 
     for (const eff of effects) {
       if (
@@ -288,8 +385,18 @@ export class CastSpellUseCase {
     fight.spellUsage.recordCast(caster.id, spellId, targetId);
 
     for (const fighter of fight.fighters()) {
-      if (fighter.dead) {
-        active.turnList.remove(fighter.id);
+      if (!fighter.dead) {
+        continue;
+      }
+      active.turnList.remove(fighter.id);
+      // Free the corpse's cell. Without this the fightMap keeps the
+      // dead fighter as an occupant, so subsequent
+      // `hasLineOfSight(caster → target)` calls reject any ray that
+      // crosses the corpse cell — the user perceives this as "the
+      // server randomly refuses my cast even though I have a clear
+      // shot". Canonical Dofus 1.29 lets spells fly over corpses.
+      if (fighter.cell >= 0) {
+        fight.fightMap.free(fighter.cell, fighter.id);
       }
     }
 

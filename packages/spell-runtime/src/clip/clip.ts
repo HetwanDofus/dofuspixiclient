@@ -207,7 +207,17 @@ export class SpellClip {
   ): SpellClip {
     const existing = this.children.get(instanceName);
     if (existing) {
-      existing.remove();
+      // Synchronously dispose, not just `remove()` (which defers via
+      // pendingRemoval). The map entry is about to be overwritten — if
+      // we only set pendingRemoval, the prior child becomes unreachable
+      // from `walk()` and `collectGarbage()` (both iterate
+      // `this.children.values()`), so its container leaks into Pixi's
+      // scene graph forever and any onEnterFrame handlers it owns keep
+      // their captured state alive. That is exactly the failure mode
+      // that turned looping-timeline spells (sprite9 wrap → re-attach
+      // sprite7_d2 every ~1s with the same instanceName) into a
+      // monotonic memory bomb that hangs the browser tab.
+      existing.disposeInPlace();
     }
     const child = new SpellClip({ symbol, name: instanceName, parent: this });
     child.container.zIndex = depth;
@@ -362,9 +372,38 @@ export class SpellClip {
   // Internal
   // ============================================================
 
+  /**
+   * Synchronously tear down this clip + all descendants. Called by
+   * `attach()` when overwriting a child at the same instanceName, so
+   * the replaced subtree leaves the Pixi scene graph immediately
+   * instead of relying on `collectGarbage()` (which iterates the parent's
+   * children map — useless for a clip that's about to be evicted from
+   * that map). The clip's destroyed flag short-circuits any stale
+   * `tickOneFrame` invocations from the current-tick walk snapshot.
+   */
+  disposeInPlace(): void {
+    this.dispose();
+  }
+
   private refreshSpriteFrame(): void {
     if (!this.sprite || this.framesArr.length === 0) return;
-    const tex = this.framesArr[this.currentFrame] ?? this.framesArr[0];
+    // Clamp to the last available texture when `currentFrame` runs past
+    // `framesArr.length`. Vello dedupes identical trailing frames (e.g.
+    // spell 108/110: 129 logical frames, only 88 unique because frames
+    // 87-128 are the post-`_parent.removeMovieClip()` placeholder), and
+    // returns frameCount = unique count. The clip's `totalFrames` still
+    // reflects the LOGICAL timeline length (129) so frame_<stop> scripts
+    // fire at the right frame, but `framesArr[currentFrame]` is
+    // `undefined` past the unique-count boundary. Falling back to
+    // `framesArr[0]` (the prior behaviour) made the animation appear to
+    // "restart" at frame 0 for the remainder of the timeline; the
+    // canonical SWF behaviour is to keep displaying the deduped trailing
+    // frame, which is what clamping to `length - 1` gives us.
+    const idx =
+      this.currentFrame < this.framesArr.length
+        ? this.currentFrame
+        : this.framesArr.length - 1;
+    const tex = this.framesArr[idx];
     if (tex) {
       this.sprite.texture = tex;
     }

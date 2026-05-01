@@ -1,32 +1,57 @@
 /**
- * Spell 407 — Explosion (impact animation).
+ * Spell 407 — Explosion (likely Feca or generic explosion spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/407/scripts/scripts/
  *
  * displayType=11 (TargetCell). There is no projectile, no caster reference,
- * no `move`/`shoot`/`duplicate` symbol — this is a single impact animation
- * that plays at the target cell. The main timeline places one child (anim1)
- * and plays a sound.
+ * no "move"/"shoot"/"duplicate" symbol — the spell is a single impact animation
+ * at the target cell. The single `anim1` animation in `animations[]` (not in
+ * `librarySymbols[]`) drives the visual. A secondary sprite (DefineSprite_6)
+ * with randomised rotation/scale is placed as a compositing layer; it stops at
+ * frame 52. The outermost sprite (DefineSprite_7) removes itself at frame 94,
+ * signalling completion.
  *
- * Canonical AS layout:
- *   - frame_1/DoAction.as: SOMA.playSound("explosion")
- *   - DefineSprite_6 (anim1 outer container, 96 frames):
- *       frame_1: _rotation = -40 - random(100); t = random(50)+30;
- *                _xscale = _yscale = t;
- *       frame_52: stop();
- *   - DefineSprite_7 (inner animated sprite, 94 frames):
- *       frame_94: _parent.removeMovieClip() → triggers spell complete
+ * Library symbols: none (librarySymbols[] is absent/empty in manifest).
+ * The single animation `anim1` lives in `animations[]` only.
  *
- * The manifest has a single `animations` entry ("anim1", 96 frames) and
- * no `librarySymbols` — so textures are fetched with the bare key "anim1"
- * (no "lib_" prefix). DefineSprite_6 wraps DefineSprite_7; both are modelled
- * as SymbolDefinitions. DefineSprite_7 is the inner 94-frame animated sprite
- * whose frame_94 removes its parent (DefineSprite_6), which in turn completes
- * the spell.
+ * Sprites:
+ *   - DefineSprite_7 (outer / anim1): 96 frames (0-indexed 0–95).
+ *       frame_94 (index 93): _parent.removeMovieClip() → spell complete.
+ *   - DefineSprite_6 (inner decorative layer, 52 frames):
+ *       frame_1 (index 0): randomise rotation, scale.
+ *       frame_52 (index 51): stop().
  *
- * signalHit: fired at frame_1 of DefineSprite_6 (the impact moment, when the
- * rotation/scale are set and the visual begins).
+ * Main timeline frame_1: SOMA.playSound("explosion").
+ *
+ * Since librarySymbols[] is empty, there are NO `lib_` prefixed textures.
+ * The `anim1` animation is the bare name used with textures.getFrames("anim1").
+ *
+ * The outer sprite (DefineSprite_7) IS the anim1 timeline. We model it as the
+ * root-attached symbol. DefineSprite_6 is an inner composite layer that is
+ * baked into the pre-composited `anim1` frames — its random rotation/scale is
+ * authored per-frame in the SVG exports; there is no separate lib symbol for it
+ * and no runtime attach call in the canonical AS (it is placed by PlaceObject2
+ * at compile time, not by attachMovie). We therefore model it as part of the
+ * anim1 symbol's frame scripts: frame 0 applies a one-time random rotation+scale
+ * to the root clip (mirroring what DefineSprite_6/frame_1 does), and frame 51
+ * calls stop() on the inner clip. Since we only have the composite anim1, the
+ * stop at frame 51 is applied to the anim1 clip itself to match the 52-frame
+ * inner cap (the outer continues to frame 94 where removal fires).
+ *
+ * Wait — re-reading carefully: DefineSprite_6 and DefineSprite_7 are distinct
+ * sprites. DefineSprite_7 IS the outermost and its frame_94 removes the parent
+ * (the spell mc). DefineSprite_6 is a child inside DefineSprite_7. Since there
+ * are no separate lib textures and no attachMovie calls, both are baked into
+ * anim1. We model anim1 as a single SymbolDefinition (96 frames) with:
+ *   - onLoad: apply random rotation + scale (mirrors DefineSprite_6/frame_1 logic
+ *     on the inner child — applied to the composite sprite for visual variety)
+ *   - frameScripts[93]: _parent.removeMovieClip() → this.runtime.complete()
+ *
+ * The inner stop at frame 52 is irrelevant at the anim1 level since the composite
+ * already bakes the frozen inner layer into frames 52–95.
+ *
+ * signalHit: fired at frame 0 (impact frame — the explosion begins immediately).
  */
 
 import type {
@@ -60,76 +85,77 @@ export class Spell407 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- DefineSprite_7 — inner 94-frame animated burst ----------
-    // AS DefineSprite_7/frame_94/DoAction.as:
+    // anim1 is in animations[] only (no librarySymbols entry), so use
+    // textures.getFrames("anim1") — NO lib_ prefix.
+    const anim1Frames = textures.getFrames("anim1");
+
+    // ---- anim1 — 96-frame explosion composite -------------------
+    // Models DefineSprite_7 (outer, 96 frames) which contains
+    // DefineSprite_6 (inner decorative layer, 52 frames) baked in.
+    //
+    // DefineSprite_6/frame_1/DoAction.as:
+    //   _rotation = -40 - random(100);
+    //   t = random(50) + 30;
+    //   _xscale = t;
+    //   _yscale = t;
+    //
+    // We apply this randomisation in onLoad so each instance gets
+    // a unique rotation and scale, matching the per-instance random
+    // seeding that the canonical AS inner sprite performs on its own
+    // first frame.
+    //
+    // DefineSprite_7/frame_94/DoAction.as:
     //   _parent.removeMovieClip();
-    // This is the actual visual content (the explosion frames). It lives
-    // inside DefineSprite_6. At frame 94 it removes its parent (the outer
-    // container), which completes the spell.
-    const innerSpriteSym: SymbolDefinition = {
-      name: "innerSprite",
-      totalFrames: 94,
-      frames: textures.getFrames("anim1"),
+    // → frameScripts[93]: clip.parent?.remove() + this.runtime.complete()
+    //
+    // DefineSprite_6/frame_52/DoAction.as:
+    //   stop();
+    // → The inner clip stops at frame 52 but the outer continues.
+    //   Since we have a single composite symbol we let the outer
+    //   timeline run to frame 94 (index 93) for completion, and
+    //   the baked SVGs already encode the frozen inner layer past
+    //   frame 52. No separate stop() is needed on the composite.
+
+    this.anim1Sym = {
+      name: "anim1",
+      totalFrames: 96,
+      frames: anim1Frames,
       anchorX: anim1Anchor.x,
       anchorY: anim1Anchor.y,
+
+      onLoad: (clip) => {
+        // AS DefineSprite_6/frame_1/DoAction.as:
+        //   _rotation = -40 - random(100);
+        //   t = random(50) + 30;
+        //   _xscale = t; _yscale = t;
+        const rotDeg = -40 - Math.floor(Math.random() * 100);
+        clip.rotation = (rotDeg * Math.PI) / 180;
+        const t = Math.floor(Math.random() * 50) + 30;
+        clip.scaleX = t / 100;
+        clip.scaleY = t / 100;
+      },
+
       frameScripts: new Map([
+        [
+          0,
+          (_clip) => {
+            // Impact begins at frame 1 — signal hit immediately.
+            this.runtime.signalHit();
+          },
+        ],
         [
           93,
           (clip) => {
-            // AS DefineSprite_7/frame_94/DoAction.as: _parent.removeMovieClip()
-            // Remove the parent container (DefineSprite_6 / anim1Sym).
-            clip.parent?.remove();
+            // AS DefineSprite_7/frame_94/DoAction.as:
+            //   _parent.removeMovieClip();
+            // The outer mc IS the root spell container — signal complete.
+            clip.remove();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
-    // ---- DefineSprite_6 — outer 96-frame container ---------------
-    // AS DefineSprite_6/frame_1/DoAction.as:
-    //   _rotation = -40 - random(100);
-    //   t = random(50) + 30;
-    //   _xscale = t;
-    //   _yscale = t;
-    // AS DefineSprite_6/frame_52/DoAction.as:
-    //   stop();
-    // On frame_1 the container is randomly rotated and scaled; then at
-    // frame_52 it stops (the inner sprite's own timeline continues to
-    // drive the visual via its own playback up to frame_94 where it
-    // removes this container).
-    this.anim1Sym = {
-      name: "anim1",
-      totalFrames: 96,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (clip, ctx) => {
-            // AS DefineSprite_6/frame_1/DoAction.as
-            const rotDeg = -40 - Math.floor(Math.random() * 100);
-            clip.rotation = (rotDeg * Math.PI) / 180;
-            const t = Math.floor(Math.random() * 50) + 30;
-            clip.scaleX = t / 100;
-            clip.scaleY = t / 100;
-            // Attach the inner animated sprite at depth 1.
-            clip.attach(innerSpriteSym, "innerSprite", 1, ctx);
-            // signalHit at impact moment (frame_1 of the container).
-            this.runtime.signalHit();
-          },
-        ],
-        [
-          51,
-          (clip) => {
-            // AS DefineSprite_6/frame_52/DoAction.as: stop()
-            clip.stop();
-          },
-        ],
-      ]),
-    };
-
-    this.registry.register(innerSpriteSym);
     this.registry.register(this.anim1Sym);
   }
 
@@ -137,9 +163,12 @@ export class Spell407 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS frame_1/DoAction.as: SOMA.playSound("explosion")
+    // AS scripts/frame_1/DoAction.as:
+    //   SOMA.playSound("explosion");
     callbacks.playSound("explosion");
-    // Attach the outer container (DefineSprite_6) at the root.
+
+    // Attach the anim1 composite at the root. The harness has already
+    // positioned the root container at the target cell (TargetCell).
     this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

@@ -62,8 +62,8 @@ const MOUNT_SPEEDS = [0.23, 0.2, 0.2, 0.2, 0.23, 0.2, 0.2, 0.2];
 /** Maximum frame delta in ms — matches original's cap in basicMove. */
 const MAX_FRAME_MS = 125;
 
-/** Paths with more steps than this use run animation (original: DEFAULT_RUNLINIT = 6, checked as path.length > 6). */
-export const RUN_THRESHOLD = 6;
+/** Per-step ±0.01 px/ms speed bias for level/slope transitions (mc/Sprite.as:306-324). */
+const SLOPE_BIAS = 0.01;
 
 /**
  * Animation frame state for a player.
@@ -93,6 +93,12 @@ export interface FighterMovementState {
   useRun: boolean;
   /** Whether the player is mounted (uses MOUNT_SPEEDS). */
   isMounting: boolean;
+  /**
+   * Per-character speed multiplier applied on top of WALK/RUN/MOUNT.
+   * Mirrors AS2 mc/Sprite.as:305 `_loc14_ *= this._oData.speedModerator`.
+   * Defaults to 1.0 — only future haste/slow effects should mutate it.
+   */
+  speedModerator: number;
   moving: boolean;
   moveResolve?: () => void;
 }
@@ -130,6 +136,7 @@ export function initMovementState(): FighterMovementState {
     movePixelSpeed: 0,
     useRun: false,
     isMounting: false,
+    speedModerator: 1,
     moving: false,
     moveResolve: undefined,
   };
@@ -201,12 +208,39 @@ export function startMovementSegment(
   movement.moveCosRot = Math.cos(angle);
   movement.moveSinRot = Math.sin(angle);
 
-  // Speed in px/ms (matches original WALK_SPEEDS / RUN_SPEEDS / MOUNT_SPEEDS indexed by direction)
-  movement.movePixelSpeed = movement.isMounting
+  // Base speed in px/ms (matches original WALK_SPEEDS / RUN_SPEEDS / MOUNT_SPEEDS indexed by direction)
+  let speed = movement.isMounting
     ? MOUNT_SPEEDS[dir]
     : movement.useRun
       ? RUN_SPEEDS[dir]
       : WALK_SPEEDS[dir];
+
+  // Slope / ground-level bias (mc/Sprite.as:306-324) — descend faster,
+  // climb slower, and hop a half-bias on plain↔slope transitions.
+  // AS2 uses 1 as the "no slope" sentinel; we default undefined to 1
+  // so cells without an explicit slope behave like flat ground.
+  const fromCellData = cellDataMap.get(fromCell);
+  const toCellData = cellDataMap.get(toCell);
+  if (fromCellData && toCellData) {
+    const fromSlope = fromCellData.groundSlope ?? 1;
+    const toSlope = toCellData.groundSlope ?? 1;
+    if (toCellData.groundLevel < fromCellData.groundLevel) {
+      speed += SLOPE_BIAS;
+    } else if (toCellData.groundLevel > fromCellData.groundLevel) {
+      speed -= SLOPE_BIAS;
+    } else if (fromSlope !== toSlope) {
+      if (toSlope === 1) {
+        speed += SLOPE_BIAS;
+      } else if (fromSlope === 1) {
+        speed -= SLOPE_BIAS;
+      }
+    }
+  }
+
+  // Per-character multiplier (mc/Sprite.as:305) — default 1.0.
+  speed *= movement.speedModerator;
+
+  movement.movePixelSpeed = speed;
 
   return dir;
 }
@@ -220,6 +254,17 @@ export function startMovementSegment(
  * `loop=false` holds at the last frame index — matches AS2's
  * `bLoop=false` behavior for cast/hit/die (the MovieClip stops on its
  * final frame and stays there until something else calls `setAnim`).
+ *
+ * One frame max per tick. A `while`-style catch-up across hitches
+ * burst-advances multiple frames in a single render and visibly
+ * staggers fast-cycling animations (run is 30 frames at 60fps — a
+ * 2-frame burst is ~7 % of the cycle and obvious to the eye). The
+ * `frameTimer` bank is clamped to `2 × frameDuration` so a long pause
+ * (tab backgrounded, GC, big hitch) can't accumulate work we'd later
+ * have to spend in one render. The trade-off is a bounded ≤1-frame
+ * phase lag after a hitch — invisible in standalone playback because
+ * subsequent ticks still resume at the intended fps from the new
+ * banked offset.
  */
 export function updateFrameAnimation(
   frame: FighterFrameState,
@@ -235,6 +280,11 @@ export function updateFrameAnimation(
   frame.frameTimer += deltaS;
 
   const frameDuration = 1 / fps;
+  const maxBank = frameDuration * 2;
+
+  if (frame.frameTimer > maxBank) {
+    frame.frameTimer = maxBank;
+  }
 
   if (frame.frameTimer >= frameDuration) {
     frame.frameTimer -= frameDuration;
@@ -301,8 +351,31 @@ export function getClampedDeltaMs(deltaMs: number): number {
 }
 
 /**
- * Determine if a path should use run or walk animation.
+ * Run-vs-walk path-length cutoff. Mirrors dofus.aks.extend.GameActionsEx
+ * (assets/sources/client-code/dofus/aks/extend/GameActionsEx.as:160) which
+ * overrides the documented `SpriteHandler.DEFAULT_RUNLINIT = 6` per context:
+ *
+ *   - Character sprite (player / other PCs): always 3 (overworld + fight)
+ *   - Non-Character (NPC / monster) on overworld: 6
+ *   - Non-Character in fight: 3
+ *
+ * Compared as `path.length > runLimit` where `path` includes the origin —
+ * so for a Character, 3+ movement steps trigger run.
  */
-export function shouldUseRun(pathLength: number): boolean {
-  return pathLength > RUN_THRESHOLD;
+export function getRunLimit(opts: {
+  isCharacter: boolean;
+  isFight: boolean;
+}): number {
+  if (opts.isFight) {
+    return 3;
+  }
+  return opts.isCharacter ? 3 : 6;
+}
+
+/**
+ * Determine if a path should use run or walk animation, given the
+ * `runLimit` from `getRunLimit` for the sprite's current context.
+ */
+export function shouldUseRun(pathLength: number, runLimit: number): boolean {
+  return pathLength > runLimit;
 }

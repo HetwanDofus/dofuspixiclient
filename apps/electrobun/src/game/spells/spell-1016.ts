@@ -1,42 +1,54 @@
 /**
- * Spell 1016 — Licorne (Licorne / Unicorn spell).
+ * Spell 1016 — Lichen (Sadida-family earth/nature spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/1016/scripts/scripts/
  *
- * displayType=11 (TargetCell). This spell has no `move`, `shoot`, or `duplicate`
- * symbols, no ballistic arc, no beam — it is a pure impact animation at the target
- * cell. Two parallel authored timelines (DefineSprite_23 and DefineSprite_38) play
- * simultaneously at the target, each with:
- *   - frame_1: SOMA.playSound("licrounch_1001")
- *   - frame_37: SOMA.playSound("licrounch_1001b")
- *   - frame_109: this.end() → signalHit; a child clip's onEnterFrame fades alpha
- *   - frame_148: _parent.removeMovieClip(); stop() → spell complete
+ * displayType=11 (TargetCell). This spell has no projectile motion, no
+ * caster-anchored content, and no WorldAbsolute dual-timeline. It is a
+ * single impact animation playing at the target cell. The manifest's
+ * `animations[]` contains `anim1` (and level-variants anim146/anim291/
+ * anim436/anim581) but NO `librarySymbols[]` entries for a `move` or
+ * `shoot` symbol, confirming TargetCell (11) as the correct displayType.
  *
- * The manifest has no `librarySymbols` — all four animation variants (anim1,
- * anim146, anim291, anim436) live in `animations[]` only. The two sprites
- * correspond to different level-based animation variants; we attach the appropriate
- * one based on spell level following the canonical 1.29 level-indexed selection
- * (levels 1–2 → anim1, 3–4 → anim146, 5 → anim291, 6 → anim436). Since the
- * manifest has no library symbols, NO `lib_` prefix is used anywhere.
+ * Canonical AS layout:
+ *   - Main timeline frame_1: SOMA.playSound("licrounch_1001")
+ *   - DefineSprite_23 (first variant, presumably spell level 1):
+ *       frame_1:   SOMA.playSound("licrounch_1001")
+ *       frame_37:  SOMA.playSound("licrounch_1001b")
+ *       frame_109: this.end() → signalHit; places a child sprite
+ *                  (PlaceObject2_22_144) with onClipEvent(enterFrame)
+ *                  that decrements _parent._alpha by 10 each tick
+ *                  (fade-out effect).
+ *       frame_148: _parent.removeMovieClip(); stop() → spell complete.
+ *   - DefineSprite_38 (second variant, same structure):
+ *       frame_109: this.end() → signalHit; same fade child.
+ *       frame_148: _parent.removeMovieClip(); stop() → spell complete.
+ *   - DefineSprite_4: frame_28 → stop()
+ *   - DefineSprite_3: frame_49 → stop()
  *
- * The fade child placed at frame_109 (PlaceObject2_22_144) has an onEnterFrame
- * that decrements _parent._alpha by 10 each frame. We model this as the sprite
- * symbol's own alpha decrement since the child is an authored timeline element
- * (not a runtime-attached symbol): we drive the fade directly in the owning
- * symbol's onEnterFrame after frame 109.
+ * The PlaceObject2_22_144 clip in DefineSprite_23 and DefineSprite_38
+ * is a fade overlay: once frame_109 fires, a child is placed that
+ * continuously reduces its parent's alpha by 10 per tick until the
+ * clip is removed at frame_148. This MUST be ported as a live runtime
+ * clip with an onEnterFrame handler — it is NOT baked into the SVGs.
  *
- * Main timeline: SOMA.playSound("licrounch_1001"); (frame_1/DoAction.as)
- * The two children (sprite 23 + sprite 38) are placed on the main timeline —
- * we attach both in onSpellStart so they start ticking immediately.
+ * Because the manifest has no `librarySymbols[]`, the animations
+ * (`anim1`, `anim146`, `anim291`, `anim436`, `anim581`) are referenced
+ * directly by their bare names (NO `lib_` prefix). The spell selects
+ * the appropriate animation variant based on the spell level at runtime.
  *
- * Library symbols: none (librarySymbols[] is empty in manifest).
+ * Library symbols registered:
+ *   - anim1    — 150-frame composite for level 1. frame_109 signals hit
+ *                + places fade child; frame_148 removes self + completes.
+ *   - anim146  — 150-frame composite for level 2 (same structure).
+ *   - anim291  — 150-frame composite for level 3 (same structure).
+ *   - anim436  — 150-frame composite for level 4 (same structure).
+ *   - anim581  — 150-frame composite for level 5+ (same structure).
+ *   - fadeChild — virtual single-frame symbol with onEnterFrame that
+ *                 decrements _parent._alpha by 10 per tick.
  *
- * Sounds (from manifest):
- *   - frame 0 (= frame_1): "licrounch_1001"
- *   - frame 36 (= frame_37): "licrounch_1001b"
- * Both are played by the inner sprite frame scripts; the main timeline also plays
- * "licrounch_1001" on frame_1.
+ * Main timeline: SOMA.playSound("licrounch_1001"); (onSpellStart)
  */
 
 import type {
@@ -51,6 +63,7 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
+// All five animation variants share the same bounds.
 const ANIM_BOUNDS = {
   width: 131.1,
   height: 108.15,
@@ -62,178 +75,160 @@ export class Spell1016 extends RuntimeSpell {
   readonly spellId = 1016;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  private sprite23Sym!: SymbolDefinition;
-  private sprite38Sym!: SymbolDefinition;
+  // Captured so onSpellStart can reference them after registerSymbols.
+  private anim1Sym!: SymbolDefinition;
+  private anim146Sym!: SymbolDefinition;
+  private anim291Sym!: SymbolDefinition;
+  private anim436Sym!: SymbolDefinition;
+  private anim581Sym!: SymbolDefinition;
 
-  // Capture sound callback so inner frame scripts can play sounds.
+  // Sound callback captured for use inside frame scripts.
   private soundCallback?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    context: SpellContext,
+    _context: SpellContext,
   ): void {
-    const anchor = calculateAnchor(ANIM_BOUNDS);
+    const animAnchor = calculateAnchor(ANIM_BOUNDS);
 
-    // Select animation variant based on spell level — canonical 1.29 level-indexed
-    // selection. Both DefineSprite_23 and DefineSprite_38 correspond to the same
-    // visual at different level ranges; we use the level to pick the texture set.
-    const level = context.level;
-    let animName: string;
-    if (level <= 2) {
-      animName = "anim1";
-    } else if (level <= 4) {
-      animName = "anim146";
-    } else if (level <= 5) {
-      animName = "anim291";
-    } else {
-      animName = "anim581";
-    }
-
-    // ---- DefineSprite_23 — primary impact timeline (150 frames) --------
-    // AS:
-    //   frame_1/DoAction.as:   SOMA.playSound("licrounch_1001")
-    //   frame_37/DoAction.as:  SOMA.playSound("licrounch_1001b")
-    //   frame_109/DoAction.as: this.end()  → signalHit
-    //   frame_109/PlaceObject2_22_144/onClipEvent(enterFrame): _parent._alpha -= 10
-    //   frame_148/DoAction.as: _parent.removeMovieClip(); stop() → complete
+    // ---- fadeChild — alpha-decrement overlay child ---------------
+    // Canonical: DefineSprite_23/frame_109/PlaceObject2_22_144/
+    //   CLIPACTIONRECORD onClipEvent(enterFrame).as
+    // and DefineSprite_38/frame_109/PlaceObject2_22_144/
+    //   CLIPACTIONRECORD onClipEvent(enterFrame).as
     //
-    // The fade child (PlaceObject2_22_144) placed at frame 109 has an
-    // onEnterFrame that subtracts 10 from _parent._alpha each frame. We
-    // model this by tracking a flag on the clip (vars.fading) set at
-    // frame 109, then driving the alpha decrement in the symbol's own
-    // onEnterFrame handler thereafter.
-    this.sprite23Sym = {
-      name: "sprite_23",
-      totalFrames: 150,
-      frames: textures.getFrames(animName),
-      anchorX: anchor.x,
-      anchorY: anchor.y,
+    // In AS: `_parent._alpha -= 10;` — each tick the parent clip's
+    // alpha drops by 10 (out of 100), i.e. 0.1 in decimal units.
+    // This child has no visual content of its own; it is placed solely
+    // to run its onEnterFrame against the parent sprite.
+    const fadeChildSym: SymbolDefinition = {
+      name: "fadeChild",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
       onEnterFrame: (clip) => {
-        // AS DefineSprite_23/frame_109/PlaceObject2_22_144/onClipEvent(enterFrame):
-        //   _parent._alpha -= 10
-        // Active only after frame 109 (fading flag is set there).
-        if (clip.vars.fading === true) {
-          clip.alpha = Math.max(0, clip.alpha - 10 / 100);
+        // AS: _parent._alpha -= 10;  (AS 0-100 units → TS 0-1 units)
+        const parent = clip.parent;
+        if (parent) {
+          parent.alpha = Math.max(0, parent.alpha - 10 / 100);
         }
       },
-      frameScripts: new Map([
-        [
-          0,
-          () => {
-            // AS DefineSprite_23/frame_1/DoAction.as: SOMA.playSound("licrounch_1001")
-            this.soundCallback?.("licrounch_1001");
-          },
-        ],
-        [
-          36,
-          () => {
-            // AS DefineSprite_23/frame_37/DoAction.as: SOMA.playSound("licrounch_1001b")
-            this.soundCallback?.("licrounch_1001b");
-          },
-        ],
-        [
-          108,
-          (clip) => {
-            // AS DefineSprite_23/frame_109/DoAction.as: this.end() → signalHit
-            // Also activates the fade child's onEnterFrame behaviour.
-            clip.vars.fading = true;
-            this.runtime.signalHit();
-          },
-        ],
-        [
-          147,
-          (clip) => {
-            // AS DefineSprite_23/frame_148/DoAction.as:
-            //   _parent.removeMovieClip(); stop()
-            clip.stop();
-            clip.parent?.remove();
-            this.runtime.complete();
-          },
-        ],
-      ]),
     };
 
-    // ---- DefineSprite_38 — secondary impact timeline (150 frames) ------
-    // Identical script structure to DefineSprite_23; used as a parallel
-    // composite layer. Same animation frames, same timing.
-    // AS:
-    //   frame_1/DoAction.as:   SOMA.playSound("licrounch_1001")
-    //   frame_37/DoAction.as:  SOMA.playSound("licrounch_1001b")
-    //   frame_109/DoAction.as: this.end()
-    //   frame_109/PlaceObject2_22_144/onClipEvent(enterFrame): _parent._alpha -= 10
-    //   frame_148/DoAction.as: _parent.removeMovieClip(); stop()
-    //
-    // Since DefineSprite_23 already calls signalHit and complete, DefineSprite_38
-    // should NOT call them again (both are idempotent, but we keep the canonical
-    // call site to DefineSprite_23 as the primary driver and let 38 be the visual
-    // layer only — it calls the same idempotent methods safely).
-    this.sprite38Sym = {
-      name: "sprite_38",
-      totalFrames: 150,
-      frames: textures.getFrames(animName),
-      anchorX: anchor.x,
-      anchorY: anchor.y,
-      onEnterFrame: (clip) => {
-        // AS DefineSprite_38/frame_109/PlaceObject2_22_144/onClipEvent(enterFrame):
-        //   _parent._alpha -= 10
-        if (clip.vars.fading === true) {
-          clip.alpha = Math.max(0, clip.alpha - 10 / 100);
-        }
-      },
-      frameScripts: new Map([
-        [
-          0,
-          () => {
-            // AS DefineSprite_38/frame_1/DoAction.as: SOMA.playSound("licrounch_1001")
-            // Sound already fired by sprite_23 frame_1; both fire canonically.
-            this.soundCallback?.("licrounch_1001");
-          },
-        ],
-        [
-          36,
-          () => {
-            // AS DefineSprite_38/frame_37/DoAction.as: SOMA.playSound("licrounch_1001b")
-            this.soundCallback?.("licrounch_1001b");
-          },
-        ],
-        [
-          108,
-          (clip) => {
-            // AS DefineSprite_38/frame_109/DoAction.as: this.end()
-            clip.vars.fading = true;
-            this.runtime.signalHit();
-          },
-        ],
-        [
-          147,
-          (clip) => {
-            // AS DefineSprite_38/frame_148/DoAction.as:
-            //   _parent.removeMovieClip(); stop()
-            clip.stop();
-            clip.parent?.remove();
-            this.runtime.complete();
-          },
-        ],
-      ]),
+    // ---- Helper: build a per-level anim symbol -------------------
+    // All five variants share the same frame script logic at the same
+    // canonical frame indices (frame_109 → signalHit + place fade child,
+    // frame_148 → removeMovieClip + complete). They differ only in their
+    // texture atlas.
+    const buildAnimSym = (name: string, frames: ReturnType<SpellTextureProvider["getFrames"]>): SymbolDefinition => {
+      return {
+        name,
+        totalFrames: 150,
+        frames,
+        anchorX: animAnchor.x,
+        anchorY: animAnchor.y,
+        frameScripts: new Map([
+          [
+            0,
+            (clip) => {
+              // AS DefineSprite_23/frame_1/DoAction.as:
+              //   SOMA.playSound("licrounch_1001");
+              // Sound is also played on the main timeline at frame_1 via
+              // onSpellStart. Here we mirror the per-sprite copy so the
+              // sound plays if only this sprite is playing independently.
+              // In practice with displayType=11 the root clip plays this
+              // via onSpellStart; the per-clip copy is a no-op at the
+              // same frame, but we keep it 1:1 with the canonical AS.
+              this.soundCallback?.("licrounch_1001");
+            },
+          ],
+          [
+            36,
+            () => {
+              // AS DefineSprite_23/frame_37/DoAction.as:
+              //   SOMA.playSound("licrounch_1001b");
+              this.soundCallback?.("licrounch_1001b");
+            },
+          ],
+          [
+            108,
+            (clip, ctx) => {
+              // AS DefineSprite_23/frame_109/DoAction.as:
+              //   this.end();
+              // `this.end()` is the canonical hit signal (damage popup).
+              this.runtime.signalHit();
+              // Place the fade child. The PlaceObject2_22_144 in the
+              // canonical SWF attaches a child at depth 144 on this
+              // frame with onClipEvent(enterFrame) that runs
+              // `_parent._alpha -= 10`. We model this as a live clip.
+              if (!clip.children.has("fadeChild")) {
+                clip.attach(fadeChildSym, "fadeChild", 144, ctx);
+              }
+            },
+          ],
+          [
+            147,
+            (clip) => {
+              // AS DefineSprite_23/frame_148/DoAction.as:
+              //   _parent.removeMovieClip();
+              //   stop();
+              clip.stop();
+              clip.remove();
+              this.runtime.complete();
+            },
+          ],
+        ]),
+      };
     };
 
-    this.registry.register(this.sprite23Sym);
-    this.registry.register(this.sprite38Sym);
+    // ---- Register all five level-variant animations --------------
+    // No `lib_` prefix: these are in `animations[]`, not `librarySymbols[]`.
+    this.anim1Sym   = buildAnimSym("anim1",   textures.getFrames("anim1"));
+    this.anim146Sym = buildAnimSym("anim146", textures.getFrames("anim146"));
+    this.anim291Sym = buildAnimSym("anim291", textures.getFrames("anim291"));
+    this.anim436Sym = buildAnimSym("anim436", textures.getFrames("anim436"));
+    this.anim581Sym = buildAnimSym("anim581", textures.getFrames("anim581"));
+
+    this.registry.register(fadeChildSym);
+    this.registry.register(this.anim1Sym);
+    this.registry.register(this.anim146Sym);
+    this.registry.register(this.anim291Sym);
+    this.registry.register(this.anim436Sym);
+    this.registry.register(this.anim581Sym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture sound callback for use in frame scripts.
+    // Capture the sound callback so frame scripts inside symbol
+    // definitions can call it.
     this.soundCallback = callbacks.playSound;
 
-    // AS scripts/frame_1/DoAction.as: SOMA.playSound("licrounch_1001")
+    // Main timeline frame_1/DoAction.as:
+    //   SOMA.playSound("licrounch_1001");
     callbacks.playSound("licrounch_1001");
 
-    // Attach both parallel timeline sprites — they are implicitly placed
-    // on the main timeline in the canonical SWF at frame_1.
-    this.root.attach(this.sprite23Sym, "sprite23", 1, context);
-    this.root.attach(this.sprite38Sym, "sprite38", 2, context);
+    // Select the animation variant based on spell level.
+    // Level 1 → anim1, level 2 → anim146, level 3 → anim291,
+    // level 4 → anim436, level 5+ → anim581.
+    const level = context.level;
+    let chosenSym: SymbolDefinition;
+    if (level <= 1) {
+      chosenSym = this.anim1Sym;
+    } else if (level === 2) {
+      chosenSym = this.anim146Sym;
+    } else if (level === 3) {
+      chosenSym = this.anim291Sym;
+    } else if (level === 4) {
+      chosenSym = this.anim436Sym;
+    } else {
+      chosenSym = this.anim581Sym;
+    }
+
+    // Attach the chosen animation at the root. The harness has already
+    // positioned root at the target cell (displayType=11 / TargetCell).
+    this.root.attach(chosenSym, "anim", 1, context);
   }
 }

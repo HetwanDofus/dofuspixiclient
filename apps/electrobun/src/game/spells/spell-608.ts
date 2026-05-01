@@ -1,37 +1,32 @@
 /**
- * Spell 608 — Dodge (esquive, self-buff style).
+ * Spell 608 — Esquive (Dodge/Sidestep).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/608/scripts/scripts/
  *
- * Layout:
- *   - Single animation `anim1` (168 frames). No library symbols, no
- *     `attachMovie` calls anywhere. The manifest has no `librarySymbols[]`
- *     entries and `requiresTypeScript: false`.
- *   - One authored sprite, `DefineSprite_24`, whose frame scripts are:
- *       frame_1   → SOMA.playSound("dodge_608")
- *       frame_28  → SOMA.playSound("dodge_608")
- *       frame_49  → SOMA.playSound("dodge_608")
- *       frame_70  → SOMA.playSound("dodge_608")
- *       frame_97  → SOMA.playSound("dodge_608")
- *       frame_145 → _parent.removeMovieClip()  ← spell complete
+ * displayType=11 (TargetCell). This spell has no projectile motion, no library
+ * symbols that are attached at runtime via attachMovie, and no dual-anchored
+ * timelines. It is a single authored animation (anim1, 168 frames) played at
+ * the target cell, driven entirely by the DefineSprite_24 timeline. No
+ * librarySymbols entries exist in the manifest — the entire animation is
+ * pre-rendered in anim1. The AS scripts live on DefineSprite_24 which IS anim1.
  *
- * displayType = TargetCell (11).
- *   The spell has no caster reference, no projectile, no beam. It is a
- *   single animated impact placed at the target cell. This is the
- *   canonical TargetCell pattern.
+ * The manifest has no `librarySymbols` array, so there are no attachMovie calls
+ * to worry about. The spell uses a single symbol (anim1) registered as the
+ * top-level content clip.
  *
- * Because `librarySymbols` is empty, the whole animation is delivered
- * as the `anim1` top-level entry. We register a single symbol whose
- * textures come from `textures.getFrames("anim1")` (no `lib_` prefix).
+ * DefineSprite_24 timeline scripts:
+ *   frame_1   (index 0):  SOMA.playSound("dodge_608")
+ *   frame_28  (index 27): SOMA.playSound("dodge_608")
+ *   frame_49  (index 48): SOMA.playSound("dodge_608")
+ *   frame_70  (index 69): SOMA.playSound("dodge_608")
+ *   frame_97  (index 96): SOMA.playSound("dodge_608")
+ *   frame_145 (index 144): _parent.removeMovieClip() → complete()
  *
- * signalHit: fired at frame_28 (first repeat of the dodge sound after
- * the initial impact), matching the canonical "something landed" moment.
- * complete: fired at frame_145 mirroring `_parent.removeMovieClip()`.
+ * signalHit is fired at frame_28 (index 27), which is the first post-entry
+ * sound cue and corresponds to the first dodge impact in the canonical anim.
  *
- * Main timeline: onSpellStart plays the entry sound and attaches the
- * anim1 symbol, since the top-level SWF merely places DefineSprite_24
- * on its stage.
+ * Main timeline: attaches the anim1 clip at root; the clip drives itself.
  */
 
 import type {
@@ -59,17 +54,16 @@ export class Spell608 extends RuntimeSpell {
 
   private anim1Sym!: SymbolDefinition;
 
-  private playSound?: (id: string) => void;
-
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1 (= DefineSprite_24) — 168-frame dodge animation ----
-    // No librarySymbols[] in the manifest; textures come from the bare
-    // "anim1" animation entry.
+    // ---- anim1 — full 168-frame dodge animation at target cell ---
+    // AS: DefineSprite_24 is the sole symbol; its frame scripts drive
+    // sound playback and completion. The anim1 animation in the
+    // manifest corresponds directly to this sprite.
     this.anim1Sym = {
       name: "anim1",
       totalFrames: 168,
@@ -78,49 +72,55 @@ export class Spell608 extends RuntimeSpell {
       anchorY: anim1Anchor.y,
       frameScripts: new Map([
         [
-          // AS: DefineSprite_24/frame_1/DoAction.as → SOMA.playSound("dodge_608")
-          // (frame_1 entry sound is fired via onSpellStart / attach entry-frame;
-          //  we include it here as well so re-attaches also play it)
           0,
-          (_clip) => {
-            this.playSound?.("dodge_608");
+          (_clip, _ctx) => {
+            // AS: DefineSprite_24/frame_1/DoAction.as
+            // SOMA.playSound("dodge_608");
+            // (sound emitted from onSpellStart for frame 0 to avoid
+            // needing a captured callback; subsequent frames use the
+            // stored reference below)
           },
         ],
         [
-          // AS: DefineSprite_24/frame_28/DoAction.as → SOMA.playSound("dodge_608")
           27,
-          (_clip) => {
-            this.playSound?.("dodge_608");
-            // First repeat of the dodge sound — canonical hit moment.
+          (_clip, _ctx) => {
+            // AS: DefineSprite_24/frame_28/DoAction.as
+            // SOMA.playSound("dodge_608");
+            this.soundCallback?.("dodge_608");
+            // First impact cue — signal hit here.
             this.runtime.signalHit();
           },
         ],
         [
-          // AS: DefineSprite_24/frame_49/DoAction.as → SOMA.playSound("dodge_608")
           48,
-          (_clip) => {
-            this.playSound?.("dodge_608");
+          (_clip, _ctx) => {
+            // AS: DefineSprite_24/frame_49/DoAction.as
+            // SOMA.playSound("dodge_608");
+            this.soundCallback?.("dodge_608");
           },
         ],
         [
-          // AS: DefineSprite_24/frame_70/DoAction.as → SOMA.playSound("dodge_608")
           69,
-          (_clip) => {
-            this.playSound?.("dodge_608");
+          (_clip, _ctx) => {
+            // AS: DefineSprite_24/frame_70/DoAction.as
+            // SOMA.playSound("dodge_608");
+            this.soundCallback?.("dodge_608");
           },
         ],
         [
-          // AS: DefineSprite_24/frame_97/DoAction.as → SOMA.playSound("dodge_608")
           96,
-          (_clip) => {
-            this.playSound?.("dodge_608");
+          (_clip, _ctx) => {
+            // AS: DefineSprite_24/frame_97/DoAction.as
+            // SOMA.playSound("dodge_608");
+            this.soundCallback?.("dodge_608");
           },
         ],
         [
-          // AS: DefineSprite_24/frame_145/DoAction.as → _parent.removeMovieClip()
           144,
-          (clip) => {
-            clip.remove();
+          (clip, _ctx) => {
+            // AS: DefineSprite_24/frame_145/DoAction.as
+            // _parent.removeMovieClip();
+            clip.parent?.remove();
             this.runtime.complete();
           },
         ],
@@ -130,19 +130,20 @@ export class Spell608 extends RuntimeSpell {
     this.registry.register(this.anim1Sym);
   }
 
+  private soundCallback?: (id: string) => void;
+
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture the sound callback so frame scripts (which don't receive
-    // callbacks directly) can play sounds.
-    this.playSound = callbacks.playSound;
+    // Capture the sound callback so frame scripts can call it.
+    this.soundCallback = callbacks.playSound;
 
-    // Main timeline frame_1: play the entry sound and place
-    // DefineSprite_24 (anim1) on the stage. The attach call fires the
-    // entry-frame script (frame_1 / index 0) which also calls
-    // playSound, matching canonical AS behaviour where the symbol's
-    // own frame_1 DoAction fires immediately on placement.
+    // AS: DefineSprite_24/frame_1/DoAction.as — SOMA.playSound("dodge_608")
+    // Play the entry sound immediately.
+    callbacks.playSound("dodge_608");
+
+    // Attach the anim1 clip at the root (target cell anchor).
     this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

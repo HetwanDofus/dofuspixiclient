@@ -10,6 +10,13 @@ export interface LiveMonsterGroup {
   cellId: number;
   direction: number;
   members: LiveMonsterMember[];
+  /**
+   * Difficulty bonus, mirrors `dofus.datacenter.MonsterGroup._nBonusValue`
+   * in canonical 1.29. Drives the 5-star colouring on the hover panel
+   * (`TextWithTitleOverHead.STARS_COLORS`). Zero = no stars filled (a
+   * baseline group). Server bumps this for elite spawns / event groups.
+   */
+  bonusValue: number;
 }
 
 export interface LiveMonsterMember {
@@ -113,6 +120,10 @@ export class MapMonsterService {
         cellId,
         direction: Math.floor(Math.random() * 4) * 2 + 1,
         members,
+        // Baseline groups have no bonus — five empty stars on the hover
+        // panel. Elite / quest spawns can override this when they inject
+        // their own LiveMonsterGroup via `consumeGroup` upstream.
+        bonusValue: 0,
       });
     }
 

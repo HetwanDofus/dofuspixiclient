@@ -1,34 +1,44 @@
 /**
- * Spell 1002 — Licrounch (Osamodas / Chafer-type impact).
+ * Spell 1002 — Lichcrunch (Liche attack).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/1002/scripts/scripts/
  *
- * displayType=11 (TargetCell). This is a single impact animation anchored at the
- * target cell. The manifest has no librarySymbols[], no move/shoot/duplicate
- * pattern, no caster-relative positioning, no dual-timeline world-absolute
- * wiring. A single `anim1` animation in `animations[]` plays at the target cell.
+ * displayType=11 (TargetCell). This spell is a single impact animation
+ * anchored at the target cell. There are no projectile, beam, or
+ * world-absolute patterns in the AS — the entire effect plays at the
+ * target cell. The manifest has no librarySymbols[] entries (only a
+ * single `animations: ["anim1"]` entry), confirming it is a simple
+ * self-contained timeline.
  *
- * The canonical SWF main timeline has one authored DefineSprite_23 child placed
- * on the timeline. That sprite drives the full animation:
- *   - frame_1:   SOMA.playSound("licrounch_1001")
- *   - frame_37:  SOMA.playSound("licrounch_1001b")
- *   - frame_112: this.end() → signalHit; PlaceObject2_22_160 clip gets
- *                onClipEvent(enterFrame) that fades _parent._alpha by -10/tick
- *   - frame_148: _parent.removeMovieClip(); stop() → spell complete
+ * AS layout:
+ *   - frame_1/DoAction.as: SOMA.playSound("licrounch_1002")
+ *   - DefineSprite_4/frame_28/DoAction.as: stop()
+ *   - DefineSprite_3/frame_49/DoAction.as: stop()
+ *   - DefineSprite_23/frame_1/DoAction.as: SOMA.playSound("licrounch_1001")
+ *   - DefineSprite_23/frame_37/DoAction.as: SOMA.playSound("licrounch_1001b")
+ *   - DefineSprite_23/frame_112/DoAction.as: this.end() → signalHit
+ *   - DefineSprite_23/frame_112/PlaceObject2_22_160/CLIPACTIONRECORD
+ *       onClipEvent(enterFrame).as: _parent._alpha -= 10  (fade-out on a
+ *       child placed at frame 112 of DefineSprite_23)
+ *   - DefineSprite_23/frame_148/DoAction.as: _parent.removeMovieClip();
+ *       stop() → spell complete
  *
- * DefineSprite_4 (frame_28: stop) and DefineSprite_3 (frame_49: stop) are
- * sub-children of DefineSprite_23's authored visual content and are fully
- * captured in the composite `anim1` texture frames — they require no separate
- * TS symbol registration.
+ * The single `anim1` animation is the pre-rendered composite of the
+ * authored timeline. DefineSprite_23 is the top-level sprite that drives
+ * the whole sequence. Its frame 112 places a fading child (PlaceObject2_22)
+ * and fires signalHit; its frame 148 removes the outer mc and ends the
+ * spell.
  *
- * The fade-out clip (PlaceObject2_22_160 / onClipEvent enterFrame) makes the
- * outer sprite23 fade starting at frame 112. We apply that as an onEnterFrame
- * on a per-frame-range basis driven by a vars flag set at frame 111.
+ * Because the manifest has no librarySymbols[], we must NOT use a "lib_"
+ * prefix anywhere — `textures.getFrames("anim1")` is the correct key.
  *
- * Library symbols: none (librarySymbols[] is empty in manifest).
+ * Library symbols:
+ *   - anim1 — 150-frame composite animation at target cell. frame_1 plays
+ *     sound; frame_112 signals hit and starts per-frame alpha decay on a
+ *     placed child; frame_148 removes parent and completes spell.
  *
- * Main timeline (frame_1/DoAction.as): SOMA.playSound("licrounch_1002").
+ * Main timeline: SOMA.playSound("licrounch_1002"); (frame_1/DoAction.as)
  */
 
 import type {
@@ -54,9 +64,6 @@ export class Spell1002 extends RuntimeSpell {
   readonly spellId = 1002;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  private sprite23Sym!: SymbolDefinition;
-
-  // Capture sound callback so frameScripts can call it.
   private soundCallback?: (id: string) => void;
 
   protected registerSymbols(
@@ -65,54 +72,70 @@ export class Spell1002 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // DefineSprite_23 — the main authored timeline child placed on the
-    // top-level SWF main timeline. 150 frames. Composite frames captured
-    // in `anim1`. Drives sounds, signalHit, alpha-fade, and completion.
-    this.sprite23Sym = {
-      name: "sprite_23",
+    // ---- anim1 — 150-frame impact composite at target cell -------
+    // This symbol is the top-level DefineSprite_23 timeline (the
+    // outermost authored sprite). All sub-sprite scripts (DefineSprite_4,
+    // DefineSprite_3) are baked into the composite frames. The runtime
+    // only needs to drive the frame scripts that produce observable
+    // side-effects: sounds, signalHit, fade-out child, and completion.
+    //
+    // The fade-out child at frame_112 is driven by:
+    //   DefineSprite_23/frame_112/PlaceObject2_22_160/
+    //     CLIPACTIONRECORD onClipEvent(enterFrame).as
+    //   → _parent._alpha -= 10
+    // PlaceObject2_22_160 places a child at depth 160 inside
+    // DefineSprite_23 at frame 112. Its onEnterFrame subtracts 10 from
+    // _parent._alpha each tick, which is _parent = the anim1 clip itself.
+    // We model this directly: at frame 112 we start decrementing
+    // clip.alpha by 10/100 = 0.1 per tick via onEnterFrame.
+    const anim1Sym: SymbolDefinition = {
+      name: "anim1",
       totalFrames: 150,
       frames: textures.getFrames("anim1"),
       anchorX: anim1Anchor.x,
       anchorY: anim1Anchor.y,
-
       onEnterFrame: (clip) => {
         // AS DefineSprite_23/frame_112/PlaceObject2_22_160/
-        //    CLIPACTIONRECORD onClipEvent(enterFrame).as:
-        //   _parent._alpha -= 10;
-        // This clip event fires on a child placed at frame_112.
-        // We model it as: once the fading flag is set on the parent
-        // (sprite_23 itself), we decrement its alpha each tick by
-        // 10/100 = 0.1.
+        //   CLIPACTIONRECORD onClipEvent(enterFrame).as:
+        //   _parent._alpha -= 10
+        // The fade only begins after frame 112 has fired (flagged by
+        // clip.vars.fading). Before that frame, this handler is a no-op.
         if (clip.vars.fading === true) {
-          clip.alpha = Math.max(0, clip.alpha - 0.1);
+          clip.alpha = Math.max(0, clip.alpha - 10 / 100);
         }
       },
-
       frameScripts: new Map([
         [
           0,
-          (_clip) => {
+          (clip) => {
             // AS DefineSprite_23/frame_1/DoAction.as:
             //   SOMA.playSound("licrounch_1001");
-            this.soundCallback?.("licrounch_1001");
+            if (this.soundCallback) {
+              this.soundCallback("licrounch_1001");
+            }
+            clip.play();
           },
         ],
         [
           36,
-          (_clip) => {
+          () => {
             // AS DefineSprite_23/frame_37/DoAction.as:
             //   SOMA.playSound("licrounch_1001b");
-            this.soundCallback?.("licrounch_1001b");
+            if (this.soundCallback) {
+              this.soundCallback("licrounch_1001b");
+            }
           },
         ],
         [
           111,
           (clip) => {
             // AS DefineSprite_23/frame_112/DoAction.as:
-            //   this.end();
-            // Signals hit (damage popup at target). Also activates the
-            // per-frame alpha-fade introduced by the PlaceObject2_22_160
-            // clip event placed at this frame.
+            //   this.end() → signals hit (damage popup at target).
+            // AS DefineSprite_23/frame_112/PlaceObject2_22_160/
+            //   CLIPACTIONRECORD onClipEvent(enterFrame).as:
+            //   _parent._alpha -= 10
+            // Activate the fade-out flag so onEnterFrame starts
+            // decrementing alpha from this tick forward.
             this.runtime.signalHit();
             clip.vars.fading = true;
           },
@@ -123,15 +146,15 @@ export class Spell1002 extends RuntimeSpell {
             // AS DefineSprite_23/frame_148/DoAction.as:
             //   _parent.removeMovieClip();
             //   stop();
-            // _parent here is the outer mc (our root). Signal completion.
             clip.stop();
+            clip.remove();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
-    this.registry.register(this.sprite23Sym);
+    this.registry.register(anim1Sym);
   }
 
   protected onSpellStart(
@@ -142,12 +165,17 @@ export class Spell1002 extends RuntimeSpell {
     //   SOMA.playSound("licrounch_1002");
     callbacks.playSound("licrounch_1002");
 
-    // Capture the sound callback so frameScripts can trigger sounds.
+    // Capture sound callback for use inside frame scripts (sounds at
+    // frames 1 and 37 of DefineSprite_23 are triggered from frameScripts
+    // handlers where callbacks is not directly accessible).
     this.soundCallback = callbacks.playSound;
 
-    // Attach the main authored sprite (DefineSprite_23) onto the root.
-    // In the canonical SWF it is implicitly placed on the main timeline
-    // at frame_1 as a child MovieClip positioned at the target cell origin.
-    this.root.attach(this.sprite23Sym, "sprite23", 1, context);
+    // Attach the main animation at root depth 1. It starts ticking from
+    // the next runtime frame, mirroring the canonical implicit PlaceObject2
+    // of DefineSprite_23 on the main timeline.
+    const anim1Sym = this.registry.resolve("anim1");
+    if (anim1Sym) {
+      this.root.attach(anim1Sym, "anim1", 1, context);
+    }
   }
 }

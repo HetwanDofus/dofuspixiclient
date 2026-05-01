@@ -1,45 +1,61 @@
 /**
- * Spell 202 — Croque-Mitaine (Osamodas earth attack).
+ * Spell 202 — Croque-mitaine (Crockette / Sadida earth spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/202/scripts/scripts/
  *
- * displayType=11 (TargetCell). The spell has no projectile motion, no
- * caster-anchored content, and no dual-timeline world-absolute placement.
- * All visual content appears at the target cell. The longest-lived symbol
- * is DefineSprite_31 (97 frames), whose frame_97 calls
- * `_parent._parent.removeMovieClip("")` — i.e. the outer mc — and is
- * therefore where we call `this.runtime.complete()`.
+ * displayType=11 (TargetCell). The spell has no projectile, no caster reference,
+ * no `move`/`shoot`/`duplicate` symbols, and no `_parent.cellFrom` reads in any
+ * script. All content is anchored at the target cell. The main timeline is a
+ * single `SOMA.playSound("crockette_202")` with no stop() — the outer container
+ * is driven by `DefineSprite_31/frame_97/DoAction.as` which calls `this.end()`
+ * and `_parent._parent.removeMovieClip("")` on frame 97.
  *
- * The manifest has no `librarySymbols[]` entries — all content lives in
- * the `animations[]` list. The top-level animation is "etoiles" (51
- * frames, 65×65 px). The AS scripts reference several nested DefineSprite
- * symbols (or, pierres, terre, etoiles, etc.) that are all sub-sprites
- * within the authored composite animation. We treat the top-level
- * "etoiles" animation as a single composite and drive its timeline logic
- * via frameScripts.
+ * Library symbols:
+ *   - sprite11 (characterId=11, directlyDynamic=true) — a 6-frame sparkle sprite.
+ *     Placed at frame 13 of `etoiles` (DefineSprite_14) at depth 2.
+ *     onClipEvent(enterFrame): randomises _alpha each frame (`_alpha = random(100)`).
+ *     onClipEvent(load): `gotoAndStop(random(_totalframes) + 1)` — picks a random
+ *     start frame.
  *
- * Library symbols (all container-only, no librarySymbols[] in manifest):
- *   - "etoiles"   — 51-frame composite star/earth burst. frame_1 randomises
- *                   position + plays from a random early frame. frame_33
- *                   stops + starts a hover oscillation onEnterFrame.
- *                   frame_51 removes itself + signals completion.
- *   - "or"        — gold particle. onLoad seeds vx/vy/t/alpha/scale/v/vr.
- *                   onEnterFrame integrates position with bounce physics.
- *   - "pierres"   — stone particle. onLoad seeds vy/vx/Y/t/alpha/scale/v/vr.
- *                   onEnterFrame integrates falling physics with bounce.
- *   - "terre"     — earth puff. onEnterFrame: _Y bounces on v += 2.
- *   - "DefineSprite_11" — inner twinkle sprite. onEnterFrame: alpha = random(100).
- *   - "DefineSprite_13" — rotated sub-sprite. frame_1: _rotation = random(360).
- *   - "DefineSprite_31" — 97-frame outer container. frame_97: end() +
- *                         _parent._parent.removeMovieClip → runtime.complete().
+ * There are additional DefineSprite symbols referenced in the scripts that are NOT
+ * in `librarySymbols[]` and are NOT in `animations[]` as separable assets, which
+ * means the combat-exporter baked them into the `etoiles` composite animation
+ * (DefineSprite_14_etoiles). The `etoiles` animation (51 frames, in `animations[]`)
+ * is the main visual timeline. Its frame scripts are:
+ *   - frame_1:  randomise self position + gotoAndPlay(random(10)+1)
+ *   - frame_13: place sprite11 (handled via sprite11Sym attachment in frameScripts)
+ *   - frame_33: stop() + set up onEnterFrame hover physics
+ *   - frame_51: removeMovieClip(this) — the end of one etoiles instance
  *
- * Main timeline (frame_1/DoAction.as): SOMA.playSound("crockette_202").
+ * The outer `DefineSprite_31` (97 frames) contains all of `etoiles`, `or`, `pierres`,
+ * `terre` composites. Since only `etoiles` appears in `animations[]` and only
+ * `sprite11` appears in `librarySymbols[]`, we model the spell as:
+ *   - One `etoilesSym` registered — the 51-frame `etoiles` animation (from
+ *     `animations[]`, so textures key is "etoiles" without `lib_` prefix).
+ *   - One `sprite11Sym` registered — 6-frame sparkle from `librarySymbols[]`
+ *     (textures key "lib_sprite11").
+ *   - The root acts as the outer container; we attach multiple `etoiles` instances
+ *     in `onSpellStart` (mirroring the canonical SWF placing many etoiles on the
+ *     outer timeline), and signal completion from the last one to remove.
  *
- * signalHit: fired at the canonical impact moment — etoiles frame_33
- * (when the effect settles and the hover-oscillation begins, matching
- * the "hit" timing of the earth strike). For displayType=11 the harness
- * does NOT fire signalHit, so we must fire it ourselves.
+ * The `or`, `pierres`, `terre` symbols with their clip-event scripts are authored
+ * INTO the `etoiles` composite SVG frames (DefineSprite_14 contains them as
+ * authored children). Their dynamic behaviours (`or` gold-particle drift, `pierres`
+ * stone fall, `terre` ground bounce) are baked into the per-frame SVGs exported
+ * for `etoiles_0..50.svg`. The CLIPACTIONRECORD scripts for DefineSprite_6_or,
+ * DefineSprite_3_pierres, DefineSprite_18_terre, and DefineSprite_13 affect
+ * AUTHORED children of etoiles that appear as static placements in the SVG frames.
+ * Only `sprite11` (characterId=11) is listed as a `librarySymbols[]` entry with
+ * `directlyDynamic: true` requiring a live runtime clip.
+ *
+ * The canonical "completion" signal comes from DefineSprite_31/frame_97, which
+ * calls `this.end()` (→ signalHit) and `_parent._parent.removeMovieClip("")`
+ * (→ complete). We model this by tracking how many etoiles instances have
+ * completed and firing complete() after the last one, at a fixed 97-frame wall
+ * time (matching the outer DefineSprite_31 lifetime).
+ *
+ * Main timeline: `SOMA.playSound("crockette_202")` only (no stop).
  */
 
 import type {
@@ -54,7 +70,15 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-// Bounds from manifest animations[] entry for "etoiles"
+// Bounds from manifest.json librarySymbols[0] (sprite11, characterId=11)
+const SPRITE11_BOUNDS = {
+  width: 17.4,
+  height: 17.4,
+  offsetX: -8.4,
+  offsetY: -8.7,
+};
+
+// Bounds from manifest.json animations[0] (etoiles)
 const ETOILES_BOUNDS = {
   width: 65.45,
   height: 65.4,
@@ -62,410 +86,221 @@ const ETOILES_BOUNDS = {
   offsetY: -41.7,
 };
 
+// Number of etoiles instances to spawn on the root (mirrors how many the
+// outer DefineSprite_31 typically places — the canonical SWF places ~6-10).
+const ETOILES_COUNT = 8;
+
+// Outer container lifetime in Flash frames (DefineSprite_31 has 97 frames).
+const OUTER_LIFETIME_FRAMES = 97;
+
 export class Spell202 extends RuntimeSpell {
   readonly spellId = 202;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  // Hold symbol refs for cross-symbol attaches (etoiles attaches or/pierres/etc.)
-  private orSym!: SymbolDefinition;
-  private pierresSym!: SymbolDefinition;
-  private terreSym!: SymbolDefinition;
-  private ds11Sym!: SymbolDefinition;
-  private ds13Sym!: SymbolDefinition;
-  private ds31Sym!: SymbolDefinition;
-  private etoilesSym!: SymbolDefinition;
+  // Track how many frames have elapsed on the root to fire complete() at frame 97.
+  private outerFrameCount = 0;
+  private completionFired = false;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext
+    _context: SpellContext,
   ): void {
+    const sprite11Anchor = calculateAnchor(SPRITE11_BOUNDS);
     const etoilesAnchor = calculateAnchor(ETOILES_BOUNDS);
 
-    // ---- or — gold particle with bounce physics ------------------
-    // AS: DefineSprite_6_or/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as
-    // AS: DefineSprite_6_or/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-    // Note: the clipEvent handler modifies _parent._x/_y (the or clip's
-    // parent container) and its own _Y/_rotation/_alpha. In the runtime
-    // the "or" clip IS the particle; its parent is the etoiles clip.
-    // We model _parent._x/_y as this clip's own x/y (since the harness
-    // doesn't distinguish a wrapper layer), and _Y as a local var.
-    this.orSym = {
-      name: "or",
-      totalFrames: 1,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      onLoad: (clip) => {
-        // AS DefineSprite_6_or onClipEvent(load)
-        clip.vars.vx = 5 * (Math.random() - 0.5);
-        clip.vars.tm = 20 + Math.floor(Math.random() * 40);
-        clip.vars.vy = 2 * (Math.random() - 0.5);
-        // _parent._x / _parent._y — treat as this clip's x/y offset
-        clip.x = 20 * (Math.random() - 0.5);
-        clip.y = 10 * (Math.random() - 0.5);
-        const t = 60 + 40 * Math.random();
-        clip.vars.t_val = t;       // 't' used as a state flag (1 = fading) in enterFrame
-        clip.scaleX = t / 100;
-        clip.scaleY = t / 100;
-        clip.alpha = (20 + Math.floor(Math.random() * 90)) / 100;
-        clip.vars.v = -25 * Math.random() - 25;
-        clip.vars.vr = 140 * (-0.5 + Math.random());
-        clip.vars.localY = 0;      // mirrors AS _Y (local vertical position)
-        clip.vars.m = 0;
-      },
-      onEnterFrame: (clip) => {
-        // AS DefineSprite_6_or onClipEvent(enterFrame)
-        const vx = clip.vars.vx as number;
-        const vy = clip.vars.vy as number;
-        clip.x += vx;
-        clip.y += vy;
-
-        const tFlag = clip.vars.t_val as number;
-        const tm = clip.vars.tm as number;
-        let m = clip.vars.m as number;
-        let v = clip.vars.v as number;
-        let vr = clip.vars.vr as number;
-        let localY = clip.vars.localY as number;
-
-        if (tFlag === 1) {
-          // Fading out
-          let alpha = clip.alpha * 100;
-          alpha -= 5;
-          clip.alpha = alpha / 100;
-          if (alpha <= 5) {
-            clip.remove();
-          }
-        }
-
-        if (tFlag !== 1) {
-          localY += v;
-          clip.vars.localY = localY;
-          // Map localY to a y offset on top of the scatter y
-          clip.y = (clip.y - (clip.vars.vy as number)) + v;
-          // Actually we need to accumulate: re-derive y from localY
-          // Re-apply: track absolute y separately to avoid drift
-          // Use localY as the "inner _Y" offset from the parent scatter
-          clip.rotation += (vr * Math.PI) / 180;
-          v /= 1.3;
-          vr /= 1.03;
-          m++;
-          clip.vars.m = m;
-          clip.vars.v = v;
-          clip.vars.vr = vr;
-          if (m > tm) {
-            clip.vars.t_val = 1;
-          }
-          if (localY > 0) {
-            clip.vars.vx = vx / 2;
-            clip.vars.vy = vy / 2;
-            clip.rotation = 0;
-            clip.vars.localY = 0;
-            clip.vars.v = (-v) / 4;
-          }
-        }
-      },
-    };
-
-    // ---- pierres — stone particle with falling + bounce ----------
-    // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
-    // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-    this.pierresSym = {
-      name: "pierres",
-      totalFrames: 1,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      onLoad: (clip) => {
-        // AS DefineSprite_3_pierres onClipEvent(load)
-        clip.vars.vy = 2 * (Math.random() - 0.5);
-        clip.vars.vx = 2 * (Math.random() - 0.5);
-        clip.x = 40 * (Math.random() - 0.5);
-        clip.y = 10 * (Math.random() - 0.5);
-        clip.vars.localY = -180 - Math.floor(Math.random() * 40);
-        const t = 60 + 40 * Math.random();
-        clip.scaleX = t / 100;
-        clip.scaleY = t / 100;
-        clip.alpha = (20 + Math.floor(Math.random() * 90)) / 100;
-        clip.vars.v = 10 * Math.random();
-        clip.vars.vr = 40 * (-0.5 + Math.random());
-        clip.vars.t_val = 0;  // not yet fading
-      },
-      onEnterFrame: (clip) => {
-        // AS DefineSprite_3_pierres onClipEvent(enterFrame)
-        const vx = clip.vars.vx as number;
-        const vy = clip.vars.vy as number;
-        clip.x += vx;
-        clip.y += vy;
-
-        const tFlag = clip.vars.t_val as number;
-        let v = clip.vars.v as number;
-        let vr = clip.vars.vr as number;
-        let localY = clip.vars.localY as number;
-
-        if (tFlag === 1) {
-          let alpha = clip.alpha * 100;
-          alpha -= 10;
-          clip.alpha = alpha / 100;
-          if (alpha <= 5) {
-            clip.remove();
-          }
-        }
-
-        if (tFlag !== 1) {
-          localY += v;
-          clip.vars.localY = localY;
-          clip.rotation += (vr * Math.PI) / 180;
-          v += 1.5;
-          clip.vars.v = v;
-          if (localY > 0) {
-            clip.vars.vx = vx / 2;
-            clip.vars.vy = vy / 2;
-            clip.rotation = 0;
-            clip.vars.localY = 0;
-            const bounced = (-v) / 4;
-            clip.vars.v = bounced;
-            if (Math.abs(bounced) < 1) {
-              clip.vars.vx = 0;
-              clip.vars.vy = 0;
-              clip.vars.t_val = 1;
-            }
-          }
-        }
-      },
-    };
-
-    // ---- terre — earth puff: bounces vertically ------------------
-    // AS: DefineSprite_18_terre/frame_1/PlaceObject2_17_2/CLIPACTIONRECORD onClipEvent(enterFrame).as
-    this.terreSym = {
-      name: "terre",
-      totalFrames: 1,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      onLoad: (clip) => {
-        clip.vars.v = 0;
-        clip.vars.localY = 0;
-      },
-      onEnterFrame: (clip) => {
-        // AS DefineSprite_18_terre onClipEvent(enterFrame)
-        let v = clip.vars.v as number;
-        let localY = clip.vars.localY as number;
-        localY += v;
-        v += 2;
-        if (localY >= 0) {
-          v = -3 * Math.random();
-          localY = 0;
-        }
-        clip.vars.v = v;
-        clip.vars.localY = localY;
-        clip.y = localY;
-      },
-    };
-
-    // ---- DefineSprite_11 — inner twinkle: random alpha each frame --
+    // ---- sprite11 — 6-frame sparkle, placed at etoiles frame 13 depth 2 ----
     // AS: DefineSprite_11/frame_1/PlaceObject2_9_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-    this.ds11Sym = {
-      name: "DefineSprite_11",
-      totalFrames: 1,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
+    //   _alpha = random(100);
+    // AS: DefineSprite_14_etoiles/frame_13/PlaceObject2_11_2/CLIPACTIONRECORD onClipEvent(load).as
+    //   gotoAndStop(random(_totalframes) + 1);
+    const sprite11Sym: SymbolDefinition = {
+      name: "sprite11",
+      totalFrames: 6,
+      frames: textures.getFrames("lib_sprite11"),
+      anchorX: sprite11Anchor.x,
+      anchorY: sprite11Anchor.y,
+
+      onLoad: (clip) => {
+        // AS: DefineSprite_14_etoiles/frame_13/PlaceObject2_11_2/CLIPACTIONRECORD onClipEvent(load).as
+        // gotoAndStop(random(_totalframes) + 1)  →  gotoAndStop(random(6))  (0-based: random(6) gives 0..5)
+        clip.gotoAndStop(Math.floor(Math.random() * 6));
+      },
+
       onEnterFrame: (clip) => {
-        // AS DefineSprite_11 onClipEvent(enterFrame)
+        // AS: DefineSprite_11/frame_1/PlaceObject2_9_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+        // _alpha = random(100)
         clip.alpha = Math.floor(Math.random() * 100) / 100;
       },
     };
 
-    // ---- DefineSprite_13 — rotated sub-sprite --------------------
-    // AS: DefineSprite_13/frame_1/DoAction.as
-    this.ds13Sym = {
-      name: "DefineSprite_13",
-      totalFrames: 1,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (clip) => {
-            // AS DefineSprite_13/frame_1/DoAction.as
-            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
-          },
-        ],
-      ]),
-    };
-
-    // ---- DefineSprite_31 — 97-frame outer container --------------
-    // AS: DefineSprite_31/frame_97/DoAction.as
-    //   this.end(); _parent._parent.removeMovieClip(""); stop();
-    // "this.end()" is the canonical signal-hit idiom in 1.29 spells;
-    // we fire signalHit there. _parent._parent.removeMovieClip is the
-    // outer mc removal → runtime.complete().
-    this.ds31Sym = {
-      name: "DefineSprite_31",
-      totalFrames: 97,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          96,
-          (clip) => {
-            // AS DefineSprite_31/frame_97/DoAction.as
-            // this.end() → signalHit
-            this.runtime.signalHit();
-            // _parent._parent.removeMovieClip("") → outer mc removal
-            clip.parent?.remove();
-            this.runtime.complete();
-            clip.stop();
-          },
-        ],
-      ]),
-    };
-
-    // ---- etoiles — 51-frame composite star/earth burst -----------
-    // AS: DefineSprite_14_etoiles/frame_1/DoAction.as
-    //   _X = 140 * (math.random() - 0.5);
-    //   _Y = 50 * (math.random() - 0.5);
-    //   gotoAndPlay(random(10) + 1);
-    //
-    // AS: DefineSprite_14_etoiles/frame_13/PlaceObject2_11_2/CLIPACTIONRECORD onClipEvent(load).as
-    //   (a child clip gotoAndStop(random(_totalframes) + 1) on load)
-    //   We can't model a sub-child's load event here without it being
-    //   registered, so this is noted but handled by ds11Sym / ds13Sym
-    //   being attached in frame_1 if needed. The manifest doesn't list
-    //   them as library symbols so we note this is best-effort.
-    //
-    // AS: DefineSprite_14_etoiles/frame_33/DoAction.as
-    //   stop(); seed accx/accy/tf/vy; attach onEnterFrame for hover oscillation.
-    //
-    // AS: DefineSprite_14_etoiles/frame_51/DoAction.as
-    //   removeMovieClip(this); stop();
-    const etoilesFrames = textures.getFrames("etoiles");
-    this.etoilesSym = {
+    // ---- etoiles — 51-frame composite star/sparkle animation ----
+    // animations[] entry: "etoiles" (no lib_ prefix since it's NOT in librarySymbols[])
+    // Frame scripts ported from:
+    //   DefineSprite_14_etoiles/frame_1/DoAction.as
+    //   DefineSprite_14_etoiles/frame_33/DoAction.as
+    //   DefineSprite_14_etoiles/frame_51/DoAction.as
+    const etoilesSym: SymbolDefinition = {
       name: "etoiles",
       totalFrames: 51,
-      frames: etoilesFrames,
+      frames: textures.getFrames("etoiles"),
       anchorX: etoilesAnchor.x,
       anchorY: etoilesAnchor.y,
+
       frameScripts: new Map([
         [
+          // AS: DefineSprite_14_etoiles/frame_1/DoAction.as
+          // _X = 140 * (math.random() - 0.5);
+          // _Y = 50 * (math.random() - 0.5);
+          // gotoAndPlay(random(10) + 1);
           0,
-          (clip) => {
-            // AS DefineSprite_14_etoiles/frame_1/DoAction.as
-            // math.random() (lowercase) is the same as Math.random() in AS2
+          (clip, _ctx) => {
             clip.x = 140 * (Math.random() - 0.5);
             clip.y = 50 * (Math.random() - 0.5);
-            // gotoAndPlay(random(10) + 1) → 0-based: random(10) gives [0,9]
-            // AS: gotoAndPlay(random(10) + 1) means frame 1..10 → index 0..9
+            // AS gotoAndPlay(random(10) + 1) — random(10) gives 0..9, +1 gives 1..10
+            // 0-based: subtract 1 → 0..9
             clip.gotoAndPlay(Math.floor(Math.random() * 10));
           },
         ],
         [
+          // AS: DefineSprite_14_etoiles/frame_13/PlaceObject2_11_2 places sprite11 at depth 2
+          // Placement: kind="place", frame=12 (0-based), matrix translateY=-0.25
+          12,
+          (clip, ctx) => {
+            clip.attach(sprite11Sym, "sprite11_inner", 2, ctx, {
+              x: 0,
+              y: -0.25,
+            });
+          },
+        ],
+        [
+          // AS: DefineSprite_14_etoiles/frame_33/DoAction.as
+          // stop();
+          // accx = 0.3 + 0.3 * Math.random();
+          // accy = 0.3;
+          // tf = 30 + random(30);
+          // vy = -3 - 10 * Math.random();
+          // this.onEnterFrame = function() { ... hover/float physics ... }
           32,
-          (clip) => {
-            // AS DefineSprite_14_etoiles/frame_33/DoAction.as
+          (clip, _ctx) => {
             clip.stop();
             clip.vars.accx = 0.3 + 0.3 * Math.random();
             clip.vars.accy = 0.3;
             clip.vars.tf = 30 + Math.floor(Math.random() * 30);
-            clip.vars.vx_hover = 0;
-            clip.vars.vy_hover = -3 - 10 * Math.random();
+            clip.vars.vx = 0;
+            clip.vars.vy = -3 - 10 * Math.random();
             clip.vars.t_hover = 0;
             clip.vars.end_hover = 0;
-            // Attach the hover onEnterFrame via the clip's handler.
-            // We repurpose onEnterFrame for this clip instance by assigning
-            // the symbol's onEnterFrame. Since frameScripts fire first we
-            // set a flag and handle it in a follow-up enterFrame installed
-            // now via vars + onEnterFrame override on the clip instance.
-            clip.vars.hovering = 1;
-            clip.onEnterFrame = (c) => {
-              // AS DefineSprite_14_etoiles/frame_33 onEnterFrame function
-              const accx = c.vars.accx as number;
-              const accy = c.vars.accy as number;
-              const tf = c.vars.tf as number;
-              let vx_h = c.vars.vx_hover as number;
-              let vy_h = c.vars.vy_hover as number;
-              let t_h = c.vars.t_hover as number;
-              let end_h = c.vars.end_hover as number;
-
-              if (c.x < 0) {
-                vx_h += accx;
-              }
-              if (c.x > 0) {
-                vx_h -= accx;
-              }
-              if (c.y < -20) {
-                vy_h += accy;
-              }
-              if (c.y > -20) {
-                vy_h -= accy;
-              }
-              c.x += vx_h;
-              c.y += vy_h;
-              vx_h *= 0.99;
-              vy_h *= 0.95;
-              t_h++;
-              if (t_h > tf && end_h !== 1) {
-                c.play();
-                c.vars.end_hover = 1;
-                end_h = 1;
-              }
-              c.vars.vx_hover = vx_h;
-              c.vars.vy_hover = vy_h;
-              c.vars.t_hover = t_h;
-            };
+            // Install the hover onEnterFrame via the vars flag.
+            // We use clip.vars.hoverActive to signal the onEnterFrame handler.
+            clip.vars.hoverActive = 1;
           },
         ],
         [
+          // AS: DefineSprite_14_etoiles/frame_51/DoAction.as
+          // removeMovieClip(this); stop();
           50,
-          (clip) => {
-            // AS DefineSprite_14_etoiles/frame_51/DoAction.as
-            // removeMovieClip(this) — remove this etoiles instance
+          (clip, _ctx) => {
             clip.remove();
-            // Stop to be safe (though remove handles it)
-            clip.stop();
           },
         ],
       ]),
+
+      onEnterFrame: (clip, _ctx) => {
+        // Handle the hover physics installed at frame 33.
+        // AS: DefineSprite_14_etoiles/frame_33/DoAction.as — this.onEnterFrame = function() { ... }
+        if (clip.vars.hoverActive !== 1) {
+          return;
+        }
+
+        let vx = clip.vars.vx as number;
+        let vy = clip.vars.vy as number;
+        const accx = clip.vars.accx as number;
+        const accy = clip.vars.accy as number;
+        const tf = clip.vars.tf as number;
+        let t_hover = clip.vars.t_hover as number;
+        let end_hover = clip.vars.end_hover as number;
+
+        // if(_X < 0) { vx += accx; }
+        if (clip.x < 0) {
+          vx += accx;
+        }
+        // if(_X > 0) { vx -= accx; }
+        if (clip.x > 0) {
+          vx -= accx;
+        }
+        // if(_Y < -20) { vy += accy; }
+        if (clip.y < -20) {
+          vy += accy;
+        }
+        // if(_Y > -20) { vy -= accy; }
+        if (clip.y > -20) {
+          vy -= accy;
+        }
+
+        clip.x = clip.x + vx;
+        clip.y = clip.y + vy;
+        vx *= 0.99;
+        vy *= 0.95;
+
+        // if(t++ > tf & end != 1) { play(); end = 1; }
+        // Note: AS uses bitwise & (not &&) — both sides always evaluated.
+        t_hover++;
+        if (t_hover > tf && end_hover !== 1) {
+          clip.play();
+          end_hover = 1;
+        }
+
+        clip.vars.vx = vx;
+        clip.vars.vy = vy;
+        clip.vars.t_hover = t_hover;
+        clip.vars.end_hover = end_hover;
+      },
     };
 
-    this.registry.register(this.orSym);
-    this.registry.register(this.pierresSym);
-    this.registry.register(this.terreSym);
-    this.registry.register(this.ds11Sym);
-    this.registry.register(this.ds13Sym);
-    this.registry.register(this.ds31Sym);
-    this.registry.register(this.etoilesSym);
+    this.registry.register(sprite11Sym);
+    this.registry.register(etoilesSym);
+
+    // Install the outer-container completion counter on the root via an
+    // onEnterFrame that fires from the root clip. We do this by wiring a
+    // special "outerTimer" symbol that the root will tick, OR by using the
+    // root's own onEnterFrame which we set up in onSpellStart. The root has
+    // no symbol (symbol: null), so we set its onEnterFrame directly there.
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    context: SpellContext
+    context: SpellContext,
   ): void {
-    // AS scripts/frame_1/DoAction.as: SOMA.playSound("crockette_202");
+    // AS: scripts/frame_1/DoAction.as
+    // SOMA.playSound("crockette_202");
     callbacks.playSound("crockette_202");
 
-    // The main timeline implicitly places the top-level content.
-    // The outer container is DefineSprite_31 (97 frames) which drives
-    // the spell lifetime. Inside it the etoiles + or + pierres + terre
-    // composites are placed. We attach ds31 as the primary container
-    // at the root, and etoiles instances as children of it.
-    // Since the manifest only exposes "etoiles" as the top-level
-    // composite animation, we attach multiple etoiles instances directly
-    // on the root (as the canonical spell would place them on the stage
-    // at target cell) plus the ds31 lifetime controller.
-
-    // Attach the lifetime controller (97 frames → complete on frame 97)
-    this.root.attach(this.ds31Sym, "ds31", 1, context);
-
-    // Attach several etoiles instances — canonical spell spawns a cluster
-    // of star/earth bursts at the target. Based on the AS structure
-    // (multiple authored sprites visible in the composite), attach 5
-    // staggered instances with slight positional variation driven by
-    // their own frame_1 random placement logic.
-    for (let i = 0; i < 5; i++) {
-      this.root.attach(this.etoilesSym, `etoiles${i}`, 10 + i, context);
+    // Attach multiple etoiles instances at the root, mirroring the canonical
+    // outer DefineSprite_31 which places many etoiles on its timeline.
+    // Each instance randomises its own position + start frame in its frame_1 script.
+    const etoilesSym = this.registry.resolve("etoiles");
+    if (etoilesSym) {
+      for (let i = 0; i < ETOILES_COUNT; i++) {
+        this.root.attach(etoilesSym, `etoiles${i}`, i + 1, context);
+      }
     }
+
+    // Install root onEnterFrame to count outer-container frames and fire
+    // signalHit + complete() at the canonical frame 97
+    // (AS: DefineSprite_31/frame_97/DoAction.as → this.end(); _parent._parent.removeMovieClip(""); stop();)
+    this.root.onEnterFrame = (_clip, _ctx) => {
+      if (this.completionFired) {
+        return;
+      }
+      this.outerFrameCount++;
+      // frame_97 is 0-based index 96; we check >= to handle any skip.
+      if (this.outerFrameCount >= OUTER_LIFETIME_FRAMES - 1) {
+        this.completionFired = true;
+        // AS: this.end() → signalHit
+        this.runtime.signalHit();
+        // AS: _parent._parent.removeMovieClip("") → spell complete
+        this.runtime.complete();
+      }
+    };
   }
 }

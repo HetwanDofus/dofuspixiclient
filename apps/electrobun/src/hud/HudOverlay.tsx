@@ -1,12 +1,14 @@
 import { useSyncExternalStore } from "react";
 
 import type { GameClient } from "@/game/game-client";
+import { fightActor } from "@/game/stores/fight-store";
 import { DISPLAY_HEIGHT, FULL_HEIGHT } from "@/game/constants/battlefield";
 import { characterStore, closeAllPanels, hudStore } from "@/game/stores";
 
 import { BannerReact } from "./banner/BannerReact";
 import { TooltipProvider } from "./components/Tooltip";
 import { ConquestPanel } from "./conquest/ConquestPanel";
+import { DamagePoints } from "./fight/DamagePoints";
 import { FightEndDialog } from "./fight/FightEndDialog";
 import { FightOverlay } from "./fight/FightOverlay";
 import { FriendsPanel } from "./friends/FriendsPanel";
@@ -19,6 +21,7 @@ import { SpellsPanel } from "./spells/SpellsPanel";
 import { StatsPanel } from "./stats/StatsPanel";
 import { WorldMapPanel } from "./worldmap/WorldMapPanel";
 import { MonsterGroupTooltip } from "./world/MonsterGroupTooltip";
+import { PlayerNameplate } from "./world/PlayerNameplate";
 
 interface HudOverlayProps {
   baseZoom: number;
@@ -132,6 +135,18 @@ export function HudOverlay({
           canvasHeight={canvasRect.h}
         />
 
+        {/* Floating damage / AP / MP / heal numbers — positioned in
+            canvas-relative px by the DamageRenderer at spawn time and
+            animated via GPU-composited CSS transforms (no Pixi text
+            rasterisation). */}
+        <DamagePoints />
+
+        {/* World-space sprite name boxes — canonical TextOverHead.
+            Anchored in canvas-relative px by PlayerRenderer; the
+            store updates positions per-tick so they follow movement
+            and camera pans without DOM-side rAF. */}
+        <PlayerNameplate />
+
         <BannerReact
           {...(gameClient
             ? { onSelectSpell: (spellId) => gameClient.fightSelectSpell(spellId) }
@@ -151,7 +166,20 @@ export function HudOverlay({
             }}
           />
         )}
-        <FightEndDialog onClose={() => gameClient?.fightForfeit()} />
+        <FightEndDialog
+          onClose={() => {
+            // Local-only dismissal — the server already emitted GameEnd
+            // and tore down the fight on its side. Sending gameLeave
+            // here would either (a) be ignored because the fight is
+            // already cleaned up, or (b) make the gateway think we
+            // want to forfeit a still-active fight, which on some
+            // server states never replies and leaves the dialog
+            // unable to advance. LEAVE transitions the local
+            // fightActor "ended" → "none", which dismisses the dialog
+            // and re-enables the roleplay HUD.
+            fightActor.send({ type: "LEAVE" });
+          }}
+        />
       </div>
 
       <MonsterGroupTooltip />

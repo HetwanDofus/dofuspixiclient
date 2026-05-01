@@ -1,59 +1,42 @@
 /**
- * Spell 809 — Lakam (Earth/Rock impact spell).
+ * Spell 809 — Lakam (Earth/Rock spell).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/809/scripts/scripts/
  *
- * displayType=11 (TargetCell). The spell has a single authored `shoot`
- * animation anchored at the target cell with no projectile or caster-
- * relative motion. DefineSprite_39 is the outer container (166 frames):
- *   - frame_58:  this.end() → signalHit (damage popup)
- *   - frame_208: _parent.removeMovieClip() + stop() → spell complete
- *     (NOTE: frame_208 > 166 frames of the shoot animation — the
- *     DefineSprite_39 is the top-level container whose frame count
- *     extends beyond the shoot sub-sprite; we drive completion from
- *     frame_165 of DefineSprite_9_shoot which fires _parent.removeMovieClip())
+ * displayType=11 (TargetCell). The spell has a single `shoot` animation in
+ * `animations[]` (no `move` symbol, no projectile arc, no caster reference).
+ * It renders entirely at the target cell.
  *
- * Library symbols:
- *   - lib_pierres — single-frame rock fragment particle. onLoad seeds
- *     vd (lifetime), vx/vy (spread), an (angle+π), v2x/v2y (gravity
- *     direction), t (scale), v (initial upward velocity), vr (rotation
- *     speed). onEnterFrame integrates position and rotates; fades
- *     after vd ticks, then accelerates in launch-angle direction.
+ * Symbol / script layout:
  *
- * Structure analysis:
- *   - DefineSprite_9_shoot (the `shoot` symbol, 166 frames total):
- *       - frame_1: PlaceObject2_8_5 has onClipEvent(enterFrame) that
- *         spins and fades a child sprite (DefineSprite_6 / DefineSprite_3
- *         sub-children). This is an authored sub-composite, not a
- *         script-driven attach — the visual is in the precomposed
- *         shoot frames themselves.
- *       - frame_165: _parent.removeMovieClip(); stop() → complete.
- *   - DefineSprite_6 contains the `pierres` particle spawner:
- *       onClipEvent(enterFrame): spawns up to level*3 pairs of
- *       `pierres` particles each frame until count reached.
- *   - DefineSprite_39 wraps the outer main-timeline content.
- *       frame_58: this.end() → signalHit
- *       frame_208: _parent.removeMovieClip() → complete
- *     However, DefineSprite_9_shoot/frame_165 also removes parent —
- *     we use that as the canonical completion signal since shoot is
- *     the outermost registered symbol.
+ *   - DefineSprite_39 (outer container, 208 frames):
+ *       frame_58:  this.end() → signalHit
+ *       frame_208: _parent.removeMovieClip() + stop() → complete
+ *       Internally places DefineSprite_6 (sprite6) at depth 3, offset (0.45, -5.15)
+ *       and DefineSprite_35 at depth 5.
  *
- * Main timeline (frame_1/DoAction.as): SOMA.playSound("lakam_405")
+ *   - DefineSprite_6 (sprite6, 190 frames, directlyDynamic: true):
+ *       onClipEvent(enterFrame) on its internal PlaceObject2_4_3 child:
+ *       spawns pairs of `pierres` while c < level * 3.
  *
- * The harness attaches `shoot` at the target cell for displayType=11.
- * We register `shoot` as the main animated symbol with its frame
- * scripts. The `pierres` library symbol is registered for particle
- * spawning triggered inside the shoot timeline.
+ *   - DefineSprite_15_pierres (pierres, 1 frame):
+ *       onClipEvent(load): seeds vd, vx, vy, an, v2x, v2y, t, v, vr; positions
+ *         _parent wrapper; sets scale.
+ *       onClipEvent(enterFrame): ballistic flight, rotation, alpha fade, removal.
  *
- * NOTE on DefineSprite_6 / DefineSprite_39 sub-sprites: these are
- * authored composite children baked into the shoot frames (visible in
- * the SVG frame sequence). The pierres-spawner (DefineSprite_6) is a
- * child placed inside shoot. We model it as part of the shoot frame_1
- * script — the onEnterFrame on PlaceObject2_4_3 (depth 3 in
- * DefineSprite_6) spawns pierres pairs. Since DefineSprite_6 is a
- * container-only clip placed at depth inside shoot, we register it as
- * a sub-symbol and attach it from shoot's frame_1 script.
+ *   - DefineSprite_35 (inner rotating/fading sub-sprite, 49 frames):
+ *       frame_1 DoAction: _rotation = random(360); t = 20+random(40); scale/alpha.
+ *       frame_49 DoAction: stop().
+ *       onClipEvent(enterFrame) on PlaceObject2_8_5 (depth 5 of shoot):
+ *         _rotation += 35 deg/frame; _alpha -= 5/frame.
+ *
+ *   - lib_pierres — rock particle. onLoad seeds physics vars. onEnterFrame
+ *                   integrates ballistic motion, rotation, alpha fade, removes
+ *                   parent wrapper when alpha < 10%.
+ *   - lib_sprite6 — 190-frame sub-composite. onEnterFrame spawns pierres pairs.
+ *
+ * Main timeline: SOMA.playSound("lakam_405").
  */
 
 import type {
@@ -75,6 +58,13 @@ const PIERRES_BOUNDS = {
   offsetY: -8.6,
 };
 
+const SPRITE6_BOUNDS = {
+  width: 126.25,
+  height: 122.8,
+  offsetX: -62.05,
+  offsetY: -98,
+};
+
 const SHOOT_BOUNDS = {
   width: 126.25,
   height: 122.8,
@@ -82,31 +72,34 @@ const SHOOT_BOUNDS = {
   offsetY: -103.15,
 };
 
+// DefineSprite_35 has no manifest librarySymbols entry — it is an anonymous
+// inner sprite placed at depth 5 of shoot by the SWF timeline. We give it
+// a neutral 0.5/0.5 anchor since no bounds data is available.
+const SPRITE35_BOUNDS = {
+  anchorX: 0.5,
+  anchorY: 0.5,
+};
+
 export class Spell809 extends RuntimeSpell {
   readonly spellId = 809;
   readonly displayType = SpellDisplayType.TargetCell;
 
   private pierresSym!: SymbolDefinition;
-  private spawnerSym!: SymbolDefinition;
+  private sprite6Sym!: SymbolDefinition;
+  private sprite35Sym!: SymbolDefinition;
+  private shootSym!: SymbolDefinition;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext
   ): void {
     const pierresAnchor = calculateAnchor(PIERRES_BOUNDS);
+    const sprite6Anchor = calculateAnchor(SPRITE6_BOUNDS);
     const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // ---- lib_pierres — rock fragment particle --------------------
-    // AS: DefineSprite_15_pierres/frame_1/PlaceObject2_14_1/
-    //     CLIPACTIONRECORD onClipEvent(load).as
-    //     CLIPACTIONRECORD onClipEvent(enterFrame).as
-    //
-    // The pierres symbol has a child (PlaceObject2_14_1) placed at depth 1
-    // with both load and enterFrame clip events. The _parent references
-    // in those scripts refer to the pierres clip itself (the direct
-    // parent of the placed child). We model the onLoad/onEnterFrame as
-    // belonging to the pierres symbol directly — the child visual is
-    // the lib_pierres sprite frame.
+    // ---- lib_pierres — rock particle with ballistic physics ----------
+    // AS: DefineSprite_15_pierres/frame_1/PlaceObject2_14_1/CLIPACTIONRECORD onClipEvent(load).as
+    // AS: DefineSprite_15_pierres/frame_1/PlaceObject2_14_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
     this.pierresSym = {
       name: "pierres",
       totalFrames: 1,
@@ -114,212 +107,311 @@ export class Spell809 extends RuntimeSpell {
       anchorX: pierresAnchor.x,
       anchorY: pierresAnchor.y,
       onLoad: (clip) => {
-        // AS: DefineSprite_15_pierres/frame_1/PlaceObject2_14_1/
-        //     CLIPACTIONRECORD onClipEvent(load).as
-        //
+        // AS DefineSprite_15_pierres/frame_1/PlaceObject2_14_1/CLIPACTIONRECORD onClipEvent(load).as
         // vd = 30 + random(30)
-        // gotoAndPlay(random(4) + 1)  — random starting frame
+        // gotoAndPlay(random(4) + 1)
         // vx = 15 * (Math.random() - 0.5)
         // vy = 15 * (Math.random() - 0.5)
         // an = _parent._parent._parent._parent._parent.angle + 3.1415
-        //   hierarchy: inner-child → pierres → spawner-container →
-        //              shoot → root  (root.vars.angle in degrees, AS stores degrees)
         // v2x = Math.cos(an) * 2
         // v2y = Math.sin(an) * 5
-        // _parent._x = 20 * (Math.random() - 0.5)   → clip.x (the pierres clip)
-        // _parent._y = 10 * (Math.random() - 0.5)   → clip.y
+        // _parent._x = 20 * (Math.random() - 0.5)
+        // _parent._y = 10 * (Math.random() - 0.5)
         // t = 60 + 40 * Math.random()
         // v = -10
         // _xscale = t; _yscale = t
         // vr = 60 * (-0.5 + Math.random())
-
-        clip.vars.vd = 30 + Math.floor(Math.random() * 30);
+        const vd = 30 + Math.floor(Math.random() * 30);
+        clip.vars.vd = vd;
         clip.vars.tps = 0;
-        clip.gotoAndPlay(Math.floor(Math.random() * 4));
+
+        // AS: gotoAndPlay(random(4) + 1) → 1-based, so startFrame = random(4)
+        const startFrame = Math.floor(Math.random() * 4);
+        clip.gotoAndPlay(startFrame);
 
         clip.vars.vx = 15 * (Math.random() - 0.5);
         clip.vars.vy = 15 * (Math.random() - 0.5);
 
-        // Walk up: pierres.parent = spawner, spawner.parent = shoot, shoot.parent = root
-        const root = clip.parent?.parent?.parent;
+        // AS: _parent._parent._parent._parent._parent.angle
+        // Traversal in our tree:
+        //   pierres (this) → wrapper → sprite6 → shoot → root
+        // root.vars.angle holds the angle in degrees (set by harness).
+        const wrapper = clip.parent;
+        const sprite6 = wrapper?.parent;
+        const shoot = sprite6?.parent;
+        const root = shoot?.parent;
         const angleDeg = (root?.vars.angle as number) ?? 0;
         const an = (angleDeg * Math.PI) / 180 + Math.PI;
+        clip.vars.an = an;
         clip.vars.v2x = Math.cos(an) * 2;
         clip.vars.v2y = Math.sin(an) * 5;
 
-        // Position scatter (applied to the pierres clip itself)
-        clip.x = 20 * (Math.random() - 0.5);
-        clip.y = 10 * (Math.random() - 0.5);
+        // AS: _parent._x = 20 * (Math.random() - 0.5)
+        //     _parent._y = 10 * (Math.random() - 0.5)
+        // _parent of the pierres clip (inside the wrapper) is the wrapper container
+        if (wrapper) {
+          wrapper.x = 20 * (Math.random() - 0.5);
+          wrapper.y = 10 * (Math.random() - 0.5);
+        }
 
         const t = 60 + 40 * Math.random();
-        clip.vars.t = t;
         clip.vars.v = -10;
         clip.scaleX = t / 100;
         clip.scaleY = t / 100;
-
         clip.vars.vr = 60 * (-0.5 + Math.random());
       },
       onEnterFrame: (clip) => {
-        // AS: DefineSprite_15_pierres/frame_1/PlaceObject2_14_1/
-        //     CLIPACTIONRECORD onClipEvent(enterFrame).as
-        //
+        // AS DefineSprite_15_pierres/frame_1/PlaceObject2_14_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
         // if(_alpha < 10) { removeMovieClip(_parent) }
         // _parent._x += vx
         // _parent._y += vy
         // _rotation = _rotation + vr
         // if(tps++ < vd) { _Y += v; vx /= 1.2; vy /= 1.2; v /= 1.2 }
-        // if(tps++ > vd) { _Y += (v2y *= 1.2); _parent._y += 10;
-        //                  _X += (v2x *= 1.2); _alpha -= 10 }
-        //
-        // Note: the AS uses two tps++ in one frame, so tps increments
-        // twice per frame. The first check is tps (before first inc),
-        // the second check is tps+1 (after first inc). We replicate
-        // the double-increment exactly.
-
-        if (clip.alpha < 0.1) {
-          clip.remove();
+        // if(tps++ > vd) { _Y += (v2y *= 1.2); _parent._y += 10; _X += (v2x *= 1.2); _alpha -= 10 }
+        if (clip.alpha < 10 / 100) {
+          const wrapper = clip.parent;
+          if (wrapper) {
+            wrapper.remove();
+          }
           return;
         }
 
-        const vx = clip.vars.vx as number;
-        const vy = clip.vars.vy as number;
+        let vx = clip.vars.vx as number;
+        let vy = clip.vars.vy as number;
         const vr = clip.vars.vr as number;
-        let tps = (clip.vars.tps as number) ?? 0;
+        let tps = clip.vars.tps as number;
         const vd = clip.vars.vd as number;
         let v = clip.vars.v as number;
         let v2x = clip.vars.v2x as number;
         let v2y = clip.vars.v2y as number;
+        const wrapper = clip.parent;
 
-        // _parent._x += vx  (_parent of the inner child = the pierres clip)
-        clip.x += vx;
-        clip.y += vy;
+        if (wrapper) {
+          wrapper.x += vx;
+          wrapper.y += vy;
+        }
 
-        // _rotation += vr (this is on the inner placed child — we apply
-        // it to the pierres clip since we merged the hierarchy)
+        // AS: _rotation = _rotation + vr (degrees delta)
         clip.rotation += (vr * Math.PI) / 180;
 
-        // First tps++ check: tps < vd → upward rise phase
+        // AS: if(tps++ < vd) — post-increment: check current value, then increment
         if (tps < vd) {
           clip.y += v;
-          clip.vars.vx = vx / 1.2;
-          clip.vars.vy = vy / 1.2;
-          v = v / 1.2;
+          vx /= 1.2;
+          vy /= 1.2;
+          v /= 1.2;
+          clip.vars.vx = vx;
+          clip.vars.vy = vy;
           clip.vars.v = v;
         }
-        tps = tps + 1;
+        tps++;
 
-        // Second tps++ check: (tps) > vd → gravity/fade phase
+        // AS: if(tps++ > vd) — second post-increment on the same tick
         if (tps > vd) {
-          v2y = v2y * 1.2;
+          v2y *= 1.2;
           clip.y += v2y;
-          clip.y += 10;
-          v2x = v2x * 1.2;
+          if (wrapper) {
+            wrapper.y += 10;
+          }
+          v2x *= 1.2;
           clip.x += v2x;
-          clip.alpha = clip.alpha - 10 / 100;
+          clip.alpha -= 10 / 100;
           clip.vars.v2x = v2x;
           clip.vars.v2y = v2y;
         }
-        tps = tps + 1;
+        tps++;
+
         clip.vars.tps = tps;
       },
     };
 
-    // ---- spawner — DefineSprite_6 container that spawns pierres --
-    // AS: DefineSprite_6/frame_1/PlaceObject2_4_3/
-    //     CLIPACTIONRECORD onClipEvent(enterFrame).as
-    //
-    // This is a container-only clip placed inside the shoot composite.
-    // Its child at PlaceObject2_4_3 (the spawning child) has an
-    // enterFrame that spawns pairs of pierres until count reaches
-    // level * 3. We model the enterFrame on the spawner clip itself.
-    this.spawnerSym = {
-      name: "spawner",
-      totalFrames: 1,
+    // ---- DefineSprite_35 — inner rotating/fading sub-sprite at depth 5 ----
+    // AS: DefineSprite_35/frame_1/DoAction.as
+    //   _rotation = random(360)
+    //   t = 20 + random(40)
+    //   _xscale = t; _yscale = t
+    //   _alpha = 60 + random(40)
+    // AS: DefineSprite_35/frame_49/DoAction.as
+    //   stop()
+    // AS: DefineSprite_9_shoot/frame_1/PlaceObject2_8_5/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    //   _rotation = _rotation + 35
+    //   _alpha = _alpha - 5
+    this.sprite35Sym = {
+      name: "sprite35",
+      totalFrames: 49,
       frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
+      anchorX: SPRITE35_BOUNDS.anchorX,
+      anchorY: SPRITE35_BOUNDS.anchorY,
+      onEnterFrame: (clip) => {
+        // AS DefineSprite_9_shoot/frame_1/PlaceObject2_8_5/CLIPACTIONRECORD onClipEvent(enterFrame).as
+        // _rotation = _rotation + 35  (degrees)
+        // _alpha = _alpha - 5         (0-100 range)
+        clip.rotation += (35 * Math.PI) / 180;
+        clip.alpha -= 5 / 100;
+      },
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS DefineSprite_35/frame_1/DoAction.as
+            // _rotation = random(360)
+            // t = 20 + random(40)
+            // _xscale = t; _yscale = t
+            // _alpha = 60 + random(40)
+            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+            const t = 20 + Math.floor(Math.random() * 40);
+            clip.scaleX = t / 100;
+            clip.scaleY = t / 100;
+            clip.alpha = (60 + Math.floor(Math.random() * 40)) / 100;
+          },
+        ],
+        [
+          48,
+          (clip) => {
+            // AS DefineSprite_35/frame_49/DoAction.as: stop()
+            clip.stop();
+          },
+        ],
+      ]),
+    };
+
+    // ---- lib_sprite6 — 190-frame sub-composite, spawns pierres pairs ----
+    // AS: DefineSprite_6/frame_1/PlaceObject2_4_3/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    // directlyDynamic: true — has its own clipEvent enterFrame that spawns pierres.
+    // The enterFrame runs on an inner sub-instance (PlaceObject2_4_3) inside sprite6.
+    // We model sprite6's onLoad + onEnterFrame to drive this spawning logic, since
+    // the sub-instance is represented by sprite6 itself in our runtime tree.
+    this.sprite6Sym = {
+      name: "sprite6",
+      totalFrames: 190,
+      frames: textures.getFrames("lib_sprite6"),
+      anchorX: sprite6Anchor.x,
+      anchorY: sprite6Anchor.y,
       onLoad: (clip) => {
-        // Initialize the counter
+        // Initialize the counter c used by the enterFrame spawner.
+        // AS: c is a dynamic property on PlaceObject2_4_3 sub-instance.
         clip.vars.c = 0;
       },
       onEnterFrame: (clip, ctx) => {
-        // AS: DefineSprite_6/frame_1/PlaceObject2_4_3/
-        //     CLIPACTIONRECORD onClipEvent(enterFrame).as
-        //
+        // AS DefineSprite_6/frame_1/PlaceObject2_4_3/CLIPACTIONRECORD onClipEvent(enterFrame).as
         // if(c < _parent._parent._parent.level * 3) {
-        //   c += 1; attachMovie("pierres", "pierres" + c, c);
-        //   c += 1; attachMovie("pierres", "pierres" + c, c);
+        //   c += 1; this.attachMovie("pierres","pierres" + c, c);
+        //   c += 1; this.attachMovie("pierres","pierres" + c, c);
         // }
         //
-        // _parent._parent._parent of the placed child (depth 3 in
-        // DefineSprite_6) = DefineSprite_6's parent chain:
-        //   spawning-child → spawner → shoot → root
-        // root.vars.level is the spell level.
-
-        let c = (clip.vars.c as number) ?? 0;
-        const root = clip.parent?.parent;
+        // _parent._parent._parent.level:
+        //   PlaceObject2_4_3 (sub of sprite6) → sprite6 → shoot → root
+        //   In our tree: sprite6 → shoot → root
+        const shoot = clip.parent;
+        const root = shoot?.parent;
         const level = (root?.vars.level as number) ?? 1;
-        const limit = level * 3;
+        let c = clip.vars.c as number;
 
-        if (c < limit) {
+        if (c < level * 3) {
+          // First pierres: create a wrapper container then attach pierres inside it
           c += 1;
-          clip.attach(this.pierresSym, `pierres${c}`, c, ctx);
+          const wrapperSym1: SymbolDefinition = {
+            name: `__wrapper_${c}`,
+            totalFrames: 1,
+            frames: [],
+            anchorX: 0.5,
+            anchorY: 0.5,
+          };
+          const wrapper1 = clip.attach(wrapperSym1, `pierres_wrapper_${c}`, c, ctx);
+          wrapper1.attach(this.pierresSym, `pierres${c}`, 1, ctx);
+
+          // Second pierres
           c += 1;
-          clip.attach(this.pierresSym, `pierres${c}`, c, ctx);
+          const wrapperSym2: SymbolDefinition = {
+            name: `__wrapper_${c}`,
+            totalFrames: 1,
+            frames: [],
+            anchorX: 0.5,
+            anchorY: 0.5,
+          };
+          const wrapper2 = clip.attach(wrapperSym2, `pierres_wrapper_${c}`, c, ctx);
+          wrapper2.attach(this.pierresSym, `pierres${c}`, 1, ctx);
+
           clip.vars.c = c;
         }
       },
     };
 
-    // ---- shoot — 166-frame animated impact composite -------------
-    // AS: DefineSprite_9_shoot/frame_165/DoAction.as:
-    //   _parent.removeMovieClip(); stop()
+    // ---- shoot — outer container (DefineSprite_39, 208 authored frames) ----
+    // animations[] "shoot" has 166 rendered SVG frames; DefineSprite_39 runs to
+    // frame 208 per the AS scripts. We set totalFrames=208 so the frame_58 and
+    // frame_208 scripts fire at the correct logical frames. The texture provider
+    // will clamp beyond frame 165 to the last available SVG frame automatically.
     //
-    // The shoot symbol contains the precomposed visual (166 SVG frames)
-    // plus the spawner child attached at frame_1. A child at depth 5
-    // (PlaceObject2_8_5) has an onClipEvent(enterFrame) that rotates
-    // +35°/frame and fades -5 alpha — this is baked into the authored
-    // composite frames so we don't need to model it separately.
+    // frame_1 (index 0): attach sprite6 at depth 3, offset (0.45, -5.15)
+    //                    attach sprite35 at depth 5 (the rotating/fading sub-sprite)
+    // frame_58 (index 57): this.end() → signalHit
+    // frame_208 (index 207): _parent.removeMovieClip() + stop() → complete
     //
-    // frame_58 inside DefineSprite_39 (the outer container wrapping
-    // shoot) calls this.end() → signalHit. Since DefineSprite_39 is
-    // the outer authored timeline and shoot (DefineSprite_9) is its
-    // child, we treat frame_57 of shoot as the canonical hit frame
-    // (frame_58 in 1-based AS = index 57 in 0-based runtime) since
-    // the DefineSprite_39 frame_58 corresponds to approximately the
-    // same moment in the shoot child timeline. We fire signalHit at
-    // frame 57 (AS frame_58) of the shoot timeline.
-    const shootAnchorCalc = calculateAnchor(SHOOT_BOUNDS);
-    const shootSym: SymbolDefinition = {
+    // The alphaMult colorTransform tween on the sprite6 child (frames 117-140 in
+    // placements[]) is driven per-frame via onEnterFrame on the shoot clip.
+    this.shootSym = {
       name: "shoot",
-      totalFrames: 166,
+      totalFrames: 208,
       frames: textures.getFrames("shoot"),
-      anchorX: shootAnchorCalc.x,
-      anchorY: shootAnchorCalc.y,
+      anchorX: shootAnchor.x,
+      anchorY: shootAnchor.y,
+      onEnterFrame: (clip) => {
+        // Handle the alphaMult colorTransform tween on sprite6 (depth 3).
+        // placements[] shows alphaMult stepping from 246 (frame 117) down to 23
+        // (frame 140) — a decrease of ~9.7 per frame over 24 frames.
+        // AS canonical: SWF tween on PlaceObject2 colorTransform applies to the
+        // placed child each frame. We replicate this by updating sprite6's alpha
+        // in onEnterFrame of the parent shoot container.
+        const currentFrame = clip.currentFrame;
+        if (currentFrame >= 117 && currentFrame <= 140) {
+          const sprite6Child = clip.children.get("sprite6");
+          if (sprite6Child) {
+            // alphaMult values from placements[] (0-indexed frame → alphaMult/256):
+            // frame 117: 246, 118: 237, 119: 227, 120: 217, 121: 207, 122: 198,
+            // 123: 188, 124: 178, 125: 169, 126: 159, 127: 149, 128: 140,
+            // 129: 130, 130: 120, 131: 110, 132: 101, 133: 91, 134: 81,
+            // 135: 72, 136: 62, 137: 52, 138: 42, 139: 33, 140: 23
+            const alphaMultValues: readonly number[] = [
+              246, 237, 227, 217, 207, 198, 188, 178, 169, 159, 149, 140,
+              130, 120, 110, 101, 91, 81, 72, 62, 52, 42, 33, 23,
+            ];
+            const idx = currentFrame - 117;
+            if (idx >= 0 && idx < alphaMultValues.length) {
+              const alphaMult = alphaMultValues[idx] ?? 23;
+              sprite6Child.alpha = alphaMult / 256;
+            }
+          }
+        }
+      },
       frameScripts: new Map([
         [
           0,
           (clip, ctx) => {
-            // AS: DefineSprite_9_shoot/frame_1 — attach the spawner
-            // container (models DefineSprite_6 with its pierres spawner)
-            clip.attach(this.spawnerSym, "spawner", 6, ctx);
+            // AS: frame_1 of DefineSprite_39 places sprite6 (DefineSprite_6) at
+            // depth 3 with matrix translateX=0.45, translateY=-5.15.
+            // Also places DefineSprite_35 at depth 5 (PlaceObject2_8_5) which
+            // has the rotating/fading enterFrame handler.
+            clip.attach(this.sprite6Sym, "sprite6", 3, ctx, {
+              x: 0.45,
+              y: -5.15,
+            });
+            clip.attach(this.sprite35Sym, "sprite35", 5, ctx);
           },
         ],
         [
           57,
           () => {
-            // AS: DefineSprite_39/frame_58/DoAction.as → this.end()
-            // Signals hit (damage popup) at the impact frame.
+            // AS DefineSprite_39/frame_58/DoAction.as: this.end() → signalHit
             this.runtime.signalHit();
           },
         ],
         [
-          165,
+          207,
           (clip) => {
-            // AS: DefineSprite_9_shoot/frame_165/DoAction.as
-            // _parent.removeMovieClip(); stop()
+            // AS DefineSprite_39/frame_208/DoAction.as: _parent.removeMovieClip(); stop();
             clip.stop();
-            clip.parent?.remove();
+            clip.remove();
             this.runtime.complete();
           },
         ],
@@ -327,23 +419,21 @@ export class Spell809 extends RuntimeSpell {
     };
 
     this.registry.register(this.pierresSym);
-    this.registry.register(this.spawnerSym);
-    this.registry.register(shootSym);
+    this.registry.register(this.sprite6Sym);
+    this.registry.register(this.sprite35Sym);
+    this.registry.register(this.shootSym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext
   ): void {
-    // AS: frame_1/DoAction.as → SOMA.playSound("lakam_405")
+    // AS scripts/frame_1/DoAction.as: SOMA.playSound("lakam_405");
     callbacks.playSound("lakam_405");
 
-    // For displayType=11 (TargetCell) the harness does NOT auto-attach
-    // `shoot` — we must attach it ourselves from onSpellStart. The
-    // shoot clip is placed at the root (container origin = target cell).
-    const shootSym = this.registry.resolve("shoot");
-    if (shootSym) {
-      this.root.attach(shootSym, "shoot", 1, context);
-    }
+    // Attach the outer shoot container at the root level.
+    // displayType=11 (TargetCell): root container is already positioned at
+    // target cell — shoot attaches at local (0,0).
+    this.root.attach(this.shootSym, "shoot", 1, context);
   }
 }

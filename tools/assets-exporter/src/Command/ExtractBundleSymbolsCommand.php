@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use Arakne\Swf\Error\Errors;
 use Arakne\Swf\Extractor\Drawer\Converter\Converter;
 use Arakne\Swf\Extractor\Shape\ShapeDefinition;
 use Arakne\Swf\Extractor\Sprite\SpriteDefinition;
@@ -66,7 +67,18 @@ class ExtractBundleSymbolsCommand extends Command
         }
         @mkdir($outputDir, 0755, true);
 
-        $swf = new SwfFile($swfPath);
+        // loader.swf (cc-loader) ships an AS2 ActionConstantPool inside a
+        // DefineSprite → DoAction tag whose declared count overruns the
+        // tag's declared length by a few bytes — readNullTerminatedString
+        // walks past the tag boundary and Arakne defaults to throwing on
+        // out-of-bounds, which kills extraction for ALL 1624 exported
+        // symbols (single mid-stream tag, single error, whole tree
+        // unreadable). Disabling OUT_OF_BOUNDS makes Arakne clamp the
+        // string read at the tag end and continue, so every other tag
+        // (UI_StringCourse, UI_Inventory, all the breed parchment art,
+        // every shape we actually want to extract) parses cleanly.
+        // ALL & ~OUT_OF_BOUNDS keeps every other safety check.
+        $swf = new SwfFile($swfPath, Errors::ALL & ~Errors::OUT_OF_BOUNDS);
         if (!$swf->valid()) {
             $io->error("Invalid SWF: $swfPath");
             return Command::FAILURE;

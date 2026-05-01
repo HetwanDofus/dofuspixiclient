@@ -1,73 +1,61 @@
 /**
- * Spell 405 — Lakam (Eniripsa water drop spell).
+ * Spell 405 — Lakam (Sadida water spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition layer.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/405/scripts/scripts/
  *
- * displayType=11 (TargetCell). This spell has no move/shoot/duplicate/projectile
- * pattern — it's a single impact animation at the target cell. The outer timeline
- * (anim1, 153 frames) plays at target, so TargetCell is the correct displayType.
+ * displayType=11 (TargetCell). Single impact animation anchored at the target cell.
+ * No projectile, no caster reference, no beam. The main timeline just plays a sound
+ * and the animation plays out at the target.
  *
  * Canonical AS layout:
  *
- *   - main timeline frame_1: SOMA.playSound("lakam_405")
+ *   - Main timeline frame_1: SOMA.playSound("lakam_405")
  *
- *   - anim1 (DefineSprite_19, 153 frames, IS the main animation container):
- *       frame_1:   places a DefineSprite_18 instance at depth 6
- *                  (its sprite has onLoad visibility: hide if level < 2)
- *       frame_7:   places two DefineSprite_18 instances at depths 11, 16
- *                  (hide if level < 3)
- *       frame_13:  places two DefineSprite_18 instances at depths 21, 26
- *                  (hide if level < 5 and level < 4)
- *       frame_31:  places a DefineSprite_18 instance at depth 31
- *                  (hide if level < 2)
- *       frame_37:  places two DefineSprite_18 instances at depths 41, 46
- *                  (hide if level < 3)
- *       frame_43:  places two DefineSprite_18 instances at depths 51, 56
- *                  (hide if level < 5 and level < 4)
+ *   - DefineSprite_19 (outer container, 153 frames = anim1):
+ *       Placed as the root animation. Contains multiple staggered PlaceObject2
+ *       placements of sprite18 (the water-drop composite) at various depths and
+ *       frames, each with level-based visibility rules.
  *       frame_112: this.end() → signalHit
- *       frame_151: _parent.removeMovieClip(); stop() → complete
+ *       frame_151: _parent.removeMovieClip() + stop() → spell complete
  *
- *   - DefineSprite_18 (water drop emitter, 22 frames):
- *       Contains one child (DefineSprite_7, depth 1) with clip events.
- *       onLoad: seed v, va, t, r; set _xscale/_yscale = t
- *       onEnterFrame: drift X by v; fade alpha by va; spawn goutte particles
- *                     up to 4*level; slow v by 1.2
- *       frame_22: stop()
+ *   - sprite18 (characterId=18, directlyDynamic=true, 24 frames):
+ *       A water splash composite. Each instance placed into DefineSprite_19 at
+ *       different frames/depths/positions carries a sprite16 (characterId=16)
+ *       child internally. The sprite18 symbol itself has clip event handlers
+ *       (onLoad/onEnterFrame) on its inner sprite16 child that drive water drop
+ *       particles. It also has frame_22: stop().
  *
- *   - DefineSprite_7 (the actual drop visual inside sprite_18):
- *       frame_1: _rotation = random(360); _alpha = 50
- *       (This is the inner visual child of DefineSprite_18)
+ *   - DefineSprite_18 internal child (PlaceObject2_16_1, the actual particle driver):
+ *       onLoad: seeds v, va, t, r; sets scale from t.
+ *       onEnterFrame: moves X by v; decrements alpha by va; spawns goutte drops
+ *                     up to 4*level; decelerates v by /1.2.
  *
- *   - lib_goutte (DefineSprite_12_goutte, single frame):
- *       frame_1: stop()
- *       Spawned as a trail by DefineSprite_18's onEnterFrame.
+ *   - goutte (characterId=12): single-frame water droplet. frame_1: stop().
  *
- *   - DefineSprite_11_shoot (the drop visual child of sprite_18, depth 1):
- *       Actually this is PlaceObject2_10_1 inside DefineSprite_11_shoot.
- *       onLoad: t = 50 + 10 * level; _xscale = _yscale = t
- *       (This is the shoot sprite placed inside DefineSprite_18)
+ *   - DefineSprite_11_shoot (shoot, characterId=11):
+ *       A separate "shoot" symbol referenced in the scripts list.
+ *       PlaceObject2_10_1 onLoad: t = 50 + 10*level; sets scale from t.
  *
- *   - DefineSprite_4 (decoration sprite):
- *       frame_1: _rotation = random(360)
+ *   - DefineSprite_7: frame_1: _rotation=random(360); _alpha=50. (rotation+alpha particle)
  *
- * Architecture note: DefineSprite_18 is a complex emitter sprite that the
- * timeline places multiple times at different frames. Each placement has
- * a level-gated visibility onLoad. The emitter's internal child
- * (DefineSprite_11_shoot or DefineSprite_7) is a PlaceObject2 with clip
- * events. We model DefineSprite_18 as the "sprite18" symbol and
- * DefineSprite_11_shoot's inner child (PlaceObject2_10_1) as part of
- * sprite18's onLoad. lib_goutte is the trail particle spawned from
- * DefineSprite_18's onEnterFrame.
+ *   - DefineSprite_4: frame_1: _rotation=random(360). (simple rotation particle)
  *
- * Library symbols:
- *   - lib_goutte — single-frame water drop trail particle. frame_1: stop().
- *   - sprite18   — water drop emitter (container-only, 22 frames).
- *                  onLoad: seed v/va/t/r, scale to t%, level-gated visibility.
- *                  onEnterFrame: drift, fade, spawn goutte trail, slow down.
- *                  frame_22: stop().
+ * Level-based visibility rules on sprite18 placements inside DefineSprite_19:
+ *   depth 6  (frame 0):  visible if level >= 2
+ *   depth 11 (frame 6):  visible if level >= 3
+ *   depth 16 (frame 6):  visible if level >= 3
+ *   depth 21 (frame 12): visible if level >= 5
+ *   depth 26 (frame 12): visible if level >= 4
+ *   depth 31 (frame 30): visible if level >= 2
+ *   depth 41 (frame 36): visible if level >= 3
+ *   depth 46 (frame 36): visible if level >= 3
+ *   depth 51 (frame 42): visible if level >= 5
+ *   depth 56 (frame 42): visible if level >= 4
+ *   depth 1  (frame 0):  always visible (no script)
  *
- * Main timeline: SOMA.playSound("lakam_405")
+ * The outer DefineSprite_19 is represented by the "anim1" animation in the manifest.
+ * We register it as a SymbolDefinition and attach it from onSpellStart.
  */
 
 import type {
@@ -82,12 +70,7 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-const ANIM1_BOUNDS = {
-  width: 117.9,
-  height: 113.5,
-  offsetX: -41.55,
-  offsetY: -56.25,
-};
+// ---- Manifest bounds for library symbols ----
 
 const GOUTTE_BOUNDS = {
   width: 0,
@@ -96,86 +79,109 @@ const GOUTTE_BOUNDS = {
   offsetY: 0,
 };
 
+const SPRITE18_BOUNDS = {
+  width: 107.4,
+  height: 109.3,
+  offsetX: -50.05,
+  offsetY: -56.65,
+};
+
+// anim1 bounds (the outer DefineSprite_19 container)
+const ANIM1_BOUNDS = {
+  width: 117.9,
+  height: 113.5,
+  offsetX: -41.55,
+  offsetY: -56.25,
+};
+
 export class Spell405 extends RuntimeSpell {
   readonly spellId = 405;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  private goutteSym!: SymbolDefinition;
-  private sprite18Sym!: SymbolDefinition;
-  private anim1Sym!: SymbolDefinition;
+  private goutteSymDef!: SymbolDefinition;
+  private sprite18SymDef!: SymbolDefinition;
+  private anim1SymDef!: SymbolDefinition;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
-    // ---- lib_goutte — single-frame water trail particle ----------
-    // AS: DefineSprite_12_goutte/frame_1/DoAction.as
-    //   stop();
-    // Spawned by sprite18's onEnterFrame as a trail behind the drop.
-    this.goutteSym = {
+    // ----------------------------------------------------------------
+    // goutte — single-frame water droplet (characterId=12, lib_goutte)
+    // AS DefineSprite_12_goutte/frame_1/DoAction.as: stop();
+    // ----------------------------------------------------------------
+    const goutteAnchor = calculateAnchor(
+      GOUTTE_BOUNDS.width > 0
+        ? GOUTTE_BOUNDS
+        : { width: 1, height: 1, offsetX: -0.5, offsetY: -0.5 },
+    );
+
+    this.goutteSymDef = {
       name: "goutte",
       totalFrames: 1,
       frames: textures.getFrames("lib_goutte"),
-      // lib_goutte has 0x0 bounds in manifest — use centered anchor
-      anchorX: 0.5,
-      anchorY: 0.5,
+      anchorX: goutteAnchor.x,
+      anchorY: goutteAnchor.y,
       frameScripts: new Map([
         [
           0,
           (clip) => {
-            // AS: DefineSprite_12_goutte/frame_1/DoAction.as — stop()
+            // AS DefineSprite_12_goutte/frame_1/DoAction.as: stop();
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- sprite18 — water drop emitter (DefineSprite_18) ---------
-    // This symbol is placed multiple times on the anim1 timeline at
-    // various frames, each with a level-gated visibility onLoad.
-    // The symbol's internal visual child (DefineSprite_11_shoot or
-    // DefineSprite_7) scales based on level in its own onLoad
-    // (PlaceObject2_10_1). We handle that scale in the outer onLoad
-    // here since we model the child as part of this symbol.
+    // ----------------------------------------------------------------
+    // sprite18 — water splash composite (characterId=18, lib_sprite18)
+    // directlyDynamic=true: owns clip event handlers on its inner
+    // PlaceObject2_16_1 child.
     //
-    // AS: DefineSprite_18/frame_1/PlaceObject2_16_1/onClipEvent(load)
+    // The sprite18 symbol is placed multiple times inside DefineSprite_19
+    // at various frames and depths, each with level-based visibility rules.
+    //
+    // Internally, sprite18 has a placed child (PlaceObject2_16_1) which
+    // carries the onLoad/onEnterFrame for drop-particle physics.
+    //
+    // Since in our runtime sprite18 IS the particle actor (the "inner
+    // child" referred to by PlaceObject2_16_1 scripts is the clip
+    // event handler on the sprite18 instance itself), we port the
+    // PlaceObject2_16_1 onLoad/onEnterFrame directly onto sprite18's
+    // SymbolDefinition handlers.
+    //
+    // AS DefineSprite_18/frame_1/PlaceObject2_16_1/CLIPACTIONRECORD onClipEvent(load):
     //   v = 5 + 18 * Math.random();
-    //   va = 1 + Math.random(3);    ← note: Math.random(3) in AS2 == Math.random() (arg ignored)
+    //   va = 1 + Math.random(3);   ← NOTE: Math.random() ignores arg, same as Math.random()
     //   t = 50 + 50 * Math.random();
     //   r = 0.1 + Math.random() * 0.8;
-    //   _xscale = t;
-    //   _yscale = t;
+    //   _xscale = t; _yscale = t;
     //
-    // AS: DefineSprite_18/frame_1/PlaceObject2_16_1/onClipEvent(enterFrame)
+    // AS DefineSprite_18/frame_1/PlaceObject2_16_1/CLIPACTIONRECORD onClipEvent(enterFrame):
     //   _X = _X + v;
     //   _alpha = _alpha - va;
     //   if(c < 4 * _parent._parent._parent.level) {
-    //     _parent.attachMovie("goutte","goutte" + c,c + 1);
+    //     _parent.attachMovie("goutte","goutte" + c, c + 1);
     //     eval("_parent.goutte" + c)._x = _X;
     //     c++;
     //   }
     //   v /= 1.2;
     //
-    // AS: DefineSprite_18/frame_22/DoAction.as — stop()
-    //
-    // NOTE: The PlaceObject2_16_1 clip events apply to the INNER sprite
-    // child placed inside DefineSprite_18. In AS2 terms, sprite_18
-    // contains a child (DefineSprite_7 or DefineSprite_11_shoot) at
-    // depth 1 with these clip events. We port this by applying the
-    // onLoad/onEnterFrame directly to the sprite18 clip itself, since
-    // the composition layer doesn't model the inner child separately.
-    // The _X/_alpha refer to the inner child which IS the drop visual —
-    // we apply them to the sprite18 clip's own transform.
-    this.sprite18Sym = {
+    // AS DefineSprite_18/frame_22/DoAction.as: stop();
+    // ----------------------------------------------------------------
+    const sprite18Anchor = calculateAnchor(SPRITE18_BOUNDS);
+
+    this.sprite18SymDef = {
       name: "sprite18",
-      totalFrames: 22,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
+      totalFrames: 24,
+      frames: textures.getFrames("lib_sprite18"),
+      anchorX: sprite18Anchor.x,
+      anchorY: sprite18Anchor.y,
       onLoad: (clip) => {
-        // AS: DefineSprite_18/frame_1/PlaceObject2_16_1/onClipEvent(load)
-        // Note: AS2 Math.random(N) ignores its argument — it's just Math.random()
+        // AS DefineSprite_18/frame_1/PlaceObject2_16_1/CLIPACTIONRECORD onClipEvent(load).as
         clip.vars.v = 5 + 18 * Math.random();
+        // AS: va = 1 + Math.random(3) — Math.random() ignores its argument in AS2,
+        // behaves identically to Math.random(). Port as Math.random().
         clip.vars.va = 1 + Math.random();
         const t = 50 + 50 * Math.random();
         clip.vars.t = t;
@@ -183,38 +189,30 @@ export class Spell405 extends RuntimeSpell {
         clip.vars.c = 0;
         clip.scaleX = t / 100;
         clip.scaleY = t / 100;
-        // Apply the shoot/DefineSprite_7 inner child's onLoad transform
-        // AS: DefineSprite_11_shoot/frame_1/PlaceObject2_10_1/onClipEvent(load)
-        //   t = 50 + 10 * _parent._parent.level;
-        //   _xscale = t; _yscale = t;
-        // _parent._parent from inner child == sprite18's parent == anim1 == root
-        // We patch in the scale-by-level here since the inner visual is
-        // baked into the sprite18 container.
-        //
-        // AS: DefineSprite_7/frame_1/DoAction.as
-        //   _rotation = random(360); _alpha = 50;
-        clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
-        clip.alpha = 50 / 100;
       },
       onEnterFrame: (clip, ctx) => {
-        // AS: DefineSprite_18/frame_1/PlaceObject2_16_1/onClipEvent(enterFrame)
+        // AS DefineSprite_18/frame_1/PlaceObject2_16_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
         let v = clip.vars.v as number;
         const va = clip.vars.va as number;
         let c = clip.vars.c as number;
 
         clip.x += v;
-        clip.alpha -= va / 100;
+        clip.alpha = Math.max(0, clip.alpha - va / 100);
 
         // _parent._parent._parent.level:
-        // inner child → sprite18 → anim1 clip → root
-        // In our model: clip IS sprite18, so we go clip.parent = anim1Sym instance → anim1's parent = root
+        // PlaceObject2_16_1 is inside sprite18, which is inside DefineSprite_19,
+        // which is inside the outer container (root). So from PlaceObject2_16_1's
+        // perspective: _parent = sprite18 instance, _parent._parent = DefineSprite_19
+        // instance (anim1), _parent._parent._parent = root (outer mc).
+        // In our hierarchy: sprite18 clip's parent = anim1 clip, anim1 clip's parent = root.
         const anim1Clip = clip.parent;
-        const level = (anim1Clip?.parent?.vars.level as number) ?? 1;
+        const rootClip = anim1Clip?.parent;
+        const level = (rootClip?.vars.level as number) ?? 1;
 
         if (c < 4 * level) {
-          clip.attach(this.goutteSym, `goutte${c}`, c + 1, ctx, {
-            x: clip.x,
-          });
+          const goutteName = `goutte${c}`;
+          const goutte = clip.attach(this.goutteSymDef, goutteName, c + 1, ctx);
+          goutte.x = clip.x;
           c++;
           clip.vars.c = c;
         }
@@ -226,22 +224,41 @@ export class Spell405 extends RuntimeSpell {
         [
           21,
           (clip) => {
-            // AS: DefineSprite_18/frame_22/DoAction.as — stop()
+            // AS DefineSprite_18/frame_22/DoAction.as: stop();
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- anim1 — main animation container (DefineSprite_19) ------
-    // 153 frames. Places sprite18 instances at various frames with
-    // level-gated visibility. Signals hit at frame_112 and completes
-    // at frame_151.
+    // ----------------------------------------------------------------
+    // anim1 — outer DefineSprite_19 container (153 frames).
+    // This is placed as the main animation at the target cell.
     //
-    // The anim1 animation also has authored frame textures in the
-    // manifest (the water animation). We use those as the frame data.
+    // It contains staggered PlaceObject2 placements of sprite18 at
+    // various depths and frames with level-based visibility rules.
+    //
+    // Placement schedule (from manifest placements[] and CLIPACTIONRECORD scripts):
+    //
+    //   frame 0,  depth 1:  sprite18 at (13.3, 0.4)  — always visible
+    //   frame 0,  depth 6:  sprite18 at (13.3, 0.4)  — visible if level >= 2
+    //   frame 6,  depth 11: sprite18 at (13.3, 0.4)  — visible if level >= 3
+    //   frame 6,  depth 16: sprite18 at (10.7, 0.4)  — visible if level >= 3
+    //   frame 12, depth 21: sprite18 at (10.3, 0.4)  — visible if level >= 5
+    //   frame 12, depth 26: sprite18 at (10.3, 0.4)  — visible if level >= 4
+    //   frame 30, depth 31: sprite18 at (19.0, 4.6)  — visible if level >= 2
+    //   frame 30, depth 36: sprite18 at (19.0, 4.6)  — (no script = always visible)
+    //   frame 36, depth 41: sprite18 at (13.3, 0.4)  — visible if level >= 3
+    //   frame 36, depth 46: sprite18 at (13.3, 0.4)  — visible if level >= 3
+    //   frame 42, depth 51: sprite18 at (8.5,  0.4)  — visible if level >= 5
+    //   frame 42, depth 56: sprite18 at (13.3, 0.4)  — visible if level >= 4
+    //
+    // frame_112: this.end() → signalHit
+    // frame_151: _parent.removeMovieClip(); stop(); → complete
+    // ----------------------------------------------------------------
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
-    this.anim1Sym = {
+
+    this.anim1SymDef = {
       name: "anim1",
       totalFrames: 153,
       frames: textures.getFrames("anim1"),
@@ -251,107 +268,191 @@ export class Spell405 extends RuntimeSpell {
         [
           0,
           (clip, ctx) => {
-            // AS: DefineSprite_19/frame_1 — places PlaceObject2_18_6
-            // onClipEvent(load): if(_parent._parent.level < 2) _visible = false
+            // AS DefineSprite_19/frame_1: PlaceObject2 places sprite18 at depth 1 and depth 6
             const level = (clip.parent?.vars.level as number) ?? 1;
-            const drop6 = clip.attach(this.sprite18Sym, "drop6", 6, ctx);
-            if (level < 2) {
-              drop6.visible = false;
+
+            // depth 1 — always visible (no script restriction)
+            {
+              const inst = clip.attach(this.sprite18SymDef, "s18_d1", 1, ctx);
+              inst.x = 13.3;
+              inst.y = 0.4;
+            }
+
+            // depth 6 — visible if level >= 2
+            // AS DefineSprite_19/frame_1/PlaceObject2_18_6/CLIPACTIONRECORD onClipEvent(load):
+            //   if(_parent._parent.level < 2) { _visible = false; }
+            {
+              const inst = clip.attach(this.sprite18SymDef, "s18_d6", 6, ctx);
+              inst.x = 13.3;
+              inst.y = 0.4;
+              if (level < 2) {
+                inst.visible = false;
+              }
             }
           },
         ],
         [
           6,
           (clip, ctx) => {
-            // AS: DefineSprite_19/frame_7 — places PlaceObject2_18_11 and PlaceObject2_18_16
-            // depth 11: if(level < 3) _visible = false
-            // depth 16: if(level < 3) _visible = false
+            // AS DefineSprite_19/frame_7: PlaceObject2 places sprite18 at depth 11 and depth 16
             const level = (clip.parent?.vars.level as number) ?? 1;
-            const drop11 = clip.attach(this.sprite18Sym, "drop11", 11, ctx);
-            if (level < 3) {
-              drop11.visible = false;
+
+            // depth 11 — visible if level >= 3
+            // AS DefineSprite_19/frame_7/PlaceObject2_18_11/CLIPACTIONRECORD onClipEvent(load):
+            //   if(_parent._parent.level < 3) { _visible = false; }
+            {
+              const inst = clip.attach(this.sprite18SymDef, "s18_d11", 11, ctx);
+              inst.x = 13.3;
+              inst.y = 0.4;
+              if (level < 3) {
+                inst.visible = false;
+              }
             }
-            const drop16 = clip.attach(this.sprite18Sym, "drop16", 16, ctx);
-            if (level < 3) {
-              drop16.visible = false;
+
+            // depth 16 — visible if level >= 3
+            // AS DefineSprite_19/frame_7/PlaceObject2_18_16/CLIPACTIONRECORD onClipEvent(load):
+            //   if(_parent._parent.level < 3) { _visible = false; }
+            {
+              const inst = clip.attach(this.sprite18SymDef, "s18_d16", 16, ctx);
+              inst.x = 10.7;
+              inst.y = 0.4;
+              if (level < 3) {
+                inst.visible = false;
+              }
             }
           },
         ],
         [
           12,
           (clip, ctx) => {
-            // AS: DefineSprite_19/frame_13 — places PlaceObject2_18_21 and PlaceObject2_18_26
-            // depth 21: if(level < 5) _visible = false
-            // depth 26: if(level < 4) _visible = false
+            // AS DefineSprite_19/frame_13: PlaceObject2 places sprite18 at depth 21 and depth 26
             const level = (clip.parent?.vars.level as number) ?? 1;
-            const drop21 = clip.attach(this.sprite18Sym, "drop21", 21, ctx);
-            if (level < 5) {
-              drop21.visible = false;
+
+            // depth 21 — visible if level >= 5
+            // AS DefineSprite_19/frame_13/PlaceObject2_18_21/CLIPACTIONRECORD onClipEvent(load):
+            //   if(_parent._parent.level < 5) { _visible = false; }
+            {
+              const inst = clip.attach(this.sprite18SymDef, "s18_d21", 21, ctx);
+              inst.x = 10.3;
+              inst.y = 0.4;
+              if (level < 5) {
+                inst.visible = false;
+              }
             }
-            const drop26 = clip.attach(this.sprite18Sym, "drop26", 26, ctx);
-            if (level < 4) {
-              drop26.visible = false;
+
+            // depth 26 — visible if level >= 4
+            // AS DefineSprite_19/frame_13/PlaceObject2_18_26/CLIPACTIONRECORD onClipEvent(load):
+            //   if(_parent._parent.level < 4) { _visible = false; }
+            {
+              const inst = clip.attach(this.sprite18SymDef, "s18_d26", 26, ctx);
+              inst.x = 10.3;
+              inst.y = 0.4;
+              if (level < 4) {
+                inst.visible = false;
+              }
             }
           },
         ],
         [
           30,
           (clip, ctx) => {
-            // AS: DefineSprite_19/frame_31 — places PlaceObject2_18_31
-            // depth 31: if(level < 2) _visible = false
+            // AS DefineSprite_19/frame_31: PlaceObject2 places sprite18 at depth 31 and depth 36
             const level = (clip.parent?.vars.level as number) ?? 1;
-            const drop31 = clip.attach(this.sprite18Sym, "drop31", 31, ctx);
-            if (level < 2) {
-              drop31.visible = false;
+
+            // depth 31 — visible if level >= 2
+            // AS DefineSprite_19/frame_31/PlaceObject2_18_31/CLIPACTIONRECORD onClipEvent(load):
+            //   if(_parent._parent.level < 2) { _visible = false; }
+            {
+              const inst = clip.attach(this.sprite18SymDef, "s18_d31", 31, ctx);
+              inst.x = 19.0;
+              inst.y = 4.6;
+              if (level < 2) {
+                inst.visible = false;
+              }
+            }
+
+            // depth 36 — no visibility script, always visible
+            {
+              const inst = clip.attach(this.sprite18SymDef, "s18_d36", 36, ctx);
+              inst.x = 19.0;
+              inst.y = 4.6;
             }
           },
         ],
         [
           36,
           (clip, ctx) => {
-            // AS: DefineSprite_19/frame_37 — places PlaceObject2_18_41 and PlaceObject2_18_46
-            // depth 41: if(level < 3) _visible = false
-            // depth 46: if(level < 3) _visible = false
+            // AS DefineSprite_19/frame_37: PlaceObject2 places sprite18 at depth 41 and depth 46
             const level = (clip.parent?.vars.level as number) ?? 1;
-            const drop41 = clip.attach(this.sprite18Sym, "drop41", 41, ctx);
-            if (level < 3) {
-              drop41.visible = false;
+
+            // depth 41 — visible if level >= 3
+            // AS DefineSprite_19/frame_37/PlaceObject2_18_41/CLIPACTIONRECORD onClipEvent(load):
+            //   if(_parent._parent.level < 3) { _visible = false; }
+            {
+              const inst = clip.attach(this.sprite18SymDef, "s18_d41", 41, ctx);
+              inst.x = 13.3;
+              inst.y = 0.4;
+              if (level < 3) {
+                inst.visible = false;
+              }
             }
-            const drop46 = clip.attach(this.sprite18Sym, "drop46", 46, ctx);
-            if (level < 3) {
-              drop46.visible = false;
+
+            // depth 46 — visible if level >= 3
+            // AS DefineSprite_19/frame_37/PlaceObject2_18_46/CLIPACTIONRECORD onClipEvent(load):
+            //   if(_parent._parent.level < 3) { _visible = false; }
+            {
+              const inst = clip.attach(this.sprite18SymDef, "s18_d46", 46, ctx);
+              inst.x = 13.3;
+              inst.y = 0.4;
+              if (level < 3) {
+                inst.visible = false;
+              }
             }
           },
         ],
         [
           42,
           (clip, ctx) => {
-            // AS: DefineSprite_19/frame_43 — places PlaceObject2_18_51 and PlaceObject2_18_56
-            // depth 51: if(level < 5) _visible = false
-            // depth 56: if(level < 4) _visible = false
+            // AS DefineSprite_19/frame_43: PlaceObject2 places sprite18 at depth 51 and depth 56
             const level = (clip.parent?.vars.level as number) ?? 1;
-            const drop51 = clip.attach(this.sprite18Sym, "drop51", 51, ctx);
-            if (level < 5) {
-              drop51.visible = false;
+
+            // depth 51 — visible if level >= 5
+            // AS DefineSprite_19/frame_43/PlaceObject2_18_51/CLIPACTIONRECORD onClipEvent(load):
+            //   if(_parent._parent.level < 5) { _visible = false; }
+            {
+              const inst = clip.attach(this.sprite18SymDef, "s18_d51", 51, ctx);
+              inst.x = 8.5;
+              inst.y = 0.4;
+              if (level < 5) {
+                inst.visible = false;
+              }
             }
-            const drop56 = clip.attach(this.sprite18Sym, "drop56", 56, ctx);
-            if (level < 4) {
-              drop56.visible = false;
+
+            // depth 56 — visible if level >= 4
+            // AS DefineSprite_19/frame_43/PlaceObject2_18_56/CLIPACTIONRECORD onClipEvent(load):
+            //   if(_parent._parent.level < 4) { _visible = false; }
+            {
+              const inst = clip.attach(this.sprite18SymDef, "s18_d56", 56, ctx);
+              inst.x = 13.3;
+              inst.y = 0.4;
+              if (level < 4) {
+                inst.visible = false;
+              }
             }
           },
         ],
         [
           111,
           () => {
-            // AS: DefineSprite_19/frame_112/DoAction.as — this.end() → signalHit
+            // AS DefineSprite_19/frame_112/DoAction.as: this.end() → signalHit
             this.runtime.signalHit();
           },
         ],
         [
           150,
           (clip) => {
-            // AS: DefineSprite_19/frame_151/DoAction.as
-            //   _parent.removeMovieClip(); stop();
+            // AS DefineSprite_19/frame_151/DoAction.as: _parent.removeMovieClip(); stop();
+            clip.stop();
             clip.remove();
             this.runtime.complete();
           },
@@ -359,21 +460,20 @@ export class Spell405 extends RuntimeSpell {
       ]),
     };
 
-    this.registry.register(this.goutteSym);
-    this.registry.register(this.sprite18Sym);
-    this.registry.register(this.anim1Sym);
+    this.registry.register(this.goutteSymDef);
+    this.registry.register(this.sprite18SymDef);
+    this.registry.register(this.anim1SymDef);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS: frame_1/DoAction.as — SOMA.playSound("lakam_405")
+    // AS scripts/frame_1/DoAction.as: SOMA.playSound("lakam_405");
     callbacks.playSound("lakam_405");
 
-    // Attach the main anim1 container to root so it starts playing.
-    // For TargetCell displayType the root is already positioned at the
-    // target cell — anim1 renders centered there via its anchor.
-    this.root.attach(this.anim1Sym, "anim1", 1, context);
+    // Attach the outer anim1 container (DefineSprite_19) at root.
+    // This starts the 153-frame animation at the target cell.
+    this.root.attach(this.anim1SymDef, "anim1", 1, context);
   }
 }

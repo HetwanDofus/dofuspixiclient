@@ -1,36 +1,28 @@
 /**
- * Spell 1012 — (Sadida vine/herb impact).
+ * Spell 1012 — (Unknown name, likely a nature/earth spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/1012/scripts/scripts/
  *
- * displayType=11 (TargetCell). There is no projectile, no caster reference,
- * no `move`/`shoot`/`duplicate` symbols. Two parallel authored timelines
- * (sprite_17 and sprite_18) are placed on the main timeline; both are
- * anchored at the target cell via sprite_18's frame_1 explicitly reading
- * `_parent.cellTo`, and sprite_17 implicitly renders at the container origin
- * which is already positioned at the target cell by the harness. The harness
- * does not drive hit-signalling for TargetCell; sprite_18 calls `this.end()`
- * at frame_67 (canonical hit), and sprite_18 calls `_parent.removeMovieClip()`
- * at frame_184 (canonical completion).
+ * displayType=51 (WorldAbsoluteAlt). The spell has two parallel authored
+ * timelines (sprite_17 and sprite_18) that position themselves using
+ * `_parent.cellTo`. This is the WorldAbsolute pattern — the container sits
+ * at world (0,0) and per-sprite frame_1 scripts set absolute positions.
  *
- * Library symbols: none (librarySymbols[] is empty in manifest).
- * Animations:
- *   - sprite_17 — 198-frame herb/vine caster-side effect.
- *       frame_1:  gotoAndPlay(random(60) + 2) — random start offset.
- *       frame_64: SOMA.playSound("herbe").
- *       frame_196: stop().
- *   - sprite_18 — 186-frame target-side impact effect.
- *       frame_1:  position self at _parent.cellTo.
- *       frame_67: this.end() → signalHit.
- *       frame_184: _parent.removeMovieClip() → complete.
+ * Library symbols (animations[] entries only — no librarySymbols[]):
+ *   - sprite_17 — 198-frame caster/ambient timeline. frame_1 jumps to a
+ *     random starting frame (gotoAndPlay(random(60)+2)). frame_64 plays
+ *     sound "herbe". frame_196 stops.
+ *   - sprite_18 — 186-frame target-side impact timeline. frame_1 positions
+ *     self at _parent.cellTo. frame_67 calls this.end() → signalHit.
+ *     frame_184 calls _parent.removeMovieClip() → spell complete.
  *
- * Main timeline frame_2/DoAction.as: stop() — the main timeline halts at
- * frame 2 after placing the two sprites. No explicit sound on the main
- * timeline; "herbe" is triggered from sprite_17's frame_64.
+ * Main timeline (frame_2/DoAction.as): stop(). Implicit frame_1 places
+ * sprite_17 and sprite_18. We attach them in onSpellStart.
  *
- * No `lib_` prefix is used anywhere: librarySymbols[] is empty, so all
- * textures are fetched under the bare animation name.
+ * Sound: the manifest lists sound "herbe" at frame 63, which corresponds
+ * to DefineSprite_17/frame_64/DoAction.as (0-based index 63 → AS frame 64).
+ * The sound is played from within sprite_17's frame script.
  */
 
 import type {
@@ -61,10 +53,13 @@ const SPRITE_18_BOUNDS = {
 
 export class Spell1012 extends RuntimeSpell {
   readonly spellId = 1012;
-  readonly displayType = SpellDisplayType.TargetCell;
+  readonly displayType = SpellDisplayType.WorldAbsoluteAlt;
 
   private sprite17Sym!: SymbolDefinition;
   private sprite18Sym!: SymbolDefinition;
+
+  // Capture the play-sound callback so frame scripts inside sprite_17 can use it.
+  private playSound?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
@@ -73,8 +68,18 @@ export class Spell1012 extends RuntimeSpell {
     const sprite17Anchor = calculateAnchor(SPRITE_17_BOUNDS);
     const sprite18Anchor = calculateAnchor(SPRITE_18_BOUNDS);
 
-    // ---- sprite_17 — 198-frame herb effect (random start) --------
-    // AS DefineSprite_17 scripts define three frame actions.
+    // ---- sprite_17 — ambient / caster-side timeline (198 frames) -------
+    // No librarySymbols entry → textures.getFrames("sprite_17") (no lib_ prefix).
+    // Anchor from animations[] bounds.
+    //
+    // AS DefineSprite_17/frame_1/DoAction.as:
+    //   gotoAndPlay(random(60) + 2);
+    //
+    // AS DefineSprite_17/frame_64/DoAction.as:
+    //   SOMA.playSound("herbe");
+    //
+    // AS DefineSprite_17/frame_196/DoAction.as:
+    //   stop();
     this.sprite17Sym = {
       name: "sprite_17",
       totalFrames: 198,
@@ -83,38 +88,46 @@ export class Spell1012 extends RuntimeSpell {
       anchorY: sprite17Anchor.y,
       frameScripts: new Map([
         [
+          // AS DefineSprite_17/frame_1/DoAction.as: gotoAndPlay(random(60) + 2)
           0,
           (clip) => {
-            // AS: scripts/DefineSprite_17/frame_1/DoAction.as
-            // gotoAndPlay(random(60) + 2);
-            clip.gotoAndPlay(Math.floor(Math.random() * 60) + 1);
+            const target = Math.floor(Math.random() * 60) + 2;
+            clip.gotoAndPlay(target - 1);
           },
         ],
         [
+          // AS DefineSprite_17/frame_64/DoAction.as: SOMA.playSound("herbe")
           63,
-          (_clip) => {
-            // AS: scripts/DefineSprite_17/frame_64/DoAction.as
-            // SOMA.playSound("herbe");
-            // Sound is triggered from within the clip; we capture the
-            // callback reference set during onSpellStart.
-            if (this.soundCallback) {
-              this.soundCallback("herbe");
+          () => {
+            if (this.playSound) {
+              this.playSound("herbe");
             }
           },
         ],
         [
+          // AS DefineSprite_17/frame_196/DoAction.as: stop()
           195,
           (clip) => {
-            // AS: scripts/DefineSprite_17/frame_196/DoAction.as
-            // stop();
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- sprite_18 — 186-frame target-side impact effect ---------
-    // AS DefineSprite_18 scripts define three frame actions.
+    // ---- sprite_18 — target-side impact timeline (186 frames) ----------
+    // No librarySymbols entry → textures.getFrames("sprite_18") (no lib_ prefix).
+    // Anchor from animations[] bounds.
+    //
+    // AS DefineSprite_18/frame_1/DoAction.as:
+    //   _X = _parent.cellTo.x;
+    //   _Y = _parent.cellTo.y;
+    //
+    // AS DefineSprite_18/frame_67/DoAction.as:
+    //   this.end();   → signalHit
+    //
+    // AS DefineSprite_18/frame_184/DoAction.as:
+    //   _parent.removeMovieClip();
+    //   stop();
     this.sprite18Sym = {
       name: "sprite_18",
       totalFrames: 186,
@@ -123,14 +136,10 @@ export class Spell1012 extends RuntimeSpell {
       anchorY: sprite18Anchor.y,
       frameScripts: new Map([
         [
+          // AS DefineSprite_18/frame_1/DoAction.as:
+          //   _X = _parent.cellTo.x; _Y = _parent.cellTo.y;
           0,
           (clip) => {
-            // AS: scripts/DefineSprite_18/frame_1/DoAction.as
-            // _X = _parent.cellTo.x;
-            // _Y = _parent.cellTo.y;
-            // For TargetCell the container origin IS cellTo, but
-            // sprite_18 explicitly repositions itself at the absolute
-            // world coords of the target cell. We read cellTo from root.
             const root = clip.parent;
             const cellTo = root?.vars.cellTo as
               | { x: number; y: number }
@@ -142,20 +151,19 @@ export class Spell1012 extends RuntimeSpell {
           },
         ],
         [
+          // AS DefineSprite_18/frame_67/DoAction.as: this.end() → signalHit
           66,
           () => {
-            // AS: scripts/DefineSprite_18/frame_67/DoAction.as
-            // this.end() → damage popup / hit signal.
             this.runtime.signalHit();
           },
         ],
         [
+          // AS DefineSprite_18/frame_184/DoAction.as:
+          //   _parent.removeMovieClip(); stop();
           183,
           (clip) => {
-            // AS: scripts/DefineSprite_18/frame_184/DoAction.as
-            // _parent.removeMovieClip(); stop();
-            // _parent here is the outer mc (root); signal completion.
             clip.stop();
+            clip.remove();
             this.runtime.complete();
           },
         ],
@@ -166,19 +174,17 @@ export class Spell1012 extends RuntimeSpell {
     this.registry.register(this.sprite18Sym);
   }
 
-  // Stored so sprite_17's frame_64 can fire it from inside frameScripts.
-  private soundCallback: ((id: string) => void) | undefined;
-
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture the sound callback so sprite_17's frame_64 script can use it.
-    this.soundCallback = callbacks.playSound;
+    // Capture playSound for use inside sprite_17's frame_64 script.
+    this.playSound = callbacks.playSound;
 
     // Main timeline frame_1 implicitly places sprite_17 and sprite_18.
-    // frame_2/DoAction.as only does stop() — no explicit sound here.
-    // Attach both child timelines so they begin ticking from the next frame.
+    // Main timeline frame_2/DoAction.as: stop() — the main timeline stops
+    // after placing children; children run independently.
+    // Attach both sprites so they start ticking from the next runtime frame.
     this.root.attach(this.sprite17Sym, "sprite17", 1, context);
     this.root.attach(this.sprite18Sym, "sprite18", 2, context);
   }

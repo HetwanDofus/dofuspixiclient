@@ -1,0 +1,20 @@
+{
+  "$schema": "./protected-spells.schema.json",
+  "_doc": "Spell IDs whose apps/electrobun/src/game/spells/spell-<id>.ts module is hand-perfected and MUST NOT be overwritten by `bun generate-spells.ts`. Add an id here after manually editing/fixing a spell file. Comments belong in the `notes` map.",
+  "ids": [
+    103,
+    108,
+    110,
+    111,
+    909,
+    911
+  ],
+  "notes": {
+    "103": "Reference impl for projectile/displayType-30 (Bâton de Feca). Used as in-prompt example.",
+    "108": "Carapace caster-side (displayType=10). totalFrames clamped to last unique logical idx (87) — frames 87-128 are deduped placeholder.",
+    "110": "Carapace target-side (displayType=11). totalFrames clamped to 100 (last unique logical idx 99).",
+    "111": "Hand-perfected paired with 110.",
+    "909": "Reference impl for displayType=20 (Iop bond). Used as in-prompt example.",
+    "911": "Hand-perfected sibling of 909."
+  }
+}

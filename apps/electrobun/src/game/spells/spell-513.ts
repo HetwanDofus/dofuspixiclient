@@ -1,45 +1,40 @@
 /**
- * Spell 513 — Avalanche (Sacrieur / earth boulder impact).
+ * Spell 513 — Rocaille (Sadida earth spell).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/513/scripts/scripts/
  *
- * displayType=11 (TargetCell). The `shoot` symbol positions itself at
- * `_parent.cellTo` on frame_4 (DoAction_2.as), which is the target cell
- * in container-local coords under displayType=11. No `move` symbol, no
- * ballistic arc, no caster reference — pure impact animation at target.
+ * displayType=11 (TargetCell). The spell has a single `shoot` symbol (DefineSprite_64_shoot,
+ * 264 frames) anchored at the target cell, plus two library symbols:
+ *   - `pierres` (DefineSprite_3) — a small rock/stone particle. Has onLoad (seeds vx, vy,
+ *     position scatter, scale, alpha, v, vr) and onEnterFrame (gravity + bounce physics,
+ *     removes self when settled).
+ *   - `sprite60` (DefineSprite_60, directlyDynamic: true) — a "rock cluster" container.
+ *     Its onClipEvent(load) attaches 5 `pierres` instances. Placed inside `shoot` at frame
+ *     126 (0-based: 125) at depth 25. Has 190 authored frames of visual content.
+ *
+ * Main timeline: no explicit sound on the main timeline (sounds are embedded in shoot's
+ * timeline per the manifest's sounds[] array). The harness attaches `shoot` at the target
+ * cell for displayType=11.
+ *
+ * shoot timeline key frames (1-based AS → 0-based TS):
+ *   frame_4   (idx 3)  : SOMA.playSound("many_501"); _X = _parent.cellTo.x; _Y = _parent.cellTo.y
+ *   frame_109 (idx 108): SOMA.playSound("many_502")
+ *   frame_124 (idx 123): SOMA.playSound("explosion")
+ *   frame_127 (idx 126): this.end() → signalHit
+ *   frame_151 (idx 150): SOMA.playSound("pic")
+ *   frame_166 (idx 165): SOMA.playSound("pic")
+ *   frame_181 (idx 180): SOMA.playSound("pic")
+ *   frame_193 (idx 192): SOMA.playSound("pic")
+ *   frame_262 (idx 261): _parent.removeMovieClip(); stop() → complete
+ *
+ * sprite60 is placed inside shoot at frame 126 (0-based: 125) at depth 25, matrix
+ * (translateX=0.45, translateY=-5.15).
  *
  * Library symbols:
- *   - lib_pierres — single-frame stone/pebble particle. onLoad seeds vx/vy
- *     scatter, parent offset, scale [60,100]%, alpha [20,110], vertical
- *     velocity v (upward), rotation speed vr. onEnterFrame integrates
- *     parent position, bounces particle off y=0, eventually settles.
- *
- * There is also an unnamed sprite (DefineSprite_60) that acts as a
- * container for 5 `pierres` instances. It is referenced by `shoot`'s
- * timeline at the canonical impact frames. Because the manifest has no
- * `librarySymbols` entry for DefineSprite_60 under its own name (it is
- * only referenced internally by `shoot`), we inline its onLoad logic
- * into a "rocks" container symbol that `shoot` attaches at the right
- * moment.
- *
- * shoot — 264-frame composite animation at target cell:
- *   frame_4   : playSound("many_501"); position self at cellTo.
- *   frame_109  : playSound("many_502").
- *   frame_124  : playSound("explosion").
- *   frame_127  : this.end() → signalHit.
- *   frame_151  : playSound("pic"); attach rocks group 1.
- *   frame_166  : playSound("pic"); attach rocks group 2.
- *   frame_181  : playSound("pic"); attach rocks group 3.
- *   frame_193  : playSound("pic"); attach rocks group 4.
- *   frame_262  : _parent.removeMovieClip(); stop() → complete.
- *
- * Main timeline: no explicit sounds (all sounds are inside shoot's
- * timeline); onSpellStart attaches shoot at root.
- *
- * Sound timing note: the manifest `sounds[]` array records the sounds at
- * the same frames listed in the AS frame scripts. We play them directly
- * from the frameScripts callbacks using the captured `callbacks.playSound`.
+ *   - lib_pierres — rock chip particle. onLoad seeds vx/vy/v/vr/scale/alpha. onEnterFrame
+ *     applies gravity+bounce physics; settles and stops when bounce velocity < 1.
+ *   - lib_sprite60 — 190-frame container. onLoad attaches 5 `pierres` instances.
  */
 
 import type {
@@ -61,6 +56,13 @@ const PIERRES_BOUNDS = {
   offsetY: -2.2,
 };
 
+const SPRITE60_BOUNDS = {
+  width: 1,
+  height: 1,
+  offsetX: -0.5,
+  offsetY: -0,
+};
+
 const SHOOT_BOUNDS = {
   width: 177.65,
   height: 220.1,
@@ -72,137 +74,134 @@ export class Spell513 extends RuntimeSpell {
   readonly spellId = 513;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  /** Captured in onSpellStart so frame scripts can call playSound. */
-  private soundCallback?: (id: string) => void;
+  private pierreSym!: SymbolDefinition;
+  private sprite60Sym!: SymbolDefinition;
+  private shootSym!: SymbolDefinition;
+
+  // Capture sound callback for use inside frameScripts
+  private playSound?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
     const pierresAnchor = calculateAnchor(PIERRES_BOUNDS);
+    const sprite60Anchor = calculateAnchor(SPRITE60_BOUNDS);
     const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // ---- lib_pierres — stone particle ----------------------------
+    // ---- lib_pierres — rock chip particle -------------------------
     // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/
     //     CLIPACTIONRECORD onClipEvent(load).as
-    //     CLIPACTIONRECORD onClipEvent(enterFrame).as
-    const pierresSym: SymbolDefinition = {
+    //   var vx = 5 * (Math.random() - 0.5);
+    //   var vy = 2 * (Math.random() - 0.5);
+    //   _parent._x = 20 * (Math.random() - 0.5);
+    //   _parent._y = 10 * (Math.random() - 0.5);
+    //   var t = 60 + 40 * Math.random();
+    //   _xscale = t; _yscale = t; _alpha = 20 + random(90);
+    //   var v = -15 * Math.random() - 5;
+    //   var vr = 140 * (-0.5 + Math.random());
+    //
+    // NOTE: The inner sprite (PlaceObject2_2_1) applies scale/alpha to itself,
+    // and sets _parent._x/_y (i.e. the pierres container's position).
+    // We model this as the clip itself (the pierres container) having the
+    // physics vars, and the onLoad sets both self-transform and self-position
+    // (since onLoad fires on the pierres clip, _parent here would be sprite60).
+    this.pierreSym = {
       name: "pierres",
       totalFrames: 1,
       frames: textures.getFrames("lib_pierres"),
       anchorX: pierresAnchor.x,
       anchorY: pierresAnchor.y,
       onLoad: (clip) => {
-        // AS onClipEvent(load):
-        //   var vx = 5 * (Math.random() - 0.5);
-        //   var vy = 2 * (Math.random() - 0.5);
-        //   _parent._x = 20 * (Math.random() - 0.5);
-        //   _parent._y = 10 * (Math.random() - 0.5);
-        //   var t = 60 + 40 * Math.random();
-        //   _xscale = t; _yscale = t;
-        //   _alpha = 20 + random(90);
-        //   var v = -15 * Math.random() - 5;
-        //   var vr = 140 * (-0.5 + Math.random());
+        // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
+        // The inner placed object (PlaceObject2_2_1) seeds vars and sets _parent (_X/_Y = pierres position)
+        // plus scales/alpha itself. We apply everything to the pierres clip directly.
         clip.vars.vx = 5 * (Math.random() - 0.5);
         clip.vars.vy = 2 * (Math.random() - 0.5);
-        // _parent._x / _parent._y refer to the parent container (rocks group).
-        // We position the parent in the rocks container's onLoad below.
-        // Here we also scatter this clip's own parent offset via vars so
-        // the enterFrame handler can apply it to _parent (the rocks group).
-        clip.vars.parentOffsetX = 20 * (Math.random() - 0.5);
-        clip.vars.parentOffsetY = 10 * (Math.random() - 0.5);
-        if (clip.parent) {
-          clip.parent.x = clip.vars.parentOffsetX as number;
-          clip.parent.y = clip.vars.parentOffsetY as number;
-        }
+        // _parent._x/_y = position of the pierres clip within sprite60
+        clip.x = 20 * (Math.random() - 0.5);
+        clip.y = 10 * (Math.random() - 0.5);
         const t = 60 + 40 * Math.random();
         clip.scaleX = t / 100;
         clip.scaleY = t / 100;
         clip.alpha = (20 + Math.floor(Math.random() * 90)) / 100;
         clip.vars.v = -15 * Math.random() - 5;
         clip.vars.vr = 140 * (-0.5 + Math.random());
-        clip.vars.t = 0; // 't' flag: 0 = active, 1 = settled
+        clip.vars.t = 0; // t is used as a settled flag (set to 1 when settled)
       },
       onEnterFrame: (clip) => {
-        // AS onClipEvent(enterFrame):
-        //   _parent._x += vx;
-        //   _parent._y += vy;
-        //   if(t != 1) {
-        //     _Y += v;
-        //     _rotation += vr;
-        //     v += 1;
-        //     if(_Y > 0) {
-        //       vx /= 2; vy /= 2;
-        //       _rotation = 0; _Y = 0;
-        //       v = (-v) / 4;
-        //       if(Math.abs(v) < 1) { vx=0; vy=0; t=1; }
-        //     }
-        //   }
+        // AS: DefineSprite_3_pierres/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+        // _parent._x += vx; _parent._y += vy; (moves the pierres container)
+        // if(t != 1) { _Y += v; _rotation += vr; v += 1; if(_Y > 0) { bounce/settle } }
         let vx = clip.vars.vx as number;
         let vy = clip.vars.vy as number;
-        let v = clip.vars.v as number;
-        const vr = clip.vars.vr as number;
         const settled = clip.vars.t as number;
 
-        if (clip.parent) {
-          clip.parent.x += vx;
-          clip.parent.y += vy;
-        }
+        // _parent._x/_y corresponds to the pierres clip's own position
+        clip.x += vx;
+        clip.y += vy;
 
         if (settled !== 1) {
-          clip.y += v;
-          // AS rotation in degrees → radians for Pixi.
+          let v = clip.vars.v as number;
+          let vr = clip.vars.vr as number;
+
+          // _Y is the inner sprite's local Y (the visual within pierres)
+          // We track this in clip.vars.innerY
+          let innerY = (clip.vars.innerY as number | undefined) ?? 0;
+
+          innerY += v;
+          // AS: _rotation += vr (degrees → radians)
           clip.rotation += (vr * Math.PI) / 180;
           v += 1;
 
-          if (clip.y > 0) {
-            vx = vx / 2;
-            vy = vy / 2;
+          if (innerY > 0) {
+            // Bounce
+            vx /= 2;
+            vy /= 2;
+            clip.vars.vx = vx;
+            clip.vars.vy = vy;
             clip.rotation = 0;
-            clip.y = 0;
+            innerY = 0;
             v = (-v) / 4;
-
             if (Math.abs(v) < 1) {
-              vx = 0;
-              vy = 0;
+              clip.vars.vx = 0;
+              clip.vars.vy = 0;
               clip.vars.t = 1;
             }
           }
 
-          clip.vars.vx = vx;
-          clip.vars.vy = vy;
           clip.vars.v = v;
+          clip.vars.vr = vr;
+          clip.vars.innerY = innerY;
         }
       },
     };
 
-    // ---- rocks — container that holds 5 pierres instances --------
-    // Mirrors DefineSprite_60. Its only authored content is:
-    //   AS: DefineSprite_60/frame_1/PlaceObject2_59_1/onClipEvent(load).as
-    //     c = 0; while(c < 5) { this.attachMovie("pierres","pierres"+c,c); c++; }
-    // No enterFrame, no frame scripts beyond the onLoad attachMovies.
-    const rocksSym: SymbolDefinition = {
-      name: "rocks",
-      totalFrames: 1,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
+    // ---- lib_sprite60 — rock cluster container (190 frames) -------
+    // AS: DefineSprite_60/frame_1/PlaceObject2_59_1/CLIPACTIONRECORD onClipEvent(load).as
+    //   c = 0;
+    //   while(c < 5) { this.attachMovie("pierres","pierres" + c, c); c++; }
+    this.sprite60Sym = {
+      name: "sprite60",
+      totalFrames: 190,
+      frames: textures.getFrames("lib_sprite60"),
+      anchorX: sprite60Anchor.x,
+      anchorY: sprite60Anchor.y,
       onLoad: (clip, ctx) => {
-        // AS DefineSprite_60/frame_1/PlaceObject2_59_1/onClipEvent(load).as:
-        //   c = 0;
-        //   while(c < 5) { this.attachMovie("pierres","pierres"+c,c); c++; }
+        // AS: DefineSprite_60/frame_1/PlaceObject2_59_1/CLIPACTIONRECORD onClipEvent(load).as
+        // Attaches 5 pierres particles inside this sprite.
         for (let c = 0; c < 5; c++) {
-          clip.attach(pierresSym, `pierres${c}`, c, ctx);
+          clip.attach(this.pierreSym, `pierres${c}`, c, ctx);
         }
       },
     };
 
-    // ---- shoot — 264-frame composite at target cell --------------
-    // AS: DefineSprite_64_shoot/frame_N/DoAction.as
-    // frames: [], container-only (visual content is in the baked shoot frames
-    // but the scriptable behavior is what matters here — the textures are
-    // loaded separately as the "shoot" animation).
-    const shootSym: SymbolDefinition = {
+    // ---- shoot — 264-frame main animation at target ---------------
+    // The shoot animation is the top-level animated symbol (DefineSprite_64_shoot).
+    // It has authored per-frame SVG visuals (264 frames) and several frameScripts.
+    // It is placed by the harness (TargetCell displayType = container at target),
+    // and we attach it from onSpellStart.
+    this.shootSym = {
       name: "shoot",
       totalFrames: 264,
       frames: textures.getFrames("shoot"),
@@ -211,122 +210,116 @@ export class Spell513 extends RuntimeSpell {
       frameScripts: new Map([
         [
           3,
-          (clip) => {
-            // AS DefineSprite_64_shoot/frame_4/DoAction.as:
-            //   SOMA.playSound("many_501");
-            this.soundCallback?.("many_501");
-
-            // AS DefineSprite_64_shoot/frame_4/DoAction_2.as:
-            //   _X = _parent.cellTo.x;
-            //   _Y = _parent.cellTo.y;
-            // For displayType=11, container is already at target cell (0,0
-            // local). But the AS still explicitly sets position here.
-            // Under displayType=11 the container origin IS cellTo, so
-            // container-local coords of cellTo are (0,0). We apply it.
+          (clip, _ctx) => {
+            // AS: DefineSprite_64_shoot/frame_4/DoAction.as — SOMA.playSound("many_501")
+            // AS: DefineSprite_64_shoot/frame_4/DoAction_2.as — _X = _parent.cellTo.x; _Y = _parent.cellTo.y
+            // Position the shoot clip at the target cell (in world coords relative to container origin).
+            // For displayType=11, the container IS already at cellTo, so (0,0) is correct.
+            // But canonical AS sets _X/_Y explicitly from _parent.cellTo — we honour that.
+            this.playSound?.("many_501");
             const root = clip.parent;
-            const cellTo = root?.vars.cellTo as
-              | { x: number; y: number }
-              | undefined;
+            const cellTo = root?.vars.cellTo as { x: number; y: number } | undefined;
             if (cellTo) {
-              clip.x = cellTo.x;
-              clip.y = cellTo.y;
+              // Container is at cellTo (TargetCell anchor), so local (0,0) IS cellTo.
+              // The AS sets absolute coords; since the container origin = cellTo,
+              // the local offset is (cellTo.x - anchor.x, cellTo.y - anchor.y) = (0, 0).
+              // We set it explicitly to match canonical AS.
+              clip.x = 0;
+              clip.y = 0;
             }
           },
         ],
         [
           108,
-          () => {
-            // AS DefineSprite_64_shoot/frame_109/DoAction.as:
-            //   SOMA.playSound("many_502");
-            this.soundCallback?.("many_502");
+          (_clip, _ctx) => {
+            // AS: DefineSprite_64_shoot/frame_109/DoAction.as — SOMA.playSound("many_502")
+            this.playSound?.("many_502");
           },
         ],
         [
           123,
-          () => {
-            // AS DefineSprite_64_shoot/frame_124/DoAction.as:
-            //   SOMA.playSound("explosion");
-            this.soundCallback?.("explosion");
+          (_clip, _ctx) => {
+            // AS: DefineSprite_64_shoot/frame_124/DoAction.as — SOMA.playSound("explosion")
+            this.playSound?.("explosion");
+          },
+        ],
+        [
+          125,
+          (clip, ctx) => {
+            // AS: shoot has sprite60 placed at frame_127 in the manifest (0-based: 126),
+            // but the placement entry says frame=126 (0-based). The manifest placements[]
+            // for sprite60 shows parentSpriteId=64, frame=126, depth=25.
+            // We attach sprite60 here at the correct depth with the placement transform.
+            // matrix: translateX=0.45, translateY=-5.15, scaleX=1, scaleY=1, no rotation
+            if (!clip.children.has("sprite60_inst")) {
+              clip.attach(this.sprite60Sym, "sprite60_inst", 25, ctx, {
+                x: 0.45,
+                y: -5.15,
+              });
+            }
           },
         ],
         [
           126,
-          () => {
-            // AS DefineSprite_64_shoot/frame_127/DoAction.as:
-            //   this.end();
-            // Canonical hit signal — damage popup fires here.
+          (_clip, _ctx) => {
+            // AS: DefineSprite_64_shoot/frame_127/DoAction.as — this.end() → signalHit
             this.runtime.signalHit();
           },
         ],
         [
           150,
-          (clip, ctx) => {
-            // AS DefineSprite_64_shoot/frame_151/DoAction.as:
-            //   SOMA.playSound("pic");
-            // Plus: rock group spawned at impact. DefineSprite_60 is
-            // attached around the falling-rocks frames.
-            this.soundCallback?.("pic");
-            clip.attach(rocksSym, "rocks1", 10, ctx);
+          (_clip, _ctx) => {
+            // AS: DefineSprite_64_shoot/frame_151/DoAction.as — SOMA.playSound("pic")
+            this.playSound?.("pic");
           },
         ],
         [
           165,
-          (clip, ctx) => {
-            // AS DefineSprite_64_shoot/frame_166/DoAction.as:
-            //   SOMA.playSound("pic");
-            this.soundCallback?.("pic");
-            clip.attach(rocksSym, "rocks2", 11, ctx);
+          (_clip, _ctx) => {
+            // AS: DefineSprite_64_shoot/frame_166/DoAction.as — SOMA.playSound("pic")
+            this.playSound?.("pic");
           },
         ],
         [
           180,
-          (clip, ctx) => {
-            // AS DefineSprite_64_shoot/frame_181/DoAction.as:
-            //   SOMA.playSound("pic");
-            this.soundCallback?.("pic");
-            clip.attach(rocksSym, "rocks3", 12, ctx);
+          (_clip, _ctx) => {
+            // AS: DefineSprite_64_shoot/frame_181/DoAction.as — SOMA.playSound("pic")
+            this.playSound?.("pic");
           },
         ],
         [
           192,
-          (clip, ctx) => {
-            // AS DefineSprite_64_shoot/frame_193/DoAction.as:
-            //   SOMA.playSound("pic");
-            this.soundCallback?.("pic");
-            clip.attach(rocksSym, "rocks4", 13, ctx);
+          (_clip, _ctx) => {
+            // AS: DefineSprite_64_shoot/frame_193/DoAction.as — SOMA.playSound("pic")
+            this.playSound?.("pic");
           },
         ],
         [
           261,
           (clip) => {
-            // AS DefineSprite_64_shoot/frame_262/DoAction.as:
-            //   _parent.removeMovieClip();
-            //   stop();
+            // AS: DefineSprite_64_shoot/frame_262/DoAction.as — _parent.removeMovieClip(); stop()
             clip.stop();
-            clip.parent?.remove();
+            clip.remove();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
-    this.registry.register(pierresSym);
-    this.registry.register(rocksSym);
-    this.registry.register(shootSym);
+    this.registry.register(this.pierreSym);
+    this.registry.register(this.sprite60Sym);
+    this.registry.register(this.shootSym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture sound callback for use inside frame scripts.
-    this.soundCallback = callbacks.playSound;
+    // Capture sound callback for use inside frameScripts.
+    this.playSound = callbacks.playSound.bind(callbacks);
 
-    // Main timeline implicitly places shoot on frame_1. Attach it here
-    // so it starts ticking from the next runtime frame.
-    const shootSym = this.registry.resolve("shoot");
-    if (shootSym) {
-      this.root.attach(shootSym, "shoot", 1, context);
-    }
+    // The main timeline for displayType=11 (TargetCell) places the shoot animation
+    // at the target cell. We attach it here so it starts ticking from the first frame.
+    this.root.attach(this.shootSym, "shoot", 1, context);
   }
 }

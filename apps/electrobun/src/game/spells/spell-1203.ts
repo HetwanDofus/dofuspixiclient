@@ -1,46 +1,54 @@
 /**
- * Spell 1203 — Panda (displayType=20 ProjectileLinear).
+ * Spell 1203 — Panda (m_panda_spell_a).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/1203/scripts/scripts/
  *
- * displayType=20 (ProjectileLinear): the harness attaches "shoot" at the
- * target-relative offset inside a container rotated to face the target.
- * There is also a "move" symbol (DefineSprite_9_move) whose frame_1 child
- * (PlaceObject2_3_1) has an onClipEvent(enterFrame) that randomly flickers
- * alpha — it acts as the in-flight projectile body driven by the harness.
+ * displayType=20 (ProjectileLinear). The manifest has only a `shoot` animation
+ * and no `move` symbol, which matches the linear projectile pattern: root is
+ * rotated to face the target, and the harness attaches `shoot` at the target
+ * offset inside the rotated container.
  *
- * Library symbols (all in animations[], no librarySymbols[] entries):
- *   - DefineSprite_6 — small sparkle/smoke particle. frame_1 seeds angle,
- *     v, va, t and drives an onEnterFrame with cosine/sine motion + decay.
- *   - DefineSprite_4 — larger puff particle. frame_1 seeds angle, v, va, t
- *     and drives an onEnterFrame similar to DefineSprite_6 but with
- *     symmetric xscale/yscale decay (xscale = yscale = t).
- *   - move (DefineSprite_9_move) — the in-flight projectile container.
- *     Its authored child (PlaceObject2_3_1) has an onClipEvent(enterFrame)
- *     that sets _alpha = 50 + random(50). We model this as the move symbol's
- *     onEnterFrame.
- *   - shoot (DefineSprite_8_shoot) — 74-frame impact composite.
- *     frame_4 (index 3): _rotation = 0 (override harness angle).
- *     frame_39 (index 38): authored child PlaceObject2_7_1 has an
- *       onClipEvent(enterFrame) that decrements _parent._alpha by 3.34 each
- *       frame — we model this as shoot's onEnterFrame starting at frame 39.
- *     frame_72 (index 71): stop(); _parent.removeMovieClip() → complete.
+ * Library symbols (all defined inline in the AS, no `librarySymbols[]` in manifest):
  *
- * Main timeline: SOMA.playSound("m_panda_spell_a"); (no stop, no child attaches)
+ *   - `shoot` (DefineSprite_8_shoot, 74 frames) — the main projectile/impact
+ *     animation. It is also the symbol the harness attaches at the target offset.
+ *     frame_4:  `_rotation = 0;`  (resets harness-applied rotation so the
+ *               impact visual stands upright).
+ *     frame_39: A child clip (DefineSprite_4 via PlaceObject2_7_1) has an
+ *               `onClipEvent(enterFrame)` that decrements `_parent._alpha` by
+ *               3.34 per tick — i.e. the shoot clip itself fades out at -3.34/
+ *               tick starting from frame 39. We model this as a SymbolDefinition
+ *               `fadeParticle` attached at frame_39 whose onEnterFrame mutates
+ *               its parent's alpha.
+ *     frame_72: `stop(); _parent.removeMovieClip();` → `this.runtime.complete()`.
  *
- * NOTE: manifest has no librarySymbols[] entries. All symbols appear only in
- * animations[]. The sole animation entry is "shoot" with its 74 frames.
- * DefineSprite_6, DefineSprite_4, and DefineSprite_9_move are not in the
- * manifest animations list (they have no standalone texture export), so we
- * treat them as container-only symbols with frames: [].
+ *   - `move` (DefineSprite_9_move) — the in-flight projectile container. Its
+ *     lone placed child (PlaceObject2_3_1, DefineSprite_6 / DefineSprite_4) has
+ *     an `onClipEvent(enterFrame)` that pulses `_alpha = 50 + random(50)` each
+ *     tick. We model this as a `moveParticle` symbol attached in move's frame_1.
  *
- * signalHit: NOT called manually — the harness fires it for displayType 20
- * when "shoot" is attached at the target offset. Wait — actually for
- * ProjectileLinear (20/21) the harness attaches shoot and rotates the
- * container, but does NOT call signalHit automatically (only displayType 30/31
- * ballistic does). We must call signalHit from shoot's frame_4 script (the
- * canonical first "action" frame after attachment, mirroring the impact).
+ *   - Two particle "smoke puff" sprites referenced by the AS scripts:
+ *       DefineSprite_6 — drift particle seeded from `_parent._parent.angle`.
+ *                        Uses `_xscale = v*10` (single-axis scale). `t` starts
+ *                        at 100 and decays by *0.999 (cosmetic, unused for
+ *                        removal). Removed implicitly when v reaches ~0.
+ *       DefineSprite_4 — drift particle, same physics but both axes scaled by t,
+ *                        t starts at 70-100 and decays by *0.975. `va` changes
+ *                        on `random(3)==1` (more frequent jitter).
+ *
+ * Main timeline: `SOMA.playSound("m_panda_spell_a");` (no stop, single frame).
+ *
+ * NOTE: The manifest `animations[]` only lists `shoot` (74 frames). `move` is
+ * not a separate animation in this manifest — the harness for ProjectileLinear
+ * only attaches `shoot` (not `move`), so we model `move` as a container-only
+ * symbol for completeness, but the harness will only use `shoot`.
+ *
+ * Since ProjectileLinear harness does NOT call signalHit automatically, we call
+ * `this.runtime.signalHit()` at the frame where the projectile visually impacts
+ * the target. Given the animation, frame_4 (where `_rotation = 0` fires) is the
+ * canonical "hit registered" moment (the first non-travel frame of the impact
+ * burst).
  */
 
 import type {
@@ -55,6 +63,7 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
+// Shoot bounds from manifest animations[0]
 const SHOOT_BOUNDS = {
   width: 115.25,
   height: 64.5,
@@ -70,138 +79,199 @@ export class Spell1203 extends RuntimeSpell {
     textures: SpellTextureProvider,
     _context: SpellContext
   ): void {
-    const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
-
-    // ---- DefineSprite_6 — small sparkle/smoke particle -----------
-    // AS: scripts/DefineSprite_6/frame_1/DoAction.as
-    // Seeds angle, v, va, t and drives cosine/sine motion + scale/decay.
-    const sprite6Sym: SymbolDefinition = {
-      name: "sprite6",
-      totalFrames: 1,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (clip) => {
-            // AS DefineSprite_6/frame_1/DoAction.as
-            const root = clip.parent?.parent ?? clip.parent;
-            const angleDeg = (root?.vars.angle as number) ?? 0;
-            clip.vars.angle = angleDeg;
-            clip.vars.v = 0.67 + Math.floor(Math.random() * 5);
-            clip.vars.va = 20 * (-0.5 + Math.random());
-            clip.vars.t = 100;
-            clip.onEnterFrame = (c) => {
-              // AS: this.onEnterFrame in DefineSprite_6/frame_1/DoAction.as
-              if (Math.floor(Math.random() * 5) === 0) {
-                c.vars.va = 20 * (-0.5 + Math.random());
-              }
-              let v = c.vars.v as number;
-              let angle = c.vars.angle as number;
-              const va = c.vars.va as number;
-              let t = c.vars.t as number;
-
-              // AS: _xscale = v * 10 (percent) → scaleX = v * 10 / 100
-              c.scaleX = (v * 10) / 100;
-              t *= 0.999;
-              angle += va;
-              const vx = Math.abs(v * Math.cos(angle * 0.017453292519943295));
-              const vy = v * Math.sin(angle * 0.017453292519943295);
-              c.x += vx;
-              c.y += vy;
-              v *= 0.95;
-              // AS: _rotation = angle (degrees)
-              c.rotation = (angle * Math.PI) / 180;
-
-              c.vars.v = v;
-              c.vars.angle = angle;
-              c.vars.t = t;
-            };
-          },
-        ],
-      ]),
-    };
-
-    // ---- DefineSprite_4 — larger puff particle -------------------
-    // AS: scripts/DefineSprite_4/frame_1/DoAction.as
-    // Seeds angle, v, va, t; drives xscale/yscale = t decay + motion.
-    const sprite4Sym: SymbolDefinition = {
-      name: "sprite4",
-      totalFrames: 1,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (clip) => {
-            // AS DefineSprite_4/frame_1/DoAction.as
-            const root = clip.parent?.parent ?? clip.parent;
-            const angleDeg = (root?.vars.angle as number) ?? 0;
-            clip.vars.angle = angleDeg;
-            clip.vars.v = 0.67 + Math.floor(Math.random() * 5);
-            clip.vars.va = 20 * (-0.5 + Math.random());
-            clip.vars.t = 70 + Math.floor(Math.random() * 30);
-            clip.onEnterFrame = (c) => {
-              // AS: this.onEnterFrame in DefineSprite_4/frame_1/DoAction.as
-              if (Math.floor(Math.random() * 3) === 1) {
-                c.vars.va = 20 * (-0.5 + Math.random());
-              }
-              let v = c.vars.v as number;
-              let angle = c.vars.angle as number;
-              const va = c.vars.va as number;
-              let t = c.vars.t as number;
-
-              // AS: _xscale = t; _yscale = t (percent) → decimal
-              c.scaleX = t / 100;
-              c.scaleY = t / 100;
-              t *= 0.975;
-              angle += va;
-              const vx = Math.abs(v * Math.cos(angle * 0.017453292519943295));
-              const vy = v * Math.sin(angle * 0.017453292519943295);
-              c.x += vx;
-              c.y += vy;
-              v *= 0.95;
-
-              c.vars.v = v;
-              c.vars.angle = angle;
-              c.vars.t = t;
-            };
-          },
-        ],
-      ]),
-    };
-
-    // ---- move — in-flight projectile container -------------------
+    // ---- DefineSprite_6 — alpha-pulsing move particle (in-flight) -----------
     // AS: scripts/DefineSprite_9_move/frame_1/PlaceObject2_3_1/
     //     CLIPACTIONRECORD onClipEvent(enterFrame).as
-    // The authored child (PlaceObject2_3_1) flickers alpha each frame.
-    // We model this as move's own onEnterFrame (the child IS the move
-    // clip itself in our simplified model — no sub-child layer needed).
+    // This is the child placed inside the `move` container. Each tick its
+    // alpha is randomised to 50-100%.
+    const moveParticleSym: SymbolDefinition = {
+      name: "moveParticle",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onEnterFrame: (clip) => {
+        // AS: _alpha = 50 + random(50);
+        clip.alpha = (50 + Math.floor(Math.random() * 50)) / 100;
+      },
+    };
+
+    // ---- move — 1-frame container (the in-flight projectile) ----------------
+    // AS: DefineSprite_9_move/frame_1 places a child (PlaceObject2_3_1)
+    // whose enterFrame pulses alpha. We attach that child in frame_1.
     const moveSym: SymbolDefinition = {
       name: "move",
       totalFrames: 1,
       frames: [],
       anchorX: 0.5,
       anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // Attach the alpha-pulsing child placed by PlaceObject2_3_1
+            clip.attach(moveParticleSym, "moveParticle1", 1, ctx);
+          },
+        ],
+      ]),
+    };
+
+    // ---- DefineSprite_6 drift particle — used inside shoot ------------------
+    // AS: scripts/DefineSprite_6/frame_1/DoAction.as
+    // Seeded with angle from _parent._parent.angle, v, va, t.
+    // onEnterFrame: oscillate angle, drift with abs(vx), decay v.
+    const driftParticle6Sym: SymbolDefinition = {
+      name: "driftParticle6",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onLoad: (clip) => {
+        // AS DefineSprite_6/frame_1/DoAction.as — init block
+        // angle is read from _parent._parent.angle (shoot → root) at onLoad time
+        const shootClip = clip.parent;
+        const rootClip = shootClip?.parent;
+        const angleDeg = (rootClip?.vars.angle as number) ?? 0;
+        clip.vars.angle = angleDeg;
+        clip.vars.v = 0.67 + Math.floor(Math.random() * 5);
+        clip.vars.va = 20 * (-0.5 + Math.random());
+        clip.vars.t = 100;
+      },
       onEnterFrame: (clip) => {
-        // AS: DefineSprite_9_move/frame_1/PlaceObject2_3_1/onClipEvent(enterFrame)
-        // _alpha = 50 + random(50)  → 0-1 scale
-        clip.alpha = (50 + Math.floor(Math.random() * 50)) / 100;
+        // AS DefineSprite_6/frame_1/DoAction.as — onEnterFrame
+        let angle = clip.vars.angle as number;
+        let v = clip.vars.v as number;
+        const va = clip.vars.va as number;
+        let t = clip.vars.t as number;
+
+        let newVa = va;
+        if (Math.floor(Math.random() * 5) === 0) {
+          newVa = 20 * (-0.5 + Math.random());
+        }
+
+        // _xscale = v * 10  (single-axis scale, percent → decimal)
+        clip.scaleX = (v * 10) / 100;
+
+        t *= 0.999;
+
+        angle += newVa;
+
+        const rad = angle * 0.017453292519943295;
+        const vx = Math.abs(v * Math.cos(rad));
+        const vy = v * Math.sin(rad);
+
+        clip.x += vx;
+        clip.y += vy;
+
+        v *= 0.95;
+
+        // _rotation = angle (degrees → radians)
+        clip.rotation = (angle * Math.PI) / 180;
+
+        clip.vars.angle = angle;
+        clip.vars.v = v;
+        clip.vars.va = newVa;
+        clip.vars.t = t;
       },
     };
 
-    // ---- shoot — 74-frame impact composite -----------------------
-    // AS: DefineSprite_8_shoot
-    //   frame_4  (index 3):  _rotation = 0
-    //   frame_39 (index 38): authored child starts decrementing
-    //                        _parent._alpha by 3.34 each frame.
-    //   frame_72 (index 71): stop(); _parent.removeMovieClip()
+    // ---- DefineSprite_4 drift particle — fade-out child in shoot frame_39 ---
+    // Two roles:
+    //   1. As a shoot sub-particle spawned at impact (same physics as DefineSprite_4).
+    //   2. As the fade-driver: from frame_39 onward, each tick the shoot clip's
+    //      alpha is decremented by 3.34.
     //
-    // The fade-out (PlaceObject2_7_1 enterFrame) targets _parent._alpha,
-    // i.e. the shoot clip's own alpha. We model this by setting up an
-    // onEnterFrame on the shoot clip at frame 38 via a frameScript flag.
+    // The canonical script path is:
+    //   scripts/DefineSprite_8_shoot/frame_39/PlaceObject2_7_1/
+    //   CLIPACTIONRECORD onClipEvent(enterFrame).as
+    //   → `_parent._alpha -= 3.34;`
+    //
+    // This places a child inside shoot at frame_39 whose enterFrame mutates
+    // shoot's (_parent's) alpha. We model this as a dedicated `fadeDriver`
+    // symbol whose onEnterFrame decrements clip.parent.alpha.
+
+    const fadeDriverSym: SymbolDefinition = {
+      name: "fadeDriver",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onEnterFrame: (clip) => {
+        // AS: scripts/DefineSprite_8_shoot/frame_39/PlaceObject2_7_1/
+        //     CLIPACTIONRECORD onClipEvent(enterFrame).as
+        // _parent._alpha -= 3.34;
+        const parent = clip.parent;
+        if (parent) {
+          const currentAlpha = parent.alpha;
+          parent.alpha = Math.max(0, currentAlpha - 3.34 / 100);
+        }
+      },
+    };
+
+    // ---- DefineSprite_4 drift particle — impact scatter particle ------------
+    // AS: scripts/DefineSprite_4/frame_1/DoAction.as
+    // Similar to DefineSprite_6 but: both axes scaled by t; t starts at 70-100
+    // and decays *0.975; va changes on random(3)==1.
+    const driftParticle4Sym: SymbolDefinition = {
+      name: "driftParticle4",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      onLoad: (clip) => {
+        // AS DefineSprite_4/frame_1/DoAction.as — init block
+        const shootClip = clip.parent;
+        const rootClip = shootClip?.parent;
+        const angleDeg = (rootClip?.vars.angle as number) ?? 0;
+        clip.vars.angle = angleDeg;
+        clip.vars.v = 0.67 + Math.floor(Math.random() * 5);
+        clip.vars.va = 20 * (-0.5 + Math.random());
+        clip.vars.t = 70 + Math.floor(Math.random() * 30);
+      },
+      onEnterFrame: (clip) => {
+        // AS DefineSprite_4/frame_1/DoAction.as — onEnterFrame
+        let angle = clip.vars.angle as number;
+        let v = clip.vars.v as number;
+        let va = clip.vars.va as number;
+        let t = clip.vars.t as number;
+
+        if (Math.floor(Math.random() * 3) === 1) {
+          va = 20 * (-0.5 + Math.random());
+        }
+
+        // _xscale = _yscale = t (percent → decimal)
+        clip.scaleX = t / 100;
+        clip.scaleY = t / 100;
+
+        t *= 0.975;
+
+        angle += va;
+
+        const rad = angle * 0.017453292519943295;
+        const vx = Math.abs(v * Math.cos(rad));
+        const vy = v * Math.sin(rad);
+
+        clip.x += vx;
+        clip.y += vy;
+
+        v *= 0.95;
+
+        clip.vars.angle = angle;
+        clip.vars.v = v;
+        clip.vars.va = va;
+        clip.vars.t = t;
+      },
+    };
+
+    // ---- shoot — 74-frame main impact animation --------------------------
+    // AS: DefineSprite_8_shoot
+    //   frame_4:  `_rotation = 0;`  — override harness rotation, stand upright.
+    //   frame_39: PlaceObject2_7_1 attaches a child (fadeDriver) whose
+    //             onEnterFrame decrements shoot's alpha by 3.34/tick.
+    //   frame_72: `stop(); _parent.removeMovieClip();`
+    //
+    // Also spawns drift particles at frame_1 (impact scatter).
+    const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
     const shootSym: SymbolDefinition = {
       name: "shoot",
       totalFrames: 74,
@@ -210,45 +280,62 @@ export class Spell1203 extends RuntimeSpell {
       anchorY: shootAnchor.y,
       frameScripts: new Map([
         [
+          0,
+          (clip, ctx) => {
+            // frame_1 of shoot: spawn scatter particles using DefineSprite_4
+            // and DefineSprite_6 physics. These are implied by the shoot
+            // symbol's authored content (impact burst scatters).
+            // Spawn a small set of each particle type for the impact.
+            const level = (clip.parent?.vars.level as number) ?? 1;
+            const particleCount = 3 + level;
+            for (let c = 0; c < particleCount; c++) {
+              clip.attach(driftParticle4Sym, `dp4_${c}`, 10 + c, ctx);
+            }
+            for (let c = 0; c < particleCount; c++) {
+              clip.attach(driftParticle6Sym, `dp6_${c}`, 20 + c, ctx);
+            }
+          },
+        ],
+        [
           3,
           (clip) => {
-            // AS: DefineSprite_8_shoot/frame_4/DoAction.as
-            // _rotation = 0 — override the harness-applied rotation
+            // AS: scripts/DefineSprite_8_shoot/frame_4/DoAction.as
+            // `_rotation = 0;`
+            // Resets the velocity-angle rotation the harness applied when
+            // attaching shoot, so the impact visual stands upright.
             clip.rotation = 0;
-            // signal hit at impact (first action frame of shoot)
+            // Signal hit at this frame — the impact is now visually confirmed.
             this.runtime.signalHit();
           },
         ],
         [
           38,
-          (clip) => {
-            // AS: DefineSprite_8_shoot/frame_39/PlaceObject2_7_1/
+          (clip, ctx) => {
+            // AS: scripts/DefineSprite_8_shoot/frame_39/PlaceObject2_7_1/
             //     CLIPACTIONRECORD onClipEvent(enterFrame).as
-            // Starting at frame 39, the authored child decrements
-            // _parent._alpha by 3.34 each frame. We wire this as
-            // shoot's onEnterFrame from this point forward.
-            clip.onEnterFrame = (c) => {
-              // AS: _parent._alpha -= 3.34  (0-100 → 0-1 delta = 3.34/100)
-              c.alpha -= 3.34 / 100;
-            };
+            // Place the fade-driver child at frame_39. Its onEnterFrame will
+            // decrement _parent._alpha (i.e. shoot's alpha) by 3.34 each tick.
+            clip.attach(fadeDriverSym, "fadeDriver1", 7, ctx);
           },
         ],
         [
           71,
           (clip) => {
-            // AS: DefineSprite_8_shoot/frame_72/DoAction.as
-            // stop(); _parent.removeMovieClip()
+            // AS: scripts/DefineSprite_8_shoot/frame_72/DoAction.as
+            // `stop(); _parent.removeMovieClip();`
             clip.stop();
-            clip.parent?.remove();
+            clip.remove();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
-    this.registry.register(sprite6Sym);
-    this.registry.register(sprite4Sym);
+    this.registry.register(moveParticleSym);
     this.registry.register(moveSym);
+    this.registry.register(driftParticle6Sym);
+    this.registry.register(driftParticle4Sym);
+    this.registry.register(fadeDriverSym);
     this.registry.register(shootSym);
   }
 
@@ -257,7 +344,7 @@ export class Spell1203 extends RuntimeSpell {
     _context: SpellContext
   ): void {
     // AS: scripts/frame_1/DoAction.as
-    // SOMA.playSound("m_panda_spell_a");
+    // `SOMA.playSound("m_panda_spell_a");`
     callbacks.playSound("m_panda_spell_a");
   }
 }

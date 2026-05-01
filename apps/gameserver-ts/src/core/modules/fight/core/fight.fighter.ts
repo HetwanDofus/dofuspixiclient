@@ -5,6 +5,7 @@ import { FightStateBitmap } from "@modules/fight/core/fight.state-bitmap";
 import { BuffList } from "@modules/fight/effects/fight.buff";
 import { CharacteristicStack } from "@modules/fight/effects/fight.characteristic-stack";
 import { Characteristic, FighterKind } from "@modules/fight/fight.types";
+import { clampFightDirection } from "@dofus/grid";
 
 export type { PlayerSnapshot } from "@modules/fight/core/fight.fighter.types";
 
@@ -64,7 +65,13 @@ export class Fighter {
     this.lpMax = lp;
     this.ap = ap;
     this.mp = mp;
-    this.direction = direction;
+    // Clamp to fight directions {1,3,5,7} on entry — keeps the
+    // server's tracked value coherent with what the client renders
+    // (PlayerRenderer.setDirection clamps anyway). Fighters that come
+    // from a roleplay PlayerSnapshot with an even direction would
+    // otherwise let the cast handler's `if (facing !== direction)`
+    // suppress legitimate re-emits.
+    this.direction = clampFightDirection(direction);
   }
 
   static fromPlayer(sessionId: string, p: PlayerSnapshot): Fighter {
@@ -77,6 +84,11 @@ export class Fighter {
       3,
       p.direction
     );
+    // Constructor sets lpMax = lp; override with the authoritative
+    // computed max so a player coming in mid-recovery (e.g. 200/1050)
+    // doesn't have their cap clamped down to the current LP. When
+    // lifeMax is omitted (test fixtures), keep lpMax = life.
+    f.lpMax = Math.max(p.lifeMax ?? p.life, p.life);
     f.sessionId = sessionId;
     f.player = p;
     f.stats.setBase(Characteristic.Strength, p.stats.strength);

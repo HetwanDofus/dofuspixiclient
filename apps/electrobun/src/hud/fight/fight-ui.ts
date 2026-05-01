@@ -295,11 +295,28 @@ export class FightUI {
   }
 
   /**
-   * Show spell range.
+   * Show spell range — paints both canonical layers (`GameManager.as`
+   * `drawSpellRange` calls `gfx.drawZone(...)` for the outline polygon
+   * and `drawAllowedZone(...)` for the per-cell allowed tint with the
+   * `AdvancedLineOfSight` option default-on).
+   *
+   * `allCells` populates the underlay polygon (`SPELL_RANGE_OUTLINE`,
+   * dark blue 30%, drawn first); `allowedCells` populates the per-cell
+   * brighter tint (`SPELL_RANGE`, light blue 50%, drawn on top).
+   * Defaulting `allowedCells` to `allCells` keeps the bright tint
+   * everywhere when the caller hasn't filtered by LoS yet.
    */
-  showSpellRange(cellIds: number[]): void {
+  showSpellRange(allCells: number[], allowedCells?: number[]): void {
     this.cellHighlighter?.clearHighlightType(HighlightType.SPELL_RANGE);
-    this.cellHighlighter?.highlightCells(cellIds, HighlightType.SPELL_RANGE);
+    this.cellHighlighter?.clearHighlightType(HighlightType.SPELL_RANGE_OUTLINE);
+    this.cellHighlighter?.highlightCells(
+      allCells,
+      HighlightType.SPELL_RANGE_OUTLINE
+    );
+    this.cellHighlighter?.highlightCells(
+      allowedCells ?? allCells,
+      HighlightType.SPELL_RANGE
+    );
   }
 
   /**
@@ -383,6 +400,25 @@ export class FightUI {
       value,
       type: DamageType.HEAL,
       critical,
+    });
+  }
+
+  /**
+   * Float an AP/MP stat-change number above a cell. Driven by the
+   * server's GA;101..120/168 (AP) and GA;78/127..129/169 (MP) protocol
+   * actions — the original 1.29 client renders these via the same
+   * `clips/points/<style>/<type>.swf` pipeline the damage numbers use,
+   * just with a different colour and prefix. Sign of `delta` controls
+   * the prefix: < 0 spent, > 0 restored.
+   */
+  showStatChangeAtCell(cellId: number, delta: number, type: "AP" | "MP"): void {
+    if (delta === 0) {
+      return;
+    }
+    this.damageRenderer?.showDamage({
+      cellId,
+      value: delta,
+      type: type === "AP" ? DamageType.AP : DamageType.MP,
     });
   }
 

@@ -1,48 +1,74 @@
 /**
- * Spell 601 — Esquive (Dodge/Ecaflip dodge spell).
+ * Spell 601 — Dodge (Cra / generic dodge animation).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/601/scripts/scripts/
  *
- * displayType=30 (ProjectileBallistic). The spell uses the canonical `move` + `shoot`
- * pattern: `move` (2 frames) contains authored spark particles (DefineSprite_13, each
- * with a horizontal drift onEnterFrame), and on frame_2 records its rotation into
- * `_parent.roti` then stops. `shoot` (144 frames) is attached at landing by the harness;
- * its frame_1 removes the `move` clip and contains authored sub-sprites:
- *   - PlaceObject2_3_3 (DefineSprite_2 — 46-frame impact, stops at frame 46):
- *       onClipEvent(load): _rotation = _parent._parent.roti
- *   - Six PlaceObject2_10_* instances (DefineSprite_10 — spark emitter particles):
- *       frame_1/DoAction.as: seeds roti, dv, v, vx, vy, p, cacc with random values,
- *         installs an onEnterFrame to drift the child `c` (a DefineSprite_9 spark).
- *       PlaceObject2_9_1/onClipEvent(load): seeds i, vrot, vrot2.
- *       PlaceObject2_9_1/onClipEvent(enterFrame): oscillates xscale + rotation until
- *         _Y >= p.
- *   - PlaceObject2_11_1 (appears at frame_109, DefineSprite_3 — sub-glow, stops at
- *       frame 16): onClipEvent(enterFrame): _parent._alpha -= 3.33 (fade out shoot).
- *   - frame_142/DoAction.as: stop() — timeline halts but spell is considered complete
- *     at this point.
+ * displayType=30 (ProjectileBallistic). The manifest has a `move` (2-frame) and
+ * a `shoot` (144-frame) animation — the canonical ballistic pattern. The harness
+ * drives `move` along a parabolic arc and attaches `shoot` at landing, then fires
+ * signalHit automatically.
  *
- * The harness fires runtime.signalHit() automatically at projectile landing (displayType=30),
- * so we must NOT call it from per-spell code.
+ * Symbol layout:
  *
- * Library symbols (from manifest animations[] — no librarySymbols[] entries):
- *   - "move"  — 2-frame composite container. frame_2 stores _rotation into roti.
- *   - "shoot" — 144-frame composite container. frame_1 removes move; frame_142 stops.
+ *   - `sprite13`  (DefineSprite_13) — single-frame horizontal-drift leaf/spark.
+ *                 frame_1/DoAction seeds `v` (leftward speed ±random). onEnterFrame
+ *                 integrates X.  Placed by `move`'s frame_1 at 6 positions (depths
+ *                 1,20,39,58,77,96) via PlaceObject2_13_* placements, each randomising
+ *                 their start frame via `gotoAndStop(random(totalFrames)+1)` on load.
  *
- * Main timeline: SOMA.playSound("dodge_601"); (frame_1/DoAction.as)
+ *   - `sprite9`   (DefineSprite_9) — purely decorative single-frame random-pose leaf.
+ *                 frame_1/DoAction: `gotoAndStop(random(4)+1)`. Placed by
+ *                 `sprite10`'s onLoad at its own depth. 4-frame sprite, random
+ *                 initial frame. No per-frame physics.
  *
- * NOTE: The sub-sprites within shoot (DefineSprite_2, DefineSprite_3, DefineSprite_9,
- * DefineSprite_10) are authored into the composite shoot frames as visual content —
- * they are not separately attachMovie'd library symbols. Their frame scripts / clip events
- * are baked into the shoot composite animation. We model the ones we can observe via
- * the script files:
- *   - The spark emitter logic (DefineSprite_10 + its child DefineSprite_9) is registered
- *     as a symbol "spark_emitter" that shoot's frame_1 attaches at the six authored depths.
- *   - The inner spark (DefineSprite_9) is registered as "spark_inner".
- *   - The fade-out glow (PlaceObject2_11_1) is modelled as an onEnterFrame installed on
- *     shoot at frame 108 (= AS frame_109), applying the alpha decay.
- *   - The impact base (DefineSprite_2, 46-frame) is registered as "impact_base"; its
- *     onLoad sets rotation from roti.
+ *   - `sprite10`  (DefineSprite_10, directlyDynamic:true) — spark cluster. Each
+ *                 instance placed by `shoot`'s frame_1 at depths 15,17,19,21,23,25
+ *                 with fixed offsets from `librarySymbols[].placements[].matrix`.
+ *                 frame_1/DoAction seeds per-particle vx/vy/p/cacc; also seeds the
+ *                 inner sprite9 (`c`) rotation to `roti`. Its embedded child
+ *                 (PlaceObject2_9_1) gets onLoad (seed vrot/vrot2/i) and
+ *                 onEnterFrame (oscillate xscale + rotate) handled via a
+ *                 nested SymbolDefinition for sprite9 that the sprite10 frame_1
+ *                 script attaches.
+ *                 The `sprite10` onEnterFrame (defined inline in DoAction as
+ *                 `this.onEnterFrame`) moves _X/_Y with drag until c._y >= p.
+ *
+ *   - `move`      (DefineSprite_14_move) — 2-frame container. frame_1 has 6
+ *                 sprite13 children placed at random start-frames. frame_2/DoAction:
+ *                 `_parent.roti = _rotation; stop();` — captures the harness-applied
+ *                 rotation angle onto root.vars.roti and stops.
+ *
+ *   - `shoot`     (DefineSprite_12_shoot) — 144-frame composite. frame_1/DoAction:
+ *                 `_parent.move.removeMovieClip()` — removes the move clip.
+ *                 frame_1 also has 6 sprite10 instances placed at fixed offsets
+ *                 (PlaceObject2_10_15/17/19/21/23/25) and 1 sprite3 instance
+ *                 (PlaceObject2_3_3) whose onLoad sets rotation to
+ *                 `_parent._parent.roti`.
+ *                 frame_109: a placed clip (PlaceObject2_11_1) fades out the
+ *                 sprite at -3.33 alpha per frame.
+ *                 frame_142/DoAction: stop().
+ *
+ *   - (DefineSprite_3 / DefineSprite_2) — visual sub-sprites baked into `shoot`'s
+ *                 rendered SVG frames. DefineSprite_3/frame_16: stop().
+ *                 DefineSprite_2/frame_46: stop(). These are container-only inner
+ *                 symbols with no externally driven physics; their stop() scripts are
+ *                 rendered into the composite SVG frames by the exporter.
+ *
+ * Main timeline frame_1/DoAction: `SOMA.playSound("dodge_601")`.
+ *
+ * The harness provides automatic signalHit on ballistic landing and attaches `move`
+ * (frame_2 of which stores `roti`). Per-spell code must NOT call signalHit again.
+ * Completion fires from `shoot` frame_142 (stop) — but the true removal signal is
+ * the outer mc removal; we fire complete() from shoot's stop frame (143 → index 142).
+ * Actually, the canonical shoot stops at frame_142 (AS 1-based) = index 141. We fire
+ * complete() there.
+ *
+ * NOTE on `roti`: the `move` symbol's frame_2 stores `_parent._rotation` into
+ * `_parent.roti`. The harness rotates root toward the target before the first tick,
+ * and `move` inherits that rotation. When move's frame_2 fires it captures the
+ * rotation angle (in degrees, stored on root.vars.roti) for subsequent use by
+ * shoot's sprite10 sparks.
  */
 
 import type {
@@ -57,139 +83,194 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-// Bounds from manifest animations[] entries (no librarySymbols[]).
-const SHOOT_BOUNDS = {
-  width: 106.3,
-  height: 43,
-  offsetX: -66,
-  offsetY: -27.25,
+// ---------- bounds from manifest.librarySymbols[] ----------
+
+const SPRITE10_BOUNDS = {
+  width: 9.6,
+  height: 6.25,
+  offsetX: -4.9,
+  offsetY: -3.35,
 };
-const MOVE_BOUNDS = {
-  width: 68.35,
-  height: 40.3,
-  offsetX: -31.35,
-  offsetY: -18.8,
-};
+
+// sprite9 and sprite13 are not in manifest.librarySymbols (no `lib_` textures).
+// They are container-only or fully-baked inner symbols. We give them reasonable
+// anchor defaults (0.5) and empty frames[], with all behaviour driven by scripts.
 
 export class Spell601 extends RuntimeSpell {
   readonly spellId = 601;
   readonly displayType = SpellDisplayType.ProjectileBallistic;
 
+  // Stored so onSpellStart / frameScripts can reference them
+  private sprite9Sym!: SymbolDefinition;
+  private sprite10Sym!: SymbolDefinition;
+  private sprite13Sym!: SymbolDefinition;
+  private moveSym!: SymbolDefinition;
+  private shootSym!: SymbolDefinition;
+
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext
+    _context: SpellContext,
   ): void {
-    const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
-    const moveAnchor = calculateAnchor(MOVE_BOUNDS);
-
-    // ---- spark_inner — DefineSprite_9 ----------------------------
+    // ----------------------------------------------------------------
+    // sprite9 — DefineSprite_9
     // AS: DefineSprite_9/frame_1/DoAction.as
     //   gotoAndStop(random(4) + 1);
-    // This symbol has 4 authored frames; on load it jumps to a random one.
-    // No explicit frameCount in librarySymbols — treat as 4 frames.
-    const sparkInnerSym: SymbolDefinition = {
-      name: "spark_inner",
+    // 4-frame random-pose decorative leaf. No per-frame physics.
+    // Used as the inner child `c` attached by sprite10.
+    // ----------------------------------------------------------------
+    this.sprite9Sym = {
+      name: "sprite9",
       totalFrames: 4,
       frames: [],
       anchorX: 0.5,
       anchorY: 0.5,
+      // onLoad — mirrors PlaceObject2_9_1/CLIPACTIONRECORD onClipEvent(load).as
+      onLoad: (clip) => {
+        // AS: i = 0; vrot = -25 + 50 * Math.random(); vrot2 = -0.5 + 0.7 * Math.random();
+        clip.vars.i = 0;
+        clip.vars.vrot = -25 + 50 * Math.random();
+        clip.vars.vrot2 = -0.5 + 0.7 * Math.random();
+      },
+      // onEnterFrame — mirrors PlaceObject2_9_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+      onEnterFrame: (clip) => {
+        // AS: if (_Y < _parent.p) { vrot2 /= 1.04; _xscale = 50 * sin(i += vrot2); _rotation += vrot; }
+        const parentP = (clip.parent?.vars.p as number) ?? 0;
+        if (clip.y < parentP) {
+          let vrot2 = clip.vars.vrot2 as number;
+          const vrot = clip.vars.vrot as number;
+          let i = clip.vars.i as number;
+          vrot2 = vrot2 / 1.04;
+          i = i + vrot2;
+          clip.scaleX = (50 * Math.sin(i)) / 100;
+          clip.rotation += (vrot * Math.PI) / 180;
+          clip.vars.vrot2 = vrot2;
+          clip.vars.i = i;
+        }
+      },
       frameScripts: new Map([
         [
           0,
           (clip) => {
-            // AS: DefineSprite_9/frame_1/DoAction.as
-            clip.gotoAndStop(Math.floor(Math.random() * 4));
+            // AS: DefineSprite_9/frame_1/DoAction.as — gotoAndStop(random(4) + 1)
+            const frame = Math.floor(Math.random() * 4);
+            clip.gotoAndStop(frame);
           },
         ],
       ]),
     };
 
-    // ---- spark_emitter — DefineSprite_10 -------------------------
+    // ----------------------------------------------------------------
+    // sprite13 — DefineSprite_13
+    // AS: DefineSprite_13/frame_1/DoAction.as
+    //   v = 2 * Math.random() - 3;
+    //   this.onEnterFrame = function() { _X += v; };
+    // Single-frame leftward-drifting spark/leaf in `move`.
+    // The 6 PlaceObject2_13_* placements all set random start-frame
+    // via onClipEvent(load): gotoAndStop(random(_totalframes)+1).
+    // ----------------------------------------------------------------
+    this.sprite13Sym = {
+      name: "sprite13",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      // onLoad — mirrors all six PlaceObject2_13_*/CLIPACTIONRECORD onClipEvent(load).as
+      onLoad: (clip) => {
+        // AS (all six instances identically):
+        //   gotoAndStop(random(_totalframes) + 1)
+        // totalFrames = 1, so this is always frame 1 → index 0.
+        const frame = Math.floor(Math.random() * clip.totalFrames);
+        clip.gotoAndStop(frame);
+      },
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: DefineSprite_13/frame_1/DoAction.as
+            //   v = 2 * Math.random() - 3;
+            //   this.onEnterFrame = function() { _X += v; };
+            clip.vars.v = 2 * Math.random() - 3;
+            // Wire the per-frame physics via onEnterFrame on the clip itself.
+            clip.onEnterFrame = (c) => {
+              const v = c.vars.v as number;
+              c.x += v;
+            };
+          },
+        ],
+      ]),
+    };
+
+    // ----------------------------------------------------------------
+    // sprite10 — DefineSprite_10 (directlyDynamic: true)
     // AS: DefineSprite_10/frame_1/DoAction.as
     //   roti = _parent._parent.roti - 30 + 60 * Math.random();
     //   c._rotation = roti;
     //   dv = 1.05 + 0.2 * Math.random();
     //   v = 3 + 10 * Math.random();
-    //   vx = v * Math.cos(roti * PI / 180);
-    //   vy = v * Math.sin(roti * PI / 180);
+    //   vx = v * cos(roti * PI/180); vy = v * sin(roti * PI/180);
     //   p = 60 - random(30);
     //   cacc = 0.3 + 0.3 * Math.random();
-    //   onEnterFrame: if (c._y < p) { c._y += cacc; _X += vx; _Y += vy; vx/=dv; vy/=dv; }
-    //
-    // Child "c" (a spark_inner / DefineSprite_9) is placed at depth 1 inside each emitter.
-    // Its clip events:
-    //   onClipEvent(load): i=0; vrot=-25+50*Math.random(); vrot2=-0.5+0.7*Math.random();
-    //   onClipEvent(enterFrame): if (_Y < _parent.p) {
-    //       vrot2 /= 1.04; _xscale = 50*sin(i+=vrot2); _rotation += vrot; }
-    const sparkEmitterSym: SymbolDefinition = {
-      name: "spark_emitter",
+    //   this.onEnterFrame = function() {
+    //     if (c._y < p) { c._y += cacc; _X += vx; _Y += vy; vx /= dv; vy /= dv; }
+    //   };
+    // Also has inner child sprite9 at PlaceObject2_9_1 with load+enterFrame handlers.
+    // ----------------------------------------------------------------
+    const sprite10Anchor = calculateAnchor(SPRITE10_BOUNDS);
+    this.sprite10Sym = {
+      name: "sprite10",
       totalFrames: 1,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
+      frames: textures.getFrames("lib_sprite10"),
+      anchorX: sprite10Anchor.x,
+      anchorY: sprite10Anchor.y,
       frameScripts: new Map([
         [
           0,
           (clip, ctx) => {
             // AS: DefineSprite_10/frame_1/DoAction.as
-            // _parent._parent.roti — emitter's parent is shoot, shoot's parent is root.
-            const shoot = clip.parent;
-            const root = shoot?.parent;
-            const rotiBase = (root?.vars.roti as number) ?? 0;
-            const roti = rotiBase - 30 + 60 * Math.random();
-            clip.vars.roti = roti;
-            clip.vars.dv = 1.05 + 0.2 * Math.random();
+            // Walk up: sprite10 → shoot → root (where roti lives)
+            const shootClip = clip.parent;
+            const rootClip = shootClip?.parent;
+            const roti = (rootClip?.vars.roti as number) ?? 0;
+            const localRoti = roti - 30 + 60 * Math.random();
+            clip.vars.roti = localRoti;
+
+            const dv = 1.05 + 0.2 * Math.random();
             const v = 3 + 10 * Math.random();
-            clip.vars.vx = v * Math.cos((roti * Math.PI) / 180);
-            clip.vars.vy = v * Math.sin((roti * Math.PI) / 180);
-            clip.vars.p = 60 - Math.floor(Math.random() * 30);
-            clip.vars.cacc = 0.3 + 0.3 * Math.random();
+            const vx = v * Math.cos((localRoti * Math.PI) / 180);
+            const vy = v * Math.sin((localRoti * Math.PI) / 180);
+            const p = 60 - Math.floor(Math.random() * 30);
+            const cacc = 0.3 + 0.3 * Math.random();
 
-            // Attach inner spark "c" and apply its initial rotation.
-            // The sparkInnerSym onLoad (via frame_1 script) randomises its frame.
-            const innerSymRef = this.registry.resolve("spark_inner");
-            if (innerSymRef) {
-              const c = clip.attach(innerSymRef, "c", 1, ctx);
-              c.rotation = (roti * Math.PI) / 180;
-              // Seed spark_inner clip-event vars.
-              // AS: PlaceObject2_9_1/onClipEvent(load)
-              c.vars.i = 0;
-              c.vars.vrot = -25 + 50 * Math.random();
-              c.vars.vrot2 = -0.5 + 0.7 * Math.random();
-              // AS: PlaceObject2_9_1/onClipEvent(enterFrame)
-              c.onEnterFrame = (cClip) => {
-                const parentP = cClip.parent?.vars.p as number | undefined;
-                if (parentP !== undefined && cClip.y < parentP) {
-                  let vrot2 = cClip.vars.vrot2 as number;
-                  let i = cClip.vars.i as number;
-                  const vrot = cClip.vars.vrot as number;
-                  vrot2 /= 1.04;
-                  i += vrot2;
-                  cClip.scaleX = (50 * Math.sin(i)) / 100;
-                  cClip.rotation += (vrot * Math.PI) / 180;
-                  cClip.vars.vrot2 = vrot2;
-                  cClip.vars.i = i;
-                }
-              };
-            }
+            clip.vars.dv = dv;
+            clip.vars.vx = vx;
+            clip.vars.vy = vy;
+            clip.vars.p = p;
+            clip.vars.cacc = cacc;
 
-            // Install per-emitter onEnterFrame (the inline `this.onEnterFrame = function()` in AS).
+            // Attach the inner sprite9 child `c`
+            const cClip = clip.attach(this.sprite9Sym, "c", 1, ctx);
+            // AS: c._rotation = roti  (degrees → radians)
+            cClip.rotation = (localRoti * Math.PI) / 180;
+
+            // Wire the per-frame physics as onEnterFrame
             clip.onEnterFrame = (self) => {
-              // AS: DefineSprite_10/frame_1/DoAction.as onEnterFrame
               const c = self.children.get("c");
-              const p = self.vars.p as number;
-              if (c && c.y < p) {
-                let vx = self.vars.vx as number;
-                let vy = self.vars.vy as number;
-                const dv = self.vars.dv as number;
-                const cacc = self.vars.cacc as number;
-                c.y += cacc;
-                self.x += vx;
-                self.y += vy;
-                vx /= dv;
-                vy /= dv;
-                self.vars.vx = vx;
-                self.vars.vy = vy;
+              if (!c) {
+                return;
+              }
+              const pVal = self.vars.p as number;
+              if (c.y < pVal) {
+                const cacc2 = self.vars.cacc as number;
+                let vxCur = self.vars.vx as number;
+                let vyCur = self.vars.vy as number;
+                const dvCur = self.vars.dv as number;
+                c.y += cacc2;
+                self.x += vxCur;
+                self.y += vyCur;
+                vxCur = vxCur / dvCur;
+                vyCur = vyCur / dvCur;
+                self.vars.vx = vxCur;
+                self.vars.vy = vyCur;
               }
             };
           },
@@ -197,142 +278,47 @@ export class Spell601 extends RuntimeSpell {
       ]),
     };
 
-    // ---- impact_base — DefineSprite_2 (46 frames) ---------------
-    // Placed at depth 3 inside shoot at frame_1, as PlaceObject2_3_3.
-    // onClipEvent(load): _rotation = _parent._parent.roti
-    // frame_46/DoAction.as: stop()
-    const impactBaseSym: SymbolDefinition = {
-      name: "impact_base",
-      totalFrames: 46,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      onLoad: (clip) => {
-        // AS: DefineSprite_12_shoot/frame_1/PlaceObject2_3_3/CLIPACTIONRECORD onClipEvent(load).as
-        // _parent._parent.roti — impact_base's parent is shoot, shoot's parent is root.
-        const shoot = clip.parent;
-        const root = shoot?.parent;
-        const roti = (root?.vars.roti as number) ?? 0;
-        clip.rotation = (roti * Math.PI) / 180;
-      },
-      frameScripts: new Map([
-        [
-          45,
-          (clip) => {
-            // AS: DefineSprite_2/frame_46/DoAction.as
-            clip.stop();
-          },
-        ],
-      ]),
-    };
-
-    // ---- glow_sub — DefineSprite_3 (16 frames) ------------------
-    // Placed as PlaceObject2_11_1 (depth 1 of some inner container) which
-    // appears on the shoot timeline at frame_109. Its clip event fades the
-    // shoot clip's alpha. We model this as a child attached to shoot at
-    // frame 108 (0-based), whose onEnterFrame reduces shoot's alpha.
-    // AS: DefineSprite_3/frame_16/DoAction.as: stop()
-    const glowSubSym: SymbolDefinition = {
-      name: "glow_sub",
-      totalFrames: 16,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          15,
-          (clip) => {
-            // AS: DefineSprite_3/frame_16/DoAction.as
-            clip.stop();
-          },
-        ],
-      ]),
-      onEnterFrame: (clip) => {
-        // AS: DefineSprite_12_shoot/frame_109/PlaceObject2_11_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-        // _parent._alpha -= 3.33  — "parent" here is the shoot clip.
-        const shoot = clip.parent;
-        if (shoot) {
-          shoot.alpha = Math.max(0, shoot.alpha - 3.33 / 100);
-        }
-      },
-    };
-
-    // ---- move_spark — DefineSprite_13 ---------------------------
-    // Placed inside DefineSprite_14_move at multiple depths (1,20,39,58,77,96).
-    // frame_1/DoAction.as: v = 2*Math.random() - 3; onEnterFrame: _X += v;
-    // These are authored particles embedded in the move composite frames.
-    // The PlaceObject2_13_*/onClipEvent(load) entries each do:
-    //   gotoAndStop(random(_totalframes) + 1)
-    // We model this as a single symbol with onLoad randomising frame.
-    const moveSparkSym: SymbolDefinition = {
-      name: "move_spark",
-      totalFrames: 4,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (clip) => {
-            // AS: DefineSprite_13/frame_1/DoAction.as
-            const v = 2 * Math.random() - 3;
-            clip.vars.v = v;
-            clip.onEnterFrame = (self) => {
-              const vel = self.vars.v as number;
-              self.x += vel;
-            };
-          },
-        ],
-      ]),
-      onLoad: (clip) => {
-        // AS: DefineSprite_14_move/frame_1/PlaceObject2_13_*/CLIPACTIONRECORD onClipEvent(load).as
-        // gotoAndStop(random(_totalframes) + 1)
-        clip.gotoAndStop(Math.floor(Math.random() * 4));
-      },
-    };
-
-    // ---- move — 2-frame container --------------------------------
-    // AS: DefineSprite_14_move
-    //   frame_2/DoAction.as: _parent.roti = _rotation; stop();
-    // The harness attaches move at (0,0) and drives parabolic motion.
-    // Multiple authored spark_emitter children are placed at frame_1 as
-    // PlaceObject2_13_* objects (gotoAndStop to random frame on load).
-    // On frame_2, the rotation angle (set by harness during arc) is stored
-    // into root.vars.roti, then the clip stops.
-    const moveSym: SymbolDefinition = {
+    // ----------------------------------------------------------------
+    // move — DefineSprite_14_move (2-frame container)
+    // frame_1: 6 sprite13 children placed at depths 1,20,39,58,77,96.
+    //          Each randomises its own start-frame on load.
+    // frame_2/DoAction: _parent.roti = _rotation; stop();
+    //   — captures the harness-applied rotation angle onto root.vars.roti
+    //     so shoot's sprite10 sparks know which direction to spread.
+    // ----------------------------------------------------------------
+    this.moveSym = {
       name: "move",
       totalFrames: 2,
       frames: textures.getFrames("move"),
-      anchorX: moveAnchor.x,
-      anchorY: moveAnchor.y,
+      anchorX: 0.5,
+      anchorY: 0.5,
       frameScripts: new Map([
         [
           0,
           (clip, ctx) => {
-            // AS: DefineSprite_14_move/frame_1 — spark particles placed at
-            // depths 1, 20, 39, 58, 77, 96 (each with onClipEvent(load) that
-            // does gotoAndStop(random(_totalframes)+1))
-            const depths = [1, 20, 39, 58, 77, 96];
-            for (let idx = 0; idx < depths.length; idx++) {
-              clip.attach(
-                moveSparkSym,
-                `move_spark_${depths[idx]}`,
-                depths[idx],
-                ctx
-              );
-            }
+            // AS: DefineSprite_14_move/frame_1 — 6 sprite13 placements
+            // PlaceObject2_13_1, _20, _39, _58, _77, _96 (depths used as instance names)
+            clip.attach(this.sprite13Sym, "sprite13_1", 1, ctx);
+            clip.attach(this.sprite13Sym, "sprite13_20", 20, ctx);
+            clip.attach(this.sprite13Sym, "sprite13_39", 39, ctx);
+            clip.attach(this.sprite13Sym, "sprite13_58", 58, ctx);
+            clip.attach(this.sprite13Sym, "sprite13_77", 77, ctx);
+            clip.attach(this.sprite13Sym, "sprite13_96", 96, ctx);
           },
         ],
         [
           1,
           (clip) => {
             // AS: DefineSprite_14_move/frame_2/DoAction.as
-            // _parent.roti = _rotation; stop();
+            //   _parent.roti = _rotation;
+            //   stop();
+            // The harness has rotated `root` (our parent) to face the target.
+            // We read root's rotation (radians) and convert to degrees for storage,
+            // matching canonical AS which stored degrees in `roti`.
             const parent = clip.parent;
             if (parent) {
-              // Store current rotation (in degrees, as AS would) on parent.
-              // The sub-sprites read roti as degrees, so convert back.
-              parent.vars.roti = (clip.rotation * 180) / Math.PI;
+              const rotRadians = parent.rotation;
+              parent.vars.roti = (rotRadians * 180) / Math.PI;
             }
             clip.stop();
           },
@@ -340,81 +326,145 @@ export class Spell601 extends RuntimeSpell {
       ]),
     };
 
-    // ---- shoot — 144-frame container ----------------------------
-    // AS: DefineSprite_12_shoot
-    //   frame_1/DoAction.as: _parent.move.removeMovieClip();
-    //   frame_1: places PlaceObject2_3_3 (impact_base at depth 3),
-    //            places PlaceObject2_10_15/17/19/21/23/25 (spark_emitter at those depths)
-    //   frame_109: PlaceObject2_11_1 (glow_sub) appears with enterFrame fade.
-    //   frame_142/DoAction.as: stop();
-    const shootSym: SymbolDefinition = {
+    // ----------------------------------------------------------------
+    // shoot — DefineSprite_12_shoot (144-frame composite)
+    //
+    // frame_1/DoAction.as:
+    //   _parent.move.removeMovieClip();
+    // frame_1 also places 6 sprite10 instances (depths 15,17,19,21,23,25)
+    //   at fixed offsets (from manifest placements[]) plus 1 sprite3 instance
+    //   (PlaceObject2_3_3) whose onLoad sets rotation = _parent._parent.roti.
+    // frame_109: PlaceObject2_11_1 onClipEvent(enterFrame): _parent._alpha -= 3.33
+    //   (fades the shoot clip out from frame 109 onward).
+    // frame_142/DoAction.as: stop();  (= index 141, 0-based)
+    //
+    // sprite3 (PlaceObject2_3_3) is a static visual already baked into the
+    // composite SVG frames; its only dynamic behaviour is the onLoad rotation
+    // assignment, which we replicate by rotating the shoot clip itself at
+    // attach-time (via a dedicated child clip representing the rotation).
+    // Actually, sprite3 is placed inside shoot, rotates to roti at load.
+    // Since shoot is rendered as a composite, the sprite3 visual is baked in.
+    // The onLoad rotation sets the authored static child's rotation — this is
+    // purely visual and matched by shoot's overall SVG frames rotating with
+    // the spell direction. We handle the fade (frame_109 enterFrame) via a
+    // flag set in frame_109's frameScripts.
+    // ----------------------------------------------------------------
+    this.shootSym = {
       name: "shoot",
       totalFrames: 144,
       frames: textures.getFrames("shoot"),
-      anchorX: shootAnchor.x,
-      anchorY: shootAnchor.y,
+      anchorX: calculateAnchor({
+        width: 106.3,
+        height: 43,
+        offsetX: -66,
+        offsetY: -27.25,
+      }).x,
+      anchorY: calculateAnchor({
+        width: 106.3,
+        height: 43,
+        offsetX: -66,
+        offsetY: -27.25,
+      }).y,
       frameScripts: new Map([
         [
           0,
           (clip, ctx) => {
             // AS: DefineSprite_12_shoot/frame_1/DoAction.as
-            // _parent.move.removeMovieClip();
-            const root = clip.parent;
-            if (root) {
-              const moveClip = root.children.get("move");
+            //   _parent.move.removeMovieClip();
+            const parent = clip.parent;
+            if (parent) {
+              const moveClip = parent.children.get("move");
               if (moveClip) {
                 moveClip.remove();
               }
             }
 
-            // PlaceObject2_3_3 — impact_base at depth 3, with onLoad that sets rotation.
-            clip.attach(impactBaseSym, "impact_base", 3, ctx);
+            // AS: 6 sprite10 instances at fixed PlaceObject2_10_* positions.
+            // Positions from manifest.librarySymbols[0].placements (parentSpriteId=12):
+            //   depth 15: (17.4, 12.5)
+            //   depth 17: (-10.1, -9.25)
+            //   depth 19: (21.35, -18.1)
+            //   depth 21: (0.1, -22.2)
+            //   depth 23: (35.15, -4.8)
+            //   depth 25: (5.2, 7.15)
+            clip.attach(this.sprite10Sym, "sprite10_15", 15, ctx, {
+              x: 17.4,
+              y: 12.5,
+            });
+            clip.attach(this.sprite10Sym, "sprite10_17", 17, ctx, {
+              x: -10.1,
+              y: -9.25,
+            });
+            clip.attach(this.sprite10Sym, "sprite10_19", 19, ctx, {
+              x: 21.35,
+              y: -18.1,
+            });
+            clip.attach(this.sprite10Sym, "sprite10_21", 21, ctx, {
+              x: 0.1,
+              y: -22.2,
+            });
+            clip.attach(this.sprite10Sym, "sprite10_23", 23, ctx, {
+              x: 35.15,
+              y: -4.8,
+            });
+            clip.attach(this.sprite10Sym, "sprite10_25", 25, ctx, {
+              x: 5.2,
+              y: 7.15,
+            });
 
-            // PlaceObject2_10_15/17/19/21/23/25 — spark emitters at six depths.
-            // Each has onClipEvent(load): gotoAndStop(random(_totalframes) + 1)
-            // which is handled internally in sparkEmitterSym's frame_1 script.
-            const emitterDepths = [15, 17, 19, 21, 23, 25];
-            for (let idx = 0; idx < emitterDepths.length; idx++) {
-              const depth = emitterDepths[idx];
-              clip.attach(sparkEmitterSym, `emitter_${depth}`, depth, ctx);
-            }
+            // AS: PlaceObject2_3_3/CLIPACTIONRECORD onClipEvent(load).as
+            //   _rotation = _parent._parent.roti;
+            // sprite3 is baked into shoot's composite SVG; its visual orientation
+            // is handled by the shoot sprite's own rotation applied by the harness.
+            // The runtime-equivalent: record roti on the shoot clip so sprite10
+            // instances can read it (they walk up to root, where roti is stored
+            // by move's frame_2 — see moveSym above).
           },
         ],
         [
           108,
-          (clip, ctx) => {
-            // AS: DefineSprite_12_shoot/frame_109 — PlaceObject2_11_1 (glow_sub) appears.
-            // Its onClipEvent(enterFrame) fades shoot's alpha.
-            clip.attach(glowSubSym, "glow_sub", 1, ctx);
+          (clip) => {
+            // AS: DefineSprite_12_shoot/frame_109/PlaceObject2_11_1/CLIPACTIONRECORD
+            //     onClipEvent(enterFrame).as
+            //   _parent._alpha -= 3.33
+            // From frame 109 onward, fade the shoot clip by 3.33 alpha units per
+            // frame (AS 0-100 scale → 3.33/100 per frame in TS 0-1 scale).
+            // We install an onEnterFrame on the shoot clip here to drive the fade.
+            clip.onEnterFrame = (self) => {
+              self.alpha -= 3.33 / 100;
+              if (self.alpha <= 0) {
+                self.alpha = 0;
+              }
+            };
           },
         ],
         [
           141,
           (clip) => {
-            // AS: DefineSprite_12_shoot/frame_142/DoAction.as
-            // stop();
+            // AS: DefineSprite_12_shoot/frame_142/DoAction.as — stop()
+            // This is the final frame; the outer mc removal = spell complete.
             clip.stop();
+            // Cancel the fade enterFrame to avoid dangling callbacks.
+            clip.onEnterFrame = null;
+            // Signal spell completion.
             this.runtime.complete();
           },
         ],
       ]),
     };
 
-    this.registry.register(sparkInnerSym);
-    this.registry.register(sparkEmitterSym);
-    this.registry.register(impactBaseSym);
-    this.registry.register(glowSubSym);
-    this.registry.register(moveSparkSym);
-    this.registry.register(moveSym);
-    this.registry.register(shootSym);
+    this.registry.register(this.sprite9Sym);
+    this.registry.register(this.sprite13Sym);
+    this.registry.register(this.sprite10Sym);
+    this.registry.register(this.moveSym);
+    this.registry.register(this.shootSym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    _context: SpellContext
+    _context: SpellContext,
   ): void {
-    // AS: scripts/frame_1/DoAction.as
-    // SOMA.playSound("dodge_601");
+    // AS: scripts/frame_1/DoAction.as — SOMA.playSound("dodge_601")
     callbacks.playSound("dodge_601");
   }
 }

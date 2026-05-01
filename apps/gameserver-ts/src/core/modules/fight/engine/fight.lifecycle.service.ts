@@ -173,8 +173,10 @@ export class FightLifecycleService {
                 spriteId: string;
                 cell: number;
                 lp: number;
+                lpMax: number;
                 ap: number;
                 mp: number;
+                isDead: boolean;
               }>;
             };
             this.frames.broadcast(
@@ -188,8 +190,15 @@ export class FightLifecycleService {
                         spriteId: e.spriteId,
                         cellNum: e.cell,
                         lp: e.lp,
+                        // Forward lpMax + isDead so the client's
+                        // FIGHTER_UPDATE patch carries the full
+                        // snapshot. Without lpMax the proto default
+                        // (0) wipes maxHp on every turn change and
+                        // breaks the HP bar ratio downstream.
+                        lpMax: e.lpMax,
                         ap: e.ap,
                         mp: e.mp,
+                        isDead: e.isDead,
                       })
                     ),
                   }),

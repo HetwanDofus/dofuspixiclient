@@ -1,8 +1,10 @@
 import type { Fight } from "@modules/fight/core/fight.entity";
 import type { HandlerContext } from "@shared/gateway-adapter/ws-router";
 import { create } from "@bufbuild/protobuf";
+import { clampFightDirection, getDirection } from "@dofus/grid";
 import {
   ActionAPChangeSchema,
+  ActionDirectionChangeSchema,
   ActionMovementSchema,
   ActionMPChangeSchema,
   ActionSpellLaunchSchema,
@@ -106,18 +108,74 @@ export class FightTurnHandler {
     }
 
     try {
-      const result = await this.castSpell.execute(ctx.sessionId, msg.params);
+      // Phase 1 — validate + roll critical/failure WITHOUT mutating
+      // fighter state and WITHOUT emitting damage GAs. If validation
+      // throws, no client-visible side effect occurs.
+      const resolution = await this.castSpell.resolve(
+        ctx.sessionId,
+        msg.params
+      );
 
       const targets = fight
         .fighters()
         .filter((f) => f.sessionId)
         .map((f) => f.sessionId as string);
 
-      // Need the spell row up front to get the visual gfx id for the
-      // GA;300 broadcast and the AP cost for the GA;102 broadcast.
-      const spell = await this.spells.spellLevel(result.spellId, result.level);
+      // Authoritative direction change before the cast pose, same as
+      // close combat — every viewer sees the caster turn toward the
+      // target before the spell anim plays. Skipped when self-cast
+      // (target == caster cell) since rotation is undefined there.
+      //
+      // Clamp to fight directions {1,3,5,7} — the client renderer
+      // (`PlayerRenderer.setDirection`) clamps incoming 8-way values
+      // anyway, so storing 8-way here would let the equality check
+      // suppress legitimate re-emits (e.g. tracked=6=N matches a new
+      // computed=6 even though the sprite renders 5=NW and a different
+      // target now wants 5).
+      if (
+        resolution.targetCell !== resolution.caster.cell &&
+        resolution.targetCell >= 0
+      ) {
+        const facing = clampFightDirection(
+          getDirection(
+            resolution.caster.cell,
+            resolution.targetCell,
+            fight.fightMap.width
+          )
+        );
+        if (facing !== resolution.caster.direction) {
+          resolution.caster.direction = facing;
+          this.frames.broadcast(
+            targets,
+            create(DofusMessageSchema, {
+              payload: {
+                case: "gameAction",
+                value: create(GameActionSchema, {
+                  sequenceId: 5,
+                  actionType: 5,
+                  spriteId: String(resolution.caster.id),
+                  actionData: {
+                    case: "directionChange",
+                    value: create(ActionDirectionChangeSchema, {
+                      spriteId: String(resolution.caster.id),
+                      direction: facing,
+                    }),
+                  },
+                }),
+              },
+            })
+          );
+        }
+      }
 
-      // GA;300 — Spell cast animation
+      // GA;300 — Spell cast animation. MUST be broadcast BEFORE
+      // `apply()` runs effect handlers (which emit GA;100 damage,
+      // GA;108 heal, summon, status). Otherwise the client receives
+      // the damage GA while `spellSequencer` is still its initial
+      // `Promise.resolve()` and the popup fires at cast-button-press
+      // instead of at projectile arrival. Canonical Dofus 1.29 queues
+      // GA;100 actions on the per-sprite Sequencer AFTER GA;300, so
+      // this order matches the wire contract.
       this.frames.broadcast(
         targets,
         create(DofusMessageSchema, {
@@ -126,20 +184,20 @@ export class FightTurnHandler {
             value: create(GameActionSchema, {
               sequenceId: 300,
               actionType: GameActionType.ACTION_SPELL_LAUNCH,
-              spriteId: String(result.caster.id),
+              spriteId: String(resolution.caster.id),
               actionData: {
                 case: "spellLaunch",
                 value: create(ActionSpellLaunchSchema, {
-                  spellId: result.spellId,
-                  cellId: result.targetCell,
+                  spellId: resolution.spellId,
+                  cellId: resolution.targetCell,
                   elementId: 0,
                   // param3 carries the visual gfx id — the SWF/dofasset
                   // filename the client must load. Mirrors Hetwan's
                   // GA;300 `visual` field. Multiple gameplay spells
                   // routinely share one gfx file (StarLoco sorts.sprite).
-                  // Falls back to spellId when the spell row is missing
-                  // (shouldn't happen in practice but keeps the wire safe).
-                  param3: spell?.visualGfxId ?? result.spellId,
+                  // SpellsService coalesces NULL → spellId server-side,
+                  // so this is always populated.
+                  param3: resolution.spell.visualGfxId,
                   customSprite: -1,
                   // CAST pose key — clients map "anim1" to PlayerAnimation.CAST.
                   // The original Dofus 1.29 protocol always sends a string here.
@@ -151,30 +209,35 @@ export class FightTurnHandler {
         })
       );
 
-      // GA;102 — AP cost
-      if (spell) {
-        this.frames.broadcast(
-          targets,
-          create(DofusMessageSchema, {
-            payload: {
-              case: "gameAction",
-              value: create(GameActionSchema, {
-                sequenceId: 102,
-                actionType: 102,
-                spriteId: String(result.caster.id),
-                actionData: {
-                  case: "apChange",
-                  value: create(ActionAPChangeSchema, {
-                    spriteId: String(result.caster.id),
-                    delta: -spell.apCost,
-                    used: spell.apCost,
-                  }),
-                },
-              }),
-            },
-          })
-        );
-      }
+      // Phase 2 — mutate state and emit damage / heal / summon / etc.
+      // GAs. The frame-emitter calls flow out of effect handlers,
+      // landing on the wire AFTER the GA;300 broadcast above.
+      const result = this.castSpell.apply(resolution);
+
+      // GA;102 — AP cost. After damage so the AP popup queues behind
+      // the spell visual and damage popup on the client (canonical
+      // Sequencer ordering: GA;300 → GA;100 → GA;102).
+      this.frames.broadcast(
+        targets,
+        create(DofusMessageSchema, {
+          payload: {
+            case: "gameAction",
+            value: create(GameActionSchema, {
+              sequenceId: 102,
+              actionType: 102,
+              spriteId: String(resolution.caster.id),
+              actionData: {
+                case: "apChange",
+                value: create(ActionAPChangeSchema, {
+                  spriteId: String(resolution.caster.id),
+                  delta: -resolution.spell.apCost,
+                  used: resolution.spell.apCost,
+                }),
+              },
+            }),
+          },
+        })
+      );
 
       this.logger.debug(
         `Spell cast fight=${fight.id} caster=${result.caster.id} spell=${result.spellId} cell=${result.targetCell} critical=${result.critical} failure=${result.failure}`
@@ -239,6 +302,77 @@ export class FightTurnHandler {
     // Deduct AP
     fighter.spendAp(apCost);
 
+    // Authoritative direction change — face the target before the
+    // punch. The client computes a fallback direction in onSpellCast,
+    // but pushing it from the server (a) keeps every viewer's render
+    // in sync (otherwise the local-prediction guess can race with
+    // the spell-launch handler), (b) carries the new facing into
+    // future TURN_MIDDLE snapshots so the fighter doesn't snap back
+    // to its placement direction after the punch reverts to idle.
+    //
+    // Clamp to fight directions {1,3,5,7} — the client renderer
+    // clamps anyway, so storing 8-way here desyncs the equality check
+    // and silently suppresses re-emits.
+    const facing = clampFightDirection(
+      getDirection(fighter.cell, cellId, fight.fightMap.width)
+    );
+    if (facing !== fighter.direction) {
+      fighter.direction = facing;
+      this.broadcastToFight(
+        fight,
+        create(DofusMessageSchema, {
+          payload: {
+            case: "gameAction",
+            value: create(GameActionSchema, {
+              sequenceId: 5,
+              actionType: 5,
+              spriteId: String(fighter.id),
+              actionData: {
+                case: "directionChange",
+                value: create(ActionDirectionChangeSchema, {
+                  spriteId: String(fighter.id),
+                  direction: facing,
+                }),
+              },
+            }),
+          },
+        })
+      );
+    }
+
+    // GA;300 — close-combat cast pose. Mirrors canonical Dofus 1.29
+    // which broadcasts a SpellLaunch with `animation = "anim0"` (the
+    // melee punch frame in every player's atlas) so other clients see
+    // the attacker swing before the damage popup. Without this the
+    // attacker's sprite stays in idle and the strike feels lifeless.
+    this.broadcastToFight(
+      fight,
+      create(DofusMessageSchema, {
+        payload: {
+          case: "gameAction",
+          value: create(GameActionSchema, {
+            sequenceId: 300,
+            actionType: GameActionType.ACTION_SPELL_LAUNCH,
+            spriteId: String(fighter.id),
+            actionData: {
+              case: "spellLaunch",
+              value: create(ActionSpellLaunchSchema, {
+                spellId: 0,
+                cellId,
+                elementId: 0,
+                // No spell-visual gfx for close combat — clients must
+                // not try to fetch /spells/0.dofasset.
+                param3: 0,
+                customSprite: -1,
+                // "anim0" = melee punch in the canonical client.
+                animation: "anim0",
+              }),
+            },
+          }),
+        },
+      })
+    );
+
     // Calculate damage (simplified: Strength-based neutral damage)
     const str = fighter.stats.get(10) ?? 0; // Characteristic.Strength = 10
     const baseDmg = 5 + Math.floor(Math.random() * 5); // 5-9 base
@@ -282,6 +416,12 @@ export class FightTurnHandler {
     if (target.dead) {
       this.frameEmitter.emitDeath(fight, target.id);
       fight.modules.fireFighterDied(fight, target);
+      // Free the corpse's cell so future LoS / range checks don't
+      // reject casts that fly over it. Mirrors the cast-path cleanup
+      // in `runApply`.
+      if (target.cell >= 0) {
+        fight.fightMap.free(target.cell, target.id);
+      }
 
       const endCheck = fight.checkFightEnd();
       if (endCheck.ended) {
@@ -362,10 +502,25 @@ export class FightTurnHandler {
       prevCell = cell;
     }
 
+    const startCell = fighter.cell;
     fight.fightMap.free(fighter.cell, fighter.id);
     fighter.cell = endCell;
     fight.fightMap.occupy(endCell, fighter.id);
     fighter.spendMp(mpCost);
+
+    // Update facing to match the last walk step. Without this, the
+    // server's `fighter.direction` stays at whatever it was BEFORE the
+    // walk (placement direction or previous cast facing), but the
+    // client's rendered sprite rotated to the last-step direction as
+    // it walked. The next spell cast's `if (facing !== direction)`
+    // check then compares against the stale tracked value and silently
+    // suppresses a legitimate `directionChange` emit, leaving the
+    // sprite punching/casting in the wrong direction.
+    const penultimate =
+      cells.length >= 2 ? (cells[cells.length - 2] ?? startCell) : startCell;
+    fighter.direction = clampFightDirection(
+      getDirection(penultimate, endCell, fight.fightMap.width)
+    );
 
     this.broadcastToFight(
       fight,

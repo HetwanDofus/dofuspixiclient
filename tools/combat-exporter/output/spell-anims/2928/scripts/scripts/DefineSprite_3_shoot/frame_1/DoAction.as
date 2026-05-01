@@ -1,1 +1,0 @@
-_rotation = 0;

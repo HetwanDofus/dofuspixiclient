@@ -4,33 +4,23 @@
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/110/scripts/scripts/
  *
- * displayType=10 (CasterCell). This is a self-buff / shield effect that
- * plays on the caster cell. There are no library symbols, no attachMovie
- * calls, and no projectile motion. The manifest has a single `animations`
- * entry (`anim1`, 129 frames) and no `librarySymbols`. The spell plays
- * through its authored composite timeline, signals hit at mid-point, and
- * completes when the outer clip removes itself.
+ * displayType=11 (TargetCell). Pure impact-at-target spell with no projectile
+ * and no caster reference. The animation consists of two authored sprites:
  *
- * Canonical AS layout:
- *   - DefineSprite_7 (the outer anim1 clip, 129 frames):
+ *   - DefineSprite_7 (anim1, 129 frames) — the outer shield composite.
  *       frame_1:   SOMA.playSound("shield_cara")
- *       frame_127: _parent.removeMovieClip() → spell complete
- *   - DefineSprite_5 (an inner sub-composite, 67 frames):
- *       frame_67:  stop()
+ *       frame_127: _parent.removeMovieClip() → signalHit + spell complete
  *
- * The `anim1` animation lives only in `animations[]`, not in
- * `librarySymbols[]`, so textures are loaded with bare key `"anim1"`.
+ *   - DefineSprite_5 (sprite5, sub-composite inside anim1) — an inner layer.
+ *       frame_67: stop() — halts its own timeline at frame 67.
  *
- * signalHit is fired at frame_1 of DefineSprite_7 (same frame as the
- * sound) because the canonical hit timing for a self-buff / shield
- * coincides with the visible impact frame (the effect landing on the
- * caster). Frame_127 removes the outer mc and signals completion.
+ * Main timeline: implicitly places DefineSprite_7 (anim1) at depth 1.
+ * DefineSprite_7 in turn places DefineSprite_5 on its own timeline.
  *
- * Library symbols: none.
+ * signalHit: fired at frame 127 of anim1 (0-based: 126) for displayType 11.
  *
- * Main timeline: single `anim1` child attached in onSpellStart;
- * sound played from the anim1 frame_1 script (mirrored in onSpellStart
- * since the sprite's frame_1 is the canonical playSound call site).
+ * Library symbols: none (librarySymbols[] is empty in manifest).
+ * Textures loaded via bare animation names (no lib_ prefix).
  */
 
 import type {
@@ -54,9 +44,10 @@ const ANIM1_BOUNDS = {
 
 export class Spell110 extends RuntimeSpell {
   readonly spellId = 110;
-  readonly displayType = SpellDisplayType.CasterCell;
+  readonly displayType = SpellDisplayType.TargetCell;
 
   private anim1Sym!: SymbolDefinition;
+  private sprite5Sym!: SymbolDefinition;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
@@ -64,54 +55,84 @@ export class Spell110 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1 — main composite animation on the caster ----------
-    // 129-frame authored timeline. No library symbols — anim1 is the
-    // sole entry in animations[], not in librarySymbols[], so we use
-    // the bare key "anim1" (no lib_ prefix).
+    // ---- sprite5 — inner sub-composite layer inside anim1 --------
+    // AS DefineSprite_5/frame_67/DoAction.as:
+    //   stop();
+    // This inner sprite halts its own timeline at frame 67 (0-based: 66).
+    // It has no authored frame textures of its own (container-only).
+    this.sprite5Sym = {
+      name: "sprite5",
+      totalFrames: 67,
+      frames: textures.getFrames("sprite5"),
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          66,
+          (clip) => {
+            // AS DefineSprite_5/frame_67/DoAction.as: stop()
+            clip.stop();
+          },
+        ],
+      ]),
+    };
+
+    // ---- anim1 — 129-frame outer shield composite ----------------
+    // Corresponds to DefineSprite_7 in canonical AS.
     //
     // AS DefineSprite_7/frame_1/DoAction.as:
     //   SOMA.playSound("shield_cara");
-    //   → sound is played from onSpellStart (where callbacks are
-    //     available). signalHit fires here too — the effect visually
-    //     lands on the caster at the first frame.
+    // Sound is fired in onSpellStart when this clip is first attached.
     //
     // AS DefineSprite_7/frame_127/DoAction.as:
     //   _parent.removeMovieClip();
-    //   → removes the outer mc; we complete the spell here.
+    // Signals hit and completes the spell.
     //
-    // AS DefineSprite_5/frame_67/DoAction.as:
-    //   stop();
-    //   → an inner sub-sprite stops at frame 67; because the composite
-    //     is baked into the anim1 texture frames, there is no separate
-    //     clip to stop in our runtime. The visual is already encoded
-    //     in the per-frame SVGs. No additional handling required.
+    // DefineSprite_7 also places DefineSprite_5 on its internal timeline
+    // at depth 1. We attach sprite5 from anim1's frame_0 script so it
+    // runs alongside the outer timeline.
+    // anim1 has 129 logical frames in the SWF, but frames 100-128 are all
+    // post-`_parent.removeMovieClip()` placeholder content. The
+    // svg-spritesheet dedupes those trailing placeholder frames into a
+    // single unique cell — but vello's strip layout + Pixi texture
+    // sub-rectangle math don't agree on how to address them past the
+    // unique-cell count, so logical frames 100-128 end up sampling the
+    // strip's frame-0 cell at runtime (the "frame 1 re-displays after the
+    // anim ends" symptom).
+    //
+    // Mirror the canonical visual end by terminating at the last frame
+    // with real content (frame 99, AS frame_100) rather than at AS
+    // frame_127. The user sees the same shield form-up, then the spell
+    // completes — no broken-texture tail.
     this.anim1Sym = {
       name: "anim1",
-      totalFrames: 129,
+      totalFrames: 100,
       frames: textures.getFrames("anim1"),
       anchorX: anim1Anchor.x,
       anchorY: anim1Anchor.y,
       frameScripts: new Map([
         [
           0,
-          (_clip) => {
-            // AS DefineSprite_7/frame_1/DoAction.as — sound + signalHit.
-            // Sound is fired in onSpellStart where callbacks are available.
-            // signalHit is also fired in onSpellStart alongside the sound.
+          (clip, ctx) => {
+            // DefineSprite_7 places DefineSprite_5 on its timeline at frame 1.
+            // Attach sprite5 as a child of anim1 so its frame_67 stop() fires.
+            clip.attach(this.sprite5Sym, "sprite5", 1, ctx);
           },
         ],
         [
-          126,
+          99,
           (clip) => {
-            // AS DefineSprite_7/frame_127/DoAction.as:
-            //   _parent.removeMovieClip();
-            clip.remove();
+            // Last visible frame — terminate before the placeholder tail
+            // that the AS canonical script would have hit at frame_127.
+            this.runtime.signalHit();
+            clip.parent?.remove();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
+    this.registry.register(this.sprite5Sym);
     this.registry.register(this.anim1Sym);
   }
 
@@ -119,16 +140,12 @@ export class Spell110 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS DefineSprite_7/frame_1/DoAction.as: SOMA.playSound("shield_cara");
+    // AS DefineSprite_7/frame_1/DoAction.as: SOMA.playSound("shield_cara")
+    // Fired as the anim1 clip is first placed on the main timeline.
     callbacks.playSound("shield_cara");
 
-    // Signal hit at the first visible frame — canonical for self-buff
-    // / shield effects where damage application coincides with the
-    // visual landing on the caster.
-    this.runtime.signalHit();
-
-    // Attach the main anim1 composite at depth 1 on the root clip.
-    // For CasterCell the root is already at the caster cell position.
+    // Attach anim1 at depth 1 on root — mirrors the implicit main-timeline
+    // PlaceObject2 that places DefineSprite_7 at the start of the spell.
     this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

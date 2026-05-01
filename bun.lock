@@ -182,6 +182,9 @@
     "packages/grid": {
       "name": "@dofus/grid",
       "version": "1.0.0",
+      "dependencies": {
+        "ts-pattern": "5.9.0",
+      },
     },
     "packages/proto": {
       "name": "@dofus/proto",

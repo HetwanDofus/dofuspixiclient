@@ -161,6 +161,15 @@ message SpriteMovementEntry {
   int32 aura_id = 37;
   int32 emote_id = 38;
   int32 emote_timer = 39;
+
+  // Monster-group difficulty bonus, mirroring
+  // `dofus.datacenter.MonsterGroup._nBonusValue`. Drives the 5-star
+  // colouring in the hover panel (`TextWithTitleOverHead.STARS_COLORS`):
+  // bonus / 100 is the floor of the colour index for each star, with the
+  // remainder distributing over a partially-coloured next-tier. Zero =
+  // no stars filled (a young / unbonused group). Only meaningful for
+  // SPRITE_TYPE_MONSTER_GROUP entries.
+  int32 monster_group_bonus = 40;
 }
 
 message MonsterGroupMember {
@@ -170,6 +179,12 @@ message MonsterGroupMember {
   int32 color1 = 4;
   int32 color2 = 5;
   int32 color3 = 6;
+  // Localized monster name (mirrors the per-language template). The roleplay
+  // hover panel renders one row per member with `name + level`, matching
+  // canonical Dofus 1.29's BannerSpriteInfos roster. Without this field the
+  // client used to fall back to "Monster ${templateId}", which the user
+  // reported as wrong.
+  string name = 7;
 }
 
 message MountDisplay {

@@ -1,30 +1,35 @@
 /**
- * Spell 206 — Croque-mitaine (Osamodas, or similar).
+ * Spell 206 — Croque-mitaine (Sram/Croque-mitaine dodge spell).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition runtime.
- * Canonical AS source: tools/combat-exporter/output/spell-anims/206/scripts/scripts/
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
  *
- * displayType=11 (TargetCell). There is a single authored animation symbol
- * (DefineSprite_24 / "anim1") that plays a 216-frame composite timeline at
- * the target cell. No projectile motion, no library symbols spawned via
- * attachMovie, no caster-side content. This is a pure target-impact spell.
+ * Canonical AS source:
+ *   tools/combat-exporter/output/spell-anims/206/scripts/scripts/
  *
- * Library symbols: none (librarySymbols[] is absent from manifest).
+ * Structure:
+ *   - Single animation `anim1` (216 frames, no librarySymbols).
+ *   - DefineSprite_24 is the sole authored sprite, mapped to `anim1`.
+ *   - Frame scripts on DefineSprite_24:
+ *       frame_1   (index 0):   SOMA.playSound("dodge_607c")
+ *       frame_70  (index 69):  SOMA.playSound("crockette_206")
+ *       frame_79  (index 78):  SOMA.playSound("herbe")
+ *       frame_100 (index 99):  this.end()  → signalHit
+ *       frame_157 (index 156): SOMA.playSound("dodge_607")
+ *       frame_214 (index 213): _parent.removeMovieClip() → complete
  *
- * The manifest exposes one animation: "anim1" (216 frames, isComposite=true).
- * The AS scripts all live inside DefineSprite_24, which IS the anim1 symbol.
- * We register it as a SymbolDefinition named "anim1" with textures.getFrames("anim1").
+ * displayType = TargetCell (11):
+ *   No `move`, `shoot`, `duplicate`, or dual-anchor patterns.
+ *   No caster references. Single impact animation plays at the target
+ *   cell. This is the standard single-timeline impact pattern.
  *
- * Main timeline: implicit placement of anim1 at the target cell; no explicit
- * SOMA.playSound on the outer main timeline (all sounds are within DefineSprite_24).
+ * Library symbols: none (librarySymbols[] is empty in manifest).
+ *   `anim1` is the only animation. It is registered as a plain
+ *   SymbolDefinition using `textures.getFrames("anim1")` (no lib_
+ *   prefix) and attached from onSpellStart. The frame scripts port
+ *   all six DoAction.as files 1:1.
  *
- * DefineSprite_24 frame scripts (1-based AS → 0-based TS):
- *   frame_1   (index 0)   : SOMA.playSound("dodge_607c")
- *   frame_70  (index 69)  : SOMA.playSound("crockette_206")
- *   frame_79  (index 78)  : SOMA.playSound("herbe")
- *   frame_100 (index 99)  : this.end() → signalHit
- *   frame_157 (index 156) : SOMA.playSound("dodge_607")
- *   frame_214 (index 213) : _parent.removeMovieClip() → complete
+ * Sounds are played from within frameScripts by capturing the
+ * callbacks reference in onSpellStart.
  */
 
 import type {
@@ -50,7 +55,7 @@ export class Spell206 extends RuntimeSpell {
   readonly spellId = 206;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  private callbacks?: SpellCallbacks;
+  private playSound?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
@@ -58,9 +63,10 @@ export class Spell206 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1 — 216-frame composite impact at target cell -------
-    // AS source: scripts/DefineSprite_24/
-    // All sounds and signals are driven by frame scripts inside this symbol.
+    // ---- anim1 — main 216-frame impact timeline ------------------
+    // Canonical sprite: DefineSprite_24 mapped to anim1.
+    // Sounds are played via the captured callbacks.playSound reference
+    // stored in this.playSound during onSpellStart.
     const anim1Sym: SymbolDefinition = {
       name: "anim1",
       totalFrames: 216,
@@ -73,7 +79,7 @@ export class Spell206 extends RuntimeSpell {
           (_clip) => {
             // AS DefineSprite_24/frame_1/DoAction.as
             // SOMA.playSound("dodge_607c");
-            this.callbacks?.playSound("dodge_607c");
+            this.playSound?.("dodge_607c");
           },
         ],
         [
@@ -81,7 +87,7 @@ export class Spell206 extends RuntimeSpell {
           (_clip) => {
             // AS DefineSprite_24/frame_70/DoAction.as
             // SOMA.playSound("crockette_206");
-            this.callbacks?.playSound("crockette_206");
+            this.playSound?.("crockette_206");
           },
         ],
         [
@@ -89,14 +95,14 @@ export class Spell206 extends RuntimeSpell {
           (_clip) => {
             // AS DefineSprite_24/frame_79/DoAction.as
             // SOMA.playSound("herbe");
-            this.callbacks?.playSound("herbe");
+            this.playSound?.("herbe");
           },
         ],
         [
           99,
           (_clip) => {
             // AS DefineSprite_24/frame_100/DoAction.as
-            // this.end() → damage popup at target
+            // this.end(); → signal hit (damage popup at target)
             this.runtime.signalHit();
           },
         ],
@@ -105,7 +111,7 @@ export class Spell206 extends RuntimeSpell {
           (_clip) => {
             // AS DefineSprite_24/frame_157/DoAction.as
             // SOMA.playSound("dodge_607");
-            this.callbacks?.playSound("dodge_607");
+            this.playSound?.("dodge_607");
           },
         ],
         [
@@ -127,15 +133,16 @@ export class Spell206 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Store callbacks so frame scripts inside anim1 can play sounds.
-    this.callbacks = callbacks;
+    // Capture callbacks.playSound so frameScripts can use it.
+    this.playSound = callbacks.playSound;
 
-    // Attach anim1 at root (target cell, depth 1).
-    // The harness anchors the container at the target cell for displayType=11,
-    // so no additional offset is needed.
-    const sym = this.registry.resolve("anim1");
-    if (sym) {
-      this.root.attach(sym, "anim1", 1, context);
+    // Attach the main timeline sprite at depth 1 on the root.
+    // The harness has positioned root at the target cell (TargetCell).
+    // frame_1 (index 0) fires immediately upon attach and plays the
+    // entry sound "dodge_607c".
+    const anim1Sym = this.registry.resolve("anim1");
+    if (anim1Sym) {
+      this.root.attach(anim1Sym, "anim1", 1, context);
     }
   }
 }

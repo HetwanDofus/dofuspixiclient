@@ -159,8 +159,22 @@ export class Battlefield {
     currentMapWidth: () => this.currentMapData?.width ?? 15,
     transparencyEnabled: () => this.transparencyMode,
     applyTransparency: () => this.applyTransparencyMode(),
-    registerPlayerForPicking: (id, renderer, monsterGroup) =>
-      this.picking.registerPlayer(id, renderer, monsterGroup),
+    registerPlayerForPicking: (
+      id,
+      renderer,
+      monsterGroup,
+      isCurrentPlayer,
+      monsterGroupBonus,
+      groupSpriteIds
+    ) =>
+      this.picking.registerPlayer(
+        id,
+        renderer,
+        monsterGroup,
+        isCurrentPlayer,
+        monsterGroupBonus,
+        groupSpriteIds
+      ),
     unregisterPlayerFromPicking: (id) => this.picking.unregisterPlayer(id),
     markPickingDirty: () => this.pickingSystem?.markDirty(),
   });
@@ -258,6 +272,7 @@ export class Battlefield {
     this.fightActorUnsubscribe = fightActor.subscribe((snap) => {
       const mode = projectFightMode(snap.value);
       if (mode !== this.lastFightMode) {
+        const previous = this.lastFightMode;
         this.lastFightMode = mode;
         if (
           mode === "placement" ||
@@ -267,6 +282,19 @@ export class Battlefield {
           this.enterFightMode(mode);
         } else {
           this.exitFightMode();
+        }
+        // Auto-enable the tactical grid lines the moment combat actually
+        // starts (placement → fighting, or spectator drop-in). The
+        // original client shows the grid by default during combat;
+        // matching that behaviour avoids forcing the player to click the
+        // tactical toggle on every fight. We only force-on at the edge:
+        // if the user disables it mid-fight it stays off.
+        if (
+          (mode === "fighting" || mode === "spectating") &&
+          previous !== "fighting" &&
+          previous !== "spectating"
+        ) {
+          this.gridOverlay?.toggle(true);
         }
       }
 
@@ -360,6 +388,22 @@ export class Battlefield {
 
   getCurrentMapData(): MapData | null {
     return this.currentMapData;
+  }
+
+  /**
+   * Returns whether the cell at `cellId` blocks line-of-sight (walls,
+   * decorations, glass cells with `lineOfSight=false`). Used by spell
+   * targeting to gate which cells the caster can see.
+   */
+  isCellLosBlocked(cellId: number): boolean {
+    const cell = this.cellDataMap.get(cellId);
+    if (!cell) {
+      // Out-of-map cells are blocking by definition; the LoS walker
+      // also short-circuits on out-of-bounds, so this is a safe
+      // fallback when the map isn't loaded yet.
+      return true;
+    }
+    return cell.lineOfSight === false;
   }
 
   /**
@@ -489,9 +533,7 @@ export class Battlefield {
     // strip rasterizer matches character density. No registry fan-out
     // — that would re-fire onResize on every other renderer mid-
     // renderMap and disturb placement-cell / preview state.
-    const spellLoader = this.fightUI
-      ?.getSpellRenderer()
-      ?.getAssetLoader();
+    const spellLoader = this.fightUI?.getSpellRenderer()?.getAssetLoader();
     spellLoader?.setResolution(zoom);
     await this.mapHandler.renderMap(
       mapData,
@@ -729,11 +771,42 @@ export class Battlefield {
       return;
     }
     this.lastHoveredCellId = cellId;
+    // Canonical hover hit area for fighters is the FULL diamond cell
+    // they stand on (`%1D%11%1C.as:162` attaches `onRollOver` to each
+    // `InteractionCell` MovieClip, not to the fighter sprite). Drive
+    // the picking system's via-cell fighter hover off the same event
+    // so a sprite-pixel miss next to the fighter still triggers the
+    // hover effects — but ONLY in combat. Outside combat the world
+    // map's regular sprite-pixel hover is canonical (the cell-level
+    // InteractionCell only existed in fight scenes), and firing
+    // `setHoverByCell` from the world map double-triggers the same
+    // sprite hover from a coarser hitbox, breaking the hover feel
+    // for nearby NPCs / interactive objects.
+    const fightActive =
+      this.lastFightMode === "placement" ||
+      this.lastFightMode === "fighting" ||
+      this.lastFightMode === "spectating";
+    if (fightActive) {
+      this.picking.setHoverByCell(cellId);
+    } else {
+      // Make sure no stale via-cell hover lingers from the last fight.
+      this.picking.setHoverByCell(null);
+    }
     this.onCellHoverCallback?.(cellId);
   }
 
   setOnCellHover(callback: (cellId: number | null) => void): void {
     this.onCellHoverCallback = callback;
+  }
+
+  /**
+   * Hover-on-self callback. Fires `true` when the user rolls over their
+   * own avatar in fight mode and `false` on roll-out. Mirrors canonical
+   * Sprite._rollOver / _rollOut so consumers (e.g. MP-range overlay)
+   * only paint while the user is actually pointing at their fighter.
+   */
+  setOnSelfHover(callback: (hovered: boolean) => void): void {
+    this.picking.setOnSelfHover(callback);
   }
 
   getApp(): Application | null {

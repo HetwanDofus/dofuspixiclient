@@ -190,9 +190,15 @@ export class Runner {
       entries: this.fight.fighters().map((f) => ({
         spriteId: String(f.id),
         cell: f.cell,
-        lp: f.lp,
+        // Clamp lp at 0 — Fighter.setLp doesn't clamp negative values
+        // (it just sets dead=true), so a freshly-killed fighter would
+        // serialize as lp=-50 here. Client treats -50 as the new HP
+        // and the bar collapses below empty.
+        lp: Math.max(0, f.lp),
+        lpMax: f.lpMax,
         ap: f.ap,
         mp: f.mp,
+        isDead: f.dead,
       })),
     };
   }

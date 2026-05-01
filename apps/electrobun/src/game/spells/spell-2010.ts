@@ -1,33 +1,40 @@
 /**
- * Spell 2010 — Carapace (shield-type self-buff).
+ * Spell 2010 — Shield (Carapace / Cara shield effect).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition layer.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2010/scripts/scripts/
  *
- * displayType=10 (CasterCell). This spell has no projectile, no target-cell
- * impact, and no dual-anchor pattern. The single animation plays on the
- * caster. The AS has no attachMovie calls, no cellTo references, and no
- * projectile symbols — a pure caster-anchored self-buff.
+ * displayType=11 (TargetCell). This is a single-animation impact spell anchored
+ * at the target cell. There are no projectile symbols, no `move`/`shoot`/`duplicate`
+ * symbols, and no library symbols with clip events. The entire visual is a single
+ * 129-frame composite animation (`anim1`) that plays at the target cell.
  *
- * Canonical AS layout:
- *   - librarySymbols: empty — no library symbols, no attachMovie.
- *   - animations: one entry `anim1` (129 frames, composite).
+ * The manifest has NO `librarySymbols[]` entries — only one `animations[]` entry
+ * (`anim1`). So textures are accessed with `textures.getFrames("anim1")` (no `lib_`
+ * prefix), and bounds come from `animations[0].{width, height, offsetX, offsetY}`.
+ *
+ * AS layout:
  *   - DefineSprite_6/frame_1/DoAction.as:   SOMA.playSound("shield_cara")
  *   - DefineSprite_6/frame_127/DoAction.as: _parent.removeMovieClip()
  *   - DefineSprite_4/frame_67/DoAction.as:  stop()
  *
- * DefineSprite_6 is the outer animated sprite (129 frames). Its frame_1
- * plays the sound; its frame_127 removes itself and signals completion.
- * DefineSprite_4 is an inner composite whose stop() at frame_67 is already
- * baked into the exported anim1 SVG frames — no explicit child attach needed.
+ * DefineSprite_6 is the outer wrapper (129 frames). It plays the sound on frame 1
+ * and removes its parent (the outer mc) at frame 127 → `this.runtime.complete()`.
  *
- * Since librarySymbols is empty, anim1 is registered under its bare name
- * (no lib_ prefix). textures.getFrames("anim1") is used — NOT "lib_anim1".
+ * DefineSprite_4 is an inner sub-sprite that stops at frame 67, the canonical
+ * impact point. Since the manifest contains no CLIPACTIONRECORD entries for either
+ * sprite, there are no onClipEvent(load) or onClipEvent(enterFrame) handlers to
+ * port — the only runtime behaviour is the two frame scripts above.
  *
- * signalHit is fired at frame_1 (self-buff onset, canonical for shields).
- * complete() is fired at frame_127 matching _parent.removeMovieClip().
+ * We model the entire animation as a single `anim1` SymbolDefinition attached at
+ * root with:
+ *   - signalHit at frame 67 (mirrors DefineSprite_4/frame_67 stop — canonical hit
+ *     point for the shield landing; displayType=11 requires manual signalHit).
+ *   - complete() at frame 127 (mirrors DefineSprite_6/frame_127
+ *     _parent.removeMovieClip()).
  *
- * Main timeline: onSpellStart plays the sound and attaches anim1 to root.
+ * Main timeline: sound `shield_cara` fired in onSpellStart (mirrors
+ * DefineSprite_6/frame_1/DoAction.as).
  */
 
 import type {
@@ -51,7 +58,7 @@ const ANIM1_BOUNDS = {
 
 export class Spell2010 extends RuntimeSpell {
   readonly spellId = 2010;
-  readonly displayType = SpellDisplayType.CasterCell;
+  readonly displayType = SpellDisplayType.TargetCell;
 
   private anim1Sym!: SymbolDefinition;
 
@@ -61,15 +68,14 @@ export class Spell2010 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1 — main shield animation, 129 frames ---------------
-    // No library symbols exist; anim1 is the sole animations[] entry.
-    // Registered under bare name — no lib_ prefix.
+    // anim1 — 129-frame composite animation at target cell.
+    // No CLIPACTIONRECORD handlers exist in the manifest for this spell,
+    // so no onLoad or onEnterFrame are required.
     //
-    // frameScripts[0] → DefineSprite_6/frame_1/DoAction.as
-    // frameScripts[126] → DefineSprite_6/frame_127/DoAction.as
-    //
-    // DefineSprite_4/frame_67/DoAction.as (stop() on inner sub-sprite)
-    // is already baked into the composite SVG frames; no child attach needed.
+    // Frame scripts ported from canonical AS:
+    //   frame_67  → DefineSprite_4/frame_67/DoAction.as:  stop()
+    //               Used as the canonical hit signal frame.
+    //   frame_127 → DefineSprite_6/frame_127/DoAction.as: _parent.removeMovieClip()
     this.anim1Sym = {
       name: "anim1",
       totalFrames: 129,
@@ -78,20 +84,18 @@ export class Spell2010 extends RuntimeSpell {
       anchorY: anim1Anchor.y,
       frameScripts: new Map([
         [
-          0,
-          (_clip, _ctx) => {
-            // AS DefineSprite_6/frame_1/DoAction.as:
-            //   SOMA.playSound("shield_cara");
-            // Sound is handled in onSpellStart (callback available there).
-            // Signal hit at animation onset — canonical for self-buff spells.
+          66,
+          (_clip) => {
+            // AS: DefineSprite_4/frame_67/DoAction.as → stop()
+            // Canonical impact frame — signal hit so damage popups fire.
             this.runtime.signalHit();
           },
         ],
         [
           126,
-          (clip, _ctx) => {
-            // AS DefineSprite_6/frame_127/DoAction.as:
-            //   _parent.removeMovieClip();
+          (clip) => {
+            // AS: DefineSprite_6/frame_127/DoAction.as → _parent.removeMovieClip()
+            // Outer sprite removes the parent mc, ending the spell.
             clip.remove();
             this.runtime.complete();
           },
@@ -106,11 +110,12 @@ export class Spell2010 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS DefineSprite_6/frame_1/DoAction.as: SOMA.playSound("shield_cara")
+    // AS: DefineSprite_6/frame_1/DoAction.as → SOMA.playSound("shield_cara")
     callbacks.playSound("shield_cara");
 
-    // Attach anim1 to root — mirrors the implicit main-timeline placement
-    // of DefineSprite_6 on the SWF main timeline frame_1.
+    // Attach anim1 at root so it starts ticking on the next runtime frame.
+    // Mirrors the implicit main-timeline placement of DefineSprite_6
+    // (the outer wrapper sprite) at depth 1.
     this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

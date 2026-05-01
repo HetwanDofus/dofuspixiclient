@@ -1,23 +1,26 @@
 /**
- * Spell 2062 — Unknown (simple impact animation).
+ * Spell 2062 — (Unknown name, single-animation impact spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2062/scripts/scripts/
  *
- * displayType=11 (TargetCell). This spell has no library symbols, no
- * projectile, no caster reference — a single authored animation (`anim1`,
- * 21 frames) plays at the target cell. The only script is
+ * displayType=11 (TargetCell). This spell has no projectile motion, no
+ * library symbols with attachMovie, no caster-side reference, and no
+ * duplicate/beam pattern. It is a single authored animation (`anim1`,
+ * 21 frames) that plays at the target cell. The only AS script is
  * DefineSprite_2/frame_19/DoAction.as which calls
- * `_parent.removeMovieClip(); stop();` — i.e. removes the outer mc and
- * ends the spell at frame 19 (0-based: 18).
+ * `_parent.removeMovieClip(); stop();` — the canonical outer-mc removal
+ * at the end of the animation, signalling spell completion.
  *
- * There are no `librarySymbols[]` entries in the manifest; `anim1` is the
- * sole `animations[]` entry and drives all rendering.
+ * Library symbols: none (librarySymbols[] is absent/empty in manifest).
  *
- * Library symbols: none (no attachMovie calls anywhere in the AS).
+ * Main timeline: no explicit SOMA.playSound or child attaches found.
+ * The single symbol `anim1` is the main animation and is registered as
+ * a container-driven SymbolDefinition with a frameScripts entry at
+ * frame 18 (AS frame_19) that removes the parent and fires complete().
  *
- * Main timeline: no explicit frame_1 script — no sound, no child attaches
- * beyond the implicit placement of anim1 on the timeline.
+ * Signal hit: fired at frame 18 (the impact/removal frame), which is
+ * also the canonical `stopFrame` from the manifest.
  */
 
 import type {
@@ -47,16 +50,19 @@ export class Spell2062 extends RuntimeSpell {
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext,
+    _context: SpellContext
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // anim1 is the sole animation — no lib_ prefix because it lives in
-    // animations[] only, not librarySymbols[].
-    //
+    // ---- anim1 — 21-frame impact animation at target cell -------
     // AS DefineSprite_2/frame_19/DoAction.as:
     //   _parent.removeMovieClip();
     //   stop();
+    //
+    // The animation plays through 21 frames. At frame 19 (0-based: 18)
+    // the canonical AS removes the outer mc and stops. We fire
+    // signalHit() at the same frame since that is the canonical impact
+    // moment (stopFrame=18 per manifest), then complete the spell.
     this.anim1Sym = {
       name: "anim1",
       totalFrames: 21,
@@ -68,10 +74,8 @@ export class Spell2062 extends RuntimeSpell {
           18,
           (clip) => {
             // AS DefineSprite_2/frame_19/DoAction.as:
-            //   _parent.removeMovieClip(); stop();
-            // frame_19 → index 18 (0-based).
-            // Signals hit at the impact frame (displayType 11, not
-            // ballistic, so we must call signalHit ourselves).
+            //   _parent.removeMovieClip();
+            //   stop();
             this.runtime.signalHit();
             clip.remove();
             this.runtime.complete();
@@ -85,10 +89,10 @@ export class Spell2062 extends RuntimeSpell {
 
   protected onSpellStart(
     _callbacks: SpellCallbacks,
-    context: SpellContext,
+    context: SpellContext
   ): void {
-    // No SOMA.playSound in the canonical main timeline for this spell.
-    // Attach anim1 at root so it starts playing from frame 1.
+    // No SOMA.playSound in canonical main timeline for this spell.
+    // Attach anim1 at the root so it begins playing at target cell.
     this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

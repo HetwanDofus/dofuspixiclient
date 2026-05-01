@@ -1,35 +1,30 @@
 /**
- * Spell 2103 — (Cra fire arrow variant, likely "Flèche Enflammée" / similar Cra spell).
+ * Spell 2103 — Flèche Enflammée variant (Cra, same visual as 909).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2103/scripts/scripts/
  *
- * displayType=51 (WorldAbsoluteAlt). Detection reasoning:
- *   - Two parallel authored timelines: sprite_19 (caster-side, 72 frames) and
- *     sprite_33 (target-side, 84 frames).
- *   - sprite_19/frame_1 reads `_parent.cellFrom` and positions itself there.
- *   - sprite_33/frame_1 reads `_parent.cellTo` and positions itself there.
- *   - Both read `_parent.angle` for rotation.
- *   - This is the canonical dual-anchored WorldAbsolute pattern (50/51).
- *   - No `move`/`shoot`/`duplicate` symbols → not a projectile or beam type.
- *   - Main timeline has a frame_2 sound+stop → WorldAbsoluteAlt (51), matching spell 909.
+ * displayType=51 (WorldAbsoluteAlt). Two parallel authored timelines:
+ *   - sprite_19 (45 frames, caster-side): positions at cellFrom, rotates to
+ *     angle, spawns cercle particles at frame 7, stops at frame 70.
+ *   - sprite_33 (84 frames, target-side): positions at cellTo, rotates to
+ *     angle, fires signalHit at frame 13, removes outer mc at frame 67.
  *
  * Library symbols:
- *   - lib_cercle — single-frame orange particle. onLoad seeds d, accx, x, sr, vr, vt, vx, va, t.
- *                  onEnterFrame rotates (vr decays 0.97×), X drifts (vx grows by accx factor),
- *                  scale ramps via t+vt, removes when t < 0.
- *
- * Authored timelines (animations[], NOT librarySymbols[]):
- *   - sprite_19 — caster-side, 72 frames. frame_1: position at cellFrom, rotate to angle.
- *                 frame_7: spawn 10 + level*3 cercle particles. frame_70: stop().
- *   - sprite_33 — target-side, 84 frames. frame_1: position at cellTo, rotate to angle.
- *                 frame_13: signalHit (this.end()). frame_67: _parent.removeMovieClip() → complete().
+ *   - lib_cercle — single-frame particle. onLoad seeds d, accx, x, sr, vx,
+ *     vy, vt, va, vr, t. onEnterFrame rotates (vr decays 0.97), drifts X
+ *     (vx multiplied by accx each frame), ramps scale via vt, removes when
+ *     t < 0.
  *
  * Main timeline (frame_2/DoAction.as): SOMA.playSound("jet_903"); stop();
- * onSpellStart attaches sprite_19 and sprite_33 to root, then plays the sound.
+ * Implicit frame_1 placement of sprite_19 + sprite_33 handled in onSpellStart.
  *
- * NOTE: signalHit is called from sprite_33's frame_13 (not harness-driven, since
- * displayType is not 30/31). complete() is called from sprite_33's frame_67.
+ * The harness for displayType 50/51 sets container at world (0,0) and exposes
+ * cellFrom/cellTo/angle on root.vars. Per-sprite frame_1 scripts position
+ * children at absolute world coords.
+ *
+ * signalHit is fired manually from sprite_33 frame 13 (this.end() in AS).
+ * complete() is fired from sprite_33 frame 67 (_parent.removeMovieClip() in AS).
  */
 
 import type {
@@ -61,24 +56,34 @@ export class Spell2103 extends RuntimeSpell {
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext
+    _context: SpellContext,
   ): void {
     const cercleAnchor = calculateAnchor(CERCLE_BOUNDS);
 
-    // ---- lib_cercle — orange particle spawned from caster-side sprite_19 ----
-    // AS: DefineSprite_3_cercle/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
-    // AS: DefineSprite_3_cercle/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    // ---- lib_cercle — orange drift particle spawned by sprite_19 ----
+    // AS: scripts/DefineSprite_3_cercle/frame_1/PlaceObject2_2_1/
+    //     CLIPACTIONRECORD onClipEvent(load).as
+    //     CLIPACTIONRECORD onClipEvent(enterFrame).as
     this.cercleSym = {
       name: "cercle",
       totalFrames: 1,
       frames: textures.getFrames("lib_cercle"),
       anchorX: cercleAnchor.x,
       anchorY: cercleAnchor.y,
+
       onLoad: (clip) => {
-        // AS: onClipEvent(load)
-        // _parent._parent._parent.level:
-        //   cercle's _parent is sprite_19, sprite_19's _parent is root.
-        //   So: clip → sprite_19 → root. We collapse to clip.parent?.parent.
+        // AS onClipEvent(load):
+        //   d = 120 + (_parent._parent._parent.level - 1) * 32
+        //   accx = 0.8 + 0.12 * Math.random()
+        //   x = d * Math.random()
+        //   if(random(4) == 1) { _Y = 5; sr = -1 } else { sr = 1; _Y = -5 }
+        //   _xscale = 0; _yscale = 0; t = 5; _X = x
+        //   va = 5 + 10 * Math.random()
+        //   vr = (20 + 40 * Math.random()) * sr
+        //   vt = (1 + random(1)) * ((d - x) / d)
+        //   vx = 5 + 10 * Math.random()
+        //
+        // _parent._parent._parent chain: cercle → sprite_19 → root
         const root = clip.parent?.parent ?? clip.parent;
         const level = (root?.vars.level as number) ?? 1;
         const d = 120 + (level - 1) * 32;
@@ -87,7 +92,6 @@ export class Spell2103 extends RuntimeSpell {
         const xStart = d * Math.random();
         let yStart: number;
         let sr: number;
-        // AS: if(random(4) == 1) — note: 1/4 chance (not 1/2 as in spell 909)
         if (Math.floor(Math.random() * 4) === 1) {
           yStart = 5;
           sr = -1;
@@ -102,31 +106,31 @@ export class Spell2103 extends RuntimeSpell {
         clip.y = yStart;
         clip.vars.va = 5 + 10 * Math.random();
         clip.vars.vr = (20 + 40 * Math.random()) * sr;
-        // AS: vt = (1 + random(1)) * ((d - x) / d)
-        clip.vars.vt = (1 + Math.floor(Math.random() * 1)) * ((d - xStart) / d);
+        clip.vars.vt =
+          (1 + Math.floor(Math.random() * 2)) * ((d - xStart) / d);
         clip.vars.vx = 5 + 10 * Math.random();
       },
+
       onEnterFrame: (clip) => {
-        // AS: onClipEvent(enterFrame)
+        // AS onClipEvent(enterFrame):
+        //   _rotation = _rotation - (vr *= 0.97)
+        //   _X = _X + (vx *= accx)
+        //   t += vt -= 0.1
+        //   _xscale = t; _yscale = t
+        //   if(t < 0) { _parent.removeMovieClip() }
         let vr = clip.vars.vr as number;
         let vx = clip.vars.vx as number;
         let vt = clip.vars.vt as number;
         let t = clip.vars.t as number;
         const accx = clip.vars.accx as number;
 
-        // AS: _rotation = _rotation - (vr *= 0.97)
         vr *= 0.97;
+        // AS rotation in degrees → convert delta to radians
         clip.rotation -= (vr * Math.PI) / 180;
-
-        // AS: _X = _X + (vx *= accx)
         vx *= accx;
         clip.x += vx;
-
-        // AS: t += vt -= 0.1
         vt -= 0.1;
         t += vt;
-
-        // AS: _xscale = t; _yscale = t
         clip.scaleX = t / 100;
         clip.scaleY = t / 100;
 
@@ -135,32 +139,45 @@ export class Spell2103 extends RuntimeSpell {
         clip.vars.vt = vt;
         clip.vars.t = t;
 
-        // AS: if(t < 0) { _parent.removeMovieClip(); }
         if (t < 0) {
           clip.remove();
         }
       },
     };
 
-    // ---- sprite_19 — caster-side timeline (72 frames) ----
-    // Positions at cellFrom, rotates to angle, spawns cercle particles at frame 7,
-    // stops at frame 70.
+    // ---- sprite_19 — caster-side authored timeline (72 frames) ------
+    // AS: scripts/DefineSprite_19/frame_1/DoAction.as  → position at cellFrom
+    // AS: scripts/DefineSprite_19/frame_7/DoAction.as  → spawn cercle particles
+    // AS: scripts/DefineSprite_19/frame_70/DoAction.as → stop()
     this.sprite19Sym = {
       name: "sprite_19",
       totalFrames: 72,
       frames: textures.getFrames("sprite_19"),
-      anchorX: calculateAnchor({ width: 171.35, height: 28, offsetX: -36.35, offsetY: -14.9 }).x,
-      anchorY: calculateAnchor({ width: 171.35, height: 28, offsetX: -36.35, offsetY: -14.9 }).y,
+      anchorX: calculateAnchor({
+        width: 171.35,
+        height: 28,
+        offsetX: -36.35,
+        offsetY: -14.9,
+      }).x,
+      anchorY: calculateAnchor({
+        width: 171.35,
+        height: 28,
+        offsetX: -36.35,
+        offsetY: -14.9,
+      }).y,
+
       frameScripts: new Map([
         [
           0,
           (clip) => {
-            // AS: DefineSprite_19/frame_1/DoAction.as
-            // _X = _parent.cellFrom.x;
-            // _Y = _parent.cellFrom.y - 50;
-            // _rotation = _parent.angle;
+            // AS DefineSprite_19/frame_1/DoAction.as:
+            //   _X = _parent.cellFrom.x
+            //   _Y = _parent.cellFrom.y - 50
+            //   _rotation = _parent.angle
             const root = clip.parent;
-            const cellFrom = root?.vars.cellFrom as { x: number; y: number } | undefined;
+            const cellFrom = root?.vars.cellFrom as
+              | { x: number; y: number }
+              | undefined;
             const angleDeg = (root?.vars.angle as number) ?? 0;
             if (cellFrom) {
               clip.x = cellFrom.x;
@@ -172,9 +189,10 @@ export class Spell2103 extends RuntimeSpell {
         [
           6,
           (clip, ctx) => {
-            // AS: DefineSprite_19/frame_7/DoAction.as
-            // nb = 10 + _parent.level * 3;
-            // c = 1; while(c < nb) { this.attachMovie("cercle","cercle"+c,c); c++; }
+            // AS DefineSprite_19/frame_7/DoAction.as:
+            //   nb = 10 + _parent.level * 3
+            //   c = 1
+            //   while(c < nb) { this.attachMovie("cercle","cercle" + c, c); c++ }
             const root = clip.parent;
             const level = (root?.vars.level as number) ?? 1;
             const nb = 10 + level * 3;
@@ -186,34 +204,46 @@ export class Spell2103 extends RuntimeSpell {
         [
           69,
           (clip) => {
-            // AS: DefineSprite_19/frame_70/DoAction.as
-            // stop();
+            // AS DefineSprite_19/frame_70/DoAction.as: stop()
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- sprite_33 — target-side timeline (84 frames) ----
-    // Positions at cellTo, rotates to angle.
-    // frame_13: this.end() → signalHit.
-    // frame_67: _parent.removeMovieClip() → complete.
+    // ---- sprite_33 — target-side authored timeline (84 frames) ------
+    // AS: scripts/DefineSprite_33/frame_1/DoAction.as  → position at cellTo
+    // AS: scripts/DefineSprite_33/frame_13/DoAction.as → this.end() → signalHit
+    // AS: scripts/DefineSprite_33/frame_67/DoAction.as → _parent.removeMovieClip()
     this.sprite33Sym = {
       name: "sprite_33",
       totalFrames: 84,
       frames: textures.getFrames("sprite_33"),
-      anchorX: calculateAnchor({ width: 224.15, height: 88.25, offsetX: -59.4, offsetY: -47.3 }).x,
-      anchorY: calculateAnchor({ width: 224.15, height: 88.25, offsetX: -59.4, offsetY: -47.3 }).y,
+      anchorX: calculateAnchor({
+        width: 224.15,
+        height: 88.25,
+        offsetX: -59.4,
+        offsetY: -47.3,
+      }).x,
+      anchorY: calculateAnchor({
+        width: 224.15,
+        height: 88.25,
+        offsetX: -59.4,
+        offsetY: -47.3,
+      }).y,
+
       frameScripts: new Map([
         [
           0,
           (clip) => {
-            // AS: DefineSprite_33/frame_1/DoAction.as
-            // _X = _parent.cellTo.x;
-            // _Y = _parent.cellTo.y - 50;
-            // _rotation = _parent.angle;
+            // AS DefineSprite_33/frame_1/DoAction.as:
+            //   _X = _parent.cellTo.x
+            //   _Y = _parent.cellTo.y - 50
+            //   _rotation = _parent.angle
             const root = clip.parent;
-            const cellTo = root?.vars.cellTo as { x: number; y: number } | undefined;
+            const cellTo = root?.vars.cellTo as
+              | { x: number; y: number }
+              | undefined;
             const angleDeg = (root?.vars.angle as number) ?? 0;
             if (cellTo) {
               clip.x = cellTo.x;
@@ -225,17 +255,15 @@ export class Spell2103 extends RuntimeSpell {
         [
           12,
           () => {
-            // AS: DefineSprite_33/frame_13/DoAction.as
-            // this.end() → damage popup at target
+            // AS DefineSprite_33/frame_13/DoAction.as: this.end() → damage popup
             this.runtime.signalHit();
           },
         ],
         [
           66,
           (clip) => {
-            // AS: DefineSprite_33/frame_67/DoAction.as
-            // _parent.removeMovieClip() → spell complete
-            clip.parent?.remove();
+            // AS DefineSprite_33/frame_67/DoAction.as: _parent.removeMovieClip()
+            clip.remove();
             this.runtime.complete();
           },
         ],
@@ -249,14 +277,12 @@ export class Spell2103 extends RuntimeSpell {
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    context: SpellContext
+    context: SpellContext,
   ): void {
-    // AS: frame_2/DoAction.as
-    // SOMA.playSound("jet_903"); stop();
+    // AS frame_2/DoAction.as: SOMA.playSound("jet_903"); stop();
     callbacks.playSound("jet_903");
-
-    // Implicit frame_1 placement of sprite_19 + sprite_33 on the main timeline.
-    // Attach them so they start ticking from the next runtime frame.
+    // Implicit frame_1 placement of sprite_19 (caster-side) and
+    // sprite_33 (target-side) on the main authored timeline.
     this.root.attach(this.sprite19Sym, "sprite19", 1, context);
     this.root.attach(this.sprite33Sym, "sprite33", 2, context);
   }

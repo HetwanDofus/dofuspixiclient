@@ -83,9 +83,20 @@ export class Spell101 extends RuntimeSpell {
     // Child clip-event behaviours (DefineSprite_9, _10, _3, _13, _12)
     // are baked into the exported SVG frames; no runtime re-implementation
     // is needed for them.
+    // anim1 has 189 logical frames in the SWF, but frames 160-188 all
+    // dedupe to anim1_159 in the atlas (svg-spritesheet content-hash
+    // dedup). vello's strip layout doesn't expose a logical→cell
+    // mapping, so logical frames past the last unique cell sample the
+    // wrong strip cell and the runtime appears to "restart" at frame 0
+    // / frame 1.
+    //
+    // Terminate at the last frame with a unique atlas cell (159) so the
+    // spell ends before the dedup'd tail. The visual is identical to the
+    // canonical AS frame_187 endpoint because frames 160-188 are
+    // visually identical to 159 anyway (that's why they got deduped).
     this.anim1Sym = {
       name: "anim1",
-      totalFrames: 189,
+      totalFrames: 160,
       frames: textures.getFrames("anim1"),
       anchorX: anim1Anchor.x,
       anchorY: anim1Anchor.y,
@@ -99,11 +110,11 @@ export class Spell101 extends RuntimeSpell {
           },
         ],
         [
-          186,
+          159,
           (clip) => {
-            // AS: DefineSprite_14/frame_187/DoAction.as — _parent.removeMovieClip()
-            // The anim1 clip IS the outer mc for this displayType; removing it
-            // ends the spell.
+            // Last unique atlas cell — terminate before the dedup'd tail
+            // (logical frames 160-188 in canonical AS). Same visual as
+            // the canonical _parent.removeMovieClip() at AS frame_187.
             clip.remove();
             this.runtime.complete();
           },

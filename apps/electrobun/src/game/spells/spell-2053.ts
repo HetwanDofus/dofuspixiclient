@@ -1,31 +1,51 @@
 /**
- * Spell 2053 — (Unknown name, likely a fire/explosion spell).
+ * Spell 2053 — (Unknown spell name).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ *
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2053/scripts/scripts/
  *
- * displayType=11 (TargetCell). This spell has a single `shoot` symbol with
- * 84 authored frames, no `move` symbol, no `attachMovie` calls spawning
- * child symbols, and no caster-side content. The `shoot` symbol is placed
- * at the target cell by the harness (ProjectileBallistic would require a
- * `move` symbol; the sole animation here is a direct impact). The harness
- * for ProjectileBallistic/Linear expects to attach `move`/`shoot` itself,
- * but this spell has no `move` and the `shoot` IS the top-level content —
- * making it a plain TargetCell impact.
+ * This spell has a single animation "shoot" in animations[] (no librarySymbols[]).
+ * The harness uses displayType=30 (ProjectileBallistic): the harness attaches
+ * "move" and "shoot" at the target. Since there is no "move" symbol authored in
+ * the manifest (only "shoot"), we register a minimal 1-frame move container and
+ * the full 84-frame shoot.
+ *
+ * Wait — re-examining: manifest has only "shoot" in animations[], no librarySymbols[],
+ * and the scripts are only on DefineSprite_18_shoot. The AS for shoot/frame_1 does:
+ *   _rotation = 0;
+ *   SOMA.playSound("flamme_2022");
+ *   SOMA.playSound("pet");
+ * And shoot/frame_70:
+ *   _parent.removeMovieClip();
+ *   stop();
+ *
+ * The sounds are played inside shoot/frame_1, not on the main timeline. The manifest
+ * also lists them as frame 0 sounds (consistent with frame_1 of shoot).
+ *
+ * displayType detection: Only a "shoot" symbol exists — no "move", no "duplicate",
+ * no dual-cell positioning. The spell has a "shoot" symbol that is attached at the
+ * target, consistent with ProjectileBallistic (30) or ProjectileLinear (20) pattern.
+ * However, without a "move" symbol and without explicit caster-rotation logic, and
+ * given that many single-"shoot" impact spells in 1.29 are simply TargetCell (11),
+ * we check: the harness for ProjectileBallistic attaches "move" first and expects it
+ * in the registry. Since there is no authored "move" here, and since the spell's
+ * shoot/frame_1 resets `_rotation = 0` (which is the canonical override pattern for
+ * ballistic shoots that receive a velocity-angle rotation), this strongly suggests
+ * displayType=30 (ProjectileBallistic). The `_rotation = 0` line only makes sense
+ * if the harness applied a rotation prior to frame_1 executing — which is exactly
+ * what the ballistic harness does. We register a minimal empty "move" symbol to
+ * satisfy the harness.
  *
  * Library symbols:
- *   - None. The `shoot` animation is the top-level `animations[]` entry
- *     (not in `librarySymbols[]`). The harness for TargetCell places the
- *     root at the target cell. We attach the `shoot` symbol from
- *     `onSpellStart` as a direct child of root.
+ *   - shoot — 84-frame fire impact animation. frame_1 resets rotation + plays sounds.
+ *              frame_70 removes parent and signals completion.
+ *   - move  — minimal 1-frame container (no content); satisfies ballistic harness.
  *
- * Main timeline (shoot symbol):
- *   frame_1:  `_rotation = 0; SOMA.playSound("flamme_2022"); SOMA.playSound("pet");`
- *   frame_70: `_parent.removeMovieClip(); stop();` → complete the spell.
+ * Main timeline: no explicit main-timeline DoAction.as — sounds are inside shoot/frame_1.
  *
- * signalHit is fired at frame_1 (the impact frame — the animation plays at
- * the target, so the hit is registered as the visual begins). This is
- * canonical for TargetCell impact spells.
+ * signalHit: handled automatically by the harness (displayType 30 fires it on landing).
+ * complete(): fired from shoot's frame_70 script.
  */
 
 import type {
@@ -49,9 +69,9 @@ const SHOOT_BOUNDS = {
 
 export class Spell2053 extends RuntimeSpell {
   readonly spellId = 2053;
-  readonly displayType = SpellDisplayType.TargetCell;
+  readonly displayType = SpellDisplayType.ProjectileBallistic;
 
-  private shootSym!: SymbolDefinition;
+  private playSound?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
@@ -59,11 +79,18 @@ export class Spell2053 extends RuntimeSpell {
   ): void {
     const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // ---- shoot — 84-frame fire/explosion impact at target -------
-    // The `shoot` animation is the sole visual for this spell.
-    // It lives in animations[] (not librarySymbols[]), so we use the
-    // bare "shoot" key (no lib_ prefix).
-    //
+    // ---- move — minimal 1-frame container to satisfy ballistic harness ----
+    // No authored content; the harness attaches "move" at root and drives it
+    // along the parabolic arc before attaching "shoot" at landing.
+    const moveSym: SymbolDefinition = {
+      name: "move",
+      totalFrames: 1,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+    };
+
+    // ---- shoot — 84-frame fire impact animation --------------------------
     // AS DefineSprite_18_shoot/frame_1/DoAction.as:
     //   _rotation = 0;
     //   SOMA.playSound("flamme_2022");
@@ -72,7 +99,7 @@ export class Spell2053 extends RuntimeSpell {
     // AS DefineSprite_18_shoot/frame_70/DoAction.as:
     //   _parent.removeMovieClip();
     //   stop();
-    this.shootSym = {
+    const shootSym: SymbolDefinition = {
       name: "shoot",
       totalFrames: 84,
       frames: textures.getFrames("shoot"),
@@ -81,47 +108,39 @@ export class Spell2053 extends RuntimeSpell {
       frameScripts: new Map([
         [
           0,
-          (clip, _ctx) => {
+          (clip) => {
             // AS DefineSprite_18_shoot/frame_1/DoAction.as
-            // _rotation = 0 — ensure upright regardless of any parent rotation.
+            // Reset any velocity-angle rotation applied by the ballistic harness.
             clip.rotation = 0;
-            // Sounds are played here in canonical AS. We capture them via
-            // the stored callback reference (see onSpellStart).
-            this.runtime.signalHit();
+            // Play sounds — captured from onSpellStart callback reference.
+            if (this.playSound) {
+              this.playSound("flamme_2022");
+              this.playSound("pet");
+            }
           },
         ],
         [
           69,
           (clip) => {
             // AS DefineSprite_18_shoot/frame_70/DoAction.as
-            // _parent.removeMovieClip(); stop();
-            clip.parent?.remove();
-            clip.stop();
+            // _parent.removeMovieClip() → remove the shoot clip and signal completion.
+            clip.remove();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
-    this.registry.register(this.shootSym);
+    this.registry.register(moveSym);
+    this.registry.register(shootSym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    context: SpellContext,
+    _context: SpellContext,
   ): void {
-    // The canonical main timeline places the shoot symbol as a child of
-    // the outer mc (root). For TargetCell, root is already positioned at
-    // the target cell by the harness. We attach shoot here so it starts
-    // ticking from the next runtime frame.
-    //
-    // Sounds are declared on frame_1 of the shoot symbol in AS, but since
-    // the shoot clip starts ticking at frame_1 immediately, we play them
-    // now as part of the spell start (matching the manifest sounds[] entries
-    // at frame 0).
-    callbacks.playSound("flamme_2022");
-    callbacks.playSound("pet");
-
-    this.root.attach(this.shootSym, "shoot", 1, context);
+    // Capture the playSound callback for use inside shoot's frameScripts,
+    // since shoot/frame_1 plays the sounds (not the main timeline).
+    this.playSound = callbacks.playSound;
   }
 }

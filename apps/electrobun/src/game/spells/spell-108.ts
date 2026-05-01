@@ -1,33 +1,30 @@
 /**
- * Spell 108 — Carapace (Feca shield spell).
+ * Spell 108 — Carapace (Feca shield).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/108/scripts/scripts/
  *
- * displayType=11 (TargetCell). This is a single-impact animation at the target
- * cell — no projectile, no caster reference, no dual timelines. The manifest
- * has no librarySymbols and no attachMovie calls; all visual content is a single
- * authored `anim1` timeline (129 frames). This matches the TargetCell pattern.
+ * displayType=10 (CasterCell). This spell has no projectile, no target-cell
+ * impact, and no caster/target references in the AS — it is a self-buff /
+ * shield aura that plays entirely on the caster. The single authored animation
+ * `anim1` plays at the caster cell. No `librarySymbols` entries in the
+ * manifest; the entire visual is the pre-rendered `anim1` timeline.
  *
  * AS layout:
  *   - DefineSprite_7 (anim1, 129 frames):
  *       frame_1:  SOMA.playSound("shield_cara")
  *       frame_127: _parent.removeMovieClip() → spell complete
- *   - DefineSprite_5 (inner sub-sprite, 55 frames):
+ *   - DefineSprite_5 (inner timeline, 55 frames):
  *       frame_55: stop()
  *
- * The `anim1` symbol maps to the `animations[]` entry (no `lib_` prefix).
- * DefineSprite_5 is an authored sub-sprite within anim1's visual content;
- * its frame_55 stop() is baked into the composite frames — we do not need to
- * register it separately as it is not attached via attachMovie.
+ * The manifest has no `librarySymbols[]` entries, so there are no
+ * `attachMovie` calls and no `lib_` prefixed textures. `anim1` is in
+ * `animations[]` and is registered as a container-only timeline that
+ * drives the frame scripts.
  *
- * signalHit is fired at frame_1 of anim1 (the initial impact frame, canonical
- * for a caster-side shield spell). complete() is fired at frame_127 per the
- * canonical _parent.removeMovieClip().
- *
- * Main timeline: sound is played inside DefineSprite_7/frame_1 (the anim1
- * symbol's own frame_1 script), so we play it from the frameScripts[0] handler
- * rather than onSpellStart. onSpellStart attaches anim1 to root.
+ * signalHit: fired at frame_1 of the anim1 timeline (the same frame the
+ * shield sound plays — canonical impact moment for a self-buff).
+ * complete:  fired at frame_127 of anim1 (_parent.removeMovieClip()).
  */
 
 import type {
@@ -51,10 +48,9 @@ const ANIM1_BOUNDS = {
 
 export class Spell108 extends RuntimeSpell {
   readonly spellId = 108;
-  readonly displayType = SpellDisplayType.TargetCell;
+  readonly displayType = SpellDisplayType.CasterCell;
 
   private anim1Sym!: SymbolDefinition;
-  private soundCallback?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
@@ -62,31 +58,41 @@ export class Spell108 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1 — 129-frame shield impact composite ---------------
-    // AS DefineSprite_7/frame_1/DoAction.as: SOMA.playSound("shield_cara")
-    // AS DefineSprite_7/frame_127/DoAction.as: _parent.removeMovieClip()
+    // ---- anim1 — 129-frame caster-side shield aura ---------------
+    // AS DefineSprite_7/frame_1/DoAction.as:    SOMA.playSound("shield_cara")
+    // AS DefineSprite_7/frame_127/DoAction.as:  _parent.removeMovieClip()
+    //
+    // No librarySymbols in manifest → use bare "anim1" key (no lib_ prefix).
+    // anim1 has 129 logical frames in the SWF, but the svg-spritesheet
+    // content-hash dedup collapses frames 87-128 (post-removeMovieClip
+    // placeholder) into a single trailing unique cell. Use unique-cell
+    // count + 1 (88 + offset for last unique idx) so the timeline never
+    // ticks past the strip's last cell — see the AI prompt section
+    // "deduplicated frame count" in tools/combat-exporter/generate-spells.ts.
     this.anim1Sym = {
       name: "anim1",
-      totalFrames: 129,
+      totalFrames: 87,
       frames: textures.getFrames("anim1"),
       anchorX: anim1Anchor.x,
       anchorY: anim1Anchor.y,
       frameScripts: new Map([
         [
           0,
-          (clip, _ctx) => {
+          (_clip) => {
             // AS DefineSprite_7/frame_1/DoAction.as
-            // Play the shield sound at the first frame of impact.
-            this.soundCallback?.("shield_cara");
-            // Signal hit at the first visible impact frame.
+            // Sound is played via onSpellStart (callbacks available there).
+            // Also signal hit at this canonical impact moment.
             this.runtime.signalHit();
           },
         ],
         [
-          126,
+          86,
           (clip) => {
             // AS DefineSprite_7/frame_127/DoAction.as
-            // _parent.removeMovieClip() — anim1's parent is root (the outer mc).
+            // _parent.removeMovieClip() — remove anim1 and complete the spell.
+            // Mapped from canonical frame_127 to the last unique-cell
+            // logical idx (86) because the trailing 42 frames dedupe to
+            // the same placeholder cell.
             clip.remove();
             this.runtime.complete();
           },
@@ -101,10 +107,10 @@ export class Spell108 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture sound callback so frameScripts[0] can fire it.
-    this.soundCallback = callbacks.playSound;
+    // AS DefineSprite_7/frame_1/DoAction.as: SOMA.playSound("shield_cara")
+    callbacks.playSound("shield_cara");
 
-    // Attach the main anim1 symbol to root so it begins ticking.
+    // Attach anim1 to the root so it starts ticking from the next runtime frame.
     this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

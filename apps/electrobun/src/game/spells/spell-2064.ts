@@ -1,45 +1,43 @@
 /**
- * Spell 2064 — (Wabbit-type spell, displayType=50 WorldAbsolute).
+ * Spell 2064 — Wabbit Bomb (Sadida-style explosive).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2064/scripts/scripts/
  *
- * displayType=50 (WorldAbsolute). The main timeline has two authored symbols placed
- * in parallel: sprite_15 (a beam from caster to target) and sprite_28 (an impact at
- * target). Both read `_parent.cellFrom` / `_parent.cellTo` in their frame_1 scripts
- * to position themselves at world coords — the canonical pattern for WorldAbsolute.
- * sprite_13 is a child placed inside sprite_15 (via PlaceObject2_13_1) whose onLoad
- * sets its width to `_parent.longueur - 10`.
+ * displayType=50 (WorldAbsolute). Two parallel authored timelines placed at
+ * world coordinates derived from _parent.cellFrom / _parent.cellTo:
  *
- * Canonical AS layout:
- *   - frame_2/DoAction.as: stop()  (main timeline stops at frame 2)
+ *   - sprite_15 (120 frames, composite): the lightning/beam effect drawn
+ *     from caster to target. frame_1 positions itself at cellFrom, rotates
+ *     to angle, computes length. Contains sprite_13 (PlaceObject2_13_1)
+ *     whose onClipEvent(load) sets _width = _parent.longueur - 10.
+ *     frame_4 plays "licrounch_1008b". No explicit removal — it runs to its
+ *     natural end.
  *
- *   - sprite_15 (120-frame beam, composite):
- *       frame_1/DoAction.as:    SOMA.playSound("wab_explo")
- *       frame_1/DoAction_2.as:  position self at cellFrom→cellTo, compute rotation
- *                               + longueur; sets _X/_Y/_rotation/longueur on self
- *       frame_1/PlaceObject2_13_1/onClipEvent(load).as:
- *                               child sprite_13 sets _width = _parent.longueur - 10
- *       frame_4/DoAction.as:    SOMA.playSound("licrounch_1008b")
+ *   - sprite_28 (51 frames, composite): the explosion at the target cell.
+ *     frame_1 positions itself at cellTo.x / cellTo.y - 40, copies rotation
+ *     from clip1 (= sprite_15 instance). frame_10 plays "vol" and signals
+ *     hit. frame_49 stops and removes the outer mc → spell complete.
  *
- *   - sprite_13 (42-frame beam inner, child of sprite_15):
- *       frame_40/DoAction.as:   stop()
+ *   - sprite_13 (42 frames): the beam/bolt child inside sprite_15. Its
+ *     onClipEvent(load) sets its width to (_parent.longueur - 10).
  *
- *   - sprite_28 (51-frame impact, composite):
- *       frame_1/DoAction.as:    position self at cellTo (y-40), copy rotation from
- *                               _parent.clip1._rotation
- *       frame_10/DoAction.as:   SOMA.playSound("vol")
- *       frame_10/DoAction_2.as: this.end() → signalHit
- *       frame_49/DoAction.as:   stop(); _parent.removeMovieClip() → spell complete
+ * Main timeline (frame_2/DoAction.as): stop(). Container stays at (0,0)
+ * as expected for WorldAbsolute.
  *
- * The sounds list in manifest.json (frame 0: wab_explo, frame 3: licrounch_1008b,
- * frame 9: vol) maps to what sprite_15 and sprite_28 fire internally.
+ * Sounds:
+ *   - "wab_explo"       → DefineSprite_15/frame_1 (played when sprite_15 starts)
+ *   - "licrounch_1008b" → DefineSprite_15/frame_4
+ *   - "vol"             → DefineSprite_28/frame_10
  *
- * Library symbols: none in librarySymbols[]. All three symbols appear only in
- * animations[] — use bare name keys (no lib_ prefix).
- *
- * signalHit: fired from sprite_28 frame_10 (this.end()).
- * complete:  fired from sprite_28 frame_49 (_parent.removeMovieClip()).
+ * Library symbols:
+ *   - sprite_13 (child of sprite_15): beam strip. onLoad sets scaleX to
+ *     (_parent.longueur - 10) / naturalWidth so the sprite stretches to
+ *     cover the caster→target distance.
+ *   - sprite_15: main beam from caster to target. Positions itself in
+ *     frame_1, attaches sprite_13 child (PlaceObject2_13_1). frame_4 sound.
+ *   - sprite_28: explosion at target. Positions itself in frame_1. frame_10
+ *     sound + signalHit. frame_49 removal + complete.
  */
 
 import type {
@@ -54,19 +52,21 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-// Bounds from manifest animations[] entries (no librarySymbols — use bare name keys).
+// Bounds from manifest animations[] (no librarySymbols[] present — bare names).
 const SPRITE_13_BOUNDS = {
   width: 224.05,
   height: 49.75,
   offsetX: 0,
   offsetY: -27.1,
 };
+
 const SPRITE_15_BOUNDS = {
   width: 223.15,
   height: 49.55,
   offsetX: -0.4,
   offsetY: -26.7,
 };
+
 const SPRITE_28_BOUNDS = {
   width: 172,
   height: 147.3,
@@ -93,13 +93,16 @@ export class Spell2064 extends RuntimeSpell {
     const sprite15Anchor = calculateAnchor(SPRITE_15_BOUNDS);
     const sprite28Anchor = calculateAnchor(SPRITE_28_BOUNDS);
 
-    // ---- sprite_13 — inner beam strip (child of sprite_15) ------
-    // No lib_ prefix — only in animations[].
-    // AS: DefineSprite_13/frame_40/DoAction.as → stop()
-    // AS: DefineSprite_15/frame_1/PlaceObject2_13_1/onClipEvent(load).as
-    //     → _width = _parent.longueur - 10
-    //     We mirror this with onLoad: read parent.vars.longueur, set scaleX
-    //     to stretch the sprite to (longueur - 10) pixels.
+    // ---- sprite_13 — beam strip, child of sprite_15 ----------------
+    // Placed by sprite_15 via PlaceObject2_13_1 at frame_1.
+    // AS DefineSprite_15/frame_1/PlaceObject2_13_1/CLIPACTIONRECORD onClipEvent(load).as:
+    //   _width = _parent.longueur - 10;
+    // "longueur" is stored on the parent sprite_15 clip at frame_1.
+    // In Pixi we reproduce _width by adjusting scaleX:
+    //   naturalWidth (manifest) = 224.05
+    //   targetWidth = longueur - 10
+    //   scaleX = targetWidth / naturalWidth
+    // AS DefineSprite_13/frame_40/DoAction.as: stop()
     this.sprite13Sym = {
       name: "sprite_13",
       totalFrames: 42,
@@ -107,31 +110,40 @@ export class Spell2064 extends RuntimeSpell {
       anchorX: sprite13Anchor.x,
       anchorY: sprite13Anchor.y,
       onLoad: (clip) => {
-        // AS DefineSprite_15/frame_1/PlaceObject2_13_1/CLIPACTIONRECORD onClipEvent(load).as
+        // AS: DefineSprite_15/frame_1/PlaceObject2_13_1/CLIPACTIONRECORD onClipEvent(load).as
         // _width = _parent.longueur - 10
-        // In Pixi we approximate _width by scaling: scaleX = targetWidth / nativeWidth
-        const longueur = (clip.parent?.vars.longueur as number) ?? 0;
+        const parent = clip.parent;
+        const longueur = (parent?.vars.longueur as number) ?? 0;
         const targetWidth = longueur - 10;
-        if (SPRITE_13_BOUNDS.width > 0) {
-          clip.scaleX = targetWidth / SPRITE_13_BOUNDS.width;
+        const naturalWidth = SPRITE_13_BOUNDS.width;
+        if (naturalWidth > 0) {
+          clip.scaleX = targetWidth / naturalWidth;
         }
       },
       frameScripts: new Map([
         [
           39,
           (clip) => {
-            // AS DefineSprite_13/frame_40/DoAction.as → stop()
+            // AS: DefineSprite_13/frame_40/DoAction.as
+            // stop()
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- sprite_15 — beam from caster to target (120 frames) ----
-    // No lib_ prefix — only in animations[].
-    // AS: DefineSprite_15/frame_1/DoAction.as   → SOMA.playSound("wab_explo")
-    // AS: DefineSprite_15/frame_1/DoAction_2.as → position + rotation + longueur
-    // AS: DefineSprite_15/frame_4/DoAction.as   → SOMA.playSound("licrounch_1008b")
+    // ---- sprite_15 — beam from caster to target --------------------
+    // AS DefineSprite_15/frame_1/DoAction.as:
+    //   SOMA.playSound("wab_explo")
+    // AS DefineSprite_15/frame_1/DoAction_2.as:
+    //   x1 = _parent.cellFrom.x; y1 = _parent.cellFrom.y - 40;
+    //   x2 = _parent.cellTo.x;   y2 = _parent.cellTo.y - 40;
+    //   _X = x1; _Y = y1;
+    //   dx = x2 - x1; dy = y2 - y1;
+    //   _rotation = Math.atan2(dy,dx) * 57.29746936176985;
+    //   longueur = Math.sqrt(dx * dx + dy * dy);
+    // AS DefineSprite_15/frame_4/DoAction.as:
+    //   SOMA.playSound("licrounch_1008b")
     this.sprite15Sym = {
       name: "sprite_15",
       totalFrames: 120,
@@ -142,54 +154,59 @@ export class Spell2064 extends RuntimeSpell {
         [
           0,
           (clip, ctx) => {
-            // AS DefineSprite_15/frame_1/DoAction.as
-            // SOMA.playSound("wab_explo")
+            // AS: DefineSprite_15/frame_1/DoAction.as
             this.playSound?.("wab_explo");
 
-            // AS DefineSprite_15/frame_1/DoAction_2.as
-            // x1 = _parent.cellFrom.x; y1 = _parent.cellFrom.y - 40;
-            // x2 = _parent.cellTo.x;  y2 = _parent.cellTo.y - 40;
-            // _X = x1; _Y = y1;
-            // dx = x2 - x1; dy = y2 - y1;
-            // _rotation = Math.atan2(dy,dx) * 57.29746936176985;
-            // longueur = Math.sqrt(dx*dx + dy*dy);
+            // AS: DefineSprite_15/frame_1/DoAction_2.as
             const root = clip.parent;
-            const cellFrom = root?.vars.cellFrom as { x: number; y: number } | undefined;
-            const cellTo = root?.vars.cellTo as { x: number; y: number } | undefined;
-            const x1 = cellFrom?.x ?? 0;
-            const y1 = (cellFrom?.y ?? 0) - 40;
-            const x2 = cellTo?.x ?? 0;
-            const y2 = (cellTo?.y ?? 0) - 40;
+            const cellFrom = (root?.vars.cellFrom as { x: number; y: number }) ?? { x: 0, y: 0 };
+            const cellTo = (root?.vars.cellTo as { x: number; y: number }) ?? { x: 0, y: 0 };
+
+            const x1 = cellFrom.x;
+            const y1 = cellFrom.y - 40;
+            const x2 = cellTo.x;
+            const y2 = cellTo.y - 40;
+
             clip.x = x1;
             clip.y = y1;
+
             const dx = x2 - x1;
             const dy = y2 - y1;
-            // AS uses degrees; convert atan2 result (radians) to radians directly.
+            // AS: _rotation = Math.atan2(dy,dx) * 57.29746936176985 (degrees)
+            // Runtime uses radians: atan2 already gives radians.
             clip.rotation = Math.atan2(dy, dx);
+
             const longueur = Math.sqrt(dx * dx + dy * dy);
             clip.vars.longueur = longueur;
 
-            // Place the inner beam child (sprite_13) — canonical PlaceObject2_13_1.
-            // Its onLoad will read longueur from clip.vars.longueur.
-            clip.attach(this.sprite13Sym, "clip1", 1, ctx);
+            // Attach sprite_13 (PlaceObject2_13_1 placement at frame_1 of sprite_15).
+            // onLoad will read clip.vars.longueur from this parent.
+            clip.attach(this.sprite13Sym, "sprite_13_1", 1, ctx);
           },
         ],
         [
           3,
           (_clip) => {
-            // AS DefineSprite_15/frame_4/DoAction.as → SOMA.playSound("licrounch_1008b")
+            // AS: DefineSprite_15/frame_4/DoAction.as
+            // SOMA.playSound("licrounch_1008b")
             this.playSound?.("licrounch_1008b");
           },
         ],
       ]),
     };
 
-    // ---- sprite_28 — impact at target (51 frames) ---------------
-    // No lib_ prefix — only in animations[].
-    // AS: DefineSprite_28/frame_1/DoAction.as   → position at cellTo, copy rotation from clip1
-    // AS: DefineSprite_28/frame_10/DoAction.as  → SOMA.playSound("vol")
-    // AS: DefineSprite_28/frame_10/DoAction_2.as → this.end() → signalHit
-    // AS: DefineSprite_28/frame_49/DoAction.as  → stop(); _parent.removeMovieClip()
+    // ---- sprite_28 — explosion at target ---------------------------
+    // AS DefineSprite_28/frame_1/DoAction.as:
+    //   _X = _parent.cellTo.x;
+    //   _Y = _parent.cellTo.y - 40;
+    //   _rotation = _parent.clip1._rotation;
+    //     (clip1 == sprite_15 instance; same angle)
+    // AS DefineSprite_28/frame_10/DoAction.as:
+    //   SOMA.playSound("vol")
+    // AS DefineSprite_28/frame_10/DoAction_2.as:
+    //   this.end() → signalHit
+    // AS DefineSprite_28/frame_49/DoAction.as:
+    //   stop(); _parent.removeMovieClip() → complete
     this.sprite28Sym = {
       name: "sprite_28",
       totalFrames: 51,
@@ -200,38 +217,38 @@ export class Spell2064 extends RuntimeSpell {
         [
           0,
           (clip) => {
-            // AS DefineSprite_28/frame_1/DoAction.as
-            // _X = _parent.cellTo.x;
-            // _Y = _parent.cellTo.y - 40;
-            // _rotation = _parent.clip1._rotation;
+            // AS: DefineSprite_28/frame_1/DoAction.as
             const root = clip.parent;
-            const cellTo = root?.vars.cellTo as { x: number; y: number } | undefined;
-            clip.x = cellTo?.x ?? 0;
-            clip.y = (cellTo?.y ?? 0) - 40;
-            // Copy rotation from clip1 (sprite_15 child, which was attached as "clip1"
-            // inside sprite_15 — but _parent.clip1 refers to the root-level sprite_15
-            // instance named "clip1" in the canonical AS. We stored sprite_15 at root
-            // as "sprite15"; its rotation is the beam angle we want.
-            const sprite15 = root?.children.get("sprite15");
-            if (sprite15) {
-              clip.rotation = sprite15.rotation;
-            }
+            const cellTo = (root?.vars.cellTo as { x: number; y: number }) ?? { x: 0, y: 0 };
+
+            clip.x = cellTo.x;
+            clip.y = cellTo.y - 40;
+
+            // _rotation = _parent.clip1._rotation
+            // clip1 is sprite_15 (attached as "sprite_15_inst" below).
+            // Both share the same atan2 angle, so we can compute it directly.
+            const cellFrom = (root?.vars.cellFrom as { x: number; y: number }) ?? { x: 0, y: 0 };
+            const dx = cellTo.x - cellFrom.x;
+            const dy = (cellTo.y - 40) - (cellFrom.y - 40);
+            clip.rotation = Math.atan2(dy, dx);
           },
         ],
         [
           9,
           (_clip) => {
-            // AS DefineSprite_28/frame_10/DoAction.as → SOMA.playSound("vol")
+            // AS: DefineSprite_28/frame_10/DoAction.as
+            // SOMA.playSound("vol")
             this.playSound?.("vol");
-            // AS DefineSprite_28/frame_10/DoAction_2.as → this.end() → signalHit
+            // AS: DefineSprite_28/frame_10/DoAction_2.as
+            // this.end() → signalHit
             this.runtime.signalHit();
           },
         ],
         [
           48,
           (clip) => {
-            // AS DefineSprite_28/frame_49/DoAction.as
-            // stop(); _parent.removeMovieClip();
+            // AS: DefineSprite_28/frame_49/DoAction.as
+            // stop(); _parent.removeMovieClip()
             clip.stop();
             clip.parent?.remove();
             this.runtime.complete();
@@ -249,15 +266,15 @@ export class Spell2064 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture sound callback for use inside frameScripts.
+    // Capture sound callback so frameScripts can use it.
     this.playSound = callbacks.playSound;
 
-    // frame_2/DoAction.as: stop()
-    // The main timeline stops; we attach the two authored children here.
-    // sprite_15 (beam) is attached at depth 1, named "sprite15".
-    // sprite_28 (impact) is attached at depth 2, named "sprite28".
-    // Both position themselves in their own frame_1 scripts using root.vars.cellFrom/cellTo.
-    this.root.attach(this.sprite15Sym, "sprite15", 1, context);
-    this.root.attach(this.sprite28Sym, "sprite28", 2, context);
+    // Main timeline: implicitly places sprite_15 and sprite_28 on frame_1.
+    // frame_2/DoAction.as: stop() — runtime stops the main timeline by
+    // default since we don't drive it; children run independently.
+    // Attach both parallel timelines so they start ticking from the
+    // next runtime frame.
+    this.root.attach(this.sprite15Sym, "sprite_15_inst", 1, context);
+    this.root.attach(this.sprite28Sym, "sprite_28_inst", 2, context);
   }
 }

@@ -1,47 +1,37 @@
 /**
  * Spell 1009 — Poupée Vaudou (Sadida voodoo doll).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/1009/scripts/scripts/
  *
- * displayType=50 (WorldAbsolute). The main spell content lives inside
- * DefineSprite_21, which on frame_1 positions itself at `_parent.cellFrom`
- * — i.e. the caster cell — in world coords. This is the hallmark of the
- * WorldAbsolute pattern: the outer container is at world (0,0) and the
- * per-sprite scripts position children at absolute world coords using
- * `_parent.cellFrom` / `_parent.cellTo`.
+ * displayType=50 (WorldAbsolute). The spell has a single authored
+ * main timeline (sprite_21) that positions itself at _parent.cellFrom
+ * on frame_1 — classic WorldAbsolute pattern. No `move`/`shoot`/
+ * `duplicate` symbols are present; no projectile motion.
  *
- * Authored animations (from manifest `animations[]`):
- *   - sprite_10  — 117-frame aura/ring, stops at frame 115 (`stop()`).
- *                  `isComposite: true`.
- *   - sprite_14  — 30-frame impact flash, stops at frame 28 (`stop()`).
- *   - sprite_18  — 60-frame horizontal beam/flash, stops at frame 52 (`stop()`).
- *   - sprite_20  — 6-frame looping particle/flash. No stop script.
- *   - sprite_21  — 312-frame master timeline (the dominant clip).
- *                  frame_1:  position at cellFrom (world coords).
- *                  frame_85: SOMA.playSound("poupee_vodoo2").
- *                  frame_121: SOMA.playSound("poupee_vodoo2").
- *                  frame_187: SOMA.playSound("poupee").
- *                  frame_208: this.end() → signalHit.
- *                  frame_310: _parent.removeMovieClip() → complete.
+ * Manifest animations (all in `animations[]`, no `librarySymbols[]`):
+ *   - sprite_10  — 117-frame composite. frame_115: stop().
+ *   - sprite_14  — 30-frame simple.    frame_28:  stop().
+ *   - sprite_18  — 60-frame composite. frame_52:  stop().
+ *   - sprite_20  — 6-frame composite.  (no scripts — plays through).
+ *   - sprite_21  — 312-frame composite (the outermost driving timeline):
+ *       frame_1:   _X = _parent.cellFrom.x; _Y = _parent.cellFrom.y
+ *       frame_85:  SOMA.playSound("poupee_vodoo2")
+ *       frame_121: SOMA.playSound("poupee_vodoo2")
+ *       frame_187: SOMA.playSound("poupee")
+ *       frame_208: this.end()  → signalHit
+ *       frame_310: _parent.removeMovieClip() → complete()
  *
- * Main timeline (frame_2/DoAction.as): stop() — so the main timeline
- * stops after frame 2 and sprite_21 drives all timing independently.
+ * Main timeline (frame_2/DoAction.as): stop() — the outer SWF stops
+ * immediately; sprite_21 drives everything.
  *
- * No `librarySymbols[]` entries exist — all content is in `animations[]`
- * so textures use bare names (NO `lib_` prefix).
+ * Because librarySymbols[] is empty in the manifest, NO `lib_` prefix
+ * is used anywhere. All textures are loaded via the bare animation name.
+ * Sounds listed in manifest.sounds are fired from sprite_21's frame
+ * scripts to match the canonical AS timing.
  *
- * The spell has no `move`/`shoot`/`duplicate` symbols, confirming
- * displayType=50 (WorldAbsolute) rather than any projectile type.
- *
- * Library symbols: none (librarySymbols[] is absent/empty in manifest).
- *
- * Sounds (from manifest `sounds[]`):
- *   - frame 84  → "poupee_vodoo2"  (but AS has it at frame_85, i.e. index 84)
- *   - frame 120 → "poupee_vodoo2"  (AS frame_121, index 120)
- *   - frame 186 → "poupee"         (AS frame_187, index 186)
- * These are driven by sprite_21's frame scripts; `onSpellStart` only
- * issues the entry sound if present (none here — main timeline is just stop()).
+ * signalHit is called from sprite_21 frame_208 (this.end()).
+ * complete() is called from sprite_21 frame_310 (_parent.removeMovieClip()).
  */
 
 import type {
@@ -56,31 +46,34 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-// Bounds from manifest animations[] entries (NO lib_ prefix for these).
 const SPRITE_10_BOUNDS = {
   width: 82.2,
   height: 2.7,
   offsetX: -67.8,
   offsetY: -1.55,
 };
+
 const SPRITE_14_BOUNDS = {
   width: 19.9,
   height: 34.55,
   offsetX: -9.6,
   offsetY: -25.05,
 };
+
 const SPRITE_18_BOUNDS = {
   width: 280.4,
   height: 40.6,
   offsetX: -105.65,
   offsetY: -21.35,
 };
+
 const SPRITE_20_BOUNDS = {
   width: 125.6,
   height: 77.75,
   offsetX: -62.9,
   offsetY: -39.25,
 };
+
 const SPRITE_21_BOUNDS = {
   width: 312.65,
   height: 283.4,
@@ -92,7 +85,6 @@ export class Spell1009 extends RuntimeSpell {
   readonly spellId = 1009;
   readonly displayType = SpellDisplayType.WorldAbsolute;
 
-  // Hold references so onSpellStart can attach them.
   private sprite21Sym!: SymbolDefinition;
 
   protected registerSymbols(
@@ -105,9 +97,8 @@ export class Spell1009 extends RuntimeSpell {
     const sprite20Anchor = calculateAnchor(SPRITE_20_BOUNDS);
     const sprite21Anchor = calculateAnchor(SPRITE_21_BOUNDS);
 
-    // ---- sprite_10 — 117-frame aura/ring -------------------------
-    // AS: DefineSprite_10/frame_115/DoAction.as → stop()
-    // (frame_115 in 1-based AS = index 114 in 0-based runtime)
+    // ---- sprite_10 — 117-frame composite -------------------------
+    // AS DefineSprite_10/frame_115/DoAction.as: stop();
     const sprite10Sym: SymbolDefinition = {
       name: "sprite_10",
       totalFrames: 117,
@@ -118,16 +109,15 @@ export class Spell1009 extends RuntimeSpell {
         [
           114,
           (clip) => {
-            // AS: DefineSprite_10/frame_115/DoAction.as → stop()
+            // AS DefineSprite_10/frame_115/DoAction.as: stop();
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- sprite_14 — 30-frame impact flash -----------------------
-    // AS: DefineSprite_14/frame_28/DoAction.as → stop()
-    // (frame_28 in 1-based AS = index 27 in 0-based runtime)
+    // ---- sprite_14 — 30-frame simple ----------------------------
+    // AS DefineSprite_14/frame_28/DoAction.as: stop();
     const sprite14Sym: SymbolDefinition = {
       name: "sprite_14",
       totalFrames: 30,
@@ -138,16 +128,15 @@ export class Spell1009 extends RuntimeSpell {
         [
           27,
           (clip) => {
-            // AS: DefineSprite_14/frame_28/DoAction.as → stop()
+            // AS DefineSprite_14/frame_28/DoAction.as: stop();
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- sprite_18 — 60-frame horizontal beam --------------------
-    // AS: DefineSprite_18/frame_52/DoAction.as → stop()
-    // (frame_52 in 1-based AS = index 51 in 0-based runtime)
+    // ---- sprite_18 — 60-frame composite -------------------------
+    // AS DefineSprite_18/frame_52/DoAction.as: stop();
     const sprite18Sym: SymbolDefinition = {
       name: "sprite_18",
       totalFrames: 60,
@@ -158,15 +147,15 @@ export class Spell1009 extends RuntimeSpell {
         [
           51,
           (clip) => {
-            // AS: DefineSprite_18/frame_52/DoAction.as → stop()
+            // AS DefineSprite_18/frame_52/DoAction.as: stop();
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- sprite_20 — 6-frame looping particle --------------------
-    // No stop script — loops naturally.
+    // ---- sprite_20 — 6-frame composite --------------------------
+    // No scripts — plays through and loops (no stop() in canonical AS).
     const sprite20Sym: SymbolDefinition = {
       name: "sprite_20",
       totalFrames: 6,
@@ -175,19 +164,20 @@ export class Spell1009 extends RuntimeSpell {
       anchorY: sprite20Anchor.y,
     };
 
-    // ---- sprite_21 — 312-frame master timeline -------------------
-    // This is the dominant clip. It positions itself at cellFrom on
-    // frame_1, plays sounds at frames 85/121/187, calls end() at
-    // frame_208 (signalHit), and removes the outer mc at frame_310
-    // (complete).
-    //
-    // AS frame indices (1-based) → runtime indices (0-based):
-    //   frame_1   → 0
-    //   frame_85  → 84
-    //   frame_121 → 120
-    //   frame_187 → 186
-    //   frame_208 → 207
-    //   frame_310 → 309
+    // ---- sprite_21 — 312-frame driving timeline -----------------
+    // AS DefineSprite_21/frame_1/DoAction.as:
+    //   _X = _parent.cellFrom.x;
+    //   _Y = _parent.cellFrom.y;
+    // AS DefineSprite_21/frame_85/DoAction.as:
+    //   SOMA.playSound("poupee_vodoo2");
+    // AS DefineSprite_21/frame_121/DoAction.as:
+    //   SOMA.playSound("poupee_vodoo2");
+    // AS DefineSprite_21/frame_187/DoAction.as:
+    //   SOMA.playSound("poupee");
+    // AS DefineSprite_21/frame_208/DoAction.as:
+    //   this.end();   → signalHit
+    // AS DefineSprite_21/frame_310/DoAction.as:
+    //   _parent.removeMovieClip();  → complete()
     this.sprite21Sym = {
       name: "sprite_21",
       totalFrames: 312,
@@ -198,9 +188,8 @@ export class Spell1009 extends RuntimeSpell {
         [
           0,
           (clip) => {
-            // AS: DefineSprite_21/frame_1/DoAction.as
-            // _X = _parent.cellFrom.x;
-            // _Y = _parent.cellFrom.y;
+            // AS DefineSprite_21/frame_1/DoAction.as:
+            // _X = _parent.cellFrom.x; _Y = _parent.cellFrom.y;
             const root = clip.parent;
             const cellFrom = root?.vars.cellFrom as
               | { x: number; y: number }
@@ -214,7 +203,7 @@ export class Spell1009 extends RuntimeSpell {
         [
           84,
           () => {
-            // AS: DefineSprite_21/frame_85/DoAction.as
+            // AS DefineSprite_21/frame_85/DoAction.as:
             // SOMA.playSound("poupee_vodoo2");
             this.soundCallback?.("poupee_vodoo2");
           },
@@ -222,7 +211,7 @@ export class Spell1009 extends RuntimeSpell {
         [
           120,
           () => {
-            // AS: DefineSprite_21/frame_121/DoAction.as
+            // AS DefineSprite_21/frame_121/DoAction.as:
             // SOMA.playSound("poupee_vodoo2");
             this.soundCallback?.("poupee_vodoo2");
           },
@@ -230,7 +219,7 @@ export class Spell1009 extends RuntimeSpell {
         [
           186,
           () => {
-            // AS: DefineSprite_21/frame_187/DoAction.as
+            // AS DefineSprite_21/frame_187/DoAction.as:
             // SOMA.playSound("poupee");
             this.soundCallback?.("poupee");
           },
@@ -238,17 +227,17 @@ export class Spell1009 extends RuntimeSpell {
         [
           207,
           () => {
-            // AS: DefineSprite_21/frame_208/DoAction.as
-            // this.end() — canonical signalHit (damage popup).
+            // AS DefineSprite_21/frame_208/DoAction.as:
+            // this.end();  → damage popup at target
             this.runtime.signalHit();
           },
         ],
         [
           309,
           (clip) => {
-            // AS: DefineSprite_21/frame_310/DoAction.as
-            // _parent.removeMovieClip() — spell complete.
-            clip.parent?.remove();
+            // AS DefineSprite_21/frame_310/DoAction.as:
+            // _parent.removeMovieClip();
+            clip.remove();
             this.runtime.complete();
           },
         ],
@@ -262,23 +251,18 @@ export class Spell1009 extends RuntimeSpell {
     this.registry.register(this.sprite21Sym);
   }
 
-  // Capture the playSound callback so frame scripts inside sprite_21
-  // can issue sounds at their canonical frames.
+  // Captured so frameScripts inside sprite_21 can fire sounds.
   private soundCallback?: (id: string) => void;
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture for use by sprite_21 frame scripts.
+    // AS frame_2/DoAction.as: stop();
+    // The outer SWF stops on frame 2; sprite_21 is implicitly placed
+    // on the main timeline. We attach it here so it starts ticking from
+    // the next runtime frame.
     this.soundCallback = callbacks.playSound;
-
-    // Main timeline frame_2/DoAction.as: stop() — nothing else to do
-    // at entry time for sounds. The main timeline has no explicit
-    // entry sound.
-
-    // Attach sprite_21 as the master driving clip. It self-positions
-    // to cellFrom in its frame_1 script.
     this.root.attach(this.sprite21Sym, "sprite21", 1, context);
   }
 }

@@ -1,37 +1,29 @@
 /**
- * Spell 2005 — Wabbit Spell (displayType=11 TargetCell).
+ * Spell 2005 — Wrath of Iop (or similar impact spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2005/scripts/scripts/
  *
- * displayType=11 (TargetCell). There is no `move` symbol, no ballistic arc,
- * no caster-side content, and no `_parent.cellFrom` reference. The single
- * `shoot` symbol positions itself at `_parent.cellTo` on frame_1, plays
- * through 84 frames, and removes the outer mc on frame_82. This is a
- * canonical single-impact-at-target spell.
- *
- * The manifest has NO `librarySymbols[]` entries — `shoot` appears only in
- * `animations[]`. Therefore textures are fetched with the bare key `"shoot"`
- * (NO `lib_` prefix).
+ * displayType=11 (TargetCell). The spell has a single `shoot` symbol placed
+ * at the target cell. There is no `move` symbol, no `attachMovie` from the
+ * main timeline besides the harness-driven `shoot`, and no library symbols
+ * with CLIPACTIONRECORD handlers. The outer main timeline just calls `stop()`
+ * on frame_2 — no sound there (sounds are emitted from inside the shoot
+ * symbol's own frame scripts).
  *
  * Library symbols:
- *   - shoot (84-frame composite):
- *       frame_1  : position self at _parent.cellTo (world coords → container-local delta).
- *       frame_19 : SOMA.playSound("wab_2005a").
- *       frame_40 : SOMA.playSound("wab_2005b").
- *       frame_46 : this.end() → signalHit (damage popup).
- *       frame_82 : _parent.removeMovieClip() → spell complete.
+ *   - shoot — 84-frame composite impact animation placed at _parent.cellTo.
+ *       frame_1:  positions self at cellTo.
+ *       frame_19: plays sound "wab_2005a".
+ *       frame_40: plays sound "wab_2005b".
+ *       frame_46: this.end() → signalHit (damage popup at target).
+ *       frame_82: _parent.removeMovieClip() → spell complete.
  *
- * Main timeline (frame_2/DoAction.as): stop().
- * The harness (TargetCell) places the container at cellTo in world coords.
- * shoot's frame_1 then does `_X = _parent.cellTo.x; _Y = _parent.cellTo.y`
- * which in AS sets the clip's world position. Inside our container (whose
- * origin IS cellTo), that means we offset by (cellTo.x - anchor.x,
- * cellTo.y - anchor.y). Since anchor == cellTo for TargetCell, the net
- * offset is (0, 0) — shoot stays at the container origin.
+ * Main timeline: frame_2/DoAction.as → stop(). No sounds on main timeline.
  *
- * Sounds are played from frameScripts; we capture the callbacks reference
- * in onSpellStart so they are accessible inside symbol frame scripts.
+ * The harness attaches `shoot` at the target for displayType=11; shoot's
+ * frame_1 then repositions itself at _parent.cellTo (root.vars.cellTo).
+ * signalHit is fired from frame_46 (this.end()); complete() from frame_82.
  */
 
 import type {
@@ -65,8 +57,10 @@ export class Spell2005 extends RuntimeSpell {
   ): void {
     const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // shoot — 84-frame impact animation placed at cellTo.
-    // No `lib_` prefix: shoot is in animations[] only, not librarySymbols[].
+    // ---- shoot — 84-frame impact animation at target cell --------
+    // The `shoot` animation is a composite with authored SVG frames.
+    // It is placed by the harness at the target cell (displayType=11).
+    // Its frame_1 script re-anchors it explicitly to _parent.cellTo.
     const shootSym: SymbolDefinition = {
       name: "shoot",
       totalFrames: 84,
@@ -78,21 +72,15 @@ export class Spell2005 extends RuntimeSpell {
           0,
           (clip) => {
             // AS: DefineSprite_8_shoot/frame_1/DoAction.as
-            // _X = _parent.cellTo.x; _Y = _parent.cellTo.y;
-            // Container origin is already at cellTo (TargetCell anchor),
-            // so the net container-local offset is (0, 0).
+            //   _X = _parent.cellTo.x;
+            //   _Y = _parent.cellTo.y;
             const root = clip.parent;
             const cellTo = root?.vars.cellTo as
               | { x: number; y: number }
               | undefined;
-            const anchor = root?.vars.anchor as
-              | { x: number; y: number }
-              | undefined;
             if (cellTo) {
-              const anchorX = anchor?.x ?? cellTo.x;
-              const anchorY = anchor?.y ?? cellTo.y;
-              clip.x = cellTo.x - anchorX;
-              clip.y = cellTo.y - anchorY;
+              clip.x = cellTo.x;
+              clip.y = cellTo.y;
             }
           },
         ],
@@ -100,7 +88,7 @@ export class Spell2005 extends RuntimeSpell {
           18,
           () => {
             // AS: DefineSprite_8_shoot/frame_19/DoAction.as
-            // SOMA.playSound("wab_2005a");
+            //   SOMA.playSound("wab_2005a");
             this.soundCallback?.("wab_2005a");
           },
         ],
@@ -108,7 +96,7 @@ export class Spell2005 extends RuntimeSpell {
           39,
           () => {
             // AS: DefineSprite_8_shoot/frame_40/DoAction.as
-            // SOMA.playSound("wab_2005b");
+            //   SOMA.playSound("wab_2005b");
             this.soundCallback?.("wab_2005b");
           },
         ],
@@ -116,7 +104,8 @@ export class Spell2005 extends RuntimeSpell {
           45,
           () => {
             // AS: DefineSprite_8_shoot/frame_46/DoAction.as
-            // this.end() → signal hit (damage popup at target).
+            //   this.end();
+            // Signals hit (damage popup) at the target.
             this.runtime.signalHit();
           },
         ],
@@ -124,7 +113,8 @@ export class Spell2005 extends RuntimeSpell {
           81,
           (clip) => {
             // AS: DefineSprite_8_shoot/frame_82/DoAction.as
-            // _parent.removeMovieClip() → spell complete.
+            //   _parent.removeMovieClip();
+            // Removes the outer mc and signals spell completion.
             clip.parent?.remove();
             this.runtime.complete();
           },
@@ -139,12 +129,14 @@ export class Spell2005 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture sound callback so frameScripts can fire sounds.
+    // AS: frame_2/DoAction.as → stop()
+    // No sounds on the main timeline. Capture callback for use inside
+    // shoot's frame scripts (sounds at frame_19 and frame_40).
     this.soundCallback = callbacks.playSound;
 
-    // Main timeline frame_2/DoAction.as: stop().
-    // The harness has already set up the container at cellTo.
-    // Attach shoot at the root so it starts playing from frame_1.
+    // The harness for displayType=11 (TargetCell) does NOT
+    // auto-attach "shoot" — we must do so explicitly here so the
+    // shoot symbol starts ticking and runs its own frame scripts.
     const shootSym = this.registry.resolve("shoot");
     if (shootSym) {
       this.root.attach(shootSym, "shoot", 1, context);

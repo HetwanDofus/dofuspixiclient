@@ -1,29 +1,24 @@
 /**
- * Spell 1100 — (Unknown, likely a dodge/evasion spell).
+ * Spell 1100 — (Dodge/Lakam effect).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/1100/scripts/scripts/
  *
- * displayType=11 (TargetCell). No library symbols are referenced via attachMovie;
- * the spell is a single authored animation (anim1, 84 frames) that plays at the
- * target cell. There are no move/shoot/duplicate symbols, no projectile motion,
- * and no caster-cell reference — the animation plays to completion at the target.
+ * displayType=11 (TargetCell). No projectile motion, no caster reference,
+ * no attachMovie calls — a single authored animation plays at the target cell.
+ * The manifest has one animations[] entry ("anim1", 84 frames) and no
+ * librarySymbols[]. The SWF main timeline places a DefineSprite_15 child that
+ * plays "dodge_1100" on frame_1 and calls _parent.removeMovieClip() on frame_82.
  *
- * Library symbols: none (librarySymbols[] is empty in the manifest).
+ * Library symbols:
+ *   - anim1 — 84-frame composite animation at target cell. frame_1 plays
+ *     "dodge_1100" sound; frame_82 removes parent and signals spell completion.
  *
- * Canonical AS layout:
- *   - frame_1/DoAction.as: SOMA.playSound("lakam_402")
- *   - DefineSprite_15/frame_1/DoAction.as: SOMA.playSound("dodge_1100")
- *   - DefineSprite_15/frame_82/DoAction.as: _parent.removeMovieClip()
+ * Main timeline: SOMA.playSound("lakam_402"); attaches the anim1 sprite.
  *
- * DefineSprite_15 is the inner animated sprite (84-frame anim1 content).
- * Its frame_1 plays the dodge sound and its frame_82 removes the parent,
- * which signals spell completion.
- *
- * signalHit is fired at frame_1 of the inner sprite (the canonical impact
- * moment — when the dodge animation begins at the target).
- *
- * Main timeline: SOMA.playSound("lakam_402"); (no stop, plays through)
+ * Since librarySymbols[] is empty in the manifest, we use bare "anim1" as
+ * the texture key (NO lib_ prefix). The anim1 symbol is the only content;
+ * it is attached from onSpellStart and drives its own lifecycle via frameScripts.
  */
 
 import type {
@@ -49,20 +44,20 @@ export class Spell1100 extends RuntimeSpell {
   readonly spellId = 1100;
   readonly displayType = SpellDisplayType.TargetCell;
 
+  private anim1Sym!: SymbolDefinition;
+
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // DefineSprite_15 — the inner 84-frame dodge animation.
-    // frame_1/DoAction.as: SOMA.playSound("dodge_1100")
-    // frame_82/DoAction.as: _parent.removeMovieClip()
-    //
-    // The manifest has no librarySymbols[] entries; the animation lives
-    // in animations[0] ("anim1"). We register this as the symbol that
-    // represents the whole visual content, attached by onSpellStart.
-    const anim1Sym: SymbolDefinition = {
+    // ---- anim1 — 84-frame impact animation at target cell --------
+    // AS DefineSprite_15/frame_1/DoAction.as:
+    //   SOMA.playSound("dodge_1100");
+    // AS DefineSprite_15/frame_82/DoAction.as:
+    //   _parent.removeMovieClip();
+    this.anim1Sym = {
       name: "anim1",
       totalFrames: 84,
       frames: textures.getFrames("anim1"),
@@ -72,46 +67,48 @@ export class Spell1100 extends RuntimeSpell {
         [
           0,
           (_clip) => {
-            // AS DefineSprite_15/frame_1/DoAction.as
-            // SOMA.playSound("dodge_1100") — sound is captured via
-            // the callbacks reference stored in onSpellStart.
-            this.runtime.signalHit();
-            this.dodgeSoundCallback?.("dodge_1100");
+            // AS DefineSprite_15/frame_1/DoAction.as:
+            //   SOMA.playSound("dodge_1100");
+            // Sound is played via onSpellStart for the main timeline entry;
+            // the DefineSprite_15 frame_1 also plays dodge_1100 when the
+            // sprite begins. We fire it here via the stored callback.
+            this.soundCallback?.("dodge_1100");
           },
         ],
         [
           81,
           (clip) => {
-            // AS DefineSprite_15/frame_82/DoAction.as
-            // _parent.removeMovieClip() — removes the outer mc, ending the spell.
-            clip.parent?.remove();
+            // AS DefineSprite_15/frame_82/DoAction.as:
+            //   _parent.removeMovieClip();
+            // frame_82 in AS → index 81 here (0-based).
+            // _parent is the root (outer mc) → signal completion.
+            clip.remove();
             this.runtime.complete();
           },
         ],
       ]),
     };
 
-    this.registry.register(anim1Sym);
-    this.anim1Sym = anim1Sym;
+    this.registry.register(this.anim1Sym);
   }
-
-  private anim1Sym!: SymbolDefinition;
-  private dodgeSoundCallback?: (id: string) => void;
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS frame_1/DoAction.as: SOMA.playSound("lakam_402")
+    // AS scripts/frame_1/DoAction.as:
+    //   SOMA.playSound("lakam_402");
     callbacks.playSound("lakam_402");
 
-    // Capture sound callback so frameScripts can play "dodge_1100"
-    // when DefineSprite_15's frame_1 fires.
-    this.dodgeSoundCallback = callbacks.playSound;
+    // Store callback so frameScripts can fire dodge_1100 sound.
+    this.soundCallback = callbacks.playSound;
 
-    // Attach the main animation at the root (target cell anchor).
-    // This mirrors the implicit placement of DefineSprite_15 on the
-    // main timeline frame_1 of the canonical SWF.
+    // Signal hit at the start of impact (displayType=11, no projectile).
+    this.runtime.signalHit();
+
+    // Attach the main animation sprite at the root (target cell origin).
     this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
+
+  private soundCallback?: (id: string) => void;
 }

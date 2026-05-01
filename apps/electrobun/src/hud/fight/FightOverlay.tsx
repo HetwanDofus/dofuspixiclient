@@ -14,6 +14,7 @@ import { useTacticalMode } from "@/hud/fight/tactical-mode-store";
 import { useFightMode } from "@/hud/fight/useFightMode";
 
 import { FightPlacementPanel } from "./FightPlacementPanel";
+import { TurnChangeBanner } from "./TurnChangeBanner";
 
 export interface FightOverlayActions {
   onPassTurn: () => void;
@@ -44,8 +45,17 @@ export function FightOverlay({ actions }: FightOverlayProps) {
     return null;
   }
 
-  const hp = character.stats?.hp ?? 0;
-  const maxHp = character.stats?.maxHp ?? hp;
+  // Live fight LP: read from fightStore (updated by FIGHTER_UPSERT
+  // on placement and FIGHTER_UPDATE on every damage / heal / GTM).
+  // characterStore.stats is a roleplay snapshot taken at login and
+  // never refreshed mid-fight, so it'd freeze the gauge at pre-fight
+  // values. Outside combat the fightStore mirror is empty, so we
+  // fall back to the character snapshot.
+  const myFighter = fight.mySpriteId
+    ? fight.fighters.get(fight.mySpriteId)
+    : undefined;
+  const hp = myFighter?.hp ?? character.stats?.hp ?? 0;
+  const maxHp = myFighter?.maxHp ?? character.stats?.maxHp ?? hp;
 
   // The server-truth roster lives on fightStore.fighters. For every
   // sprite on the timeline we look up its FighterSnapshot; team
@@ -76,6 +86,11 @@ export function FightOverlay({ actions }: FightOverlayProps) {
       className="pointer-events-none absolute inset-0 z-20"
       data-fight-overlay
     >
+      {/* Top-left: animated turn-change banner (canonical
+          UI_StringCourse — name + level + portrait + colour zones,
+          slides in on every TURN_START). */}
+      <TurnChangeBanner />
+
       {/* Top-center: turn timeline */}
       <div className="pointer-events-auto absolute top-[calc(8px*var(--resolution-factor))] left-1/2 -translate-x-1/2">
         <TurnTimeline entries={entries} currentTurn={fight.turnIndex + 1} />

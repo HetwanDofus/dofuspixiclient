@@ -1,74 +1,72 @@
 /**
- * Spell 2067 — (Unknown name, likely a lance/projectile spell).
+ * Spell 2067 — Lance (Feca / generic lance spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2067/scripts/scripts/
  *
- * displayType=30 (ProjectileBallistic). Evidence:
- *   - Has a `shoot` symbol (DefineSprite_10_shoot, 42 frames) — the canonical
- *     ballistic landing clip.
- *   - Has a `DefineSprite_20` (121 frames) that positions itself at
- *     `_parent.cellTo` (= WorldAbsolute pattern), BUT also has a `shoot` with
- *     `_parent.removeMovieClip()` at frame 36 and a `DefineSprite_18` sub-particle.
- *   - The manifest has only ONE animations entry: "shoot" — no "move" animation
- *     is exported, suggesting `move` is a container-only placeholder driven by
- *     the harness.
- *   - `DefineSprite_20` positions itself at cellTo on frame_1 and plays a sound —
- *     this is the outer mc / harness container, NOT a per-spell library symbol
- *     the spell itself attaches. It is the container that VisualEffectHandler
- *     manages; we are implementing its frame scripts in the context of our
- *     shoot symbol's parent.
- *
- * Re-reading the scripts more carefully:
- *   - `DefineSprite_20` is the outer/harness mc (121 frames). It:
- *       frame_1: plays sound "lance02", positions self at cellTo.
- *       frame_7: calls `this.end()` → signalHit.
- *       frame_121: `_parent.removeMovieClip()` → complete.
- *   - `DefineSprite_10_shoot` (42 frames) is a library symbol:
- *       frame_1: `_rotation = 0` (overrides any harness-applied rotation).
- *       frame_36: `_parent.removeMovieClip(); stop();` — removes its parent
- *                 (the outer mc = harness root), signals complete.
- *   - `DefineSprite_18` is a sub-particle inside shoot:
- *       frame_1: seeds rotation velocity `v`, random scale, sets up onEnterFrame
- *                to spin.
- *
- * The overall structure: outer container (DefineSprite_20) is at target cell,
- * plays sound + signals hit at frame 7, then at frame 121 removes itself.
- * Inside it, a `shoot` clip (DefineSprite_10_shoot) runs a 42-frame impact
- * animation; shoot's frame_36 removes the parent (outer mc) and completes.
- * DefineSprite_18 is a spinning particle sub-symbol attached inside shoot.
- *
- * Since there is no projectile arc / "move" symbol and the entire animation
- * is anchored at the target cell, this is actually displayType=11 (TargetCell).
- * The outer mc (DefineSprite_20) IS our root, positioned at cellTo by the harness.
- * We implement its timeline as the `shoot` symbol (the only exported animation).
- *
- * Final classification: displayType=11 (TargetCell).
- *   - Root anchored at target cell.
- *   - `shoot` (42 frames) is the main impact clip, attached from onSpellStart.
- *   - `DefineSprite_18` is a spinning particle inside shoot.
- *   - frame_7 (0-based: 6) of the outer timeline → signalHit.
- *   - frame_36 (0-based: 35) of shoot → remove parent, complete.
- *   - frame_121 (0-based: 120) of outer timeline → complete (fallback).
- *
- * Since DefineSprite_20 IS the outer mc (its frame scripts reference _parent
- * to remove itself), we model its timeline directly:
- *   - onSpellStart: play sound, attach shoot at depth 1.
- *   - The outer root runs 121 frames; frame 6 = signalHit; frame 120 = complete.
- *   - shoot runs 42 frames; frame 35 = remove parent + complete.
+ * displayType=20 (ProjectileLinear). Detected because:
+ *   - Has a `shoot` symbol (DefineSprite_10_shoot) that is placed at the target offset
+ *     inside a container rotated toward the target.
+ *   - DefineSprite_20 (the outer sprite wrapper) positions itself at _parent.cellTo,
+ *     plays a sound on frame_1, fires this.end() (signalHit) on frame_7, and removes
+ *     the parent on frame_121.
+ *   - No `move` symbol (ballistic arc) — linear beam pattern.
+ *   - DefineSprite_18 is a rotating particle spawned inside DefineSprite_20.
  *
  * Library symbols:
- *   - shoot (DefineSprite_10_shoot, 42 frames) — main impact animation.
- *     frame_1: _rotation = 0.
- *     frame_36: _parent.removeMovieClip(); stop() → complete.
- *   - sprite_18 (DefineSprite_18) — spinning particle inside shoot.
- *     frame_1: seeds v (spin speed), random scale, onEnterFrame spins.
+ *   - shoot (DefineSprite_10_shoot, 42 frames) — the main projectile visual.
+ *       frame_1: resets _rotation to 0 (overrides harness-applied velocity rotation).
+ *       frame_36: _parent.removeMovieClip() — kills the shoot container.
+ *     The harness attaches this at the target offset inside the rotated root.
  *
- * Main timeline (DefineSprite_20 = our root):
- *   frame_1: SOMA.playSound("lance02"); position at cellTo (harness handles
- *            cellTo anchor for displayType=11).
- *   frame_7: this.end() → signalHit.
- *   frame_121: _parent.removeMovieClip() → complete.
+ * Outer sprite (DefineSprite_20, 121 frames) is treated as a WorldAbsolute-style
+ * companion that positions itself at cellTo. However, the overall spell type matches
+ * ProjectileLinear (20) because the root is oriented toward the target and `shoot`
+ * is the primary animated content. DefineSprite_20 acts as an auxiliary impact
+ * clip attached from onSpellStart, sitting at the target cell in world coords.
+ *
+ * Wait — re-reading the AS more carefully:
+ *   DefineSprite_20/frame_1/DoAction.as: SOMA.playSound("lance02")
+ *   DefineSprite_20/frame_1/DoAction_2.as: _X = _parent.cellTo.x; _Y = _parent.cellTo.y
+ *   DefineSprite_20/frame_7/DoAction.as: this.end() → signalHit
+ *   DefineSprite_20/frame_121/DoAction.as: _parent.removeMovieClip() → complete
+ *
+ *   DefineSprite_18/frame_1/DoAction.as: rotating particle (v, _xscale, _yscale, onEnterFrame)
+ *
+ * The main timeline (frame_2/DoAction.as) just does stop().
+ * The spell is driven entirely by DefineSprite_20, which is the outermost content sprite.
+ * It positions itself at cellTo (target) and drives both hit signal and completion.
+ * There's no ballistic arc; shoot is the visual. This matches TargetCell (11) or
+ * WorldAbsolute (50/51) more than ProjectileLinear. But shoot resets _rotation=0
+ * (canonical linear projectile behavior) and the harness for displayType=20 attaches
+ * shoot at the target offset inside a rotated container.
+ *
+ * Final analysis: DefineSprite_20 IS the outer wrapper that the harness would treat
+ * as the root timeline for TargetCell. The _parent.cellTo references mean it was
+ * authored inside a WorldAbsolute context. Since it positions at cellTo via
+ * _parent.cellTo (not via harness anchor), this is displayType=51 (WorldAbsoluteAlt)
+ * with DefineSprite_20 as the main timeline child attached from onSpellStart.
+ * The `shoot` symbol is a child of DefineSprite_20, not of the root.
+ *
+ * Revised layout:
+ *   - displayType=51 (WorldAbsoluteAlt): root at (0,0); children position at world coords.
+ *   - onSpellStart attaches sprite20 to root.
+ *   - sprite20 frame_1: positions at cellTo, plays sound.
+ *   - sprite20 frame_7: signalHit.
+ *   - sprite20 frame_121: complete.
+ *   - sprite20 internally spawns sprite18 particles (the rotating star/spark).
+ *   - shoot (DefineSprite_10) is the 42-frame projectile visual, also child of sprite20.
+ *
+ * BUT: the manifest has shoot as an `animations[]` entry (not librarySymbols), meaning
+ * it has pre-rendered frame textures under the bare "shoot" key. DefineSprite_10_shoot
+ * must be registered as a symbol named "shoot" using textures.getFrames("shoot")
+ * (no lib_ prefix, since it's in animations[], not librarySymbols[]).
+ *
+ * DefineSprite_18 has no manifest entry (not in animations[] or librarySymbols[]),
+ * so it is a container-only symbol with frames: [].
+ *
+ * Main timeline: frame_2/DoAction.as → stop() — the root just stops at frame 2; the
+ * spell is driven by DefineSprite_20's timeline.
  */
 
 import type {
@@ -83,6 +81,7 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
+// shoot bounds from manifest animations[]
 const SHOOT_BOUNDS = {
   width: 205.65,
   height: 149.2,
@@ -92,47 +91,54 @@ const SHOOT_BOUNDS = {
 
 export class Spell2067 extends RuntimeSpell {
   readonly spellId = 2067;
-  readonly displayType = SpellDisplayType.TargetCell;
+  readonly displayType = SpellDisplayType.WorldAbsoluteAlt;
 
-  private shootSym!: SymbolDefinition;
   private sprite18Sym!: SymbolDefinition;
+  private shootSym!: SymbolDefinition;
+  private sprite20Sym!: SymbolDefinition;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext
+    _context: SpellContext,
   ): void {
     const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // ---- DefineSprite_18 — spinning particle inside shoot --------
-    // AS: scripts/DefineSprite_18/frame_1/DoAction.as
-    // v = 10 + random(15);
-    // _xscale = random(50) + 50;
-    // _yscale = random(50) + 50;
-    // this.onEnterFrame = function() { _rotation = _rotation + v; };
+    // ---- DefineSprite_18 — rotating spark/particle ---------------
+    // AS: DefineSprite_18/frame_1/DoAction.as
+    //   v = 10 + random(15);
+    //   _xscale = random(50) + 50;
+    //   _yscale = random(50) + 50;
+    //   this.onEnterFrame = function() { _rotation = _rotation + v; };
+    // No manifest entry → container-only, frames: []
     this.sprite18Sym = {
-      name: "sprite_18",
+      name: "sprite18",
       totalFrames: 1,
       frames: [],
       anchorX: 0.5,
       anchorY: 0.5,
-      onLoad: (clip) => {
-        // AS: DefineSprite_18/frame_1/DoAction.as
-        const v = 10 + Math.floor(Math.random() * 15);
-        clip.vars.v = v;
-        clip.scaleX = (Math.floor(Math.random() * 50) + 50) / 100;
-        clip.scaleY = (Math.floor(Math.random() * 50) + 50) / 100;
-      },
+      frameScripts: new Map([
+        [
+          0,
+          (clip) => {
+            // AS: DefineSprite_18/frame_1/DoAction.as
+            const v = 10 + Math.floor(Math.random() * 15);
+            clip.vars.v = v;
+            clip.scaleX = (Math.floor(Math.random() * 50) + 50) / 100;
+            clip.scaleY = (Math.floor(Math.random() * 50) + 50) / 100;
+          },
+        ],
+      ]),
       onEnterFrame: (clip) => {
-        // AS: DefineSprite_18/frame_1/DoAction.as — onEnterFrame
-        // _rotation = _rotation + v;  (v in degrees)
+        // AS: this.onEnterFrame = function() { _rotation = _rotation + v; };
         const v = clip.vars.v as number;
         clip.rotation += (v * Math.PI) / 180;
       },
     };
 
-    // ---- DefineSprite_10_shoot — 42-frame impact animation -------
+    // ---- DefineSprite_10_shoot — 42-frame projectile visual ------
     // AS: DefineSprite_10_shoot/frame_1/DoAction.as → _rotation = 0
     // AS: DefineSprite_10_shoot/frame_36/DoAction.as → _parent.removeMovieClip(); stop()
+    // shoot is in animations[] (not librarySymbols[]) → use textures.getFrames("shoot")
     this.shootSym = {
       name: "shoot",
       totalFrames: 42,
@@ -144,7 +150,7 @@ export class Spell2067 extends RuntimeSpell {
           0,
           (clip) => {
             // AS: DefineSprite_10_shoot/frame_1/DoAction.as
-            // _rotation = 0;
+            // _rotation = 0 — reset any inherited rotation
             clip.rotation = 0;
           },
         ],
@@ -153,9 +159,71 @@ export class Spell2067 extends RuntimeSpell {
           (clip) => {
             // AS: DefineSprite_10_shoot/frame_36/DoAction.as
             // _parent.removeMovieClip(); stop();
-            // shoot's parent is our root — remove it and signal complete.
-            clip.stop();
+            // Removes the shoot clip from sprite20 (its parent).
             clip.parent?.remove();
+            clip.stop();
+          },
+        ],
+      ]),
+    };
+
+    // ---- DefineSprite_20 — target-anchored impact timeline -------
+    // 121 frames. No manifest entry for direct textures → container-only.
+    // AS:
+    //   frame_1/DoAction.as:   SOMA.playSound("lance02")
+    //   frame_1/DoAction_2.as: _X = _parent.cellTo.x; _Y = _parent.cellTo.y
+    //   frame_7/DoAction.as:   this.end() → signalHit
+    //   frame_121/DoAction.as: _parent.removeMovieClip() → complete
+    this.sprite20Sym = {
+      name: "sprite20",
+      totalFrames: 121,
+      frames: [],
+      anchorX: 0.5,
+      anchorY: 0.5,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS: DefineSprite_20/frame_1/DoAction.as — SOMA.playSound("lance02")
+            // Sound is played from onSpellStart (main timeline), but DefineSprite_20
+            // also plays it. We honour the canonical frame_1 sound here.
+            // (onSpellStart will also call playSound; this is the in-clip instance.)
+            // Note: callbacks are not directly available here; sound is handled in
+            // onSpellStart per the canonical main-timeline sound pattern. The
+            // DefineSprite_20/frame_1 sound fires at clip construction time which
+            // coincides with onSpellStart in the first tick.
+
+            // AS: DefineSprite_20/frame_1/DoAction_2.as
+            // _X = _parent.cellTo.x; _Y = _parent.cellTo.y
+            const root = clip.parent;
+            const cellTo = root?.vars.cellTo as
+              | { x: number; y: number }
+              | undefined;
+            if (cellTo) {
+              clip.x = cellTo.x;
+              clip.y = cellTo.y;
+            }
+
+            // Attach shoot as a child of sprite20 at depth 1
+            clip.attach(this.shootSym, "shoot", 1, ctx);
+
+            // Attach rotating spark particle (sprite18) at depth 2
+            clip.attach(this.sprite18Sym, "sprite18", 2, ctx);
+          },
+        ],
+        [
+          6,
+          () => {
+            // AS: DefineSprite_20/frame_7/DoAction.as → this.end() → signalHit
+            this.runtime.signalHit();
+          },
+        ],
+        [
+          120,
+          (clip) => {
+            // AS: DefineSprite_20/frame_121/DoAction.as → _parent.removeMovieClip()
+            // _parent of sprite20 is root → complete the spell
+            clip.remove();
             this.runtime.complete();
           },
         ],
@@ -164,43 +232,20 @@ export class Spell2067 extends RuntimeSpell {
 
     this.registry.register(this.sprite18Sym);
     this.registry.register(this.shootSym);
+    this.registry.register(this.sprite20Sym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    context: SpellContext
+    context: SpellContext,
   ): void {
+    // AS: scripts/frame_2/DoAction.as → stop()
+    // Main timeline stops at frame 2; the spell is driven by sprite20.
     // AS: DefineSprite_20/frame_1/DoAction.as → SOMA.playSound("lance02")
     callbacks.playSound("lance02");
 
-    // AS: DefineSprite_20/frame_1/DoAction_2.as
-    // _X = _parent.cellTo.x; _Y = _parent.cellTo.y;
-    // For displayType=11 (TargetCell), the harness already anchors the
-    // container at cellTo — the root is at (0,0) in container-local coords,
-    // which equals cellTo in world coords. No extra positioning needed.
-
-    // Attach shoot at depth 1. Mirrors the implicit PlaceObject2 for
-    // DefineSprite_10_shoot inside DefineSprite_20.
-    this.root.attach(this.shootSym, "shoot", 1, context);
-
-    // Wire up the outer-timeline frame scripts on the root clip.
-    // DefineSprite_20/frame_7: this.end() → signalHit
-    // DefineSprite_20/frame_121: _parent.removeMovieClip() → complete
-    // We inject these via the root's onEnterFrame loop by tracking frame count,
-    // since the root SpellClip is created with symbol=null (no frameScripts).
-    // Instead, we use a lightweight per-frame counter attached to root.vars.
-    this.root.vars._outerFrame = 0;
-    this.root.onEnterFrame = (_clip) => {
-      const f = (this.root.vars._outerFrame as number) + 1;
-      this.root.vars._outerFrame = f;
-
-      if (f === 7) {
-        // AS: DefineSprite_20/frame_7/DoAction.as → this.end()
-        this.runtime.signalHit();
-      } else if (f === 121) {
-        // AS: DefineSprite_20/frame_121/DoAction.as → _parent.removeMovieClip()
-        this.runtime.complete();
-      }
-    };
+    // Attach sprite20 as the primary content clip on root.
+    // It will self-position at cellTo on its own frame_1 script.
+    this.root.attach(this.sprite20Sym, "sprite20", 1, context);
   }
 }

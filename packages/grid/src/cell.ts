@@ -19,7 +19,7 @@ import {
 export function getCellPosition(
   cellId: number,
   mapWidth: number,
-  groundLevel: number,
+  groundLevel: number
 ): { x: number; y: number } {
   const stride = 2 * mapWidth - 1;
   const pair = Math.floor(cellId / stride);
@@ -28,8 +28,8 @@ export function getCellPosition(
   const row = pair * 2 + (isLong ? 0 : 1);
   const col = isLong ? offset : offset - mapWidth;
   const x = col * CELL_WIDTH + (isLong ? 0 : CELL_HALF_WIDTH);
-  const y =
-    row * CELL_HALF_HEIGHT - LEVEL_HEIGHT * (groundLevel - 7);
+  const y = row * CELL_HALF_HEIGHT - LEVEL_HEIGHT * (groundLevel - 7);
+
   return { x, y };
 }
 
@@ -54,6 +54,7 @@ export function cellToRowCol(
   const pair = Math.floor(cellId / stride);
   const offset = cellId % stride;
   const isLong = offset < mapWidth;
+
   return {
     row: isLong ? 2 * pair : 2 * pair + 1,
     col: isLong ? offset : offset - mapWidth,
@@ -72,6 +73,7 @@ export function rowColToCell(
   const stride = 2 * mapWidth - 1;
   const pair = Math.floor(row / 2);
   const isLong = row % 2 === 0;
+
   return pair * stride + (isLong ? col : mapWidth + col);
 }
 
@@ -89,6 +91,7 @@ export function cellToCoord(
   const offset = column % mapWidth;
   const y = line - offset;
   const x = Math.round((cellId - (mapWidth - 1) * y) / mapWidth);
+
   return { x, y };
 }
 

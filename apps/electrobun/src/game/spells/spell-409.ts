@@ -1,40 +1,42 @@
 /**
- * Spell 409 — Lakam (Osamodas earth/rock spell).
+ * Spell 409 — Lakam (Eniripsa healing spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/409/scripts/scripts/
  *
- * displayType=11 (TargetCell). This spell has no projectile motion, no caster
- * reference, no dual anchoring — it's a pure impact animation at the target cell.
- * The single `anim1` animation appears in `animations[]` only (no librarySymbols),
- * confirming a simple TargetCell impact pattern.
+ * displayType=11 (TargetCell). This spell has no `move`, `shoot`, or `duplicate`
+ * symbols and no caster-side anchoring — it is a pure impact-at-target animation.
+ * The single `anim1` animation plays at the target cell. No librarySymbols entries
+ * exist in the manifest, so we use bare `textures.getFrames("anim1")` (no `lib_` prefix).
  *
- * AS layout:
- *   - Main timeline frame_1: SOMA.playSound("lakam_409")
- *   - DefineSprite_7 (outer wrapper, 150 frames / anim1):
- *       frame_148: _parent.removeMovieClip(); stop();  → complete()
- *   - DefineSprite_5 (particle sub-symbol, 127 frames):
- *       frame_1:   _rotation = -40 - random(100); t = random(50)+30;
- *                  _xscale = _yscale = t; gotoAndPlay(random(21))
- *       frame_31:  SOMA.playSound("lakam_409")
- *       frame_127: stop()
+ * Canonical AS layout:
+ *   - main timeline frame_1/DoAction.as: SOMA.playSound("lakam_409")
+ *   - DefineSprite_7 (outer wrapper, 150 frames):
+ *       frame_148/DoAction.as: _parent.removeMovieClip(); stop();
+ *         → spell completion signal + clip removal
+ *   - DefineSprite_5 (inner animated sprite, 127 frames):
+ *       frame_1/DoAction.as: randomise rotation, scale, gotoAndPlay to random start frame
+ *       frame_31/DoAction.as: SOMA.playSound("lakam_409") (second sound trigger)
+ *       frame_127/DoAction.as: stop()
  *
- * The manifest has no `librarySymbols[]` entries. The composite `anim1` animation
- * (150 frames) is the sole authored timeline. DefineSprite_5 is a sub-symbol used
- * internally (likely as animated particles inside anim1); since it never appears
- * in librarySymbols and is never referenced by `attachMovie` in the AS scripts,
- * we treat it as embedded in the composite frames. The sprite_7 wrapper's
- * frame_148 fires _parent.removeMovieClip() — that outer mc removal is what we
- * model as runtime.complete().
+ * The manifest has a single `animations` entry "anim1" (150 frames, isComposite: true).
+ * No `librarySymbols` entries are present. The two DefineSprite symbols (7 and 5)
+ * correspond to the outer wrapper and inner animated sprite respectively — both are
+ * baked into the composite `anim1` frames.
  *
- * The main anim1 symbol is registered as "anim1" (bare name, no lib_ prefix)
- * because it only appears in animations[], not librarySymbols[].
+ * Since DefineSprite_5's frame_1 sets random rotation/scale/phase via AS, and
+ * DefineSprite_7 drives the completion at frame 148, we model the whole anim1
+ * as a single SymbolDefinition attached from onSpellStart with the relevant
+ * frame scripts ported from the canonical AS.
  *
- * Signal strategy:
- *   - signalHit: fired at frame_1 of the anim1 clip (impact is immediate for
- *     this type of ground-slam spell).
- *   - complete: fired at frame_148 (AS frame_148 = index 147) where the canonical
- *     _parent.removeMovieClip() + stop() live.
+ * Signal timing:
+ *   - signalHit: fired at the first visible impact frame (frame index 0, i.e. the
+ *     animation start — this is an instant heal/buff with no projectile).
+ *   - complete: fired from frameScripts at frame index 147 (AS frame_148).
+ *
+ * Library symbols: none (librarySymbols[] is absent / empty in manifest).
+ *
+ * Main timeline: SOMA.playSound("lakam_409") on frame_1.
  */
 
 import type {
@@ -68,11 +70,32 @@ export class Spell409 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1 — composite impact animation at target cell -------
-    // This is the top-level authored timeline (DefineSprite_7 wrapper).
+    // anim1 — composite animated sprite played at the target cell.
+    // Models DefineSprite_7 (outer, 150 frames) which wraps DefineSprite_5
+    // (inner, randomised start / second sound / stop at 127).
+    //
+    // AS DefineSprite_5/frame_1/DoAction.as:
+    //   _rotation = -40 - random(100);
+    //   t = random(50) + 30;
+    //   _xscale = t; _yscale = t;
+    //   gotoAndPlay(random(21));
+    //
+    // AS DefineSprite_5/frame_31/DoAction.as:
+    //   SOMA.playSound("lakam_409");
+    //
+    // AS DefineSprite_5/frame_127/DoAction.as:
+    //   stop();
+    //
     // AS DefineSprite_7/frame_148/DoAction.as:
     //   _parent.removeMovieClip(); stop();
-    // signalHit fires at frame_1 (first visible frame of the impact).
+    //
+    // Because the two sprites are baked into the composite anim1 SVG frames,
+    // we model the whole thing as a single SymbolDefinition. The frame_1 random
+    // rotation/scale/phase applies to the child inner sprite — since the SVG
+    // frames are pre-composited we apply the transform to the clip container
+    // itself (visible effect is the same). gotoAndPlay(random(21)) randomises
+    // the start frame within the first 21 frames of the animation.
+
     this.anim1Sym = {
       name: "anim1",
       totalFrames: 150,
@@ -82,19 +105,55 @@ export class Spell409 extends RuntimeSpell {
       frameScripts: new Map([
         [
           0,
+          // AS DefineSprite_5/frame_1/DoAction.as — randomise rotation, scale,
+          // and jump to a random start frame within the opening 21 frames.
+          (clip) => {
+            const rotDeg = -40 - Math.floor(Math.random() * 100);
+            clip.rotation = (rotDeg * Math.PI) / 180;
+            const t = Math.floor(Math.random() * 50) + 30;
+            clip.scaleX = t / 100;
+            clip.scaleY = t / 100;
+            // AS: gotoAndPlay(random(21)) — 1-based, random(21) gives [0,20]
+            // so gotoAndPlay result is in [0,20] (already 0-based in AS terms
+            // when result is 0, but AS gotoAndPlay(0) behaves as gotoAndPlay(1)).
+            // We use the canonical 0-based runtime call: gotoAndPlay(random(21))
+            // where random(21) ∈ [0,20] → runtime frame index [0,20].
+            const startFrame = Math.floor(Math.random() * 21);
+            clip.gotoAndPlay(startFrame);
+          },
+        ],
+        [
+          30,
+          // AS DefineSprite_5/frame_31/DoAction.as — second sound cue.
+          // Sound playback from inside a frame script: captured via the
+          // instance field set in onSpellStart.
           (_clip) => {
-            // AS: frame_1 of DefineSprite_7 — no explicit script,
-            // but this is the canonical impact arrival frame. Signal hit.
-            this.runtime.signalHit();
+            this.soundCallback?.("lakam_409");
+          },
+        ],
+        [
+          126,
+          // AS DefineSprite_5/frame_127/DoAction.as — inner sprite stops.
+          // In the composite model this maps to the anim1 clip stopping its
+          // advance at this index. The outer sprite (DefineSprite_7) continues
+          // to frame 148 before calling _parent.removeMovieClip().
+          // Since both are baked together we simply stop here; frame 147 will
+          // still fire the removal script because stop() is on the inner layer
+          // and the outer timeline keeps advancing in canonical AS.
+          // For the composite model we let the outer frameScripts[147] handle
+          // termination and skip the inner stop to avoid premature halt.
+          // (No-op here — preserved as a documented canonical anchor point.)
+          (_clip) => {
+            // inner stop() — no-op in composite model; outer wrapper fires at 147
           },
         ],
         [
           147,
+          // AS DefineSprite_7/frame_148/DoAction.as:
+          //   _parent.removeMovieClip(); stop();
+          // This is the outermost sprite's removal — signals spell completion.
           (clip) => {
-            // AS DefineSprite_7/frame_148/DoAction.as:
-            //   _parent.removeMovieClip(); stop();
-            clip.stop();
-            clip.parent?.remove();
+            clip.remove();
             this.runtime.complete();
           },
         ],
@@ -104,15 +163,25 @@ export class Spell409 extends RuntimeSpell {
     this.registry.register(this.anim1Sym);
   }
 
+  // Capture callbacks.playSound so frame scripts inside the symbol can invoke it.
+  private soundCallback?: (id: string) => void;
+
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS scripts/frame_1/DoAction.as:
-    //   SOMA.playSound("lakam_409");
+    // AS frame_1/DoAction.as: SOMA.playSound("lakam_409")
     callbacks.playSound("lakam_409");
 
-    // Attach the main anim1 clip to the root so it starts ticking.
+    // Capture for use in frameScripts (frame 30 second sound trigger).
+    this.soundCallback = callbacks.playSound;
+
+    // Signal hit immediately — this is an instant impact spell with no projectile.
+    // The damage/heal popup should appear as soon as the animation starts.
+    this.runtime.signalHit();
+
+    // Attach the composite anim1 clip at the target cell (root is already at
+    // target for TargetCell displayType). Depth 1, no transform offset.
     this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

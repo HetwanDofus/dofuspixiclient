@@ -1,41 +1,34 @@
 /**
- * Spell 511 — Ronce (Feca thorn aura / self-buff).
+ * Spell 511 — Ronce (Feca thorn aura / bramble).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/511/scripts/scripts/
  *
- * displayType=10 (CasterCell). This spell has no projectile, no target-cell
- * impact, and no caster→target motion. The single animation (anim1) plays
- * at the caster. The manifest has no librarySymbols[] — `anim1` lives only
- * in animations[]. All rendering is driven by the anim1 timeline directly.
+ * displayType=11 (TargetCell). The spell is a single impact animation at the
+ * target cell. DefineSprite_9 is the outer composite timeline (150 frames,
+ * exported as "anim1"). It plays sounds on frames 1, 4, and 7, then stops and
+ * removes its parent at frame 148.
  *
- * Canonical AS layout:
- *   - DefineSprite_9 (anim1, 150 frames):
- *       frame_1:  SOMA.playSound("ronce")
- *       frame_4:  SOMA.playSound("ronce")
- *       frame_7:  SOMA.playSound("ronce")
- *       frame_148: stop(); removeMovieClip(_parent)  → spell complete
+ * Library symbols:
+ *   - lib_sprite8 — single-frame thorn sprite (kind: "clipEvent", directlyDynamic: true).
+ *     onLoad: gotoAndPlay(random(45)) — jump to a random frame offset in the
+ *     animation; _alpha = 150 (capped above 1.0 in Flash, maps to 1.0 in TS).
+ *     onEnterFrame: _alpha -= 1.3 per tick (fades the thorn out over ~115 frames).
  *
- *   - DefineSprite_8 (the actual animated sprite placed inside sprite_9,
- *     referenced as PlaceObject2_7_1 at depth 1 of sprite_9/frame_1):
- *       onClipEvent(load):
- *         gotoAndPlay(random(45));
- *         _alpha = 150;   → AS 150 clamped by Flash to 100, so alpha=1.0
- *       onClipEvent(enterFrame):
- *         _alpha = _alpha - 1.3;   → gentle fade per frame
+ * The outer DefineSprite_9 timeline places sprite8 instances at several frames
+ * (3, 9, 12, 18, 24, 36, 51) with varying scales and positions. These are
+ * authored placements captured in manifest.librarySymbols[0].placements[].
+ * Each placement is attached from the anim1 symbol's frameScripts at the
+ * corresponding (0-based) frame index.
  *
- * Because the manifest has no librarySymbols[], the texture key for the
- * main animated sprite is plain "anim1" (no lib_ prefix). DefineSprite_8
- * is embedded inside sprite_9 and shares the same frames; we register it
- * as a symbol "anim1_inner" but its textures come from the same "anim1"
- * atlas since it IS the visual content of anim1. The outer container
- * (sprite_9) has no authored visual — it just drives sounds and lifetime.
+ * Main timeline (DefineSprite_9):
+ *   frame_1  (0): SOMA.playSound("ronce")
+ *   frame_4  (3): SOMA.playSound("ronce")
+ *   frame_7  (6): SOMA.playSound("ronce")
+ *   frame_148 (147): stop(); removeMovieClip(_parent) → this.runtime.complete()
  *
- * Sounds are played at frames 1, 4, 7 (canonical AS). We capture the
- * callbacks reference in onSpellStart and fire them from frameScripts.
- *
- * signalHit is called at frame_1 of the outer sprite (immediate impact on
- * the caster-side aura appearing), consistent with CasterCell self-buffs.
+ * signalHit is fired at the first impact frame (frame 0, the first "ronce" sound,
+ * which is the canonical impact moment for a TargetCell spell).
  */
 
 import type {
@@ -50,6 +43,13 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
+const SPRITE8_BOUNDS = {
+  width: 36.75,
+  height: 150.4,
+  offsetX: -23.95,
+  offsetY: -64.75,
+};
+
 const ANIM1_BOUNDS = {
   width: 56.4,
   height: 130.25,
@@ -59,115 +59,252 @@ const ANIM1_BOUNDS = {
 
 export class Spell511 extends RuntimeSpell {
   readonly spellId = 511;
-  readonly displayType = SpellDisplayType.CasterCell;
+  readonly displayType = SpellDisplayType.TargetCell;
 
-  private soundCallback?: (id: string) => void;
+  private sprite8Sym!: SymbolDefinition;
+  private anim1Sym!: SymbolDefinition;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
+    const sprite8Anchor = calculateAnchor(SPRITE8_BOUNDS);
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1_inner — the actual animated visual (DefineSprite_8) ------
-    // Placed at depth 1 inside DefineSprite_9/frame_1. Contains the thorn
-    // aura animation. Its clipEvents randomise start frame and fade alpha.
+    // ---- lib_sprite8 — fading thorn particle ----------------------
+    // directlyDynamic: true — drives per-tick alpha decay via clipEvents.
+    // AS: scripts/DefineSprite_8/frame_1/PlaceObject2_7_1/CLIPACTIONRECORD onClipEvent(load).as
+    //   gotoAndPlay(random(45));
+    //   _alpha = 150;
     //
-    // AS: DefineSprite_8/frame_1/PlaceObject2_7_1/CLIPACTIONRECORD onClipEvent(load).as
-    // AS: DefineSprite_8/frame_1/PlaceObject2_7_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-    const anim1InnerSym: SymbolDefinition = {
-      name: "anim1_inner",
+    // AS: scripts/DefineSprite_8/frame_1/PlaceObject2_7_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    //   _alpha = _alpha - 1.3;
+    this.sprite8Sym = {
+      name: "sprite8",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_sprite8"),
+      anchorX: sprite8Anchor.x,
+      anchorY: sprite8Anchor.y,
+
+      onLoad: (clip) => {
+        // AS: gotoAndPlay(random(45)) → 0-based: gotoAndPlay(random(45) - 1)
+        // random(45) in AS gives [0..44]; gotoAndPlay(0) is frame_1.
+        // We convert: gotoAndPlay(AS_frame - 1) but since random(45) is
+        // already 0-based in Flash (random(45) returns 0..44, gotoAndPlay
+        // with that value in AS means frame random(45), which is 1-based),
+        // the correct 0-based equivalent is: Math.floor(Math.random()*45)
+        // maps to frames 0..44. We clamp to totalFrames.
+        // AS: gotoAndPlay(random(45)) where random(45) ∈ [0,44].
+        // In Flash, gotoAndPlay(0) == gotoAndPlay(1) (both go to frame 1).
+        // 0-based: just use Math.floor(Math.random() * 45) directly.
+        clip.gotoAndPlay(Math.floor(Math.random() * 45));
+
+        // AS: _alpha = 150 → Flash clamps to 100 in practice, maps to 1.0 in TS.
+        clip.alpha = 1.0;
+        // Store the running alpha in vars for enterFrame decay.
+        clip.vars.alpha = 100.0;
+      },
+
+      onEnterFrame: (clip) => {
+        // AS: _alpha = _alpha - 1.3
+        // Track the Flash-unit alpha (0-100) in vars for precision.
+        let a = clip.vars.alpha as number;
+        a -= 1.3;
+        clip.vars.alpha = a;
+        clip.alpha = Math.max(0, a) / 100;
+        if (a <= 0) {
+          clip.remove();
+        }
+      },
+    };
+
+    // ---- anim1 — outer composite timeline (DefineSprite_9) --------
+    // 150 frames total. Plays sounds at frames 1, 4, 7. Places sprite8
+    // instances at frames 3, 9, 12, 18, 24, 36, 51 (0-based: 2,8,11,17,23,35,50).
+    // At frame 148 (0-based: 147): stop(); removeMovieClip(_parent).
+    //
+    // Placements from manifest.librarySymbols[0].placements[]:
+    //   frame 3  depth 1  scale ~0.800 tx=-10.25  ty=-21.55
+    //   frame 9  depth 3  scale ~0.800 tx= 12.20  ty=-31.50
+    //   frame 12 depth 5  scale ~0.469 tx=  6.85  ty= -6.90
+    //   frame 18 depth 7  scale ~0.383 tx=-19.55  ty=-19.05
+    //   frame 24 depth 9  scale ~0.285 tx= 19.50  ty=-14.45
+    //   frame 36 depth 11 scale ~0.285 tx=-23.85  ty= -7.65
+    //   frame 51 depth 13 scale ~0.193 tx=-17.10  ty=  3.55
+    //
+    // Sounds (from manifest and AS scripts):
+    //   frame_1 (0): playSound("ronce")    — AS DefineSprite_9/frame_1/DoAction.as
+    //   frame_4 (3): playSound("ronce")    — AS DefineSprite_9/frame_4/DoAction.as
+    //   frame_7 (6): playSound("ronce")    — AS DefineSprite_9/frame_7/DoAction.as
+    //   frame_148 (147): stop(); removeMovieClip(_parent)
+    //                    — AS DefineSprite_9/frame_148/DoAction.as
+    const sprite8SymRef = () => this.sprite8Sym;
+    const runtimeRef = () => this.runtime;
+
+    // Capture sound callback for use inside frameScripts.
+    let _playSound: ((id: string) => void) | null = null;
+    const getPlaySound = () => _playSound;
+
+    this.anim1Sym = {
+      name: "anim1",
       totalFrames: 150,
       frames: textures.getFrames("anim1"),
       anchorX: anim1Anchor.x,
       anchorY: anim1Anchor.y,
-      onLoad: (clip) => {
-        // AS onClipEvent(load): gotoAndPlay(random(45)); _alpha = 150;
-        // Flash clamps _alpha to [0,100], so 150 → 1.0 in TS.
-        clip.gotoAndPlay(Math.floor(Math.random() * 45));
-        clip.alpha = 1.0;
-      },
-      onEnterFrame: (clip) => {
-        // AS onClipEvent(enterFrame): _alpha = _alpha - 1.3;
-        // Convert: AS 0-100 → TS 0-1; delta 1.3 → 1.3/100
-        clip.alpha = clip.alpha - 1.3 / 100;
-      },
-    };
-
-    // ---- anim1 — outer container / timeline driver (DefineSprite_9) -----
-    // 150-frame container. No authored visual content itself — carries
-    // sound scripts and the lifetime-end removal. Attaches anim1_inner
-    // at frame_1 (the PlaceObject2_7_1 implicit placement in canonical AS).
-    //
-    // AS: DefineSprite_9/frame_1/DoAction.as  → SOMA.playSound("ronce")
-    // AS: DefineSprite_9/frame_4/DoAction.as  → SOMA.playSound("ronce")
-    // AS: DefineSprite_9/frame_7/DoAction.as  → SOMA.playSound("ronce")
-    // AS: DefineSprite_9/frame_148/DoAction.as → stop(); removeMovieClip(_parent)
-    const anim1Sym: SymbolDefinition = {
-      name: "anim1",
-      totalFrames: 150,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
       frameScripts: new Map([
         [
+          // frame_1 (0-based: 0): SOMA.playSound("ronce"); signalHit at first impact.
+          // AS: scripts/DefineSprite_9/frame_1/DoAction.as
           0,
-          (clip, ctx) => {
-            // AS DefineSprite_9/frame_1/DoAction.as: SOMA.playSound("ronce")
-            // Also: implicit PlaceObject2_7_1 places anim1_inner at depth 1.
-            this.soundCallback?.("ronce");
-            if (!clip.children.has("anim1_inner")) {
-              clip.attach(anim1InnerSym, "anim1_inner", 1, ctx);
+          (_clip, _ctx) => {
+            const ps = getPlaySound();
+            if (ps) {
+              ps("ronce");
             }
-            // Signal hit immediately — caster-side aura has appeared.
-            this.runtime.signalHit();
+            runtimeRef().signalHit();
           },
         ],
         [
+          // frame_4 (0-based: 3): SOMA.playSound("ronce")
+          // AS: scripts/DefineSprite_9/frame_4/DoAction.as
           3,
-          (_clip) => {
-            // AS DefineSprite_9/frame_4/DoAction.as: SOMA.playSound("ronce")
-            this.soundCallback?.("ronce");
+          (clip, ctx) => {
+            const ps = getPlaySound();
+            if (ps) {
+              ps("ronce");
+            }
+            // Placement at parent frame 3, depth 1, scale ~0.800, tx=-10.25, ty=-21.55
+            const s8 = sprite8SymRef();
+            const c = clip.attach(s8, "sprite8_d1", 1, ctx);
+            c.x = -10.25;
+            c.y = -21.55;
+            c.scaleX = 0.7998504638671875;
+            c.scaleY = 0.7998504638671875;
           },
         ],
         [
+          // frame_7 (0-based: 6): SOMA.playSound("ronce")
+          // AS: scripts/DefineSprite_9/frame_7/DoAction.as
           6,
-          (_clip) => {
-            // AS DefineSprite_9/frame_7/DoAction.as: SOMA.playSound("ronce")
-            this.soundCallback?.("ronce");
+          (_clip, _ctx) => {
+            const ps = getPlaySound();
+            if (ps) {
+              ps("ronce");
+            }
           },
         ],
         [
+          // Placement at parent frame 9 (0-based: 8), depth 3, scale ~0.800
+          8,
+          (clip, ctx) => {
+            const s8 = sprite8SymRef();
+            const c = clip.attach(s8, "sprite8_d3", 3, ctx);
+            c.x = 12.2;
+            c.y = -31.5;
+            c.scaleX = 0.7998504638671875;
+            c.scaleY = 0.7998504638671875;
+          },
+        ],
+        [
+          // Placement at parent frame 12 (0-based: 11), depth 5, scale ~0.469
+          11,
+          (clip, ctx) => {
+            const s8 = sprite8SymRef();
+            const c = clip.attach(s8, "sprite8_d5", 5, ctx);
+            c.x = 6.85;
+            c.y = -6.9;
+            c.scaleX = 0.4688873291015625;
+            c.scaleY = 0.4688873291015625;
+          },
+        ],
+        [
+          // Placement at parent frame 18 (0-based: 17), depth 7, scale ~0.383
+          17,
+          (clip, ctx) => {
+            const s8 = sprite8SymRef();
+            const c = clip.attach(s8, "sprite8_d7", 7, ctx);
+            c.x = -19.55;
+            c.y = -19.05;
+            c.scaleX = 0.382720947265625;
+            c.scaleY = 0.382720947265625;
+          },
+        ],
+        [
+          // Placement at parent frame 24 (0-based: 23), depth 9, scale ~0.285
+          23,
+          (clip, ctx) => {
+            const s8 = sprite8SymRef();
+            const c = clip.attach(s8, "sprite8_d9", 9, ctx);
+            c.x = 19.5;
+            c.y = -14.45;
+            c.scaleX = 0.285064697265625;
+            c.scaleY = 0.285064697265625;
+          },
+        ],
+        [
+          // Placement at parent frame 36 (0-based: 35), depth 11, scale ~0.285
+          35,
+          (clip, ctx) => {
+            const s8 = sprite8SymRef();
+            const c = clip.attach(s8, "sprite8_d11", 11, ctx);
+            c.x = -23.85;
+            c.y = -7.65;
+            c.scaleX = 0.285064697265625;
+            c.scaleY = 0.285064697265625;
+          },
+        ],
+        [
+          // Placement at parent frame 51 (0-based: 50), depth 13, scale ~0.193
+          50,
+          (clip, ctx) => {
+            const s8 = sprite8SymRef();
+            const c = clip.attach(s8, "sprite8_d13", 13, ctx);
+            c.x = -17.1;
+            c.y = 3.55;
+            c.scaleX = 0.193206787109375;
+            c.scaleY = 0.193206787109375;
+          },
+        ],
+        [
+          // frame_148 (0-based: 147): stop(); removeMovieClip(_parent)
+          // AS: scripts/DefineSprite_9/frame_148/DoAction.as
           147,
           (clip) => {
-            // AS DefineSprite_9/frame_148/DoAction.as: stop(); removeMovieClip(_parent)
             clip.stop();
-            clip.parent?.remove();
-            this.runtime.complete();
+            clip.remove();
+            runtimeRef().complete();
           },
         ],
       ]),
     };
 
-    this.registry.register(anim1InnerSym);
-    this.registry.register(anim1Sym);
+    // Patch in the sound callback accessor so frame scripts can call it.
+    // We use a closure over _playSound which is set in onSpellStart.
+    // Re-bind the frameScripts reference to capture the closure correctly.
+    // (The closure already captures _playSound via getPlaySound().)
+
+    this.registry.register(this.sprite8Sym);
+    this.registry.register(this.anim1Sym);
+
+    // Store a reference so onSpellStart can bind the sound callback.
+    this._playSoundSetter = (fn: (id: string) => void) => {
+      _playSound = fn;
+    };
   }
+
+  private _playSoundSetter?: (fn: (id: string) => void) => void;
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture callbacks so frameScripts can play sounds.
-    this.soundCallback = callbacks.playSound;
+    // Bind the sound callback so frameScripts can play sounds.
+    if (this._playSoundSetter) {
+      this._playSoundSetter(callbacks.playSound);
+    }
 
-    // Main timeline frame_1: attach the outer anim1 container at the root.
-    // In canonical AS the outer SWF places DefineSprite_9 (anim1) on the
-    // main timeline implicitly — we attach it explicitly here.
-    this.root.attach(
-      this.registry.resolve("anim1")!,
-      "anim1",
-      1,
-      context,
-    );
+    // Main timeline frame_1: place anim1 at root (TargetCell anchor = target cell).
+    // The harness has positioned the container at target — attach anim1 at (0,0).
+    this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

@@ -238,6 +238,127 @@ class ExtractSpriteCommand extends Command
         ];
     }
 
+    /**
+     * Re-stamp an SVG rendered from the inner sprite's native bounds with
+     * the wrapper FrameObject's matrix so the visible result matches what
+     * the canonical client draws when it `attachMovie`s the wrapper.
+     *
+     * The downstream dofasset compiler (packages/dofasset-format
+     * `buildSyntheticFrame`) parses each per-frame SVG by reading the
+     * FIRST top-level `<g>` and iterating its DIRECT children for
+     * `<use>` / `<rect>` body parts. So we must NOT introduce another
+     * `<g>` wrapper around the existing root group — that would push the
+     * `<use>` elements one level too deep and the compiler would see no
+     * body parts (invisible sprite).
+     *
+     * Strategy: compose the wrapper's PlaceObject matrix into the
+     * EXISTING root `<g transform="matrix(1, 0, 0, 1, -inner.xmin,
+     * -inner.ymin)">` that Arakne's SvgBuilder always emits, replacing
+     * its transform attribute with the composed value M_outer * M_root.
+     *
+     * Math: the Arakne `FrameObject->matrix` is the raw SWF matrix
+     * already pre-composed with `translate(inner.xmin, inner.ymin)` —
+     * see TimelineProcessor::placeNewObject which calls
+     * `$tag->matrix->translate(inner.xmin, inner.ymin)`. So
+     *
+     *     M_frame * V = M_swf * (V + inner_origin)
+     *
+     * where V is a point in viewBox-origin coords and `M_swf` is the
+     * raw placement matrix. We want our composed root transform M_root'
+     * to satisfy
+     *
+     *     M_root' * P_native = (M_swf * P_native) - wrapper_origin
+     *
+     * for raw native points P_native (which is what SvgBuilder feeds the
+     * existing root group). This collapses to
+     *
+     *     a' = M_swf.a, b' = M_swf.b, c' = M_swf.c, d' = M_swf.d
+     *     tx' = M_swf.tx_css - wrapper.xmin
+     *     ty' = M_swf.ty_css - wrapper.ymin
+     *
+     * Because the existing M_root translation is `(-inner.xmin,
+     * -inner.ymin)` and Arakne pre-composed those into M_frame's
+     * translation, we have
+     *
+     *     M_swf.tx_css = M_frame.translateX/20 - (a*inner.xmin + c*inner.ymin)
+     *     M_swf.ty_css = M_frame.translateY/20 - (b*inner.xmin + d*inner.ymin)
+     *
+     * giving the formula below.
+     */
+    private function applyWrapperTransform(
+        string $svgContent,
+        $wrapperFrameObject,
+        array $wrapperBounds,
+        array $innerBounds
+    ): string {
+        $matrix = $wrapperFrameObject->matrix;
+        $a = $matrix->scaleX;
+        $d = $matrix->scaleY;
+        $b = $matrix->rotateSkew0;
+        $c = $matrix->rotateSkew1;
+        $mtxCss = $matrix->translateX / 20;
+        $mtyCss = $matrix->translateY / 20;
+        $xminI = $innerBounds['offsetX'];
+        $yminI = $innerBounds['offsetY'];
+
+        // Recover raw SWF translation, then re-apply with native input
+        // coords (no inner-origin shift from the existing root group).
+        $swfTx = $mtxCss - ($a * $xminI + $c * $yminI);
+        $swfTy = $mtyCss - ($b * $xminI + $d * $yminI);
+
+        // Final composed root transform (canvas-coord output, then shifted
+        // to wrapper-viewBox origin).
+        $tx = $swfTx - $wrapperBounds['offsetX'];
+        $ty = $swfTy - $wrapperBounds['offsetY'];
+
+        $transform = sprintf(
+            'matrix(%s %s %s %s %s %s)',
+            $this->fmt($a), $this->fmt($b), $this->fmt($c),
+            $this->fmt($d), $this->fmt($tx), $this->fmt($ty)
+        );
+
+        $w = $wrapperBounds['width'];
+        $h = $wrapperBounds['height'];
+
+        // 1) Replace the <svg ...> opening tag's width / height / viewBox
+        //    with the wrapper's post-matrix bounds. We re-stamp the
+        //    namespace attributes (some SvgCanvas outputs strip them on
+        //    the fragment we capture) so the file is always self-contained.
+        $svgContent = preg_replace(
+            '/<svg\b[^>]*>/',
+            sprintf(
+                '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="%s" height="%s" viewBox="0 0 %s %s">',
+                $this->fmt($w),
+                $this->fmt($h),
+                $this->fmt($w),
+                $this->fmt($h)
+            ),
+            $svgContent,
+            1
+        );
+
+        // 2) Replace the FIRST `<g transform="…">` (the SvgBuilder's
+        //    inner-origin shift group) with our composed transform. The
+        //    parser reads the first non-clip-path `<g>` as the root, and
+        //    we leave its `<use>` children untouched.
+        $svgContent = preg_replace(
+            '/<g transform="[^"]*"/',
+            sprintf('<g transform="%s"', $transform),
+            $svgContent,
+            1
+        );
+
+        return $svgContent;
+    }
+
+    private function fmt(float $n): string
+    {
+        // 4-decimal precision is enough for display; trailing-zero strip
+        // keeps SVG attribute strings short.
+        $s = rtrim(rtrim(sprintf('%.4f', $n), '0'), '.');
+        return $s === '' || $s === '-' ? '0' : $s;
+    }
+
     private function extractSprites(string $swfPath, SymfonyStyle $io, bool $manifestOnly = false): array
     {
         $stats = ['processed' => 0, 'skipped' => 0, 'animations' => 0, 'frames' => 0];
@@ -282,11 +403,13 @@ class ExtractSpriteCommand extends Command
                 $animationName = (string) $name;
 
                 // Check if this is a wrapper with a single frame containing a child sprite
+                $wrapperFrameObject = null;
                 if (count($timeline->frames) === 1) {
                     $firstFrame = $timeline->frames[0];
                     foreach ($firstFrame->objects as $obj) {
                         if ($obj->object instanceof SpriteDefinition) {
                             $spriteToUse = $obj->object;
+                            $wrapperFrameObject = $obj;
                             break;
                         }
                     }
@@ -306,7 +429,29 @@ class ExtractSpriteCommand extends Command
                 $timeline = $animationTimeline;
 
                 // Sprites are vector graphics (SpriteDefinition) - export as SVG
-                $bounds = $this->calculateBounds($spriteToUse);
+                //
+                // Use the WRAPPER'S bounds (or wrapper FrameObject's
+                // already-matrix-transformed bounds) when we walked into a
+                // child sprite. The wrapper places the child via a
+                // PlaceObject transform that may scale it (Pious for example
+                // are placed at ~33% inside their wrapper, which is what
+                // makes them so small canonically). Reading the inner
+                // sprite's native `bounds()` here ignores that matrix and
+                // produces a frame that's 2-3× the canonical visible size —
+                // every monster wrapped this way ends up too big in the
+                // rendered atlas.
+                if ($wrapperFrameObject !== null) {
+                    // FrameObject->bounds is post-matrix in twips.
+                    $rect = $wrapperFrameObject->bounds;
+                    $bounds = [
+                        'width' => ($rect->xmax - $rect->xmin) / 20,
+                        'height' => ($rect->ymax - $rect->ymin) / 20,
+                        'offsetX' => $rect->xmin / 20,
+                        'offsetY' => $rect->ymin / 20,
+                    ];
+                } else {
+                    $bounds = $this->calculateBounds($spriteToUse);
+                }
 
                 $spriteData = [
                     'id' => $spriteId,
@@ -322,12 +467,18 @@ class ExtractSpriteCommand extends Command
                 ];
 
                 // Process each animation as SVG
+                $innerBounds = $wrapperFrameObject !== null
+                    ? $this->calculateBounds($spriteToUse)
+                    : null;
                 foreach ($animations as $animation) {
                     $animationData = $this->processVectorAnimation(
                         $spriteId,
                         $animation,
                         $timeline,
-                        $manifestOnly
+                        $manifestOnly,
+                        $wrapperFrameObject,
+                        $bounds,
+                        $innerBounds
                     );
 
                     if ($animationData) {
@@ -384,7 +535,7 @@ class ExtractSpriteCommand extends Command
     /**
      * Process animation as vector graphics (SVG)
      */
-    private function processVectorAnimation(int $spriteId, array $animation, DrawableInterface $timeline, bool $manifestOnly = false): ?array
+    private function processVectorAnimation(int $spriteId, array $animation, DrawableInterface $timeline, bool $manifestOnly = false, $wrapperFrameObject = null, ?array $wrapperBounds = null, ?array $innerBounds = null): ?array
     {
         $animationData = [
             'name' => $animation['name'],
@@ -403,7 +554,10 @@ class ExtractSpriteCommand extends Command
                 $timeline,
                 $animation['startFrame'],
                 $animation['endFrame'],
-                $manifestOnly
+                $manifestOnly,
+                $wrapperFrameObject,
+                $wrapperBounds,
+                $innerBounds
             );
 
             if (empty($animationData['frames'])) {
@@ -419,7 +573,7 @@ class ExtractSpriteCommand extends Command
     /**
      * Export animation frames as SVG files
      */
-    private function exportSvgFrames(int $spriteId, string $animationName, DrawableInterface $timeline, int $startFrame, int $endFrame, bool $manifestOnly = false): array
+    private function exportSvgFrames(int $spriteId, string $animationName, DrawableInterface $timeline, int $startFrame, int $endFrame, bool $manifestOnly = false, $wrapperFrameObject = null, ?array $wrapperBounds = null, ?array $innerBounds = null): array
     {
         $frames = [];
         $safeAnimName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $animationName);
@@ -446,6 +600,30 @@ class ExtractSpriteCommand extends Command
                     // Use Converter to generate SVG
                     $converter = new Converter(subpixelStrokeWidth: false);
                     $svgContent = $converter->toSvg($timeline, $i);
+
+                    // If we walked into a wrapper's child sprite, the
+                    // converter rendered the inner sprite at its native
+                    // size — but the canonical visible size is the wrapper's
+                    // post-matrix bounds (the wrapper places the child via
+                    // a PlaceObject transform that often scales it down,
+                    // which is why Pious / smaller monsters render too big
+                    // when we forget the matrix). Re-frame the SVG to the
+                    // wrapper's bounds and wrap its content in a <g> with
+                    // the inverse-translate so the child draws into the
+                    // correct viewport.
+                    if (
+                        !empty($svgContent)
+                        && $wrapperFrameObject !== null
+                        && $wrapperBounds !== null
+                        && $innerBounds !== null
+                    ) {
+                        $svgContent = $this->applyWrapperTransform(
+                            $svgContent,
+                            $wrapperFrameObject,
+                            $wrapperBounds,
+                            $innerBounds
+                        );
+                    }
 
                     if (!empty($svgContent)) {
                         file_put_contents($outputPath, $svgContent);

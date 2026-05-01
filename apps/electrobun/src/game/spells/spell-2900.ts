@@ -1,77 +1,47 @@
 /**
  * Spell 2900 — Feux d'Artifice (Fireworks).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2900/scripts/scripts/
  *
- * displayType=11 (TargetCell). The spell has no projectile motion, no caster
- * reference, no "move"/"shoot" pattern — it is a pure impact animation at the
- * target cell. The outer mc (DefineSprite_31) plays 97 frames at the target, then
- * stops; frame_319/DoAction.as calls `_parent.removeMovieClip()` which is the
- * top-level completion signal.
+ * displayType=11 (TargetCell). This spell has no projectile motion, no caster
+ * reference, and no dual-anchor pattern. The entire animation plays at the
+ * target cell. The outer DefineSprite_31 is the main container; it plays 97
+ * frames, fires two sounds, and hosts a `boule` (sprite26) child plus the
+ * `feux` firework burst on frame 76.
  *
- * Structure:
- *   DefineSprite_31 — outer container (97 frames + "boule" placeholder):
- *     frame_1:  SOMA.playSound("fireworks01"); set taille scale + rotation; compte=1.
- *     frame_70: SOMA.playSound("explo_fireworks").
- *     frame_76: spawns a "boule" child (DefineSprite_28) whose onLoad (PlaceObject2_28_3)
- *               attaches 6..26 "feux" children based on level.
- *     frame_97: stop().
+ * Library symbols:
+ *   - minifeux  (lib_minifeux)  — 36-frame spark. frame_1 sets rotation +
+ *                                 positions at boule._x/_y. frame_34 removes.
+ *                                 onLoad: alpha=150, v=random. onEnterFrame:
+ *                                 fade + drift X.
+ *   - minifeux2 (lib_minifeux2) — 36-frame spark variant. frame_1 random rotation.
+ *                                 frame_34 removes. onLoad: alpha=random, v=random.
+ *                                 onEnterFrame: fade + drift.
+ *   - minifeux3 (lib_minifeux3) — 78-frame spark. frame_1 random rotation.
+ *                                 frame_76 removes. onLoad: alpha=random, v>0.
+ *                                 onEnterFrame: parent alpha flicker, alpha fade,
+ *                                 drift with 0.85 friction.
+ *   - minifeux4 (lib_minifeux4) — 78-frame spark. frame_1 empty, frame_76 removes.
+ *                                 onLoad: angle, alpha, v, vr. onEnterFrame:
+ *                                 angle/rotation oscillation, Y drift, X/Y from v.
+ *   - feux      (lib_feux)      — 16-frame firework burst. frame_1 picks level-
+ *                                 dependent frame; carries 4 child clip-event
+ *                                 handlers on frames 2/5/8/11/14 for particles
+ *                                 that spawn minifeux2, minifeux3, minifeux4.
+ *   - sprite26  (lib_sprite26)  — 1-frame "boule" container with onClipEvent
+ *                                 load/enterFrame. Placed by the harness-equivalent
+ *                                 root sprite (DefineSprite_31) frame_1 via
+ *                                 PlaceObject2 with matrix-tween sequence.
  *
- *   lib_feux (DefineSprite_23) — firework burst, 16 frames.
- *     frame_1/DoAction: gotoAndStop(level+1) → jump to one of several sub-modes.
- *     frame_2  child (PlaceObject2_12): single-spark "bounce" that attaches minifeux2.
- *     frame_5  child (PlaceObject2_14): drift spark that removes parent.
- *     frame_8  child (PlaceObject2_12): star spark, attaches minifeux2.
- *     frame_11 child (PlaceObject2_19): star spark, attaches minifeux3 burst.
- *     frame_14 child (PlaceObject2_22): "rocket" spark, attaches minifeux4 on load,
- *               attaches minifeux3 then removes when t<90.
+ * Main timeline (DefineSprite_31):
+ *   frame_1:  SOMA.playSound("fireworks01"); set taille/scale/rotation/compte
+ *   frame_70: SOMA.playSound("explo_fireworks")
+ *   frame_76: attach boule's inner `feux` children (PlaceObject2_28_3 onClipEvent(load))
+ *   frame_97: stop() + complete
  *
- *   lib_minifeux  (DefineSprite_8) — small fire particle, 36 frames.
- *     frame_1/DoAction: random rotation; _X/_Y from _parent.boule._x/_y.
- *     frame_1 onLoad:  seed alpha=150, v=random.
- *     frame_1 onEnterFrame: alpha -=3.34; X+=v.
- *     frame_34: removeMovieClip.
- *
- *   lib_minifeux2 (DefineSprite_7) — small fire particle variant, 36 frames.
- *     frame_1/DoAction: random rotation.
- *     frame_1 onLoad:  seed alpha=random(150), v=random.
- *     frame_1 onEnterFrame: alpha -=3.34; X+=v.
- *     frame_34: removeMovieClip.
- *
- *   lib_minifeux3 (DefineSprite_6) — glitter trail particle, 78 frames.
- *     frame_1/DoAction: random rotation.
- *     frame_1 onLoad:  alpha=random(150), v=2+3*random.
- *     frame_1 onEnterFrame: parent._alpha=random(100); alpha-=1.6; X+=v*0.85.
- *     frame_76: removeMovieClip.
- *
- *   lib_minifeux4 (DefineSprite_3) — large spark, 78 frames.
- *     frame_1/DoAction: (empty — no action).
- *     frame_1 onLoad:  angle=90, alpha=random(150), v=-1.6-3.34*random, vr=-0.5+random.
- *     frame_1 onEnterFrame: rotate by angle*57.29; angle+=vr; parent._alpha=random(100);
- *                            alpha-=1.6; Y+=v*0.85; X+=v*cos(angle); Y+=v*sin(angle).
- *     frame_76: removeMovieClip.
- *
- * NOTE: The "boule" placement (PlaceObject2_28_3 onClipEvent load) lives inside
- * DefineSprite_31/frame_76.  In the SWF this is a placed instance of DefineSprite_28
- * that auto-runs an onLoad clip-event which attaches all the "feux" children.  We
- * model this as a "boule" SymbolDefinition (container, 2 frames — DefineSprite_28 has
- * frame_2 with stop()) whose onLoad runs the feux attachment loop, matching canonical
- * execution order exactly.
- *
- * The outer DefineSprite_31 has 97 frames; frame_97 → stop(). The main-timeline
- * frame_319/DoAction.as calls `_parent.removeMovieClip(); stop();` — we call
- * `this.runtime.complete()` from there.
- *
- * signalHit: fired from feux frame_14 child when t<90 (the particle burst that marks
- * the visual explosion peak), matching the "explo_fireworks" sound at frame_70 of the
- * outer container.  We use feux's onLoad for the minifeux4 spawn, and the runtime
- * signalHit once per spell from the first feux particle that reaches that threshold.
- * In practice all feux run similar logic — we guard it with a single flag on root.vars.
- *
- * Sounds:
- *   frame_1  of DefineSprite_31: "fireworks01" → played in onSpellStart.
- *   frame_70 of DefineSprite_31: "explo_fireworks" → played from frameScripts[69].
+ * signalHit is fired at frame_70 (the explosion frame) since that is the
+ * canonical impact moment.
  */
 
 import type {
@@ -86,58 +56,29 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-// ---- Bounds from manifest.json librarySymbols[] ----
-
-const MINIFEUX_BOUNDS = {
-  width: 2.45,
-  height: 2.05,
-  offsetX: 0.2,
-  offsetY: -1.2,
-};
-
-const MINIFEUX2_BOUNDS = {
-  width: 2.45,
-  height: 2.05,
-  offsetX: 0.2,
-  offsetY: -1.2,
-};
-
-const MINIFEUX3_BOUNDS = {
-  width: 2.45,
-  height: 2.05,
-  offsetX: 0.2,
-  offsetY: -1.2,
-};
-
-const MINIFEUX4_BOUNDS = {
-  width: 5.35,
-  height: 6.6,
-  offsetX: -1.25,
-  offsetY: -2.85,
-};
-
-const FEUX_BOUNDS = {
-  width: 48.25,
-  height: 53.3,
-  offsetX: -18.65,
-  offsetY: -26.75,
-};
+// ---- Bounds from manifest.librarySymbols[] ----
+const MINIFEUX_BOUNDS = { width: 2.45, height: 2.05, offsetX: 0.2, offsetY: -1.2 };
+const MINIFEUX2_BOUNDS = { width: 2.45, height: 2.05, offsetX: 0.2, offsetY: -1.2 };
+const MINIFEUX3_BOUNDS = { width: 2.45, height: 2.05, offsetX: 0.2, offsetY: -1.2 };
+const MINIFEUX4_BOUNDS = { width: 5.35, height: 6.6, offsetX: -1.25, offsetY: -2.85 };
+const FEUX_BOUNDS = { width: 48.25, height: 53.3, offsetX: -18.65, offsetY: -26.75 };
+const SPRITE26_BOUNDS = { width: 3.75, height: 3.75, offsetX: -1.4, offsetY: -1.85 };
 
 export class Spell2900 extends RuntimeSpell {
   readonly spellId = 2900;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  // Stored so we can reference them from within other symbols' scripts.
+  // Symbols that are referenced across multiple handlers — stored as
+  // instance fields so onSpellStart + frameScripts can reference them.
+  private minifeuxSym!: SymbolDefinition;
   private minifeux2Sym!: SymbolDefinition;
   private minifeux3Sym!: SymbolDefinition;
   private minifeux4Sym!: SymbolDefinition;
   private feuxSym!: SymbolDefinition;
+  private sprite26Sym!: SymbolDefinition;
 
-  // Guard so signalHit fires only once.
-  private hitFired = false;
-
-  // Captured sound callback for use from frameScripts.
-  private _playSound?: (id: string) => void;
+  // Sound callback captured in onSpellStart for use in frameScripts.
+  private playSoundFn?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
@@ -148,51 +89,50 @@ export class Spell2900 extends RuntimeSpell {
     const minifeux3Anchor = calculateAnchor(MINIFEUX3_BOUNDS);
     const minifeux4Anchor = calculateAnchor(MINIFEUX4_BOUNDS);
     const feuxAnchor = calculateAnchor(FEUX_BOUNDS);
+    const sprite26Anchor = calculateAnchor(SPRITE26_BOUNDS);
 
     // ----------------------------------------------------------------
-    // lib_minifeux — DefineSprite_8_minifeux, 36 frames
-    // Small fire particle attached by the "boule" clip event onto the
-    // outer container.  Its frame_1/DoAction positions it at boule's
-    // world coords; we approximate boule at (0,0) of the outer mc
-    // since the outer mc IS at the target cell.
+    // lib_minifeux — spark spawned from the sprite26 (boule) enterFrame
+    // AS: DefineSprite_8_minifeux
     // ----------------------------------------------------------------
-    const minifeuxSym: SymbolDefinition = {
+    this.minifeuxSym = {
       name: "minifeux",
       totalFrames: 36,
       frames: textures.getFrames("lib_minifeux"),
       anchorX: minifeuxAnchor.x,
       anchorY: minifeuxAnchor.y,
-
-      // AS: DefineSprite_8_minifeux/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as
+      // AS DefineSprite_8_minifeux/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as
       onLoad: (clip) => {
-        clip.vars.v = Math.random();
+        clip.vars.alpha_val = 150;
         clip.alpha = 150 / 100;
+        clip.vars.v = Math.random();
       },
-
-      // AS: DefineSprite_8_minifeux/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+      // AS DefineSprite_8_minifeux/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
       onEnterFrame: (clip) => {
+        let alpha_val = clip.vars.alpha_val as number;
         const v = clip.vars.v as number;
-        clip.alpha = clip.alpha - 3.34 / 100;
+        alpha_val -= 3.34;
+        clip.vars.alpha_val = alpha_val;
+        clip.alpha = Math.max(0, alpha_val) / 100;
         clip.x += v;
-        clip.vars.v = v;
       },
-
       frameScripts: new Map([
         [
-          // AS: DefineSprite_8_minifeux/frame_1/DoAction.as
-          // _rotation = random(360);
-          // _X = _parent.boule._x;  (boule is at 0,0 of parent — outer mc at target)
-          // _Y = _parent.boule._y;
+          // AS DefineSprite_8_minifeux/frame_1/DoAction.as
+          // _rotation = random(360); _X = _parent.boule._x; _Y = _parent.boule._y
+          // (position is applied at attach time from the spawner; rotation here)
           0,
           (clip) => {
             clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
-            // boule sits at the outer mc origin (0,0) — already the default.
-            clip.x = 0;
-            clip.y = 0;
+            // Position at boule's location — walk up: clip.parent is root (the outer mc).
+            // The boule child is at depth 1 named "boule" on the root's parent (DefineSprite_31).
+            // In the AS, _parent is DefineSprite_31 so _parent.boule is the boule instance.
+            // Our attachment happens from the sprite26 enterFrame which already sets x/y on
+            // the spawned minifeux — so we only need to apply the rotation here.
           },
         ],
         [
-          // AS: DefineSprite_8_minifeux/frame_34/DoAction.as — this.removeMovieClip()
+          // AS DefineSprite_8_minifeux/frame_34/DoAction.as: this.removeMovieClip()
           33,
           (clip) => {
             clip.remove();
@@ -202,8 +142,8 @@ export class Spell2900 extends RuntimeSpell {
     };
 
     // ----------------------------------------------------------------
-    // lib_minifeux2 — DefineSprite_7_minifeux2, 36 frames
-    // Spawned by feux (frame_8 child onEnterFrame) onto the outer mc.
+    // lib_minifeux2 — spark spawned from feux frame_8 particle
+    // AS: DefineSprite_7_minifeux2
     // ----------------------------------------------------------------
     this.minifeux2Sym = {
       name: "minifeux2",
@@ -211,31 +151,32 @@ export class Spell2900 extends RuntimeSpell {
       frames: textures.getFrames("lib_minifeux2"),
       anchorX: minifeux2Anchor.x,
       anchorY: minifeux2Anchor.y,
-
-      // AS: DefineSprite_7_minifeux2/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as
+      // AS DefineSprite_7_minifeux2/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as
       onLoad: (clip) => {
+        const alpha_init = Math.floor(Math.random() * 150);
+        clip.vars.alpha_val = alpha_init;
+        clip.alpha = Math.max(0, alpha_init) / 100;
         clip.vars.v = Math.random();
-        clip.alpha = Math.floor(Math.random() * 150) / 100;
       },
-
-      // AS: DefineSprite_7_minifeux2/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+      // AS DefineSprite_7_minifeux2/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
       onEnterFrame: (clip) => {
+        let alpha_val = clip.vars.alpha_val as number;
         const v = clip.vars.v as number;
-        clip.alpha = clip.alpha - 3.34 / 100;
+        alpha_val -= 3.34;
+        clip.vars.alpha_val = alpha_val;
+        clip.alpha = Math.max(0, alpha_val) / 100;
         clip.x += v;
-        clip.vars.v = v;
       },
-
       frameScripts: new Map([
         [
-          // AS: DefineSprite_7_minifeux2/frame_1/DoAction.as — _rotation = random(360)
+          // AS DefineSprite_7_minifeux2/frame_1/DoAction.as: _rotation = random(360)
           0,
           (clip) => {
             clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
           },
         ],
         [
-          // AS: DefineSprite_7_minifeux2/frame_34/DoAction.as — this.removeMovieClip()
+          // AS DefineSprite_7_minifeux2/frame_34/DoAction.as: this.removeMovieClip()
           33,
           (clip) => {
             clip.remove();
@@ -245,9 +186,8 @@ export class Spell2900 extends RuntimeSpell {
     };
 
     // ----------------------------------------------------------------
-    // lib_minifeux3 — DefineSprite_6_minifeux3, 78 frames
-    // Glitter trail particle, spawned by feux frame_11 and frame_14
-    // children when they reach their burst threshold.
+    // lib_minifeux3 — spark spawned from feux frame_11 and frame_14 particles
+    // AS: DefineSprite_6_minifeux3
     // ----------------------------------------------------------------
     this.minifeux3Sym = {
       name: "minifeux3",
@@ -255,36 +195,38 @@ export class Spell2900 extends RuntimeSpell {
       frames: textures.getFrames("lib_minifeux3"),
       anchorX: minifeux3Anchor.x,
       anchorY: minifeux3Anchor.y,
-
-      // AS: DefineSprite_6_minifeux3/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as
+      // AS DefineSprite_6_minifeux3/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as
       onLoad: (clip) => {
+        const alpha_init = Math.floor(Math.random() * 150);
+        clip.vars.alpha_val = alpha_init;
+        clip.alpha = Math.max(0, alpha_init) / 100;
         clip.vars.v = 2 + 3 * Math.random();
-        clip.alpha = Math.floor(Math.random() * 150) / 100;
       },
-
-      // AS: DefineSprite_6_minifeux3/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+      // AS DefineSprite_6_minifeux3/frame_1/PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
       onEnterFrame: (clip) => {
+        let alpha_val = clip.vars.alpha_val as number;
         let v = clip.vars.v as number;
-        // _parent._alpha = random(100) — clip's parent alpha is random each frame.
+        // _parent._alpha = random(100)
         if (clip.parent) {
           clip.parent.alpha = Math.floor(Math.random() * 100) / 100;
         }
-        clip.alpha = clip.alpha - 1.6 / 100;
+        alpha_val -= 1.6;
+        clip.vars.alpha_val = alpha_val;
+        clip.alpha = Math.max(0, alpha_val) / 100;
         v *= 0.85;
-        clip.x += v;
         clip.vars.v = v;
+        clip.x += v;
       },
-
       frameScripts: new Map([
         [
-          // AS: DefineSprite_6_minifeux3/frame_1/DoAction.as — _rotation = random(360)
+          // AS DefineSprite_6_minifeux3/frame_1/DoAction.as: _rotation = random(360)
           0,
           (clip) => {
             clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
           },
         ],
         [
-          // AS: DefineSprite_6_minifeux3/frame_76/DoAction.as — this.removeMovieClip()
+          // AS DefineSprite_6_minifeux3/frame_76/DoAction.as: this.removeMovieClip()
           75,
           (clip) => {
             clip.remove();
@@ -294,8 +236,8 @@ export class Spell2900 extends RuntimeSpell {
     };
 
     // ----------------------------------------------------------------
-    // lib_minifeux4 — DefineSprite_3_minifeux4, 78 frames
-    // Large spark; spawned by feux frame_14 child's onLoad.
+    // lib_minifeux4 — spark spawned from feux frame_14 particle onLoad
+    // AS: DefineSprite_3_minifeux4
     // ----------------------------------------------------------------
     this.minifeux4Sym = {
       name: "minifeux4",
@@ -303,58 +245,59 @@ export class Spell2900 extends RuntimeSpell {
       frames: textures.getFrames("lib_minifeux4"),
       anchorX: minifeux4Anchor.x,
       anchorY: minifeux4Anchor.y,
-
-      // AS: DefineSprite_3_minifeux4/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
+      // AS DefineSprite_3_minifeux4/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(load).as
       onLoad: (clip) => {
         clip.vars.angle = 90;
-        clip.alpha = Math.floor(Math.random() * 150) / 100;
+        const alpha_init = Math.floor(Math.random() * 150);
+        clip.vars.alpha_val = alpha_init;
+        clip.alpha = Math.max(0, alpha_init) / 100;
         clip.vars.v = -1.6 - 3.34 * Math.random();
         clip.vars.vr = -0.5 + Math.random();
       },
-
-      // AS: DefineSprite_3_minifeux4/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+      // AS DefineSprite_3_minifeux4/frame_1/PlaceObject2_2_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
       onEnterFrame: (clip) => {
         let angle = clip.vars.angle as number;
-        let v = clip.vars.v as number;
         const vr = clip.vars.vr as number;
+        let v = clip.vars.v as number;
+        let alpha_val = clip.vars.alpha_val as number;
 
-        // _rotation = angle * 57.29746936176985  (angle in radians → degrees, then display)
-        // SpellClip uses radians; angle here IS in radians (starts at 90 radians in AS,
-        // multiplied by 57.29... = degrees). We store angle in radians and set rotation directly.
-        clip.rotation = angle * 57.29746936176985 * (Math.PI / 180);
+        // _rotation = angle * 57.29746936176985 (convert radians to degrees, but
+        // angle is already effectively tracking radians via the oscillation)
+        // The AS multiplies by ~57.3 (degrees/radian) and then assigns to _rotation
+        // (which is in degrees in Flash). Net effect: clip rotation = angle (already radians-like).
+        clip.rotation = angle; // angle value tracks radians-equivalent units
+
         angle += vr;
+        clip.vars.angle = angle;
 
         // _parent._alpha = random(100)
         if (clip.parent) {
           clip.parent.alpha = Math.floor(Math.random() * 100) / 100;
         }
-        // _alpha -= 1.6
-        clip.alpha = clip.alpha - 1.6 / 100;
 
-        // _Y += v * 0.85
+        alpha_val -= 1.6;
+        clip.vars.alpha_val = alpha_val;
+        clip.alpha = Math.max(0, alpha_val) / 100;
+
         v *= 0.85;
+        clip.vars.v = v;
         clip.y += v;
 
-        // vx = v*cos(angle); vy = v*sin(angle)
         const vx = v * Math.cos(angle);
         const vy = v * Math.sin(angle);
         clip.x += vx;
         clip.y += vy;
-
-        clip.vars.angle = angle;
-        clip.vars.v = v;
       },
-
       frameScripts: new Map([
         [
-          // AS: DefineSprite_3_minifeux4/frame_1/DoAction.as — (empty)
+          // AS DefineSprite_3_minifeux4/frame_1/DoAction.as — empty
           0,
           (_clip) => {
-            // no-op: canonical DoAction is empty
+            // intentionally empty — canonical frame_1/DoAction.as is empty
           },
         ],
         [
-          // AS: DefineSprite_3_minifeux4/frame_76/DoAction.as — this.removeMovieClip()
+          // AS DefineSprite_3_minifeux4/frame_76/DoAction.as: this.removeMovieClip()
           75,
           (clip) => {
             clip.remove();
@@ -364,459 +307,139 @@ export class Spell2900 extends RuntimeSpell {
     };
 
     // ----------------------------------------------------------------
-    // lib_feux — DefineSprite_23_feux, 16 frames
-    //
-    // This is the main firework burst symbol.  Its frame_1 jumps to
-    // level+1 so each feux instance behaves differently based on spell
-    // level (frames 2, 3, 4, 5, or 6 = levels 1-5; frame_2 at
-    // level=1, etc.).  At each frame a different inner clip (child
-    // placed via PlaceObject2) runs its own onLoad + onEnterFrame.
-    //
-    // We model the canonical inner clips as per-frame onLoad/onEnterFrame
-    // stored on clip.vars keyed per frame, selected once we know which
-    // sub-frame was chosen.  Because SpellClip does not support
-    // per-frame clip placements, we use frameScripts to install the
-    // appropriate onEnterFrame handler when the feux clip lands on its
-    // chosen frame (via gotoAndStop in frame_1).
-    //
-    // We also handle the signalHit here (frame_14 child's explosion
-    // threshold, which is the biggest visual event).
+    // lib_feux — 16-frame firework composite burst
+    // AS: DefineSprite_23_feux
+    // Contains 5 sub-particle handlers placed at frames 1,2,5,8,11,14
+    // (0-indexed: 1,4,7,10,13). frame_1/DoAction: gotoAndStop(level+1).
     // ----------------------------------------------------------------
-    const self = this;
-
     this.feuxSym = {
       name: "feux",
       totalFrames: 16,
       frames: textures.getFrames("lib_feux"),
       anchorX: feuxAnchor.x,
       anchorY: feuxAnchor.y,
-
       frameScripts: new Map([
         [
-          // AS: DefineSprite_23_feux/frame_1/DoAction.as
+          // AS DefineSprite_23_feux/frame_1/DoAction.as
           // gotoAndStop(_parent._parent._parent.level + 1)
-          // feux is attached inside the boule clip, which is inside DefineSprite_31,
-          // which is attached to the root.  So _parent._parent._parent = root.
-          // We walk: clip (feux) → boule → outer_mc (DefineSprite_31) → root
+          // parent chain: inner clip → feux → sprite26 (boule container) → DefineSprite_31 → root
           0,
-          (clip) => {
-            const root = clip.parent?.parent?.parent ?? clip.parent?.parent;
-            const level = (root?.vars.level as number) ?? 1;
-            // AS: gotoAndStop(level + 1) — 1-based, so frame index = level
-            clip.gotoAndStop(level);
-
-            // Install the appropriate inner-clip behaviour based on the
-            // chosen frame.  In canonical AS each frame places a different
-            // PlaceObject2 child; we replicate by setting up onLoad vars
-            // and swapping the onEnterFrame handler on the clip itself.
-            // We call the _init_ side immediately (mirrors onClipEvent(load))
-            // and set an onEnterFrame for the per-frame particle logic.
-            const chosenFrame = clip.currentFrame; // 0-based = level
-
-            if (chosenFrame === 1) {
-              // frame_2: PlaceObject2_12 child — bounce spark, attaches minifeux2
-              // AS: DefineSprite_23_feux/frame_2/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(load).as
-              clip.vars.ef2_parentRotation = Math.floor(Math.random() * 360);
-              if (clip.parent) {
-                clip.parent.rotation = (clip.vars.ef2_parentRotation as number * Math.PI) / 180;
-              }
-              clip.vars.ef2_g = 1 * Math.random();
-              clip.vars.ef2_va = 0;
-              clip.vars.ef2_t = 100 + Math.floor(Math.random() * 100);
-              const t2 = clip.vars.ef2_t as number;
-              clip.scaleX = t2 / 100;
-              clip.scaleY = t2 / 100;
-              clip.vars.ef2_X = 10 + Math.floor(Math.random() * 20);
-              clip.x = clip.vars.ef2_X as number;
-              clip.vars.ef2_d = 100 - Math.floor(Math.random() * 70);
-              clip.vars.ef2_acc = 3.34 + Math.random() * 5;
-              clip.vars.ef2_vacc = 1 + 1 * Math.random();
-
-              clip.onEnterFrame = (c) => {
-                // AS: DefineSprite_23_feux/frame_2/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-                const g = c.vars.ef2_g as number;
-                let va = c.vars.ef2_va as number;
-                const vacc = c.vars.ef2_vacc as number;
-                const acc = c.vars.ef2_acc as number;
-                const d = c.vars.ef2_d as number;
-
-                c.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
-                const newT = 20 + Math.floor(Math.random() * 80);
-                c.scaleX = newT / 100;
-                c.scaleY = newT / 100;
-                // _parent._y += g
-                if (c.parent) {
-                  c.parent.y += g;
-                }
-                va += vacc;
-                c.alpha = (150 - va) / 100;
-                // _X -= (_X - d) / acc
-                const curX = c.x;
-                c.x = curX - (curX - d) / acc;
-                c.vars.ef2_va = va;
-                if (c.alpha < 0) {
-                  if (c.parent) {
-                    c.parent.remove();
-                  }
-                }
-              };
-            } else if (chosenFrame === 4) {
-              // frame_5: PlaceObject2_14 child — drift spark, removes parent when t<0
-              // AS: DefineSprite_23_feux/frame_5/PlaceObject2_14_1/CLIPACTIONRECORD onClipEvent(load).as
-              if (clip.parent) {
-                clip.parent.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
-              }
-              clip.vars.ef5_g = 0.6 * Math.random();
-              clip.vars.ef5_t = 200 + Math.floor(Math.random() * 100);
-              const t5 = clip.vars.ef5_t as number;
-              clip.scaleX = t5 / 100;
-              clip.scaleY = t5 / 100;
-              clip.vars.ef5_X = 10 + Math.floor(Math.random() * 20);
-              clip.x = clip.vars.ef5_X as number;
-              clip.vars.ef5_d = 100 - Math.floor(Math.random() * 70);
-              clip.vars.ef5_acc = 1.67 + Math.random() * 5;
-
-              clip.onEnterFrame = (c) => {
-                // AS: DefineSprite_23_feux/frame_5/PlaceObject2_14_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-                let t = c.vars.ef5_t as number;
-                const g = c.vars.ef5_g as number;
-                const acc = c.vars.ef5_acc as number;
-                const d = c.vars.ef5_d as number;
-
-                // _rotation += t/6
-                c.rotation += ((t / 6) * Math.PI) / 180;
-                t--;
-                c.scaleX = t / 3 / 100;
-                c.scaleY = t / 3 / 100;
-                if (c.parent) {
-                  c.parent.y += g;
-                }
-                const curX = c.x;
-                c.x = curX - (curX - d) / acc;
-                c.vars.ef5_t = t;
-                if (t < 0) {
-                  if (c.parent) {
-                    c.parent.remove();
-                  }
-                }
-              };
-            } else if (chosenFrame === 7) {
-              // frame_8: PlaceObject2_12 child — star spark, attaches minifeux2
-              // AS: DefineSprite_23_feux/frame_8/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(load).as
-              clip.vars.ef8_g = 0.67 * Math.random();
-              clip.vars.ef8_t = 100 + Math.floor(Math.random() * 100);
-              const t8 = clip.vars.ef8_t as number;
-              clip.scaleX = t8 / 100;
-              clip.scaleY = t8 / 100;
-              clip.vars.ef8_vx = 10 * (-0.5 + Math.random());
-              clip.vars.ef8_vy = 10 * (-0.5 + Math.random());
-              clip.vars.ef8_accx = 0.8 + 0.1 * Math.random();
-              clip.vars.ef8_accy = 0.8 + 0.1 * Math.random();
-              clip.vars.ef8_c = 0;
-              clip.vars.ef8_compte = Math.floor(Math.random() * 200000);
-
-              clip.onEnterFrame = (c, ctx) => {
-                // AS: DefineSprite_23_feux/frame_8/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-                let t = c.vars.ef8_t as number;
-                const g = c.vars.ef8_g as number;
-                let vx = c.vars.ef8_vx as number;
-                let vy = c.vars.ef8_vy as number;
-                const accx = c.vars.ef8_accx as number;
-                const accy = c.vars.ef8_accy as number;
-                let cc = c.vars.ef8_c as number;
-                let compte = c.vars.ef8_compte as number;
-
-                if (Math.floor(Math.random() * 15) === 1) {
-                  // _parent._parent.attachMovie("minifeux2","minifeux2"+compte,compte)
-                  // _parent is feux clip, _parent._parent is boule, _parent._parent._parent is outer mc
-                  const outerMc = c.parent?.parent?.parent;
-                  if (outerMc) {
-                    const m2 = outerMc.attach(
-                      self.minifeux2Sym,
-                      `minifeux2_${compte}`,
-                      compte,
-                      ctx,
-                    );
-                    m2.x = c.x;
-                    m2.y = c.y + (c.parent ? c.parent.y : 0);
-                    m2.alpha = Math.max(0, (100 - cc) / 100);
-                    cc++;
-                  }
-                  compte = Math.floor(Math.random() * 200000);
-                }
-
-                // _rotation += t/3
-                c.rotation += ((t / 3) * Math.PI) / 180;
-                t--;
-                c.scaleX = t / 3 / 100;
-                c.scaleY = t / 3 / 100;
-                if (c.parent) {
-                  c.parent.y += g;
-                }
-                vx *= accx;
-                vy *= accy;
-                c.x += vx;
-                c.y += vy;
-
-                c.vars.ef8_t = t;
-                c.vars.ef8_vx = vx;
-                c.vars.ef8_vy = vy;
-                c.vars.ef8_c = cc;
-                c.vars.ef8_compte = compte;
-
-                if (t < 0) {
-                  if (c.parent) {
-                    c.parent.remove();
-                  }
-                }
-              };
-            } else if (chosenFrame === 10) {
-              // frame_11: PlaceObject2_19 child — star spark, attaches minifeux3 burst
-              // AS: DefineSprite_23_feux/frame_11/PlaceObject2_19_1/CLIPACTIONRECORD onClipEvent(load).as
-              clip.stop();
-              clip.vars.ef11_g = 0.67 * Math.random();
-              clip.vars.ef11_t = 100 + Math.floor(Math.random() * 100);
-              const t11 = clip.vars.ef11_t as number;
-              clip.scaleX = t11 / 100;
-              clip.scaleY = t11 / 100;
-              clip.vars.ef11_X = -10 + Math.floor(Math.random() * 20);
-              clip.x = clip.vars.ef11_X as number;
-              clip.vars.ef11_vx = 20 * (-0.5 + Math.random());
-              clip.vars.ef11_vy = 20 * (-0.5 + Math.random());
-              clip.vars.ef11_accx = 0.8 + 0.1 * Math.random();
-              clip.vars.ef11_accy = 0.8 + 0.1 * Math.random();
-              clip.vars.ef11_c = 0;
-
-              clip.onEnterFrame = (c, ctx) => {
-                // AS: DefineSprite_23_feux/frame_11/PlaceObject2_19_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-                let t = c.vars.ef11_t as number;
-                const g = c.vars.ef11_g as number;
-                let vx = c.vars.ef11_vx as number;
-                let vy = c.vars.ef11_vy as number;
-                const accx = c.vars.ef11_accx as number;
-                const accy = c.vars.ef11_accy as number;
-                let cc = c.vars.ef11_c as number;
-
-                if (t < 150) {
-                  c.play();
-                }
-                if (t < 135) {
-                  // spawn minifeux3 burst (nbr 1..9) onto outer mc
-                  const outerMc = c.parent?.parent?.parent;
-                  if (outerMc) {
-                    for (let nbr = 1; nbr < 10; nbr++) {
-                      const compte = Math.floor(Math.random() * 200000);
-                      const m3 = outerMc.attach(
-                        self.minifeux3Sym,
-                        `minifeux3_${compte}`,
-                        compte,
-                        ctx,
-                      );
-                      m3.x = c.x;
-                      m3.y = c.y + (c.parent ? c.parent.y : 0);
-                      m3.alpha = Math.max(0, (100 - cc) / 100);
-                      cc++;
-                    }
-                  }
-                  if (c.parent) {
-                    c.parent.remove();
-                  }
-                  // Signal hit once on first big burst
-                  if (!self.hitFired) {
-                    self.hitFired = true;
-                    self.runtime.signalHit();
-                  }
-                  return;
-                }
-
-                // _rotation += t/3
-                c.rotation += ((t / 3) * Math.PI) / 180;
-                t--;
-                c.scaleX = t / 3 / 100;
-                c.scaleY = t / 3 / 100;
-                if (c.parent) {
-                  c.parent.y += g;
-                }
-                vx *= accx;
-                vy *= accy;
-                c.x += vx;
-                c.y += vy;
-
-                c.vars.ef11_t = t;
-                c.vars.ef11_vx = vx;
-                c.vars.ef11_vy = vy;
-                c.vars.ef11_c = cc;
-              };
-            } else if (chosenFrame === 13) {
-              // frame_14: PlaceObject2_22 child — rocket spark
-              // AS: DefineSprite_23_feux/frame_14/PlaceObject2_22_1/CLIPACTIONRECORD onClipEvent(load).as
-              // First: spawn 1 minifeux4 at current position onto outer mc
-              // (nbr loop runs while nbr < 2, so exactly once)
-              const outerMc = clip.parent?.parent?.parent;
-              if (outerMc) {
-                const compte = Math.floor(Math.random() * 200000);
-                const m4 = outerMc.attach(
-                  self.minifeux4Sym,
-                  `minifeux4_${compte}`,
-                  compte,
-                  _context,
-                );
-                m4.x = clip.x;
-                m4.y = clip.y + (clip.parent ? clip.parent.y : 0);
-              }
-
-              clip.vars.ef14_angle = -1.1415 + 0.2 * (-0.5 + Math.random());
-              clip.vars.ef14_vit = 6 + 10 * Math.random();
-              clip.stop();
-              clip.vars.ef14_frein = 0.9 + 0.05 * Math.random();
-              clip.vars.ef14_vr = 0;
-              clip.vars.ef14_sz = 240 + Math.floor(Math.random() * 120);
-              clip.vars.ef14_frangle = 1.2;
-              clip.vars.ef14_c = 0;
-
-              clip.onEnterFrame = (c, ctx) => {
-                // AS: DefineSprite_23_feux/frame_14/PlaceObject2_22_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
-                let angle = c.vars.ef14_angle as number;
-                let vit = c.vars.ef14_vit as number;
-                const frein = c.vars.ef14_frein as number;
-                let vr = c.vars.ef14_vr as number;
-                let sz = c.vars.ef14_sz as number;
-                let frangle = c.vars.ef14_frangle as number;
-                let cc = c.vars.ef14_c as number;
-
-                c.rotation = angle * 57.29746936176985 * (Math.PI / 180);
-                c.alpha = (50 + Math.floor(Math.random() * 60)) / 100;
-                sz *= frein + 0.02;
-                c.scaleX = sz / 100;
-                c.scaleY = sz / 100;
-
-                if (Math.floor(Math.random() * 16) === 1) {
-                  vr = 1 * (-0.5 + Math.random());
-                }
-                frangle *= frein;
-                angle += vr * frangle;
-
-                const vx = vit * Math.cos(angle);
-                const vy = vit * Math.sin(angle);
-                c.x += vx;
-                c.y += vy;
-                vit *= frein;
-
-                c.vars.ef14_angle = angle;
-                c.vars.ef14_vit = vit;
-                c.vars.ef14_vr = vr;
-                c.vars.ef14_sz = sz;
-                c.vars.ef14_frangle = frangle;
-                c.vars.ef14_c = cc;
-
-                // NOTE: in canonical AS, `t` here refers to some outer variable
-                // (likely the feux parent's t counter).  We skip the play/removal
-                // check since there is no `t` seeded on this variant's load;
-                // the canonical t in frame_14 context appears to come from a
-                // different scope.  We instead use sz decay as the natural end:
-                if (sz < 5) {
-                  // spawn minifeux3 burst
-                  const outerMc2 = c.parent?.parent?.parent;
-                  if (outerMc2) {
-                    for (let nbr = 1; nbr < 10; nbr++) {
-                      const compte = Math.floor(Math.random() * 200000);
-                      const m3 = outerMc2.attach(
-                        self.minifeux3Sym,
-                        `minifeux3_${compte}`,
-                        compte,
-                        ctx,
-                      );
-                      m3.x = c.x;
-                      m3.y = c.y + (c.parent ? c.parent.y : 0);
-                      m3.alpha = Math.max(0, (100 - cc) / 100);
-                      cc++;
-                      c.vars.ef14_c = cc;
-                    }
-                  }
-                  if (c.parent) {
-                    c.parent.remove();
-                  }
-                  if (!self.hitFired) {
-                    self.hitFired = true;
-                    self.runtime.signalHit();
-                  }
-                }
-              };
-            } else {
-              // frame_3 / frame_4 / frame_6 etc. — use frame_5 variant as fallback
-              // (canonical AS only defines handlers for frames 2,5,8,11,14 —
-              // other frames are empty timeline content)
-              // No onEnterFrame — just let the clip play its authored frames.
-            }
+          (clip, ctx) => {
+            // Walk up to find level: clip.parent is the sprite26-derived clip,
+            // whose parent is the DefineSprite_31 clip, whose parent is root.
+            const level = ctx.level;
+            clip.gotoAndStop(level + 1); // AS gotoAndStop(level+1) → 0-based: (level+1)-1 = level
+          },
+        ],
+        [
+          // AS DefineSprite_23_feux/frame_2/PlaceObject2_12_1 onClipEvent(load)
+          // Fires when playhead reaches frame_2 (index 1)
+          1,
+          (clip, ctx) => {
+            // Attach the "frame_2 particle" — a generic firework shape using the inner
+            // sprite's clip events. We model it as an anonymous container whose onLoad
+            // and onEnterFrame implement the frame_2 particle physics.
+            const sym = buildFeux_Frame2_ParticleSym();
+            clip.attach(sym, "p_frame2_1", 12, ctx);
+          },
+        ],
+        [
+          // AS DefineSprite_23_feux/frame_5/PlaceObject2_14_1 onClipEvent(load)
+          // Fires when playhead reaches frame_5 (index 4)
+          4,
+          (clip, ctx) => {
+            const sym = buildFeux_Frame5_ParticleSym();
+            clip.attach(sym, "p_frame5_1", 14, ctx);
+          },
+        ],
+        [
+          // AS DefineSprite_23_feux/frame_8/PlaceObject2_12_1 onClipEvent(load)
+          // Fires when playhead reaches frame_8 (index 7)
+          7,
+          (clip, ctx) => {
+            const sym = buildFeux_Frame8_ParticleSym(this.minifeux2Sym);
+            clip.attach(sym, "p_frame8_1", 12, ctx);
+          },
+        ],
+        [
+          // AS DefineSprite_23_feux/frame_11/PlaceObject2_19_1 onClipEvent(load)
+          // Fires when playhead reaches frame_11 (index 10)
+          10,
+          (clip, ctx) => {
+            const sym = buildFeux_Frame11_ParticleSym(this.minifeux3Sym);
+            clip.attach(sym, "p_frame11_1", 19, ctx);
+          },
+        ],
+        [
+          // AS DefineSprite_23_feux/frame_14/PlaceObject2_22_1 onClipEvent(load)
+          // Fires when playhead reaches frame_14 (index 13)
+          13,
+          (clip, ctx) => {
+            const sym = buildFeux_Frame14_ParticleSym(this.minifeux3Sym, this.minifeux4Sym);
+            clip.attach(sym, "p_frame14_1", 22, ctx);
           },
         ],
       ]),
     };
 
     // ----------------------------------------------------------------
-    // "boule" — models DefineSprite_28 (frame_2 has stop()).
-    // In canonical SWF, this is placed on DefineSprite_31's timeline at
-    // frame_76 via PlaceObject2_28_3, whose onClipEvent(load) attaches
-    // 6..26 feux children based on level.  We capture that logic in
-    // the onLoad here.
+    // lib_sprite26 — the "boule" container (the rising streak / trail).
+    // AS: DefineSprite_26
+    // directlyDynamic: true — has its own CLIPACTIONRECORD handlers.
+    // Placed at depth 1 of DefineSprite_31 frame_1 via PlaceObject2 with
+    // an extensive matrix-tween sequence (frames 0..72 in placements[]).
     // ----------------------------------------------------------------
-    const bouleSym: SymbolDefinition = {
-      name: "boule",
-      totalFrames: 2,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-
-      // AS: DefineSprite_31/frame_76/PlaceObject2_28_3/CLIPACTIONRECORD onClipEvent(load).as
-      onLoad: (clip, ctx) => {
-        // sz = 60 + 20 * ((level-1) % 3)
-        const outerMc = clip.parent;
-        const level = (outerMc?.vars.level as number) ?? 1;
-        const sz = 60 + 20 * ((level - 1) % 3);
-        clip.scaleX = sz / 100;
-        clip.scaleY = sz / 100;
-
-        // i = 1; while (i < 6 + 7 * ((level-1) % 3)) { attachMovie("feux","feux"+i,i); i++ }
-        const feuxCount = 6 + 7 * ((level - 1) % 3);
-        for (let i = 1; i < feuxCount; i++) {
-          clip.attach(self.feuxSym, `feux${i}`, i, ctx);
+    this.sprite26Sym = {
+      name: "sprite26",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_sprite26"),
+      anchorX: sprite26Anchor.x,
+      anchorY: sprite26Anchor.y,
+      // AS DefineSprite_26/frame_1/PlaceObject2_25_1/CLIPACTIONRECORD onClipEvent(load).as
+      onLoad: (clip) => {
+        clip.vars.c = 1;
+      },
+      // AS DefineSprite_26/frame_1/PlaceObject2_25_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+      onEnterFrame: (clip, ctx) => {
+        if (Math.floor(Math.random() * 2) === 1) {
+          // _rotation = _rotation + 100
+          clip.rotation += (100 * Math.PI) / 180;
+          // _parent._parent.attachMovie("minifeux","minifeux"+c,c)
+          // _parent is DefineSprite_31 clip, _parent._parent is root (which is at
+          // target cell for displayType 11). We attach onto the DefineSprite_31 clip.
+          const outerMc = clip.parent;
+          if (outerMc) {
+            let c = clip.vars.c as number;
+            const mf = outerMc.attach(this.minifeuxSym, "minifeux" + c, c, ctx);
+            // Position at boule's current position
+            mf.x = clip.x;
+            mf.y = clip.y;
+            c++;
+            clip.vars.c = c;
+          }
         }
       },
-
-      frameScripts: new Map([
-        [
-          // AS: DefineSprite_28/frame_2/DoAction.as — stop()
-          1,
-          (clip) => {
-            clip.stop();
-          },
-        ],
-      ]),
     };
 
     // ----------------------------------------------------------------
-    // outer_mc — models DefineSprite_31 (97 frames).
-    // This is the top-level animated container for the whole firework.
-    // It is attached to root in onSpellStart.
-    // frame_1  DoAction: SOMA.playSound("fireworks01") — handled in onSpellStart.
-    //          DoAction_2: taille scale/rotation/compte init.
-    // frame_70 DoAction: SOMA.playSound("explo_fireworks").
-    // frame_76 PlaceObject2_28_3: places "boule" with onLoad (modelled above).
-    // frame_97 DoAction: stop().
+    // DefineSprite_31 — outer container (the whole spell wrapper).
+    // This is the "main" animated sprite. We model it as a symbol so
+    // we can attach it from onSpellStart and drive its 97-frame timeline.
     // ----------------------------------------------------------------
     const outerMcSym: SymbolDefinition = {
-      name: "outer_mc",
+      name: "outerMc",
       totalFrames: 97,
       frames: [],
       anchorX: 0.5,
       anchorY: 0.5,
-
       frameScripts: new Map([
         [
-          // AS: DefineSprite_31/frame_1/DoAction_2.as
-          // taille = 80 + random(40); scale + rotate; compte = 1
+          // AS DefineSprite_31/frame_1/DoAction.as + DoAction_2.as
+          // SOMA.playSound already called in onSpellStart; here we do the
+          // visual init: taille, scale, rotation, compte.
           0,
           (clip) => {
+            // AS: taille = 80 + random(40); _xscale/_yscale = taille; _rotation = -20+random(40)
             const taille = 80 + Math.floor(Math.random() * 40);
             clip.scaleX = taille / 100;
             clip.scaleY = taille / 100;
@@ -825,99 +448,566 @@ export class Spell2900 extends RuntimeSpell {
           },
         ],
         [
-          // AS: DefineSprite_31/frame_70/DoAction.as — SOMA.playSound("explo_fireworks")
+          // AS DefineSprite_31/frame_70/DoAction.as: SOMA.playSound("explo_fireworks")
           69,
           (_clip) => {
-            self._playSound?.("explo_fireworks");
+            this.playSoundFn?.("explo_fireworks");
+            this.runtime.signalHit();
           },
         ],
         [
-          // AS: DefineSprite_31/frame_76 — place "boule" (PlaceObject2_28_3 onLoad fires feux spawns)
+          // AS DefineSprite_31/frame_76/PlaceObject2_28_3/CLIPACTIONRECORD onClipEvent(load).as
+          // sz = 60 + 20*((level-1)%3); scale; loop i<6+7*((level-1)%3) attaching feux
           75,
           (clip, ctx) => {
-            clip.attach(bouleSym, "boule", 3, ctx);
+            const level = ctx.level;
+            const sz = 60 + 20 * ((level - 1) % 3);
+            clip.scaleX = sz / 100;
+            clip.scaleY = sz / 100;
+            const count = 6 + 7 * ((level - 1) % 3);
+            for (let i = 1; i < count; i++) {
+              clip.attach(this.feuxSym, "feux" + i, i, ctx);
+            }
           },
         ],
         [
-          // AS: DefineSprite_31/frame_97/DoAction.as — stop()
+          // AS DefineSprite_31/frame_97/DoAction.as: stop()
           96,
           (clip) => {
             clip.stop();
+            this.runtime.complete();
           },
         ],
       ]),
     };
 
-    // ----------------------------------------------------------------
-    // Main-timeline frame_319/DoAction.as:
-    //   _parent.removeMovieClip(); stop();
-    // The main timeline has 319 frames; at frame_319 the outer mc is
-    // removed.  We model this on the root's onEnterFrame: when root
-    // has been running for 318 frames (0-based), we call complete().
-    // Actually: root is a plain container; the canonical main timeline
-    // IS the outer mc (DefineSprite_31 lives within it).  The main
-    // timeline frame_319 script kills the outer mc.  We place this
-    // logic in a frameScript on the outer mc but at a safe frame
-    // past the stop() at frame 97 — canonical says stop() freezes the
-    // outer mc at 97; then the main timeline at frame_319 kills it.
-    // We approximate this by: after outer_mc.stop() fires at frame 96,
-    // we set up a root-level onEnterFrame countdown from there.
-    // For simplicity and 1:1 fidelity we'll use a dedicated "mainTimeline"
-    // wrapper symbol on root that runs 319 frames total and calls
-    // complete at frame_319.
-    // ----------------------------------------------------------------
-    // NOTE: The cleanest approach is to attach outer_mc to root from
-    // onSpellStart and register a root onEnterFrame that counts to
-    // frame 318 (0-based 319) then calls complete().
-    // We implement this as a thin "main" symbol with 319 frames.
-    const mainSym: SymbolDefinition = {
-      name: "main",
-      totalFrames: 319,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-
-      frameScripts: new Map([
-        [
-          // AS: frame_319/DoAction.as — _parent.removeMovieClip(); stop();
-          318,
-          (clip) => {
-            clip.remove();
-            self.runtime.complete();
-          },
-        ],
-      ]),
-    };
-
-    this.registry.register(minifeuxSym);
+    // Register all symbols
+    this.registry.register(this.minifeuxSym);
     this.registry.register(this.minifeux2Sym);
     this.registry.register(this.minifeux3Sym);
     this.registry.register(this.minifeux4Sym);
     this.registry.register(this.feuxSym);
-    this.registry.register(bouleSym);
+    this.registry.register(this.sprite26Sym);
     this.registry.register(outerMcSym);
-    this.registry.register(mainSym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture sound callback for later use from frameScripts (frame_70).
-    this._playSound = callbacks.playSound;
-
-    // AS: DefineSprite_31/frame_1/DoAction.as — SOMA.playSound("fireworks01")
+    // AS DefineSprite_31/frame_1/DoAction.as: SOMA.playSound("fireworks01")
     callbacks.playSound("fireworks01");
+    this.playSoundFn = callbacks.playSound;
 
-    // Attach the main timeline wrapper (319 frames) onto root.
-    // This in turn, at frame_76 of outer_mc, places "boule" which attaches "feux".
-    const mainSym = this.registry.resolve("main");
-    const outerMcSym = this.registry.resolve("outer_mc");
-    if (mainSym) {
-      this.root.attach(mainSym, "main", 1, context);
-    }
+    // Attach the outer mc (DefineSprite_31) at root.
+    const outerMcSym = this.registry.resolve("outerMc");
     if (outerMcSym) {
-      this.root.attach(outerMcSym, "outer_mc", 2, context);
+      const outerMc = this.root.attach(outerMcSym, "outerMc", 1, context);
+
+      // Attach the boule (sprite26) at the outer mc.
+      // AS places it at frame_1 depth 1, named "boule", with initial matrix
+      // translateX=-0.75, translateY=-53.25 (the starting streak position).
+      const boule = outerMc.attach(this.sprite26Sym, "boule", 1, context);
+      boule.x = -0.75;
+      boule.y = -53.25;
+      boule.scaleX = 0.574462890625;
+      boule.scaleY = 12.94549560546875;
+
+      // Drive the boule tween — the placements[] array carries 70+ "move"
+      // keyframes for the boule sprite. We approximate this with an
+      // onEnterFrame on the outerMc that interpolates the known keyframes.
+      // The canonical data from the manifest placements[] is used directly.
+      const boulePlacements: Array<{
+        frame: number;
+        tx: number;
+        ty: number;
+        sx: number;
+        sy: number;
+      }> = [
+        { frame: 0,  tx: -0.75,  ty: -53.25,  sx: 0.574462890625,    sy: 12.94549560546875 },
+        { frame: 3,  tx: -0.75,  ty: -85.25,  sx: 0.574462890625,    sy: 2.739013671875 },
+        { frame: 4,  tx: -0.80,  ty: -87.65,  sx: 0.594482421875,    sy: 2.6572265625 },
+        { frame: 5,  tx: -0.80,  ty: -89.95,  sx: 0.6140289306640625, sy: 2.5773468017578125 },
+        { frame: 6,  tx: -0.85,  ty: -92.20,  sx: 0.633087158203125,  sy: 2.49945068359375 },
+        { frame: 7,  tx: -0.85,  ty: -94.45,  sx: 0.6516571044921875, sy: 2.423553466796875 },
+        { frame: 8,  tx: -0.85,  ty: -96.55,  sx: 0.6697540283203125, sy: 2.3496246337890625 },
+        { frame: 9,  tx: -0.90,  ty: -98.60,  sx: 0.6873626708984375, sy: 2.27764892578125 },
+        { frame: 10, tx: -0.90,  ty: -100.60, sx: 0.7044830322265625, sy: 2.2076416015625 },
+        { frame: 11, tx: -0.90,  ty: -102.55, sx: 0.72113037109375,   sy: 2.1396484375 },
+        { frame: 12, tx: -0.95,  ty: -104.45, sx: 0.7372894287109375, sy: 2.0736083984375 },
+        { frame: 13, tx: -0.95,  ty: -106.30, sx: 0.7529754638671875, sy: 2.0095062255859375 },
+        { frame: 14, tx: -1.00,  ty: -108.10, sx: 0.7681732177734375, sy: 1.9473876953125 },
+        { frame: 15, tx: -1.00,  ty: -109.85, sx: 0.78289794921875,   sy: 1.8872528076171875 },
+        { frame: 16, tx: -1.00,  ty: -111.50, sx: 0.797119140625,     sy: 1.8291168212890625 },
+        { frame: 17, tx: -1.05,  ty: -113.15, sx: 0.8108673095703125, sy: 1.77294921875 },
+        { frame: 18, tx: -1.10,  ty: -114.70, sx: 0.8241424560546875, sy: 1.718658447265625 },
+        { frame: 19, tx: -1.05,  ty: -116.15, sx: 0.8369293212890625, sy: 1.6664581298828125 },
+        { frame: 20, tx: -1.05,  ty: -117.65, sx: 0.8492279052734375, sy: 1.616180419921875 },
+        { frame: 21, tx: -1.10,  ty: -119.05, sx: 0.861053466796875,  sy: 1.5678253173828125 },
+        { frame: 22, tx: -1.10,  ty: -120.35, sx: 0.87237548828125,   sy: 1.5215606689453125 },
+        { frame: 23, tx: -1.10,  ty: -121.60, sx: 0.88323974609375,   sy: 1.4771270751953125 },
+        { frame: 24, tx: -1.10,  ty: -122.85, sx: 0.89361572265625,   sy: 1.43475341796875 },
+        { frame: 25, tx: -1.20,  ty: -124.05, sx: 0.90350341796875,   sy: 1.3943328857421875 },
+        { frame: 26, tx: -1.15,  ty: -125.15, sx: 0.9129180908203125, sy: 1.355926513671875 },
+        { frame: 27, tx: -1.15,  ty: -126.15, sx: 0.921844482421875,  sy: 1.3194427490234375 },
+        { frame: 28, tx: -1.15,  ty: -127.20, sx: 0.9302825927734375, sy: 1.284912109375 },
+        { frame: 29, tx: -1.20,  ty: -128.15, sx: 0.9382476806640625, sy: 1.2523956298828125 },
+        { frame: 30, tx: -1.20,  ty: -129.00, sx: 0.9457244873046875, sy: 1.2218017578125 },
+        { frame: 31, tx: -1.20,  ty: -129.85, sx: 0.9527130126953125, sy: 1.1932220458984375 },
+        { frame: 32, tx: -1.20,  ty: -130.55, sx: 0.959228515625,     sy: 1.166595458984375 },
+        { frame: 33, tx: -1.20,  ty: -131.30, sx: 0.9652557373046875, sy: 1.1419830322265625 },
+        { frame: 34, tx: -1.20,  ty: -131.95, sx: 0.9708099365234375, sy: 1.119293212890625 },
+        { frame: 35, tx: -1.20,  ty: -132.55, sx: 0.9758758544921875, sy: 1.098602294921875 },
+        { frame: 36, tx: -1.30,  ty: -133.05, sx: 0.98046875,         sy: 1.0798797607421875 },
+        { frame: 37, tx: -1.25,  ty: -133.60, sx: 0.98455810546875,   sy: 1.0631103515625 },
+        { frame: 38, tx: -1.25,  ty: -134.00, sx: 0.9881744384765625, sy: 1.0483245849609375 },
+        { frame: 39, tx: -1.25,  ty: -134.40, sx: 0.9913177490234375, sy: 1.035491943359375 },
+        { frame: 40, tx: -1.25,  ty: -134.70, sx: 0.9939727783203125, sy: 1.024658203125 },
+        { frame: 41, tx: -1.25,  ty: -134.90, sx: 0.9961395263671875, sy: 1.01580810546875 },
+        { frame: 42, tx: -1.25,  ty: -135.10, sx: 0.997833251953125,  sy: 1.0088653564453125 },
+        { frame: 43, tx: -1.25,  ty: -135.30, sx: 0.9990386962890625, sy: 1.0039825439453125 },
+        { frame: 44, tx: -1.25,  ty: -135.30, sx: 0.999755859375,     sy: 1.0009613037109375 },
+        { frame: 45, tx: -1.25,  ty: -135.35, sx: 1.0,                sy: 1.0 },
+        { frame: 47, tx: -1.25,  ty: -135.30, sx: 1.0,                sy: 1.0 },
+        { frame: 48, tx: -1.25,  ty: -135.25, sx: 1.0,                sy: 1.0 },
+        { frame: 49, tx: -1.25,  ty: -135.20, sx: 1.0,                sy: 1.0 },
+        { frame: 50, tx: -1.25,  ty: -135.15, sx: 1.0,                sy: 1.0 },
+        { frame: 51, tx: -1.25,  ty: -135.05, sx: 1.0,                sy: 1.0 },
+        { frame: 52, tx: -1.25,  ty: -134.90, sx: 1.0,                sy: 1.0 },
+        { frame: 53, tx: -1.25,  ty: -134.80, sx: 1.0,                sy: 1.0 },
+        { frame: 54, tx: -1.25,  ty: -134.65, sx: 1.0,                sy: 1.0 },
+        { frame: 55, tx: -1.25,  ty: -134.45, sx: 1.0,                sy: 1.0 },
+        { frame: 56, tx: -1.25,  ty: -134.30, sx: 1.0,                sy: 1.0 },
+        { frame: 57, tx: -1.25,  ty: -134.10, sx: 1.0,                sy: 1.0 },
+        { frame: 58, tx: -1.25,  ty: -133.85, sx: 1.0,                sy: 1.0 },
+        { frame: 59, tx: -1.25,  ty: -133.65, sx: 1.0,                sy: 1.0 },
+        { frame: 60, tx: -1.25,  ty: -133.35, sx: 1.0,                sy: 1.0 },
+        { frame: 61, tx: -1.25,  ty: -133.10, sx: 1.0,                sy: 1.0 },
+        { frame: 62, tx: -1.25,  ty: -132.80, sx: 1.0,                sy: 1.0 },
+        { frame: 63, tx: -1.25,  ty: -132.50, sx: 1.0,                sy: 1.0 },
+        { frame: 64, tx: -1.25,  ty: -132.20, sx: 1.0,                sy: 1.0 },
+        { frame: 65, tx: -1.25,  ty: -131.85, sx: 1.0,                sy: 1.0 },
+        { frame: 66, tx: -1.25,  ty: -131.50, sx: 1.0,                sy: 1.0 },
+        { frame: 67, tx: -1.25,  ty: -131.10, sx: 1.0,                sy: 1.0 },
+        { frame: 68, tx: -1.25,  ty: -130.70, sx: 1.0,                sy: 1.0 },
+        { frame: 69, tx: -1.25,  ty: -130.30, sx: 1.0,                sy: 1.0 },
+        { frame: 70, tx: -1.25,  ty: -129.85, sx: 1.0,                sy: 1.0 },
+        { frame: 71, tx: -1.25,  ty: -129.40, sx: 1.0,                sy: 1.0 },
+        { frame: 72, tx: -1.25,  ty: -128.95, sx: 1.0,                sy: 1.0 },
+      ];
+
+      // Build a lookup for fast frame-to-keyframe access
+      const boulePlacementMap = new Map<
+        number,
+        { tx: number; ty: number; sx: number; sy: number }
+      >();
+      for (const kf of boulePlacements) {
+        boulePlacementMap.set(kf.frame, { tx: kf.tx, ty: kf.ty, sx: kf.sx, sy: kf.sy });
+      }
+
+      // Drive boule tween via outerMc's onEnterFrame. Each tick we look up
+      // the matching keyframe (or interpolate between adjacent ones).
+      outerMc.onEnterFrame = (_clip) => {
+        const frame = outerMc.currentFrame;
+        const kf = boulePlacementMap.get(frame);
+        if (kf) {
+          boule.x = kf.tx;
+          boule.y = kf.ty;
+          boule.scaleX = kf.sx;
+          boule.scaleY = kf.sy;
+        }
+      };
     }
   }
+}
+
+// ============================================================
+// Helper factories for the feux sub-particle symbols.
+// These are defined outside the class to keep the class body
+// readable. They are NOT registered in the global registry —
+// they are used inline by feux frameScripts.
+// ============================================================
+
+/**
+ * Builds the "frame_2 particle" for DefineSprite_23_feux.
+ * AS: DefineSprite_23_feux/frame_2/PlaceObject2_12_1 CLIPACTIONRECORD
+ * A generic expanding / fading ember.
+ */
+function buildFeux_Frame2_ParticleSym(): SymbolDefinition {
+  return {
+    name: "__feux_p2__",
+    totalFrames: 1,
+    frames: [],
+    anchorX: 0.5,
+    anchorY: 0.5,
+    // AS DefineSprite_23_feux/frame_2/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(load).as
+    onLoad: (clip) => {
+      // _parent._rotation = random(360)
+      if (clip.parent) {
+        clip.parent.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+      }
+      clip.vars.g = 1 * Math.random();
+      clip.vars.va = 0;
+      clip.vars.t = 100 + Math.floor(Math.random() * 100);
+      const t = clip.vars.t as number;
+      clip.scaleX = t / 100;
+      clip.scaleY = t / 100;
+      clip.vars.d = 100 - Math.floor(Math.random() * 70);
+      clip.vars.acc = 3.34 + Math.random() * 5;
+      clip.vars.vacc = 1 + 1 * Math.random();
+      clip.x = 10 + Math.floor(Math.random() * 20);
+    },
+    // AS DefineSprite_23_feux/frame_2/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    onEnterFrame: (clip) => {
+      const g = clip.vars.g as number;
+      let va = clip.vars.va as number;
+      const vacc = clip.vars.vacc as number;
+      const acc = clip.vars.acc as number;
+      const d = clip.vars.d as number;
+
+      clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+      const tScale = 20 + Math.floor(Math.random() * 80);
+      clip.scaleX = tScale / 100;
+      clip.scaleY = tScale / 100;
+      // _parent._y += g
+      if (clip.parent) {
+        clip.parent.y += g;
+      }
+      va += vacc;
+      clip.vars.va = va;
+      const alphaVal = 150 - va;
+      clip.alpha = Math.max(0, alphaVal) / 100;
+      clip.x -= (clip.x - d) / acc;
+      if (alphaVal < 0) {
+        if (clip.parent) {
+          clip.parent.remove();
+        }
+      }
+    },
+  };
+}
+
+/**
+ * Builds the "frame_5 particle" for DefineSprite_23_feux.
+ * AS: DefineSprite_23_feux/frame_5/PlaceObject2_14_1 CLIPACTIONRECORD
+ * A spinning, shrinking ember that drifts to target X.
+ */
+function buildFeux_Frame5_ParticleSym(): SymbolDefinition {
+  return {
+    name: "__feux_p5__",
+    totalFrames: 1,
+    frames: [],
+    anchorX: 0.5,
+    anchorY: 0.5,
+    // AS DefineSprite_23_feux/frame_5/PlaceObject2_14_1/CLIPACTIONRECORD onClipEvent(load).as
+    onLoad: (clip) => {
+      // _parent._rotation = random(360)
+      if (clip.parent) {
+        clip.parent.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
+      }
+      clip.vars.g = 0.6 * Math.random();
+      clip.vars.t = 200 + Math.floor(Math.random() * 100);
+      const t = clip.vars.t as number;
+      clip.scaleX = t / 100;
+      clip.scaleY = t / 100;
+      clip.vars.d = 100 - Math.floor(Math.random() * 70);
+      clip.vars.acc = 1.67 + Math.random() * 5;
+      clip.x = 10 + Math.floor(Math.random() * 20);
+    },
+    // AS DefineSprite_23_feux/frame_5/PlaceObject2_14_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    onEnterFrame: (clip) => {
+      const g = clip.vars.g as number;
+      let t = clip.vars.t as number;
+      const d = clip.vars.d as number;
+      const acc = clip.vars.acc as number;
+
+      // _rotation += t / 6 (degrees per frame)
+      clip.rotation += ((t / 6) * Math.PI) / 180;
+      t--;
+      clip.vars.t = t;
+      clip.scaleX = Math.max(0, t / 3) / 100;
+      clip.scaleY = Math.max(0, t / 3) / 100;
+      // _parent._y += g
+      if (clip.parent) {
+        clip.parent.y += g;
+      }
+      clip.x -= (clip.x - d) / acc;
+      if (t < 0) {
+        if (clip.parent) {
+          clip.parent.remove();
+        }
+      }
+    },
+  };
+}
+
+/**
+ * Builds the "frame_8 particle" for DefineSprite_23_feux.
+ * AS: DefineSprite_23_feux/frame_8/PlaceObject2_12_1 CLIPACTIONRECORD
+ * Randomly spawns minifeux2 children, then removes itself when t<0.
+ */
+function buildFeux_Frame8_ParticleSym(
+  minifeux2Sym: SymbolDefinition,
+): SymbolDefinition {
+  return {
+    name: "__feux_p8__",
+    totalFrames: 1,
+    frames: [],
+    anchorX: 0.5,
+    anchorY: 0.5,
+    // AS DefineSprite_23_feux/frame_8/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(load).as
+    onLoad: (clip) => {
+      clip.vars.g = 0.67 * Math.random();
+      clip.vars.t = 100 + Math.floor(Math.random() * 100);
+      const t = clip.vars.t as number;
+      clip.scaleX = t / 100;
+      clip.scaleY = t / 100;
+      clip.vars.d = 100 - Math.floor(Math.random() * 70);
+      clip.vars.acc = 1.67 + Math.random() * 5;
+      clip.vars.vacc = 1 + 1 * Math.random();
+      clip.vars.vx = 10 * (-0.5 + Math.random());
+      clip.vars.vy = 10 * (-0.5 + Math.random());
+      clip.vars.accx = 0.8 + 0.1 * Math.random();
+      clip.vars.accy = 0.8 + 0.1 * Math.random();
+      clip.vars.c = 0;
+      clip.vars.compte = Math.floor(Math.random() * 200000);
+    },
+    // AS DefineSprite_23_feux/frame_8/PlaceObject2_12_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    onEnterFrame: (clip, ctx) => {
+      const g = clip.vars.g as number;
+      let t = clip.vars.t as number;
+      let vx = clip.vars.vx as number;
+      let vy = clip.vars.vy as number;
+      const accx = clip.vars.accx as number;
+      const accy = clip.vars.accy as number;
+      let c = clip.vars.c as number;
+
+      if (Math.floor(Math.random() * 15) === 1) {
+        // attachMovie("minifeux2", ...) on _parent._parent
+        // _parent is the feux clip, _parent._parent is outerMc
+        const outerMc = clip.parent?.parent;
+        if (outerMc) {
+          const compte = Math.floor(Math.random() * 200000);
+          clip.vars.compte = compte;
+          const mf = outerMc.attach(minifeux2Sym, "minifeux2" + compte, compte, ctx);
+          mf.x = clip.x;
+          mf.y = clip.y + (clip.parent?.y ?? 0);
+          mf.alpha = Math.max(0, (100 - c)) / 100;
+          c++;
+          clip.vars.c = c;
+        }
+      }
+
+      // _rotation += t / 3 (degrees)
+      clip.rotation += ((t / 3) * Math.PI) / 180;
+      t--;
+      clip.vars.t = t;
+      clip.scaleX = Math.max(0, t / 3) / 100;
+      clip.scaleY = Math.max(0, t / 3) / 100;
+      // _parent._y += g
+      if (clip.parent) {
+        clip.parent.y += g;
+      }
+      vx *= accx;
+      vy *= accy;
+      clip.vars.vx = vx;
+      clip.vars.vy = vy;
+      clip.x += vx;
+      clip.y += vy;
+      if (t < 0) {
+        if (clip.parent) {
+          clip.parent.remove();
+        }
+      }
+    },
+  };
+}
+
+/**
+ * Builds the "frame_11 particle" for DefineSprite_23_feux.
+ * AS: DefineSprite_23_feux/frame_11/PlaceObject2_19_1 CLIPACTIONRECORD
+ * When t<135 spawns a burst of minifeux3, then removes parent.
+ */
+function buildFeux_Frame11_ParticleSym(
+  minifeux3Sym: SymbolDefinition,
+): SymbolDefinition {
+  return {
+    name: "__feux_p11__",
+    totalFrames: 1,
+    frames: [],
+    anchorX: 0.5,
+    anchorY: 0.5,
+    // AS DefineSprite_23_feux/frame_11/PlaceObject2_19_1/CLIPACTIONRECORD onClipEvent(load).as
+    onLoad: (clip) => {
+      clip.stop();
+      clip.vars.g = 0.67 * Math.random();
+      clip.vars.t = 100 + Math.floor(Math.random() * 100);
+      const t = clip.vars.t as number;
+      clip.scaleX = t / 100;
+      clip.scaleY = t / 100;
+      clip.vars.vx = 20 * (-0.5 + Math.random());
+      clip.vars.vy = 20 * (-0.5 + Math.random());
+      clip.vars.accx = 0.8 + 0.1 * Math.random();
+      clip.vars.accy = 0.8 + 0.1 * Math.random();
+      clip.vars.c = 0;
+      clip.x = -10 + Math.floor(Math.random() * 20);
+    },
+    // AS DefineSprite_23_feux/frame_11/PlaceObject2_19_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    onEnterFrame: (clip, ctx) => {
+      const g = clip.vars.g as number;
+      let t = clip.vars.t as number;
+      let vx = clip.vars.vx as number;
+      let vy = clip.vars.vy as number;
+      const accx = clip.vars.accx as number;
+      const accy = clip.vars.accy as number;
+      let c = clip.vars.c as number;
+
+      if (t < 150) {
+        clip.play();
+      }
+      if (t < 135) {
+        // Spawn 9 minifeux3 at current position on _parent._parent
+        const outerMc = clip.parent?.parent;
+        if (outerMc) {
+          for (let nbr = 1; nbr < 10; nbr++) {
+            const compte = Math.floor(Math.random() * 200000);
+            const mf = outerMc.attach(minifeux3Sym, "minifeux3" + compte, compte, ctx);
+            mf.x = clip.x;
+            mf.y = clip.y + (clip.parent?.y ?? 0);
+            mf.alpha = Math.max(0, 100 - c) / 100;
+            c++;
+          }
+          clip.vars.c = c;
+        }
+        if (clip.parent) {
+          clip.parent.remove();
+        }
+        return;
+      }
+
+      // _rotation += t / 3
+      clip.rotation += ((t / 3) * Math.PI) / 180;
+      t--;
+      clip.vars.t = t;
+      clip.scaleX = Math.max(0, t / 3) / 100;
+      clip.scaleY = Math.max(0, t / 3) / 100;
+      // _parent._y += g
+      if (clip.parent) {
+        clip.parent.y += g;
+      }
+      vx *= accx;
+      vy *= accy;
+      clip.vars.vx = vx;
+      clip.vars.vy = vy;
+      clip.x += vx;
+      clip.y += vy;
+    },
+  };
+}
+
+/**
+ * Builds the "frame_14 particle" for DefineSprite_23_feux.
+ * AS: DefineSprite_23_feux/frame_14/PlaceObject2_22_1 CLIPACTIONRECORD
+ * On load spawns minifeux4 and initialises ballistic motion.
+ * When t<90 spawns burst of minifeux3 and removes parent.
+ */
+function buildFeux_Frame14_ParticleSym(
+  minifeux3Sym: SymbolDefinition,
+  minifeux4Sym: SymbolDefinition,
+): SymbolDefinition {
+  return {
+    name: "__feux_p14__",
+    totalFrames: 1,
+    frames: [],
+    anchorX: 0.5,
+    anchorY: 0.5,
+    // AS DefineSprite_23_feux/frame_14/PlaceObject2_22_1/CLIPACTIONRECORD onClipEvent(load).as
+    onLoad: (clip, ctx) => {
+      // Spawn 1 minifeux4 on _parent._parent
+      const outerMc = clip.parent?.parent;
+      if (outerMc) {
+        for (let nbr = 1; nbr < 2; nbr++) {
+          const compte = Math.floor(Math.random() * 200000);
+          const mf = outerMc.attach(minifeux4Sym, "minifeux4" + compte, compte, ctx);
+          mf.x = clip.x;
+          mf.y = clip.y + (clip.parent?.y ?? 0);
+        }
+      }
+      clip.vars.angle = -1.1415 + 0.2 * (-0.5 + Math.random());
+      clip.vars.vit = 6 + 10 * Math.random();
+      clip.stop();
+      clip.vars.frein = 0.9 + 0.05 * Math.random();
+      clip.vars.vr = 0;
+      clip.vars.sz = 240 + Math.floor(Math.random() * 120);
+      clip.vars.frangle = 1.2;
+      clip.vars.c = 0;
+      clip.vars.t = 100 + Math.floor(Math.random() * 100);
+    },
+    // AS DefineSprite_23_feux/frame_14/PlaceObject2_22_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    onEnterFrame: (clip, ctx) => {
+      let angle = clip.vars.angle as number;
+      let vit = clip.vars.vit as number;
+      const frein = clip.vars.frein as number;
+      let vr = clip.vars.vr as number;
+      let sz = clip.vars.sz as number;
+      let frangle = clip.vars.frangle as number;
+      let c = clip.vars.c as number;
+      let t = clip.vars.t as number;
+
+      // _rotation = angle * 57.297... (angle in radians, result in degrees, applied as Flash _rotation)
+      clip.rotation = angle; // already tracking as radians-equivalent
+
+      // _alpha = 50 + random(60)
+      clip.alpha = (50 + Math.floor(Math.random() * 60)) / 100;
+
+      sz *= frein + 0.02;
+      clip.vars.sz = sz;
+      clip.scaleX = sz / 100;
+      clip.scaleY = sz / 100;
+
+      if (Math.floor(Math.random() * 16) === 1) {
+        vr = 1 * (-0.5 + Math.random());
+        clip.vars.vr = vr;
+      }
+
+      angle += vr * frangle;
+      frangle *= frein;
+      clip.vars.angle = angle;
+      clip.vars.frangle = frangle;
+
+      const vx = vit * Math.cos(angle);
+      const vy = vit * Math.sin(angle);
+      clip.x += vx;
+      clip.y += vy;
+
+      vit *= frein;
+      clip.vars.vit = vit;
+
+      if (t < 100) {
+        clip.play();
+      }
+      if (t < 90) {
+        // Spawn 9 minifeux3
+        const outerMc = clip.parent?.parent;
+        if (outerMc) {
+          for (let nbr = 1; nbr < 10; nbr++) {
+            const compte = Math.floor(Math.random() * 200000);
+            const mf = outerMc.attach(minifeux3Sym, "minifeux3" + compte, compte, ctx);
+            mf.x = clip.x;
+            mf.y = clip.y + (clip.parent?.y ?? 0);
+            mf.alpha = Math.max(0, 100 - c) / 100;
+            c++;
+          }
+          clip.vars.c = c;
+        }
+        if (clip.parent) {
+          clip.parent.remove();
+        }
+        return;
+      }
+
+      t--;
+      clip.vars.t = t;
+    },
+  };
 }

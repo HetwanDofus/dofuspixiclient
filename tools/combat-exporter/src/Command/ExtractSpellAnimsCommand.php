@@ -2,12 +2,20 @@
 
 namespace App\Command;
 
+use App\DynamicSpriteAnalyzer;
+use App\EmptyDrawable;
+use App\FlashLoopTimeline;
+use App\StaggeredSpriteWrapper;
 use Arakne\Swf\Error\Errors;
 use Arakne\Swf\Extractor\Drawer\Converter\Converter;
 use Arakne\Swf\Extractor\Image\ImageCharacterInterface;
 use Arakne\Swf\Extractor\Shape\MorphShapeDefinition;
 use Arakne\Swf\Extractor\Sprite\SpriteDefinition;
 use Arakne\Swf\Extractor\SwfExtractor;
+use Arakne\Swf\Extractor\Timeline\Frame;
+use Arakne\Swf\Extractor\Timeline\Timeline;
+use Arakne\Swf\Parser\Structure\Action\Opcode;
+use Arakne\Swf\Parser\Structure\Tag\DoActionTag;
 use Arakne\Swf\Parser\Structure\Tag\PlaceObject2Tag;
 use Arakne\Swf\SwfFile;
 use Symfony\Component\Console\Command\Command;
@@ -35,6 +43,25 @@ final class ExtractSpellAnimsCommand extends Command
     private string $outputBase;
     private array $manifest = [];
 
+    /**
+     * Whether to enable the experimental dynamic-symbol pipeline globally.
+     * Set from the --dynamic-symbols CLI flag. Off by default so the
+     * extractor preserves the original (full-anim1) layout that the
+     * existing runtime spell classes were built around.
+     */
+    private bool $dynamicSymbolsEnabled = false;
+
+    /**
+     * Per-spell analysis of which placed sprites carry CLIPACTIONRECORDs.
+     * Reset for every SWF processed; used by the timeline rewriter to
+     * strip those placements from parent SVGs (so they can be re-attached
+     * as live clips by the runtime spell class) and by the manifest
+     * builder to declare them as `librarySymbols[]` entries with a
+     * placement schedule the AI generator turns into `clip.attach(...)`
+     * calls.
+     */
+    private ?DynamicSpriteAnalyzer $dynamicAnalyzer = null;
+
     protected function configure(): void
     {
         $this
@@ -45,6 +72,12 @@ final class ExtractSpellAnimsCommand extends Command
             ->addOption('spell', 's', InputOption::VALUE_OPTIONAL, 'Extract only a specific spell ID')
             ->addOption('clean', null, InputOption::VALUE_NONE, 'Clean output directory before extraction')
             ->addOption('scale', null, InputOption::VALUE_OPTIONAL, 'Scale factor for output (default: 2)', 2)
+            ->addOption(
+                'dynamic-symbols',
+                null,
+                InputOption::VALUE_NONE,
+                'Enable the experimental dynamic-symbol pipeline (strips CLIPACTIONRECORD-bearing sprites from parent SVGs and emits them as separate library symbols with placement schedules). Off by default — when enabled, requires the runtime spell-{id}.ts to be AI-regenerated against the new manifest, otherwise parent SVGs render empty.',
+            )
         ;
     }
 
@@ -55,6 +88,7 @@ final class ExtractSpellAnimsCommand extends Command
         $this->outputBase = $input->getOption('output');
         $specificSpell = $input->getOption('spell');
         $scale = (float) $input->getOption('scale');
+        $this->dynamicSymbolsEnabled = (bool) $input->getOption('dynamic-symbols');
 
         if (!$inputDir) {
             $io->error('Please provide an input directory with --input');
@@ -146,6 +180,98 @@ final class ExtractSpellAnimsCommand extends Command
             $animDir = sprintf('%s/%d', $this->outputBase, $animId);
             @mkdir($animDir, 0755, true);
 
+            // Export FFDec ActionScript scripts EARLY so the dynamic-
+            // symbol detection downstream can scan them for attachMovie
+            // calls — those calls indicate the spell uses runtime sprite
+            // attachment, in which case the dynamic pipeline must be
+            // skipped (its inner-content stripping breaks the hand-
+            // perfected `spell-{id}.ts` classes built around full library
+            // symbol visuals).
+            $earlyAsFiles = $this->exportActionScript($swfPath, $animDir, $io);
+
+            // Walk the raw tag tree once to find every PlaceObject2 that
+            // carries CLIPACTIONRECORDs. Those placed sprites become
+            // dynamic library symbols (extracted independently, stripped
+            // from parent SVGs) so the runtime can attach a live clip
+            // with onLoad/onEnterFrame instead of double-rendering on top
+            // of a baked frame.
+            //
+            // EXCEPTION: spells that already export attachMovie-style
+            // library symbols (e.g. spell 103's baton/baton2/effet) ship
+            // with hand-perfected `spell-{id}.ts` classes that assume
+            // every library symbol's frames carry their full inner
+            // visual baked in. Stripping inner dynamic content from
+            // those symbols' SVGs would silently break those classes.
+            // Skip the dynamic-symbol pipeline entirely for those spells
+            // — the existing detectLibrarySymbols() path already covers
+            // their library-symbol export.
+            // Detect whether this spell uses attachMovie at runtime
+            // (= has hand-perfected library symbols whose inner content
+            // must NOT be stripped by the dynamic-symbol pipeline).
+            //
+            // Two detection paths — either is sufficient:
+            //   1. Any exported SpriteDefinition (SWF Export tag).
+            //   2. Any AS script with an `attachMovie("name", …)` call.
+            //      Some spells (e.g. 802 Bouclier Féca) call attachMovie
+            //      without exporting the symbols via Export tags — they
+            //      identify targets via DefineSprite directory naming.
+            $hasAttachMovieSymbols = false;
+            foreach ($exported as $expName => $expCharId) {
+                try {
+                    $expCharacter = $extractor->character($expCharId);
+                    if ($expCharacter instanceof SpriteDefinition) {
+                        $hasAttachMovieSymbols = true;
+                        break;
+                    }
+                } catch (\Throwable $e) {
+                    // ignore — non-sprite or unresolvable
+                }
+            }
+            // FFDec scripts have already been exported above. Scan them
+            // for attachMovie calls — same regex detectLibrarySymbols
+            // uses later, so detection is consistent.
+            if (!$hasAttachMovieSymbols && is_dir($animDir . '/scripts')) {
+                $iterator = new \RecursiveIteratorIterator(
+                    new \RecursiveDirectoryIterator($animDir . '/scripts')
+                );
+                foreach ($iterator as $file) {
+                    if (!$file->isFile() || $file->getExtension() !== 'as') {
+                        continue;
+                    }
+                    $content = @file_get_contents($file->getPathname());
+                    if ($content !== false && preg_match('/attachMovie\s*\(/', $content)) {
+                        $hasAttachMovieSymbols = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!$this->dynamicSymbolsEnabled) {
+                // Default path: pipeline is off, render anim1 with full
+                // baked content. This preserves existing spell-{id}.ts
+                // classes that were written against the original layout
+                // (Bouclier Féca / Armures / etc.).
+                $this->dynamicAnalyzer = null;
+            } elseif ($hasAttachMovieSymbols) {
+                $io->text('  Spell exports attachMovie library symbols — skipping dynamic-symbol pipeline (hand-perfected runtime class likely depends on baked inner content)');
+                $this->dynamicAnalyzer = null;
+            } else {
+                $this->dynamicAnalyzer = new DynamicSpriteAnalyzer();
+                $this->dynamicAnalyzer->analyze($swf);
+                $dynamicCount = count($this->dynamicAnalyzer->getDynamicCharacterIds());
+                if ($dynamicCount > 0) {
+                    $io->text(sprintf(
+                        '  Found %d dynamic sprite(s) with CLIPACTIONRECORDs (%d total placements) — will extract as library symbols',
+                        $dynamicCount,
+                        count($this->dynamicAnalyzer->getPlacements()),
+                    ));
+                }
+            }
+
+            // animDir + ActionScript export already done above (so the
+            // attachMovie detection upstream had .as files to scan).
+            // Reuse `$earlyAsFiles` here.
+
             // Extract main timeline transform (some spells apply a scale on the main timeline)
             $mainTransform = $this->extractMainTimelineTransform($swf);
 
@@ -162,8 +288,7 @@ final class ExtractSpellAnimsCommand extends Command
                 $io->text(sprintf('  Main timeline scale: %.4f', $mainTransform['scaleX']));
             }
 
-            // Export ActionScript using FFDec (decompiled)
-            $asFiles = $this->exportActionScript($swfPath, $animDir, $io);
+            $asFiles = $earlyAsFiles;
             if (!empty($asFiles)) {
                 $animData['scripts'] = $asFiles;
             }
@@ -256,12 +381,56 @@ final class ExtractSpellAnimsCommand extends Command
 
             $io->text(sprintf('  Found %d animated sprites', count($animatedSprites)));
 
-            // Only detect and export library symbols if TypeScript is required
+            // Detect attachMovie-style library symbols (existing path) if
+            // TypeScript is required, AND extract sprites placed with
+            // CLIPACTIONRECORDs as a parallel set of "dynamic" library
+            // symbols. The latter are sprites that the parent timeline
+            // PlaceObject2-s with onClipEvent handlers — historically
+            // those were baked into the parent SVG (which froze their
+            // dynamics), so this flow strips them and emits standalone
+            // frames + a placements schedule the runtime can attach.
+            $librarySymbols = [];
             if ($requiresTypeScript) {
                 $librarySymbols = $this->detectLibrarySymbols($animDir, $extractor, $io);
-                if (!empty($librarySymbols)) {
-                    $animData['librarySymbols'] = $librarySymbols;
+            }
+
+            $dynamicSymbols = $this->extractDynamicLibrarySymbols($animId, $extractor, $io);
+            if (!empty($dynamicSymbols)) {
+                // Mark the spell as TS-required so the runtime loads the
+                // generated class (which actually attaches the dynamic
+                // clips). PreRenderedSpell would render the parent SVG
+                // alone — without the dynamic children — and the spell
+                // would visibly miss its particles / spirals / pulses.
+                $animData['requiresTypeScript'] = true;
+                $requiresTypeScript = true;
+
+                // Merge by name; attachMovie-style entries win on
+                // collision because they came with full bounds via
+                // detectLibrarySymbols (which reads exported symbol
+                // metadata). In practice the two sets shouldn't
+                // overlap — attachMovie sprites are runtime-created via
+                // AS code; dynamic-placement sprites come from
+                // PlaceObject2 tags in the SWF.
+                $byName = [];
+                foreach ($librarySymbols as $sym) {
+                    $byName[$sym['name']] = $sym;
                 }
+                foreach ($dynamicSymbols as $sym) {
+                    if (!isset($byName[$sym['name']])) {
+                        $byName[$sym['name']] = $sym;
+                    } else {
+                        // Carry over the placement schedule onto the
+                        // existing entry so the AI generator still gets
+                        // the canonical attach-frame info.
+                        $byName[$sym['name']]['placements'] = $sym['placements'];
+                        $byName[$sym['name']]['kind'] = 'clipEvent';
+                    }
+                }
+                $librarySymbols = array_values($byName);
+            }
+
+            if (!empty($librarySymbols)) {
+                $animData['librarySymbols'] = $librarySymbols;
             }
 
             // Track extracted child sprites to avoid duplicates
@@ -405,6 +574,17 @@ final class ExtractSpellAnimsCommand extends Command
         $spellDir = sprintf('%s/%d', $this->outputBase, $spellId);
         $converter = new Converter();
 
+        // Honor the Macromedia/Adobe staggered-sprite convention: each
+        // PlaceObject2 of a sprite is stamped with `ratio == placement_frame`
+        // so each instance plays its inner timeline starting from frame 0.
+        // Arakne ignores the ratio for sprites, causing every staggered
+        // instance to render the same global frame and collapse to empty
+        // when the inner sprite RemoveObject2's near its end. Re-render the
+        // timeline through wrappers that apply the per-instance offset.
+        if ($timeline instanceof Timeline) {
+            $timeline = $this->wrapTimelineWithRatioOffsets($timeline);
+        }
+
         for ($i = 0; $i < $frameCount; $i++) {
             $frameFilename = sprintf('%s_%d.svg', $safeAnimName, $i);
             $outputPath = sprintf('%s/%s', $spellDir, $frameFilename);
@@ -413,6 +593,7 @@ final class ExtractSpellAnimsCommand extends Command
                 $svg = $converter->toSvg($timeline, $i);
 
                 if (!empty($svg)) {
+                    $svg = $this->stripOrphanEmptyDefs($svg);
                     file_put_contents($outputPath, $svg);
 
                     $frames[] = [
@@ -427,6 +608,491 @@ final class ExtractSpellAnimsCommand extends Command
         }
 
         return $frames;
+    }
+
+    /**
+     * Strip `<g id="X"/>` defs that have no rendered content + every
+     * `<use xlink:href="#X" .../>` that points to one. Arakne emits these
+     * placeholder pairs whenever a sprite has been RemoveObject2'd from
+     * the parent display list mid-timeline (or stripped by our dynamic-
+     * library-symbol pipeline). They render nothing in a faithful SVG
+     * implementation, but our atlas pipeline runs them through SVGO whose
+     * `removeUselessDefs` deletes the def while `cleanupIds` then renames
+     * the SURVIVING ids — leaving the body's `<use>` refs pointing to
+     * nothing OR (worse) to whatever id the renamer picked next, producing
+     * the "weird static fragment frozen on top of the spell" the user
+     * observed on Armure Incandescente / Armure Terrestre.
+     *
+     * Removing both halves of the pair at extraction time is the safest
+     * fix: the source SVG no longer carries the ambiguity, every later
+     * tool sees a clean tree.
+     *
+     * Conservative: only strips defs that are TRULY empty (no children,
+     * no text node). A def with at least one `<use>`/`<path>`/`<g>` child
+     * is kept even if it's "visually" empty after color transforms.
+     */
+    private function stripOrphanEmptyDefs(string $svg): string
+    {
+        // Apply BOTH cleanups (orphan-empty-defs + clipPath-strip)
+        // tentatively, then keep the result only if the final body
+        // still has visible content. Otherwise revert to the original
+        // SVG — empty frames trigger an svg-spritesheet bug where the
+        // frame is declared in atlas.json but absent from atlas.svg,
+        // and the runtime then renders garbage from neighbouring
+        // atlas pixels at the declared region (= "stuff that shouldn't
+        // be there on the last frame", the user's report).
+        //
+        // Note: regex delimiter is `~` (not `#`) because the body of
+        // these patterns contains literal `#` from `href="#X"`.
+        $original = $svg;
+
+        // ── Pass 1: orphan empty `<g id="X"/>` defs + their `<use>` refs ──
+        // Arakne emits placeholder pairs whenever a sprite has been
+        // RemoveObject2'd from the parent display list. These render
+        // nothing but downstream SVGO `removeUselessDefs` deletes the
+        // def while `cleanupIds` renames survivors, leaving body
+        // `<use>` refs pointing to the wrong canonical id.
+        $emptyIds = [];
+        if (preg_match_all('~<g\b([^>]*?)\bid="([^"]+)"([^>]*?)/>~', $svg, $m)) {
+            foreach ($m[2] as $id) {
+                $emptyIds[$id] = true;
+            }
+        }
+        if (preg_match_all('~<g\b([^>]*?)\bid="([^"]+)"([^>]*?)>\s*</g>~', $svg, $m)) {
+            foreach ($m[2] as $id) {
+                $emptyIds[$id] = true;
+            }
+        }
+        if (!empty($emptyIds)) {
+            $svg = preg_replace_callback(
+                '~<use\b[^>]*?\b(?:xlink:)?href="#([^"]+)"[^>]*?/>~',
+                static function (array $match) use ($emptyIds): string {
+                    return isset($emptyIds[$match[1]]) ? '' : $match[0];
+                },
+                $svg,
+            );
+            $svg = preg_replace_callback(
+                '~<g\b[^>]*?\bid="([^"]+)"[^>]*?/>~',
+                static function (array $match) use ($emptyIds): string {
+                    return isset($emptyIds[$match[1]]) ? '' : $match[0];
+                },
+                $svg,
+            );
+            $svg = preg_replace_callback(
+                '~<g\b[^>]*?\bid="([^"]+)"[^>]*?>\s*</g>~',
+                static function (array $match) use ($emptyIds): string {
+                    return isset($emptyIds[$match[1]]) ? '' : $match[0];
+                },
+                $svg,
+            );
+        }
+
+        // ── Pass 2: inline `<clipPath>` constructs + clipped `<g>` ────────
+        // svg-spritesheet doesn't model clip-path attributes — when the
+        // construct survives, the inner `<use>` is rendered UNCLIPPED at
+        // its raw transform, producing the "wrong static shape at
+        // offset" the user originally reported on 108/110.
+        $clipPathIds = [];
+        if (preg_match_all('~<clipPath\b[^>]*?\bid="([^"]+)"[^>]*?>.*?</clipPath>~s', $svg, $m)) {
+            foreach ($m[1] as $id) {
+                $clipPathIds[$id] = true;
+            }
+        }
+        if (!empty($clipPathIds)) {
+            $svg = preg_replace_callback(
+                '~<g\b[^>]*?\bclip-path="url\(#([^)]+)\)"[^>]*?>(.*?)</g>~s',
+                static function (array $match) use ($clipPathIds): string {
+                    return isset($clipPathIds[$match[1]]) ? '' : $match[0];
+                },
+                $svg,
+            );
+            $svg = preg_replace('~<clipPath\b[^>]*?>.*?</clipPath>~s', '', $svg);
+        }
+
+        // ── Final guard: inject an invisible placeholder when body empty ──
+        // svg-spritesheet's atlas writer skips frames with no body
+        // content but still declares them in atlas.json — the runtime
+        // then renders garbage from adjacent atlas regions at the
+        // declared bbox (= "stuff that shouldn't be there on the last
+        // frame", the user's report). Inject a transparent 1x1 rect
+        // so the frame has SOMETHING to serialize while still rendering
+        // visually empty. Atlas writer keeps the slot, runtime sees
+        // nothing, no garbage.
+        $bodyOnly = preg_replace('~<defs\b.*?</defs>~s', '', $svg);
+        $bodyVisible = (preg_match_all('~<use\b~', $bodyOnly) ?: 0)
+            + (preg_match_all('~<path\b~', $bodyOnly) ?: 0);
+        if ($bodyVisible === 0) {
+            // Inject inside the outermost <g> (right after its `>`).
+            // Pattern matches the first `<g transform="..."> ` that
+            // appears at the body level (Arakne always emits one).
+            $placeholder = '<rect width="1" height="1" fill="none" stroke="none"/>';
+            $svg = preg_replace(
+                '~(<g\s+transform="[^"]+">)~',
+                '${1}' . $placeholder,
+                $svg,
+                1,
+            );
+        }
+
+        return $svg;
+    }
+
+    /**
+     * @deprecated Old separate path retained only for the original
+     *             stripOrphanEmptyDefs caller compatibility — unused.
+     */
+    private function unusedLegacyOrphanCleanup(string $svg): string
+    {
+        $emptyIds = [];
+
+        // Self-closing: <g ... id="X" .../>
+        if (preg_match_all('~<g\b([^>]*?)\bid="([^"]+)"([^>]*?)/>~', $svg, $m)) {
+            foreach ($m[2] as $idx => $id) {
+                $emptyIds[$id] = true;
+            }
+        }
+
+        // Non-self-closing but empty: <g ... id="X" ...>WS</g>
+        if (preg_match_all('~<g\b([^>]*?)\bid="([^"]+)"([^>]*?)>\s*</g>~', $svg, $m)) {
+            foreach ($m[2] as $idx => $id) {
+                $emptyIds[$id] = true;
+            }
+        }
+
+        if (empty($emptyIds)) {
+            return $svg;
+        }
+
+        // Remove every <use ...href="#X" .../> where X is in $emptyIds.
+        $svg = preg_replace_callback(
+            '~<use\b[^>]*?\b(?:xlink:)?href="#([^"]+)"[^>]*?/>~',
+            static function (array $match) use ($emptyIds): string {
+                return isset($emptyIds[$match[1]]) ? '' : $match[0];
+            },
+            $svg,
+        );
+
+        // Then remove the empty <g id="X"/> defs themselves.
+        $svg = preg_replace_callback(
+            '~<g\b[^>]*?\bid="([^"]+)"[^>]*?/>~',
+            static function (array $match) use ($emptyIds): string {
+                return isset($emptyIds[$match[1]]) ? '' : $match[0];
+            },
+            $svg,
+        );
+        $svg = preg_replace_callback(
+            '~<g\b[^>]*?\bid="([^"]+)"[^>]*?>\s*</g>~',
+            static function (array $match) use ($emptyIds): string {
+                return isset($emptyIds[$match[1]]) ? '' : $match[0];
+            },
+            $svg,
+        );
+
+        return $svg;
+    }
+
+    /**
+     * For every sprite identified as "dynamic" (its placement carries
+     * CLIPACTIONRECORDs), export its frames independently as a library
+     * symbol and bundle the placement schedule that the runtime uses to
+     * attach a live clip at the canonical parent frame.
+     *
+     * The exported sprite IS itself wrapped via {@see wrapTimelineWithRatioOffsets()}
+     * so nested staggers / loops still apply when the runtime steps the
+     * dynamic clip's frames at runtime.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function extractDynamicLibrarySymbols(
+        int $animId,
+        SwfExtractor $extractor,
+        SymfonyStyle $io,
+    ): array {
+        if ($this->dynamicAnalyzer === null) {
+            return [];
+        }
+
+        $byPlaced = $this->dynamicAnalyzer->getPlacementsByPlacedSprite();
+        if (empty($byPlaced)) {
+            return [];
+        }
+
+        $symbols = [];
+
+        foreach ($byPlaced as $charId => $placements) {
+            try {
+                $sprite = $extractor->character($charId);
+            } catch (\Throwable $e) {
+                $io->text(sprintf('    Warning: dynamic char %d not extractable: %s', $charId, $e->getMessage()));
+                continue;
+            }
+
+            if (!($sprite instanceof SpriteDefinition)) {
+                // Shapes/morph shapes can technically carry clip events
+                // too, but we have not seen this in practice for spell
+                // SWFs. Skip with a note.
+                $io->text(sprintf('    Skipping dynamic char %d (not a sprite, type=%s)', $charId, get_class($sprite)));
+                continue;
+            }
+
+            // Stable name keyed by character id so the AI generator can
+            // correlate it with the canonical AS path
+            // `scripts/scripts/DefineSprite_<id>/...`. This matches what
+            // hand-perfected spell-101.ts already uses (`sprite3`,
+            // `sprite9`, `sprite10`, `sprite12`, `sprite13`).
+            $name = 'sprite' . $charId;
+
+            try {
+                $timeline = $sprite->timeline();
+                $frameCount = $timeline->framesCount();
+                $bounds = $this->calculateBounds($sprite);
+
+                // Apply the standard rewriting (stagger + loop) to the
+                // dynamic sprite's own timeline before rendering — the
+                // runtime will step its frames per-tick and we want the
+                // same Flash semantics applied here as for any other
+                // sprite.
+                $wrapped = $this->wrapTimelineWithRatioOffsets($timeline);
+
+                $exportedFrames = $this->exportFrames($animId, 'lib_' . $name, $wrapped, $frameCount);
+
+                $placementsManifest = array_map(
+                    static fn ($p) => $p->toManifest(),
+                    $placements,
+                );
+
+                $symbols[] = [
+                    'name' => $name,
+                    'characterId' => $charId,
+                    // `kind: clipEvent` distinguishes from `attachMovie`-
+                    // sourced library symbols (which the existing
+                    // detectLibrarySymbols() emits without a kind field).
+                    'kind' => 'clipEvent',
+                    // `directlyDynamic: true` means this sprite itself
+                    // owns a CLIPACTIONRECORD placement and the runtime
+                    // class should port its onLoad/onEnterFrame from
+                    // the AS files at
+                    // scripts/scripts/DefineSprite_<id>/.../CLIPACTIONRECORD onClipEvent(*).as.
+                    //
+                    // `directlyDynamic: false` means this sprite is just
+                    // a wrapper that propagates dynamic descendants —
+                    // its SymbolDefinition gets frameScripts that
+                    // clip.attach the children at the canonical
+                    // sub-placement frames but NO onLoad/onEnterFrame.
+                    'directlyDynamic' => $this->dynamicAnalyzer->isDirectlyDynamic($charId),
+                    'frameCount' => $frameCount,
+                    'width' => $bounds['width'],
+                    'height' => $bounds['height'],
+                    'offsetX' => $bounds['offsetX'],
+                    'offsetY' => $bounds['offsetY'],
+                    'frames' => $exportedFrames,
+                    'placements' => $placementsManifest,
+                ];
+
+                $io->text(sprintf(
+                    '    Extracted dynamic lib "%s" (sprite_%d, %s): %d frame(s), %d placement(s)',
+                    $name,
+                    $charId,
+                    $this->dynamicAnalyzer->isDirectlyDynamic($charId) ? 'direct' : 'wrapper',
+                    $frameCount,
+                    count($placements),
+                ));
+            } catch (\Throwable $e) {
+                $io->text(sprintf('    Error extracting dynamic sprite_%d: %s', $charId, $e->getMessage()));
+            }
+        }
+
+        return $symbols;
+    }
+
+    /**
+     * Rebuild a timeline so every sprite-typed FrameObject with a non-null
+     * positive `ratio` carries its sprite wrapped in {@see StaggeredSpriteWrapper}.
+     * This applies the ratio as a per-instance frame offset at draw time,
+     * which is the missing piece in Arakne's rendering of Flash's staggered
+     * sprite-placement convention.
+     *
+     * Wrapping is applied recursively into child sprites so nested staggers
+     * survive too. SpriteDefinition is final, so we wrap by replacing the
+     * FrameObject's `object` field rather than mutating the SpriteDefinition.
+     */
+    private function wrapTimelineWithRatioOffsets(Timeline $timeline): Timeline
+    {
+        // Memo so a nested sprite is rewritten exactly once even if it
+        // appears at many depths/frames in the parent — and so we don't
+        // recurse infinitely on cyclic graphs (shouldn't happen, but cheap).
+        $rewrittenSprites = [];
+
+        $rewriteSprite = function (SpriteDefinition $sprite) use (&$rewrittenSprites, &$rewriteSprite) {
+            $key = spl_object_id($sprite);
+            if (isset($rewrittenSprites[$key])) {
+                return $rewrittenSprites[$key];
+            }
+            // Tentatively map to the original to break cycles before recursing.
+            $rewrittenSprites[$key] = $sprite;
+            $originalTimeline = $sprite->timeline();
+            $newTimeline = $this->rewriteTimeline($originalTimeline, $rewriteSprite);
+            // Detect the sprite's stop frame from its bytecode so the
+            // wrapper can clamp (with stop) or loop (without). This is the
+            // missing piece for ambient sub-sprites that overrun their own
+            // timeline length and should LOOP — Arakne's default Timeline
+            // clamps at the last frame.
+            $stopFrame = $this->detectStopFrameInTimeline($originalTimeline);
+            $loopWrapped = new FlashLoopTimeline($newTimeline, $stopFrame);
+            // SpriteDefinition is final; we can't subclass it, so return a
+            // wrapper that exposes the rewritten timeline via draw().
+            $wrapped = new InlineSpriteWrapper($sprite, $loopWrapped);
+            $rewrittenSprites[$key] = $wrapped;
+            return $wrapped;
+        };
+
+        return $this->rewriteTimeline($timeline, $rewriteSprite);
+    }
+
+    /**
+     * True if the SWF anywhere references the string "attachMovie" in its
+     * ActionScript bytecode — used to detect spells that build their visual
+     * via runtime sprite attachment (so we can skip the dynamic-symbol
+     * pipeline, which would otherwise strip the symbols' inner content
+     * out of the parent SVG and break the hand-perfected spell-{id}.ts).
+     *
+     * Walks DoActionTag bytecode in the main timeline AND inside every
+     * DefineSpriteTag, scanning ActionConstantPool entries and ActionPush
+     * value strings.
+     */
+    private function swfReferencesAttachMovie(SwfFile $swf): bool
+    {
+        foreach ($swf->tags() as $tag) {
+            if ($this->actionsReferenceAttachMovie($tag)) {
+                return true;
+            }
+            if ($tag instanceof \Arakne\Swf\Parser\Structure\Tag\DefineSpriteTag) {
+                foreach ($tag->tags as $inner) {
+                    if ($this->actionsReferenceAttachMovie($inner)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Inspect a single tag's bytecode (if it has any) for the literal
+     * "attachMovie" string in either an ActionConstantPool entry or an
+     * ActionPush string operand.
+     */
+    private function actionsReferenceAttachMovie(object $tag): bool
+    {
+        if (!($tag instanceof DoActionTag)) {
+            return false;
+        }
+        foreach ($tag->actions as $action) {
+            if ($action->opcode === Opcode::ActionConstantPool) {
+                $constants = $action->data;
+                if (is_array($constants)) {
+                    foreach ($constants as $c) {
+                        if (is_string($c) && $c === 'attachMovie') {
+                            return true;
+                        }
+                    }
+                }
+            } elseif ($action->opcode === Opcode::ActionPush) {
+                $values = $action->data;
+                if (is_array($values)) {
+                    foreach ($values as $v) {
+                        // ActionPush carries `Value` records — their
+                        // string forms appear via the `value` property.
+                        $sv = is_object($v) && property_exists($v, 'value') ? $v->value : null;
+                        if (is_string($sv) && $sv === 'attachMovie') {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Walk the timeline's per-frame actions and return the smallest 0-indexed
+     * frame index that contains an `ActionStop` opcode. Returns null when no
+     * frame stops — in which case the sprite should loop (canonical Flash
+     * MovieClip default).
+     */
+    private function detectStopFrameInTimeline(Timeline $timeline): ?int
+    {
+        foreach ($timeline->frames as $idx => $frame) {
+            foreach ($frame->actions as $doAction) {
+                if (!$doAction instanceof DoActionTag) {
+                    continue;
+                }
+                foreach ($doAction->actions as $action) {
+                    if ($action->opcode === Opcode::ActionStop) {
+                        return $idx;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Walk a timeline's frames and rebuild them with rewritten objects.
+     *
+     * @param Timeline $timeline
+     * @param callable(SpriteDefinition):\Arakne\Swf\Extractor\DrawableInterface $rewriteSprite
+     */
+    private function rewriteTimeline(Timeline $timeline, callable $rewriteSprite): Timeline
+    {
+        $analyzer = $this->dynamicAnalyzer;
+        $newFrames = [];
+        foreach ($timeline->frames as $frame) {
+            $newObjects = [];
+            foreach ($frame->objects as $depth => $obj) {
+                $object = $obj->object;
+
+                // If this placement's sprite carries CLIPACTIONRECORDs, do
+                // NOT bake it into the parent SVG. Substitute an empty
+                // drawable that preserves the original bounds (so the
+                // parent's frame bounds don't shrink) but emits no SVG
+                // markup. The runtime spell class will attach a live
+                // SpellClip at the matching frame via the manifest's
+                // `librarySymbols[].placements` schedule.
+                if (
+                    $analyzer !== null
+                    && $object instanceof SpriteDefinition
+                    && $analyzer->isDynamic($object->id)
+                ) {
+                    $newObjects[$depth] = $obj->with(
+                        object: new EmptyDrawable($object->bounds()),
+                    );
+                    continue;
+                }
+
+                if ($object instanceof SpriteDefinition) {
+                    $object = $rewriteSprite($object);
+                }
+
+                if ($obj->ratio !== null && $obj->ratio > 0 && $obj->object instanceof SpriteDefinition) {
+                    // Macromedia stamps `ratio == placement_frame` on each
+                    // staggered sprite placement; honor it as a draw-time
+                    // offset so each instance's inner timeline runs from
+                    // its own frame 0.
+                    $object = new StaggeredSpriteWrapper($object, $obj->ratio);
+                }
+
+                $newObjects[$depth] = $obj->with(object: $object);
+            }
+            $newFrames[] = new Frame(
+                $frame->bounds,
+                $newObjects,
+                $frame->actions,
+                $frame->label,
+            );
+        }
+
+        return new Timeline($timeline->bounds, ...$newFrames);
     }
 
     /**
@@ -787,7 +1453,17 @@ final class ExtractSpellAnimsCommand extends Command
 
     /**
      * Detect stop frame from exported ActionScript files.
-     * Looks for stop() calls in DefineSprite_X/frame_Y/DoAction.as
+     * Looks for terminal-action calls in DefineSprite_X/frame_Y/DoAction.as.
+     * A terminal action is anything that halts further timeline progression
+     * for this clip:
+     *   - stop()
+     *   - removeMovieClip(), this.removeMovieClip(), _parent.removeMovieClip()
+     *
+     * Spells like Armure Terrestre (108) / Incandescente (110) end with
+     * `_parent.removeMovieClip();` instead of an explicit `stop()` — without
+     * recognising that pattern, PreRenderedSpell would play through to the
+     * SVG sequence's last rendered frame (frame_count - 1) and leave one or
+     * two extra frames of post-removeMovieClip content visible.
      *
      * Returns a 0-indexed frame number for use with the renderer.
      * ActionScript frame numbers are 1-indexed (frame_1 = first frame),
@@ -801,9 +1477,15 @@ final class ExtractSpellAnimsCommand extends Command
             return null;
         }
 
-        // Find frame directories and check for stop() calls
+        // Find frame directories and check for terminal-action calls.
         $frameDirs = glob($scriptDir . '/frame_*');
         $stopFrames = [];
+
+        // Match either:
+        //   stop();
+        //   removeMovieClip();
+        //   <prefix>.removeMovieClip();   (this., _parent., etc.)
+        $terminalRegex = '/\b(?:stop|(?:[a-zA-Z_][\w$]*\s*\.\s*)?removeMovieClip)\s*\(\s*\)\s*;/';
 
         foreach ($frameDirs as $frameDir) {
             $frameName = basename($frameDir);
@@ -814,15 +1496,14 @@ final class ExtractSpellAnimsCommand extends Command
 
                 if (file_exists($doActionFile)) {
                     $content = file_get_contents($doActionFile);
-                    // Check if this frame has a stop() call
-                    if (preg_match('/\bstop\s*\(\s*\)\s*;/', $content)) {
+                    if (preg_match($terminalRegex, $content)) {
                         $stopFrames[] = $frameNum;
                     }
                 }
             }
         }
 
-        // Return the first stop frame (smallest frame number with stop())
+        // Return the first stop frame (smallest frame number with a terminal action).
         if (!empty($stopFrames)) {
             sort($stopFrames);
             return $stopFrames[0];

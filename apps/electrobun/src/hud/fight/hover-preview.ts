@@ -50,14 +50,39 @@ export interface HoverPreviewDeps {
    * on every hover; pathfinder state is overwritten each call.
    */
   syncOccupied(): void;
+  /**
+   * Per-cell LoS blocking flag (walls, decorations, glass cells flagged
+   * `lineOfSight=false` in the original 1.29 map data). The Bresenham
+   * walk stops on the first blocked cell, so this is what makes spells
+   * actually respect cover.
+   */
+  losBlocked(cell: number): boolean;
 }
 
 export class HoverPreview {
+  /**
+   * Last cell the user hovered. Stored so we can re-fire the same hover
+   * computation after off-cursor events (a fighter dying, our own move
+   * animation finishing, etc.) — without it the path/AoE preview would
+   * stay frozen until the mouse moves again.
+   */
+  private lastHovered: number | null = null;
+
   constructor(private readonly deps: HoverPreviewDeps) {
     deps.battlefield.setOnCellHover((cellId) => this.onHover(cellId));
   }
 
+  /**
+   * Re-evaluate the current hover. Call after server events that
+   * invalidate the previous preview (death, teleport, our own move
+   * complete) so the highlight catches up before the next mouse move.
+   */
+  refreshFromCurrentHover(): void {
+    this.onHover(this.lastHovered);
+  }
+
   private onHover(cellId: number | null): void {
+    this.lastHovered = cellId;
     const ui = this.deps.fightUI();
     if (!ui) {
       return;
@@ -158,12 +183,19 @@ export class HoverPreview {
       return;
     }
 
+    // Pull the freshest occupancy snapshot every hover — the spell
+    // preview used to build its own Set inline, which meant any
+    // change-of-state (death, summon, teleport) between hovers could
+    // leave a phantom blocker in the LoS check until the cursor moved.
+    this.deps.syncOccupied();
     const occupants = this.deps.occupiedCells();
+    const losBlocked = this.deps.losBlocked;
     const fmap = {
       width: dims.width,
       height: dims.height,
       occupantOf: (cell: number): number | undefined =>
         occupants.has(cell) ? cell : undefined,
+      losBlocked: (cell: number): boolean => losBlocked(cell),
     };
 
     // LoS gate: if the spell requires LoS and the caster can't see

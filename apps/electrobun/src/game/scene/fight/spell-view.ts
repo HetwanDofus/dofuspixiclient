@@ -64,6 +64,20 @@ export interface SpellAnimationConfig {
    * preserves the v1 fix's anchor for spells without explicit metadata.
    */
   displayType?: number;
+  /**
+   * Fires once when the spell visual reports its HIT moment — for
+   * projectile spells (displayType 30/31/40/41), this is exactly when
+   * the projectile arrives at the target (the harness calls
+   * `runtime.signalHit()` at the LANDED branch in clip/harness.ts).
+   * For instant spells without a separate hit phase, this is invoked
+   * synchronously alongside the visual launch. Used by the in-fight
+   * sequencer chain to gate damage popups + recoil pose so they land
+   * AT the projectile arrival, not when the cast pose ends.
+   *
+   * Idempotent — the runtime guards `signalHit()` so successive calls
+   * are no-ops, but consumers can also assume single-fire.
+   */
+  onHit?: () => void;
 }
 
 export interface SpellRendererConfig {
@@ -188,7 +202,15 @@ export class SpellRenderer {
           actor.markComplete();
           this.scene.remove(actor.id);
         },
-        onHit: () => {},
+        // Forward the canonical `runtime.signalHit()` to the caller —
+        // for projectile spells (displayType 30/31/40/41) this fires
+        // at the LANDED branch in clip/harness.ts, exactly when the
+        // projectile arrives at the target. The in-fight sequencer
+        // uses this signal to gate the damage popup + recoil pose so
+        // they land AT impact, not at the end of the cast pose.
+        onHit: () => {
+          config.onHit?.();
+        },
         onEvent: () => {},
       };
 

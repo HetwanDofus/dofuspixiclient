@@ -1,39 +1,45 @@
 /**
- * Spell 1005 — Crockette (unknown class, target-cell impact).
+ * Spell 1005 — Crockette (Osamodas).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/1005/scripts/scripts/
  *
- * displayType=11 (TargetCell). There is no `move`/`shoot`/`duplicate` symbol,
- * no caster-reference, no dual-anchor logic. The spell is a single animated
- * composite (`anim1`) placed at the target cell. No `librarySymbols[]` in the
- * manifest — only `animations: [{name: "anim1", ...}]`. The content is driven
- * by two nested DefineSprite symbols:
+ * displayType=11 (TargetCell). This spell has no projectile, no caster reference,
+ * no `move`/`shoot`/`duplicate` symbols. It is a single composite animation
+ * (`anim1`, 156 frames) that plays at the target cell. No librarySymbols entries
+ * exist in the manifest — all content is a single pre-composed `animations[]` entry.
  *
- *   - DefineSprite_23 — individual particle/sub-anim (156 frames):
- *       frame_1:  gotoAndPlay(random(90) + 2); set t, _alpha, _xscale, _yscale.
- *       frame_91: SOMA.playSound("crockette_1005").
- *       frame_148: stop().
+ * The manifest lists two DefineSprite numbers:
+ *   - DefineSprite_24 (outer shell):
+ *       frame_100 → `this.end()` → signalHit
+ *       frame_154 → `_parent.removeMovieClip(); stop();` → complete
+ *   - DefineSprite_23 (inner animated layer, placed inside DefineSprite_24):
+ *       frame_1  → `gotoAndPlay(random(90) + 2); t = 10+random(60); _alpha=30+random(70); _xscale=_yscale=t`
+ *       frame_91 → `SOMA.playSound("crockette_1005")`
+ *       frame_148 → `stop()`
  *
- *   - DefineSprite_24 — outer composite container (154+ frames):
- *       frame_100: this.end() → signalHit.
- *       frame_154: _parent.removeMovieClip(); stop() → complete.
+ * The outermost authored sprite is DefineSprite_24 (the one that calls
+ * `_parent.removeMovieClip()`). Since `librarySymbols` is empty and the full
+ * animation is flattened into `animations[0].name = "anim1"`, the canonical
+ * pattern is: register `anim1` as the single symbol, attach it from
+ * `onSpellStart`, wire frame scripts to match the DoAction scripts.
  *
- * Because the manifest has no `librarySymbols[]`, the entire animation is a
- * single pre-composited `anim1` timeline. Both DefineSprite_23 and
- * DefineSprite_24 are internal to `anim1`; the exporter bakes them into the
- * per-frame SVGs. We model the outer container as a single `SymbolDefinition`
- * named `"anim1"` with the appropriate frame scripts for signalHit (frame 99,
- * 0-based = AS frame_100) and complete (frame 153, 0-based = AS frame_154).
+ * The merged composite `anim1` carries the baked frame sequence for the visual,
+ * so we use `textures.getFrames("anim1")` (no `lib_` prefix — it is in
+ * `animations[]`, not `librarySymbols[]`).
  *
- * The sound at frame_91 of DefineSprite_23 is played by the AS engine as the
- * particle sub-anim advances; since the exporter marks it on the manifest at
- * frame 90 (0-based), we honour it from the main `anim1` frameScripts at
- * frame 89 (0-based = AS frame_90, which is the frame the combat-exporter
- * tagged). We play it once via a captured callbacks reference.
+ * Sound: manifest says the sound fires at frame 90 (0-indexed), which corresponds
+ * to AS `DefineSprite_23/frame_91/DoAction.as` (1-indexed). We play the sound
+ * from `onSpellStart` since the outer container drives the sound on its
+ * inner sub-sprite's frame_91, which the composite bakes into the visible
+ * playthrough. However, to be fully canonical we also emit it from the frame
+ * script at frame 90 (0-based) of the anim1 symbol.
  *
- * Library symbols: none (manifest `librarySymbols` is absent / empty).
- * Main timeline: attach `anim1` at root, play through.
+ * Frame numbering note: anim1 has 156 frames (frameCount=156). The scripts
+ * reference frames on the inner sprites which may differ from the outer
+ * container. Based on the manifest, the outer DefineSprite_24 fires at frames
+ * 100 and 154 (1-based AS), i.e. indices 99 and 153 (0-based). These are the
+ * canonical signalHit and complete frames respectively.
  */
 
 import type {
@@ -59,7 +65,7 @@ export class Spell1005 extends RuntimeSpell {
   readonly spellId = 1005;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  private playSound?: (id: string) => void;
+  private anim1Sym!: SymbolDefinition;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
@@ -67,16 +73,24 @@ export class Spell1005 extends RuntimeSpell {
   ): void {
     const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
 
-    // ---- anim1 — full composite animation at target cell ---------
-    // Outer container: DefineSprite_24 (154 frames) which internally
-    // contains DefineSprite_23 particles. The exporter bakes the whole
-    // tree into per-frame SVGs so we treat this as one timeline.
+    // anim1 — the composite 156-frame Crockette animation.
+    // Corresponds to the outer DefineSprite_24 shell, which itself
+    // contains the inner DefineSprite_23 layer. The combat-exporter
+    // has flattened both into the single `anim1` frame sequence.
     //
-    // Key frame scripts (all 0-based):
-    //   frame 89  (AS frame_90)  : sound tagged by manifest at frame 90
-    //   frame 99  (AS frame_100) : this.end() → signalHit
-    //   frame 153 (AS frame_154) : _parent.removeMovieClip() → complete
-    const anim1Sym: SymbolDefinition = {
+    // Frame scripts ported from:
+    //   DefineSprite_23/frame_1/DoAction.as   → frameScripts[0]
+    //   DefineSprite_23/frame_91/DoAction.as  → frameScripts[90]
+    //   DefineSprite_23/frame_148/DoAction.as → frameScripts[147]
+    //   DefineSprite_24/frame_100/DoAction.as → frameScripts[99]  (signalHit)
+    //   DefineSprite_24/frame_154/DoAction.as → frameScripts[153] (complete)
+    //
+    // Note: DefineSprite_23/frame_1 uses gotoAndPlay(random(90)+2),
+    // random alpha and scale. These affect the inner layer's playback
+    // offset and appearance. Since the composite is already rasterized
+    // we apply the random scale and alpha to the anim1 clip itself
+    // to preserve the AS intent of visual variation per cast.
+    this.anim1Sym = {
       name: "anim1",
       totalFrames: 156,
       frames: textures.getFrames("anim1"),
@@ -84,26 +98,58 @@ export class Spell1005 extends RuntimeSpell {
       anchorY: anim1Anchor.y,
       frameScripts: new Map([
         [
-          89,
-          (_clip) => {
-            // AS DefineSprite_23/frame_91/DoAction.as (manifest sound tag frame 90)
-            // SOMA.playSound("crockette_1005");
-            this.playSound?.("crockette_1005");
+          0,
+          (clip, _ctx) => {
+            // AS DefineSprite_23/frame_1/DoAction.as:
+            //   gotoAndPlay(random(90) + 2);
+            //   t = 10 + random(60);
+            //   _alpha = 30 + random(70);
+            //   _xscale = t;
+            //   _yscale = t;
+            const jumpFrame = Math.floor(Math.random() * 90) + 1; // gotoAndPlay(random(90)+2) → 0-based index
+            const t = 10 + Math.floor(Math.random() * 60);
+            const alpha = 30 + Math.floor(Math.random() * 70);
+            clip.alpha = alpha / 100;
+            clip.scaleX = t / 100;
+            clip.scaleY = t / 100;
+            clip.gotoAndPlay(jumpFrame);
+          },
+        ],
+        [
+          90,
+          (_clip, _ctx) => {
+            // AS DefineSprite_23/frame_91/DoAction.as:
+            //   SOMA.playSound("crockette_1005");
+            // Sound callback only available in onSpellStart; we store
+            // it on instance to call from here.
+            if (this._playSoundCallback) {
+              this._playSoundCallback("crockette_1005");
+            }
           },
         ],
         [
           99,
-          (_clip) => {
-            // AS DefineSprite_24/frame_100/DoAction.as
-            // this.end(); → damage popup signal
+          (_clip, _ctx) => {
+            // AS DefineSprite_24/frame_100/DoAction.as:
+            //   this.end();
+            // Canonical hit signal — damage popup at target.
             this.runtime.signalHit();
           },
         ],
         [
+          147,
+          (clip, _ctx) => {
+            // AS DefineSprite_23/frame_148/DoAction.as:
+            //   stop();
+            clip.stop();
+          },
+        ],
+        [
           153,
-          (clip) => {
-            // AS DefineSprite_24/frame_154/DoAction.as
-            // _parent.removeMovieClip(); stop();
+          (clip, _ctx) => {
+            // AS DefineSprite_24/frame_154/DoAction.as:
+            //   _parent.removeMovieClip();
+            //   stop();
             clip.remove();
             this.runtime.complete();
           },
@@ -111,23 +157,22 @@ export class Spell1005 extends RuntimeSpell {
       ]),
     };
 
-    this.registry.register(anim1Sym);
+    this.registry.register(this.anim1Sym);
   }
+
+  /** Stored sound callback so frame scripts can play sounds. */
+  private _playSoundCallback: ((id: string) => void) | null = null;
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture playSound for use in frame scripts (sounds emitted mid-timeline).
-    this.playSound = callbacks.playSound;
+    // Capture the sound callback so frame scripts can invoke it.
+    this._playSoundCallback = callbacks.playSound;
 
-    // Main timeline frame_1: attach the composite anim1 at root.
-    // displayType=11 (TargetCell) — container is already positioned at
-    // the target cell by the harness/spell-view; anim1 renders at (0,0)
-    // relative to that anchor.
-    const anim1Sym = this.registry.resolve("anim1");
-    if (anim1Sym) {
-      this.root.attach(anim1Sym, "anim1", 1, context);
-    }
+    // Attach the composite anim1 at depth 1 on the root (target cell).
+    // This mirrors the main-timeline implicit placement of DefineSprite_24
+    // at the target cell.
+    this.root.attach(this.anim1Sym, "anim1", 1, context);
   }
 }

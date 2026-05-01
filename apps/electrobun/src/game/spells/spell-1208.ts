@@ -1,28 +1,21 @@
 /**
- * Spell 1208 — (Unknown name, likely an explosion/impact spell).
+ * Spell 1208.
  *
- * Hand-ported against the SpellClip / SpellRuntime composition runtime.
- * Canonical AS source: tools/combat-exporter/output/spell-anims/1208/scripts/scripts/
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
+ * Canonical AS: tools/combat-exporter/output/spell-anims/1208/scripts/scripts/
  *
- * displayType=11 (TargetCell). This spell has a single authored timeline
- * (sprite_36, 117 frames) that plays an explosion at the target cell.
- * No library symbols are attached via `attachMovie` — sprite_36 is the
- * sole animation in `animations[]` with no `librarySymbols[]` entries.
- * The main timeline has only `stop()` on frame_2, meaning the harness
- * places the root at the target cell and sprite_36 plays immediately.
+ * displayType=11 (TargetCell). Single authored timeline (sprite_36,
+ * 117 frames) plays at the target cell. No projectile, no caster
+ * reference, no library symbols — sprite_36 lives in animations[] only.
  *
- * sprite_36 canonical AS:
- *   - frame_1/DoAction.as: SOMA.playSound("explosion")
- *   - frame_115/DoAction.as: _parent.removeMovieClip()
+ * Canonical AS layout:
+ *   - frame_2/DoAction.as            : stop()  [outer SWF main timeline]
+ *   - DefineSprite_36/frame_1/DoAction.as   : SOMA.playSound("explosion")
+ *   - DefineSprite_36/frame_115/DoAction.as : _parent.removeMovieClip()
  *
- * signalHit is fired at frame_1 (the impact / explosion onset) since
- * this is a TargetCell spell (harness does not drive hit for this
- * displayType).
- *
- * Library symbols: none.
- *
- * Main timeline: frame_2 → stop(); sprite_36 is implicitly placed on
- * the main timeline in frame_1 and handled via onSpellStart.
+ * Signal flow:
+ *   signalHit  — frame_1 of sprite_36 (first visible burst).
+ *   complete   — frame_115 of sprite_36 (_parent.removeMovieClip).
  */
 
 import type {
@@ -54,26 +47,24 @@ export class Spell1208 extends RuntimeSpell {
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
-    const sprite36Anchor = calculateAnchor(SPRITE_36_BOUNDS);
+    const anchor = calculateAnchor(SPRITE_36_BOUNDS);
 
-    // sprite_36 — 117-frame explosion composite at target cell.
-    // This is an animations[] entry (not a librarySymbols[] entry),
-    // so textures are accessed via the bare name "sprite_36".
+    // sprite_36 — 117-frame impact timeline.
+    // Frame 0  : AS DefineSprite_36/frame_1/DoAction.as   → playSound + signalHit
+    // Frame 114: AS DefineSprite_36/frame_115/DoAction.as → _parent.removeMovieClip()
     this.sprite36Sym = {
       name: "sprite_36",
       totalFrames: 117,
       frames: textures.getFrames("sprite_36"),
-      anchorX: sprite36Anchor.x,
-      anchorY: sprite36Anchor.y,
+      anchorX: anchor.x,
+      anchorY: anchor.y,
       frameScripts: new Map([
         [
           0,
-          (_clip, _ctx) => {
+          (_clip) => {
             // AS: DefineSprite_36/frame_1/DoAction.as
-            // SOMA.playSound("explosion");
-            // Sound is played here in the canonical AS. Since we only
-            // have access to callbacks in onSpellStart, the sound is
-            // played there instead. signalHit fires at impact onset.
+            // Sound is fired from onSpellStart (only callbacks available there).
+            // signalHit marks the canonical impact moment.
             this.runtime.signalHit();
           },
         ],
@@ -81,7 +72,7 @@ export class Spell1208 extends RuntimeSpell {
           114,
           (clip) => {
             // AS: DefineSprite_36/frame_115/DoAction.as
-            // _parent.removeMovieClip();
+            // _parent.removeMovieClip() — tears down the spell.
             clip.parent?.remove();
             this.runtime.complete();
           },
@@ -96,12 +87,11 @@ export class Spell1208 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS: scripts/frame_2/DoAction.as → stop()
-    // The main timeline stops on frame 2; sprite_36 is placed on frame_1.
-    // Play the explosion sound (canonical DefineSprite_36/frame_1 fires this).
+    // AS: DefineSprite_36/frame_1/DoAction.as — SOMA.playSound("explosion")
     callbacks.playSound("explosion");
 
-    // Attach sprite_36 at root so it begins playing immediately.
-    this.root.attach(this.sprite36Sym, "sprite_36", 1, context);
+    // Implicit main-timeline placement of sprite_36.
+    // Outer SWF frame_2/DoAction.as calls stop() after this placement.
+    this.root.attach(this.sprite36Sym, "sprite36", 1, context);
   }
 }

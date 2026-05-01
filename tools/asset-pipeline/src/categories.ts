@@ -110,17 +110,24 @@ const raw: CategoryRegistry = [
     shape: "static",
     traits: {},
   },
-  // Artworks / emblems / auras / alignments SWFs carry no AS2 zone markers
-  // (verified: 0 GAC.applyColor opcodes across breeds/1, emblems/up/1,
-  // emblems/back/1, auras/1, artworks/faces/10 and only unrelated opcodes
-  // in artworks/big/10). Dofus 1.29 ships them as fixed-palette static art.
-  // They compile as plain static shapes — no tintMode, no zone metadata.
+  // `artworks/big` portrait SWFs DO carry runtime zone markers, but via the
+  // canonical `_parent.stringCourseColor(this, zone)` pattern instead of the
+  // `GAC.applyColor` pattern used by sprites/chevauchors. The host UI
+  // components (`StringCourse.as`, `PlayerShop.as`) inject a callback on the
+  // loaded artwork's content; the artwork's frame actions fire it from
+  // inside. The static-metadata extractor handles both marker methods.
+  //
+  // The other static categories (artworks.breeds/faces/illu/mini, emblems/*,
+  // auras, alignments) showed 0 opcodes for either marker, so they keep
+  // `traits: {}` and compile as plain static shapes.
   {
     name: "artworks.big",
     source: "clips/artworks/big/*.swf",
     idFrom: "filename",
     shape: "static",
-    traits: {},
+    traits: {
+      colorZones: PLAYER_COLOR_ZONES,
+    },
   },
   {
     name: "artworks.breeds",
@@ -377,6 +384,24 @@ const raw: CategoryRegistry = [
   {
     name: "ui.ready",
     source: "clips/ready.swf",
+    idFrom: "symbolName",
+    shape: "static",
+    traits: {},
+  },
+  // Top-level loader.swf (cc-loader). Hosts every linked-export UI
+  // component the canonical client loads at runtime via
+  // `Gapi.attachMovie("UI_<sLink>", …)` — UI_StringCourse (turn-change
+  // banner panel art), UI_Inventory, UI_Banner, UI_SpellsCollection,
+  // etc. Each comes in as a multi-frame DefineSprite whose timeline is
+  // the slide-in / hold / slide-out animation; we emit each frame as
+  // its own SVG via `--expand-frames`. The `Errors::ALL & ~OUT_OF_BOUNDS`
+  // tolerance (set inside the bundle extractor) is REQUIRED for this
+  // SWF — its DoAction → ActionConstantPool overruns the tag boundary
+  // by a few bytes, which kills strict parsing for every symbol in the
+  // file.
+  {
+    name: "ui.loader",
+    source: "loader.swf",
     idFrom: "symbolName",
     shape: "static",
     traits: {},

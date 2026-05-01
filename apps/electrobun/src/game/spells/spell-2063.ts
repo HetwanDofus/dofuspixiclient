@@ -1,49 +1,34 @@
 /**
- * Spell 2063 — (Unknown name, likely a Sacrier/Iop thorn/spike spell).
+ * Spell 2063 — (Unknown name, likely a nature/thorn spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2063/scripts/scripts/
  *
- * displayType=11 (TargetCell). There is no `move`, `shoot`, `duplicate`, or
- * dual-anchored pattern. The single authored sprite (DefineSprite_8) plays a
- * 61-frame timeline at the target cell, fires two mid-timeline sounds, then
- * calls `_parent.removeMovieClip()` on frame 61. This is the canonical
- * "impact at target" pattern → TargetCell (11).
+ * displayType=11 (TargetCell). There is no `move`, `shoot`, or `duplicate`
+ * symbol; no caster-side reference; no projectile logic. The spell is a
+ * single impact animation at the target cell. The manifest has no
+ * `librarySymbols[]` entries — all content lives in `animations[]` as
+ * bare names (anim1, anim5, anim9, anim19, anim23). The main authored
+ * sprite is DefineSprite_8, which drives sounds and a 61-frame timeline
+ * that ends with `_parent.removeMovieClip()`. DefineSprite_2 (anim1 /
+ * anim5 / anim19 / anim23) has a `stop()` at frame 16.
  *
- * Manifest layout:
- *   animations:
- *     - anim1  (18 frames) — small sprite variant (directional?)
- *     - anim5  (18 frames) — small sprite variant
- *     - anim9  (75 frames) — large main impact composite (85×93)
- *     - anim19 (18 frames) — small sprite variant
- *     - anim23 (18 frames) — small sprite variant
+ * Canonical AS layout:
+ *   DefineSprite_8/frame_1:  SOMA.playSound("herbe")
+ *   DefineSprite_8/frame_22: SOMA.playSound("pic")
+ *   DefineSprite_8/frame_37: SOMA.playSound("pic")
+ *   DefineSprite_8/frame_61: _parent.removeMovieClip(); stop()
+ *   DefineSprite_2/frame_16: stop()
  *
- *   librarySymbols: (none)
+ * The outer mc (DefineSprite_8 = "anim9") is the 75-frame main impact
+ * animation. The anim1/5/19/23 variants (all 18 frames, same bounds)
+ * are placed inside it and share DefineSprite_2's `stop()` at frame 16.
  *
- *   DefineSprite_8 — main timeline container, 61 frames:
- *     frame_1  (index 0): SOMA.playSound("herbe")
- *     frame_22 (index 21): SOMA.playSound("pic")   → signalHit
- *     frame_37 (index 36): SOMA.playSound("pic")
- *     frame_61 (index 60): _parent.removeMovieClip(); stop() → complete()
+ * signalHit is fired at frame_22 (first "pic" sound = first physical impact).
+ * complete() is fired at frame_61 (_parent.removeMovieClip).
  *
- *   DefineSprite_2 — short 18-frame sub-sprite:
- *     frame_16 (index 15): stop()
- *
- * Since librarySymbols[] is empty in the manifest, there is no `lib_` prefix
- * for any texture key. The animation textures are accessed by bare name.
- *
- * DefineSprite_8 is the outer long-lived container whose final frame drives
- * completion. It maps to `anim9` (75 frames, large impact). DefineSprite_2
- * maps to the short 18-frame animations (anim1/5/19/23); we use `anim1` as
- * the canonical representative. Both are registered as symbols and attached
- * from onSpellStart.
- *
- * Sound handling: sounds inside DefineSprite_8's frame scripts are captured
- * via a stored callback reference since SpellCallbacks is only available in
- * onSpellStart.
- *
- * signalHit fires at frame_22 (index 21) — the first "pic" impact sound,
- * matching the canonical hit timing.
+ * Library symbols: none (librarySymbols[] is absent/empty in manifest).
+ * Textures: bare animation names — "anim9", "anim1", "anim5", "anim19", "anim23".
  */
 
 import type {
@@ -58,6 +43,8 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
+// --- Bounds from manifest.json animations[] entries ---
+
 const ANIM9_BOUNDS = {
   width: 85.3,
   height: 93,
@@ -65,7 +52,7 @@ const ANIM9_BOUNDS = {
   offsetY: -59.45,
 };
 
-const ANIM1_BOUNDS = {
+const ANIM_SMALL_BOUNDS = {
   width: 25.6,
   height: 15.25,
   offsetX: -9.15,
@@ -76,78 +63,89 @@ export class Spell2063 extends RuntimeSpell {
   readonly spellId = 2063;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  private playSound?: (id: string) => void;
-  private sprite8Sym!: SymbolDefinition;
-  private sprite2Sym!: SymbolDefinition;
+  private soundCallback: ((id: string) => void) | undefined;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
-    const anim9Anchor = calculateAnchor(ANIM9_BOUNDS);
-    const anim1Anchor = calculateAnchor(ANIM1_BOUNDS);
+    // The manifest has no librarySymbols[]. All symbols come from animations[].
+    // No lib_ prefix is used.
 
-    // ---- DefineSprite_2 — short 18-frame sub-sprite --------------
-    // Maps to the small directional animations (anim1, etc.).
-    // AS DefineSprite_2/frame_16/DoAction.as: stop()
-    this.sprite2Sym = {
-      name: "sprite2",
+    const anim9Anchor = calculateAnchor(ANIM9_BOUNDS);
+    const animSmallAnchor = calculateAnchor(ANIM_SMALL_BOUNDS);
+
+    // ---- anim1 / anim5 / anim19 / anim23 — small sub-sprites ----
+    // These share the same bounds/frame-count/stopFrame pattern.
+    // DefineSprite_2/frame_16/DoAction.as: stop()
+    // All four variants are identical in structure; only their texture
+    // content differs. They are placed inside anim9's authored timeline.
+    // We register them as container symbols driven by frame_16 stop().
+
+    const makeSmallSym = (name: string): SymbolDefinition => ({
+      name,
       totalFrames: 18,
-      frames: textures.getFrames("anim1"),
-      anchorX: anim1Anchor.x,
-      anchorY: anim1Anchor.y,
+      frames: textures.getFrames(name),
+      anchorX: animSmallAnchor.x,
+      anchorY: animSmallAnchor.y,
       frameScripts: new Map([
         [
           15,
           (clip) => {
-            // AS DefineSprite_2/frame_16/DoAction.as
+            // AS: DefineSprite_2/frame_16/DoAction.as — stop()
             clip.stop();
           },
         ],
       ]),
-    };
+    });
 
-    // ---- DefineSprite_8 — main 61-frame impact container ---------
-    // Maps to anim9 (large 75-frame texture; we use 61 canonical frames).
-    // AS DefineSprite_8/frame_1/DoAction.as:  SOMA.playSound("herbe")
-    // AS DefineSprite_8/frame_22/DoAction.as: SOMA.playSound("pic")
-    // AS DefineSprite_8/frame_37/DoAction.as: SOMA.playSound("pic")
-    // AS DefineSprite_8/frame_61/DoAction.as: _parent.removeMovieClip(); stop()
-    this.sprite8Sym = {
-      name: "sprite8",
-      totalFrames: 61,
-      frames: textures.getFrames("anim9").slice(0, 61),
+    const anim1Sym = makeSmallSym("anim1");
+    const anim5Sym = makeSmallSym("anim5");
+    const anim19Sym = makeSmallSym("anim19");
+    const anim23Sym = makeSmallSym("anim23");
+
+    // ---- anim9 — main 75-frame impact composite (DefineSprite_8) ----
+    // frame_1:  SOMA.playSound("herbe")
+    // frame_22: SOMA.playSound("pic")   → also signalHit
+    // frame_37: SOMA.playSound("pic")
+    // frame_61: _parent.removeMovieClip(); stop() → complete()
+    //
+    // The manifest shows sounds at frames 0, 21, 36 (0-indexed), matching
+    // AS frame_1, frame_22, frame_37 (1-indexed). Frame_61 ends the spell.
+    const anim9Sym: SymbolDefinition = {
+      name: "anim9",
+      totalFrames: 75,
+      frames: textures.getFrames("anim9"),
       anchorX: anim9Anchor.x,
       anchorY: anim9Anchor.y,
       frameScripts: new Map([
         [
           0,
           (_clip) => {
-            // AS DefineSprite_8/frame_1/DoAction.as
-            this.playSound?.("herbe");
+            // AS: DefineSprite_8/frame_1/DoAction.as — SOMA.playSound("herbe")
+            this.soundCallback?.("herbe");
           },
         ],
         [
           21,
           (_clip) => {
-            // AS DefineSprite_8/frame_22/DoAction.as
-            this.playSound?.("pic");
-            // First impact sound — canonical hit timing for signalHit.
+            // AS: DefineSprite_8/frame_22/DoAction.as — SOMA.playSound("pic")
+            this.soundCallback?.("pic");
             this.runtime.signalHit();
           },
         ],
         [
           36,
           (_clip) => {
-            // AS DefineSprite_8/frame_37/DoAction.as
-            this.playSound?.("pic");
+            // AS: DefineSprite_8/frame_37/DoAction.as — SOMA.playSound("pic")
+            this.soundCallback?.("pic");
           },
         ],
         [
           60,
           (clip) => {
-            // AS DefineSprite_8/frame_61/DoAction.as
-            // _parent.removeMovieClip(); stop()
+            // AS: DefineSprite_8/frame_61/DoAction.as
+            //   _parent.removeMovieClip(); stop()
             clip.stop();
             clip.remove();
             this.runtime.complete();
@@ -156,23 +154,26 @@ export class Spell2063 extends RuntimeSpell {
       ]),
     };
 
-    this.registry.register(this.sprite2Sym);
-    this.registry.register(this.sprite8Sym);
+    this.registry.register(anim1Sym);
+    this.registry.register(anim5Sym);
+    this.registry.register(anim19Sym);
+    this.registry.register(anim23Sym);
+    this.registry.register(anim9Sym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Store sound callback for use inside frame scripts.
-    this.playSound = callbacks.playSound;
+    // Capture sound callback for use from frame scripts.
+    this.soundCallback = callbacks.playSound;
 
-    // Attach the main impact sprite (DefineSprite_8 / anim9) at root.
-    // The harness has already placed root at the target cell (TargetCell).
-    this.root.attach(this.sprite8Sym, "sprite8", 1, context);
-
-    // Attach the short sub-sprite (DefineSprite_2 / anim1) at a higher
-    // depth so it renders above the impact composite.
-    this.root.attach(this.sprite2Sym, "sprite2", 2, context);
+    // Attach the main impact animation (DefineSprite_8 = anim9) at the
+    // root. The frame_1 script fires immediately on attach and plays
+    // the "herbe" sound. The timeline drives the rest of the spell.
+    const anim9Sym = this.registry.resolve("anim9");
+    if (anim9Sym) {
+      this.root.attach(anim9Sym, "anim9", 1, context);
+    }
   }
 }

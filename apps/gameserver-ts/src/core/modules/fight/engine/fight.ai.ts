@@ -1,6 +1,7 @@
 import type { Fight } from "@modules/fight/core/fight.entity";
 import type { Fighter } from "@modules/fight/core/fight.fighter";
 import type { TurnObserver } from "@modules/fight/engine/fight.runner.types";
+import { clampFightDirection, getDirection } from "@dofus/grid";
 import { FighterKind } from "@modules/fight/fight.types";
 import { fastDistance } from "@modules/fight/map/fight.area";
 
@@ -163,8 +164,21 @@ export class MonsterAI implements TurnObserver {
     }
 
     if (currentCell !== fighter.cell) {
+      const startCell = fighter.cell;
       fighter.cell = currentCell;
       fighter.spendMp(fighter.mp - remaining);
+      // Update facing to match the last walk step (canonical Dofus 1.29
+      // behavior). Otherwise the next cast's `if (facing !== direction)`
+      // check on the player handler compares against a stale tracked
+      // value and silently suppresses the directionChange emit, leaving
+      // the monster's sprite punching/casting the wrong way.
+      const penultimate =
+        pathCells.length >= 2
+          ? (pathCells[pathCells.length - 2] ?? startCell)
+          : startCell;
+      fighter.direction = clampFightDirection(
+        getDirection(penultimate, currentCell, fmap.width)
+      );
       this.broadcastMovement?.(fight, fighter, pathCells);
     }
   }

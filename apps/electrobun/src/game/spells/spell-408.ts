@@ -1,48 +1,40 @@
 /**
- * Spell 408 — Lakam (Earth/Stone impact, likely Sacrier or Feca class spell).
+ * Spell 408 — Lakam (Sacrieur earth/rock attack).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/408/scripts/scripts/
  *
- * displayType=11 (TargetCell). The spell has a single `shoot` animation anchored
- * at the target cell, with no `move` symbol, no caster-relative logic, and no
- * `_parent.cellFrom` / `_parent.cellTo` world-absolute positioning. It is a
- * pure target-cell impact spell.
+ * displayType=11 (TargetCell). The spell has a single `shoot` animation
+ * anchored at the target cell — no projectile motion, no caster reference,
+ * no `move` symbol. The harness places the container at the target cell and
+ * the `shoot` symbol plays out its 83-frame timeline there.
  *
- * AS layout:
- *   - main timeline frame_1: SOMA.playSound("lakam_405")
- *   - DefineSprite_12_shoot (83 frames): the top-level shoot composite.
- *       frame_83: _parent.removeMovieClip(); stop() → spell complete.
- *       Internally contains DefineSprite_11 and DefineSprite_14 composites.
- *   - DefineSprite_14 (at least 2 frames): inner composite.
- *       frame_2: stop(); this.end() → signalHit (damage popup).
- *   - DefineSprite_11 (7 frames): inner particle emitter container.
- *       frame_1: has a PlaceObject2_9_3 clip with onClipEvent(enterFrame) that
- *                spawns `pierres` particles in pairs up to level*3 total.
- *       frame_7: stop().
- *   - DefineSprite_8 (container): random rotation on load.
- *       frame_1: _rotation = random(360)
- *   - DefineSprite_13_goutte: single-frame drip clip.
- *       frame_1: stop()
- *   - lib_pierres (1 frame): stone particle with full physics.
- *       onLoad: seeds vd, vx, vy, an, v2x, v2y, t, v, vr; positions _parent.
- *       onEnterFrame: integrates motion, fades, removes when _alpha < 10.
- *
- * The `shoot` symbol is authored in the manifest animations[] (83 frames,
- * fully composite). DefineSprite_11, DefineSprite_14, DefineSprite_8, and
- * DefineSprite_13_goutte are sub-composites embedded within shoot — the
- * extractor bakes them into the shoot frames. We model them as container-only
- * SymbolDefinitions to carry their frame scripts.
+ * The spell also has a `sprite11` library symbol (directlyDynamic: true,
+ * characterId 11) which is an internal sub-sprite placed inside the `shoot`
+ * composite. It carries an onClipEvent(enterFrame) that periodically spawns
+ * `pierres` particles. The `pierres` symbol (characterId 6) has both
+ * onClipEvent(load) and onClipEvent(enterFrame) driving full ballistic
+ * physics for each stone fragment.
  *
  * Library symbols:
- *   - lib_pierres — stone particle. onLoad seeds physics. onEnterFrame
- *     integrates, fades, removes when alpha < 10.
+ *   - "pierres" (lib_pierres) — single-frame stone particle.
+ *       onLoad: seeds vd, vx, vy, angle-based v2x/v2y, scale t, v, vr, tps.
+ *       onEnterFrame: ballistic drift in two phases (rise then fall+fade);
+ *                     removes parent wrapper clip when _alpha < 10.
+ *   - "sprite11" (lib_sprite11) — 95-frame sub-animation placed inside shoot
+ *       at depth 1 (frame 0 of shoot). Its clip carries an onEnterFrame
+ *       (from PlaceObject2_9_3) that progressively spawns pierres pairs up
+ *       to level*3. frame 6 stops the timeline.
+ *   - "shoot" — 83-frame composite. Placed by the harness (TargetCell).
+ *       frame 82: _parent.removeMovieClip() → complete().
  *
- * The harness attaches `shoot` at root for displayType=11. We register `shoot`
- * with its 83 frames and final-frame completion script.
+ * The shoot composite also contains sprite11 (a placed sub-sprite at
+ * depth 1, frame 0). We attach sprite11 inside shoot's frame_1 script.
  *
- * signalHit is fired from DefineSprite_14's frame_2 script (this.end() in
- * canonical AS). complete() is fired from shoot's frame_83.
+ * Main timeline: SOMA.playSound("lakam_405").
+ *
+ * signalHit: fired at shoot frame 0 (first frame of impact at target) since
+ * this is displayType=11 (not ballistic, harness does NOT auto-fire it).
  */
 
 import type {
@@ -57,6 +49,7 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
+// Bounds from manifest.json librarySymbols[]
 const PIERRES_BOUNDS = {
   width: 16.15,
   height: 20.5,
@@ -64,121 +57,144 @@ const PIERRES_BOUNDS = {
   offsetY: -8.6,
 };
 
+const SPRITE11_BOUNDS = {
+  width: 126.25,
+  height: 122.8,
+  offsetX: -62.05,
+  offsetY: -98,
+};
+
+// Bounds for the shoot animation (from animations[])
+const SHOOT_BOUNDS = {
+  width: 126.25,
+  height: 122.8,
+  offsetX: -61.6,
+  offsetY: -103.15,
+};
+
 export class Spell408 extends RuntimeSpell {
   readonly spellId = 408;
   readonly displayType = SpellDisplayType.TargetCell;
 
+  // Store symbol refs so inner symbols can reference each other.
   private pierresSym!: SymbolDefinition;
+  private sprite11Sym!: SymbolDefinition;
+  private shootSym!: SymbolDefinition;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    context: SpellContext,
+    _context: SpellContext
   ): void {
     const pierresAnchor = calculateAnchor(PIERRES_BOUNDS);
+    const sprite11Anchor = calculateAnchor(SPRITE11_BOUNDS);
+    const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // ---- lib_pierres — stone particle with full physics ----------
-    // AS DefineSprite_6_pierres/frame_1/PlaceObject2_5_1/onClipEvent(load)
-    // and onClipEvent(enterFrame).
-    // Note: The pierres clip itself is a single-frame sprite. Its _parent
-    // is DefineSprite_8 (the random-rotation wrapper), whose _parent is
-    // the particle list clip (DefineSprite_11's PlaceObject2_9_3 child),
-    // whose _parent._parent._parent._parent is the outer mc (root).
-    // The angle traversal in AS: _parent._parent._parent._parent._parent.angle
-    // = root.vars.angle (5 levels up from the pierres clip in the authored SWF).
-    // In our flat runtime model the pierres clip's parent chain is:
-    //   pierres → (attached inside sprite_8_instance → sprite_11_emitter → shoot → root)
-    // We walk up to root to read angle.
+    // ----------------------------------------------------------------
+    // "pierres" — stone fragment particle
+    //
+    // Each instance is attached INSIDE a wrapper clip spawned by
+    // sprite11's onEnterFrame. The AS attaches "pierres" at depth c
+    // inside `this` (which is the PlaceObject2_9_3 clip, a child of
+    // sprite11). The wrapper clip's _x/_y are set by onLoad on the
+    // pierres clip itself (_parent._x / _parent._y = the wrapper).
+    //
+    // AS path: DefineSprite_6_pierres/frame_1/DoAction.as → stop()
+    //          PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(load).as
+    //          PlaceObject2_5_1/CLIPACTIONRECORD onClipEvent(enterFrame).as
+    //
+    // NOTE: The "pierres" symbol's PlaceObject2_5_1 is a nested clip
+    // placed inside the pierres sprite at frame 1. In the runtime we
+    // collapse this one level: the pierres SymbolDefinition itself
+    // carries the onLoad/onEnterFrame that the canonical AS put on the
+    // inner PlaceObject2_5_1 object. This matches the observable
+    // runtime behaviour (the inner clip is non-visual; all physics are
+    // on the inner clip but they mutate _parent = the pierres sprite).
+    // ----------------------------------------------------------------
     this.pierresSym = {
       name: "pierres",
       totalFrames: 1,
       frames: textures.getFrames("lib_pierres"),
       anchorX: pierresAnchor.x,
       anchorY: pierresAnchor.y,
+
+      // AS: DefineSprite_6_pierres/frame_1/PlaceObject2_5_1/
+      //     CLIPACTIONRECORD onClipEvent(load).as
       onLoad: (clip) => {
-        // AS DefineSprite_6_pierres/frame_1/PlaceObject2_5_1/onClipEvent(load)
-        // vd = 30 + random(30)
-        // gotoAndPlay(random(4) + 1)
-        // vx = 15 * (Math.random() - 0.5)
-        // vy = 15 * (Math.random() - 0.5)
-        // an = _parent._parent._parent._parent._parent.angle + PI
-        // v2x = cos(an) * 5
-        // v2y = sin(an) * 5
-        // _parent._x = 20 * (Math.random() - 0.5)
-        // _parent._y = 10 * (Math.random() - 0.5)
-        // t = 60 + 40 * Math.random()
-        // v = -10
-        // _xscale = t; _yscale = t
-        // vr = 60 * (-0.5 + Math.random())
+        clip.vars.tps = 0;
+
         const vd = 30 + Math.floor(Math.random() * 30);
         clip.vars.vd = vd;
 
-        // gotoAndPlay(random(4) + 1) → random(4) ∈ [0,3] → frames [1,4] (1-based)
-        // → gotoAndPlay(0..3) in 0-based. Since totalFrames=1, this is a no-op for
-        // our single-frame asset, but we mirror it faithfully.
+        // gotoAndPlay(random(4) + 1) — pierres has 1 frame so this is
+        // effectively a no-op visually, but we honour the canonical call.
         clip.gotoAndPlay(Math.floor(Math.random() * 4));
 
         clip.vars.vx = 15 * (Math.random() - 0.5);
         clip.vars.vy = 15 * (Math.random() - 0.5);
 
-        // Walk up to root to read angle (stored in degrees on root.vars.angle
-        // by configureHarness). Add PI (radians) for the opposite-direction burst.
-        let root = clip.parent;
-        while (root && root.parent !== null) {
-          root = root.parent;
-        }
+        // AS: an = _parent._parent._parent._parent._parent.angle + PI
+        // Traversal from the pierres clip:
+        //   clip (pierres) → wrapper → sprite11 clip → shoot → root
+        // root.vars.angle is in DEGREES (canonical AS convention).
+        // Convert to radians for the trig, then add PI.
+        const root =
+          clip.parent?.parent?.parent?.parent ??
+          clip.parent?.parent?.parent ??
+          clip.parent?.parent ??
+          clip.parent;
         const angleDeg = (root?.vars.angle as number) ?? 0;
         const an = (angleDeg * Math.PI) / 180 + Math.PI;
+        clip.vars.an = an;
         clip.vars.v2x = Math.cos(an) * 5;
         clip.vars.v2y = Math.sin(an) * 5;
 
-        // _parent._x / _parent._y — scatter the wrapper clip.
-        const parentClip = clip.parent;
-        if (parentClip) {
-          parentClip.x = 20 * (Math.random() - 0.5);
-          parentClip.y = 10 * (Math.random() - 0.5);
-        }
+        // _parent._x and _parent._y set the wrapper clip's position.
+        // In our runtime the pierres clip IS the wrapper (collapsed),
+        // so we set clip.x / clip.y directly.
+        clip.x = 20 * (Math.random() - 0.5);
+        clip.y = 10 * (Math.random() - 0.5);
 
         const t = 60 + 40 * Math.random();
         clip.vars.t = t;
         clip.vars.v = -10;
         clip.scaleX = t / 100;
         clip.scaleY = t / 100;
+
         clip.vars.vr = 60 * (-0.5 + Math.random());
-        clip.vars.tps = 0;
       },
+
+      // AS: DefineSprite_6_pierres/frame_1/PlaceObject2_5_1/
+      //     CLIPACTIONRECORD onClipEvent(enterFrame).as
       onEnterFrame: (clip) => {
-        // AS DefineSprite_6_pierres/frame_1/PlaceObject2_5_1/onClipEvent(enterFrame)
-        // if(_alpha < 10) { removeMovieClip(_parent) }
-        // _parent._x += vx; _parent._y += vy
-        // _rotation = _rotation + vr
-        // if(tps++ < vd) { _Y += v; vx /= 1.2; vy /= 1.2; v /= 1.2 }
-        // if(tps++ > vd) { _Y += (v2y *= 1.2); _X += (v2x *= 1.2); _alpha -= 10 }
-        const alpha = clip.alpha;
-        if (alpha < 0.1) {
-          clip.parent?.remove();
+        // if (_alpha < 10) removeMovieClip(_parent)
+        if (clip.alpha < 0.1) {
+          // _parent.removeMovieClip() — remove the pierres clip itself
+          // (already collapsed, so clip.remove() is correct).
+          clip.remove();
           return;
         }
 
         let vx = clip.vars.vx as number;
         let vy = clip.vars.vy as number;
         const vr = clip.vars.vr as number;
+        let tps = clip.vars.tps as number;
+        const vd = clip.vars.vd as number;
         let v = clip.vars.v as number;
         let v2x = clip.vars.v2x as number;
         let v2y = clip.vars.v2y as number;
-        let tps = clip.vars.tps as number;
-        const vd = clip.vars.vd as number;
 
-        // Move wrapper clip
-        const parentClip = clip.parent;
-        if (parentClip) {
-          parentClip.x += vx;
-          parentClip.y += vy;
-        }
+        // _parent._x += vx; _parent._y += vy;
+        clip.x += vx;
+        clip.y += vy;
 
-        // Rotate self
+        // _rotation = _rotation + vr  (degrees → radians)
         clip.rotation += (vr * Math.PI) / 180;
 
-        // First tps++ check (post-increment: uses tps THEN increments)
+        // Phase 1: rise (tps < vd)
+        // NOTE: AS uses tps++ (post-increment) twice in the same
+        // expression block, so the first check uses tps and increments
+        // it; the second check uses tps+1. We replicate the double-
+        // increment faithfully.
         if (tps < vd) {
           clip.y += v;
           vx /= 1.2;
@@ -190,190 +206,138 @@ export class Spell408 extends RuntimeSpell {
         }
         tps++;
 
-        // Second tps++ check
+        // Phase 2: fall + fade (tps > vd, after first increment)
         if (tps > vd) {
           v2y *= 1.2;
           v2x *= 1.2;
           clip.y += v2y;
           clip.x += v2x;
-          clip.alpha = Math.max(0, clip.alpha - 0.1);
           clip.vars.v2y = v2y;
           clip.vars.v2x = v2x;
+          // _alpha -= 10  (0-100 scale → 0-1: subtract 10/100)
+          clip.alpha = Math.max(0, clip.alpha - 10 / 100);
         }
         tps++;
 
         clip.vars.tps = tps;
       },
-    };
 
-    // ---- DefineSprite_8 — random-rotation wrapper for each pierre ----------
-    // AS DefineSprite_8/frame_1/DoAction.as: _rotation = random(360)
-    // This is a container-only clip that wraps each pierres instance and
-    // applies a random rotation to it.
-    const sprite8Sym: SymbolDefinition = {
-      name: "sprite8",
-      totalFrames: 1,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
+      // AS: DefineSprite_6_pierres/frame_1/DoAction.as → stop()
       frameScripts: new Map([
         [
           0,
           (clip) => {
-            // AS DefineSprite_8/frame_1/DoAction.as
-            // _rotation = random(360)
-            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
-          },
-        ],
-      ]),
-    };
-
-    // ---- DefineSprite_13_goutte — drip/drop clip --------------------
-    // AS DefineSprite_13_goutte/frame_1/DoAction.as: stop()
-    // Single-frame clip that just stops. Rendered as part of the shoot composite.
-    const goutteSym: SymbolDefinition = {
-      name: "goutte",
-      totalFrames: 1,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (clip) => {
-            // AS DefineSprite_13_goutte/frame_1/DoAction.as: stop()
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- DefineSprite_11 — particle emitter (7 frames) -----------
-    // AS DefineSprite_11/frame_1 has a PlaceObject2_9_3 child with an
-    // onClipEvent(enterFrame) that spawns pierres pairs up to level*3 total.
-    // AS DefineSprite_11/frame_7/DoAction.as: stop()
+    // ----------------------------------------------------------------
+    // "sprite11" — the animated sub-composite placed inside shoot.
     //
-    // The emitter clip is placed inside shoot, and its inner clip (PlaceObject2_9_3)
-    // drives the particle spawning. We model the emitter as a container-only
-    // SymbolDefinition. The spawning logic that was on PlaceObject2_9_3's
-    // onEnterFrame is lifted into the emitter's own onEnterFrame since we don't
-    // model inner placed objects separately — the emitter IS the spawner.
-    const sprite11Sym: SymbolDefinition = {
+    // directlyDynamic: true. Has 95 authored frames + an onEnterFrame
+    // on PlaceObject2_9_3 (depth 3, placed at frame 0 of sprite 11's
+    // own timeline) that periodically spawns pairs of pierres particles.
+    // frame 6: stop().
+    //
+    // AS path: DefineSprite_11/frame_7/DoAction.as → stop()
+    //          DefineSprite_11/frame_1/PlaceObject2_9_3/
+    //              CLIPACTIONRECORD onClipEvent(enterFrame).as
+    // ----------------------------------------------------------------
+    this.sprite11Sym = {
       name: "sprite11",
-      totalFrames: 7,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
+      totalFrames: 95,
+      frames: textures.getFrames("lib_sprite11"),
+      anchorX: sprite11Anchor.x,
+      anchorY: sprite11Anchor.y,
+
+      // AS: DefineSprite_11/frame_1/PlaceObject2_9_3/
+      //     CLIPACTIONRECORD onClipEvent(enterFrame).as
+      //
+      // The PlaceObject2_9_3 clip is a non-visual container placed at
+      // depth 3 within sprite11. Its onEnterFrame spawns pierres pairs
+      // into itself. We collapse it: the onEnterFrame is implemented
+      // directly on sprite11 and pierres are attached as children of
+      // sprite11.
       onLoad: (clip) => {
-        // Initialize the counter used by the enterFrame spawner.
+        // Seed the counter used by onEnterFrame.
         clip.vars.c = 0;
       },
+
       onEnterFrame: (clip, ctx) => {
-        // AS DefineSprite_11/frame_1/PlaceObject2_9_3/onClipEvent(enterFrame):
-        // if(c < _parent._parent._parent.level * 3) {
-        //   c += 1; this.attachMovie("pierres","pierres" + c, c);
-        //   c += 1; this.attachMovie("pierres","pierres" + c, c);
-        // }
-        //
-        // _parent._parent._parent from the placed clip is: PlaceObject's parent
-        // (sprite11) → shoot → root. So level = root.vars.level.
-        // We walk up: clip (sprite11) → shoot → root.
-        const shootClip = clip.parent;
-        const rootClip = shootClip?.parent;
-        const level = (rootClip?.vars.level as number) ?? 1;
+        // AS: if (c < _parent._parent._parent.level * 3)
+        // _parent._parent._parent from PlaceObject2_9_3 inside sprite11:
+        //   PlaceObject2_9_3 → sprite11 → shoot → root
+        // In our collapsed model: sprite11 clip's parent = shoot clip,
+        // shoot clip's parent = root.
+        const root = clip.parent?.parent ?? clip.parent;
+        const level = (root?.vars.level as number) ?? 1;
         let c = clip.vars.c as number;
         if (c < level * 3) {
           c += 1;
-          // Wrap each pierres in a sprite8 (random-rotation wrapper) so
-          // the canonical _parent._x / _parent._y setters in pierres' onLoad
-          // operate on the wrapper. We attach sprite8 then attach pierres inside it.
-          const wrapperName = `wrapper${c}`;
-          const wrapper = clip.attach(sprite8Sym, wrapperName, c, ctx);
-          wrapper.attach(this.pierresSym, `pierres${c}`, 1, ctx);
+          clip.attach(this.pierresSym, `pierres${c}`, c, ctx);
           c += 1;
-          const wrapperName2 = `wrapper${c}`;
-          const wrapper2 = clip.attach(sprite8Sym, wrapperName2, c, ctx);
-          wrapper2.attach(this.pierresSym, `pierres${c}`, 1, ctx);
+          clip.attach(this.pierresSym, `pierres${c}`, c, ctx);
           clip.vars.c = c;
         }
       },
+
+      // AS: DefineSprite_11/frame_7/DoAction.as → stop()
       frameScripts: new Map([
         [
           6,
           (clip) => {
-            // AS DefineSprite_11/frame_7/DoAction.as: stop()
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- DefineSprite_14 — inner composite with signalHit -------
-    // AS DefineSprite_14/frame_2/DoAction.as: stop(); this.end() → signalHit.
-    const sprite14Sym: SymbolDefinition = {
-      name: "sprite14",
-      totalFrames: 2,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          1,
-          (_clip) => {
-            // AS DefineSprite_14/frame_2/DoAction.as: stop(); this.end()
-            // this.end() is the canonical hit signal.
-            _clip.stop();
-            this.runtime.signalHit();
-          },
-        ],
-      ]),
-    };
-
-    // ---- shoot — 83-frame top-level impact composite -------------
-    // The shoot animation is authored with full composite frames (the SVG
-    // extractor baked all child visuals into the shoot frames). We provide
-    // its frame textures from animations[] (no lib_ prefix — shoot is in
-    // animations[], not librarySymbols[]).
-    // frame_83: _parent.removeMovieClip(); stop() → complete.
+    // ----------------------------------------------------------------
+    // "shoot" — 83-frame main impact animation at target cell.
     //
-    // We also attach sprite11 (particle emitter) and sprite14 (hit signal)
-    // as logical children so their frame scripts fire during the shoot lifetime.
-    // In the canonical SWF these are PlaceObject2'd onto shoot's timeline;
-    // we mirror that by attaching them from shoot's frame_1 script.
-    const shootBounds = {
-      width: 126.25,
-      height: 122.8,
-      offsetX: -61.6,
-      offsetY: -103.15,
-    };
-    const shootAnchor = calculateAnchor(shootBounds);
-    const shootFrames = textures.getFrames("shoot");
-
-    const shootSym: SymbolDefinition = {
+    // The harness (TargetCell) does NOT automatically attach shoot;
+    // for displayType=11 the harness leaves the root empty and the
+    // per-spell module attaches its content. We attach shoot from
+    // onSpellStart so it starts playing immediately.
+    //
+    // frame 0: signalHit + attach sprite11 at depth 1.
+    // frame 82: _parent.removeMovieClip() → complete().
+    //
+    // The manifest shows sprite11 placed at frame 0 of shoot (the
+    // `placements[]` entry with `kind: "place"`, `frame: 0`, `depth: 1`,
+    // `translateX: 0.45`, `translateY: -5.15`).
+    // ----------------------------------------------------------------
+    this.shootSym = {
       name: "shoot",
       totalFrames: 83,
-      frames: shootFrames,
+      frames: textures.getFrames("shoot"),
       anchorX: shootAnchor.x,
       anchorY: shootAnchor.y,
+
       frameScripts: new Map([
         [
           0,
           (clip, ctx) => {
-            // Attach logical sub-composites that drive particle spawning
-            // and hit signalling. These mirror the PlaceObject2 children
-            // on shoot's authored timeline.
-            clip.attach(sprite11Sym, "sprite11", 1, ctx);
-            clip.attach(sprite14Sym, "sprite14", 2, ctx);
-            clip.attach(goutteSym, "goutte", 3, ctx);
+            // Signal hit at first impact frame (displayType 11 — harness
+            // does NOT auto-fire signalHit).
+            this.runtime.signalHit();
+
+            // AS: sprite11 placed at frame 0 of shoot (PlaceObject2 depth 1)
+            // with matrix translateX=0.45, translateY=-5.15.
+            clip.attach(this.sprite11Sym, "sprite11", 1, ctx, {
+              x: 0.45,
+              y: -5.15,
+            });
           },
         ],
         [
           82,
           (clip) => {
-            // AS DefineSprite_12_shoot/frame_83/DoAction.as:
-            // _parent.removeMovieClip(); stop()
-            clip.stop();
-            clip.parent?.remove();
+            // AS: DefineSprite_12_shoot/frame_83/DoAction.as
+            //   _parent.removeMovieClip(); stop();
+            clip.remove();
             this.runtime.complete();
           },
         ],
@@ -381,27 +345,20 @@ export class Spell408 extends RuntimeSpell {
     };
 
     this.registry.register(this.pierresSym);
-    this.registry.register(sprite8Sym);
-    this.registry.register(goutteSym);
-    this.registry.register(sprite11Sym);
-    this.registry.register(sprite14Sym);
-    this.registry.register(shootSym);
+    this.registry.register(this.sprite11Sym);
+    this.registry.register(this.shootSym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    context: SpellContext,
+    context: SpellContext
   ): void {
-    // AS scripts/frame_1/DoAction.as: SOMA.playSound("lakam_405")
+    // AS: scripts/frame_1/DoAction.as → SOMA.playSound("lakam_405")
     callbacks.playSound("lakam_405");
 
-    // The harness (TargetCell / displayType=11) does not auto-attach `shoot`.
-    // For TargetCell spells the per-spell module must attach shoot explicitly
-    // from onSpellStart (the harness only sets root.vars, it does not spawn children
-    // for displayType 10/11/12).
-    const shootSym = this.registry.resolve("shoot");
-    if (shootSym) {
-      this.root.attach(shootSym, "shoot", 1, context);
-    }
+    // Attach the shoot animation at the root. For displayType=11 the
+    // root container is already positioned at the target cell by the
+    // spell-view; shoot at (0,0) within root lands at target cell.
+    this.root.attach(this.shootSym, "shoot", 1, context);
   }
 }

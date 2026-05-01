@@ -149,8 +149,12 @@ export class GridOverlay extends Actor implements Rendered {
     }
   }
 
-  toggle(): boolean {
-    this.visible = !this.visible;
+  toggle(force?: boolean): boolean {
+    const next = force ?? !this.visible;
+    if (next === this.visible) {
+      return this.visible;
+    }
+    this.visible = next;
     this.container.visible = this.visible;
 
     if (this.visible) {

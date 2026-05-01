@@ -29,6 +29,16 @@ export interface FighterSnapshot {
   maxMp: number;
   gfxId: number;
   dead: boolean;
+  /**
+   * RGB color zones from the SpriteMovementEntry (-1 = default for the
+   * gfx). Carried through so the StringCourse turn-change banner can
+   * tint the fighter's portrait per zone — same as canonical 1.29's
+   * `stringCourseColor(mc, zone)` callback in
+   * `dofus.graphics.gapi.ui.StringCourse`.
+   */
+  color1: number;
+  color2: number;
+  color3: number;
   summonedBy?: string;
 }
 

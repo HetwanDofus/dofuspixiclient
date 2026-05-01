@@ -1,35 +1,42 @@
 /**
- * Spell 1010 — (Cra/Sadida grass/sling spell).
+ * Spell 1010 — (Cra earth/nature spell, likely "Flèche de Recul" or similar grass/sling attack).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/1010/scripts/scripts/
  *
- * displayType=11 (TargetCell). There is no `move`, `shoot`, `duplicate`, or
- * caster-reference in any AS file. DefineSprite_15/frame_1 positions itself at
- * `_parent.cellTo`, which is exactly TargetCell behaviour. No projectile arc,
- * no beam — single impact at target cell.
+ * displayType=11 (TargetCell). No `move`/`shoot`/`duplicate` symbols, no
+ * caster-relative positioning — both authored sprites position themselves
+ * at `_parent.cellTo` (target cell). sprite_15/frame_1 sets _X/_Y to
+ * cellTo explicitly, confirming target-cell anchoring. No projectile arc,
+ * no beam pattern. → TargetCell (11).
  *
- * The manifest has NO librarySymbols[] entries. Both animated symbols
- * (sprite_14 and sprite_15) live only in the top-level `animations[]` list,
- * so textures are fetched WITHOUT the `lib_` prefix.
+ * Animations in manifest (no librarySymbols — use bare names, NO lib_ prefix):
+ *   - sprite_11  — 6-frame small impact spark/flash (used indirectly as
+ *                  a sub-element of sprite_14's composite; registered for
+ *                  completeness but not directly attached by AS).
+ *   - sprite_14  — 261-frame main impact composite (grass/earth burst).
+ *                  frame_1 (DoAction.as): SOMA.playSound("herbe").
+ *                  frame_1 (DoAction_2.as): gotoAndPlay(random(30) + 1) —
+ *                    randomises entry point in first 30 frames.
+ *                  frame_151 (DoAction.as): SOMA.playSound("fronde").
+ *                  frame_259 (DoAction.as): stop().
+ *   - sprite_15  — 204-frame longer composite (secondary hit/linger).
+ *                  frame_1 (DoAction.as): _X = _parent.cellTo.x; _Y = _parent.cellTo.y.
+ *                  frame_163 (DoAction.as): this.end() → signalHit.
+ *                  frame_202 (DoAction.as): _parent.removeMovieClip() → complete.
  *
- * Library symbols (from animations[] — no lib_ prefix):
- *   - sprite_14 — 261-frame composite (background/grass swirl). frame_1 plays
- *     sound "herbe" then jumps to a random frame in [1,30] to stagger the loop.
- *     frame_151 plays sound "fronde". frame_259 stops.
- *   - sprite_15 — 204-frame composite (impact visual). frame_1 positions self
- *     at cellTo. frame_163 fires signalHit (this.end()). frame_202 removes
- *     parent → spell complete.
+ * Main timeline frame_2/DoAction.as: stop().
+ * Sounds on main timeline manifest: "herbe" at frame 0, "fronde" at frame 150.
+ * Both sounds are also triggered from inside sprite_14's frame scripts,
+ * which is the canonical place — onSpellStart plays "herbe" to mirror the
+ * main-timeline frame_1 sound entry.
  *
- * Main timeline (frame_2/DoAction.as): stop(). The outer SWF pauses at frame 2;
- * sprite_14 and sprite_15 are placed on the timeline implicitly (frame 1), so
- * we attach them from onSpellStart. Sound "herbe" is fired from sprite_14's own
- * frame_1 script, not the main timeline directly (though the manifest's sounds[]
- * hints at it too — canonical script wins).
- *
- * NOTE: sprite_11 appears in animations[] (6-frame small particle) but no AS
- * script ever calls attachMovie("sprite_11") — it is a sub-component composited
- * into sprite_14/sprite_15 by the exporter and does not need a SymbolDefinition.
+ * Both sprite_14 and sprite_15 are attached in onSpellStart (they are
+ * placed on the main timeline frame_1 implicitly in canonical AS).
+ * sprite_15/frame_1 reads _parent.cellTo → cellTo is on root.vars (set by harness).
+ * For displayType=11 (TargetCell), the container anchor IS cellTo, so
+ * _parent.cellTo.x relative to the container origin is (0,0). We apply
+ * that in sprite_15's frame_1 script, setting x/y to 0 (container-local target).
  */
 
 import type {
@@ -44,7 +51,13 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-// Bounds from manifest animations[] entries (no lib_ prefix applies here).
+const SPRITE_11_BOUNDS = {
+  width: 14.3,
+  height: 10.9,
+  offsetX: -7.15,
+  offsetY: -5.45,
+};
+
 const SPRITE_14_BOUNDS = {
   width: 71.45,
   height: 107.85,
@@ -70,68 +83,94 @@ export class Spell1010 extends RuntimeSpell {
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
+    const sprite11Anchor = calculateAnchor(SPRITE_11_BOUNDS);
     const sprite14Anchor = calculateAnchor(SPRITE_14_BOUNDS);
     const sprite15Anchor = calculateAnchor(SPRITE_15_BOUNDS);
 
-    // ---- sprite_14 — background / grass swirl, 261 frames ----------
-    // The symbol starts playing, jumps to a random stagger point in [1,30],
-    // plays sound "fronde" at frame 151, and stops at frame 259.
+    // ---- sprite_11 — 6-frame spark/flash element -----------------
+    // No direct AS attachMovie calls reference this by name from the
+    // top-level scripts — it is a composite sub-element baked into
+    // sprite_14's rendered frames. Registered for completeness.
+    const sprite11Sym: SymbolDefinition = {
+      name: "sprite_11",
+      totalFrames: 6,
+      frames: textures.getFrames("sprite_11"),
+      anchorX: sprite11Anchor.x,
+      anchorY: sprite11Anchor.y,
+    };
+
+    // ---- sprite_14 — 261-frame main grass/earth burst -------------
     //
-    // AS DefineSprite_14/frame_1/DoAction.as:   SOMA.playSound("herbe");
-    // AS DefineSprite_14/frame_1/DoAction_2.as: gotoAndPlay(random(30) + 1);
-    // AS DefineSprite_14/frame_151/DoAction.as: SOMA.playSound("fronde");
-    // AS DefineSprite_14/frame_259/DoAction.as: stop();
+    // AS DefineSprite_14/frame_1/DoAction.as:
+    //   SOMA.playSound("herbe");
+    // AS DefineSprite_14/frame_1/DoAction_2.as:
+    //   gotoAndPlay(random(30) + 1);
+    // AS DefineSprite_14/frame_151/DoAction.as:
+    //   SOMA.playSound("fronde");
+    // AS DefineSprite_14/frame_259/DoAction.as:
+    //   stop();
     //
-    // Sounds inside symbol frame scripts need the callbacks reference captured
-    // from onSpellStart, since the SymbolDefinition handlers don't receive it.
+    // The two DoAction scripts on frame_1 both run on entry:
+    //   1. play the "herbe" sound
+    //   2. jump to a random frame in [1..30] (0-based: [0..29])
+    // The "fronde" sound fires at frame 151 (0-based: 150).
+    // The timeline stops at frame 259 (0-based: 258).
+    //
+    // Sound callbacks are only available in onSpellStart. We capture
+    // a reference here so frame scripts inside the symbol can trigger
+    // them at the canonical frames.
     this.sprite14Sym = {
       name: "sprite_14",
       totalFrames: 261,
-      // No lib_ prefix — sprite_14 is in animations[], not librarySymbols[].
       frames: textures.getFrames("sprite_14"),
       anchorX: sprite14Anchor.x,
       anchorY: sprite14Anchor.y,
       frameScripts: new Map([
         [
           0,
-          (clip) => {
-            // AS DefineSprite_14/frame_1/DoAction.as + DoAction_2.as
-            // Sound "herbe" is fired here; we use the captured callback.
-            this.soundCallback?.("herbe");
-            // gotoAndPlay(random(30) + 1) — AS 1-based → 0-based
-            const target = Math.floor(Math.random() * 30); // random(30) gives 0..29; +1 → 1..30; -1 for 0-based → 0..29
+          (clip, _ctx) => {
+            // AS DefineSprite_14/frame_1/DoAction.as: SOMA.playSound("herbe")
+            // Sound triggered via captured callback (see onSpellStart).
+            // AS DefineSprite_14/frame_1/DoAction_2.as: gotoAndPlay(random(30) + 1)
+            // random(30) returns [0..29]; +1 makes AS frame [1..30]; 0-based: [0..29]
+            const target = Math.floor(Math.random() * 30);
             clip.gotoAndPlay(target);
           },
         ],
         [
           150,
-          () => {
-            // AS DefineSprite_14/frame_151/DoAction.as
-            this.soundCallback?.("fronde");
+          (_clip, _ctx) => {
+            // AS DefineSprite_14/frame_151/DoAction.as: SOMA.playSound("fronde")
+            this.soundCallbacks?.playSound("fronde");
           },
         ],
         [
           258,
           (clip) => {
-            // AS DefineSprite_14/frame_259/DoAction.as
+            // AS DefineSprite_14/frame_259/DoAction.as: stop()
             clip.stop();
           },
         ],
       ]),
     };
 
-    // ---- sprite_15 — impact visual, 204 frames ---------------------
-    // frame_1 positions self at cellTo (world absolute coords stored on root.vars).
-    // frame_163 signals hit (this.end()).
-    // frame_202 removes the outer mc → spell complete.
+    // ---- sprite_15 — 204-frame secondary hit/linger --------------
     //
-    // AS DefineSprite_15/frame_1/DoAction.as:   _X = _parent.cellTo.x; _Y = _parent.cellTo.y;
-    // AS DefineSprite_15/frame_163/DoAction.as: this.end();
-    // AS DefineSprite_15/frame_202/DoAction.as: _parent.removeMovieClip();
+    // AS DefineSprite_15/frame_1/DoAction.as:
+    //   _X = _parent.cellTo.x;
+    //   _Y = _parent.cellTo.y;
+    // For displayType=11 (TargetCell), the container is already anchored
+    // AT cellTo in world space. So container-local (0, 0) IS cellTo.
+    // We set x=0, y=0 here to match the canonical positioning.
+    //
+    // AS DefineSprite_15/frame_163/DoAction.as:
+    //   this.end() → signalHit (damage popup)
+    //
+    // AS DefineSprite_15/frame_202/DoAction.as:
+    //   _parent.removeMovieClip() → spell complete
     this.sprite15Sym = {
       name: "sprite_15",
       totalFrames: 204,
-      // No lib_ prefix — sprite_15 is in animations[], not librarySymbols[].
       frames: textures.getFrames("sprite_15"),
       anchorX: sprite15Anchor.x,
       anchorY: sprite15Anchor.y,
@@ -139,33 +178,27 @@ export class Spell1010 extends RuntimeSpell {
         [
           0,
           (clip) => {
-            // AS DefineSprite_15/frame_1/DoAction.as
-            // _parent is the root clip. For displayType=11 (TargetCell) the
-            // container origin IS the target cell, so cellTo in local coords
-            // IS (0, 0). However, canonical AS stores absolute world coords on
-            // root.vars.cellTo and the script reads them directly. We mirror
-            // that exactly: position clip at the world coords of cellTo.
-            const root = clip.parent;
-            const cellTo = root?.vars.cellTo as
-              | { x: number; y: number }
-              | undefined;
-            if (cellTo) {
-              clip.x = cellTo.x;
-              clip.y = cellTo.y;
-            }
+            // AS DefineSprite_15/frame_1/DoAction.as:
+            //   _X = _parent.cellTo.x; _Y = _parent.cellTo.y;
+            // displayType=11: container origin === cellTo in world coords.
+            // Container-local position of cellTo is (0, 0).
+            clip.x = 0;
+            clip.y = 0;
           },
         ],
         [
           162,
-          () => {
-            // AS DefineSprite_15/frame_163/DoAction.as — this.end() → signalHit
+          (_clip) => {
+            // AS DefineSprite_15/frame_163/DoAction.as: this.end()
+            // Canonical hit signal — damage popup at target.
             this.runtime.signalHit();
           },
         ],
         [
           201,
           (clip) => {
-            // AS DefineSprite_15/frame_202/DoAction.as — _parent.removeMovieClip()
+            // AS DefineSprite_15/frame_202/DoAction.as: _parent.removeMovieClip()
+            // This is the outer mc removal — signals spell completion.
             clip.parent?.remove();
             this.runtime.complete();
           },
@@ -173,25 +206,29 @@ export class Spell1010 extends RuntimeSpell {
       ]),
     };
 
+    this.registry.register(sprite11Sym);
     this.registry.register(this.sprite14Sym);
     this.registry.register(this.sprite15Sym);
   }
 
-  // Captured in onSpellStart so symbol frame scripts can play sounds.
-  private soundCallback?: (id: string) => void;
+  // Captured callbacks reference so frame scripts inside sprite_14 can
+  // trigger sounds at the canonical frames (150 → "fronde").
+  private soundCallbacks?: SpellCallbacks;
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // Capture sound callback for use inside frame scripts (sprite_14 fires
-    // "herbe" and "fronde" from its own timeline, not the main timeline).
-    this.soundCallback = callbacks.playSound;
+    this.soundCallbacks = callbacks;
 
-    // Main timeline frame_2/DoAction.as: stop()
-    // sprite_14 and sprite_15 are placed implicitly on the main timeline at
-    // frame_1 in canonical Flash. We attach them here so they begin ticking
-    // from the next runtime frame.
+    // AS main timeline: places sprite_14 and sprite_15 on frame_1.
+    // frame_2/DoAction.as: stop() — main timeline halts after placing children.
+    //
+    // sprite_14 frame_1 also plays "herbe" — we play it here to mirror
+    // the initial frame_1 entry before gotoAndPlay randomises the playhead.
+    callbacks.playSound("herbe");
+
+    // Attach sprite_14 (main burst, depth 1) and sprite_15 (secondary, depth 2).
     this.root.attach(this.sprite14Sym, "sprite14", 1, context);
     this.root.attach(this.sprite15Sym, "sprite15", 2, context);
   }

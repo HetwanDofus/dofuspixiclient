@@ -1,53 +1,32 @@
 /**
- * Spell 805 — Vladimair (Sram beam spell).
+ * Spell 805 — Vlad (Sacrieur beam-line spell).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/805/scripts/scripts/
  *
- * displayType=40 (BeamLine). The manifest exposes a single `duplicate` animation
- * (87 frames, with authored frame textures) and no `librarySymbols[]` entries.
- * The canonical AS has:
- *   - `DefineSprite_8_duplicate` with a frame_1 that scales itself based on
- *     `_parent.level`, and a frame_85 that calls `removeMovieClip()`.
- *   - `DefineSprite_4` with an unnamed inner clip whose onClipEvent(load) sets
- *     its _yscale based on level. This is the interior of the `duplicate` symbol.
- *
- * Detection reasoning:
- *   - The manifest has a `duplicate` animation and no `move`/`shoot` animations.
- *   - The AS for `DefineSprite_8_duplicate` has frame_1 scale logic and a
- *     frame_85 self-removal — this is the canonical beam-segment symbol.
- *   - No `cellFrom`/`cellTo` world-absolute positioning in the AS scripts.
- *   - No ballistic/linear projectile patterns.
- *   → displayType=40 (BeamLine).
+ * displayType=40 (BeamLine). The manifest has a `duplicate` animation in
+ * animations[] (87 frames, isComposite: true) and the AS scripts are all on
+ * DefineSprite_8_duplicate — matching the BeamLine pattern exactly: the harness
+ * periodically drops `duplicate` clips along the caster→target line.
  *
  * Library symbols:
- *   - `duplicate` — 87-frame beam segment composite. No `lib_` prefix because
- *     it appears only in `animations[]`, not `librarySymbols[]`.
- *     frame_1: scales to `40 + 20 * level` percent.
- *     frame_85: removes itself (self.removeMovieClip).
- *     The harness fires signalHit() when the line is fully drawn, and
- *     `complete()` is triggered from the duplicate's frame_85 removal via
- *     `this.runtime.complete()`.
+ *   - sprite4 (characterId 4, directlyDynamic: true) — thin vertical bar
+ *     placed inside sprite6. onClipEvent(load) reads level via 5-hop parent
+ *     traversal (collapses to 3 hops in our clip tree: sprite4 → sprite6 →
+ *     duplicate → root) and sets _yscale = 20 * (level - 1).
+ *   - sprite6 (characterId 6, directlyDynamic: false) — 126-frame wrapper
+ *     placed inside duplicate at depths 10, 13, 16. Attaches sprite4 at
+ *     depth 2 on its frame 0.
+ *   - duplicate (DefineSprite_8_duplicate) — 87-frame beam segment.
+ *     frame_1: scale self by 40 + 20*level; attach three sprite6 instances.
+ *     frame_85: removeMovieClip → runtime.complete().
  *
- * Note on DefineSprite_4 / inner clip:
- *   DefineSprite_4 is a sub-symbol placed inside the `duplicate` timeline by
- *   the SWF authoring. Its onClipEvent(load) sets:
- *     t = 20 * (_parent._parent._parent._parent._parent.level - 1)
- *     _yscale = t
- *   The 5-level _parent chain resolves to the outer mc's level property.
- *   In the runtime this inner sub-symbol is baked into the `duplicate` composite
- *   frames (the SVG renders include it), so we handle its level-based scaling
- *   inside the `duplicate` symbol's frame_1 script by also setting scaleY to
- *   the matching value. The depth of the parent chain (5 levels) matches the
- *   authored nesting: inner_clip → DefineSprite_4 → duplicate → root → harness
- *   container → outer mc. We collapse this to `clip.parent?.vars.level` since
- *   the runtime root holds the level on root.vars.
+ * Main timeline: SOMA.playSound("vlad_805")
  *
- * Main timeline: SOMA.playSound("vlad_805"); (no stop, single frame)
+ * signalHit: fired automatically by the BeamLine harness when the beam
+ * reaches the target. Per-spell code must NOT call it again.
  *
- * signalHit: fired automatically by the BeamLine harness when the last duplicate
- *            segment is placed (we do NOT call it again).
- * complete(): fired from frameScripts[84] of the duplicate symbol (frame_85 in AS).
+ * complete: fired from frame 84 (AS frame_85) of duplicate.
  */
 
 import type {
@@ -62,6 +41,20 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
+const SPRITE4_BOUNDS = {
+  width: 11.05,
+  height: 101.7,
+  offsetX: -6.5,
+  offsetY: -102.05,
+};
+
+const SPRITE6_BOUNDS = {
+  width: 81.6,
+  height: 130.3,
+  offsetX: -36.4,
+  offsetY: -123.3,
+};
+
 const DUPLICATE_BOUNDS = {
   width: 104.15,
   height: 109.5,
@@ -73,29 +66,87 @@ export class Spell805 extends RuntimeSpell {
   readonly spellId = 805;
   readonly displayType = SpellDisplayType.BeamLine;
 
+  // Store symbol definitions as instance fields so forward references
+  // inside frameScripts closures are safe (captured by reference, not value).
+  private sprite4Sym!: SymbolDefinition;
+  private sprite6Sym!: SymbolDefinition;
+
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
+    const sprite4Anchor = calculateAnchor(SPRITE4_BOUNDS);
+    const sprite6Anchor = calculateAnchor(SPRITE6_BOUNDS);
     const duplicateAnchor = calculateAnchor(DUPLICATE_BOUNDS);
 
-    // ---- duplicate — 87-frame beam segment ----------------------
-    // AS: DefineSprite_8_duplicate/frame_1/DoAction.as
-    //   t = 40 + 20 * this._parent.level;
-    //   _xscale = t;
-    //   _yscale = t;
-    // AS: DefineSprite_8_duplicate/frame_85/DoAction.as
-    //   this.removeMovieClip();
+    // ---- sprite4 — thin vertical bar, placed inside sprite6 --------
+    // directlyDynamic: true — has its own onClipEvent(load).
     //
-    // The inner DefineSprite_4 sub-symbol onClipEvent(load) sets:
+    // AS: scripts/DefineSprite_4/frame_1/PlaceObject2_3_1/
+    //     CLIPACTIONRECORD onClipEvent(load).as
     //   t = 20 * (_parent._parent._parent._parent._parent.level - 1)
     //   _yscale = t
-    // Its 5-level parent chain resolves to the outer mc level.
-    // Since the composite SVG frames already bake in the sub-symbol
-    // visuals, we apply the level-based yscale from frame_1 to
-    // approximate the inner clip's load-time scaling on the whole
-    // duplicate clip. The harness places each duplicate via
-    // attachIfRegistered, which calls frame_1 (frameScripts[0]).
+    //
+    // Canonical 5-hop traversal from sprite4:
+    //   sprite4 → sprite6 → duplicate → root → (outer mc in Flash)
+    // In our clip tree root.vars.level carries the spell level, so we
+    // walk 3 hops: sprite4.parent → sprite6.parent → duplicate.parent = root.
+    this.sprite4Sym = {
+      name: "sprite4",
+      totalFrames: 1,
+      frames: textures.getFrames("lib_sprite4"),
+      anchorX: sprite4Anchor.x,
+      anchorY: sprite4Anchor.y,
+      onLoad: (clip) => {
+        // AS: t = 20 * (_parent._parent._parent._parent._parent.level - 1)
+        //     _yscale = t
+        const root =
+          clip.parent?.parent?.parent ??
+          clip.parent?.parent ??
+          clip.parent;
+        const level = (root?.vars.level as number) ?? 1;
+        const t = 20 * (level - 1);
+        // AS _yscale is percent → TS decimal
+        clip.scaleY = t / 100;
+      },
+    };
+
+    // ---- sprite6 — wrapper placed inside duplicate -----------------
+    // directlyDynamic: false — no clip event handlers of its own.
+    // Placements show sprite4 at depth 2, parentSpriteId=6, frame=0.
+    // We attach sprite4 in frameScripts[0] to fire its onLoad (level scale).
+    // The 126 authored frames of sprite6 carry the tween visuals for the
+    // bar animation; sprite4's onLoad drives the level-dependent y-scale.
+    this.sprite6Sym = {
+      name: "sprite6",
+      totalFrames: 126,
+      frames: textures.getFrames("lib_sprite6"),
+      anchorX: sprite6Anchor.x,
+      anchorY: sprite6Anchor.y,
+      frameScripts: new Map([
+        [
+          0,
+          (clip, ctx) => {
+            // AS: PlaceObject2 at parentSpriteId=6, frame=0, depth=2
+            // places sprite4 inside sprite6. Attach so onLoad fires.
+            clip.attach(this.sprite4Sym, "sprite4_bar", 2, ctx);
+          },
+        ],
+      ]),
+    };
+
+    // ---- duplicate — 87-frame beam segment -------------------------
+    // AS: DefineSprite_8_duplicate
+    //
+    // frame_1 (index 0):
+    //   t = 40 + 20 * this._parent.level
+    //   _xscale = t; _yscale = t;
+    //
+    // Also at frame 0: three sprite6 instances at depths 10, 13, 16
+    // (placements in manifest: parentSpriteId=8, frame=0, depths 10/13/16).
+    //
+    // frame_85 (index 84):
+    //   this.removeMovieClip()  → spell complete
     const duplicateSym: SymbolDefinition = {
       name: "duplicate",
       totalFrames: 87,
@@ -105,21 +156,59 @@ export class Spell805 extends RuntimeSpell {
       frameScripts: new Map([
         [
           0,
-          (clip) => {
+          (clip, ctx) => {
             // AS: DefineSprite_8_duplicate/frame_1/DoAction.as
-            // t = 40 + 20 * this._parent.level
-            // _xscale = t; _yscale = t;
+            //   t = 40 + 20 * this._parent.level
+            //   _xscale = t; _yscale = t;
             const level = (clip.parent?.vars.level as number) ?? 1;
             const t = 40 + 20 * level;
             clip.scaleX = t / 100;
             clip.scaleY = t / 100;
+
+            // Canonical placements at frame 0 of DefineSprite_8 (duplicate):
+            // three sprite6 instances at depths 10, 13, 16 with authored
+            // initial transforms from the manifest placements[].
+
+            // depth 10: scaleX=0.421, scaleY=0.421, skew1=0.111 (slight rotation),
+            //   tx=-17.8, ty=5.1
+            const s6a = clip.attach(this.sprite6Sym, "sprite6_d10", 10, ctx);
+            s6a.x = -17.8;
+            s6a.y = 5.1;
+            s6a.scaleX = 0.4209136962890625;
+            s6a.scaleY = 0.4209136962890625;
+            // rotateSkew0=-0.111, rotateSkew1=0.111 → rotation = atan2(rotateSkew1, scaleX)
+            s6a.rotation = Math.atan2(
+              0.1111907958984375,
+              0.4209136962890625,
+            );
+
+            // depth 13: scaleX=-0.594, scaleY=0.594 (mirrored X), skew≈-0.143,
+            //   tx=18.05, ty=5.4
+            const s6b = clip.attach(this.sprite6Sym, "sprite6_d13", 13, ctx);
+            s6b.x = 18.05;
+            s6b.y = 5.4;
+            s6b.scaleX = -0.593597412109375;
+            s6b.scaleY = 0.593597412109375;
+            s6b.rotation = Math.atan2(
+              -0.1429290771484375,
+              -0.593597412109375,
+            );
+
+            // depth 16: scaleX=0.436, scaleY=0.436, no rotation,
+            //   tx=-6.05, ty=12.85
+            const s6c = clip.attach(this.sprite6Sym, "sprite6_d16", 16, ctx);
+            s6c.x = -6.05;
+            s6c.y = 12.85;
+            s6c.scaleX = 0.435699462890625;
+            s6c.scaleY = 0.435699462890625;
+            s6c.rotation = 0;
           },
         ],
         [
           84,
           (clip) => {
             // AS: DefineSprite_8_duplicate/frame_85/DoAction.as
-            // this.removeMovieClip();
+            //   this.removeMovieClip()
             clip.remove();
             this.runtime.complete();
           },
@@ -127,6 +216,8 @@ export class Spell805 extends RuntimeSpell {
       ]),
     };
 
+    this.registry.register(this.sprite4Sym);
+    this.registry.register(this.sprite6Sym);
     this.registry.register(duplicateSym);
   }
 
@@ -135,7 +226,7 @@ export class Spell805 extends RuntimeSpell {
     _context: SpellContext,
   ): void {
     // AS: scripts/frame_1/DoAction.as
-    // SOMA.playSound("vlad_805");
+    //   SOMA.playSound("vlad_805");
     callbacks.playSound("vlad_805");
   }
 }

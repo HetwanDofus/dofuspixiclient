@@ -3,7 +3,6 @@ export * from "./animation";
 export * from "./graphics";
 export * from "./mount-layers";
 export * from "./movement";
-export * from "./nameplate";
 export * from "./perf";
 export * from "./renderer";
 export * from "./sprite-controller";

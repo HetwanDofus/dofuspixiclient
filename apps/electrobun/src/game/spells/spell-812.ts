@@ -1,49 +1,31 @@
 /**
- * Spell 812 — Vlad (BeamLine spell).
+ * Spell 812 — Vlad (BeamLine duplicate spell).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/812/scripts/scripts/
  *
- * displayType=40 (BeamLine). The spell has a single `duplicate` symbol
- * that is dropped periodically along the caster→target line by the harness.
- * No `shoot` symbol exists (no BeamLineAlt), so displayType=40 (not 41).
+ * displayType=40 (BeamLine). The manifest has a single `animations[]` entry
+ * named "duplicate" (126 frames, composite, no librarySymbols[]). The harness
+ * drops instances of "duplicate" periodically along the caster→target line and
+ * fires runtime.signalHit() automatically when the beam reaches the target.
  *
- * Library symbols: none in `librarySymbols[]` — the manifest has only
- * `animations: [{ name: "duplicate", ... }]`. The `duplicate` symbol is
- * registered with bare key `"duplicate"` and textures.getFrames("duplicate").
+ * Internal sub-sprite scripts within the duplicate composite:
+ *   - DefineSprite_11/frame_1: gotoAndStop(random(6) + 1) — randomises which
+ *     static frame the sub-sprite displays.
+ *   - DefineSprite_5/frame_55: stop()
+ *   - DefineSprite_13/frame_124: stop()
+ *   - DefineSprite_12/frame_85: stop()
+ *   These sub-sprites have no CLIPACTIONRECORD onClipEvent handlers. There are
+ *   no onClipEvent(load) or onClipEvent(enterFrame) scripts anywhere in the
+ *   provided AS source for this spell.
  *
- * duplicate symbol (126 frames):
- *   - frame_1 (DoAction.as): SOMA.playSound("vlad_812")
- *   - frame_1 (DoAction_2.as): random scale 50–110%, matching yscale, random
- *     rotation in [-10, +19] degrees.
- *   - frame_124 (DoAction.as): this.removeMovieClip()
+ * Duplicate symbol timeline (DefineSprite_20_duplicate):
+ *   frame_1/DoAction.as   : SOMA.playSound("vlad_812")
+ *   frame_1/DoAction_2.as : randomise _xscale, _yscale, _rotation
+ *   frame_124/DoAction.as : this.removeMovieClip()
  *
- * DefineSprite_11/frame_1: gotoAndStop(random(6) + 1) — sub-sprite inside
- * duplicate that randomly selects one of 6 sub-frames. This sprite is
- * part of the authored composite; we cannot attach it separately but the
- * composite texture already bakes its visuals. Tracked for completeness.
- *
- * DefineSprite_5/frame_55, DefineSprite_12/frame_85, DefineSprite_13/frame_124:
- * All just stop() — internal authored sub-sprites within the duplicate
- * composite; no attachMovie calls needed.
- *
- * Main timeline: no explicit main-timeline scripts beyond what the harness
- * handles. The sound fires from duplicate's frame_1 script.
- *
- * signalHit: fired by the BeamLine harness automatically when the line
- * traversal completes (when dist > fullDist). We do NOT call it manually.
- *
- * complete(): fired from duplicate's frame_124 script (this.removeMovieClip)
- * — but because individual duplicates removing themselves does NOT end the
- * spell, we need to fire complete() from the LAST duplicate to be placed.
- * However, since all duplicates play the same 126-frame timeline and are
- * placed at roughly the same time, the harness signals hit when done
- * placing them, and we complete() from the final frame of ANY duplicate
- * reaching frame_124. In canonical AS, `this.removeMovieClip()` on a
- * duplicate just removes that instance. The spell has no outer `_parent`
- * removal — completion is implicitly when all duplicates have removed
- * themselves. We fire complete() from the first duplicate that reaches
- * frame_124 (idempotent, safe).
+ * The harness fires signalHit() automatically (BeamLine). complete() is called
+ * from the frame_123 (0-based) script of the last surviving duplicate instance.
  */
 
 import type {
@@ -69,30 +51,24 @@ export class Spell812 extends RuntimeSpell {
   readonly spellId = 812;
   readonly displayType = SpellDisplayType.BeamLine;
 
-  private callbacks?: SpellCallbacks;
+  // Captured in onSpellStart so the duplicate's frame_1 script can call it.
+  private soundCallback?: (id: string) => void;
 
   protected registerSymbols(
     textures: SpellTextureProvider,
-    _context: SpellContext
+    _context: SpellContext,
   ): void {
     const duplicateAnchor = calculateAnchor(DUPLICATE_BOUNDS);
 
-    // ---- duplicate — 126-frame beam segment composite -----------
-    // Placed periodically along caster→target line by the BeamLine harness.
-    //
-    // AS DefineSprite_20_duplicate/frame_1/DoAction.as:
-    //   SOMA.playSound("vlad_812");
-    //
-    // AS DefineSprite_20_duplicate/frame_1/DoAction_2.as:
-    //   this._xscale = 50 + random(60);
-    //   this._yscale = this._xscale;
-    //   this._rotation = -10 + random(30);
-    //
-    // AS DefineSprite_20_duplicate/frame_124/DoAction.as:
-    //   this.removeMovieClip();
+    // ---- duplicate — 126-frame beam segment placed along cast line ----
+    // The harness (BeamLine/displayType=40) attaches instances of this symbol
+    // at regular intervals along the caster→target line via clip.attach().
+    // Each attach triggers onLoad (none here) then frameScripts[0] (frame_1).
     const duplicateSym: SymbolDefinition = {
       name: "duplicate",
       totalFrames: 126,
+      // "duplicate" appears only in animations[], NOT in librarySymbols[],
+      // so we use textures.getFrames("duplicate") — no lib_ prefix.
       frames: textures.getFrames("duplicate"),
       anchorX: duplicateAnchor.x,
       anchorY: duplicateAnchor.y,
@@ -101,19 +77,16 @@ export class Spell812 extends RuntimeSpell {
           0,
           (clip) => {
             // AS DefineSprite_20_duplicate/frame_1/DoAction.as
-            // Sound is played once per duplicate instance placed.
-            // We capture the callbacks reference from onSpellStart.
-            if (this.callbacks) {
-              this.callbacks.playSound("vlad_812");
-            }
+            //   SOMA.playSound("vlad_812");
+            this.soundCallback?.("vlad_812");
 
             // AS DefineSprite_20_duplicate/frame_1/DoAction_2.as
-            // this._xscale = 50 + random(60);  → range [50, 110]
-            // this._yscale = this._xscale;
-            // this._rotation = -10 + random(30); → range [-10, +19] deg
-            const scale = (50 + Math.floor(Math.random() * 60)) / 100;
-            clip.scaleX = scale;
-            clip.scaleY = scale;
+            //   this._xscale = 50 + random(60);
+            //   this._yscale = this._xscale;
+            //   this._rotation = -10 + random(30);
+            const scalePct = 50 + Math.floor(Math.random() * 60);
+            clip.scaleX = scalePct / 100;
+            clip.scaleY = scalePct / 100;
             clip.rotation = ((-10 + Math.floor(Math.random() * 30)) * Math.PI) / 180;
           },
         ],
@@ -121,11 +94,21 @@ export class Spell812 extends RuntimeSpell {
           123,
           (clip) => {
             // AS DefineSprite_20_duplicate/frame_124/DoAction.as
-            // this.removeMovieClip() — remove this duplicate instance.
-            // Fire complete() (idempotent) so the spell ends when the
-            // first duplicate finishes its timeline.
+            //   this.removeMovieClip();
             clip.remove();
-            this.runtime.complete();
+
+            // Signal spell completion when no more live duplicate children
+            // remain on root (the harness has already stopped spawning new
+            // ones by the time any instance reaches frame 124).
+            let remaining = 0;
+            for (const child of this.root.children.values()) {
+              if (!child.pendingRemoval) {
+                remaining++;
+              }
+            }
+            if (remaining === 0) {
+              this.runtime.complete();
+            }
           },
         ],
       ]),
@@ -136,11 +119,14 @@ export class Spell812 extends RuntimeSpell {
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
-    _context: SpellContext
+    _context: SpellContext,
   ): void {
-    // Capture callbacks so duplicate's frame_1 can play the sound.
-    // The canonical sound trigger is inside the duplicate symbol itself
-    // (DefineSprite_20_duplicate/frame_1/DoAction.as), not the main timeline.
-    this.callbacks = callbacks;
+    // Capture the sound callback so the duplicate's frame_1 frameScript
+    // can call playSound("vlad_812") for every instance the harness attaches.
+    this.soundCallback = callbacks.playSound;
+
+    // The BeamLine harness drives all child attaches along the line
+    // and fires runtime.signalHit() automatically — no explicit attaches
+    // or signalHit calls needed here.
   }
 }

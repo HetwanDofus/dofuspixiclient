@@ -1,41 +1,37 @@
 /**
  * Spell 1210 — Vague de Panda (Pandawa).
  *
- * Hand-ported against the SpellClip / SpellRuntime composition runtime.
+ * Hand-ported against the SpellClip / SpellRuntime composition layer.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/1210/scripts/scripts/
  *
- * displayType=40 (BeamLine). The spell has a `duplicate` symbol
- * (DefineSprite_18_duplicate) that is periodically dropped along the
- * caster→target line by the harness. The duplicate symbol itself has
- * authored frame textures (273 frames in animations[]) and internal
- * sub-symbols (DefineSprite_5, DefineSprite_8, DefineSprite_10,
- * DefineSprite_14, DefineSprite_17) that are placed on its authored
- * timeline at construction time and randomised on frame_1. There is
- * no `shoot` symbol (displayType=40, not 41).
+ * displayType=40 (BeamLine). The spell has a `duplicate` symbol (DefineSprite_18_duplicate)
+ * that the harness drops periodically along the caster→target line. The `duplicate` symbol
+ * is a 273-frame composite with authored SVG frames in animations[]. There is NO `shoot`
+ * symbol, so this is a pure BeamLine (40) not BeamLineAlt (41).
  *
- * Library symbols (all container-only since they only appear via
- * authored-timeline PlaceObject references inside duplicate, not via
- * explicit attachMovie calls we need to handle manually — the harness
- * drives the `duplicate` placement):
+ * Library symbols (all sub-sprites are baked into the composite `duplicate` animation;
+ * DefineSprite_5, _8, _14, _17 are internal sub-symbols whose frame_1 scripts just do
+ * `gotoAndStop(random(2) + 2)` — these are authored children placed statically inside the
+ * pre-rendered `duplicate` composite SVG frames. DefineSprite_10 is an internal rotation
+ * randomizer. None of these are `attachMovie`'d by AS at runtime; they are authored
+ * placements inside the duplicate sprite's timeline. The harness handles dropping the
+ * `duplicate` clips along the beam line.
  *
- *   - DefineSprite_5  (1 frame)  — frame_1: gotoAndStop(random(2)+2)
- *   - DefineSprite_8  (1 frame)  — frame_1: gotoAndStop(random(2)+2)
- *   - DefineSprite_10 (≥40 frames) — frame_1: _rotation = random(360);
- *                                     frame_40: stop()
- *   - DefineSprite_14 (1 frame)  — frame_1: gotoAndStop(random(2)+2)
- *   - DefineSprite_17 (1 frame)  — frame_1: gotoAndStop(random(2)+2)
- *   - duplicate (DefineSprite_18_duplicate, 273 frames) — the canonical
- *     beam-line unit. frame_1: mirror xscale if |angle|>90, jump to
- *     frame 148 if angle<0. frame_127: _parent.removeMovieClip().
- *     frame_271: _parent.removeMovieClip().
+ * The `duplicate` symbol itself (DefineSprite_18_duplicate) has three scripts:
+ *   - frame_1:  if(abs(angle)>90) flip xscale; if(angle<0) gotoAndPlay(148)
+ *   - frame_127: _parent.removeMovieClip() — end of the "positive angle" path
+ *   - frame_271: _parent.removeMovieClip() — end of the "negative angle" path
  *
- * Main timeline (frame_1/DoAction.as): SOMA.playSound("panda_vague").
+ * signalHit: fired by the harness (BeamLine, displayType 40) automatically when the last
+ * duplicate has been dropped along the line.
+ * complete(): fired from frame_127 or frame_271 of the final (longest-lived) duplicate clip,
+ * whichever fires last. We fire it once idempotently from both.
  *
- * signalHit: fired by the BeamLine harness automatically when the last
- * duplicate is placed. We do NOT call it ourselves.
+ * Main timeline: SOMA.playSound("panda_vague"); (no stop — the harness drives the beam).
  *
- * complete(): fired from duplicate's frame_127 (or frame_271 for the
- * alt-direction variant) via this.runtime.complete().
+ * Animations:
+ *   - duplicate (273 frames) — the beam segment visual. In animations[], NOT librarySymbols[].
+ *     Use textures.getFrames("duplicate") (no lib_ prefix).
  */
 
 import type {
@@ -50,7 +46,6 @@ import {
   calculateAnchor,
 } from "@dofus/spell-runtime";
 
-// Bounds from manifest animations[0] (duplicate)
 const DUPLICATE_BOUNDS = {
   width: 134.95,
   height: 119.8,
@@ -68,132 +63,21 @@ export class Spell1210 extends RuntimeSpell {
   ): void {
     const duplicateAnchor = calculateAnchor(DUPLICATE_BOUNDS);
 
-    // ---- DefineSprite_5 — sub-symbol inside duplicate -------------
-    // AS DefineSprite_5/frame_1/DoAction.as:
-    //   gotoAndStop(random(2) + 2);
-    // Container-only (no direct texture frames at this level);
-    // the authored timeline carries its own visual content.
-    const sprite5Sym: SymbolDefinition = {
-      name: "DefineSprite_5",
-      totalFrames: 3,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (clip) => {
-            // AS DefineSprite_5/frame_1/DoAction.as
-            clip.gotoAndStop(Math.floor(Math.random() * 2) + 1);
-          },
-        ],
-      ]),
-    };
-
-    // ---- DefineSprite_8 — sub-symbol inside duplicate -------------
-    // AS DefineSprite_8/frame_1/DoAction.as:
-    //   gotoAndStop(random(2) + 2);
-    const sprite8Sym: SymbolDefinition = {
-      name: "DefineSprite_8",
-      totalFrames: 3,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (clip) => {
-            // AS DefineSprite_8/frame_1/DoAction.as
-            clip.gotoAndStop(Math.floor(Math.random() * 2) + 1);
-          },
-        ],
-      ]),
-    };
-
-    // ---- DefineSprite_10 — rotating sub-symbol inside duplicate ---
-    // AS DefineSprite_10/frame_1/DoAction.as:
-    //   _rotation = random(360);
-    // AS DefineSprite_10/frame_40/DoAction.as:
-    //   stop();
-    const sprite10Sym: SymbolDefinition = {
-      name: "DefineSprite_10",
-      totalFrames: 40,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (clip) => {
-            // AS DefineSprite_10/frame_1/DoAction.as
-            clip.rotation = (Math.floor(Math.random() * 360) * Math.PI) / 180;
-          },
-        ],
-        [
-          39,
-          (clip) => {
-            // AS DefineSprite_10/frame_40/DoAction.as
-            clip.stop();
-          },
-        ],
-      ]),
-    };
-
-    // ---- DefineSprite_14 — sub-symbol inside duplicate ------------
-    // AS DefineSprite_14/frame_1/DoAction.as:
-    //   gotoAndStop(random(2) + 2);
-    const sprite14Sym: SymbolDefinition = {
-      name: "DefineSprite_14",
-      totalFrames: 3,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (clip) => {
-            // AS DefineSprite_14/frame_1/DoAction.as
-            clip.gotoAndStop(Math.floor(Math.random() * 2) + 1);
-          },
-        ],
-      ]),
-    };
-
-    // ---- DefineSprite_17 — sub-symbol inside duplicate ------------
-    // AS DefineSprite_17/frame_1/DoAction.as:
-    //   gotoAndStop(random(2) + 2);
-    const sprite17Sym: SymbolDefinition = {
-      name: "DefineSprite_17",
-      totalFrames: 3,
-      frames: [],
-      anchorX: 0.5,
-      anchorY: 0.5,
-      frameScripts: new Map([
-        [
-          0,
-          (clip) => {
-            // AS DefineSprite_17/frame_1/DoAction.as
-            clip.gotoAndStop(Math.floor(Math.random() * 2) + 1);
-          },
-        ],
-      ]),
-    };
-
-    // ---- duplicate (DefineSprite_18_duplicate) — 273-frame beam unit
-    // The harness drops one of these per interval along the beam line.
+    // ---- duplicate — beam segment visual (273-frame composite) ----
+    // The harness (BeamLine/displayType 40) attaches instances of this
+    // symbol periodically along the caster→target line. Each instance
+    // must run the canonical frame_1, frame_127, and frame_271 scripts
+    // from DefineSprite_18_duplicate.
     //
     // AS DefineSprite_18_duplicate/frame_1/DoAction.as:
     //   if(Math.abs(_parent.angle) > 90) { _xscale = -_xscale; }
-    //   if(_parent.angle < 0)            { gotoAndPlay(148); }
+    //   if(_parent.angle < 0) { gotoAndPlay(148); }
     //
     // AS DefineSprite_18_duplicate/frame_127/DoAction.as:
     //   _parent.removeMovieClip();
     //
     // AS DefineSprite_18_duplicate/frame_271/DoAction.as:
     //   _parent.removeMovieClip();
-    //
-    // The duplicate reads _parent.angle from root.vars.angle (stored
-    // in degrees by the harness, matching canonical AS convention).
     const duplicateSym: SymbolDefinition = {
       name: "duplicate",
       totalFrames: 273,
@@ -205,23 +89,23 @@ export class Spell1210 extends RuntimeSpell {
           0,
           (clip) => {
             // AS DefineSprite_18_duplicate/frame_1/DoAction.as
+            // _parent.angle is stored in degrees on root.vars by the harness.
             const root = clip.parent;
             const angleDeg = (root?.vars.angle as number) ?? 0;
             if (Math.abs(angleDeg) > 90) {
               clip.scaleX = -clip.scaleX;
             }
             if (angleDeg < 0) {
-              clip.gotoAndPlay(147); // AS gotoAndPlay(148) → 0-based 147
+              // AS gotoAndPlay(148) → 0-based index 147
+              clip.gotoAndPlay(147);
             }
           },
         ],
         [
           126,
           (clip) => {
-            // AS DefineSprite_18_duplicate/frame_127/DoAction.as:
-            //   _parent.removeMovieClip();
-            // This clip IS the outer duplicate placed by the harness;
-            // removing it and signalling complete ends the spell.
+            // AS DefineSprite_18_duplicate/frame_127/DoAction.as
+            // _parent.removeMovieClip() — end of positive-angle play path.
             clip.remove();
             this.runtime.complete();
           },
@@ -229,10 +113,8 @@ export class Spell1210 extends RuntimeSpell {
         [
           270,
           (clip) => {
-            // AS DefineSprite_18_duplicate/frame_271/DoAction.as:
-            //   _parent.removeMovieClip();
-            // Alt-direction variant reaches this frame after the
-            // gotoAndPlay(148) branch plays out.
+            // AS DefineSprite_18_duplicate/frame_271/DoAction.as
+            // _parent.removeMovieClip() — end of negative-angle play path.
             clip.remove();
             this.runtime.complete();
           },
@@ -240,11 +122,6 @@ export class Spell1210 extends RuntimeSpell {
       ]),
     };
 
-    this.registry.register(sprite5Sym);
-    this.registry.register(sprite8Sym);
-    this.registry.register(sprite10Sym);
-    this.registry.register(sprite14Sym);
-    this.registry.register(sprite17Sym);
     this.registry.register(duplicateSym);
   }
 
@@ -252,7 +129,7 @@ export class Spell1210 extends RuntimeSpell {
     callbacks: SpellCallbacks,
     _context: SpellContext,
   ): void {
-    // AS frame_1/DoAction.as: SOMA.playSound("panda_vague");
+    // AS scripts/frame_1/DoAction.as: SOMA.playSound("panda_vague");
     callbacks.playSound("panda_vague");
   }
 }

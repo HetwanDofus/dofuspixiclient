@@ -3,7 +3,11 @@ import type { Fighter } from "@modules/fight/core/fight.fighter";
 import type { ComputedStats } from "@modules/stats/stats.service";
 import type { GatewayFrameService } from "@shared/gateway-adapter/gateway-frame.service";
 import { create } from "@bufbuild/protobuf";
-import { SpriteType } from "@dofus/proto/common_pb";
+import {
+  type CharacterColors,
+  CharacterColorsSchema,
+  SpriteType,
+} from "@dofus/proto/common_pb";
 import {
   GameCreateSchema,
   GameJoinSchema,
@@ -14,6 +18,31 @@ import {
 import { DofusMessageSchema } from "@dofus/proto/server_messages_pb";
 import { Characteristic, FighterKind } from "@modules/fight/fight.types";
 import { FightMap, parsePlacementCells } from "@modules/fight/map/fight.map";
+
+/**
+ * Build the protobuf `CharacterColors` payload for a fighter's
+ * SpriteMovementEntry. Mirrors the in-world roleplay path
+ * (`player-presence.sprite-entry.ts`) so the StringCourse portrait and
+ * the in-fight tinted sprite share the same `[c1,c2,c3]` source. Monsters
+ * carry their colours on the fighter's `monsterColor*` fields (set in
+ * `fight-start.service.ts`); players carry them on `player.colorN`.
+ * `-1` means "keep palette default" — the client's renderer maps that to
+ * a per-zone skip via `buildColorsArg`.
+ */
+export function fighterColors(fighter: Fighter): CharacterColors {
+  if (fighter.kind === FighterKind.Monster) {
+    return create(CharacterColorsSchema, {
+      color1: fighter.monsterColor1,
+      color2: fighter.monsterColor2,
+      color3: fighter.monsterColor3,
+    });
+  }
+  return create(CharacterColorsSchema, {
+    color1: fighter.player?.color1 ?? -1,
+    color2: fighter.player?.color2 ?? -1,
+    color3: fighter.player?.color3 ?? -1,
+  });
+}
 
 export function createFightMap(
   mapWidth: number,
@@ -175,6 +204,7 @@ export function emitJoinFrames(
       ap: m.ap,
       mp: m.mp,
       level: m.level,
+      colors: fighterColors(m),
     })
   );
 

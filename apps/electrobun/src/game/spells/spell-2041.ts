@@ -1,38 +1,31 @@
 /**
- * Spell 2041 — (Unknown name, likely a Cra/explosion-type spell).
+ * Spell 2041 — Unknown (explosion impact).
  *
  * Hand-ported against the SpellClip / SpellRuntime composition runtime.
  * Canonical AS source: tools/combat-exporter/output/spell-anims/2041/scripts/scripts/
  *
- * displayType=11 (TargetCell). Rationale: single `shoot` symbol anchored
- * at target cell, no `move` / `duplicate` / caster-reference logic, no
- * `_parent.cellFrom`/`cellTo` reads. The harness attaches `shoot` via
- * ProjectileLinear only when there is directional logic; here the AS
- * frame_1 simply resets `_rotation = 0`, which is an impact-at-target
- * pattern. No `move` symbol is present in `animations[]`, confirming
- * this is a pure target-cell impact (TargetCell = 11).
+ * displayType=11 (TargetCell). There is no `move` symbol, no caster-side
+ * reference, no `duplicate` symbol, and no `_parent.cellFrom` / `_parent.cellTo`
+ * reads in the scripts. The single symbol `shoot` is a 39-frame impact animation
+ * anchored at the target cell. This matches the TargetCell pattern exactly.
  *
  * Library symbols:
- *   - shoot — 39-frame animated impact composite. No library-symbol entry
- *     (manifest `librarySymbols` is absent); the `animations[]` entry
- *     named "shoot" IS the rendered content, so we use
- *     `textures.getFrames("shoot")` (no `lib_` prefix).
- *     frame_1 (index 0): `_rotation = 0` — ensures upright regardless of
- *       any harness-applied rotation.
- *     frame_37 (index 36): `_parent.removeMovieClip(); stop();` → removes
- *       outer mc + signals spell complete.
+ *   None in `librarySymbols[]` — manifest.json has no librarySymbols array.
+ *   `shoot` appears only in `animations[]`, so it is a top-level authored
+ *   animation, NOT a library symbol. It is registered as a container-driven
+ *   symbol with `frames: textures.getFrames("shoot")` (NO `lib_` prefix).
  *
- * Main timeline (frame_1/DoAction.as): SOMA.playSound("explosion"); stop().
+ * Symbol behaviour:
+ *   - `shoot` — 39-frame impact burst.
+ *       frame_1 (index 0): `_rotation = 0` — reset any harness-applied rotation.
+ *       frame_37 (index 36): `_parent.removeMovieClip(); stop()` — outer mc
+ *           removal triggers spell complete + signalHit.
  *
- * Hit signal: fired at the canonical impact moment, which is frame_1 of
- * the shoot symbol (the explosion starts immediately on landing — the
- * spell registers hit as soon as the shoot clip is shown). We fire
- * signalHit at frame index 0 (first visible frame of the impact).
+ * Main timeline: `SOMA.playSound("explosion"); stop();` — played in onSpellStart.
  *
- * The harness for TargetCell (11) does NOT attach `shoot` automatically
- * (that is a ProjectileLinear/Ballistic concern). For TargetCell we
- * attach `shoot` ourselves from `onSpellStart`, which is the canonical
- * pattern for impact-only spells.
+ * Signal ordering:
+ *   - signalHit: fired from frame 36 of `shoot` (canonical impact frame).
+ *   - complete: fired from the same frame 36 script (canonical removal).
  */
 
 import type {
@@ -58,17 +51,16 @@ export class Spell2041 extends RuntimeSpell {
   readonly spellId = 2041;
   readonly displayType = SpellDisplayType.TargetCell;
 
-  private shootSym!: SymbolDefinition;
-
   protected registerSymbols(
     textures: SpellTextureProvider,
     _context: SpellContext,
   ): void {
     const shootAnchor = calculateAnchor(SHOOT_BOUNDS);
 
-    // ---- shoot — 39-frame impact animation -----------------------
-    // No librarySymbols entry in manifest; "shoot" lives in animations[].
-    // Texture key is "shoot" (no lib_ prefix).
+    // ---- shoot — 39-frame impact burst at target cell -----------
+    // Anchored at target (TargetCell displayType). The harness attaches
+    // nothing automatically for TargetCell; onSpellStart attaches shoot
+    // to the root so it begins playing immediately.
     //
     // AS DefineSprite_5_shoot/frame_1/DoAction.as:
     //   _rotation = 0;
@@ -76,7 +68,7 @@ export class Spell2041 extends RuntimeSpell {
     // AS DefineSprite_5_shoot/frame_37/DoAction.as:
     //   _parent.removeMovieClip();
     //   stop();
-    this.shootSym = {
+    const shootSym: SymbolDefinition = {
       name: "shoot",
       totalFrames: 39,
       frames: textures.getFrames("shoot"),
@@ -86,20 +78,19 @@ export class Spell2041 extends RuntimeSpell {
         [
           0,
           (clip) => {
-            // AS DefineSprite_5_shoot/frame_1/DoAction.as: _rotation = 0
-            clip.rotation = (0 * Math.PI) / 180;
-            // Impact begins — signal hit so the combat sequencer can
-            // show damage numbers. displayType=11 so harness does NOT
-            // fire signalHit automatically.
-            this.runtime.signalHit();
+            // AS DefineSprite_5_shoot/frame_1/DoAction.as
+            // _rotation = 0 — reset any rotation; keep upright at target.
+            clip.rotation = 0;
           },
         ],
         [
           36,
           (clip) => {
-            // AS DefineSprite_5_shoot/frame_37/DoAction.as:
-            //   _parent.removeMovieClip(); stop();
-            clip.stop();
+            // AS DefineSprite_5_shoot/frame_37/DoAction.as
+            // _parent.removeMovieClip(); stop();
+            // The outer mc (_parent of shoot) is the root, so this
+            // signals both hit and completion.
+            this.runtime.signalHit();
             clip.parent?.remove();
             this.runtime.complete();
           },
@@ -107,19 +98,22 @@ export class Spell2041 extends RuntimeSpell {
       ]),
     };
 
-    this.registry.register(this.shootSym);
+    this.registry.register(shootSym);
   }
 
   protected onSpellStart(
     callbacks: SpellCallbacks,
     context: SpellContext,
   ): void {
-    // AS frame_1/DoAction.as: SOMA.playSound("explosion");
+    // AS scripts/frame_1/DoAction.as: SOMA.playSound("explosion");
     callbacks.playSound("explosion");
 
-    // Attach the shoot symbol at the target cell (container origin for
-    // TargetCell). The harness has already positioned the container at
-    // cellTo, so we attach at local (0, 0).
-    this.root.attach(this.shootSym, "shoot", 1, context);
+    // Attach `shoot` to root at depth 1 so it begins playing from frame 1.
+    // For TargetCell the root container is positioned at the target cell by
+    // the harness; shoot renders centred on the target.
+    const shootSym = this.registry.resolve("shoot");
+    if (shootSym) {
+      this.root.attach(shootSym, "shoot", 1, context);
+    }
   }
 }

@@ -19,9 +19,37 @@
   font-style: normal;
 }
 
+/*
+ * `DofusVerdanaBold.ttf` IS the Verdana Bold face: glyph advance
+ * widths match canonical Verdana Bold (A=776 vs canonical 773,
+ * M=948 vs 987, O=850 vs 861, all per /1000 emWidth) — i.e. the
+ * outlines are Bold weight, not Regular. The file's metadata,
+ * however, is misleading: FFDec extracted the Bold glyph table from
+ * the SWF but wrote `name_id=2 = "Regular"` and
+ * `OS/2.usWeightClass = 400` into the name and OS/2 scaffolding.
+ *
+ * That mismatch is what made nameplates render not-quite-bold.
+ * Declaring `font-weight: bold` told the matcher "this file is the
+ * bold variant", but several browsers (notably WebKit and Blink in
+ * some configurations) cross-check the file's internal weight class
+ * and, finding 400, decide the match is "approximate" and apply
+ * SYNTHETIC bold on top of glyphs that are already bold — producing
+ * a muddy double-bold that doesn't read as canonical Verdana Bold.
+ *
+ * Fix: declare a variable-weight RANGE (100–900) so any CSS weight
+ * request — `font-weight: bold` (700) or `normal` (400) — is an
+ * EXACT match against this @font-face entry. With an exact match
+ * the browser never layers synthetic bold and renders the file's
+ * outlines verbatim. Caveat: until we ship a separate Verdana
+ * Regular file (the SWF embedded both, but only the Bold face was
+ * extracted), every weight resolves to bold glyphs. That is
+ * consistent with current usage (every DofusVerdana call site is
+ * `font-bold`) and lossless when a regular file is added later
+ * (split this into two @font-face entries with the right files).
+ */
 @font-face {
   font-family: "DofusVerdana";
   src: url("/assets/fonts/DofusVerdanaBold.ttf") format("truetype");
-  font-weight: bold;
+  font-weight: 100 900;
   font-style: normal;
 }
