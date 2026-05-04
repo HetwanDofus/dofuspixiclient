@@ -9,11 +9,13 @@ import type {
   ParsedGradient,
   ParsedGradientStop,
   ParsedClipRect,
+  ParsedClipShape,
   ParsedFrame,
   ParsedFrameUse,
   ParsedAccessorySlot,
   AffineTransform,
   FillRule,
+  PathSegment,
 } from "./types.js";
 import { IDENTITY_TRANSFORM as ID_TRANSFORM } from "./types.js";
 
@@ -189,9 +191,19 @@ function parseGroupChildren($: CheerioAPI, el: Element, inherited: InheritedStyl
       const transform = parseTransform($child.attr("transform"));
       const childInherited = extractGroupStyles($, child as Element, inherited);
       const groupChildren = parseGroupChildren($, child as Element, childInherited);
+      // Capture `clip-path="url(#X)"` so the deduplicator can attach a
+      // ClipMaskId to every DrawCommand emitted from this group.
+      // Preserve raw "url(#X)" matching only — the only form Arakne and
+      // svg-spritesheet emit. Bare ids and inherited values are not
+      // supported here.
+      const clipPathAttr = $child.attr("clip-path") ?? "";
+      const clipMatch = clipPathAttr.match(/url\(#([^)]+)\)/);
+      const clipPathRef = clipMatch?.[1];
       children.push({
         type: "group",
-        data: { id, children: groupChildren, transform },
+        data: clipPathRef
+          ? { id, children: groupChildren, transform, clipPathRef }
+          : { id, children: groupChildren, transform },
       });
     } else if (tagName === "use") {
       const $child = $(child);
@@ -236,6 +248,7 @@ export function parseSvg(svgContent: string): ParsedSvg {
 
   const definitions = new Map<string, ParsedNode>();
   const clipPaths = new Map<string, ParsedClipRect>();
+  const clipShapes = new Map<string, ParsedClipShape>();
   const patterns: ParsedPattern[] = [];
   const gradients: ParsedGradient[] = [];
   const frames: ParsedFrame[] = [];
@@ -263,7 +276,9 @@ export function parseSvg(svgContent: string): ParsedSvg {
     } else if (tagName === "clipPath" && id) {
       const $rect = $el.find("rect");
       if ($rect.length > 0) {
-        // <clipPath><rect x y width height/></clipPath>
+        // svg-spritesheet emits these for its OWN frame-region tile
+        // boundaries — content is always a single `<rect>`. Treated
+        // as an axis-aligned crop, kept in `clipPaths`.
         clipPaths.set(id, {
           id,
           x: parseFloat($rect.attr("x") ?? "0"),
@@ -272,10 +287,22 @@ export function parseSvg(svgContent: string): ParsedSvg {
           height: parseFloat($rect.attr("height") ?? "0"),
         });
       } else {
-        // <clipPath><path d="M1 1h23v47H1z"/></clipPath>
-        const pathD = $el.find("path").attr("d") ?? "";
-        const rect = parseClipRect(pathD);
-        clipPaths.set(id, { id, ...rect });
+        // Authored SWF clipDepth mask. Content is one (or more) `<path>`
+        // elements with arbitrary geometry — collect ALL of them into a
+        // single `PathSegment[]` so the runtime can rasterise the union
+        // with a single fill. The clipPath's own `transform` attribute
+        // is preserved so the renderer can compose it before applying
+        // the mask.
+        const segments: PathSegment[] = [];
+        $el.find("path").each((_, pathEl) => {
+          const d = $(pathEl).attr("d") ?? "";
+          if (!d) return;
+          for (const seg of parsePath(d)) {
+            segments.push(seg);
+          }
+        });
+        const transform = parseTransform($el.attr("transform"));
+        clipShapes.set(id, { id, segments, transform });
       }
     } else if (tagName === "pattern" && id) {
       // Flash's exporter dedups identical bitmaps by emitting the data URL
@@ -438,5 +465,5 @@ export function parseSvg(svgContent: string): ParsedSvg {
     });
   });
 
-  return { width, height, definitions, clipPaths, patterns, gradients, frames };
+  return { width, height, definitions, clipPaths, clipShapes, patterns, gradients, frames };
 }

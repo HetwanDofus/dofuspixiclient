@@ -687,27 +687,23 @@ final class ExtractSpellAnimsCommand extends Command
             );
         }
 
-        // ── Pass 2: inline `<clipPath>` constructs + clipped `<g>` ────────
-        // svg-spritesheet doesn't model clip-path attributes — when the
-        // construct survives, the inner `<use>` is rendered UNCLIPPED at
-        // its raw transform, producing the "wrong static shape at
-        // offset" the user originally reported on 108/110.
-        $clipPathIds = [];
-        if (preg_match_all('~<clipPath\b[^>]*?\bid="([^"]+)"[^>]*?>.*?</clipPath>~s', $svg, $m)) {
-            foreach ($m[1] as $id) {
-                $clipPathIds[$id] = true;
-            }
-        }
-        if (!empty($clipPathIds)) {
-            $svg = preg_replace_callback(
-                '~<g\b[^>]*?\bclip-path="url\(#([^)]+)\)"[^>]*?>(.*?)</g>~s',
-                static function (array $match) use ($clipPathIds): string {
-                    return isset($clipPathIds[$match[1]]) ? '' : $match[0];
-                },
-                $svg,
-            );
-            $svg = preg_replace('~<clipPath\b[^>]*?>.*?</clipPath>~s', '', $svg);
-        }
+        // (Pass 2 — clipPath strip — removed.)
+        //
+        // The downstream pipeline (svg-spritesheet → dofasset-format →
+        // Vello) now preserves SWF clipDepth masks as first-class data:
+        //   - svg-spritesheet (parser.ts) lifts nested `<clipPath>` defs
+        //     to the top of `<defs>` so they pick up canonical IDs in
+        //     dedup, fixing the `clip-path="none"` regression that the
+        //     old strip was working around.
+        //   - dofasset-format encodes ClipMask records keyed off the
+        //     surviving `<g clip-path="url(#…)">` wrappers (Phase 2/3 of
+        //     the option-B plan).
+        //
+        // The "wrong static shape at offset" symptom that originally
+        // drove this strip on 108/110 was independently fixed by
+        // clamping `totalFrames` to the last unique-cell logical index
+        // (see spell-108/110.ts). The strip is no longer load-bearing
+        // for any spell.
 
         // ── Final guard: inject an invisible placeholder when body empty ──
         // svg-spritesheet's atlas writer skips frames with no body

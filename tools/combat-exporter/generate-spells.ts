@@ -526,8 +526,62 @@ ${atlasSummaries
   )
   .join('\n')}
 
-Rules for \`totalFrames\` and frame-script remapping:
-1. **Set \`totalFrames\` = \`lastUniqueLogicalIndex + 1\`** for each animation, NOT the canonical SWF \`frameCount\` from manifest.json. Example: spell 108 anim1 has logical=129 / unique=88 / lastUniqueLogicalIndex=87 → \`totalFrames: 88\`.
+Rules for \`totalFrames\` and frame-script remapping (read CAREFULLY — the
+two cases below use different rules and confusing them ships a broken spell):
+
+**Case A — VISUAL sprites (have own frame textures).**
+A sprite is "visual" when \`textures.getFrames("...")\` returns the rendered
+SVG frames you'll display directly (the symbol's body has paths/uses that
+draw something). For these, the dedup rule applies because the runtime
+displays \`framesArr[currentFrame]\` and over-running the unique-cell count
+samples the wrong texture.
+
+  → Set \`totalFrames\` = \`lastUniqueLogicalIndex + 1\` for VISUAL sprites.
+  → Example: spell 108 anim1 has logical=129 / unique=88 /
+    lastUniqueLogicalIndex=87 → \`totalFrames: 88\`.
+
+**Case B — CONTAINER sprites (manifest.librarySymbols[].directlyDynamic +
+\`frames: []\` or near-empty atlas).**
+A sprite is a "container" when its \`<symbol>\` body is empty / a single
+unique cell, and its real role is to **schedule child placements over its
+authored timeline**. The atlas dedups the empty body to 1 unique frame,
+but the SWF timeline encodes 30/63/etc. frames worth of \`PlaceObject2\`
+moves and scripted attaches that MUST tick in real time for the spell
+to look right.
+
+  → Set \`totalFrames\` = the **logical frame count** from
+    \`manifest.librarySymbols[].frameCount\` (NOT the dedup count).
+  → Example: spell 802 sprite7 has manifest frameCount=30, atlas
+    logical=30/unique=1 → \`totalFrames: 30\` (NOT 1).
+  → Example: spell 802 sprite9 has manifest frameCount=63, atlas
+    logical=63/unique=5 → \`totalFrames: 63\` (NOT 5).
+
+**How to tell which case a sprite is in:**
+- If \`manifest.librarySymbols[]\` lists the symbol with
+  \`placements[]\` of OTHER children inside it → **container** (Case B).
+- If the symbol has its own \`frames\` block in
+  \`manifest.animations[]\` AND no \`librarySymbols\` placements
+  reference it from above → **visual** (Case A).
+- If unsure: prefer Case B (logical frameCount). Over-ticking a
+  container is harmless (just no-op frames); under-ticking it
+  collapses scheduled child attaches into 1-2 batches.
+
+**The wrong-totalFrames symptom:** all child sprites appear simultaneously
+at \`frameScripts.set(0, ...)\` instead of trickling in over the canonical
+30/63 ticks; tweens that animate child position/scale never run because
+the parent is permanently stopped.
+
+**Frame-script remapping (still applies to both cases when a script frame
+falls past the last unique-or-logical bound):**
+
+1. Visual sprite, AS \`frame_<N>/DoAction.as\` with N > unique window:
+   register at \`frameScripts.set(lastUniqueLogicalIndex, ...)\` (the trailing
+   placeholder frame the renderer parks on).
+2. Container sprite, AS \`frame_<N>/DoAction.as\` with N within timeline:
+   register at \`frameScripts.set(N - 1, ...)\` (0-based AS-frame conversion).
+   The child placements from \`librarySymbols[].placements[]\` should be
+   attached at \`frameScripts.set(placement.frame, ...)\` — one entry per
+   placement, NOT batched.
 2. **Remap canonical script frames that fall in the deduped tail.** Walk the canonical AS frame index N — if N > lastUniqueLogicalIndex, use \`lastUniqueLogicalIndex\` instead. Example: AS \`frame_127\` (= 0-idx 126) on a 129/88 animation → use \`frameScripts.set(${'lastUniqueLogicalIndex'}, ...)\` (= 87 in the example), not 126. The visual is identical because the trimmed frames were dedup'd to the same cell anyway.
 3. **Container-only symbols (\`frames: []\`, no atlas) are unaffected** — keep their declared \`totalFrames\` from the SWF.
 4. **Inline numeric constants** (\`totalFrames: 88\`, \`frameScripts.set(87, ...)\`). Do NOT extract these into a \`UNIQUE_COUNT\` constant — the prompt audit greps for raw numbers matching the per-animation table above.

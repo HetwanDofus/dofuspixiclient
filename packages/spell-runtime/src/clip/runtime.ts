@@ -145,8 +145,18 @@ export class SpellRuntime {
     this.elapsedFrames++;
     const snapshot = [...this.root.walk()];
     for (const clip of snapshot) {
+      // A frame script run earlier in this iteration may have called
+      // `complete()`, which synchronously fires onComplete →
+      // scene.remove → actor.dispose → spell.destroy. After that the
+      // remaining snapshot clips have destroyed containers; bail to
+      // avoid spurious tickOneFrame work + collectGarbage on a torn
+      // tree. `clip.tickOneFrame` also guards against destroyed
+      // containers, but breaking here is cheaper.
+      if (this.completed) break;
       clip.tickOneFrame(this.context);
     }
-    this.root.collectGarbage();
+    if (!this.completed) {
+      this.root.collectGarbage();
+    }
   }
 }

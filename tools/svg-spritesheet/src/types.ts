@@ -12,6 +12,8 @@ export interface ParsedFrame {
   positioningOffset: PositioningOffset;
   useElements: UseElement[];
   definitions: Definition[];
+  /** SWF clip-mask `<clipPath>` defs the parser kept from this frame's source. */
+  clipMasks: ClipMaskDefinition[];
   rawContent?: string;
 }
 
@@ -37,6 +39,49 @@ export interface UseElement {
   width?: number;
   height?: number;
   attributes: Record<string, string>;
+  /**
+   * Original clip-path id this `<use>` (or any ancestor `<g>`) was wrapped by
+   * in the source SVG, e.g. `"object-clip-3"`. Set when the input SVG carried
+   * a `clip-path="url(#…)"` attribute and the referenced `<clipPath>` is a
+   * SWF mask (non-rect geometry — see `ClipMaskDefinition`). The atlas
+   * generator will rewrite this to the canonical `swfclip-N` id and emit a
+   * `clip-path="url(#swfclip-N)"` attribute on the resulting `<use>`.
+   *
+   * Atlas-frame rectangular clip-paths are NOT tracked here — they're emitted
+   * by the generator itself for tile boundaries and live in a separate
+   * namespace.
+   */
+  clipMaskRef?: string;
+}
+
+/**
+ * A `<clipPath>` def from the source SVG that contains non-rectangular
+ * geometry — i.e. an authored SWF clipDepth mask, not a synthetic atlas
+ * frame boundary. Carries the path geometry verbatim so downstream
+ * (dofasset-format → Vello) can rasterise the mask shape.
+ *
+ * Rect-shaped clipPaths are intentionally NOT modelled here — they are
+ * either Arakne emitting a rect for cheap full-frame clipping (effectively
+ * a no-op the parser drops) or our own atlas-cell boundaries (added later
+ * by the generator).
+ */
+export interface ClipMaskDefinition {
+  /** Original id from the source SVG, e.g. `"object-clip-3"`. */
+  originalId: string;
+  /** Hash of the normalised inner geometry; same key used to dedupe across frames. */
+  contentHash: string;
+  /** Rewritten `swfclip-N` id assigned by the generator. */
+  canonicalId?: string;
+  /**
+   * Inner geometry exactly as it appeared in the source `<clipPath>`. Usually
+   * a single `<path d="...">` but kept as a string slice so any structure
+   * (multiple paths, transforms, even nested groups) survives without
+   * Cheerio re-serialisation drift. The wrapping `<clipPath>` tag itself is
+   * stripped — the generator re-wraps with the canonical id.
+   */
+  innerContent: string;
+  /** Optional `transform` attribute on the original `<clipPath>` element. */
+  transform?: string;
 }
 
 /** A definition element from <defs> */
@@ -251,7 +296,7 @@ export interface AnimationManifestEntry {
 // Element-level deduplication
 // ---------------------------------------------------------------------------
 
-/** A unique (href, transform, width, height) use-element configuration */
+/** A unique (href, transform, width, height, clipMaskRef) use-element configuration */
 export interface ElementInstance {
   /** Short id used in the SVG (e.g. "e0") */
   id: string;
@@ -261,6 +306,14 @@ export interface ElementInstance {
   width?: number;
   height?: number;
   attributes: Record<string, string>;
+  /**
+   * Canonical SWF clip-mask id (e.g. `"swfclip-3"`) inherited from the
+   * source `<g clip-path>` wrapper. Two visually-identical use elements
+   * with different masks must NOT dedupe to the same instance — the mask
+   * is a real difference in render output. Folded into `hash` so equality
+   * checks naturally diverge.
+   */
+  clipMaskRef?: string;
   /** Content hash of this instance */
   hash: string;
   /** How many times this instance appears across all frames */

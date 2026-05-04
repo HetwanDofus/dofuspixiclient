@@ -445,6 +445,29 @@ function extractDefinitions($: CheerioAPI, defs: CheerioElement): Definition[] {
     });
   }
 
+  // Lift nested `<clipPath id="…">` elements out of their parent `<g>`
+  // defs to the top level of `<defs>`. Arakne emits SWF clipDepth masks
+  // inline inside the wrapper sprite's `<g id="object-N">`, which means
+  // `defs.children().each(...)` misses them and they never get canonical
+  // IDs during dedup — so any sibling `<g clip-path="url(#X)">` reference
+  // gets nuked to `clip-path="none"` by `removeDeadUrlRefs`.
+  //
+  // After lifting, the original `<clipPath id="X">` becomes a sibling of
+  // `<g id="parent">` and ends up in `defs.children()`. Its source `id`
+  // is preserved so the `clip-path="url(#X)"` references inside the
+  // parent's content keep resolving via the standard frame-mapping path.
+  defs
+    .find("clipPath[id]")
+    .each((_, clipEl) => {
+      const $clip = $(clipEl);
+      const parent = $clip.parent();
+      // Already at the top level — skip.
+      if (parent.is(defs)) return;
+      // Detach from its current parent and append to <defs>.
+      const detached = $clip.remove();
+      defs.append(detached);
+    });
+
   const definitions: Definition[] = [];
 
   defs.children().each((_, el) => {

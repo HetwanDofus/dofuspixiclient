@@ -11,6 +11,8 @@
             "height": 282.25,
             "offsetX": -127.4,
             "offsetY": -187.3,
+            "stopFrame": 114,
+            "fadingFrame": 113,
             "isComposite": true,
             "frames": [
                 {

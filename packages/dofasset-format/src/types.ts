@@ -43,6 +43,17 @@ export interface FillDrawCommand {
   color: Color;
   colorZoneId: number; // 0 = none, 1-3 = zone
   transform: AffineTransform;
+  /**
+   * 1-based index into `CompiledAsset.clipMasks`, or 0 = no clip.
+   * Set when this draw command originates from a path/use wrapped in
+   * `<g clip-path="url(#X)">` (a SWF clipDepth mask). The runtime
+   * (Vello) is expected to push_layer with the referenced mask
+   * geometry before rasterising this command and pop_layer after.
+   *
+   * Multiple commands may share the same clipMaskId — the runtime can
+   * batch consecutive same-mask commands inside a single push/pop pair.
+   */
+  clipMaskId: number;
 }
 
 export interface StrokeDrawCommand {
@@ -57,6 +68,8 @@ export interface StrokeDrawCommand {
   lineCap: number; // 0=butt, 1=round, 2=square
   lineJoin: number; // 0=miter, 1=round, 2=bevel
   transform: AffineTransform;
+  /** See FillDrawCommand.clipMaskId. */
+  clipMaskId: number;
 }
 
 export interface PatternFillDrawCommand {
@@ -66,6 +79,8 @@ export interface PatternFillDrawCommand {
   imageId: number;
   patternTransform: AffineTransform;
   transform: AffineTransform;
+  /** See FillDrawCommand.clipMaskId. */
+  clipMaskId: number;
 }
 
 export interface GradientStop {
@@ -85,6 +100,32 @@ export interface GradientFillDrawCommand {
   r: number;
   gradientTransform: AffineTransform;
   stops: GradientStop[];
+  transform: AffineTransform;
+  /** See FillDrawCommand.clipMaskId. */
+  clipMaskId: number;
+}
+
+// ===== Clip Masks =====
+
+/**
+ * SWF clipDepth mask geometry, referenced from DrawCommands via
+ * `clipMaskId` (1-based index into `CompiledAsset.clipMasks`).
+ *
+ * The mask is a single-path polygon (or compound path) defining the
+ * visible region. The runtime applies it via `push_layer(default,
+ * default, 1.0, mask_transform, &mask_path)` before rasterising any
+ * commands referencing this mask, and `pop_layer()` after.
+ *
+ * Stored as `PathSegment[]` so the renderer can reuse its existing
+ * path tessellation code instead of needing a separate mask
+ * representation. The transform is the `<clipPath>`'s own `transform`
+ * attribute (Arakne emits one per mask) — applied OUTSIDE the masked
+ * draw command's own transform, matching SVG's clip-path semantics.
+ */
+export interface ClipMask {
+  /** 1-based id (0 means "no mask" — never assigned to a real entry). */
+  id: number;
+  segments: PathSegment[];
   transform: AffineTransform;
 }
 
@@ -293,6 +334,13 @@ export interface ParsedGroup {
   id: string;
   children: ParsedNode[];
   transform: AffineTransform;
+  /**
+   * Original `clip-path="url(#X)"` reference id from the source SVG (just
+   * `X`, no `url()` wrapper). Set when the `<g>` had a `clip-path`
+   * attribute. Lookup against `ParsedSvg.clipShapes` to resolve to a
+   * ClipMask record during compile.
+   */
+  clipPathRef?: string;
 }
 
 export interface ParsedUse {
@@ -339,6 +387,19 @@ export interface ParsedClipRect {
   height: number;
 }
 
+/**
+ * Non-rectangular `<clipPath>` content from the source SVG. Carries the
+ * mask geometry verbatim so the compile step can build a `ClipMask`
+ * record. Atlas frame boundaries (rect-shaped clipPaths emitted by
+ * svg-spritesheet) end up in `clipPaths: Map<string, ParsedClipRect>`
+ * instead — the two pools are mutually exclusive by id.
+ */
+export interface ParsedClipShape {
+  id: string;
+  segments: PathSegment[];
+  transform: AffineTransform;
+}
+
 export interface ParsedFrameUse {
   href: string;
   transform: AffineTransform;
@@ -373,6 +434,11 @@ export interface ParsedSvg {
   height: number;
   definitions: Map<string, ParsedNode>;
   clipPaths: Map<string, ParsedClipRect>;
+  /**
+   * Non-rect `<clipPath>` defs (SWF clipDepth masks). Indexed by source
+   * id. Compiles into `CompiledAsset.clipMasks` after dedup.
+   */
+  clipShapes: Map<string, ParsedClipShape>;
   patterns: ParsedPattern[];
   gradients: ParsedGradient[];
   frames: ParsedFrame[];
@@ -396,13 +462,28 @@ export interface CompiledAsset {
   colorZones: ColorZone[];
   animations: Animation[];
   frames: Frame[];
+  /**
+   * SWF clipDepth masks. Empty when the asset has no `<g clip-path>`
+   * wrappers. DrawCommands reference entries via 1-based `clipMaskId`.
+   */
+  clipMasks: ClipMask[];
   extras?: ExtrasPayload;
 }
 
 // ===== Binary Format Constants =====
 
 export const MAGIC = new Uint8Array([0x44, 0x41, 0x53, 0x46]); // "DASF"
-export const FORMAT_VERSION = 1;
+/**
+ * Format version. Bumped 1→2 when SWF clipDepth masks became a
+ * first-class type:
+ *   - new ClipMaskTable section (id 10),
+ *   - DrawCommand records gain a trailing `clipMaskId: u32` field.
+ *
+ * v1 readers refuse v2 binaries (and vice-versa) — there is no
+ * cross-version compatibility shim. Recompile every asset with the
+ * matching pipeline.
+ */
+export const FORMAT_VERSION = 2;
 
 export const enum AssetType {
   Sprite = 0,
@@ -427,6 +508,20 @@ export const enum SectionType {
    *   bytes: u8[len]  — UTF-8 JSON
    */
   Extras = 9,
+  /**
+   * SWF clipDepth masks. Layout:
+   *   count: u32
+   *   for each mask:
+   *     u32        id (1-based, sequential)
+   *     f32×6      transform
+   *     u32        segmentCount
+   *     for each segment:
+   *       u8     command (0=M, 1=L, 2=Q, 3=C, 4=Z)
+   *       f32×N  coords (M=2, L=2, Q=4, C=6, Z=0)
+   * DrawCommand records reference these via a trailing `clipMaskId`
+   * field (0 = no mask).
+   */
+  ClipMaskTable = 10,
 }
 
 export const enum ExtrasKind {

@@ -277,6 +277,7 @@ export function compileSpriteFromFrames(
     const group = groups[animIdx]!;
     const definitions = new Map<string, ParsedNode>();
     const clipPaths: ParsedSvg["clipPaths"] = new Map();
+    const clipShapes: ParsedSvg["clipShapes"] = new Map();
     const patterns: ParsedPattern[] = [];
     const gradients: ParsedGradient[] = [];
     const frames: ParsedSvg["frames"] = [];
@@ -336,6 +337,7 @@ export function compileSpriteFromFrames(
 
       for (const [id, def] of parsed.svg.definitions) definitions.set(id, def);
       for (const [id, rect] of parsed.svg.clipPaths) clipPaths.set(id, rect);
+      for (const [id, shape] of parsed.svg.clipShapes) clipShapes.set(id, shape);
       patterns.push(...parsed.svg.patterns);
       gradients.push(...parsed.svg.gradients);
       frames.push(parsed.frame);
@@ -351,6 +353,7 @@ export function compileSpriteFromFrames(
       height: maxHeight,
       definitions,
       clipPaths,
+      clipShapes,
       patterns,
       gradients,
       frames,

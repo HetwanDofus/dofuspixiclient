@@ -20,6 +20,7 @@ import type {
   AtlasJson,
   ExtractedImage,
   CompiledAsset,
+  ClipMask,
 } from "./types.js";
 import { IDENTITY_TRANSFORM } from "./types.js";
 
@@ -169,6 +170,7 @@ function tryCreateUrlFill(
   transform: AffineTransform,
   patternLookup: Map<string, PatternLookup>,
   gradientLookup: Map<string, GradientLookup>,
+  clipMaskId: number,
 ): DrawCommand | null {
   const refId = fillRef.match(/url\(#([^)]+)\)/)?.[1] ?? "";
   const pat = patternLookup.get(refId);
@@ -180,6 +182,7 @@ function tryCreateUrlFill(
       imageId: pat.imageId,
       patternTransform: pat.patternTransform,
       transform,
+      clipMaskId,
     } satisfies PatternFillDrawCommand;
   }
   const grad = gradientLookup.get(refId);
@@ -197,6 +200,7 @@ function tryCreateUrlFill(
       gradientTransform: grad.gradientTransform,
       stops: grad.stops,
       transform,
+      clipMaskId,
     } satisfies GradientFillDrawCommand;
   }
   return null;
@@ -205,6 +209,16 @@ function tryCreateUrlFill(
 /**
  * Recursively resolve a definition node into a flat list of draw commands.
  * Follows <use> references and composes transforms along the way.
+ *
+ * `clipMaskIds` maps source SVG `<clipPath>` ids (the strings carried on
+ * `ParsedGroup.clipPathRef`) to 1-based indices in the asset's
+ * `clipMasks` table. `activeClipMaskId` is the mask currently in scope —
+ * any DrawCommand emitted carries this id so the runtime can apply the
+ * right clip layer. Entering a `ParsedGroup` whose `clipPathRef` resolves
+ * to a known mask shadows the parent's active mask for the subtree;
+ * leaving the subtree restores the parent's mask. Nested SWF clip masks
+ * are vanishingly rare (Flash's clipDepth doesn't compose), so we
+ * intentionally only honour the innermost mask rather than stacking.
  */
 function resolveToDrawCommands(
   nodeId: string,
@@ -215,6 +229,8 @@ function resolveToDrawCommands(
   pathDedup: Map<number, number[]>,
   allPaths: PathSegment[][],
   visited: Set<string>,
+  clipMaskIds: Map<string, number>,
+  activeClipMaskId: number,
 ): DrawCommand[] {
   if (visited.has(nodeId)) return []; // prevent cycles
   visited.add(nodeId);
@@ -249,7 +265,7 @@ function resolveToDrawCommands(
     // Fill command
     if (p.fill && p.fill !== "none") {
       if (p.fill.startsWith("url(#")) {
-        const cmd = tryCreateUrlFill(p.fill, pathId, p.fillRule, transform, patternLookup, gradientLookup);
+        const cmd = tryCreateUrlFill(p.fill, pathId, p.fillRule, transform, patternLookup, gradientLookup, activeClipMaskId);
         if (cmd) commands.push(cmd);
       } else {
         const color = parseColor(p.fill, p.fillOpacity);
@@ -260,6 +276,7 @@ function resolveToDrawCommands(
           color,
           colorZoneId: 0,
           transform,
+          clipMaskId: activeClipMaskId,
         } satisfies FillDrawCommand);
       }
     }
@@ -280,11 +297,21 @@ function resolveToDrawCommands(
         lineCap: lineCapToNum(p.strokeLinecap),
         lineJoin: lineJoinToNum(p.strokeLinejoin),
         transform,
+        clipMaskId: activeClipMaskId,
       } satisfies StrokeDrawCommand);
     }
   } else if (node.type === "group") {
     const g = node.data;
     const groupTransform = composeTransforms(parentTransform, g.transform);
+    // If this group carries a SWF clip-path reference, resolve it to a
+    // ClipMaskId for descendant draw commands. Unresolved refs (e.g.
+    // when the source `<clipPath>` only had a `<rect>` and so was
+    // captured as an atlas frame boundary instead) fall back to the
+    // parent's active mask so frame-rect clips don't accidentally
+    // override an authored SWF mask.
+    const groupClipId = g.clipPathRef
+      ? clipMaskIds.get(g.clipPathRef) ?? activeClipMaskId
+      : activeClipMaskId;
     for (const child of g.children) {
       if (child.type === "path") {
         // Inline path in group
@@ -305,7 +332,7 @@ function resolveToDrawCommands(
 
         if (p.fill && p.fill !== "none") {
           if (p.fill.startsWith("url(#")) {
-            const cmd = tryCreateUrlFill(p.fill, pathId, p.fillRule, transform, patternLookup, gradientLookup);
+            const cmd = tryCreateUrlFill(p.fill, pathId, p.fillRule, transform, patternLookup, gradientLookup, groupClipId);
             if (cmd) commands.push(cmd);
           } else {
             const color = parseColor(p.fill, p.fillOpacity);
@@ -316,6 +343,7 @@ function resolveToDrawCommands(
               color,
               colorZoneId: 0,
               transform,
+              clipMaskId: groupClipId,
             } satisfies FillDrawCommand);
           }
         }
@@ -335,16 +363,22 @@ function resolveToDrawCommands(
             lineCap: lineCapToNum(p.strokeLinecap),
             lineJoin: lineJoinToNum(p.strokeLinejoin),
             transform,
+            clipMaskId: groupClipId,
           } satisfies StrokeDrawCommand);
         }
       } else if (child.type === "use") {
         const useTransform = composeTransforms(groupTransform, child.data.transform);
         const resolved = resolveToDrawCommands(
           child.data.href, definitions, useTransform, patternLookup, gradientLookup, pathDedup, allPaths, visited,
+          clipMaskIds, groupClipId,
         );
         commands.push(...resolved);
       } else if (child.type === "group") {
         const nestedTransform = composeTransforms(groupTransform, child.data.transform);
+        // Nested group: its own clipPathRef shadows the enclosing group's.
+        const nestedClipId = child.data.clipPathRef
+          ? clipMaskIds.get(child.data.clipPathRef) ?? groupClipId
+          : groupClipId;
         // Process nested group children
         for (const nested of child.data.children) {
           if (nested.type === "path") {
@@ -362,12 +396,13 @@ function resolveToDrawCommands(
             const transform = composeTransforms(nestedTransform, p.transform);
             if (p.fill && p.fill !== "none") {
               if (p.fill.startsWith("url(#")) {
-                const cmd = tryCreateUrlFill(p.fill, pathId, p.fillRule, transform, patternLookup, gradientLookup);
+                const cmd = tryCreateUrlFill(p.fill, pathId, p.fillRule, transform, patternLookup, gradientLookup, nestedClipId);
                 if (cmd) commands.push(cmd);
               } else {
                 commands.push({
                   type: 0 as DrawCommandType.Fill, pathId, fillRule: p.fillRule,
                   color: parseColor(p.fill, p.fillOpacity), colorZoneId: 0, transform,
+                  clipMaskId: nestedClipId,
                 } satisfies FillDrawCommand);
               }
             }
@@ -381,6 +416,7 @@ function resolveToDrawCommands(
                 opacity: p.strokeOpacity,
                 lineCap: lineCapToNum(p.strokeLinecap), lineJoin: lineJoinToNum(p.strokeLinejoin),
                 transform,
+                clipMaskId: nestedClipId,
               } satisfies StrokeDrawCommand);
             }
           } else if (nested.type === "use") {
@@ -388,6 +424,7 @@ function resolveToDrawCommands(
               nested.data.href, definitions,
               composeTransforms(nestedTransform, nested.data.transform),
               patternLookup, gradientLookup, pathDedup, allPaths, visited,
+              clipMaskIds, nestedClipId,
             );
             commands.push(...resolved);
           }
@@ -399,6 +436,7 @@ function resolveToDrawCommands(
     const useTransform = composeTransforms(parentTransform, node.data.transform);
     const resolved = resolveToDrawCommands(
       node.data.href, definitions, useTransform, patternLookup, gradientLookup, pathDedup, allPaths, visited,
+      clipMaskIds, activeClipMaskId,
     );
     commands.push(...resolved);
   }
@@ -433,6 +471,10 @@ function hashDrawCommand(cmd: DrawCommand): number {
   h = fnv1a(h, cmd.pathId);
   h = fnv1a(h, cmd.fillRule);
   h = fnv1a(h, hashTransform(cmd.transform));
+  // clipMaskId is part of identity — two visually-identical paths
+  // become different draw commands when one is masked and the other
+  // isn't, so the pool must keep them distinct.
+  h = fnv1a(h, cmd.clipMaskId);
   if (cmd.type === 0) {
     h = fnv1a(h, cmd.color.r); h = fnv1a(h, cmd.color.g);
     h = fnv1a(h, cmd.color.b); h = fnv1a(h, cmd.color.a);
@@ -462,6 +504,7 @@ function hashDrawCommand(cmd: DrawCommand): number {
 
 function drawCommandsEqual(a: DrawCommand, b: DrawCommand): boolean {
   if (a.type !== b.type || a.pathId !== b.pathId || a.fillRule !== b.fillRule) return false;
+  if (a.clipMaskId !== b.clipMaskId) return false;
   if (!transformsEqual(a.transform, b.transform)) return false;
   if (a.type === 0 && b.type === 0) {
     return a.color.r === b.color.r && a.color.g === b.color.g && a.color.b === b.color.b && a.color.a === b.color.a && a.colorZoneId === b.colorZoneId;
@@ -515,6 +558,38 @@ export function deduplicate(
 
   const frameDedup = new Map<string, number>(); // frame key → frameId (kept as string, small count)
   const allFrames: Frame[] = [];
+
+  // Global ClipMask pool, deduped by content hash. Per-animation
+  // string-id maps (`clipMaskIdsByAnim`) translate the source SVG's
+  // local `<clipPath>` ids into global 1-based ids that draw commands
+  // carry.
+  const clipMaskDedup = new Map<number, number[]>(); // hash → candidate clipMaskIds (1-based)
+  const allClipMasks: ClipMask[] = [];
+
+  function clipMaskShapesEqual(
+    a: { segments: PathSegment[]; transform: AffineTransform },
+    b: { segments: PathSegment[]; transform: AffineTransform },
+  ): boolean {
+    if (!transformsEqual(a.transform, b.transform)) return false;
+    return pathsEqual(a.segments, b.segments);
+  }
+
+  function getOrAddClipMask(segments: PathSegment[], transform: AffineTransform): number {
+    let h = hashPath(segments);
+    h = fnv1a(h, hashTransform(transform));
+    const candidates = clipMaskDedup.get(h);
+    if (candidates) {
+      for (const cid of candidates) {
+        const existing = allClipMasks[cid - 1]!;
+        if (clipMaskShapesEqual(existing, { segments, transform })) return cid;
+      }
+    }
+    const id = allClipMasks.length + 1; // 1-based
+    allClipMasks.push({ id, segments, transform });
+    if (candidates) candidates.push(id);
+    else clipMaskDedup.set(h, [id]);
+    return id;
+  }
 
   const compiledAnimations: Animation[] = [];
 
@@ -600,6 +675,16 @@ export function deduplicate(
       }
     }
 
+    // Per-animation local map of source `<clipPath>` ids → global
+    // 1-based ClipMask ids. Built by registering every non-rect
+    // clipPath def in the parsed SVG up-front; the dedup table merges
+    // visually-identical masks across animations into one entry.
+    const clipMaskIds = new Map<string, number>();
+    for (const [refId, shape] of svg.clipShapes) {
+      const id = getOrAddClipMask(shape.segments, shape.transform);
+      clipMaskIds.set(refId, id);
+    }
+
     // For each frame in the SVG, resolve body parts
     const svgFrameData: { bodyPartIds: PartInstance[]; accSlots: AccessorySlot[]; frameTransformId: number }[] = [];
 
@@ -608,10 +693,15 @@ export function deduplicate(
       const accSlots: AccessorySlot[] = [];
 
       for (const use of frame.uses) {
-        // Resolve this body part reference to draw commands
+        // Resolve this body part reference to draw commands. Active
+        // clip is 0 (none) at the frame level — SWF clipDepth wrappers
+        // are nested inside def `<g>` chains, not at the frame's
+        // `<g clip-path>` rect (which is the atlas tile boundary,
+        // already stripped by the parser).
         const drawCmds = resolveToDrawCommands(
           use.href, svg.definitions, [...IDENTITY_TRANSFORM] as AffineTransform,
           patternLookup, gradientLookup, pathDedup, allPaths, new Set(),
+          clipMaskIds, 0,
         );
 
         // Dedup draw commands
@@ -768,5 +858,6 @@ export function deduplicate(
     colorZones: [],
     animations: compiledAnimations,
     frames: allFrames,
+    clipMasks: allClipMasks,
   };
 }

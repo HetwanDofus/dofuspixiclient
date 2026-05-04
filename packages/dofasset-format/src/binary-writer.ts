@@ -1,5 +1,5 @@
 import { match } from "ts-pattern";
-import type { CompiledAsset, PathSegment, DrawCommand, BodyPart, AffineTransform, Frame, Animation, ExtractedImage, ColorZone, ExtrasPayload } from "./types.js";
+import type { CompiledAsset, PathSegment, DrawCommand, BodyPart, AffineTransform, Frame, Animation, ExtractedImage, ColorZone, ExtrasPayload, ClipMask } from "./types.js";
 import { MAGIC, FORMAT_VERSION, SectionType, AssetType } from "./types.js";
 
 class BinaryBuffer {
@@ -85,6 +85,11 @@ function writeDrawCmdTable(buf: BinaryBuffer, commands: DrawCommand[]): void {
     buf.writeU32(cmd.pathId);
     buf.writeU8(cmd.fillRule);
     buf.writeTransform(cmd.transform);
+    // clipMaskId — 1-based index into ClipMaskTable; 0 = no mask.
+    // Format v2 added this field; the position (after `transform`,
+    // before the per-type discriminated payload) keeps reader code
+    // simple — every command type pays the same 4 bytes.
+    buf.writeU32(cmd.clipMaskId);
 
     match(cmd)
       .with({ type: 0 }, (c) => {
@@ -119,6 +124,19 @@ function writeDrawCmdTable(buf: BinaryBuffer, commands: DrawCommand[]): void {
         }
       })
       .exhaustive();
+  }
+}
+
+function writeClipMaskTable(buf: BinaryBuffer, masks: ClipMask[]): void {
+  buf.writeU32(masks.length);
+  for (const mask of masks) {
+    buf.writeU32(mask.id);
+    buf.writeTransform(mask.transform);
+    buf.writeU32(mask.segments.length);
+    for (const seg of mask.segments) {
+      buf.writeU8(PATH_TYPE_MAP[seg.type] ?? 0);
+      for (const coord of seg.coords) buf.writeF32(coord);
+    }
   }
 }
 
@@ -246,6 +264,14 @@ export function writeBinary(asset: CompiledAsset): Buffer {
     { type: SectionType.AnimationTable, writer: (b) => writeAnimationTable(b, asset.animations, stringIds) },
     { type: SectionType.FrameTable, writer: (b) => writeFrameTable(b, asset.frames) },
   ];
+
+  // Always emit the ClipMaskTable (even when empty) so the reader can
+  // unconditionally seek past it. The compiled asset's `clipMasks`
+  // defaults to `[]` for content with no SWF mask wrappers.
+  sections.push({
+    type: SectionType.ClipMaskTable,
+    writer: (b) => writeClipMaskTable(b, asset.clipMasks),
+  });
 
   if (asset.extras) {
     sections.push({

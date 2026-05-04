@@ -295,6 +295,16 @@ export class SpellClip {
    */
   tickOneFrame(ctx: SpellContext): void {
     if (this.destroyed || this.pendingRemoval) return;
+    // The pixi container can be destroyed out from under us when
+    // `runtime.complete()` is called from a frame script earlier in
+    // this same snapshot iteration: complete() → callbacks.onComplete()
+    // → scene.remove() → actor.dispose() → spell.destroy() →
+    // root.container.destroy({ children: true }). That cascade nulls
+    // out every descendant container's _scale/_position without
+    // touching our `destroyed` flag, so the next clip in the snapshot
+    // (e.g. sprite6_main) would otherwise try `clip.scaleX = 1` on a
+    // destroyed container and throw "Cannot set properties of null".
+    if (this.container.destroyed) return;
 
     if (this.onEnterFrame) {
       try {
