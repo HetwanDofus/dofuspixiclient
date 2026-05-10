@@ -27,7 +27,7 @@ import {
   Texture,
 } from "pixi.js";
 
-import type { MapScale } from "@/game/datacenter/map";
+import { ROT_SCALE_X, ROT_SCALE_Y } from "@/game/constants/battlefield";
 import {
   freeRenderTexture,
   renderSwfFrame,
@@ -114,17 +114,28 @@ function applyMatrix(
   cellX: number,
   cellY: number,
   rotation: number,
-  flip: boolean,
-  mapScale: MapScale
+  flip: boolean
 ): void {
-  const baseX = cellX * mapScale.scale + mapScale.offsetX;
-  const baseY = cellY * mapScale.scale + mapScale.offsetY;
-  sprite.x = baseX;
-  sprite.y = baseY;
-  // Texture is rasterized at MAP_BG_ZOOM resolution; bring back to logical.
-  const s = mapScale.scale / MAP_BG_ZOOM;
-  sprite.scale.set(flip ? -s : s, s);
-  sprite.rotation = (rotation & 3) * (Math.PI / 2);
+  // Position sprites in mapContainer-local logical pixels — exactly
+  // what canonical `MapHandler.as` does (`mc._x = col * CELL_WIDTH +
+  // parityOffset`). Players use the same convention so tiles + chars
+  // share a coordinate space; mapContainer.scale = zoom propagates
+  // the user zoom.
+  sprite.x = cellX;
+  sprite.y = cellY;
+
+  // Texture is rasterized at MAP_BG_ZOOM density. Base scale
+  // 1/MAP_BG_ZOOM brings texture pixels back to logical pixels;
+  // rotated tiles get the canonical AS iso-projection fudge:
+  //   `_xscale = 51.85, _yscale = 192.86` (Constants.as).
+  // Flip mirrors the X axis (canonical `_xscale *= -1`).
+  const rot = rotation & 3;
+  const rotated = rot === 1 || rot === 3;
+  const base = 1 / MAP_BG_ZOOM;
+  const sx = rotated ? base * ROT_SCALE_X : base;
+  const sy = rotated ? base * ROT_SCALE_Y : base;
+  sprite.scale.set(flip ? -sx : sx, sy);
+  sprite.rotation = rot * (Math.PI / 2);
 }
 
 export class TileSpriteRenderer {
@@ -133,7 +144,6 @@ export class TileSpriteRenderer {
   private groundLayer: Container;
   private object1Layer: Container;
   private object2Layer: Container;
-  private mapScale: MapScale = { scale: 1, offsetX: 0, offsetY: 0 };
 
   constructor(
     pixiRenderer: Renderer,
@@ -145,20 +155,6 @@ export class TileSpriteRenderer {
     this.groundLayer = groundLayer;
     this.object1Layer = object1Layer;
     this.object2Layer = object2Layer;
-  }
-
-  setMapScale(mapScale: MapScale): void {
-    this.mapScale = mapScale;
-    for (const state of this.states.values()) {
-      applyMatrix(
-        state.sprite,
-        state.cellX,
-        state.cellY,
-        state.rotation,
-        state.flip,
-        this.mapScale
-      );
-    }
   }
 
   /**
@@ -238,8 +234,11 @@ export class TileSpriteRenderer {
 
     const sprite = new Sprite(new Texture({ source }));
     sprite.anchor.set(anchorFracX, anchorFracY);
-    applyMatrix(sprite, p.cellX, p.cellY, p.rotation, p.flip, this.mapScale);
-    sprite.zIndex = p.cellX + p.cellY * 1000;
+    applyMatrix(sprite, p.cellX, p.cellY, p.rotation, p.flip);
+    // Painter's-order zIndex inside the layer: lower-cellY (back rows)
+    // render first so higher-cellY (front rows) overlap correctly.
+    // Mirrors canonical MapHandler depth convention.
+    sprite.zIndex = Math.round(p.cellY * 100) + Math.round(p.cellX);
 
     const parent =
       p.layer === 0

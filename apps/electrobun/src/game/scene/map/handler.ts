@@ -278,7 +278,6 @@ export class MapHandler {
       this.currentMapData,
       this.currentPrefixOverride
     );
-    this.tileSpriteRenderer.setMapScale(this.currentMapScale);
     this.tileSpriteRenderer.setPlacements(placements);
   }
 
