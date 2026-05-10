@@ -114,18 +114,15 @@ export class FightUI {
       groundLevel,
       cellDataMap: this.cellDataMap,
     });
-    // Wire canonical-depth cell tints when a WorldLayer is available.
-    // The CANONICAL_DEPTH_FILL_TYPES (PLACEMENT_TEAM_*, MOVEMENT_PATH,
-    // SELECTED, HOVER, SPELL_RANGE, SPELL_ZONE_INVALID) route through
-    // WorldLayer's CellTint kind at sub-offset +2 so they overlay
-    // foreground tiles but pass under chars — the canonical Dofus
-    // 1.29 ordering. Zone fills (MOVEMENT range polygon, ATTACK,
-    // SPELL_RANGE_OUTLINE, SPELL_ZONE) and zone shapes (GLYPH, TRAP)
-    // stay in Pixi for now (polygon + border rendering not yet
-    // available via WorldLayer).
-    if (this.worldLayer) {
+    // Cell tints (PLACEMENT_TEAM_*, MOVEMENT_PATH, SELECTED, HOVER,
+    // SPELL_RANGE, SPELL_ZONE_INVALID) draw as Pixi Graphics diamonds
+    // mounted in a dedicated child container of mapContainer at
+    // zIndex 350 — between Object1 (300) and Object2 chars/tiles
+    // (~400+). Same canonical Dofus 1.29 ordering the legacy
+    // worldLayer CellTint kind achieved at Object2 sub-offset +2.
+    if (this.mapContainer) {
       this.worldCellTints = new WorldCellTints({
-        worldLayer: this.worldLayer,
+        parent: this.mapContainer,
         mapWidth,
         groundLevel,
         cellDataMap: this.cellDataMap,
