@@ -1,0 +1,15 @@
+{
+  "name": "vello-wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "vello_wasm_bg.wasm",
+    "vello_wasm.js",
+    "vello_wasm.d.ts"
+  ],
+  "main": "vello_wasm.js",
+  "types": "vello_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

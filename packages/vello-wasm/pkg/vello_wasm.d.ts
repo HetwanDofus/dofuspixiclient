@@ -1,0 +1,826 @@
+/* tslint:disable */
+/* eslint-disable */
+
+/**
+ * Chroma subsampling format
+ */
+export enum ChromaSampling {
+    /**
+     * Both vertically and horizontally subsampled.
+     */
+    Cs420 = 0,
+    /**
+     * Horizontally subsampled.
+     */
+    Cs422 = 1,
+    /**
+     * Not subsampled.
+     */
+    Cs444 = 2,
+    /**
+     * Monochrome.
+     */
+    Cs400 = 3,
+}
+
+export class VelloRenderer {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * Attach a `<canvas>` as a Vello-driven surface. Returns the JS-facing
+     * id used by `configureSurface` / `detachSurface` / future
+     * `renderXxxToSurface` calls. The canvas is consumed (moved into the
+     * Surface). Returns 0 on failure.
+     */
+    attachCanvasSurface(canvas: HTMLCanvasElement, width: number, height: number): number;
+    /**
+     * Batch-copy multiple textures into a destination texture. ONE queue.submit for all copies.
+     * `copies` is a flat array: [src_id, dst_x, dst_y, src_id, dst_x, dst_y, ...]
+     * All copies go to the same destination texture (the atlas).
+     */
+    batchCopy(dst_texture_id: number, copies: Float64Array): boolean;
+    /**
+     * Phase 3c — Drop both long-lived path caches.
+     *
+     * Use cases:
+     *   - Memory-pressure recovery (e.g. WindowServer watchdog firing).
+     *   - Cold-vs-warm bench setup: clear → run → measure → clear → run
+     *     → measure to compare miss-cost against hit-cost reproducibly.
+     *   - Bundle eviction: a downstream codepath that unloads a
+     *     `swf_bundles` entry should call this to drop stale shape
+     *     commands keyed by symbol IDs that no longer exist.
+     *
+     * Does NOT touch the per-cast spell instance caches, the static
+     * tile scene, or in-flight GPU textures — only the scene + bundle
+     * caches that are pure rebuild-on-demand.
+     */
+    clearPathCache(): void;
+    /**
+     * Reconfigure a previously-attached surface (resize / DPR change).
+     * Idempotent if dims match the current configuration.
+     */
+    configureSurface(id: number, width: number, height: number): void;
+    /**
+     * Create an atlas texture for packing multiple character frames.
+     * Returns { texture: GPUTexture, textureId: number, width, height }.
+     * All characters' frames are copied into this single texture via renderFrameToAtlas.
+     */
+    createAtlas(width: number, height: number): any;
+    /**
+     * Allocate a persistent character instance — pre-resolves
+     * accessory bundles, pre-computes bounds (frame size, accessory
+     * padding, grid layout) over `seed_anims`, and allocates ONE
+     * output GPU texture sized to the worst-case strip.
+     * `tickSwfCharacterStrip` then re-renders any one of those
+     * `seed_anims` into the same texture, overwriting pixels in
+     * place — JS keeps a single Pixi `ExternalSource` for the
+     * instance's lifetime.
+     *
+     * `colors` is `[c1, c2, c3]` packed as `0xRRGGBB`; pass `0` for
+     * "leave the zone untinted" (matches the pre-existing
+     * `setSwfPlayerColors` global semantics, but stored per-
+     * instance so concurrent renders of differently-coloured chars
+     * don't trample each other).
+     *
+     * `seed_anims` MUST cover every anim the caller will pass to
+     * subsequent ticks — the strip texture is sized for the bounds
+     * union over them. Asking for a frame from an anim outside this
+     * list will clip silently. For the canonical Dofus character
+     * pool (staticR/L/F/B/S, walkR/L/F/B/S, runR/L/F/B/S) pass all
+     * 13-15 names; for a stress test you can pass only the subset
+     * you'll cycle.
+     *
+     * `acc_*` are parallel arrays describing accessories — same
+     * shape as `renderSwfStripRangeAccessorized` accepts. Returns 0
+     * on failure (bundle missing, all accessories failed to
+     * resolve, or strip dims exceed GPU limits).
+     */
+    createSwfCharacterInstance(bundle: string, seed_anims: string[], acc_slots: Uint32Array, acc_bundles: string[], acc_exports: string[], acc_anim_types: Uint32Array, color1: number, color2: number, color3: number, resolution: number): number;
+    /**
+     * Create a live AVM1 spell instance: allocates an `AvmRenderer`
+     * whose tick state will be advanced by per-frame
+     * `tickSwfSpellFrame` calls, plus a single output GPU texture sized
+     * to the union of all frame bounds (so anchor + canvas stay
+     * uniform across the cast). Returns the instance id JS uses to
+     * drive subsequent host-var sets, ticks, and dispose. Returns 0
+     * on failure.
+     */
+    createSwfSpellInstance(bundle: string, resolution: number): number;
+    /**
+     * Allocate a viewport-sized output texture for the batched
+     * world-layer render path. Single texture shared by every
+     * `renderSwfWorldLayer` call; JS Pixi wraps it ONCE as an
+     * `ExternalSource` and never re-allocates. Returns the
+     * `{ texture, textureId, width, height }` so JS can wire it
+     * up immediately.
+     */
+    createWorldLayerTexture(width: number, height: number): any;
+    /**
+     * Drop a surface attachment. Subsequent renders to this id no-op.
+     */
+    detachSurface(id: number): void;
+    /**
+     * Free the character instance + its output GPU texture.
+     */
+    disposeSwfCharacterInstance(instance_id: number): void;
+    /**
+     * Free the AVM1 instance + its output GPU texture. JS must call
+     * this when the cast completes; otherwise both the AvmRenderer
+     * state (typically a few KB) and the texture (a few hundred KB at
+     * typical spell sizes) leak for the renderer's lifetime.
+     */
+    disposeSwfSpellInstance(instance_id: number): void;
+    /**
+     * Render all queued frames in a composite grid, then batch-copy to atlas.
+     * 1 Vello render + 1 batch copy = 2 GPU submits total.
+     */
+    flushFrames(atlas_texture_id: number): void;
+    /**
+     * Free all cached textures.
+     */
+    freeAllTextures(): void;
+    /**
+     * Free a loaded asset.
+     */
+    freeAsset(id: number): void;
+    /**
+     * Drop a previously-allocated render output texture by id.
+     * Tile-pass outputs are allocated fresh per dispatch; the caller
+     * holds a Pixi `Texture` referencing the GPUTexture handle, and
+     * frees the underlying storage by id once Pixi has uploaded the
+     * next tick's frame. `tex_id` is taken as `f64` since wasm-bindgen
+     * marshals JS numbers as f64 — internally cast to u64 to match the
+     * `next_texture_id` counter.
+     */
+    freeRenderTexture(tex_id: number): void;
+    /**
+     * Free a rendered texture by its ID (returned from renderFrame).
+     * The wgpu::Texture is removed from our HashMap and dropped, releasing
+     * the reference to the underlying GPUTexture. We do NOT call tex.destroy()
+     * because Pixi.js may still have pending GPU commands referencing it.
+     * The browser's GC will collect the GPUTexture once all references are gone.
+     */
+    freeTexture(texture_id: number): void;
+    /**
+     * Get animation info. Returns { fps, frameCount, offsetX, offsetY, trimX, trimY, ... } or null.
+     * `offsetX/Y` is derived from the first frame's net offset (where Flash (0,0) actually
+     * lands in the rendered texture). This avoids sub-pixel discrepancies between the SWF
+     * metadata and the actual SVG content positioning that cause jitter between animations.
+     */
+    getAnimationInfo(asset_id: number, animation: string): any;
+    /**
+     * Get per-animation uniform canvas size + anchor.
+     * Returns { width, height, anchorX, anchorY } or null.
+     * All frames render at this size — eliminates jitter from per-frame size variation.
+     * The game engine draws the canvas at (screenX - anchorX, screenY - anchorY).
+     */
+    getAnimationMeta(asset_id: number, animation: string, resolution: number, acc_info?: Uint32Array | null): any;
+    /**
+     * List animation names for an asset.
+     */
+    getAnimationNames(asset_id: number): string[];
+    /**
+     * Compute pixel dimensions for a frame at a given resolution.
+     * Returns the **uniform** canvas size for the entire animation (not per-frame).
+     * This ensures all frames of the same animation render at the same size,
+     * eliminating jitter from per-frame size variation.
+     * Returns [width, height].
+     */
+    getFrameSize(asset_id: number, animation: string, _frame_index: number, resolution: number): Uint32Array;
+    /**
+     * Initialize the renderer. Returns a JS object `{ renderer, adapter, device }`
+     * so JS can pass `{ adapter, device }` to Pixi.js.
+     */
+    static init(): Promise<any>;
+    /**
+     * Load a .dofasset binary. Returns true on success, false if data is invalid.
+     * Never panics — invalid data is handled gracefully to avoid poisoning
+     * the wasm-bindgen RefCell (which would break ALL subsequent calls).
+     */
+    loadAsset(id: number, data: Uint8Array): boolean;
+    /**
+     * Load a SWF bundle by name (e.g. "g1", "o3", "player10"). Returns true on
+     * success.
+     */
+    loadSwfBundle(name: string, bytes: Uint8Array): boolean;
+    /**
+     * Path cache observability.
+     *
+     * Reports the live state of the two long-lived tile-pass caches:
+     *   - `tile_render_caches` (per-bundle `RenderCache`): shape
+     *     command tessellation, morph interpolations, sprite frame-
+     *     state walks. Populated by tile paths; character + spell
+     *     paths use fresh per-call caches because their bundles
+     *     have shape-id collisions with each other.
+     *   - `tile_subscenes`: pre-encoded `vello::Scene` per
+     *     `(bundle, export, frame)` used by `setStaticTilePlacements`
+     *     + `renderTilePass` to memcpy-append cached tile geometry.
+     *
+     * Memory bytes are estimates — Vello scenes don't expose encoded
+     * size, so we count entries × heuristic constant (~8 KB per
+     * typical tile sub-scene). Use the entry count for hit-rate
+     * validation; bytes for capacity-planning only.
+     *
+     * Returns `{ bundleCacheCount, sceneCacheCount, sceneBytesEstimate }`.
+     */
+    pathCacheStats(): any;
+    /**
+     * Queue a frame for batch rendering. Builds the Vello scene (CPU work) and stores it.
+     * Returns { width, height } of the frame, or null on failure.
+     * Call flushFrames() to render all queued frames in ONE GPU dispatch + copy.
+     */
+    queueFrame(asset_id: number, animation: string, frame_index: number, resolution: number, colors: Uint32Array | null | undefined, acc_info: Uint32Array | null | undefined, dst_x: number, dst_y: number): any;
+    /**
+     * Render ALL frames of an animation into a single horizontal strip texture.
+     * Returns { texture, textureId, width, height, frameWidth, frameHeight, frameCount }.
+     * JS extracts sub-rectangles: frame i is at (i * frameWidth, 0, frameWidth, frameHeight).
+     * One GPU dispatch for all frames — much faster than rendering frames individually.
+     * Supports accessories: pass acc_info as flat [asset_id, slot_id, ...] pairs.
+     */
+    renderAnimationStrip(asset_id: number, animation: string, resolution: number, colors?: Uint32Array | null, acc_info?: Uint32Array | null): any;
+    /**
+     * Render a frame and return the raw `GPUTexture` as a JsValue.
+     * Render a frame with optional player colors [color1, color2, color3] as 0xRRGGBB.
+     * Pass null/undefined for no color replacement.
+     * Optional acc_info is a flat array of pairs: [asset_id, slot_id, asset_id, slot_id, ...]
+     * Each accessory must be loaded via loadAsset() first. They render using the same
+     * animation name and frame index as the character.
+     */
+    renderFrame(asset_id: number, animation: string, frame_index: number, resolution: number, colors?: Uint32Array | null, acc_info?: Uint32Array | null): any;
+    /**
+     * Render a frame and copy it into a slot of an atlas texture.
+     * Returns { width, height } of the rendered frame, or null on failure.
+     * dst_x/dst_y are pixel coordinates in the atlas.
+     */
+    renderFrameToAtlas(atlas_texture_id: number, dst_x: number, dst_y: number, asset_id: number, animation: string, frame_index: number, resolution: number, colors?: Uint32Array | null, acc_info?: Uint32Array | null, slot_w?: number | null, slot_h?: number | null): any;
+    /**
+     * Render multiple exports of ONE bundle at the SAME frame in a single
+     * Vello dispatch — used to collapse tile prefetch from N dispatches
+     * (one per unique tile) to 1 dispatch per bundle in the map. Tiles are
+     * shelf-packed into a composite texture; the JS caller slices per-tile
+     * sub-rectangles via the returned `items*` parallel arrays.
+     *
+     * Exports that fail to look up or have degenerate bounds are encoded as
+     * `itemValid[i] = 0` with zero geometry; valid items get `itemValid[i] = 1`.
+     */
+    renderSwfBundleBatch(bundle: string, exports: string[], frame: number, resolution: number): any;
+    /**
+     * Render an exported symbol from a loaded SWF bundle to a fresh GPUTexture.
+     * `bundle` is the name passed to `loadSwfBundle`. `export` is the SWF
+     * export name (e.g. "168" for tile id 168, or "walkR"/"staticR" for the
+     * player). `frame` selects which timeline frame to render (0 for tiles).
+     * `resolution` is the output pixels-per-twip multiplier (≈ zoom).
+     *
+     * Returns `{ texture: GPUTexture, textureId, width, height, anchorX,
+     * anchorY }` — `anchorX/Y` is the position of the SWF (0,0) origin
+     * inside the rendered texture, so the caller can place the sprite at
+     * `(cellCenterX - anchorX, cellCenterY - anchorY)`.
+     */
+    renderSwfFrame(bundle: string, _export: string, frame: number, resolution: number): any;
+    /**
+     * Render the SWF's ROOT timeline (the main movie stage) at a given
+     * frame. Used for SWFs without named exports — artwork/big/{gfxId}.swf
+     * and spell icons place their visible content directly on the root
+     * stage instead of declaring named exports. Honors `swf_player_colors`
+     * for portraits that carry the canonical `stringCourseColor` zones.
+     */
+    renderSwfRoot(bundle: string, frame: number, resolution: number): any;
+    /**
+     * Render the SWF's root timeline directly into a previously-attached
+     * `<canvas>` surface. Used by HUD consumers (fighter portraits,
+     * banner artwork) that need an `<canvas>` element they can mount
+     * in React. Returns `{ width, height, anchorX, anchorY }` on
+     * success or NULL on failure (unknown surface, missing bundle,
+     * degenerate bounds, render error).
+     */
+    renderSwfRootToSurface(surface_id: number, bundle: string, frame: number, resolution: number): any;
+    /**
+     * Compose a spell icon by overlaying the canonical 1.29 trio in ONE
+     * Vello dispatch:
+     *
+     *   1. `_spellBackground` from `back_bundle` — the filled disc, tinted to `bc_rgb`.
+     *   2. `_spellFrame` from `back_bundle` — the ring border, tinted to `fc_rgb`.
+     *   3. The `up_bundle` SWF's root timeline — the glyph, tinted to `pc_rgb`.
+     *
+     * All three render with a flat-fill `OwnedColorTransform` (multiply
+     * RGB by 0, add the target colour), mirroring the asset-pipeline's
+     * `recolorEl` step but applied at render time inside Vello — no PNG
+     * composer, no Pixi filter, no readback. Output is a single GPU
+     * texture sized to the disc's bounding box (which contains the frame
+     * and glyph by SWF stage convention).
+     */
+    renderSwfSpellIcon(back_bundle: string, up_bundle: string, bc_rgb: number, fc_rgb: number, pc_rgb: number, resolution: number): any;
+    /**
+     * Render the spell-icon composition (back disc + frame + glyph,
+     * each flat-tinted) into a previously-attached `<canvas>` surface.
+     * Returns the painted (width, height) so the React caller can size
+     * its `<canvas>` slot to the intrinsic content rectangle.
+     * Returns `0` width/height on any failure (missing bundle, empty
+     * bounds, surface dispatch error).
+     */
+    renderSwfSpellIconToSurface(surface_id: number, back_bundle: string, up_bundle: string, bc_rgb: number, fc_rgb: number, pc_rgb: number, resolution: number): any;
+    /**
+     * Run AVM1 across the spell SWF's main timeline and pack every frame
+     * into a 2D-grid composite texture in a single Vello dispatch. Mirrors
+     * the asset-pipeline's spell strip bake but at runtime — no `.dofasset`
+     * frame data, just the SWF + the in-renderer AVM1 emulator from
+     * `swf_spike::render_avm1::AvmRenderer`.
+     *
+     * "Main timeline" = the longest `DefineSprite` in the SWF (Dofus spell
+     * convention, e.g. spell 802 sprite id=10 has 129 frames). The
+     * renderer is constructed once per call, ticked → rendered → advanced
+     * for each frame, ensuring AS2 side-effects (`gotoAndStop`, `_alpha`
+     * fades, `_rotation += 0.66`, etc.) drive the visuals exactly the way
+     * the canonical Flash client did.
+     *
+     * Bounds: union of every frame's `symbol_bounds(main_sym)`. Each cell
+     * is the same size, giving a uniform anchor across the strip — Pixi
+     * can swap textures without per-frame pivot reapplies.
+     */
+    renderSwfSpellStrip(bundle: string, resolution: number): any;
+    /**
+     * Render `requested_frame_count` consecutive frames of one (bundle, export)
+     * in a single Vello dispatch — frames laid out in a 2D grid so the caller
+     * can slice the resulting composite texture into per-frame Pixi sub-textures.
+     * Mirrors the dofasset path's `renderAnimationStrip`: 1 GPU dispatch instead
+     * of N, 1 texture allocation instead of N. Stops at the first frame whose
+     * `symbol_bounds` is degenerate (matches the JS per-frame `break` policy).
+     *
+     * Anchor handling: uses the union of bounds across all valid frames so the
+     * per-frame cell size is uniform and the SWF (0,0) origin lands at the same
+     * `(anchorX, anchorY)` inside every cell. The caller can pivot a single Pixi
+     * sprite to that anchor and swap textures freely without reapplying offsets.
+     */
+    renderSwfStrip(bundle: string, _export: string, requested_frame_count: number, resolution: number): any;
+    renderSwfStripRange(bundle: string, _export: string, start: number, count: number, total_frame_count: number, resolution: number): any;
+    /**
+     * Like `renderSwfStripRange` but composes accessory SWFs at the
+     * base character's body part mount points (declared via
+     * `GAC.applyAccessory(this, slot, side)` in the AS2 frame
+     * actions, scanned at SWF load time into
+     * `SwfDoc::accessory_mounts`).
+     *
+     * Inputs (all parallel arrays of equal length, one entry per
+     * accessory):
+     *  - `acc_slots[i]`: AS2 mount slot id (1-4 in vanilla Dofus —
+     *    1=head/hat, 2=weapon, 3=cape, 4=shield in our convention).
+     *  - `acc_bundles[i]`: bundle name where the accessory SWF was
+     *    loaded via `loadSwfBundle`.
+     *  - `acc_exports[i]`: export name within that bundle (e.g.
+     *    `"16_42"` = type-16 hat, gfx 42).
+     *  - `acc_frames[i]`: frame index inside the accessory's symbol
+     *    (R=0/L=3/F=6/B=9/S=12 typically — caller picks based on
+     *    the active animation's direction).
+     *
+     * Mounts whose slot has no accessory entry are silently skipped
+     * (no overlay rendered, body part shown as authored). Slot
+     * collisions (multiple accessories for the same slot) keep the
+     * LAST entry — caller is expected to pre-deduplicate.
+     * Renders a strip with composed accessories.
+     *
+     * `acc_anim_types[i]` classifies the character animation for slot i:
+     * 0=static, 1=walk, 2=run. Selects which slot-specific direction
+     * fallback table the renderer walks. The accessory's actual frame
+     * is computed PER CHARACTER FRAME inside the renderer using the
+     * body part's mount-declared `side` plus `(char_frame % 3)`, so
+     * the accessory cycles its 3 sub-frames in lockstep with the
+     * character animation.
+     */
+    renderSwfStripRangeAccessorized(bundle: string, _export: string, start: number, count: number, total_frame_count: number, resolution: number, acc_slots: Uint32Array, acc_bundles: string[], acc_exports: string[], acc_anim_types: Uint32Array, char_dir_suffix: string, apply_b_fix: boolean): any;
+    /**
+     * Render the DYNAMIC parts of a multi-frame tile across a contiguous
+     * frame range `[start, start+count)`. Output is a strip of
+     * per-frame textures at the FULL animation's union bounds — same
+     * canvas size as the static base from `renderSwfTileStaticBase`,
+     * so the AnimatedSprite using these frames overlays pixel-perfectly
+     * on top. Each cell contains ONLY the placements classified as
+     * dynamic (timeline-varying placements, or constant placements of
+     * multi-frame characters). Static placements are skipped — they
+     * already live on the static base.
+     */
+    renderSwfTileDynamicStripRange(bundle: string, _export: string, start: number, count: number, total_frame_count: number, resolution: number): any;
+    /**
+     * Render the STATIC parts of a multi-frame tile export (every depth
+     * whose placement data is constant across the timeline AND whose
+     * placed character has no multi-frame sub-tree). Output texture is
+     * sized to the FULL animation's union bounds, so it composites
+     * pixel-perfectly under per-frame dynamic textures from
+     * `renderSwfTileDynamicStripRange`. Returns the same shape as
+     * `renderSwfStrip` but with `frameCount=1` and `gridCols=1` since
+     * the static base is one frame.
+     *
+     * Used to break up heavy animated tiles (e.g. map 35's tile 343 —
+     * wooden building + 210-frame chimney smoke) so the building isn't
+     * re-encoded 210 times per cycle, and so each Vello scene stays
+     * well under the tile-encoder shape budget. The
+     * `feedback_swf_vello_scene_overflow` memory note prescribes this
+     * split as the canonical workaround for the overflow.
+     */
+    renderSwfTileStaticBase(bundle: string, _export: string, total_frame_count: number, resolution: number): any;
+    /**
+     * Batch render: composes ALL active character placements into
+     * ONE Vello scene, dispatches ONCE, writes the result into the
+     * shared world-layer texture allocated by
+     * `createWorldLayerTexture`. Replaces N individual
+     * `tickSwfCharacterFrame` calls per tick with 1 call total.
+     *
+     * Per-placement parallel arrays:
+     *   - `instance_ids[i]`: WASM character instance id
+     *   - `frames[i]`:       current frame within the instance's
+     *                        current anim (set via setSwfCharacterAnim)
+     *   - `pos_x[i] / pos_y[i]`: pixel position in the layer texture
+     *                        (== screen coords; layer is viewport-sized)
+     *
+     * Returns true on success, false on parallel-array-length
+     * mismatch / texture-id miss / render error.
+     */
+    renderSwfWorldLayer(layer_texture_id: number, width: number, height: number, instance_ids: Uint32Array, frames: Uint32Array, pos_x: Float32Array, pos_y: Float32Array): boolean;
+    /**
+     * Render an arbitrary set of (bundle, export, frame, matrix)
+     * placements into one output texture in a single Vello dispatch.
+     *
+     * Inputs use small unique-string tables (`bundles`, `exports`)
+     * indexed by per-placement parallel arrays so the marshalling cost
+     * across the JS↔WASM boundary stays in the kilobytes range even for
+     * hundreds of placements per frame.
+     *
+     * Each placement's `matrix` is a 6-element 2D affine `[a, b, c, d,
+     * tx, ty]` mapping the symbol's twip space directly to output
+     * pixels. The caller composes (zoom, world position, rotation,
+     * flip, slope) into this single matrix; the renderer treats every
+     * placement as a drop-in transform.
+     *
+     * Placements that fail to look up (missing bundle/export) are
+     * silently skipped — by design, no per-placement validity flag in
+     * the response since the caller already knows which tiles exist.
+     *
+     * Returns `{ texture, textureId, width, height }` matching the
+     * other render entry points so the JS side can wrap the GPUTexture
+     * as a Pixi `ExternalSource` per layer.
+     */
+    renderTilePass(target_w: number, target_h: number, bundles: string[], exports: string[], bundle_idx: Uint32Array, export_idx: Uint32Array, frames: Uint32Array, matrices: Float32Array): any;
+    /**
+     * Render the tile pass (Ground + Object1) directly into a
+     * previously-attached `<canvas>` surface. Replaces the
+     * `renderTilePass` → ExternalSource path: Vello writes the swap
+     * chain texture directly via `render_to_texture`, then the surface
+     * presents to the canvas. The browser composites the resulting
+     * canvas with sibling Pixi/Vello canvases via DOM stacking.
+     *
+     * `surface_id` must come from a prior `attachCanvasSurface` call.
+     * The surface's configured size determines render extents; caller
+     * must `configureSurface(id, w, h)` whenever the viewport changes
+     * before dispatching here. Returns `true` on success, `false` on
+     * any failure (unknown id, lost surface, render error).
+     */
+    renderTilePassToSurface(surface_id: number, bundles: string[], exports: string[], bundle_idx: Uint32Array, export_idx: Uint32Array, frames: Uint32Array, matrices: Float32Array): boolean;
+    /**
+     * Render the unified L3 World layer.
+     *
+     * Heterogeneous placement-list dispatch matching the canonical
+     * Object2 depth band (foreground tiles + characters + spell VFX
+     * interleaved by `cellNum × 100 + sub-offset`). Four placement
+     * kinds:
+     *   - kind=0  Tile  — bundle/export/frame/matrix
+     *   - kind=1  Char  — bundle/export/frame/matrix + accessories
+     *                     + color zones + dirSuffix + bFix + alpha
+     *   - kind=2  Spell — instance_id (resolved against AVM1 state)
+     *                     + matrix + alpha
+     *   - kind=3  Decal — bundle/export/frame/matrix + alpha
+     *
+     * Caller contract:
+     *   - `kinds[i]` discriminates the placement; out-of-range kinds
+     *     are skipped silently (TS-Rust version skew tolerance).
+     *   - `bundles`/`exports` are dedup'd; `bundle_idx`/`export_idx`
+     *     index into them. Accessory bundles + exports MUST be added
+     *     to those tables (callers intern them).
+     *   - `frames`/`alphas`/`depths` are per-placement.
+     *   - `matrices` is 6 × n floats (`a, b, c, d, tx, ty`).
+     *   - **Caller MUST sort placements by `depths` ascending** —
+     *     `WorldLayer.snapshotByDepth()` does this. Vello renders in
+     *     scene-order; out-of-order placements paint incorrectly.
+     *   - `color_zones` is `3 × n` u32; sentinel `u32::MAX` = absent.
+     *   - `char_dirs[i]` ASCII direction byte ('R','L','F','B','S'),
+     *     or 0 for non-Char.
+     *   - `char_b_fix[i]` 0/1 — non-zero triggers AS2 bFix mirror for
+     *     accessories with `b_fix=true` mounts (capes, shields).
+     *   - **Accessory CSR layout** for variable-length per-Char
+     *     accessory lists: `acc_offsets[i]..acc_offsets[i+1]` slices
+     *     into `acc_*[]`. `acc_offsets` length is `n+1`. Non-Char
+     *     placements emit an empty range.
+     *
+     * Static foreground tile content prepended via `static_world_scene`
+     * (built once by `setStaticWorldTiles`). Per-tick dispatch
+     * re-encodes only the dynamic subset (animated tiles + chars +
+     * spells) on top.
+     *
+     * Returns `{texture, textureId, width, height}` on success, NULL
+     * on input validation failure or render error.
+     */
+    renderWorldPass(target_w: number, target_h: number, kinds: Uint8Array, bundles: string[], exports: string[], bundle_idx: Uint32Array, export_idx: Uint32Array, frames: Uint32Array, depths: Int32Array, matrices: Float32Array, alphas: Float32Array, color_zones: Uint32Array, char_dirs: Uint8Array, char_b_fix: Uint8Array, acc_offsets: Uint32Array, acc_slots: Uint8Array, acc_bundle_idx: Uint32Array, acc_export_idx: Uint32Array, acc_anim_types: Uint8Array): any;
+    /**
+     * Synthetic world-pass benchmark for the M1 gate. Builds a grid
+     * of `n_chars` Char placements, `n_tiles` Tile placements, and
+     * `n_spells` Spell placeholders, each pulling from the first
+     * loaded character + tile bundle. Renders 1 frame; reports
+     * wall-clock ms for the JS caller to gate on.
+     *
+     * **Architecture gate**: if dispatch P99 exceeds the FPS target
+     * budget on the user's machine, the migration aborts before any
+     * consumer-side code is written.
+     *
+     * Returns `{ ms, n_placements, scene_paths_estimated, status }`.
+     */
+    renderWorldPassBench(n_chars: number, n_tiles: number, n_spells: number): any;
+    /**
+     * Render the unified L3 World pass (Object2: chars + foreground
+     * tiles + spells + decals) directly into a previously-attached
+     * `<canvas>` surface. Same encoding contract as `renderWorldPass`
+     * (kinds + parallel arrays + accessory CSR) — the only difference
+     * is the destination: swap chain frame view instead of an
+     * internally-managed off-screen RT.
+     */
+    renderWorldPassToSurface(surface_id: number, kinds: Uint8Array, bundles: string[], exports: string[], bundle_idx: Uint32Array, export_idx: Uint32Array, frames: Uint32Array, depths: Int32Array, matrices: Float32Array, alphas: Float32Array, color_zones: Uint32Array, char_dirs: Uint8Array, char_b_fix: Uint8Array, acc_offsets: Uint32Array, acc_slots: Uint8Array, acc_bundle_idx: Uint32Array, acc_export_idx: Uint32Array, acc_anim_types: Uint8Array): boolean;
+    /**
+     * Render a single zone mask frame. Returns { texture, textureId, width, height }.
+     * Optional acc_info: flat array of pairs [asset_id, slot_id, ...] for accessory occluders.
+     */
+    renderZoneMaskFrame(asset_id: number, animation: string, frame_index: number, resolution: number, acc_info?: Uint32Array | null): any;
+    /**
+     * Render a zone mask strip: same layout as renderAnimationStrip but with
+     * zone marker colors (R=zone1, G=zone2, B=zone3) and opaque black for non-zone.
+     * Used alongside the base strip for GPU color replacement without item bleed.
+     * Optional acc_info: flat array of pairs [asset_id, slot_id, ...] for accessory occluders.
+     */
+    renderZoneMaskStrip(asset_id: number, animation: string, resolution: number, acc_info?: Uint32Array | null): any;
+    /**
+     * Pre-encode every static tile placement into one cached Vello
+     * scene. Called by JS whenever the static set changes (map load,
+     * zoom step, viewport resize, tactic-mode toggle) — never per
+     * Pixi tick. The cached scene persists until the next call;
+     * `renderTilePass` appends it into the per-tick frame scene with
+     * a memcpy-cost path-buffer copy, eliminating the per-dispatch
+     * encoding cost of static cells (typically >99% of the map).
+     *
+     * Empty input clears the cached scene (i.e. the map has no
+     * static placements, e.g. during teardown).
+     */
+    setStaticTilePlacements(bundles: string[], exports: string[], bundle_idx: Uint32Array, export_idx: Uint32Array, frames: Uint32Array, matrices: Float32Array): void;
+    /**
+     * Pre-encode the unified L3 World layer's static foreground-tile
+     * subset into one cached Vello scene. Called whenever the static
+     * set changes (map load, zoom step, tactic-mode toggle); world
+     * pass appends it via memcpy on every dispatch. Mirrors
+     * `setStaticTilePlacements` for the world pass.
+     *
+     * Encoding: tile-only flat arrays. Empty input clears cache.
+     */
+    setStaticWorldTiles(bundles: string[], exports: string[], bundle_idx: Uint32Array, export_idx: Uint32Array, frames: Uint32Array, matrices: Float32Array): void;
+    /**
+     * Update an instance's current anim + direction. Cheap — just
+     * state mutation, no rendering. Called from JS on anim swap.
+     * The batched `renderSwfWorldLayer` then uses these per-instance
+     * values when building each placement's scene fragment.
+     */
+    setSwfCharacterAnim(instance_id: number, anim: string, dir_suffix: string, apply_b_fix: boolean): void;
+    /**
+     * Set the player's three zone colours used by the SWF render path.
+     * Each value is `0xRRGGBB`; pass `0` to leave that zone untinted.
+     * Mirrors what the dofasset path does via `build_color_replacements`
+     * — but applied at render time directly to the SWF, with no bake.
+     * Call before `renderSwfFrame` for player/character sprites.
+     */
+    setSwfPlayerColors(c1: number, c2: number, c3: number): void;
+    /**
+     * Inject a `{x, y}` host-var (typically `cellFrom` / `cellTo`) into
+     * the spell's AVM1 root clip. Must be called before the first
+     * `tickSwfSpellFrame` for the values to land on `_parent.cellFrom.x`
+     * lookups in AS2.
+     */
+    setSwfSpellHostCell(instance_id: number, name: string, x: number, y: number): void;
+    /**
+     * Inject a numeric host-var (typically `level` or `angle`) into the
+     * spell's AVM1 root clip.
+     */
+    setSwfSpellHostNumber(instance_id: number, name: string, value: number): void;
+    /**
+     * this export — `walkR` is a 1-frame wrapper around the real animation,
+     * so JS needs the inner count to drive the ticker.
+     */
+    swfAnimFrameCount(bundle: string, _export: string): number;
+    /**
+     * Frames-per-second from the SWF header. Bundles vary: g1/g2 = 12,
+     * o1/o2/o4/o5/o6/o7/o10/o12 = 60, o3/o8/o9/o11 = 40. The JS tile
+     * ticker reads this per-bundle so an o1 building animates at the
+     * 60 fps it was authored for instead of a hardcoded 24 fps that
+     * runs everything at 0.4× speed.
+     */
+    swfBundleFrameRate(bundle: string): number;
+    /**
+     * True if this export's symbol tree contains any placement with filters
+     * (drop shadow / glow / blur / color matrix). Filter-bearing tiles must
+     * be rendered individually, not in `renderSwfBundleBatch`, because the
+     * halo fallback path (`apply_halo`) emits 5–9 extra symbol renders per
+     * filter into the active scene; piling many filter-bearing tiles into
+     * one composite scene exceeds Vello's tile encoder threshold and
+     * causes silent stroke drops (sprites visibly missing). CPU-only walk
+     * of the sprite tree, recurses 5 levels deep — cheap.
+     */
+    swfExportHasFilters(bundle: string, _export: string): boolean;
+    /**
+     * Pure-bounds probe for an SWF root timeline. Returns
+     * `{width, height}` at resolution 1 without touching the GPU.
+     * Used by the fighter-portrait renderer (banner artworks) to
+     * compute the natural long-edge before allocating a target
+     * canvas. Returns NULL on missing bundle or degenerate bounds.
+     */
+    swfRootNaturalSize(bundle: string, frame: number): any;
+    /**
+     * Pure-bounds probe for the spell-icon composition. Returns the
+     * natural pixel rectangle `{width, height}` at resolution 1
+     * without ever touching the GPU. Replaces the 16×16 throwaway
+     * probe-render that previous versions used to discover natural
+     * size — a CPU-only `symbol_bounds` walk costs microseconds vs.
+     * the milliseconds of an attach-render-detach roundtrip.
+     *
+     * Returns NULL on missing bundle, missing required layers, or
+     * degenerate root bounds.
+     */
+    swfSpellIconNaturalSize(back_bundle: string, up_bundle: string): any;
+    /**
+     * Query the cached strip bounds for an export at a given total
+     * frame count, populating the cache on miss. Returns
+     * `{minXTwip, minYTwip, maxXTwip, maxYTwip, animEnd}` in twip
+     * units (caller multiplies by `resolution / 20.0` to get pixels)
+     * or `null` on failure. Useful for callers that want to size
+     * canvases / ExternalSources without doing a render dispatch.
+     */
+    swfStripBounds(bundle: string, _export: string, total_frame_count: number): any;
+    /**
+     * Returns the number of frames in the deepest animation reachable through
+     * Classify a multi-frame tile sprite as "animated" or "random".
+     *
+     * Dofus 1.29 multi-frame tile sprites split into two visual kinds:
+     *   * **animated** — plays through every frame in a loop (water,
+     *     fire, windmill blades). Caller cycles `currentFrame` over time.
+     *   * **random**   — a frame-1 `DoAction` reads the sprite's
+     *     `_totalframes`, calls `RandomNumber` then `GotoFrame2` with
+     *     `set_playing=false`, picking one variant and freezing on it
+     *     (grass tile stamps, dirt patches). Caller MUST NOT animate
+     *     these — pick one frame at load and hold it, otherwise the
+     *     ground crawls.
+     *
+     * Classify a multi-frame tile sprite into Dofus 1.29's three kinds:
+     *   * `"animated"` — no frame-1 script (or none of `random`/`stop`).
+     *     Flash plays naturally; caller cycles frames at FPS.
+     *   * `"random"` — `random(N) → gotoAndStop(...)` on frame 1.
+     *     Self-randomizing; caller picks ONE stable random frame per
+     *     cell.
+     *   * `"slope"` — `Stop()` on frame 1 with variants on frames 2..N.
+     *     The engine externally calls `gotoAndStop(cell.groundSlope)`
+     *     (MapHandler.as:226). Caller must use the cell's groundSlope
+     *     property to pick the frame.
+     *   * empty string for static (1-frame top + 1-frame children) or
+     *     unknown bundles.
+     *
+     * Important: a sprite is "animated" if EITHER the top sprite is
+     * multi-frame OR any of its (recursively-traversed) children is
+     * multi-frame. Map 35's tile 343 (the wooden building) is a
+     * 1-frame top sprite that contains a 210-frame child (1361) —
+     * without recursing, we'd label it static and freeze the building.
+     */
+    swfTileAnimKind(bundle: string, _export: string): string;
+    /**
+     * Render exactly ONE frame of the requested anim into the
+     * instance's stable output texture. The texture handle is
+     * stable across calls — JS Pixi wraps once at create time and
+     * the `ExternalSource` re-samples the GPU memory on each Pixi
+     * render. No strip, no sub-rect, no per-frame Texture wrappers.
+     *
+     * Returns `{ texture, textureId, width, height, anchorX,
+     * anchorY }`. Width/height are constant for the instance's
+     * lifetime (sized at create); anchor is the SWF (0,0) origin
+     * inside the texture.
+     */
+    tickSwfCharacterFrame(instance_id: number, anim: string, frame: number, char_dir_suffix: string, apply_b_fix: boolean): any;
+    /**
+     * Tick the spell's AVM1 by one frame, render the new state into the
+     * pre-allocated output texture, and report whether the cast is still
+     * active. JS calls this on its rAF loop (rate-limited by the SWF's
+     * authored fps from `swfBundleFrameRate`).
+     *
+     * Returns `{ texture, textureId, width, height, anchorX, anchorY,
+     * isPlaying, isRemoved, frame }`. `isPlaying = false` when AS2 has
+     * called `stop()` on the root; `isRemoved = true` when AS2 has
+     * called `_parent.removeMovieClip()` (the canonical "spell over"
+     * signal — JS should fire `onComplete` and stop ticking). Returns
+     * `JsValue::NULL` if the instance id is unknown.
+     */
+    tickSwfSpellFrame(instance_id: number): any;
+}
+
+export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
+
+export interface InitOutput {
+    readonly memory: WebAssembly.Memory;
+    readonly __wbg_vellorenderer_free: (a: number, b: number) => void;
+    readonly vellorenderer_attachCanvasSurface: (a: number, b: any, c: number, d: number) => number;
+    readonly vellorenderer_batchCopy: (a: number, b: number, c: number, d: number) => number;
+    readonly vellorenderer_clearPathCache: (a: number) => void;
+    readonly vellorenderer_configureSurface: (a: number, b: number, c: number, d: number) => void;
+    readonly vellorenderer_createAtlas: (a: number, b: number, c: number) => any;
+    readonly vellorenderer_createSwfCharacterInstance: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number) => number;
+    readonly vellorenderer_createSwfSpellInstance: (a: number, b: number, c: number, d: number) => number;
+    readonly vellorenderer_createWorldLayerTexture: (a: number, b: number, c: number) => any;
+    readonly vellorenderer_detachSurface: (a: number, b: number) => void;
+    readonly vellorenderer_disposeSwfCharacterInstance: (a: number, b: number) => void;
+    readonly vellorenderer_disposeSwfSpellInstance: (a: number, b: number) => void;
+    readonly vellorenderer_flushFrames: (a: number, b: number) => void;
+    readonly vellorenderer_freeAllTextures: (a: number) => void;
+    readonly vellorenderer_freeAsset: (a: number, b: number) => void;
+    readonly vellorenderer_freeRenderTexture: (a: number, b: number) => void;
+    readonly vellorenderer_freeTexture: (a: number, b: number) => void;
+    readonly vellorenderer_getAnimationInfo: (a: number, b: number, c: number, d: number) => any;
+    readonly vellorenderer_getAnimationMeta: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
+    readonly vellorenderer_getAnimationNames: (a: number, b: number) => [number, number];
+    readonly vellorenderer_getFrameSize: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+    readonly vellorenderer_init: () => any;
+    readonly vellorenderer_loadAsset: (a: number, b: number, c: number, d: number) => number;
+    readonly vellorenderer_loadSwfBundle: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly vellorenderer_pathCacheStats: (a: number) => any;
+    readonly vellorenderer_queueFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => any;
+    readonly vellorenderer_renderAnimationStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
+    readonly vellorenderer_renderFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => any;
+    readonly vellorenderer_renderFrameToAtlas: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => any;
+    readonly vellorenderer_renderSwfBundleBatch: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
+    readonly vellorenderer_renderSwfFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
+    readonly vellorenderer_renderSwfRoot: (a: number, b: number, c: number, d: number, e: number) => any;
+    readonly vellorenderer_renderSwfRootToSurface: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
+    readonly vellorenderer_renderSwfSpellIcon: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
+    readonly vellorenderer_renderSwfSpellIconToSurface: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => any;
+    readonly vellorenderer_renderSwfSpellStrip: (a: number, b: number, c: number, d: number) => any;
+    readonly vellorenderer_renderSwfStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
+    readonly vellorenderer_renderSwfStripRange: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
+    readonly vellorenderer_renderSwfStripRangeAccessorized: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number) => any;
+    readonly vellorenderer_renderSwfTileDynamicStripRange: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
+    readonly vellorenderer_renderSwfTileStaticBase: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
+    readonly vellorenderer_renderSwfWorldLayer: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => number;
+    readonly vellorenderer_renderTilePass: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => any;
+    readonly vellorenderer_renderTilePassToSurface: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => number;
+    readonly vellorenderer_renderWorldPass: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number, j1: number, k1: number) => any;
+    readonly vellorenderer_renderWorldPassBench: (a: number, b: number, c: number, d: number) => any;
+    readonly vellorenderer_renderWorldPassToSurface: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number, j1: number) => number;
+    readonly vellorenderer_renderZoneMaskFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
+    readonly vellorenderer_renderZoneMaskStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
+    readonly vellorenderer_setStaticTilePlacements: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
+    readonly vellorenderer_setStaticWorldTiles: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
+    readonly vellorenderer_setSwfCharacterAnim: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+    readonly vellorenderer_setSwfPlayerColors: (a: number, b: number, c: number, d: number) => void;
+    readonly vellorenderer_setSwfSpellHostCell: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly vellorenderer_setSwfSpellHostNumber: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly vellorenderer_swfAnimFrameCount: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly vellorenderer_swfBundleFrameRate: (a: number, b: number, c: number) => number;
+    readonly vellorenderer_swfExportHasFilters: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly vellorenderer_swfRootNaturalSize: (a: number, b: number, c: number, d: number) => any;
+    readonly vellorenderer_swfSpellIconNaturalSize: (a: number, b: number, c: number, d: number, e: number) => any;
+    readonly vellorenderer_swfStripBounds: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
+    readonly vellorenderer_swfTileAnimKind: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly vellorenderer_tickSwfCharacterFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
+    readonly vellorenderer_tickSwfSpellFrame: (a: number, b: number) => any;
+    readonly wasm_bindgen__convert__closures_____invoke__h27a34c19f56d26f6: (a: number, b: number, c: any) => [number, number];
+    readonly wasm_bindgen__convert__closures_____invoke__h0a41f10693601c0d: (a: number, b: number, c: any, d: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__he75b7269c1eb9773: (a: number, b: number, c: any) => void;
+    readonly __wbindgen_malloc: (a: number, b: number) => number;
+    readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+    readonly __wbindgen_exn_store: (a: number) => void;
+    readonly __externref_table_alloc: () => number;
+    readonly __wbindgen_externrefs: WebAssembly.Table;
+    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
+    readonly __wbindgen_destroy_closure: (a: number, b: number) => void;
+    readonly __externref_drop_slice: (a: number, b: number) => void;
+    readonly __externref_table_dealloc: (a: number) => void;
+    readonly __wbindgen_start: () => void;
+}
+
+export type SyncInitInput = BufferSource | WebAssembly.Module;
+
+/**
+ * Instantiates the given `module`, which can either be bytes or
+ * a precompiled `WebAssembly.Module`.
+ *
+ * @param {{ module: SyncInitInput }} module - Passing `SyncInitInput` directly is deprecated.
+ *
+ * @returns {InitOutput}
+ */
+export function initSync(module: { module: SyncInitInput } | SyncInitInput): InitOutput;
+
+/**
+ * If `module_or_path` is {RequestInfo} or {URL}, makes a request and
+ * for everything else, calls `WebAssembly.instantiate` directly.
+ *
+ * @param {{ module_or_path: InitInput | Promise<InitInput> }} module_or_path - Passing `InitInput` directly is deprecated.
+ *
+ * @returns {Promise<InitOutput>}
+ */
+export default function __wbg_init (module_or_path?: { module_or_path: InitInput | Promise<InitInput> } | InitInput | Promise<InitInput>): Promise<InitOutput>;

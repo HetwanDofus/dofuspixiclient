@@ -1,4 +1,5 @@
-import { readFile, readFileSync, existsSync } from "node:fs";
+import { readFile, readFileSync, existsSync, createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
 import { resolve, join } from "node:path";
 
 import type { Plugin } from "vite";
@@ -10,6 +11,74 @@ import { defineConfig } from "vite";
 import babel from "vite-plugin-babel";
 
 const __dirname = import.meta.dirname;
+
+/**
+ * Serves raw SWF files from `assets/sources/clips/` under the `/swf/...` URL.
+ * Replaces the dofasset bake — the frontend fetches SWFs and parses them via
+ * the swf-spike WASM at runtime.
+ *
+ * Production: serve `/swf/*` from a copy of `assets/sources/clips/` (same
+ * paths) via the CDN/static host. No build-time copy here; the dev plugin
+ * does not run in production.
+ */
+function swfPlugin(): Plugin {
+  const sourceRoot = resolve(__dirname, "../../assets/sources/clips");
+
+  return {
+    name: "vite-plugin-swf",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = req.url || "";
+        if (!url.startsWith("/swf/")) {
+          next();
+          return;
+        }
+
+        let pathname: string;
+        try {
+          pathname = decodeURIComponent(new URL(url, "http://localhost").pathname);
+        } catch {
+          res.statusCode = 400;
+          res.end();
+          return;
+        }
+
+        if (pathname.includes("..")) {
+          res.statusCode = 400;
+          res.end();
+          return;
+        }
+
+        const relPath = pathname.slice("/swf/".length);
+        const filePath = resolve(sourceRoot, relPath);
+        if (!filePath.startsWith(sourceRoot + "/") && filePath !== sourceRoot) {
+          res.statusCode = 403;
+          res.end();
+          return;
+        }
+
+        stat(filePath).then(
+          (s) => {
+            if (!s.isFile()) {
+              next();
+              return;
+            }
+            res.setHeader("Content-Type", "application/x-shockwave-flash");
+            res.setHeader("Content-Length", String(s.size));
+            res.setHeader(
+              "Cache-Control",
+              "public, max-age=31536000, immutable"
+            );
+            createReadStream(filePath).pipe(res);
+          },
+          () => {
+            next();
+          }
+        );
+      });
+    },
+  };
+}
 
 function compressionPlugin(): Plugin {
   return {
@@ -460,6 +529,7 @@ function svgCompositionPlugin(): Plugin {
 export default defineConfig({
   plugins: [
     tailwindcss(),
+    swfPlugin(),
     svgCompositionPlugin(),
     svgResolutionPlugin(),
     compressionPlugin(),
@@ -492,7 +562,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
-      "vello-wasm": resolve(__dirname, "../../../dofus-vello-custom-format/packages/vello-wasm/pkg"),
+      "vello-wasm": resolve(__dirname, "../../packages/vello-wasm/pkg"),
     },
   },
   build: {
@@ -504,11 +574,8 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     fs: {
-      // Allow serving files from the vello-wasm pkg directory (outside project root)
-      allow: [
-        resolve(__dirname, "../.."),
-        resolve(__dirname, "../../../dofus-vello-custom-format/packages/vello-wasm/pkg"),
-      ],
+      // Allow serving files from the in-repo vello-wasm pkg directory.
+      allow: [resolve(__dirname, "../..")],
     },
   },
   optimizeDeps: {
