@@ -1,6 +1,23 @@
-import { AnimatedSprite, Container, type Sprite } from "pixi.js";
+import {
+  type AnimatedSprite,
+  Container,
+  type Renderer,
+  type Sprite,
+  type Ticker,
+} from "pixi.js";
 
 import type { AtlasLoader } from "@/game/render/atlas-loader";
+import type {
+  Mat6,
+  TileWorldPlacement,
+  WorldLayer,
+} from "@/game/render/world-layer";
+import {
+  type LayeredTilePlacement,
+  TileSpriteRenderer,
+} from "@/game/render/tile-sprite-renderer";
+import { TileResolver } from "@/game/render/tile-resolver";
+import { frameIndexForTile } from "@/game/scene/tiles/sprite-factory";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("MapHandler");
@@ -10,6 +27,7 @@ import { cellToCoord } from "@dofus/grid";
 import type { CellData } from "@/game/datacenter/cell";
 import type { MapData, MapScale } from "@/game/datacenter/map";
 import type { Scene } from "@/game/scene/scene";
+import { DISPLAY_HEIGHT, DISPLAY_WIDTH } from "@/game/constants/battlefield";
 import {
   Z_BACKGROUND_LAYER,
   Z_GROUND_LAYER,
@@ -37,6 +55,23 @@ export interface MapHandlerConfig {
   ) => void;
   /** Optional Scene — when provided, every rendered tile is registered as a TileActor. */
   scene?: Scene;
+  /**
+   * Pixi renderer for the new per-tile sprite path. When provided
+   * alongside `ticker`, ground + object1 tiles render as Pixi sprites
+   * mounted in `groundLayer` / `object1Layer` via `TileSpriteRenderer`
+   * (one `renderSwfFrame` per animated-tile advance, retired with
+   * `freeRenderTexture` after a 2-tick settle). Replaces the prior
+   * `tileSurfaceId`-driven `TileLayerRenderer` (Vello surface) path.
+   */
+  pixiRenderer?: Renderer;
+  ticker?: Ticker;
+  /**
+   * Unified L3 World layer. When provided, foreground (layer 2) tile
+   * placements route to it so they interleave with chars + spells in
+   * the canonical Object2 depth band. Layer 0 (ground) + Layer 1
+   * (decorations) render through `TileSpriteRenderer`.
+   */
+  worldLayer?: WorldLayer;
 }
 
 /**
@@ -102,10 +137,12 @@ interface LangSubarea {
   tc?: string[];
 }
 let tacticLangCache: Record<string, LangSubarea> | null = null;
-let tacticLangPending: Promise<Record<string, LangSubarea> | null> | null = null;
-async function loadTacticLangSubareas(): Promise<
-  Record<string, LangSubarea> | null
-> {
+let tacticLangPending: Promise<Record<string, LangSubarea> | null> | null =
+  null;
+async function loadTacticLangSubareas(): Promise<Record<
+  string,
+  LangSubarea
+> | null> {
   if (tacticLangCache) return tacticLangCache;
   if (tacticLangPending) return tacticLangPending;
   tacticLangPending = (async () => {
@@ -136,7 +173,6 @@ function tacticWalkableTileId(
   return Number(`100${subPad}${parityMatch ? "1" : "3"}`);
 }
 
-
 interface TacticCellBackup {
   ground: number;
   layer1: number;
@@ -152,14 +188,44 @@ export class MapHandler {
   private atlasLoader: AtlasLoader;
   private layerBuilder: TileLayerBuilder;
 
-  // Opt #5: Persistent container layers — created once, reused across renders
+  // Persistent layer containers — kept for getXxxLayer() consumers
+  // (grid overlay, fight container, etc.) even though no per-cell tile
+  // sprites are added to them anymore. The new pipeline owns tile
+  // rendering via a single texture overlay at z=350.
   private backgroundLayer = new Container();
   private groundLayer = new Container();
   private objectLayer1 = new Container();
   private objectLayer2 = new Container();
-  private layersInitialized = false;
 
   private tacticBackup: TacticBackup | null = null;
+
+  /**
+   * Per-tile Pixi sprite renderer for ground + object1 layers.
+   * Constructed when the host provides a `pixiRenderer` + `ticker`.
+   * Replaces the legacy `TileLayerRenderer` (Vello surface) path.
+   */
+  private tileSpriteRenderer: TileSpriteRenderer | null = null;
+  private tileResolver = new TileResolver();
+  private ticker: Ticker | null = null;
+  private tickerCallback: ((t: Ticker) => void) | null = null;
+  /**
+   * Unified L3 World layer reference — receives foreground (layer 2)
+   * tile placements so they interleave with chars + spells per the
+   * canonical Object2 sub-offset depth contract. null when host
+   * didn't supply one (legacy path through TileLayerRenderer only).
+   */
+  private worldLayer: WorldLayer | null = null;
+  /**
+   * Stable list of placement ids upserted into `worldLayer` for animated
+   * foreground tiles. Tracked so a `setPlacements`-equivalent rebuild
+   * can remove ids that no longer appear in the new placement set.
+   */
+  private worldLayerAnimatedIds = new Set<string>();
+  /** Live view of the current map's mapData/mapScale/zoom for ticker rebuilds. */
+  private currentMapData: MapData | null = null;
+  private currentMapScale: MapScale | null = null;
+  /** Cell prefix override snapshot for tactic-mode tile-key routing. */
+  private currentPrefixOverride: Map<number, TilePrefixOverride> | null = null;
 
   constructor(config: MapHandlerConfig) {
     this.atlasLoader = config.atlasLoader;
@@ -185,218 +251,361 @@ export class MapHandler {
     this.groundLayer.zIndex = Z_GROUND_LAYER;
     this.objectLayer1.zIndex = Z_OBJECT1_LAYER;
     this.objectLayer2.zIndex = Z_OBJECT2_LAYER_ROOT;
+
+    if (config.pixiRenderer && config.ticker) {
+      this.tileSpriteRenderer = new TileSpriteRenderer(
+        config.pixiRenderer,
+        this.groundLayer,
+        this.objectLayer1
+      );
+      this.ticker = config.ticker;
+      this.attachTickerIfNeeded();
+    }
+
+    this.worldLayer = config.worldLayer ?? null;
+  }
+
+  private attachTickerIfNeeded(): void {
+    if (!this.ticker || this.tickerCallback) return;
+    this.tickerCallback = (t: Ticker) => {
+      // `Ticker.deltaMS` is the elapsed wall-clock since last tick.
+      this.tileSpriteRenderer?.tick(t.deltaMS);
+    };
+    this.ticker.add(this.tickerCallback);
+  }
+
+  private detachTicker(): void {
+    if (this.ticker && this.tickerCallback) {
+      this.ticker.remove(this.tickerCallback);
+    }
+    this.tickerCallback = null;
   }
 
   /**
-   * Check if a cell is within the viewport bounds (with margin)
+   * Rebuild the placement list from the current map data + tactic
+   * prefix overrides and hand it to the tile renderer. Triggered on
+   * `renderMap`, zoom changes, and tactic-mode toggles.
    */
-  private isCellInViewport(
-    cellPosition: { x: number; y: number },
-    viewport: Viewport | null,
-    mapScale: MapScale,
-    margin = 100
-  ): boolean {
-    // If no viewport, render all cells
-    if (!viewport) {
-      return true;
+  private rebuildTilePlacements(): void {
+    if (
+      !this.tileSpriteRenderer ||
+      !this.currentMapData ||
+      !this.currentMapScale
+    ) {
+      return;
+    }
+    const placements = this.buildPlacements(
+      this.currentMapData,
+      this.currentPrefixOverride
+    );
+    this.tileSpriteRenderer.setMapScale(this.currentMapScale);
+    this.tileSpriteRenderer.setPlacements(placements);
+    this.rebuildObject2WorldPlacements();
+  }
+
+  /**
+   * Push every layer-2 (foreground) tile placement into the unified
+   * World layer. Static placements pre-encode into a cached Vello
+   * scene via `worldLayer.setStaticTiles`; animated placements
+   * upsert individually so per-cell animation cursors can advance
+   * each tick.
+   *
+   * Mirrors `tile-layer-renderer.fillArraysForIndices`'s matrix
+   * encoding so the World layer's RT — also locked at MAX_DENSITY —
+   * places foreground tiles at the same physical pixels the legacy
+   * Object2 layer would have. The canonical depth `cellId * 100 + 0`
+   * keeps them in painter's order against chars at `cellId * 100 + 30`.
+   */
+  private rebuildObject2WorldPlacements(): void {
+    const worldLayer = this.worldLayer;
+    if (!worldLayer || !this.currentMapData || !this.currentMapScale) {
+      return;
     }
 
-    // Apply map scale offset to cell position
-    const cellX = cellPosition.x * mapScale.scale + mapScale.offsetX;
-    const cellY = cellPosition.y * mapScale.scale + mapScale.offsetY;
+    const mapData = this.currentMapData;
+    const mapScale = this.currentMapScale;
+    const prefixOverride = this.currentPrefixOverride;
 
-    // Check with margin to prevent popping at edges
-    return (
-      cellX >= viewport.x - margin &&
-      cellX <= viewport.x + viewport.width + margin &&
-      cellY >= viewport.y - margin &&
-      cellY <= viewport.y + viewport.height + margin
-    );
+    const staticOut: TileWorldPlacement[] = [];
+    const animatedOut: Array<{ id: string; placement: TileWorldPlacement }> =
+      [];
+
+    // Drop animated placements that no longer appear (cell map shrink,
+    // tactic-mode toggle, etc.). The set is rebuilt below.
+    const previousAnimated = this.worldLayerAnimatedIds;
+    const nextAnimated = new Set<string>();
+
+    for (const cell of mapData.cells) {
+      if (cell.layer2 <= 0) continue;
+      const basePos = getCellPosition(cell.id, mapData.width, cell.groundLevel);
+      const groundSlope = cell.groundSlope ?? 1;
+      const tileKey = this.tileKeyFor(cell.id, 2, cell.layer2, prefixOverride);
+      const resolved = this.tileResolver.resolve(tileKey);
+      if (!resolved) continue;
+
+      const isAnimated =
+        resolved.kind === "animated" && resolved.frameCount > 1;
+      const behavior = resolved.kind === "" ? "static" : resolved.kind;
+      const staticFrame = isAnimated
+        ? 0
+        : frameIndexForTile(
+            {
+              frameCount: resolved.frameCount,
+              behavior,
+            } as Parameters<typeof frameIndexForTile>[0],
+            cell.id,
+            groundSlope
+          );
+
+      // Mirror tile-layer-renderer's matrix encoding: scale =
+      // `mapScale.scale * MAX_DENSITY / 20`, translation in physical
+      // pixels of the RT (`cellX * mapScale.scale * MAX_DENSITY +
+      // mapScale.offsetX * MAX_DENSITY`). Object2 tiles are never
+      // rotated (rotation always 0 — see legacy `buildPlacements`),
+      // but flip is honored.
+      const matrix = encodeTileMatrix(
+        basePos.x,
+        basePos.y,
+        cell.layerObject2Flip,
+        0,
+        mapScale.scale,
+        mapScale.offsetX,
+        mapScale.offsetY
+      );
+
+      const placement: TileWorldPlacement = {
+        kind: "tile",
+        bundle: resolved.bundle,
+        exportName: resolved.exportName,
+        frame: staticFrame,
+        depth: cell.id * 100, // canonical Object2 sub-offset 0
+        matrix,
+        ...(isAnimated && {
+          animation: { fps: resolved.fps, frameCount: resolved.frameCount },
+        }),
+      };
+
+      if (isAnimated) {
+        const id = `tile_obj2_${cell.id}`;
+        animatedOut.push({ id, placement });
+        nextAnimated.add(id);
+      } else {
+        staticOut.push(placement);
+      }
+    }
+
+    // Remove animated placements that disappeared.
+    for (const id of previousAnimated) {
+      if (!nextAnimated.has(id)) {
+        worldLayer.remove(id);
+      }
+    }
+    this.worldLayerAnimatedIds = nextAnimated;
+
+    // Push static set as a pre-encoded scene + upsert each animated
+    // placement individually.
+    worldLayer.setStaticTiles(staticOut);
+    for (const { id, placement } of animatedOut) {
+      worldLayer.upsert(id, placement);
+    }
+  }
+
+  /**
+   * Walk the map's cells + emit one TilePlacement per (cell, layer)
+   * with a non-zero tile id. Honors the active tactic-mode prefix
+   * override map (so `cellId → { ground|layer1|layer2: { prefix, idOverride }
+   * }` reroutes the bundle/exportName lookup).
+   *
+   * Background tiles render as a single placement at cell pos (0, 0)
+   * — the renderer's matrix takes care of map-scale + offset.
+   */
+  private buildPlacements(
+    mapData: MapData,
+    prefixOverride: Map<number, TilePrefixOverride> | null
+  ): LayeredTilePlacement[] {
+    const out: LayeredTilePlacement[] = [];
+
+    // Layer ordering matters — Pixi sortable-children sorts by zIndex
+    // within each layer container; the layer ROUTING (groundLayer
+    // vs object1Layer) gives us the canonical painter's order
+    // (background z=100 → ground z=200 → object1 z=300).
+    if (mapData.backgroundNum && mapData.backgroundNum > 0) {
+      this.pushPlacementByKey(out, `ground_${mapData.backgroundNum}`, 0, {
+        cellId: 0,
+        cellX: 0,
+        cellY: 0,
+        rotation: 0,
+        flip: false,
+        groundSlope: 1,
+      });
+    }
+
+    // Layer 0: ground.
+    for (const cell of mapData.cells) {
+      if (cell.ground <= 0) continue;
+      const basePos = getCellPosition(cell.id, mapData.width, cell.groundLevel);
+      const groundSlope = cell.groundSlope ?? 1;
+      const tileKey = this.tileKeyFor(cell.id, 0, cell.ground, prefixOverride);
+      let groundRot = cell.layerGroundRot;
+      if (groundSlope !== 1) groundRot = 0;
+      this.pushPlacementByKey(out, tileKey, 0, {
+        cellId: cell.id,
+        cellX: basePos.x,
+        cellY: basePos.y,
+        rotation: groundRot,
+        flip: cell.layerGroundFlip,
+        groundSlope,
+      });
+    }
+
+    // Layer 1: walkable-tile decorations.
+    for (const cell of mapData.cells) {
+      if (cell.layer1 <= 0) continue;
+      const basePos = getCellPosition(cell.id, mapData.width, cell.groundLevel);
+      const groundSlope = cell.groundSlope ?? 1;
+      const tileKey = this.tileKeyFor(cell.id, 1, cell.layer1, prefixOverride);
+      const objRot = groundSlope === 1 ? cell.layerObject1Rot : 0;
+      this.pushPlacementByKey(out, tileKey, 1, {
+        cellId: cell.id,
+        cellX: basePos.x,
+        cellY: basePos.y,
+        rotation: objRot,
+        flip: cell.layerObject1Flip,
+        groundSlope,
+      });
+    }
+
+    // Layer 2 (foreground objects) routes to worldLayer via
+    // `rebuildObject2WorldPlacements()` so it can interleave with
+    // chars + spells in the canonical Object2 depth band.
+
+    return out;
+  }
+
+  private pushPlacementByKey(
+    out: LayeredTilePlacement[],
+    tileKey: string,
+    layer: 0 | 1,
+    cell: {
+      cellId: number;
+      cellX: number;
+      cellY: number;
+      rotation: number;
+      flip: boolean;
+      groundSlope: number;
+    }
+  ): void {
+    const resolved = this.tileResolver.resolve(tileKey);
+    if (!resolved) return;
+    const isAnimated = resolved.kind === "animated" && resolved.frameCount > 1;
+    const behavior = resolved.kind === "" ? "static" : resolved.kind;
+    const staticFrame = isAnimated
+      ? 0
+      : frameIndexForTile(
+          {
+            frameCount: resolved.frameCount,
+            behavior,
+          } as Parameters<typeof frameIndexForTile>[0],
+          cell.cellId,
+          cell.groundSlope
+        );
+    out.push({
+      tileKey,
+      bundle: resolved.bundle,
+      exportName: resolved.exportName,
+      cellX: cell.cellX,
+      cellY: cell.cellY,
+      rotation: cell.rotation & 3,
+      flip: cell.flip,
+      frameCount: resolved.frameCount,
+      isAnimated,
+      fps: resolved.fps,
+      staticFrame,
+      layer,
+    });
+  }
+
+  private tileKeyFor(
+    cellId: number,
+    layer: 0 | 1 | 2,
+    id: number,
+    prefixOverride: Map<number, TilePrefixOverride> | null
+  ): string {
+    const override = prefixOverride?.get(cellId);
+    const layerOverride =
+      layer === 0
+        ? override?.ground
+        : layer === 1
+          ? override?.layer1
+          : override?.layer2;
+    if (layerOverride) {
+      return `${layerOverride.prefix}_${layerOverride.idOverride ?? id}`;
+    }
+    return `${layer === 0 ? "ground" : "objects"}_${id}`;
   }
 
   async renderMap(
     mapData: MapData,
     mapContainer: Container,
     zoom: number,
-    viewport: Viewport | null = null,
-    opts: { preserveWorldActors?: boolean } = {}
+    _viewport: Viewport | null = null,
+    _opts: { preserveWorldActors?: boolean } = {}
   ): Promise<void> {
-    // Opt #5: Reuse persistent layers — just clear children
-    this.backgroundLayer.removeChildren();
-    this.groundLayer.removeChildren();
-    this.objectLayer1.removeChildren();
-    if (opts.preserveWorldActors) {
-      // Tactic mode: objectLayer2 hosts both foreground tiles AND fighter
-      // containers from PlayerRenderer. We can't blanket-remove or the
-      // fighters vanish. Drop only the tile-builder-owned sprites (tracked
-      // via spriteRefs) and leave everything else attached.
-      this.layerBuilder.dropLayerSprites(2);
-    } else {
-      this.objectLayer2.removeChildren();
-    }
-    this.layerBuilder.clearAnimatedSprites();
-
-    const { width: mapWidth, height: mapHeight, backgroundNum } = mapData;
+    const { width: mapWidth, height: mapHeight } = mapData;
     const mapScale = computeMapScale(mapWidth, mapHeight);
     mapContainer.scale.set(zoom);
 
-    // Opt #5: Add layers to parent only once
-    if (!this.layersInitialized) {
+    // Re-attach the persistent layer containers to the (possibly new)
+    // map container. They no longer hold tile sprites — those are
+    // baked into the tile-pipeline overlay — but world-actors uses
+    // `objectLayer2` as its parent for player + fighter sprites, and
+    // grid overlay / fight container also live in this hierarchy.
+    if (this.backgroundLayer.parent !== mapContainer) {
       mapContainer.addChild(this.backgroundLayer);
       mapContainer.addChild(this.groundLayer);
       mapContainer.addChild(this.objectLayer1);
       mapContainer.addChild(this.objectLayer2);
-      this.layersInitialized = true;
-    } else if (this.backgroundLayer.parent !== mapContainer) {
-      // Re-parent if mapContainer changed
-      mapContainer.removeChildren();
-      mapContainer.addChild(this.backgroundLayer);
-      mapContainer.addChild(this.groundLayer);
-      mapContainer.addChild(this.objectLayer1);
-      mapContainer.addChild(this.objectLayer2);
     }
 
-    // Use cells in sequential order (CellId sequential order IS the correct isometric front-to-back order)
-    const { cells } = mapData;
+    // Snapshot for ticker-driven re-renders (zoom, tactic toggle, etc).
+    this.currentMapData = mapData;
+    this.currentMapScale = mapScale;
+    this.currentPrefixOverride = null; // restored below by tactic mode
 
-    // Collect all unique tile keys including background for parallel prefetch
-    const uniqueTileKeys = new Set<string>();
-
-    if (backgroundNum && backgroundNum > 0) {
-      uniqueTileKeys.add(`ground_${backgroundNum}`);
-    }
-
-    for (const cell of cells) {
-      if (cell.ground > 0) {
-        uniqueTileKeys.add(this.layerBuilder.tileKeyFor(cell.id, 0, cell.ground));
-      }
-
-      if (cell.layer1 > 0) {
-        uniqueTileKeys.add(this.layerBuilder.tileKeyFor(cell.id, 1, cell.layer1));
-      }
-
-      if (cell.layer2 > 0) {
-        uniqueTileKeys.add(this.layerBuilder.tileKeyFor(cell.id, 2, cell.layer2));
-      }
-    }
-
-    // Prefetch all tile data and textures in parallel (the only async boundary)
-    await this.atlasLoader.prefetchTiles([...uniqueTileKeys], 1);
-
-    // After prefetch, everything is in cache — render synchronously to avoid
-    // thousands of microtask queue bounces from unnecessary await calls
-
-    if (backgroundNum && backgroundNum > 0) {
-      this.layerBuilder.renderBackground(
-        backgroundNum,
-        this.backgroundLayer,
-        mapScale
+    if (this.tileSpriteRenderer) {
+      // mapContainer.scale = zoom propagates to the layer containers
+      // and into each tile sprite — no per-sprite resolution rebuild
+      // needed when zoom changes (the texture stays at MAP_BG_ZOOM
+      // density, so up-/down-scaling stays sharp within MAX_DENSITY).
+      this.rebuildTilePlacements();
+    } else {
+      log.warn(
+        "renderMap: no tileSpriteRenderer (host didn't provide pixiRenderer + ticker?)"
       );
     }
-
-    let renderedCount = 0;
-    let culledCount = 0;
-
-    for (const cell of cells) {
-      const cellPosition = getCellPosition(cell.id, mapWidth, cell.groundLevel);
-
-      if (!this.isCellInViewport(cellPosition, viewport, mapScale)) {
-        culledCount++;
-        continue;
-      }
-
-      renderedCount++;
-      this.layerBuilder.renderCell(
-        cell,
-        mapWidth,
-        mapScale,
-        this.groundLayer,
-        this.objectLayer1,
-        this.objectLayer2
-      );
-    }
-
-    if (viewport) {
-      log.debug(`Rendered ${renderedCount} cells, culled ${culledCount} cells`);
-    }
+    void zoom; // kept for the deprecated viewport call signature
+    void DISPLAY_WIDTH;
+    void DISPLAY_HEIGHT;
   }
 
   /**
-   * Swap textures in-place for all tracked sprites at a new zoom level.
-   * Prefetches new textures, then swaps .texture on each existing sprite.
-   * AnimatedSprites get their .textures array updated and playback position restored.
-   *
-   * Returns true if texture swap succeeded, false if a full rebuild is needed.
+   * Re-render at a new zoom level. The new pipeline simply re-encodes
+   * placement matrices at the new zoom + re-rasterizes — no raster
+   * invalidation, no priority queues, no chunked strip rebuilds.
+   * Returns true so the BattlefieldZoom fast path proceeds.
    */
-  async updateTexturesForZoom(zoom: number): Promise<boolean> {
-    const spriteRefs = this.layerBuilder.getSpriteRefs();
-
-    if (spriteRefs.length === 0) {
+  async updateTexturesForZoom(
+    _zoom: number,
+    _mapData?: MapData,
+    _viewport?: Viewport | null
+  ): Promise<boolean> {
+    if (!this.tileSpriteRenderer) {
       return false;
     }
-
-    // Collect unique tile keys for prefetch
-    const uniqueTileKeys = new Set<string>();
-
-    for (const ref of spriteRefs) {
-      uniqueTileKeys.add(ref.tileKey);
-    }
-
-    // Prefetch all new textures at the new zoom level
-    this.atlasLoader.setZoom(zoom);
-    await this.atlasLoader.prefetchTiles([...uniqueTileKeys], 1);
-
-    // Clear the texture cache for the new zoom (we'll re-populate it)
-    const newZoom = this.atlasLoader.getZoom();
-    const textureCache = this.layerBuilder.getTextureCache();
-
-    // Swap textures on each tracked sprite
-    for (const ref of spriteRefs) {
-      if (ref.sprite.destroyed) {
-        continue;
-      }
-
-      if (ref.isAnimated && ref.sprite instanceof AnimatedSprite) {
-        // For animated sprites: swap entire textures array, restore playback
-        const animSprite = ref.sprite;
-        const wasPlaying = animSprite.playing;
-        const currentFrame = animSprite.currentFrame;
-
-        const newTextures = this.atlasLoader.loadAnimationFramesSync(
-          ref.tileKey,
-          1
-        );
-        if (newTextures.length > 0) {
-          animSprite.textures = newTextures;
-          // Restore playback position
-          if (currentFrame < newTextures.length) {
-            animSprite.gotoAndStop(currentFrame);
-          }
-
-          if (wasPlaying) {
-            animSprite.play();
-          }
-        }
-      } else {
-        // Static sprite: swap single texture
-        const cacheKey = `${ref.tileKey}:${newZoom}:frame${ref.frameIndex}`;
-        let newTexture = textureCache.get(cacheKey);
-
-        if (!newTexture) {
-          newTexture =
-            this.atlasLoader.loadFrameSync(ref.tileKey, ref.frameIndex, 1) ??
-            undefined;
-          if (newTexture) {
-            textureCache.set(cacheKey, newTexture);
-          }
-        }
-
-        if (newTexture) {
-          ref.sprite.texture = newTexture;
-        }
-      }
-    }
-
+    // Container scale propagates zoom to all sprites; rebuild only
+    // touches per-tile state (which is zoom-independent at the
+    // texture level — MAP_BG_ZOOM is the rasterization density).
+    this.rebuildTilePlacements();
     return true;
   }
 
@@ -441,10 +650,56 @@ export class MapHandler {
 
   clearCache(): void {
     this.layerBuilder.clear();
+    if (this.tileSpriteRenderer) {
+      // Drop the placement list — next renderMap will rebuild it. The
+      // diff inside `setPlacements([])` retires every sprite via the
+      // 2-tick freeRenderTexture pattern.
+      this.tileSpriteRenderer.setPlacements([]);
+    }
+    if (this.worldLayer) {
+      // Drop foreground-tile state from the unified layer too. Char +
+      // spell placements are owned by other consumers (PlayerRenderer,
+      // FightUI) — they re-upsert independently next tick.
+      for (const id of this.worldLayerAnimatedIds) {
+        this.worldLayer.remove(id);
+      }
+      this.worldLayerAnimatedIds.clear();
+      this.worldLayer.setStaticTiles([]);
+    }
+  }
+
+  /**
+   * Tear down the tile pipeline (called on battlefield teardown).
+   * Frees the renderer's GPU textures + removes the ticker callback.
+   */
+  destroy(): void {
+    this.detachTicker();
+    if (this.tileSpriteRenderer) {
+      this.tileSpriteRenderer.destroy();
+      this.tileSpriteRenderer = null;
+    }
+    this.currentMapData = null;
+    this.currentMapScale = null;
+    this.currentPrefixOverride = null;
   }
 
   getAnimatedSprites(): AnimatedSprite[] {
     return this.layerBuilder.getAnimatedSprites();
+  }
+
+  /**
+   * Per-frame Vello tile-pass diagnostics (avg ms, dispatches/sec) for
+   * the render watchdog HUD. Returns null when the pipeline isn't
+   * active — caller should treat null as "no data yet".
+   */
+  getTileLayerStats(): {
+    avgMs: number;
+    lastMs: number;
+    dispatchesPerSec: number;
+  } | null {
+    // Sprite path doesn't dispatch a single tile-pass — stats
+    // unavailable. Returns null so the watchdog HUD shows a dash.
+    return null;
   }
 
   /**
@@ -551,6 +806,7 @@ export class MapHandler {
       backgroundNum: mapData.backgroundNum,
     };
     this.layerBuilder.setTilePrefixOverride(prefixes);
+    this.currentPrefixOverride = prefixes;
 
     // AS MapHandler.method_260 sets backgroundNum = 631 on enter, falls
     // back to 632 when the map had no original background. Both tiles ship
@@ -580,9 +836,7 @@ export class MapHandler {
     // "unknown" so decor is skipped; the tactic background still renders.
     const subareaId = mapData.subareaId ?? 0;
     const themeTileKey =
-      subareaId > 0
-        ? await this.resolveTacticThemeTileKey(subareaId)
-        : null;
+      subareaId > 0 ? await this.resolveTacticThemeTileKey(subareaId) : null;
 
     const prefetchKeys = [tacticBgTileKey];
     const themeFrameKeys: string[] = [];
@@ -654,11 +908,7 @@ export class MapHandler {
       const cell = losCells[i]!;
       const tileKey = themeFrameKeys[frameCounter % frameCount]!;
       frameCounter++;
-      const basePosition = getCellPosition(
-        cell.id,
-        width,
-        cell.groundLevel
-      );
+      const basePosition = getCellPosition(cell.id, width, cell.groundLevel);
       this.layerBuilder.renderTacticDecor(
         tileKey,
         cell.id,
@@ -704,6 +954,7 @@ export class MapHandler {
   clearTacticState(): void {
     this.tacticBackup = null;
     this.layerBuilder.setTilePrefixOverride(null);
+    this.currentPrefixOverride = null;
   }
 
   getGroundLayer(): Container {
@@ -717,4 +968,69 @@ export class MapHandler {
   getObjectLayer2(): Container {
     return this.objectLayer2;
   }
+}
+
+/** Locked at 8 to match the World layer's RT density. */
+const WORLD_LAYER_MAX_DENSITY = 8;
+
+/** Flash-era rotated-iso scale magic numbers — match `tile-layer-renderer.ts`. */
+const ROTATED_SCALE_X = 51.85 / 100;
+const ROTATED_SCALE_Y = 192.86 / 100;
+
+/**
+ * Encode a foreground tile placement matrix into the same physical-
+ * pixel space the unified World layer's RT uses. Mirrors
+ * `tile-layer-renderer.fillArraysForIndices`'s matrix derivation —
+ * scale = `mapScale.scale * MAX_DENSITY / 20` (twip → physical),
+ * translation = `cellX * mapScale.scale * MAX_DENSITY +
+ * mapScale.offsetX * MAX_DENSITY`. Rotation is honored even though
+ * canonical Object2 placements never rotate, because the legacy
+ * helper supports it and a future rotated-foreground use would
+ * otherwise need a separate code path.
+ */
+function encodeTileMatrix(
+  cellLogicalX: number,
+  cellLogicalY: number,
+  flip: boolean,
+  rotation: number,
+  mapScaleScale: number,
+  mapScaleOffsetX: number,
+  mapScaleOffsetY: number
+): Mat6 {
+  const mapScaleZoom = mapScaleScale * WORLD_LAYER_MAX_DENSITY;
+  const cellOffsetX = mapScaleOffsetX * WORLD_LAYER_MAX_DENSITY;
+  const cellOffsetY = mapScaleOffsetY * WORLD_LAYER_MAX_DENSITY;
+  const k = mapScaleZoom / 20;
+  const r = rotation & 3;
+  const rotated = r === 1 || r === 3;
+  const sxFinal = (rotated ? ROTATED_SCALE_X : 1) * (flip ? -1 : 1) * k;
+  const syFinal = (rotated ? ROTATED_SCALE_Y : 1) * k;
+  const cellScreenX = cellLogicalX * mapScaleZoom + cellOffsetX;
+  const cellScreenY = cellLogicalY * mapScaleZoom + cellOffsetY;
+  let a: number;
+  let b: number;
+  let c: number;
+  let d: number;
+  if (r === 0) {
+    a = sxFinal;
+    b = 0;
+    c = 0;
+    d = syFinal;
+  } else if (r === 1) {
+    a = 0;
+    b = sxFinal;
+    c = -syFinal;
+    d = 0;
+  } else if (r === 2) {
+    a = -sxFinal;
+    b = 0;
+    c = 0;
+    d = -syFinal;
+  } else {
+    a = 0;
+    b = -sxFinal;
+    c = syFinal;
+    d = 0;
+  }
+  return [a, b, c, d, cellScreenX, cellScreenY] as const;
 }

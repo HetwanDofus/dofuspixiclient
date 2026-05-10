@@ -552,7 +552,7 @@ export class Battlefield {
       atlasLoader: this.atlasLoader,
       interactiveGfxIds: this.interactiveGfxIds,
       scene: this.scene,
-      tileSurfaceId: this.bottomSurfaceId || undefined,
+      pixiRenderer: this.app?.renderer,
       ticker: this.app?.ticker,
       worldLayer: this.worldLayer ?? undefined,
       onSpriteCreated: (
@@ -1133,6 +1133,7 @@ export class Battlefield {
     void this.bottomCanvas;
     void this.middleCanvas;
     void this.topCanvas;
+    void this.bottomSurfaceId;
     void this.topSurfaceId;
 
     this.engine.destroy();
