@@ -416,17 +416,14 @@ export class Battlefield {
       ?.setFightMode(mode === "fighting" || mode === "spectating");
 
     if (!this.fightUI) {
-      if (!this.worldLayer) {
-        // Bootstrap order guarantee: FightUI consumers need worldLayer
-        // by the time the first fight enter happens. If we get here
-        // without one, the bootstrap broke.
-        throw new Error(
-          "enterFightMode: worldLayer not yet constructed (bootstrap order regression)"
-        );
-      }
       if (!this.playerStripRenderer) {
         throw new Error(
           "enterFightMode: playerStripRenderer not yet constructed (bootstrap order regression)"
+        );
+      }
+      if (!this.app) {
+        throw new Error(
+          "enterFightMode: Pixi app not yet initialized (bootstrap order regression)"
         );
       }
       this.fightUI = new FightUI(
@@ -448,8 +445,8 @@ export class Battlefield {
         // inside Object2 at `cellNum*100+50±idx`).
         this.mapHandler?.getObjectLayer2() ?? null,
         this.spellVelloRenderer,
-        this.worldLayer,
-        this.playerStripRenderer
+        this.playerStripRenderer,
+        this.app.renderer
       );
     }
     this.fightUI.enterFightMode(mode);

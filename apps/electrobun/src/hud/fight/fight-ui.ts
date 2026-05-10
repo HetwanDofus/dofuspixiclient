@@ -1,12 +1,13 @@
 import { Container } from "pixi.js";
 
+import type { Renderer } from "pixi.js";
+
 import type { CharacterSpriteLoader } from "@/game/assets/character-sprite";
 import type { CellData } from "@/game/datacenter/cell";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import type { RendererRegistry } from "@/game/render/renderer-registry";
 import type { SpellVelloRenderer } from "@/game/render/spell-vello-renderer";
-import type { WorldLayer } from "@/game/render/world-layer";
 import type { Scene } from "@/game/scene/scene";
 import { Z_FIGHT_CONTAINER } from "@/game/constants/z-index";
 import {
@@ -63,18 +64,18 @@ export class FightUI {
     private objectLayer2: Container | null,
     private spellVelloRenderer: SpellVelloRenderer | null,
     /**
-     * Unified L3 World layer. The fight-mode `playerRenderer` is a
-     * stub kept for API compatibility (no fighters live here — the
-     * world-actors PlayerRenderer holds them all), but it still needs
-     * a worldLayer reference to satisfy `PlayerRendererConfig`.
-     */
-    private worldLayer: WorldLayer,
-    /**
      * Strip renderer for the stub PlayerRenderer's config. The fight-
-     * mode renderer never actually loads players (see comment above),
-     * so the strip renderer is used as a config-shaped placeholder.
+     * mode renderer never actually loads players — fighters live in
+     * the world-actors PlayerRenderer — so the strip renderer is used
+     * as a config-shaped placeholder.
      */
-    private stripRenderer: PlayerStripRenderer
+    private stripRenderer: PlayerStripRenderer,
+    /**
+     * Pixi renderer threaded through to `SpellRenderer` so each cast
+     * can wrap its AVM1 GPU texture as a Pixi `ExternalSource` (Phase
+     * 2 made Vello + Pixi share a device, so the wrap is cheap).
+     */
+    private pixiRenderer: Renderer
   ) {}
 
   /**
@@ -162,7 +163,7 @@ export class FightUI {
       groundLevel,
       cellDataMap: this.cellDataMap,
       velloRenderer: this.spellVelloRenderer,
-      worldLayer: this.worldLayer,
+      pixiRenderer: this.pixiRenderer,
     });
 
     // Fire-and-forget preload of every spell on the local player's bar.

@@ -3,8 +3,8 @@ import type {
   SpellCallbacks,
   SpellContext,
 } from "@dofus/spell-runtime";
+import type { Container, Renderer } from "pixi.js";
 import { SpellDisplayType } from "@dofus/spell-runtime";
-import type { Container } from "pixi.js";
 
 import type { SpellVelloRenderer } from "@/game/render/spell-vello-renderer";
 import type { Scene } from "@/game/scene/scene";
@@ -24,9 +24,17 @@ import {
 } from "@/game/datacenter/cell";
 import { createLogger } from "@/utils/logger";
 
-import { PreRenderedSpell } from "./pre-rendered-spell";
+import { PreRenderedSpell, type SpellWorldCtx } from "./pre-rendered-spell";
 import { SpellActor } from "./spell-actor";
-import { loadSpellClass } from "./spell-module-loader";
+
+/**
+ * Canonical `VisualEffectHandler.MAX_INDEX` from
+ * `assets/sources/client-code/ank/battlefield/VisualEffectHandler.as:11`.
+ * Per-cast effect indices cycle 0..21 then wrap, ensuring simultaneous
+ * spells on the same cell get distinct sub-offset depths
+ * (`cellNum * 100 + 50 ± index`) and don't z-fight.
+ */
+const VISUAL_EFFECT_MAX_INDEX = 21;
 
 const log = createLogger("SpellView");
 
@@ -84,8 +92,14 @@ export interface SpellRendererConfig {
   mapWidth?: number;
   groundLevel?: number;
   cellDataMap?: Map<number, CellData>;
-  /** Shared Vello renderer used by SpellAssetLoader to load dofassets. */
+  /** Shared Vello renderer used by SpellAssetLoader to fetch + parse spell SWFs. */
   velloRenderer?: SpellVelloRenderer | null;
+  /**
+   * Pixi renderer used to wrap each spell's AVM1 GPU texture as an
+   * `ExternalSource`. Required — without it the live-tick spell
+   * pipeline can't produce visible pixels.
+   */
+  pixiRenderer: Renderer;
 }
 
 /**
@@ -111,17 +125,27 @@ export class SpellRenderer {
   private mapWidth: number;
   private groundLevel: number;
   private cellDataMap: Map<number, CellData>;
+  private readonly pixiRenderer: Renderer;
+  /**
+   * Mirrors `VisualEffectHandler._incIndex` — monotonically advancing
+   * counter that wraps at MAX_INDEX so each new cast on a cell gets a
+   * distinct sub-offset slot (`cellNum * 100 + 50 ± index`).
+   */
+  private effectIndex = 0;
+  /** Auto-increment placement id per cast for stable upsert/remove. */
+  private nextSpellInstance = 0;
 
   constructor(
     parentContainer: Container,
     scene: Scene,
-    config: SpellRendererConfig = {}
+    config: SpellRendererConfig
   ) {
     this.mapWidth = config.mapWidth ?? DEFAULT_MAP_WIDTH;
     this.groundLevel = config.groundLevel ?? DEFAULT_GROUND_LEVEL;
     this.cellDataMap = config.cellDataMap ?? new Map();
     this.scene = scene;
     this.parent = parentContainer;
+    this.pixiRenderer = config.pixiRenderer;
 
     if (config.velloRenderer) {
       this.assetLoader.setVelloRenderer(config.velloRenderer);
@@ -144,31 +168,19 @@ export class SpellRenderer {
 
     if (!loaded) {
       log.warn(
-        `spell ${config.spellId}: dofasset/manifest missing — cast resolves silently`
+        `spell ${config.spellId}: SWF bundle missing — cast resolves silently`
       );
       return;
     }
 
-    const spell = await this.createSpellInstance(config.spellId, loaded);
+    const spell = await this.createSpellInstance(
+      config.spellId,
+      loaded,
+      config.targetCellId
+    );
     if (!spell) {
       log.warn(`spell ${config.spellId}: createSpellInstance returned null`);
       return;
-    }
-
-    // Touch the primary anim up-front so we can diagnose empty-strip
-    // cases (Vello refused to rasterize, frame count is 0, etc). The
-    // probe uses whichever anim name actually exists in the manifest:
-    // anim1 for most spells, but glyph-style spells use `effet` or
-    // similar — picking the first registered animation avoids the
-    // false-positive "anim1 has 0 frames" warning that fired for
-    // every spell whose composite isn't called anim1.
-    const animNames = Object.keys(loaded.manifest.animations);
-    const probeName = animNames.includes("anim1") ? "anim1" : animNames[0];
-    const probeFrames = probeName ? loaded.textures.getFrames(probeName) : [];
-    if (probeName && probeFrames.length === 0) {
-      log.warn(
-        `spell ${config.spellId}: ${probeName} has 0 frames — check dofasset compile`
-      );
     }
 
     return this.runSpell(config, spell, loaded);
@@ -224,12 +236,12 @@ export class SpellRenderer {
         return;
       }
 
-      // Anchor per displayType — mirrors VisualEffectHandler.as:85-232
-      // where each case sets mc._x / mc._y to either the caster sprite
-      // (10/12/20/21/30/31/40/41) or the target cell (11), or leaves the
-      // container at world origin so the script positions children with
-      // absolute world coords (50/51). zIndex always uses the target
-      // cell so per-cell sort against fighters stays deterministic.
+      // The spell mounts its real Pixi sprite directly into
+      // `this.parent` from inside `PreRenderedSpell.init` (with the
+      // anchor + depth that `createSpellInstance` baked into the
+      // worldCtx). The empty `spell.container` is still attached so
+      // any external code walking the Pixi tree finds a consistent
+      // display node — unchanged interface-compatibility shim.
       spell.container.position.set(context.anchor.x, context.anchor.y);
       spell.container.zIndex = config.targetCellId * Z_OBJECT2_LAYER + 50;
       this.parent.addChild(spell.container);
@@ -246,28 +258,44 @@ export class SpellRenderer {
 
   private async createSpellInstance(
     spellId: number,
-    loaded: LoadedSpell
+    loaded: LoadedSpell,
+    targetCellId: number
   ): Promise<ISpellAnimation | null> {
-    if (loaded.manifest.spell.requiresTypeScript) {
-      const SpellClass = await loadSpellClass(spellId);
-      if (SpellClass) {
-        try {
-          return new SpellClass();
-        } catch (err) {
-          log.warn(
-            `spell ${spellId}: TS class instantiation threw — falling back to PreRenderedSpell. Error: ${String(err)}`
-          );
-        }
-      } else {
-        log.warn(
-          `spell ${spellId}: requiresTypeScript=true but no class loaded — falling back to PreRenderedSpell (frame stepper)`
-        );
-      }
-      // Spell says it needs bespoke code but no module shipped —
-      // fall back to the generic frame-stepper so the cast doesn't
-      // hang the state machine.
-    }
-    return new PreRenderedSpell(spellId, loaded);
+    // Every spell goes through the generic frame-stepper. AVM1
+    // side-effects (gotoAndStop, _alpha fades, _rotation, etc.) are
+    // baked into the rendered frames so the stepper just plays them
+    // through. The cast mounts a Pixi sprite as a child of `parent`
+    // (battlefield's objectLayer2) at the canonical sub-offset depth.
+    // The visual anchor comes from `context.anchor` inside
+    // `PreRenderedSpell.init` (so runtime-spell displayType shifts
+    // are honored).
+    const worldCtx: SpellWorldCtx = {
+      pixiRenderer: this.pixiRenderer,
+      parent: this.parent,
+      placementId: `spell-${++this.nextSpellInstance}`,
+      depth: this.allocateSpellDepth(targetCellId, true),
+      resolution: loaded.resolution,
+    };
+    return new PreRenderedSpell(spellId, loaded, worldCtx);
+  }
+
+  /**
+   * Compute the canonical sub-offset depth for a spell instance per
+   * `VisualEffectHandler.as:35`:
+   *   `depth = cellNum * 100 + 50 + sign * index`
+   * where `sign = bInFrontOfSprite ? +1 : -1` and `index` cycles
+   * `0..MAX_INDEX (21)`. Bumping the counter every cast disperses
+   * simultaneous casts on the same cell across distinct depth slots
+   * so they don't z-fight inside the unified Object2 sort.
+   */
+  private allocateSpellDepth(
+    cellId: number,
+    bInFrontOfSprite: boolean
+  ): number {
+    const idx = this.effectIndex;
+    this.effectIndex = (this.effectIndex + 1) % (VISUAL_EFFECT_MAX_INDEX + 1);
+    const sign = bInFrontOfSprite ? 1 : -1;
+    return cellId * Z_OBJECT2_LAYER + 50 + sign * idx;
   }
 
   private buildSpellContext(
