@@ -9,6 +9,18 @@
  * wrappers sharing one `ExternalSource` → per-tick frame advance is
  * a free Pixi `sprite.texture = currentFrames[i]` pointer swap.
  *
+ * **Slot model** — each player can have up to four slots so mounted
+ * characters render correctly without any worldLayer involvement:
+ *
+ *   mount-back   z=-2  player body's `_Back` half (replaces main body)
+ *   mount-rider  z=-1  chevauchor sprite (the rider)
+ *   main         z=0   regular body (hidden when mounted)
+ *   mount-front  z=+1  player body's `_Front` half (mount head/neck)
+ *
+ * Pixi `sortableChildren` on the player container honors zIndex so
+ * the painter's order matches canonical Dofus 1.29's
+ * `MOUNT_DEPTH_BACK/RIDER/FRONT` sub-offsets.
+ *
  * Per `feedback_pixi_wgpu_texture_lifetime`, the patched wgpu fork's
  * `Drop for WebTexture` is a no-op — every retired strip MUST pair
  * `oldSource.destroy()` with `freeRenderTexture(oldTextureId)` after
@@ -39,7 +51,24 @@ const RETIRE_DELAY_MS = 2 * TICK_INTERVAL_MS;
 
 export type DirSuffix = "R" | "L" | "F" | "B" | "S";
 
-interface StripState {
+/**
+ * Painter's-order slot identifier for per-player sprites.
+ * Mirrors canonical mount sub-depths in `mount-layers.ts`.
+ */
+export type PlayerStripSlot =
+  | "main"
+  | "mount-back"
+  | "mount-rider"
+  | "mount-front";
+
+const SLOT_Z_INDEX: Record<PlayerStripSlot, number> = {
+  "mount-back": -2,
+  "mount-rider": -1,
+  main: 0,
+  "mount-front": 1,
+};
+
+interface SlotState {
   /** Pixi sprite mounted in player.container; texture pointer-swaps each tick. */
   sprite: Sprite;
   /** Pre-allocated per-frame sub-rect Textures sharing currentSource. */
@@ -67,7 +96,8 @@ function makeAnimKey(
  * sprite + texture lifecycle for every active player.
  */
 export class PlayerStripRenderer {
-  private states = new Map<number, StripState>();
+  /** playerId → slot → SlotState. */
+  private states = new Map<number, Map<PlayerStripSlot, SlotState>>();
   private resolution: number;
   private pixiRenderer: Renderer;
 
@@ -80,45 +110,84 @@ export class PlayerStripRenderer {
     this.resolution = Math.max(1, res);
   }
 
-  /** Idempotently mount a sprite as child of player.container. */
+  /** Idempotently mount the main slot (sprite child of player.container). */
   attach(player: ActivePlayer): void {
     if (this.states.has(player.id)) {
       return;
     }
-    const sprite = new Sprite();
-    sprite.scale.set(1 / this.resolution);
-    sprite.anchor.set(0, 0);
-    sprite.zIndex = 0;
-    player.container.addChild(sprite);
-    this.states.set(player.id, {
-      sprite,
-      currentFrames: null,
-      currentSource: null,
-      currentTextureId: 0,
-      currentAnimKey: "",
-    });
+    const slots = new Map<PlayerStripSlot, SlotState>();
+    slots.set("main", this.createSlot(player, "main"));
+    this.states.set(player.id, slots);
   }
 
   /**
-   * Render a strip for the player's current animation and replace
-   * the sprite's frame array. Idempotent — same key skips work.
+   * Idempotently ensure a non-main slot exists. Used by mount-aware
+   * sync to bring up `mount-back/rider/front` sprites on demand.
+   */
+  ensureSlot(player: ActivePlayer, slot: PlayerStripSlot): void {
+    const slots = this.states.get(player.id);
+    if (!slots) {
+      log.warn(`ensureSlot: player ${player.id} not attached`);
+      return;
+    }
+    if (!slots.has(slot)) {
+      slots.set(slot, this.createSlot(player, slot));
+    }
+  }
+
+  /**
+   * Retire one slot — destroys its sprite and pairs old GPU resources
+   * with the 2-tick `freeRenderTexture` settle. Called when a mount
+   * sub-layer disappears (un-mount, tactic mode, etc.).
+   */
+  removeSlot(player: ActivePlayer, slot: PlayerStripSlot): void {
+    const slots = this.states.get(player.id);
+    if (!slots) {
+      return;
+    }
+    const state = slots.get(slot);
+    if (!state) {
+      return;
+    }
+    this.retireSlotState(state);
+    slots.delete(slot);
+  }
+
+  /** Toggle slot visibility — used to hide `main` when mounted. */
+  setSlotVisible(
+    player: ActivePlayer,
+    slot: PlayerStripSlot,
+    visible: boolean
+  ): void {
+    const state = this.states.get(player.id)?.get(slot);
+    if (state) {
+      state.sprite.visible = visible;
+    }
+  }
+
+  /**
+   * Render a strip for the given slot's animation and replace the
+   * sprite's frame array. Idempotent — same key skips work.
    * Synchronous: vello-wasm returns the GPUTexture in the same call.
    */
   applyAnimation(
     player: ActivePlayer,
+    slot: PlayerStripSlot,
     animation: CharacterAnimation,
     animName: string,
     dir: DirSuffix,
     flipped: boolean
   ): void {
-    const state = this.states.get(player.id);
+    const state = this.states.get(player.id)?.get(slot);
     if (!state) {
-      log.warn(`applyAnimation: player ${player.id} not attached`);
+      log.warn(
+        `applyAnimation: player ${player.id} slot ${slot} not initialized`
+      );
       return;
     }
     const key = makeAnimKey(animation, animName, dir, flipped, player.look);
     if (key === state.currentAnimKey) {
-      this.updateFlip(player, flipped);
+      this.applyFlipToSlot(state, flipped);
       return;
     }
 
@@ -153,7 +222,7 @@ export class PlayerStripRenderer {
       renderer: this.pixiRenderer,
       width: strip.width,
       height: strip.height,
-      label: `player-strip-${player.id}-${animName}`,
+      label: `player-strip-${player.id}-${slot}-${animName}`,
     });
     source.alphaMode = "no-premultiply-alpha";
     source.format = "rgba8unorm";
@@ -173,16 +242,12 @@ export class PlayerStripRenderer {
       });
     }
 
-    // Anchor is fraction-of-frame so sprite origin lands at SWF (0,0).
     state.sprite.anchor.set(strip.anchorX / fw, strip.anchorY / fh);
-    const s = 1 / this.resolution;
-    state.sprite.scale.set(flipped ? -s : s, s);
+    this.applyFlipToSlot(state, flipped);
     state.sprite.texture =
       frames[player.frameIndex % frames.length] ?? frames[0];
 
-    // Retire previous strip after a 2-tick settle so any in-flight
-    // Pixi sample of the old texture lands before wgpu storage is
-    // reclaimed (per `feedback_pixi_wgpu_texture_lifetime`).
+    // Retire previous strip after a 2-tick settle.
     const oldSource = state.currentSource;
     const oldTextureId = state.currentTextureId;
     if (oldSource && oldTextureId) {
@@ -201,42 +266,90 @@ export class PlayerStripRenderer {
   }
 
   /**
-   * Update sprite flip + scale without re-rendering — used when the
-   * direction changes but the underlying anim export is unchanged
-   * (R↔SW reuses the R strip with horizontal flip).
+   * Update flip + scale across all live slots without re-rendering —
+   * direction-only changes (R↔SW share the same export with mirror).
    */
   updateFlip(player: ActivePlayer, flipped: boolean): void {
-    const state = this.states.get(player.id);
-    if (!state) {
+    const slots = this.states.get(player.id);
+    if (!slots) {
       return;
     }
+    for (const state of slots.values()) {
+      this.applyFlipToSlot(state, flipped);
+    }
+  }
+
+  /**
+   * Per-tick texture pointer swap across all live slots. Each slot's
+   * frame array length is its own (e.g. backAnim might have a
+   * different frame count than chevauchorAnim) but they share the
+   * `player.frameIndex` cursor — modulo per slot keeps everyone in
+   * lockstep.
+   */
+  swapFrame(player: ActivePlayer): void {
+    const slots = this.states.get(player.id);
+    if (!slots) {
+      return;
+    }
+    const idx = player.frameIndex;
+    for (const state of slots.values()) {
+      if (!state.currentFrames || state.currentFrames.length === 0) {
+        continue;
+      }
+      const i = idx % state.currentFrames.length;
+      const tex = state.currentFrames[i];
+      if (tex && state.sprite.texture !== tex) {
+        state.sprite.texture = tex;
+      }
+    }
+  }
+
+  /** Drop every slot for the player + retire textures. */
+  detach(player: ActivePlayer): void {
+    const slots = this.states.get(player.id);
+    if (!slots) {
+      return;
+    }
+    for (const state of slots.values()) {
+      this.retireSlotState(state);
+    }
+    this.states.delete(player.id);
+  }
+
+  /** Tear down all sprites. Map change / shutdown. */
+  destroy(): void {
+    for (const slots of this.states.values()) {
+      for (const state of slots.values()) {
+        this.retireSlotState(state);
+      }
+    }
+    this.states.clear();
+  }
+
+  private createSlot(
+    player: ActivePlayer,
+    slot: PlayerStripSlot
+  ): SlotState {
+    const sprite = new Sprite();
+    sprite.scale.set(1 / this.resolution);
+    sprite.anchor.set(0, 0);
+    sprite.zIndex = SLOT_Z_INDEX[slot];
+    player.container.addChild(sprite);
+    return {
+      sprite,
+      currentFrames: null,
+      currentSource: null,
+      currentTextureId: 0,
+      currentAnimKey: "",
+    };
+  }
+
+  private applyFlipToSlot(state: SlotState, flipped: boolean): void {
     const s = 1 / this.resolution;
     state.sprite.scale.set(flipped ? -s : s, s);
   }
 
-  /**
-   * Per-tick texture pointer swap. Reads `player.frameIndex` (advanced
-   * by sprite-controller.tickFrame) and updates the sprite's texture
-   * to the corresponding strip frame. Zero allocation.
-   */
-  swapFrame(player: ActivePlayer): void {
-    const state = this.states.get(player.id);
-    if (!state || !state.currentFrames || state.currentFrames.length === 0) {
-      return;
-    }
-    const idx = player.frameIndex % state.currentFrames.length;
-    const tex = state.currentFrames[idx];
-    if (tex && state.sprite.texture !== tex) {
-      state.sprite.texture = tex;
-    }
-  }
-
-  /** Drop the player's strip + retire textures. */
-  detach(player: ActivePlayer): void {
-    const state = this.states.get(player.id);
-    if (!state) {
-      return;
-    }
+  private retireSlotState(state: SlotState): void {
     const oldSource = state.currentSource;
     const oldTextureId = state.currentTextureId;
     try {
@@ -251,27 +364,5 @@ export class PlayerStripRenderer {
         freeRenderTexture(oldTextureId);
       }, RETIRE_DELAY_MS);
     }
-    this.states.delete(player.id);
-  }
-
-  /** Tear down all sprites. Map change / shutdown. */
-  destroy(): void {
-    for (const [, state] of this.states) {
-      const oldSource = state.currentSource;
-      const oldTextureId = state.currentTextureId;
-      try {
-        state.sprite.parent?.removeChild(state.sprite);
-        state.sprite.destroy();
-      } catch {}
-      if (oldSource && oldTextureId) {
-        setTimeout(() => {
-          try {
-            oldSource.destroy();
-          } catch {}
-          freeRenderTexture(oldTextureId);
-        }, RETIRE_DELAY_MS);
-      }
-    }
-    this.states.clear();
   }
 }

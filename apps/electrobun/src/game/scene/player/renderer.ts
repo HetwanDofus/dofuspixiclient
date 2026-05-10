@@ -6,7 +6,6 @@ import { Container, Graphics, Ticker } from "pixi.js";
 import type { CellData } from "@/game/datacenter/cell";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
-import type { Mat6, WorldLayer } from "@/game/render/world-layer";
 import type { Scene } from "@/game/scene/scene";
 import {
   type CharacterSpriteLoader,
@@ -34,11 +33,6 @@ import {
   drawPlayerPlaceholder,
   FighterOverheadPanel,
 } from "@/game/scene/player/graphics";
-import {
-  MOUNT_DEPTH_BACK,
-  MOUNT_DEPTH_FRONT,
-  MOUNT_DEPTH_RIDER,
-} from "@/game/scene/player/mount-layers";
 import { PlayerMovement } from "@/game/scene/player/movement";
 import { PlayerPerfMonitor } from "@/game/scene/player/perf";
 import { PlayerSpriteController } from "@/game/scene/player/sprite-controller";
@@ -68,37 +62,6 @@ const GHOST_VIEW_ALPHA = 0.6;
 const NAMEPLATE_OFFSET_Y = -50;
 
 /**
- * Render-density of the unified World layer's RT. Char placements
- * encode their matrix in physical pixels at this density (matches
- * `WorldLayer.MAX_DENSITY`).
- */
-const WORLD_LAYER_DENSITY = 8;
-
-/**
- * Twip → physical-pixel scale. SWF coordinates are 1/20 px, the RT
- * is at WORLD_LAYER_DENSITY×, so the matrix scale is
- * `WORLD_LAYER_DENSITY / 20`.
- */
-const TWIP_TO_PHYSICAL = WORLD_LAYER_DENSITY / 20;
-
-/** Identity-rotation char matrix (no flip): `[K, 0, 0, K, tx, ty]`. */
-function makeCharMatrix(
-  logicalX: number,
-  logicalY: number,
-  flipped: boolean
-): Mat6 {
-  const sx = flipped ? -TWIP_TO_PHYSICAL : TWIP_TO_PHYSICAL;
-  return [
-    sx,
-    0,
-    0,
-    TWIP_TO_PHYSICAL,
-    logicalX * WORLD_LAYER_DENSITY,
-    logicalY * WORLD_LAYER_DENSITY,
-  ] as const;
-}
-
-/**
  * Map-level coordinator that owns the player registry + the PIXI parent
  * container. Per-player concerns (sprite loading, animation, movement,
  * mount layers, HP, perf) live in focused collaborators that
@@ -122,7 +85,6 @@ export class PlayerRenderer {
   private ghostView = false;
   private pathfinding: DofusPathfinding | null;
   private scene: Scene;
-  private worldLayer: WorldLayer;
   private stripRenderer: PlayerStripRenderer;
   /**
    * Player ids whose char placement should render with the canonical
@@ -155,7 +117,6 @@ export class PlayerRenderer {
     this.spriteLoader = config.spriteLoader ?? getCharacterSpriteLoader();
     this.pathfinding = config.pathfinding ?? null;
     this.scene = config.scene;
-    this.worldLayer = config.worldLayer;
     this.stripRenderer = config.stripRenderer;
     this.container = parentContainer;
 
@@ -164,8 +125,12 @@ export class PlayerRenderer {
       (id) => this.players.has(id),
       (player, animation, animName, flipped) => {
         const dir = animNameDir(animName);
+        // Sprite-controller drives the `main` slot only; mount slots
+        // are dispatched per-tick in `syncPlacement` based on the
+        // mountLayers' separately-loaded animation refs.
         this.stripRenderer.applyAnimation(
           player,
+          "main",
           animation,
           animName,
           dir,
@@ -860,17 +825,9 @@ export class PlayerRenderer {
     if (this.visibleNameplateIds.delete(id)) {
       hidePlayerNameplate(id);
     }
-    // Retire the strip-rendered Pixi sprite + its wgpu texture (2-tick
-    // settle pattern handled inside `detach`).
+    // Retire all per-player slots (main + mount-back/rider/front) +
+    // their wgpu textures (2-tick settle handled inside `detach`).
     this.stripRenderer.detach(player);
-    // Mount sub-layers still ride the unified world-layer for now —
-    // strip rendering for mounts lands in a follow-up phase. Keep
-    // their removal even when the main char no longer upserts.
-    if (player.mountLayers) {
-      this.worldLayer.remove(`${player.placementId}:mount-back`);
-      this.worldLayer.remove(`${player.placementId}:mount-front`);
-      this.worldLayer.remove(`${player.placementId}:mount-rider`);
-    }
     this.hoveredIds.delete(id);
     this.container.removeChild(player.container);
     player.container.destroy({ children: true });
@@ -903,12 +860,19 @@ export class PlayerRenderer {
   }
 
   /**
-   * Sync mount-layer placements into the world layer. The main char
-   * body now renders as a Pixi sprite owned by `stripRenderer` (one
-   * Vello strip dispatch per anim swap → pointer-swapped textures
-   * per tick); only the optional mount sub-layers (back / rider /
-   * front) still ride the per-tick `render_world_pass`. Strip
-   * rendering for mounts lands in a follow-up phase.
+   * Sync mount sub-layer slots through the strip renderer. When a
+   * mount is active, the main char body is hidden (the body's
+   * `_Back` half replaces it visually) and the strip renderer mounts
+   * three additional Pixi sprites in `player.container`:
+   *
+   *   mount-back   z=-2  body's `_Back` half
+   *   mount-rider  z=-1  chevauchor sprite
+   *   mount-front  z=+1  body's `_Front` half
+   *
+   * Pixi `sortableChildren` honors zIndex so the painter's order
+   * matches canonical Dofus 1.29's `MOUNT_DEPTH_*` sub-offsets. No
+   * worldLayer dispatch — every char sprite (including mount layers)
+   * renders through Pixi on the shared GPU device.
    */
   private syncPlacement(player: ActivePlayer): void {
     if (!player.spriteReady || !player.currentAnimData) {
@@ -917,71 +881,59 @@ export class PlayerRenderer {
 
     const flipped = isDirectionFlipped(player.direction);
     const dirChar = animNameDir(player.currentAnimName);
-    const baseDepth = this.calculateZIndex(player.cellId);
-    const alpha = this.ghostView ? GHOST_VIEW_ALPHA : 1;
-    const matrix = makeCharMatrix(
-      player.container.x,
-      player.container.y,
-      flipped
-    );
 
-    // When a mount is active, the body's `_Back` / `_Front` halves +
-    // chevauchor rider ride three additional placements at canonical
-    // sub-offsets within the same cell. Frame counter is shared so
-    // they stay in lockstep with the body.
     if (player.mountLayers) {
+      // Body is hidden — the `_Back` half is what the user sees.
+      this.stripRenderer.setSlotVisible(player, "main", false);
       const ml = player.mountLayers;
+
       if (ml.backAnim) {
-        this.worldLayer.upsert(`${player.placementId}:mount-back`, {
-          kind: "char",
-          bundle: ml.backAnim.bundle,
-          exportName: ml.backAnim.exportName,
-          frame: player.frameIndex,
-          dirSuffix: dirChar,
-          bFix: flipped,
-          accessories: ml.backAnim.accessories,
-          colorZones: ml.backAnim.colorZones,
-          depth: baseDepth + MOUNT_DEPTH_BACK,
-          matrix,
-          alpha,
-        });
+        this.stripRenderer.ensureSlot(player, "mount-back");
+        this.stripRenderer.applyAnimation(
+          player,
+          "mount-back",
+          ml.backAnim,
+          ml.backAnim.exportName,
+          dirChar,
+          flipped
+        );
       } else {
-        this.worldLayer.remove(`${player.placementId}:mount-back`);
+        this.stripRenderer.removeSlot(player, "mount-back");
       }
+
       if (ml.chevauchorAnim) {
-        this.worldLayer.upsert(`${player.placementId}:mount-rider`, {
-          kind: "char",
-          bundle: ml.chevauchorAnim.bundle,
-          exportName: ml.chevauchorAnim.exportName,
-          frame: player.frameIndex,
-          dirSuffix: dirChar,
-          bFix: flipped,
-          accessories: ml.chevauchorAnim.accessories,
-          colorZones: ml.chevauchorAnim.colorZones,
-          depth: baseDepth + MOUNT_DEPTH_RIDER,
-          matrix,
-          alpha,
-        });
+        this.stripRenderer.ensureSlot(player, "mount-rider");
+        this.stripRenderer.applyAnimation(
+          player,
+          "mount-rider",
+          ml.chevauchorAnim,
+          ml.chevauchorAnim.exportName,
+          dirChar,
+          flipped
+        );
       } else {
-        this.worldLayer.remove(`${player.placementId}:mount-rider`);
+        this.stripRenderer.removeSlot(player, "mount-rider");
       }
+
       if (ml.mountFrontAnim) {
-        this.worldLayer.upsert(`${player.placementId}:mount-front`, {
-          kind: "char",
-          bundle: ml.mountFrontAnim.bundle,
-          exportName: ml.mountFrontAnim.exportName,
-          frame: player.frameIndex,
-          dirSuffix: dirChar,
-          bFix: flipped,
-          accessories: ml.mountFrontAnim.accessories,
-          colorZones: ml.mountFrontAnim.colorZones,
-          depth: baseDepth + MOUNT_DEPTH_FRONT,
-          matrix,
-          alpha,
-        });
+        this.stripRenderer.ensureSlot(player, "mount-front");
+        this.stripRenderer.applyAnimation(
+          player,
+          "mount-front",
+          ml.mountFrontAnim,
+          ml.mountFrontAnim.exportName,
+          dirChar,
+          flipped
+        );
       } else {
-        this.worldLayer.remove(`${player.placementId}:mount-front`);
+        this.stripRenderer.removeSlot(player, "mount-front");
       }
+    } else {
+      // Not mounted — body visible, no mount slots.
+      this.stripRenderer.setSlotVisible(player, "main", true);
+      this.stripRenderer.removeSlot(player, "mount-back");
+      this.stripRenderer.removeSlot(player, "mount-rider");
+      this.stripRenderer.removeSlot(player, "mount-front");
     }
   }
 }

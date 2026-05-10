@@ -9,7 +9,6 @@ import type {
 import type { CellData } from "@/game/datacenter/cell";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
-import type { WorldLayer } from "@/game/render/world-layer";
 import type { PlayerAnimationValue } from "@/game/scene/player/animation";
 import type { FighterOverheadPanel } from "@/game/scene/player/graphics";
 import type { PlayerMountLayers } from "@/game/scene/player/mount-layers";
@@ -199,17 +198,11 @@ export interface PlayerRendererConfig {
   pathfinding?: DofusPathfinding | null;
   scene: Scene;
   /**
-   * Unified L3 World layer — kept for mount sub-layer placements
-   * (back/rider/front). The main char body now renders through
-   * `stripRenderer` as a Pixi sprite child of `player.container`.
-   */
-  worldLayer: WorldLayer;
-  /**
-   * Strip-rendered character sprite owner. Mounts a Pixi sprite as
-   * a child of each player's container; on anim swap renders the whole
-   * animation in ONE Vello dispatch and pointer-swaps `sprite.texture`
-   * per tick. See `feedback_battlefield_render_architecture` for the
-   * validated 60fps@500-player baseline this targets.
+   * Strip-rendered character sprite owner. Owns one Pixi sprite per
+   * active player (plus optional mount-back/rider/front slots when
+   * mounted), all mounted in `player.container` and frame-swapped
+   * per tick. See `feedback_battlefield_render_architecture` for
+   * the validated 60fps@500-player baseline this targets.
    */
   stripRenderer: PlayerStripRenderer;
 }

@@ -383,9 +383,9 @@ export class BattlefieldWorldActors {
       pickingSystem: this.deps.pickingSystem(),
       pathfinding: this.deps.pathfinding(),
       scene: this.deps.scene(),
-      worldLayer,
       stripRenderer,
     });
+    void worldLayer; // kept for the bootstrap order check above
 
     this.deps
       .rendererRegistry()

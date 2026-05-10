@@ -145,7 +145,6 @@ export class FightUI {
       pickingSystem: this.pickingSystem,
       spriteLoader: this.spriteLoader,
       scene: this.scene,
-      worldLayer: this.worldLayer,
       stripRenderer: this.stripRenderer,
     });
 
