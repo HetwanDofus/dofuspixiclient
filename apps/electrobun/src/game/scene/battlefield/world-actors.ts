@@ -5,7 +5,9 @@ import { Container } from "pixi.js";
 import type { CharacterSpriteLoader } from "@/game/assets/character-sprite";
 import type { CellData } from "@/game/datacenter/cell";
 import type { PickingSystem } from "@/game/render/picking-system";
+import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import type { RendererRegistry } from "@/game/render/renderer-registry";
+import type { WorldLayer } from "@/game/render/world-layer";
 import type { MapHandler } from "@/game/scene/map/handler";
 import type { Scene } from "@/game/scene/scene";
 import { PlayerRenderer } from "@/game/scene/player/renderer";
@@ -50,6 +52,17 @@ export interface BattlefieldWorldActorsDeps {
   pathfinding(): DofusPathfinding | null;
   cellDataMap(): Map<number, CellData>;
   rendererRegistry(): RendererRegistry;
+  /**
+   * Unified L3 World layer. Still required for mount sub-layers and
+   * other Object2-band placements.
+   */
+  worldLayer(): WorldLayer | null;
+  /**
+   * Strip-rendered character sprite owner. PlayerRenderer hands it
+   * each player so the main char body renders as a Pixi sprite (one
+   * Vello strip dispatch per anim swap, then per-tick pointer swap).
+   */
+  stripRenderer(): PlayerStripRenderer | null;
   currentMapWidth(): number;
   transparencyEnabled(): boolean;
   applyTransparency(): void;
@@ -172,11 +185,7 @@ export class BattlefieldWorldActors {
     // for). Each sibling registers with the same group roster + bonus
     // so hovering or clicking any one of them surfaces the same panel
     // and routes to the same fight-trigger cell.
-    if (
-      data.monsterGroup &&
-      data.monsterGroup.length > 1 &&
-      this.renderer
-    ) {
+    if (data.monsterGroup && data.monsterGroup.length > 1 && this.renderer) {
       await this.spawnGroupSiblings(data, team, groupSpriteIds);
     }
 
@@ -348,6 +357,24 @@ export class BattlefieldWorldActors {
       this.deps.applyTransparency();
     }
 
+    const worldLayer = this.deps.worldLayer();
+    if (!worldLayer) {
+      // Bootstrap order guarantee: `initEngineAndVello` constructs the
+      // worldLayer before any actor is added. If we get here without
+      // one, the bootstrap broke — surface loudly rather than rendering
+      // chars to nowhere.
+      throw new Error(
+        "BattlefieldWorldActors.init: worldLayer not yet constructed (bootstrap order regression)"
+      );
+    }
+
+    const stripRenderer = this.deps.stripRenderer();
+    if (!stripRenderer) {
+      throw new Error(
+        "BattlefieldWorldActors.init: stripRenderer not yet constructed (bootstrap order regression)"
+      );
+    }
+
     this.renderer = new PlayerRenderer(this.container, {
       mapWidth: this.deps.currentMapWidth(),
       groundLevel: 7,
@@ -356,6 +383,8 @@ export class BattlefieldWorldActors {
       pickingSystem: this.deps.pickingSystem(),
       pathfinding: this.deps.pathfinding(),
       scene: this.deps.scene(),
+      worldLayer,
+      stripRenderer,
     });
 
     this.deps
@@ -369,7 +398,7 @@ export class BattlefieldWorldActors {
     // out of sync (was the user's "HP bar goes to 0 after any damage"
     // bug — onDamage's local delta computation was racing with the
     // store update fired right after).
-    let lastHpKey = new Map<string, string>();
+    const lastHpKey = new Map<string, string>();
     this.fightStoreUnsub = fightStore.subscribe(() => {
       const renderer = this.renderer;
       if (!renderer) return;

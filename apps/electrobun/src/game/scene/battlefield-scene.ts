@@ -13,6 +13,8 @@ import type { InteractionHandler } from "@/game/input/interaction-handler";
 import type { AtlasLoader } from "@/game/render/atlas-loader";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { SpellVelloRenderer } from "@/game/render/spell-vello-renderer";
+import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
+import type { WorldLayer } from "@/game/render/world-layer";
 import type { SpellAnimationConfig } from "@/game/scene/fight/spell-view";
 import type {
   MapTransition,
@@ -28,14 +30,17 @@ import {
 } from "@/game/assets/character-sprite";
 import { type CellData, findCellAtPosition } from "@/game/datacenter/cell";
 import { computeMapScale, type MapData } from "@/game/datacenter/map";
+import { Camera } from "@/game/render/camera";
 import { Engine } from "@/game/render/engine";
 import { RendererRegistry } from "@/game/render/renderer-registry";
 import {
   type BattlefieldBootstrapContext,
+  detachVelloSurfaces,
   initEngineAndVello,
   initInteraction,
   initOverlays,
   initPickingAndAtlas,
+  prewarmSwfTileBundles,
   startSceneTicker,
   wireVelloLoaders,
 } from "@/game/scene/battlefield/bootstrap";
@@ -69,6 +74,20 @@ export type FightModeValue = FightMode;
 export type { WorldActorData } from "@/game/scene/battlefield/world-actors";
 
 export interface BattlefieldConfig {
+  /**
+   * Three stacked canvas elements forming the render target stack.
+   * Owned by the React `CanvasStack` component; consumed by the
+   * battlefield bootstrap. `bottom` and `top` are attached as Vello
+   * surfaces; `middle` is handed to the Pixi `Application`.
+   */
+  bottomCanvas: HTMLCanvasElement;
+  middleCanvas: HTMLCanvasElement;
+  topCanvas: HTMLCanvasElement;
+  /**
+   * Wrapping `<div>` whose getBoundingClientRect drives the engine's
+   * resize math + HUD anchor projection. The Battlefield does not
+   * mount any canvas inside it (the React tree owns the canvases).
+   */
   container: HTMLElement;
   backgroundColor?: number;
   preferWebGPU?: boolean;
@@ -91,15 +110,45 @@ function projectFightMode(value: unknown): string {
 
 export class Battlefield {
   private engine: Engine;
+  /**
+   * Single source of truth for viewport state — logicalWidth/Height
+   * (canonical 742×432), pan, zoom, dpr. Mutated by the engine on
+   * resize / DPR change and by `BattlefieldZoom` on user wheel zoom.
+   * Subscribers (Camera-aware HUD components, Vello surface
+   * reconfigure on DPR change, etc.) react to changes.
+   */
+  private readonly camera: Camera;
+  /** Three canvases of the render stack — bottom (Vello), middle (Pixi), top (Vello). */
+  private bottomCanvas: HTMLCanvasElement;
+  private middleCanvas: HTMLCanvasElement;
+  private topCanvas: HTMLCanvasElement;
+  /** Vello surface ids attached during `initEngineAndVello`. 0 = unattached. */
+  private bottomSurfaceId = 0;
+  private topSurfaceId = 0;
   private app: Application | null = null;
   private mapContainer: Container | null = null;
   private atlasLoader: AtlasLoader | null = null;
   /**
-   * Shared Vello renderer for spell .dofasset binaries. Populated by
-   * `initPickingAndAtlas` via the bootstrap context; FightUI pulls it
-   * out of the battlefield to hand to its SpellRenderer.
+   * Shared spell SWF loader. Populated by `initPickingAndAtlas` via
+   * the bootstrap context; FightUI pulls it out of the battlefield to
+   * hand to its SpellRenderer.
    */
   private spellVelloRenderer: SpellVelloRenderer | null = null;
+  /**
+   * Unified L3 World layer. Constructed by `initEngineAndVello`, mounted
+   * in `mapContainer` at zIndex=600. Renders foreground tiles + chars +
+   * spells + ghost-view chars in one depth-sorted Vello pass per dirty
+   * tick. Consumers feed placements via `worldLayer.upsert(...)`.
+   */
+  private worldLayer: WorldLayer | null = null;
+  /**
+   * Strip-rendered character sprite owner. Constructed by
+   * `initEngineAndVello` (after Pixi adopts Vello's GPUDevice); each
+   * player gets a Pixi sprite child of `player.container`, fed by one
+   * Vello strip dispatch per anim swap. Per-tick frame advance is a
+   * free pointer-swap.
+   */
+  private playerStripRenderer: PlayerStripRenderer | null = null;
   private mapHandler: MapHandler | null = null;
   private interactionHandler: InteractionHandler | null = null;
   private pickingSystem: PickingSystem | null = null;
@@ -156,6 +205,8 @@ export class Battlefield {
     pathfinding: () => this.pathfinding,
     cellDataMap: () => this.cellDataMap,
     rendererRegistry: () => this.rendererRegistry,
+    worldLayer: () => this.worldLayer,
+    stripRenderer: () => this.playerStripRenderer,
     currentMapWidth: () => this.currentMapData?.width ?? 15,
     transparencyEnabled: () => this.transparencyMode,
     applyTransparency: () => this.applyTransparencyMode(),
@@ -185,6 +236,7 @@ export class Battlefield {
     atlasLoader: () => this.atlasLoader,
     currentMapData: () => this.currentMapData,
     getViewport: () => this.getViewport(),
+    camera: () => this.camera,
     onBeforeRebuild: () => {
       this.picking.clearTiles();
       this.debugOverlay?.clear();
@@ -200,8 +252,24 @@ export class Battlefield {
   constructor(config: BattlefieldConfig) {
     this.onResizeStartCallback = config.onResizeStart;
     this.onResizeEndCallback = config.onResizeEnd;
+    this.bottomCanvas = config.bottomCanvas;
+    this.middleCanvas = config.middleCanvas;
+    this.topCanvas = config.topCanvas;
 
     this.characterSpriteLoader = initCharacterSpriteLoader();
+
+    // Initial viewport state — refined by the engine on first
+    // `init()` (which knows the actual container dims + computed
+    // baseZoom) and by subsequent resize / DPR / wheel-zoom events.
+    this.camera = new Camera({
+      logicalWidth: 742,
+      logicalHeight: 432,
+      panX: 0,
+      panY: 0,
+      zoom: 1,
+      dpr:
+        typeof window !== "undefined" ? window.devicePixelRatio : 1,
+    });
 
     this.engine = new Engine({
       container: config.container,
@@ -209,10 +277,20 @@ export class Battlefield {
       backgroundColor: config.backgroundColor ?? 0x000000,
       preferWebGPU: config.preferWebGPU ?? true,
       resizeDebounceMs: config.resizeDebounceMs ?? 300,
+      camera: this.camera,
       onResize: (width, height) => this.handleCanvasResize(width, height),
       onResizeStart: () => this.handleResizeStart(),
       onResizeEnd: (width, height) => this.handleResizeEnd(width, height),
     });
+  }
+
+  /**
+   * Read-only view of the canonical viewport state. HUD components
+   * subscribe via `getCamera().subscribe(fn)` to receive
+   * resize/zoom/DPR notifications.
+   */
+  getCamera(): Camera {
+    return this.camera;
   }
 
   private handleCanvasResize(width: number, height: number): void {
@@ -261,6 +339,7 @@ export class Battlefield {
     await this.loadInteractiveObjects();
     initPickingAndAtlas(ctx);
     await wireVelloLoaders(ctx);
+    await prewarmSwfTileBundles();
     initInteraction(ctx);
     initOverlays(ctx);
     startSceneTicker(ctx);
@@ -337,6 +416,19 @@ export class Battlefield {
       ?.setFightMode(mode === "fighting" || mode === "spectating");
 
     if (!this.fightUI) {
+      if (!this.worldLayer) {
+        // Bootstrap order guarantee: FightUI consumers need worldLayer
+        // by the time the first fight enter happens. If we get here
+        // without one, the bootstrap broke.
+        throw new Error(
+          "enterFightMode: worldLayer not yet constructed (bootstrap order regression)"
+        );
+      }
+      if (!this.playerStripRenderer) {
+        throw new Error(
+          "enterFightMode: playerStripRenderer not yet constructed (bootstrap order regression)"
+        );
+      }
       this.fightUI = new FightUI(
         this.mapContainer,
         this.cellDataMap,
@@ -355,7 +447,9 @@ export class Battlefield {
         // as VisualEffectHandler.as:35 in the original (effects live
         // inside Object2 at `cellNum*100+50±idx`).
         this.mapHandler?.getObjectLayer2() ?? null,
-        this.spellVelloRenderer
+        this.spellVelloRenderer,
+        this.worldLayer,
+        this.playerStripRenderer
       );
     }
     this.fightUI.enterFightMode(mode);
@@ -458,6 +552,9 @@ export class Battlefield {
       atlasLoader: this.atlasLoader,
       interactiveGfxIds: this.interactiveGfxIds,
       scene: this.scene,
+      tileSurfaceId: this.bottomSurfaceId || undefined,
+      ticker: this.app?.ticker,
+      worldLayer: this.worldLayer ?? undefined,
       onSpriteCreated: (
         sprite,
         tileId,
@@ -487,6 +584,146 @@ export class Battlefield {
         }
       },
     });
+
+    // DevTools stress-test hooks. Expose as window globals so the
+    // renderer + accessory pipeline can be exercised with N random
+    // players via the console:
+    //
+    //   await spawnTestPlayers(20)
+    //   despawnTestPlayers()
+    //   __renderHalt()       — manual emergency stop
+    //   __renderResume()     — clear halt
+    if (typeof window !== "undefined") {
+      const { spawnTestPlayers, despawnTestPlayers, getTestPlayerCount } =
+        await import("@/game/scene/battlefield/stress-test");
+      const { getRenderWatchdog } = await import(
+        "@/game/render/render-watchdog"
+      );
+      const w = window as unknown as {
+        spawnTestPlayers?: (n: number) => Promise<number[]>;
+        despawnTestPlayers?: () => number;
+        __renderHalt?: () => void;
+        __renderResume?: () => void;
+        __getTestPlayerCount?: () => number;
+        __pathCacheStats?: () => unknown;
+        __clearPathCache?: () => void;
+        __benchWorldPass?: (
+          nChars?: number,
+          nTiles?: number,
+          nSpells?: number,
+          iterations?: number
+        ) => Promise<unknown>;
+      };
+      w.spawnTestPlayers = async (n: number) => {
+        const renderer = this.worldActors?.getRenderer() ?? null;
+        const cells = this.currentMapData?.cells ?? [];
+        if (!renderer) {
+          throw new Error(
+            "spawnTestPlayers: no PlayerRenderer (load a map first)"
+          );
+        }
+        return spawnTestPlayers(n, renderer, cells);
+      };
+      w.despawnTestPlayers = () => {
+        const renderer = this.worldActors?.getRenderer() ?? null;
+        if (!renderer) return 0;
+        return despawnTestPlayers(renderer);
+      };
+      w.__renderHalt = () => getRenderWatchdog().emergencyHalt();
+      w.__renderResume = () => getRenderWatchdog().resume();
+      w.__getTestPlayerCount = () => getTestPlayerCount();
+      // Path-cache observability hooks. Console:
+      //   __pathCacheStats() → { bundleCacheCount, sceneCacheCount, sceneBytesEstimate }
+      //   __clearPathCache() → drop both caches (memory-pressure recovery).
+      const { getPathCacheStats, clearPathCache, renderWorldPassBench } =
+        await import("@/game/render/vello-loader");
+      w.__pathCacheStats = () => getPathCacheStats();
+      w.__clearPathCache = () => clearPathCache();
+      // M1 architecture gate — synthetic worst-case world-pass benchmark.
+      //   await __benchWorldPass(200, 30, 10, 30)
+      // Args: nChars=200, nTiles=30, nSpells=10, iterations=30 (default).
+      // Returns { warmup, samples, p50, p95, p99, max, status }.
+      // Decision criterion: p99 < 8ms → migration architecture passes
+      // gate; M3-M7 (consumer migration) is warranted. p99 >= 8ms →
+      // architecture insufficient on this hardware/wasm-bindgen stack;
+      // abort migration.
+      w.__benchWorldPass = async (
+        nChars = 200,
+        nTiles = 30,
+        nSpells = 10,
+        iterations = 30
+      ) => {
+        // First call may include cache warming (subscene encoding for
+        // unique tile placements). Run once before timing to capture
+        // warm-cache cost only.
+        const warmupStart = performance.now();
+        const warmup = renderWorldPassBench(nChars, nTiles, nSpells);
+        const warmupMs = performance.now() - warmupStart;
+        if (!warmup || warmup.status !== "ok") {
+          // eslint-disable-next-line no-console
+          console.error("[bench] warmup failed:", warmup);
+          return { error: "warmup-failed", warmup };
+        }
+        const samples: number[] = [];
+        for (let i = 0; i < iterations; i++) {
+          const t0 = performance.now();
+          renderWorldPassBench(nChars, nTiles, nSpells);
+          samples.push(performance.now() - t0);
+        }
+        samples.sort((a, b) => a - b);
+        const pick = (q: number) =>
+          samples[Math.min(samples.length - 1, Math.floor(q * samples.length))];
+        const result = {
+          warmupMs: Number(warmupMs.toFixed(2)),
+          warmup,
+          iterations,
+          placements: nChars + nTiles + nSpells,
+          p50: Number(pick(0.5)?.toFixed(2)),
+          p95: Number(pick(0.95)?.toFixed(2)),
+          p99: Number(pick(0.99)?.toFixed(2)),
+          max: Number(samples[samples.length - 1]?.toFixed(2)),
+          gate: (pick(0.99) ?? 0) < 8 ? "PASS" : "FAIL",
+        };
+        // eslint-disable-next-line no-console
+        console.log("[bench] result:", result);
+        return result;
+      };
+      // Boot-time safe mode escape hatch. Crash → reboot → run
+      // `__safeMode()` in console → reload (or close+reopen) → app
+      // boots halted, no Vello work, React HUD stays alive so the dev
+      // can investigate without re-triggering the GPU storm.
+      // Reverse with `__normalMode()` + reload.
+      const w2 = window as unknown as {
+        __safeMode?: () => void;
+        __normalMode?: () => void;
+      };
+      w2.__safeMode = () => {
+        try {
+          localStorage.setItem("dofus.gpuSafeMode", "1");
+          // eslint-disable-next-line no-console
+          console.warn(
+            "[safeMode] enabled. Reload (or close+reopen) to boot in halted state. Use __normalMode() to revert."
+          );
+        } catch {
+          // localStorage unavailable — best effort.
+        }
+      };
+      w2.__normalMode = () => {
+        try {
+          localStorage.removeItem("dofus.gpuSafeMode");
+          // eslint-disable-next-line no-console
+          console.info("[safeMode] cleared. Reload to boot normally.");
+        } catch {
+          // ignore
+        }
+      };
+
+      // Wire the watchdog's test-player counter so the React HUD shows
+      // a live count without re-importing the stress-test module.
+      getRenderWatchdog().setStatsProvider({
+        testPlayerCount: () => getTestPlayerCount(),
+      });
+    }
   }
 
   async loadMapFromData(
@@ -516,6 +753,11 @@ export class Battlefield {
     this.mapContainer.y = 0;
 
     this.picking.clearTiles();
+    // Drop alpha-map cache for sources from the prior map. Each cached
+    // entry holds a Uint8Array of pixel-alpha data (1-3MB per character
+    // sprite source); without this clear they accumulate forever
+    // because TextureSource uids are monotonic — old uids never reappear.
+    this.pickingSystem?.clearAlphaCache();
     this.debugOverlay?.clear();
     this.gridOverlay?.clear();
 
@@ -526,6 +768,15 @@ export class Battlefield {
 
     const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
     this.atlasLoader.setZoom(zoom);
+    // Drain the character-sprite cache on map change. Each map has a
+    // distinct NPC roster; without this drain the cache grows
+    // unbounded across map transitions and accumulated wgpu textures
+    // (re-created per look × per anim × per zoom) push the macOS
+    // compositor past the WindowServer watchdog threshold after a few
+    // map walks — the canonical "rebooted 10 times" symptom.
+    // Re-rendering on demand is fast since the SWF bundles stay
+    // loaded in WASM (per `feedback_no_animation_preload`).
+    this.characterSpriteLoader.clearForMapChange();
     this.characterSpriteLoader.setZoom(zoom);
     // Spell asset loader sits inside FightUI's SpellRenderer, which
     // doesn't exist until enterFightMode runs. Push the current zoom
@@ -860,6 +1111,30 @@ export class Battlefield {
     this.pickingSystem?.destroy();
     this.atlasLoader?.clearCache();
     this.mapHandler?.clearCache();
+
+    // Tear down the world layer last among Pixi-side resources so its
+    // surface releases after consumers (PlayerRenderer, FightUI,
+    // MapHandler) have been destroyed.
+    this.worldLayer?.destroy();
+    this.worldLayer = null;
+    // Strip renderer owns per-player sprites + their wgpu textures.
+    // Destroy after worldLayer so any final mount-layer dispatch can
+    // still resolve player state, then drop everything.
+    this.playerStripRenderer?.destroy();
+    this.playerStripRenderer = null;
+
+    // Release the Vello surfaces. The canvases themselves are owned by
+    // the React `CanvasStack` and remain in the DOM until the parent
+    // unmounts.
+    detachVelloSurfaces(this as unknown as BattlefieldBootstrapContext);
+    // The CanvasStack-owned canvases stay in the DOM; touching them
+    // here keeps TS6133 happy (the fields are also read by bootstrap
+    // via the BattlefieldBootstrapContext cast, which TS can't follow).
+    void this.bottomCanvas;
+    void this.middleCanvas;
+    void this.topCanvas;
+    void this.topSurfaceId;
+
     this.engine.destroy();
   }
 

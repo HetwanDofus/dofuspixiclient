@@ -8,6 +8,8 @@ import type {
 } from "@/game/assets/character-sprite";
 import type { CellData } from "@/game/datacenter/cell";
 import type { PickingSystem } from "@/game/render/picking-system";
+import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
+import type { WorldLayer } from "@/game/render/world-layer";
 import type { PlayerAnimationValue } from "@/game/scene/player/animation";
 import type { FighterOverheadPanel } from "@/game/scene/player/graphics";
 import type { PlayerMountLayers } from "@/game/scene/player/mount-layers";
@@ -65,7 +67,19 @@ export interface PlayerSpriteData {
 export interface ActivePlayer {
   id: number;
   container: Container;
-  sprite: Sprite | null;
+  /**
+   * Stable WorldLayer placement id. Set once at construction and used
+   * for every `worldLayer.upsert` / `worldLayer.remove` so the rolling
+   * fingerprint can detect in-place updates. Format: `char-${id}`.
+   */
+  placementId: string;
+  /**
+   * True once the SWF bundle for this gfxId is loaded AND the first
+   * animation metadata has been resolved. Until then the loader still
+   * has work in flight; `syncPlacement` skips the worldLayer upsert
+   * (the placeholder Pixi graphic stands in).
+   */
+  spriteReady: boolean;
   placeholderGraphics: Graphics | null;
   /**
    * Team-colored under-foot ring shown during fights (ally = blue,
@@ -184,6 +198,20 @@ export interface PlayerRendererConfig {
   spriteLoader?: CharacterSpriteLoader;
   pathfinding?: DofusPathfinding | null;
   scene: Scene;
+  /**
+   * Unified L3 World layer — kept for mount sub-layer placements
+   * (back/rider/front). The main char body now renders through
+   * `stripRenderer` as a Pixi sprite child of `player.container`.
+   */
+  worldLayer: WorldLayer;
+  /**
+   * Strip-rendered character sprite owner. Mounts a Pixi sprite as
+   * a child of each player's container; on anim swap renders the whole
+   * animation in ONE Vello dispatch and pointer-swaps `sprite.texture`
+   * per tick. See `feedback_battlefield_render_architecture` for the
+   * validated 60fps@500-player baseline this targets.
+   */
+  stripRenderer: PlayerStripRenderer;
 }
 
 /** Parse gfxId from the look string (format: "gfx|color1|color2|color3"). */

@@ -9,6 +9,7 @@ import { AdjacentMapCache } from "@/game/assets/adjacent-map-cache";
 import { InteractionHandler } from "@/game/input/interaction-handler";
 import { AtlasLoader } from "@/game/render/atlas-loader";
 import { PickingSystem } from "@/game/render/picking-system";
+import { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import { getRenderWatchdog } from "@/game/render/render-watchdog";
 import { SpellVelloRenderer } from "@/game/render/spell-vello-renderer";
 import {
@@ -93,6 +94,14 @@ export interface BattlefieldBootstrapContext {
    * spells) feed placements via `worldLayer.upsert(...)`.
    */
   worldLayer: WorldLayer | null;
+  /**
+   * Strip-rendered character sprite owner. Constructed in
+   * `initEngineAndVello` after Pixi adopts Vello's GPUDevice; each
+   * player gets a Pixi sprite child of `player.container`, with
+   * frames produced by ONE `renderSwfStripRangeAccessorized` dispatch
+   * per anim swap.
+   */
+  playerStripRenderer: PlayerStripRenderer | null;
 
   handleGroundClick(mapX: number, mapY: number): void;
   handleGroundHover(mapX: number, mapY: number): void;
@@ -178,6 +187,11 @@ export async function initEngineAndVello(
   const worldLayer = new WorldLayer(ctx.topSurfaceId);
   worldLayer.setViewport(BATTLEFIELD_DISPLAY_WIDTH, BATTLEFIELD_DISPLAY_HEIGHT);
   ctx.worldLayer = worldLayer;
+
+  // Strip-rendered character sprite owner. Pixi adopted Vello's
+  // GPUDevice in `engine.init` (Phase 2), so the strip's GPUTexture
+  // wraps cleanly as a Pixi `ExternalSource` on the same device.
+  ctx.playerStripRenderer = new PlayerStripRenderer(ctx.app.renderer);
 }
 
 /**

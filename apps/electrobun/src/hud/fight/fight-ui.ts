@@ -3,8 +3,10 @@ import { Container } from "pixi.js";
 import type { CharacterSpriteLoader } from "@/game/assets/character-sprite";
 import type { CellData } from "@/game/datacenter/cell";
 import type { PickingSystem } from "@/game/render/picking-system";
+import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import type { RendererRegistry } from "@/game/render/renderer-registry";
 import type { SpellVelloRenderer } from "@/game/render/spell-vello-renderer";
+import type { WorldLayer } from "@/game/render/world-layer";
 import type { Scene } from "@/game/scene/scene";
 import { Z_FIGHT_CONTAINER } from "@/game/constants/z-index";
 import {
@@ -21,16 +23,24 @@ import {
   HighlightType,
   type HighlightTypeValue,
 } from "@/game/scene/overlays/cell-highlighter";
+import { WorldCellTints } from "@/game/scene/overlays/world-cell-tints";
 import {
   type PlayerAnimationValue,
   PlayerRenderer,
   type PlayerSpriteData,
 } from "@/game/scene/player/renderer";
 import { fightActor } from "@/game/stores/fight-store";
+import { spellsStore } from "@/game/stores/spells-store";
 
 export class FightUI {
   private fightContainer: Container | null = null;
   private cellHighlighter: CellHighlighter | null = null;
+  /**
+   * Bridge for canonical-depth cell tints (Object2 sub-offset +2).
+   * Created when a `WorldLayer` is provided; null when running in
+   * legacy Pixi-only mode.
+   */
+  private worldCellTints: WorldCellTints | null = null;
   private playerRenderer: PlayerRenderer | null = null;
   private damageRenderer: DamageRenderer | null = null;
   private spellRenderer: SpellRenderer | null = null;
@@ -51,7 +61,20 @@ export class FightUI {
      * sprite at a higher per-cell zIndex, matching the original.
      */
     private objectLayer2: Container | null,
-    private spellVelloRenderer: SpellVelloRenderer | null
+    private spellVelloRenderer: SpellVelloRenderer | null,
+    /**
+     * Unified L3 World layer. The fight-mode `playerRenderer` is a
+     * stub kept for API compatibility (no fighters live here — the
+     * world-actors PlayerRenderer holds them all), but it still needs
+     * a worldLayer reference to satisfy `PlayerRendererConfig`.
+     */
+    private worldLayer: WorldLayer,
+    /**
+     * Strip renderer for the stub PlayerRenderer's config. The fight-
+     * mode renderer never actually loads players (see comment above),
+     * so the strip renderer is used as a config-shaped placeholder.
+     */
+    private stripRenderer: PlayerStripRenderer
   ) {}
 
   /**
@@ -91,6 +114,24 @@ export class FightUI {
       groundLevel,
       cellDataMap: this.cellDataMap,
     });
+    // Wire canonical-depth cell tints when a WorldLayer is available.
+    // The CANONICAL_DEPTH_FILL_TYPES (PLACEMENT_TEAM_*, MOVEMENT_PATH,
+    // SELECTED, HOVER, SPELL_RANGE, SPELL_ZONE_INVALID) route through
+    // WorldLayer's CellTint kind at sub-offset +2 so they overlay
+    // foreground tiles but pass under chars — the canonical Dofus
+    // 1.29 ordering. Zone fills (MOVEMENT range polygon, ATTACK,
+    // SPELL_RANGE_OUTLINE, SPELL_ZONE) and zone shapes (GLYPH, TRAP)
+    // stay in Pixi for now (polygon + border rendering not yet
+    // available via WorldLayer).
+    if (this.worldLayer) {
+      this.worldCellTints = new WorldCellTints({
+        worldLayer: this.worldLayer,
+        mapWidth,
+        groundLevel,
+        cellDataMap: this.cellDataMap,
+      });
+      this.cellHighlighter.setWorldCellTints(this.worldCellTints);
+    }
     this.scene.add(this.cellHighlighter);
 
     // This PlayerRenderer is kept for API compatibility but holds no
@@ -104,6 +145,8 @@ export class FightUI {
       pickingSystem: this.pickingSystem,
       spriteLoader: this.spriteLoader,
       scene: this.scene,
+      worldLayer: this.worldLayer,
+      stripRenderer: this.stripRenderer,
     });
 
     this.damageRenderer = new DamageRenderer(this.fightContainer, this.scene, {
@@ -123,7 +166,27 @@ export class FightUI {
       groundLevel,
       cellDataMap: this.cellDataMap,
       velloRenderer: this.spellVelloRenderer,
+      worldLayer: this.worldLayer,
     });
+
+    // Fire-and-forget preload of every spell on the local player's bar.
+    // Without this, the first cast of each spell stalls between the cast
+    // pose's launch frame (`onComplete` at applyEnd) and the visual's
+    // first tick while the SWF is fetched + parsed — perceived as a
+    // post-cast hang of ~50–250 ms on cold spells. Vanilla 1.29's wire
+    // protocol uses `sorts.sprite == spellId` for the overwhelming
+    // majority of spells, so preloading by `spellId` covers the
+    // hot-path; the rare spells whose visual id differs still pay the
+    // first-cast penalty but those are uncommon. We don't await the
+    // promise — the visuals just need to be ready by the time the
+    // *first* cast lands, which is far longer than the parallel fetch.
+    const bar = spellsStore.getSnapshot().spells;
+    if (bar.length > 0 && this.spellRenderer) {
+      const spellIds = bar
+        .map((s) => s.spellId)
+        .filter((id) => Number.isFinite(id) && id > 0);
+      void this.spellRenderer.preload(spellIds);
+    }
 
     // Register fight renderers
     this.rendererRegistry.register("cell-highlighter", (e) =>
