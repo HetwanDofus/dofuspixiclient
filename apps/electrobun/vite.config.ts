@@ -1,6 +1,6 @@
-import { readFile, readFileSync, existsSync, createReadStream } from "node:fs";
+import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
-import { resolve, join } from "node:path";
+import { resolve } from "node:path";
 
 import type { Plugin } from "vite";
 import tailwindcss from "@tailwindcss/vite";
