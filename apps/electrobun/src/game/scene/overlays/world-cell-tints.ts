@@ -68,7 +68,6 @@ interface LayerEntry {
 
 export class WorldCellTints {
   private readonly parent: Container;
-  private mapScale: MapScale = { scale: 1, offsetX: 0, offsetY: 0 };
   private mapWidth: number;
   private groundLevel: number;
   private cellDataMap: Map<number, CellData>;
@@ -81,16 +80,14 @@ export class WorldCellTints {
     this.cellDataMap = config.cellDataMap ?? new Map();
   }
 
-  setMapScale(mapScale: MapScale): void {
-    this.mapScale = mapScale;
-    // Existing tints' positions are stale — rebuild every active
-    // layer to land on the new map scale.
-    for (const [key, layer] of this.layers) {
-      const cellIds = [...layer.cells.keys()];
-      // Tear down + redraw with the same args.
-      this.disposeLayer(key);
-      this.setLayer(key, cellIds, layer.color, layer.alpha);
-    }
+  /**
+   * Kept for API compatibility with the prior worldLayer-routed
+   * implementation. Tints now live in mapContainer and inherit
+   * its scale/position; per-tint matrix doesn't depend on mapScale.
+   * Dimensions changes propagate via {@link setMapDimensions}.
+   */
+  setMapScale(_mapScale: MapScale): void {
+    // No-op — see comment.
   }
 
   setMapDimensions(mapWidth: number, groundLevel?: number): void {
@@ -211,10 +208,12 @@ export class WorldCellTints {
   private cellPosition(cellId: number): { x: number; y: number } {
     const cellData = this.cellDataMap.get(cellId);
     const level = cellData?.groundLevel ?? this.groundLevel;
-    const { x: lx, y: ly } = getCellPosition(cellId, this.mapWidth, level);
-    return {
-      x: lx * this.mapScale.scale + this.mapScale.offsetX,
-      y: ly * this.mapScale.scale + this.mapScale.offsetY,
-    };
+    const { x, y } = getCellPosition(cellId, this.mapWidth, level);
+    // Cell-pixel space directly — matches PlayerRenderer +
+    // TileSpriteRenderer + canonical AS `mc._x = col * CELL_WIDTH +
+    // parityOffset`. mapContainer position/scale handles user pan +
+    // zoom; mapScale lives on `findCellAtPosition` for picking but
+    // isn't applied here.
+    return { x, y };
   }
 }
