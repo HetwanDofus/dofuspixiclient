@@ -4,6 +4,7 @@ import {
   type Container,
   extensions,
   TextureSource,
+  Ticker,
 } from "pixi.js";
 
 import type { CanvasSize, RenderStats } from "@/game/types";
@@ -14,6 +15,9 @@ import {
   GAME_WIDTH,
   ZOOM_LEVELS,
 } from "@/game/constants/battlefield";
+import type { Camera } from "@/game/render/camera";
+import { getRenderWatchdog } from "@/game/render/render-watchdog";
+import { getVelloGpu, setPixiRenderer } from "@/game/render/vello-loader";
 
 extensions.add(LayoutSystem);
 TextureSource.defaultOptions.scaleMode = "nearest";
@@ -28,8 +32,14 @@ export interface EngineConfig {
   onResizeStart?: () => void;
   onResizeEnd?: (width: number, height: number) => void;
   resizeDebounceMs?: number;
-  /** External GPU device (from Vello WASM) for zero-copy texture sharing. */
-  gpu?: { adapter: GPUAdapter; device: GPUDevice };
+  /**
+   * Optional viewport `Camera` — when supplied, the engine publishes
+   * containerSize + baseZoom + dpr changes into it on init / resize /
+   * DPR media-query change. Subscribers (CanvasStack wrapper sizing,
+   * surface reconfigure, Pixi resolution) react to camera updates
+   * instead of reading state from ad-hoc places.
+   */
+  camera?: Camera;
 }
 
 export class Engine {
@@ -37,13 +47,14 @@ export class Engine {
   private container: HTMLElement;
   private config: Omit<
     Required<EngineConfig>,
-    "onResize" | "onResizeStart" | "onResizeEnd" | "gpu"
+    "onResize" | "onResizeStart" | "onResizeEnd" | "camera"
   > & {
     onResize?: (width: number, height: number) => void;
     onResizeStart?: () => void;
     onResizeEnd?: (width: number, height: number) => void;
-    gpu?: { adapter: GPUAdapter; device: GPUDevice };
+    camera?: Camera;
   };
+  private dprMqlCleanup: (() => void) | null = null;
   private baseZoom = 1;
   private currentZoom = 1;
   private currentZoomIndex = 0;
@@ -68,14 +79,48 @@ export class Engine {
       preferWebGPU: config.preferWebGPU ?? true,
       antialias: true,
       resizeDebounceMs: config.resizeDebounceMs ?? 300,
-      gpu: config.gpu,
       onResize: config.onResize,
       onResizeStart: config.onResizeStart,
       onResizeEnd: config.onResizeEnd,
+      camera: config.camera,
     };
   }
 
-  async init(): Promise<void> {
+  /**
+   * Push the engine's canonical viewport state into the configured
+   * Camera. Called from `init()` and `handleResize()` so any
+   * subscriber (CanvasStack wrapper, Vello surfaces, Pixi DPR
+   * tracking) receives a single notification per resize event.
+   */
+  private publishToCamera(width: number, height: number, baseZoom: number): void {
+    const camera = this.config.camera;
+    if (!camera) {
+      return;
+    }
+    camera.update({
+      logicalWidth: DISPLAY_WIDTH,
+      logicalHeight: FULL_HEIGHT,
+      panX: 0,
+      panY: 0,
+      zoom: this.currentZoom,
+      dpr: typeof window !== "undefined" ? window.devicePixelRatio : 1,
+    });
+    // Containers sizes aren't part of CameraState yet (see camera.ts);
+    // baseZoom is implicit from `logicalWidth` + the displayed canvas
+    // dims. Subscribers that need pixel-displayed dims compute
+    // `logicalWidth × zoom` from the snapshot.
+    void width;
+    void height;
+    void baseZoom;
+  }
+
+  /**
+   * Initialize the Pixi `Application`. Caller passes the middle canvas
+   * of the CanvasStack — Pixi takes ownership of it and renders into
+   * it directly. The host (`Battlefield`) owns the wrapping `<div>` and
+   * the sibling Vello canvases; Engine no longer mounts its own canvas.
+   */
+  async init(canvas: HTMLCanvasElement): Promise<void> {
     if (this.app) {
       return;
     }
@@ -93,34 +138,46 @@ export class Engine {
       height: this.container.clientHeight || GAME_HEIGHT,
     };
 
+    // If Vello has been initialized, hand its `{adapter, device}` to
+    // Pixi so both libraries render on ONE WebGPU device. This is what
+    // enables Vello to produce GPUTextures consumable by Pixi as
+    // ExternalSource (no cross-device handle gymnastics). Caller is
+    // expected to have run `initVello()` before `engine.init()` —
+    // when it has, `getVelloGpu()` returns the shared handles. If not
+    // (Vello unavailable / failed init), `gpu` is omitted and Pixi
+    // requests its own device — the consumer has already lost the
+    // shared-device path so a fallback render is the right behavior.
+    const sharedGpu = getVelloGpu();
     const initOptions: Record<string, unknown> = {
+      canvas,
       width,
       height,
       backgroundColor: this.config.backgroundColor,
+      // Transparent canvas — Pixi paints the world on top of the page
+      // background. Kept at 0 because the legacy three-canvas stack
+      // composited via DOM; with the new single-canvas pipeline a
+      // future change can flip this to opaque if it improves blending.
+      backgroundAlpha: 0,
       resolution: 1,
       autoDensity: true,
       antialias: true,
       roundPixels: true,
       preferWebGLVersion: 1,
       preference: this.config.preferWebGPU ? "webgpu" : "webgl",
+      ...(sharedGpu ? { gpu: sharedGpu } : {}),
       layout: {
         enableDebug: false,
         throttle: 0,
       },
     };
 
-    // If an external GPU device is provided (from Vello WASM), share it with Pixi.js.
-    // This enables zero-copy GPU texture sharing between Vello and Pixi.js.
-    if (this.config.gpu) {
-      initOptions.gpu = this.config.gpu;
-      initOptions.preference = "webgpu";
-    }
-
     await this.app.init(initOptions as Parameters<Application["init"]>[0]);
 
-    if (this.app.canvas && this.container) {
-      this.container.appendChild(this.app.canvas);
-    }
+    // Publish the Pixi renderer process-wide so renderers that don't
+    // get a constructor-injected one (e.g. live spell casts spawned
+    // deep inside the spell-runtime) can still wrap GPU textures via
+    // ExternalSource. Both Vello and Pixi share the same GPUDevice.
+    setPixiRenderer(this.app.renderer);
 
     this.app.stage.layout = {
       width: this.app.screen.width,
@@ -128,7 +185,19 @@ export class Engine {
     };
 
     this.setupResizeHandling();
+    this.publishToCamera(width, height, zoom);
+    this.bindDprWatch();
     this.app.ticker.add(() => this.updateFps());
+
+    // Feed the watchdog one sample per Pixi tick. We use Ticker.shared
+    // so that even non-app ticks (e.g. extracted spell-icon renders)
+    // contribute — but the main app ticker is what drives steady state.
+    // deltaMS already accounts for browser rAF jitter. Registering on
+    // app.ticker (not Ticker.shared) avoids double-counting since the
+    // app ticker IS the shared ticker in default configurations.
+    this.app.ticker.add(() => {
+      getRenderWatchdog().recordFrame(Ticker.shared.deltaMS);
+    });
 
     // FPS overlay
     const overlay = document.createElement("div");
@@ -171,6 +240,50 @@ export class Engine {
     window.addEventListener("resize", () => this.handleResize());
   }
 
+  /**
+   * Track DPR changes via `matchMedia(resolution: …dppx)` and republish
+   * to camera. Browsers don't fire this on programmatic
+   * `devicePixelRatio` reads — only when the user moves the window
+   * between displays of different DPR (e.g. retina ↔ non-retina) or
+   * explicitly changes browser zoom. The callback re-arms a fresh
+   * matchMedia each fire because the queried DPR is pinned at
+   * construction.
+   */
+  private bindDprWatch(): void {
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function" ||
+      this.dprMqlCleanup
+    ) {
+      return;
+    }
+    let mql = window.matchMedia(
+      `(resolution: ${window.devicePixelRatio}dppx)`,
+    );
+    const handler = () => {
+      const dpr = window.devicePixelRatio;
+      this.config.camera?.setDpr(dpr);
+      // Re-arm against the new DPR so the next change also fires.
+      mql.removeEventListener("change", handler);
+      mql = window.matchMedia(`(resolution: ${dpr}dppx)`);
+      mql.addEventListener("change", handler);
+      // Pixi reads `app.renderer.resolution` to size its physical
+      // backing store. Update so a retina-↔-non-retina move keeps
+      // strokes crisp.
+      if (this.app) {
+        try {
+          (this.app.renderer as { resolution: number }).resolution = dpr;
+        } catch {
+          // some Pixi versions guard resolution setter — best effort.
+        }
+      }
+    };
+    mql.addEventListener("change", handler);
+    this.dprMqlCleanup = () => {
+      mql.removeEventListener("change", handler);
+    };
+  }
+
   handleResize(): void {
     if (!this.app) {
       return;
@@ -198,6 +311,7 @@ export class Engine {
       width,
       height,
     };
+    this.publishToCamera(width, height, zoom);
 
     // Notify resize start (only once per resize sequence)
     if (!this.isResizing) {
@@ -279,11 +393,6 @@ export class Engine {
     return false;
   }
 
-  /** Set GPU handles from Vello WASM (call before init) */
-  setGpu(gpu: { adapter: GPUAdapter; device: GPUDevice }): void {
-    this.config.gpu = gpu;
-  }
-
   getApp(): Application {
     if (!this.app) {
       throw new Error("Engine not initialized");
@@ -330,6 +439,11 @@ export class Engine {
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
+    }
+
+    if (this.dprMqlCleanup) {
+      this.dprMqlCleanup();
+      this.dprMqlCleanup = null;
     }
 
     if (this.app) {
