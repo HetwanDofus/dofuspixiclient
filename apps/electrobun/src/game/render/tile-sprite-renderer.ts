@@ -226,8 +226,16 @@ export class TileSpriteRenderer {
     });
     source.alphaMode = "no-premultiply-alpha";
     source.format = "rgba8unorm";
-    source.resolution = MAP_BG_ZOOM;
+    // Nearest filtering matches stress-worker.ts:556 — keeps tile
+    // edges crisp at the small displayed size.
+    source.scaleMode = "nearest";
     source.autoGarbageCollect = false;
+    // NOTE: do NOT set `source.resolution = MAP_BG_ZOOM`. Pixi
+    // interprets resolution as a pixel-density multiplier that makes
+    // the texture render 1/N times smaller; combined with our
+    // `sprite.scale = 1/MAP_BG_ZOOM` it produces 1/100× tiles ("tiny
+    // + spread apart"). The native MAP_BG_ZOOM-density rasterization
+    // is compensated entirely by `sprite.scale`.
 
     const anchorFracX = result.width > 0 ? result.anchorX / result.width : 0;
     const anchorFracY = result.height > 0 ? result.anchorY / result.height : 0;
@@ -315,8 +323,9 @@ export class TileSpriteRenderer {
     });
     newSource.alphaMode = "no-premultiply-alpha";
     newSource.format = "rgba8unorm";
-    newSource.resolution = MAP_BG_ZOOM;
+    newSource.scaleMode = "nearest";
     newSource.autoGarbageCollect = false;
+    // (See createSprite for why source.resolution is not set.)
 
     // Re-anchor in case of a rare frame-bounds shift (the WASM should
     // return uniform anchor per export, but we recompute defensively

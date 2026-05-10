@@ -226,8 +226,13 @@ export class PlayerStripRenderer {
     });
     source.alphaMode = "no-premultiply-alpha";
     source.format = "rgba8unorm";
-    source.resolution = this.resolution;
+    source.scaleMode = "nearest";
     source.autoGarbageCollect = false;
+    // NOTE: `source.resolution` is not set. Pixi treats it as a
+    // pixel-density multiplier that shrinks rendered output by 1/N;
+    // combined with our `sprite.scale = 1/this.resolution` that would
+    // produce 1/N² (tiny chars). The compensation lives entirely in
+    // sprite.scale; matches stress-worker.ts.
 
     const cols = strip.gridCols || strip.frameCount;
     const fw = strip.frameWidth;
