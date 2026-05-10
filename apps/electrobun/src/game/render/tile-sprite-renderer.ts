@@ -28,12 +28,42 @@ import {
 } from "pixi.js";
 
 import type { MapScale } from "@/game/datacenter/map";
-import type { TilePlacement } from "@/game/render/tile-layer-renderer";
 import {
   freeRenderTexture,
   renderSwfFrame,
 } from "@/game/render/vello-loader";
 import { createLogger } from "@/utils/logger";
+
+/**
+ * One renderable tile occurrence. MapHandler emits one per (cell,
+ * layer) entry with a non-zero tile id; TileSpriteRenderer creates
+ * one Pixi sprite per placement and routes by `layer` into the
+ * corresponding container.
+ */
+export interface TilePlacement {
+  /** Stable id for diagnostics ("ground_42", etc.). */
+  tileKey: string;
+  bundle: string;
+  exportName: string;
+  /** Cell position in logical pixel space (output of `getCellPosition`). */
+  cellX: number;
+  cellY: number;
+  /** 0/1/2/3 — multiplied by 90° at render. */
+  rotation: number;
+  flip: boolean;
+  /** Total frames in the timeline (1 for static). */
+  frameCount: number;
+  /** True when the tile auto-loops on a per-frame timer. */
+  isAnimated: boolean;
+  /** Frames per second for animated tiles. */
+  fps: number;
+  /**
+   * Frame to render for *non*-animated multi-frame tiles
+   * (slope/random tiles where each cell picks a fixed frame index).
+   * Ignored for animated tiles (they advance via `tick`).
+   */
+  staticFrame: number;
+}
 
 const log = createLogger("TileSpriteRenderer");
 

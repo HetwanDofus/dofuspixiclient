@@ -7,7 +7,6 @@ import type { CellData } from "@/game/datacenter/cell";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import type { RendererRegistry } from "@/game/render/renderer-registry";
-import type { WorldLayer } from "@/game/render/world-layer";
 import type { MapHandler } from "@/game/scene/map/handler";
 import type { Scene } from "@/game/scene/scene";
 import { PlayerRenderer } from "@/game/scene/player/renderer";
@@ -52,11 +51,6 @@ export interface BattlefieldWorldActorsDeps {
   pathfinding(): DofusPathfinding | null;
   cellDataMap(): Map<number, CellData>;
   rendererRegistry(): RendererRegistry;
-  /**
-   * Unified L3 World layer. Still required for mount sub-layers and
-   * other Object2-band placements.
-   */
-  worldLayer(): WorldLayer | null;
   /**
    * Strip-rendered character sprite owner. PlayerRenderer hands it
    * each player so the main char body renders as a Pixi sprite (one
@@ -357,17 +351,6 @@ export class BattlefieldWorldActors {
       this.deps.applyTransparency();
     }
 
-    const worldLayer = this.deps.worldLayer();
-    if (!worldLayer) {
-      // Bootstrap order guarantee: `initEngineAndVello` constructs the
-      // worldLayer before any actor is added. If we get here without
-      // one, the bootstrap broke — surface loudly rather than rendering
-      // chars to nowhere.
-      throw new Error(
-        "BattlefieldWorldActors.init: worldLayer not yet constructed (bootstrap order regression)"
-      );
-    }
-
     const stripRenderer = this.deps.stripRenderer();
     if (!stripRenderer) {
       throw new Error(
@@ -385,7 +368,6 @@ export class BattlefieldWorldActors {
       scene: this.deps.scene(),
       stripRenderer,
     });
-    void worldLayer; // kept for the bootstrap order check above
 
     this.deps
       .rendererRegistry()

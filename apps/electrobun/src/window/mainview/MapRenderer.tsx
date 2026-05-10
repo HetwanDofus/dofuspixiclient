@@ -7,6 +7,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import { CanvasStack } from "@/components/CanvasStack";
 import type { GameClient } from "@/game/game-client";
 import { getLoadProgress } from "@/game/render/load-progress";
 import { Battlefield } from "@/game/scene";
@@ -33,6 +34,9 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const battlefieldRef = useRef<Battlefield | null>(null);
   const gameClientRef = useRef<GameClient | null>(null);
+  const [stackCanvases, setStackCanvases] = useState<{
+    canvas: HTMLCanvasElement;
+  } | null>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
@@ -51,11 +55,18 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
     battlefieldRef.current?.handleContextMenu(e.nativeEvent);
   }, []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: one-shot init — onReady/onProgress closure captures are intentional
+  const handleStackMount = useCallback(
+    (canvases: { canvas: HTMLCanvasElement }) => {
+      setStackCanvases(canvases);
+    },
+    [],
+  );
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: one-shot init waits for stack canvases — onReady/onProgress closure captures are intentional
   useEffect(() => {
     const rootEl = containerRef.current;
 
-    if (!rootEl) {
+    if (!rootEl || !stackCanvases) {
       return;
     }
 
@@ -80,6 +91,7 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
 
         battlefield = new Battlefield({
           container,
+          canvas: stackCanvases!.canvas,
           onResizeStart: () => setIsResizing(true),
           onResizeEnd: () => setIsResizing(false),
           resizeDebounceMs: 300,
@@ -212,7 +224,7 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
       battlefieldRef.current = null;
       gameClientRef.current = null;
     };
-  }, []);
+  }, [stackCanvases]);
 
   useEffect(() => {
     const parent = containerRef.current;
@@ -262,6 +274,8 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
           onContextMenu={handleContextMenu}
           role="application"
         >
+          <CanvasStack onMount={handleStackMount} />
+
           {isResizing && (
             <div className="resize-overlay">
               <div className="spinner" />

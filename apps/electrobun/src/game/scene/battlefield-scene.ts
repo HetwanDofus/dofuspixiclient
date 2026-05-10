@@ -14,7 +14,6 @@ import type { AtlasLoader } from "@/game/render/atlas-loader";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { SpellVelloRenderer } from "@/game/render/spell-vello-renderer";
 import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
-import type { WorldLayer } from "@/game/render/world-layer";
 import type { SpellAnimationConfig } from "@/game/scene/fight/spell-view";
 import type {
   MapTransition,
@@ -35,7 +34,6 @@ import { Engine } from "@/game/render/engine";
 import { RendererRegistry } from "@/game/render/renderer-registry";
 import {
   type BattlefieldBootstrapContext,
-  detachVelloSurfaces,
   initEngineAndVello,
   initInteraction,
   initOverlays,
@@ -75,14 +73,13 @@ export type { WorldActorData } from "@/game/scene/battlefield/world-actors";
 
 export interface BattlefieldConfig {
   /**
-   * Three stacked canvas elements forming the render target stack.
-   * Owned by the React `CanvasStack` component; consumed by the
-   * battlefield bootstrap. `bottom` and `top` are attached as Vello
-   * surfaces; `middle` is handed to the Pixi `Application`.
+   * Single canvas element handed to the Pixi `Application` as its
+   * render target. Owned by the React component; the battlefield
+   * bootstrap binds Pixi to it (Vello renders to off-screen GPU
+   * textures consumed by Pixi as `ExternalSource` sprites — no
+   * additional surface attachment is needed).
    */
-  bottomCanvas: HTMLCanvasElement;
-  middleCanvas: HTMLCanvasElement;
-  topCanvas: HTMLCanvasElement;
+  canvas: HTMLCanvasElement;
   /**
    * Wrapping `<div>` whose getBoundingClientRect drives the engine's
    * resize math + HUD anchor projection. The Battlefield does not
@@ -118,13 +115,8 @@ export class Battlefield {
    * reconfigure on DPR change, etc.) react to changes.
    */
   private readonly camera: Camera;
-  /** Three canvases of the render stack — bottom (Vello), middle (Pixi), top (Vello). */
-  private bottomCanvas: HTMLCanvasElement;
-  private middleCanvas: HTMLCanvasElement;
-  private topCanvas: HTMLCanvasElement;
-  /** Vello surface ids attached during `initEngineAndVello`. 0 = unattached. */
-  private bottomSurfaceId = 0;
-  private topSurfaceId = 0;
+  /** Single canvas hosting the Pixi `Application`. */
+  private canvas: HTMLCanvasElement;
   private app: Application | null = null;
   private mapContainer: Container | null = null;
   private atlasLoader: AtlasLoader | null = null;
@@ -134,13 +126,6 @@ export class Battlefield {
    * hand to its SpellRenderer.
    */
   private spellVelloRenderer: SpellVelloRenderer | null = null;
-  /**
-   * Unified L3 World layer. Constructed by `initEngineAndVello`, mounted
-   * in `mapContainer` at zIndex=600. Renders foreground tiles + chars +
-   * spells + ghost-view chars in one depth-sorted Vello pass per dirty
-   * tick. Consumers feed placements via `worldLayer.upsert(...)`.
-   */
-  private worldLayer: WorldLayer | null = null;
   /**
    * Strip-rendered character sprite owner. Constructed by
    * `initEngineAndVello` (after Pixi adopts Vello's GPUDevice); each
@@ -205,7 +190,6 @@ export class Battlefield {
     pathfinding: () => this.pathfinding,
     cellDataMap: () => this.cellDataMap,
     rendererRegistry: () => this.rendererRegistry,
-    worldLayer: () => this.worldLayer,
     stripRenderer: () => this.playerStripRenderer,
     currentMapWidth: () => this.currentMapData?.width ?? 15,
     transparencyEnabled: () => this.transparencyMode,
@@ -252,9 +236,7 @@ export class Battlefield {
   constructor(config: BattlefieldConfig) {
     this.onResizeStartCallback = config.onResizeStart;
     this.onResizeEndCallback = config.onResizeEnd;
-    this.bottomCanvas = config.bottomCanvas;
-    this.middleCanvas = config.middleCanvas;
-    this.topCanvas = config.topCanvas;
+    this.canvas = config.canvas;
 
     this.characterSpriteLoader = initCharacterSpriteLoader();
 
@@ -1108,29 +1090,13 @@ export class Battlefield {
     this.atlasLoader?.clearCache();
     this.mapHandler?.clearCache();
 
-    // Tear down the world layer last among Pixi-side resources so its
-    // surface releases after consumers (PlayerRenderer, FightUI,
-    // MapHandler) have been destroyed.
-    this.worldLayer?.destroy();
-    this.worldLayer = null;
     // Strip renderer owns per-player sprites + their wgpu textures.
-    // Destroy after worldLayer so any final mount-layer dispatch can
-    // still resolve player state, then drop everything.
     this.playerStripRenderer?.destroy();
     this.playerStripRenderer = null;
 
-    // Release the Vello surfaces. The canvases themselves are owned by
-    // the React `CanvasStack` and remain in the DOM until the parent
-    // unmounts.
-    detachVelloSurfaces(this as unknown as BattlefieldBootstrapContext);
-    // The CanvasStack-owned canvases stay in the DOM; touching them
-    // here keeps TS6133 happy (the fields are also read by bootstrap
-    // via the BattlefieldBootstrapContext cast, which TS can't follow).
-    void this.bottomCanvas;
-    void this.middleCanvas;
-    void this.topCanvas;
-    void this.bottomSurfaceId;
-    void this.topSurfaceId;
+    // The canvas is owned by the React component and remains in the
+    // DOM until the parent unmounts. Read once to satisfy TS noUnused.
+    void this.canvas;
 
     this.engine.destroy();
   }

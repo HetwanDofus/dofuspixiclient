@@ -12,11 +12,6 @@ import { PickingSystem } from "@/game/render/picking-system";
 import { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import { getRenderWatchdog } from "@/game/render/render-watchdog";
 import { SpellVelloRenderer } from "@/game/render/spell-vello-renderer";
-import {
-  attachCanvasSurface,
-  detachSurface,
-} from "@/game/render/vello-loader";
-import { WorldLayer } from "@/game/render/world-layer";
 import { MapTransition } from "@/game/scene/map/transition";
 import { DebugOverlay } from "@/game/scene/overlays/debug";
 import { GridOverlay } from "@/game/scene/overlays/grid";
@@ -45,21 +40,11 @@ export interface BattlefieldBootstrapContext {
   zoom: BattlefieldZoom;
 
   /**
-   * Three canvas elements forming the battlefield render stack. Owned by
-   * the React `CanvasStack` component; passed in by the Battlefield host.
-   * `bottom` and `top` are attached as Vello surfaces; `middle` is handed
-   * to the Pixi `Application` as its render target. All three share the
-   * same logical viewport — the browser composites them via DOM stacking.
+   * Single canvas element handed to Pixi's `Application` as its render
+   * target. Owned by the React component; passed in by the Battlefield
+   * host.
    */
-  bottomCanvas: HTMLCanvasElement | null;
-  middleCanvas: HTMLCanvasElement | null;
-  topCanvas: HTMLCanvasElement | null;
-  /**
-   * Vello surface ids for the bottom (Ground+Object1) and top (Object2)
-   * canvases. Populated by `initEngineAndVello`. Detached on teardown.
-   */
-  bottomSurfaceId: number;
-  topSurfaceId: number;
+  canvas: HTMLCanvasElement | null;
 
   app: Application | null;
   mapContainer: Container | null;
@@ -86,15 +71,6 @@ export interface BattlefieldBootstrapContext {
    */
   spellVelloRenderer: SpellVelloRenderer | null;
   /**
-   * Unified L3 World layer. Renders foreground tiles + characters +
-   * spells + ghost-view chars in one depth-sorted Vello pass per
-   * dirty tick. Mounted in `mapContainer` at zIndex=600 (canonical
-   * Object2 band). Constructed in `initEngineAndVello`; consumers
-   * (MapHandler for tiles, PlayerRenderer for chars, FightUI for
-   * spells) feed placements via `worldLayer.upsert(...)`.
-   */
-  worldLayer: WorldLayer | null;
-  /**
    * Strip-rendered character sprite owner. Constructed in
    * `initEngineAndVello` after Pixi adopts Vello's GPUDevice; each
    * player gets a Pixi sprite child of `player.container`, with
@@ -115,9 +91,9 @@ export interface BattlefieldBootstrapContext {
 export async function initEngineAndVello(
   ctx: BattlefieldBootstrapContext
 ): Promise<void> {
-  if (!ctx.bottomCanvas || !ctx.middleCanvas || !ctx.topCanvas) {
+  if (!ctx.canvas) {
     throw new Error(
-      "initEngineAndVello: canvases not provided by host (CanvasStack must mount first)"
+      "initEngineAndVello: canvas not provided by host (must mount first)"
     );
   }
 
@@ -134,88 +110,24 @@ export async function initEngineAndVello(
     log.error("Vello WASM failed to initialize — rendering will not work:", e);
   }
 
-  // Attach Vello surfaces to the bottom and top canvases. Physical
-  // size = logical × MAX_DENSITY (8) for crisp content at any
-  // displayed zoom up to 8×; CSS handles displayed magnification.
-  // Surface attachment must happen BEFORE Pixi's app.init takes the
-  // middle canvas — Pixi's GPUDevice handshake is independent of the
-  // sibling surfaces but happens to share the same wgpu Instance.
-  const physW = BATTLEFIELD_DISPLAY_WIDTH * BATTLEFIELD_MAX_DENSITY;
-  const physH = BATTLEFIELD_DISPLAY_HEIGHT * BATTLEFIELD_MAX_DENSITY;
-  // Set the canvas' physical attribute size BEFORE attaching the
-  // Vello surface — wgpu's WebGPU surface configuration uses these
-  // dimensions to size the swap chain.
-  ctx.bottomCanvas.width = physW;
-  ctx.bottomCanvas.height = physH;
-  ctx.topCanvas.width = physW;
-  ctx.topCanvas.height = physH;
-  ctx.bottomSurfaceId = attachCanvasSurface(
-    ctx.bottomCanvas,
-    physW,
-    physH,
-    "battlefield-bottom",
-  );
-  ctx.topSurfaceId = attachCanvasSurface(
-    ctx.topCanvas,
-    physW,
-    physH,
-    "battlefield-top",
-  );
-  if (!ctx.bottomSurfaceId || !ctx.topSurfaceId) {
-    log.error(
-      `Vello surface attach failed — bottomId=${ctx.bottomSurfaceId} topId=${ctx.topSurfaceId}`
-    );
-  }
-
-  await ctx.engine.init(ctx.middleCanvas);
+  await ctx.engine.init(ctx.canvas);
   ctx.app = ctx.engine.getApp();
 
   ctx.mapContainer = new Container();
-  // mapContainer holds the cell-tint highlights, grid, ground rings,
-  // and any remaining Pixi-rendered Object2 content (HP bar overlays,
-  // fight UI). Tiles + chars + spells render directly into their own
-  // Vello canvases (top + bottom of the CanvasStack); the browser
-  // composites the three canvases via DOM stacking. sortableChildren
-  // keeps explicit zIndex ordering for the Pixi children that remain.
+  // mapContainer holds every renderable: ground/object1/object2 tile
+  // sprites (TileSpriteRenderer), per-player containers with strip-
+  // rendered char sprites (PlayerStripRenderer), spell sprites
+  // (PreRenderedSpell), cell-tint diamonds (WorldCellTints), and
+  // overlays (grid, debug). One canvas, one Pixi compositor.
   ctx.mapContainer.sortableChildren = true;
   ctx.app.stage.addChild(ctx.mapContainer);
   ctx.mapTransition = new MapTransition(ctx.app, ctx.mapContainer);
-
-  // Construct the unified L3 World layer bound to the top canvas's
-  // Vello surface. No Pixi node — the layer renders directly to the
-  // surface; the browser composites it above the Pixi canvas.
-  const worldLayer = new WorldLayer(ctx.topSurfaceId);
-  worldLayer.setViewport(BATTLEFIELD_DISPLAY_WIDTH, BATTLEFIELD_DISPLAY_HEIGHT);
-  ctx.worldLayer = worldLayer;
 
   // Strip-rendered character sprite owner. Pixi adopted Vello's
   // GPUDevice in `engine.init` (Phase 2), so the strip's GPUTexture
   // wraps cleanly as a Pixi `ExternalSource` on the same device.
   ctx.playerStripRenderer = new PlayerStripRenderer(ctx.app.renderer);
 }
-
-/**
- * Detach Vello surfaces. Called by the Battlefield destroy path after
- * tearing down renderers that hold surface ids.
- */
-export function detachVelloSurfaces(ctx: BattlefieldBootstrapContext): void {
-  if (ctx.bottomSurfaceId) {
-    detachSurface(ctx.bottomSurfaceId);
-    ctx.bottomSurfaceId = 0;
-  }
-  if (ctx.topSurfaceId) {
-    detachSurface(ctx.topSurfaceId);
-    ctx.topSurfaceId = 0;
-  }
-}
-
-/**
- * Canonical battlefield surface dimensions. Logical (zoom=1) pixels;
- * physical surface size is logical × MAX_DENSITY (=8).
- */
-const BATTLEFIELD_DISPLAY_WIDTH = 742;
-const BATTLEFIELD_DISPLAY_HEIGHT = 432;
-const BATTLEFIELD_MAX_DENSITY = 8;
 
 export function initPickingAndAtlas(ctx: BattlefieldBootstrapContext): void {
   if (!ctx.app) {
@@ -325,11 +237,7 @@ export async function wireVelloLoaders(
     const war = ctx.worldActors.getRenderer();
     const updMs = war ? war.lastUpdateMs.toFixed(1) : "?";
     const n = war ? war.getPlayerIds().length : 0;
-    const wl = ctx.worldLayer;
-    const wlSummary = wl
-      ? ` | wl:p${wl.placementCount} d${wl.dispatchCount} fail${wl.dispatchFailures} skip${wl.fingerprintSkips} ${wl.lastDispatchMs.toFixed(1)}ms`
-      : "";
-    return `${n}act upd:${updMs}ms | sl:${s.slots}/${s.maxSlots} r:${s.lastRenders} q:${s.lastQueueMs.toFixed(1)}ms fl:${s.lastFlushMs.toFixed(1)}ms h:${s.lastHits}${wlSummary}`;
+    return `${n}act upd:${updMs}ms | sl:${s.slots}/${s.maxSlots} r:${s.lastRenders} q:${s.lastQueueMs.toFixed(1)}ms fl:${s.lastFlushMs.toFixed(1)}ms h:${s.lastHits}`;
   };
 
   // Wire providers so the watchdog HUD can read live stats from the
@@ -421,11 +329,6 @@ export function startSceneTicker(ctx: BattlefieldBootstrapContext): void {
   ctx.sceneTickerCallback = () => {
     const dtMs = Ticker.shared.deltaMS;
     ctx.scene.tick(dtMs);
-    // World layer dispatches AFTER the scene tick so every char +
-    // tile + spell has had a chance to upsert its placement for this
-    // frame. Internally fingerprint-skips when nothing changed —
-    // dispatch cost is zero on a static map with idle chars.
-    ctx.worldLayer?.tick(dtMs);
     ctx.interactionHandler?.tick();
   };
 
