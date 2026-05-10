@@ -551,7 +551,6 @@ export class Battlefield {
       scene: this.scene,
       pixiRenderer: this.app?.renderer,
       ticker: this.app?.ticker,
-      worldLayer: this.worldLayer ?? undefined,
       onSpriteCreated: (
         sprite,
         tileId,

@@ -48,12 +48,12 @@ const RETIRE_DELAY_MS = 2 * TICK_INTERVAL_MS;
  * building placements: ground tiles → layer 0, object1 tiles → 1.
  */
 export interface LayeredTilePlacement extends TilePlacement {
-  layer: 0 | 1;
+  layer: 0 | 1 | 2;
 }
 
 interface TileSpriteState {
   sprite: Sprite;
-  layer: 0 | 1;
+  layer: 0 | 1 | 2;
   // Re-render context — kept so on-demand frame advance reuses bundle/export.
   bundle: string;
   exportName: string;
@@ -102,16 +102,19 @@ export class TileSpriteRenderer {
   private pixiRenderer: Renderer;
   private groundLayer: Container;
   private object1Layer: Container;
+  private object2Layer: Container;
   private mapScale: MapScale = { scale: 1, offsetX: 0, offsetY: 0 };
 
   constructor(
     pixiRenderer: Renderer,
     groundLayer: Container,
-    object1Layer: Container
+    object1Layer: Container,
+    object2Layer: Container
   ) {
     this.pixiRenderer = pixiRenderer;
     this.groundLayer = groundLayer;
     this.object1Layer = object1Layer;
+    this.object2Layer = object2Layer;
   }
 
   setMapScale(mapScale: MapScale): void {
@@ -208,7 +211,12 @@ export class TileSpriteRenderer {
     applyMatrix(sprite, p.cellX, p.cellY, p.rotation, p.flip, this.mapScale);
     sprite.zIndex = p.cellX + p.cellY * 1000;
 
-    const parent = p.layer === 0 ? this.groundLayer : this.object1Layer;
+    const parent =
+      p.layer === 0
+        ? this.groundLayer
+        : p.layer === 1
+          ? this.object1Layer
+          : this.object2Layer;
     parent.addChild(sprite);
 
     this.states.set(key, {

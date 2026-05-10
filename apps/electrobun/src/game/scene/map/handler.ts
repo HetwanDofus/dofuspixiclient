@@ -7,11 +7,6 @@ import {
 } from "pixi.js";
 
 import type { AtlasLoader } from "@/game/render/atlas-loader";
-import type {
-  Mat6,
-  TileWorldPlacement,
-  WorldLayer,
-} from "@/game/render/world-layer";
 import {
   type LayeredTilePlacement,
   TileSpriteRenderer,
@@ -71,7 +66,6 @@ export interface MapHandlerConfig {
    * the canonical Object2 depth band. Layer 0 (ground) + Layer 1
    * (decorations) render through `TileSpriteRenderer`.
    */
-  worldLayer?: WorldLayer;
 }
 
 /**
@@ -208,19 +202,6 @@ export class MapHandler {
   private tileResolver = new TileResolver();
   private ticker: Ticker | null = null;
   private tickerCallback: ((t: Ticker) => void) | null = null;
-  /**
-   * Unified L3 World layer reference — receives foreground (layer 2)
-   * tile placements so they interleave with chars + spells per the
-   * canonical Object2 sub-offset depth contract. null when host
-   * didn't supply one (legacy path through TileLayerRenderer only).
-   */
-  private worldLayer: WorldLayer | null = null;
-  /**
-   * Stable list of placement ids upserted into `worldLayer` for animated
-   * foreground tiles. Tracked so a `setPlacements`-equivalent rebuild
-   * can remove ids that no longer appear in the new placement set.
-   */
-  private worldLayerAnimatedIds = new Set<string>();
   /** Live view of the current map's mapData/mapScale/zoom for ticker rebuilds. */
   private currentMapData: MapData | null = null;
   private currentMapScale: MapScale | null = null;
@@ -256,13 +237,12 @@ export class MapHandler {
       this.tileSpriteRenderer = new TileSpriteRenderer(
         config.pixiRenderer,
         this.groundLayer,
-        this.objectLayer1
+        this.objectLayer1,
+        this.objectLayer2
       );
       this.ticker = config.ticker;
       this.attachTickerIfNeeded();
     }
-
-    this.worldLayer = config.worldLayer ?? null;
   }
 
   private attachTickerIfNeeded(): void {
@@ -300,114 +280,6 @@ export class MapHandler {
     );
     this.tileSpriteRenderer.setMapScale(this.currentMapScale);
     this.tileSpriteRenderer.setPlacements(placements);
-    this.rebuildObject2WorldPlacements();
-  }
-
-  /**
-   * Push every layer-2 (foreground) tile placement into the unified
-   * World layer. Static placements pre-encode into a cached Vello
-   * scene via `worldLayer.setStaticTiles`; animated placements
-   * upsert individually so per-cell animation cursors can advance
-   * each tick.
-   *
-   * Mirrors `tile-layer-renderer.fillArraysForIndices`'s matrix
-   * encoding so the World layer's RT — also locked at MAX_DENSITY —
-   * places foreground tiles at the same physical pixels the legacy
-   * Object2 layer would have. The canonical depth `cellId * 100 + 0`
-   * keeps them in painter's order against chars at `cellId * 100 + 30`.
-   */
-  private rebuildObject2WorldPlacements(): void {
-    const worldLayer = this.worldLayer;
-    if (!worldLayer || !this.currentMapData || !this.currentMapScale) {
-      return;
-    }
-
-    const mapData = this.currentMapData;
-    const mapScale = this.currentMapScale;
-    const prefixOverride = this.currentPrefixOverride;
-
-    const staticOut: TileWorldPlacement[] = [];
-    const animatedOut: Array<{ id: string; placement: TileWorldPlacement }> =
-      [];
-
-    // Drop animated placements that no longer appear (cell map shrink,
-    // tactic-mode toggle, etc.). The set is rebuilt below.
-    const previousAnimated = this.worldLayerAnimatedIds;
-    const nextAnimated = new Set<string>();
-
-    for (const cell of mapData.cells) {
-      if (cell.layer2 <= 0) continue;
-      const basePos = getCellPosition(cell.id, mapData.width, cell.groundLevel);
-      const groundSlope = cell.groundSlope ?? 1;
-      const tileKey = this.tileKeyFor(cell.id, 2, cell.layer2, prefixOverride);
-      const resolved = this.tileResolver.resolve(tileKey);
-      if (!resolved) continue;
-
-      const isAnimated =
-        resolved.kind === "animated" && resolved.frameCount > 1;
-      const behavior = resolved.kind === "" ? "static" : resolved.kind;
-      const staticFrame = isAnimated
-        ? 0
-        : frameIndexForTile(
-            {
-              frameCount: resolved.frameCount,
-              behavior,
-            } as Parameters<typeof frameIndexForTile>[0],
-            cell.id,
-            groundSlope
-          );
-
-      // Mirror tile-layer-renderer's matrix encoding: scale =
-      // `mapScale.scale * MAX_DENSITY / 20`, translation in physical
-      // pixels of the RT (`cellX * mapScale.scale * MAX_DENSITY +
-      // mapScale.offsetX * MAX_DENSITY`). Object2 tiles are never
-      // rotated (rotation always 0 — see legacy `buildPlacements`),
-      // but flip is honored.
-      const matrix = encodeTileMatrix(
-        basePos.x,
-        basePos.y,
-        cell.layerObject2Flip,
-        0,
-        mapScale.scale,
-        mapScale.offsetX,
-        mapScale.offsetY
-      );
-
-      const placement: TileWorldPlacement = {
-        kind: "tile",
-        bundle: resolved.bundle,
-        exportName: resolved.exportName,
-        frame: staticFrame,
-        depth: cell.id * 100, // canonical Object2 sub-offset 0
-        matrix,
-        ...(isAnimated && {
-          animation: { fps: resolved.fps, frameCount: resolved.frameCount },
-        }),
-      };
-
-      if (isAnimated) {
-        const id = `tile_obj2_${cell.id}`;
-        animatedOut.push({ id, placement });
-        nextAnimated.add(id);
-      } else {
-        staticOut.push(placement);
-      }
-    }
-
-    // Remove animated placements that disappeared.
-    for (const id of previousAnimated) {
-      if (!nextAnimated.has(id)) {
-        worldLayer.remove(id);
-      }
-    }
-    this.worldLayerAnimatedIds = nextAnimated;
-
-    // Push static set as a pre-encoded scene + upsert each animated
-    // placement individually.
-    worldLayer.setStaticTiles(staticOut);
-    for (const { id, placement } of animatedOut) {
-      worldLayer.upsert(id, placement);
-    }
   }
 
   /**
@@ -475,9 +347,23 @@ export class MapHandler {
       });
     }
 
-    // Layer 2 (foreground objects) routes to worldLayer via
-    // `rebuildObject2WorldPlacements()` so it can interleave with
-    // chars + spells in the canonical Object2 depth band.
+    // Layer 2: foreground objects (buildings, walls, decor). Mounted
+    // in object2Layer so Pixi `sortableChildren` interleaves them
+    // with char + spell sprites at canonical Object2 sub-offsets.
+    for (const cell of mapData.cells) {
+      if (cell.layer2 <= 0) continue;
+      const basePos = getCellPosition(cell.id, mapData.width, cell.groundLevel);
+      const groundSlope = cell.groundSlope ?? 1;
+      const tileKey = this.tileKeyFor(cell.id, 2, cell.layer2, prefixOverride);
+      this.pushPlacementByKey(out, tileKey, 2, {
+        cellId: cell.id,
+        cellX: basePos.x,
+        cellY: basePos.y,
+        rotation: 0, // canonical AS never rotates layer 2
+        flip: cell.layerObject2Flip,
+        groundSlope,
+      });
+    }
 
     return out;
   }
@@ -485,7 +371,7 @@ export class MapHandler {
   private pushPlacementByKey(
     out: LayeredTilePlacement[],
     tileKey: string,
-    layer: 0 | 1,
+    layer: 0 | 1 | 2,
     cell: {
       cellId: number;
       cellX: number;
@@ -655,16 +541,6 @@ export class MapHandler {
       // diff inside `setPlacements([])` retires every sprite via the
       // 2-tick freeRenderTexture pattern.
       this.tileSpriteRenderer.setPlacements([]);
-    }
-    if (this.worldLayer) {
-      // Drop foreground-tile state from the unified layer too. Char +
-      // spell placements are owned by other consumers (PlayerRenderer,
-      // FightUI) — they re-upsert independently next tick.
-      for (const id of this.worldLayerAnimatedIds) {
-        this.worldLayer.remove(id);
-      }
-      this.worldLayerAnimatedIds.clear();
-      this.worldLayer.setStaticTiles([]);
     }
   }
 
@@ -970,67 +846,3 @@ export class MapHandler {
   }
 }
 
-/** Locked at 8 to match the World layer's RT density. */
-const WORLD_LAYER_MAX_DENSITY = 8;
-
-/** Flash-era rotated-iso scale magic numbers — match `tile-layer-renderer.ts`. */
-const ROTATED_SCALE_X = 51.85 / 100;
-const ROTATED_SCALE_Y = 192.86 / 100;
-
-/**
- * Encode a foreground tile placement matrix into the same physical-
- * pixel space the unified World layer's RT uses. Mirrors
- * `tile-layer-renderer.fillArraysForIndices`'s matrix derivation —
- * scale = `mapScale.scale * MAX_DENSITY / 20` (twip → physical),
- * translation = `cellX * mapScale.scale * MAX_DENSITY +
- * mapScale.offsetX * MAX_DENSITY`. Rotation is honored even though
- * canonical Object2 placements never rotate, because the legacy
- * helper supports it and a future rotated-foreground use would
- * otherwise need a separate code path.
- */
-function encodeTileMatrix(
-  cellLogicalX: number,
-  cellLogicalY: number,
-  flip: boolean,
-  rotation: number,
-  mapScaleScale: number,
-  mapScaleOffsetX: number,
-  mapScaleOffsetY: number
-): Mat6 {
-  const mapScaleZoom = mapScaleScale * WORLD_LAYER_MAX_DENSITY;
-  const cellOffsetX = mapScaleOffsetX * WORLD_LAYER_MAX_DENSITY;
-  const cellOffsetY = mapScaleOffsetY * WORLD_LAYER_MAX_DENSITY;
-  const k = mapScaleZoom / 20;
-  const r = rotation & 3;
-  const rotated = r === 1 || r === 3;
-  const sxFinal = (rotated ? ROTATED_SCALE_X : 1) * (flip ? -1 : 1) * k;
-  const syFinal = (rotated ? ROTATED_SCALE_Y : 1) * k;
-  const cellScreenX = cellLogicalX * mapScaleZoom + cellOffsetX;
-  const cellScreenY = cellLogicalY * mapScaleZoom + cellOffsetY;
-  let a: number;
-  let b: number;
-  let c: number;
-  let d: number;
-  if (r === 0) {
-    a = sxFinal;
-    b = 0;
-    c = 0;
-    d = syFinal;
-  } else if (r === 1) {
-    a = 0;
-    b = sxFinal;
-    c = -syFinal;
-    d = 0;
-  } else if (r === 2) {
-    a = -sxFinal;
-    b = 0;
-    c = 0;
-    d = -syFinal;
-  } else {
-    a = 0;
-    b = -sxFinal;
-    c = syFinal;
-    d = 0;
-  }
-  return [a, b, c, d, cellScreenX, cellScreenY] as const;
-}
