@@ -110,6 +110,18 @@ export class PlayerStripRenderer {
     this.resolution = Math.max(1, res);
   }
 
+  /**
+   * Look up the live Pixi `Sprite` for a player's slot — used by the
+   * picking layer to AABB+alpha-test hovers against the actual char
+   * silhouette. Returns null if the slot was never attached or has
+   * already been retired. The sprite's parent (player.container)
+   * carries the player's screen position so callers that need it for
+   * canvas-space projection can read `sprite.parent`.
+   */
+  getSlotSprite(playerId: number, slot: PlayerStripSlot = "main"): Sprite | null {
+    return this.states.get(playerId)?.get(slot)?.sprite ?? null;
+  }
+
   /** Idempotently mount the main slot (sprite child of player.container). */
   attach(player: ActivePlayer): void {
     if (this.states.has(player.id)) {

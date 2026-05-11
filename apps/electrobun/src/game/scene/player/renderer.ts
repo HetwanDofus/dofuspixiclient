@@ -423,12 +423,14 @@ export class PlayerRenderer {
   }
 
   /**
-   * Returns the player's container so picking can project its
-   * canvas-space anchor. Picking precision against the char silhouette
-   * lives in M6 (alpha-bitmap pre-bake against the World layer).
-   * Until M6 ships, hover/click hit-tests against chars are limited
-   * to the cell-based picker — the per-pixel sprite-level picker
-   * cannot run without a Pixi sprite to AABB-test.
+   * Returns the player's main slot sprite + container for the picking
+   * layer. Picking uses `sprite.toLocal()` on screen coords and then
+   * tests the texture's alpha bitmap; without a sprite, hover/click
+   * on chars silently fall through to the ground-click handler (the
+   * canonical "clicks on the player do nothing, hovers don't tint
+   * the sprite" regression). Returns null when the player isn't
+   * registered or the strip renderer hasn't mounted its main slot
+   * yet (e.g. during the initial async character-asset load).
    */
   getPlayerPickingData(
     id: number
@@ -437,10 +439,11 @@ export class PlayerRenderer {
     if (!f) {
       return null;
     }
-    // No Pixi sprite under the unified renderer. Return null so the
-    // picking layer falls back to cell-based hover/click for chars.
-    // M6 will wire `pickWorldChar(x, y)` to replace this.
-    return null;
+    const sprite = this.stripRenderer.getSlotSprite(id, "main");
+    if (!sprite) {
+      return null;
+    }
+    return { sprite, container: f.container };
   }
 
   get lastUpdateMs(): number {
