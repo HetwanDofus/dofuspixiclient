@@ -114,17 +114,22 @@ export class PickingSystem {
         continue;
       }
 
+      // `sprite.toLocal` returns coords in the sprite's untransformed
+      // local space; per Pixi v8 `updateQuadBounds`, that span is
+      // `[-anchor.x*texW, (1-anchor.x)*texW] × [-anchor.y*texH, ...]`,
+      // NOT `[0, texW] × [0, texH]`. Shifting by `anchor*texSize`
+      // re-aligns the local point with the texture frame's top-left
+      // so the bounds check + UV calc both work for SWF-anchored
+      // sprites (chars, foreground tiles), not just anchor=(0,0).
       const localPoint = sprite.toLocal({ x: screenX, y: screenY });
-
       const texW = sprite.texture.frame.width;
       const texH = sprite.texture.frame.height;
+      const ax = sprite.anchor.x * texW;
+      const ay = sprite.anchor.y * texH;
+      const adjX = localPoint.x + ax;
+      const adjY = localPoint.y + ay;
 
-      if (
-        localPoint.x < 0 ||
-        localPoint.x >= texW ||
-        localPoint.y < 0 ||
-        localPoint.y >= texH
-      ) {
+      if (adjX < 0 || adjX >= texW || adjY < 0 || adjY >= texH) {
         continue;
       }
 
@@ -134,8 +139,8 @@ export class PickingSystem {
         continue;
       }
 
-      const uvX = localPoint.x / texW;
-      const uvY = localPoint.y / texH;
+      const uvX = adjX / texW;
+      const uvY = adjY / texH;
 
       if (this.checkAlpha(sprite.texture, uvX, uvY)) {
         bestResult = { object: obj, x: screenX, y: screenY };
