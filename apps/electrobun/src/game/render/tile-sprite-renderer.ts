@@ -63,29 +63,42 @@ export interface TilePlacement {
    * Ignored for animated tiles (they advance via `tick`).
    */
   staticFrame: number;
+  /**
+   * True for the single map-background placement. The background is
+   * pinned at `BG_RESOLUTION` and never re-rasterized on zoom (its
+   * texture is the widest tile we ever render and re-acquiring it at
+   * higher density risks the WebGPU 8192 limit on a hot path). Set
+   * by `MapHandler.buildPlacements` on the bg pushPlacementByKey
+   * call.
+   */
+  isBackground?: boolean;
 }
 
 const log = createLogger("TileSpriteRenderer");
 
 /**
- * Tile rasterization resolution.
- *
- * Was 10 to match stress-worker.ts:109 MAP_BG_ZOOM, but at 10×
- * density a single large foreground tile (e.g. a tall building
- * sprite ~700×900 logical) lands at 7000×9000 physical pixels,
- * exceeding the typical WebGPU `maxTextureDimension2d` of 8192 on
- * Apple Silicon / Chromium. `wgpu::Device::create_texture` panics
- * when that limit is breached, the WASM module aborts mid-frame,
- * every subsequent `renderSwfFrame` returns null, and tile
- * placements that hadn't been processed yet (i.e. cells further
- * down the map in cellId iteration order) silently fail to render
- * — the canonical "bottom of every map is black" symptom.
- *
- * 4× still gives crisp output at the maximum user zoom (4×
- * `ZOOM_LEVELS[ZOOM_LEVELS.length - 1]` = 5) and keeps the worst
- * tile at well under 4000 px per side.
+ * Resolution pinned for background tiles. Backgrounds are the
+ * widest single tile we ever render (a default Dofus map bg is
+ * ~742×432 logical → 2968×1728 phys at 4×). At higher densities
+ * the texture would creep toward the WebGPU `maxTextureDimension2d`
+ * = 8192 limit and `wgpu::Device::create_texture` would panic. The
+ * bg gets a single render at boot and is intentionally NOT re-
+ * rasterized on subsequent zoom steps — the user's stand-still
+ * background never benefits from oversampling enough to justify
+ * the limit risk + the GPU memory churn.
  */
-const MAP_BG_ZOOM = 4;
+const BG_RESOLUTION = 4;
+/** Starting density for non-background tiles. */
+const DEFAULT_TILE_RESOLUTION = 4;
+/**
+ * Per-zoom-step rasterization cap for non-bg tiles. Smaller than
+ * the bg cap because mid-size object2 tiles (big buildings ~500
+ * logical px) stay under 8192 phys px at 8× density (= 4000 px).
+ * The user zoom levels top out at 5×, so 8× density at zoom=5 still
+ * gives 1.6× oversampling per screen pixel — far past the point
+ * where additional density is visually distinguishable.
+ */
+const MAX_TILE_RESOLUTION = 8;
 const TICK_INTERVAL_MS = 1000 / 60;
 const RETIRE_DELAY_MS = 2 * TICK_INTERVAL_MS;
 
@@ -124,6 +137,13 @@ interface TileSpriteState {
   frameCount: number;
   fps: number;
   isAnimated: boolean;
+  /**
+   * True for the map background tile. Excluded from zoom-driven
+   * re-rasterization so the widest tile never trips wgpu's
+   * `maxTextureDimension2d` and the bg never visibly flickers on
+   * the zoom path.
+   */
+  isBackground: boolean;
   currentFrame: number;
   accumMs: number;
   /**
@@ -132,6 +152,13 @@ interface TileSpriteState {
    * `removeSprite` decrements the cache's refcount via this key.
    */
   cacheKey: string;
+  /**
+   * Resolution this sprite is currently bound to — backgrounds stay
+   * at `BG_RESOLUTION`, everything else tracks the dynamic
+   * `tileResolution`. Used when re-acquiring on zoom + when
+   * computing `sprite.scale = 1/resolution`.
+   */
+  resolution: number;
   // Cell context — for repositioning on map-scale change.
   cellX: number;
   cellY: number;
@@ -151,7 +178,8 @@ function applyMatrix(
   cellX: number,
   cellY: number,
   rotation: number,
-  flip: boolean
+  flip: boolean,
+  resolution: number
 ): void {
   // Position sprites in mapContainer-local logical pixels — exactly
   // what canonical `MapHandler.as` does (`mc._x = col * CELL_WIDTH +
@@ -161,14 +189,14 @@ function applyMatrix(
   sprite.x = cellX;
   sprite.y = cellY;
 
-  // Texture is rasterized at MAP_BG_ZOOM density. Base scale
-  // 1/MAP_BG_ZOOM brings texture pixels back to logical pixels;
+  // Texture is rasterized at `resolution` density. Base scale
+  // 1/resolution brings texture pixels back to logical pixels;
   // rotated tiles get the canonical AS iso-projection fudge:
   //   `_xscale = 51.85, _yscale = 192.86` (Constants.as).
   // Flip mirrors the X axis (canonical `_xscale *= -1`).
   const rot = rotation & 3;
   const rotated = rot === 1 || rot === 3;
-  const base = 1 / MAP_BG_ZOOM;
+  const base = 1 / resolution;
   const sx = rotated ? base * ROT_SCALE_X : base;
   const sy = rotated ? base * ROT_SCALE_Y : base;
   sprite.scale.set(flip ? -sx : sx, sy);
@@ -182,16 +210,21 @@ export class TileSpriteRenderer {
   private object1Layer: Container;
   private object2Layer: Container;
   /**
-   * Shared GPU texture pool keyed by `${bundle}:${exportName}:${frame}`.
-   * Every cell that references the same tile frame reuses one
-   * `ExternalSource` + `Texture` here. Critical: per-placement
-   * textures would blow past the watchdog's TEXTURE_COUNT_HALT=1024
-   * on any non-trivial map and silently halt mid-render — the
-   * canonical "bottom of the map goes black" symptom.
+   * Shared GPU texture pool keyed by
+   * `${bundle}:${exportName}:${frame}:${resolution}`. Including the
+   * resolution in the cache key lets backgrounds (pinned at
+   * `BG_RESOLUTION`) keep their entry across zoom changes while
+   * non-bg tiles get fresh entries every time the user zooms.
    */
   private tileCache = new Map<string, CachedTileSource>();
   /** Refcount per cache key. When it hits 0 we retire the GPU texture. */
   private cacheRefs = new Map<string, number>();
+  /**
+   * Current rasterization density for non-bg tiles. Backgrounds
+   * always use `BG_RESOLUTION` regardless of this value — see
+   * `setTileResolution` for the zoom-driven re-render path.
+   */
+  private tileResolution = DEFAULT_TILE_RESOLUTION;
 
   constructor(
     pixiRenderer: Renderer,
@@ -215,12 +248,13 @@ export class TileSpriteRenderer {
   private acquireCachedTile(
     bundle: string,
     exportName: string,
-    frame: number
+    frame: number,
+    resolution: number
   ): { cacheKey: string; entry: CachedTileSource } | null {
-    const cacheKey = `${bundle}:${exportName}:${frame}`;
+    const cacheKey = `${bundle}:${exportName}:${frame}:${resolution}`;
     let entry = this.tileCache.get(cacheKey);
     if (!entry) {
-      const result = renderSwfFrame(bundle, exportName, frame, MAP_BG_ZOOM);
+      const result = renderSwfFrame(bundle, exportName, frame, resolution);
       if (!result) {
         return null;
       }
@@ -229,7 +263,7 @@ export class TileSpriteRenderer {
         renderer: this.pixiRenderer,
         width: result.width,
         height: result.height,
-        label: `tile-${bundle}:${exportName}@${frame}`,
+        label: `tile-${bundle}:${exportName}@${frame}@${resolution}`,
       });
       source.alphaMode = "no-premultiply-alpha";
       source.format = "rgba8unorm";
@@ -327,27 +361,91 @@ export class TileSpriteRenderer {
     }
   }
 
+  /**
+   * Re-rasterize every non-background tile sprite at the new
+   * density. Backgrounds keep their existing texture (pinned at
+   * `BG_RESOLUTION`) — re-rendering them risks the wgpu 8192
+   * texture limit and the bg never visibly benefits from
+   * oversampling enough to justify the per-zoom GPU churn.
+   *
+   * Animation state is preserved across the swap: `currentFrame`
+   * and `accumMs` are NOT reset, so an animated tile mid-cycle
+   * (chimney smoke, water ripples) continues from where it left
+   * off — the only thing that changes is the underlying GPU
+   * texture's pixel density.
+   *
+   * The cache is keyed by `(bundle, export, frame, resolution)`,
+   * so calls into `acquireCachedTile` at the new density hit fresh
+   * entries while the old per-resolution entries naturally retire
+   * via refcount-drop once every sprite has migrated.
+   */
+  setTileResolution(res: number): void {
+    const clamped = Math.max(
+      DEFAULT_TILE_RESOLUTION,
+      Math.min(MAX_TILE_RESOLUTION, Math.ceil(res))
+    );
+    if (clamped === this.tileResolution) {
+      return;
+    }
+    this.tileResolution = clamped;
+    for (const state of this.states.values()) {
+      if (state.isBackground) {
+        continue;
+      }
+      const acquired = this.acquireCachedTile(
+        state.bundle,
+        state.exportName,
+        state.currentFrame,
+        clamped
+      );
+      if (!acquired) {
+        // Out-of-budget or render failed — leave the sprite on its
+        // existing (lower-density) texture rather than going blank.
+        continue;
+      }
+      const { cacheKey, entry } = acquired;
+      const oldCacheKey = state.cacheKey;
+      state.sprite.anchor.set(entry.anchorFracX, entry.anchorFracY);
+      state.sprite.texture = entry.texture;
+      applyMatrix(
+        state.sprite,
+        state.cellX,
+        state.cellY,
+        state.rotation,
+        state.flip,
+        clamped
+      );
+      state.cacheKey = cacheKey;
+      state.resolution = clamped;
+      state.anchorFracX = entry.anchorFracX;
+      state.anchorFracY = entry.anchorFracY;
+      this.releaseCachedTile(oldCacheKey);
+    }
+  }
+
   private createSprite(key: string, p: LayeredTilePlacement): void {
     const initialFrame = p.isAnimated ? 0 : p.staticFrame;
+    const isBackground = p.isBackground === true;
+    const resolution = isBackground ? BG_RESOLUTION : this.tileResolution;
     const acquired = this.acquireCachedTile(
       p.bundle,
       p.exportName,
-      initialFrame
+      initialFrame,
+      resolution
     );
     if (!acquired) {
       return;
     }
     const { cacheKey, entry } = acquired;
-    // NOTE: do NOT set `source.resolution = MAP_BG_ZOOM`. Pixi
-    // interprets resolution as a pixel-density multiplier that makes
-    // the texture render 1/N times smaller; combined with our
-    // `sprite.scale = 1/MAP_BG_ZOOM` it produces 1/100× tiles ("tiny
-    // + spread apart"). The native MAP_BG_ZOOM-density rasterization
-    // is compensated entirely by `sprite.scale`.
+    // NOTE: do NOT set `source.resolution`. Pixi interprets it as a
+    // pixel-density multiplier that makes the texture render 1/N
+    // times smaller; combined with our `sprite.scale = 1/resolution`
+    // it produces 1/N² tiles. The native density compensation lives
+    // entirely in `applyMatrix`'s `sprite.scale`.
 
     const sprite = new Sprite(entry.texture);
     sprite.anchor.set(entry.anchorFracX, entry.anchorFracY);
-    applyMatrix(sprite, p.cellX, p.cellY, p.rotation, p.flip);
+    applyMatrix(sprite, p.cellX, p.cellY, p.rotation, p.flip, resolution);
     // Painter's-order zIndex inside the layer: lower-cellY (back rows)
     // render first so higher-cellY (front rows) overlap correctly.
     // Mirrors canonical MapHandler depth convention.
@@ -369,9 +467,11 @@ export class TileSpriteRenderer {
       frameCount: p.frameCount,
       fps: p.fps,
       isAnimated: p.isAnimated,
+      isBackground,
       currentFrame: initialFrame,
       accumMs: 0,
       cacheKey,
+      resolution,
       cellX: p.cellX,
       cellY: p.cellY,
       rotation: p.rotation,
@@ -403,7 +503,8 @@ export class TileSpriteRenderer {
     const acquired = this.acquireCachedTile(
       state.bundle,
       state.exportName,
-      state.currentFrame
+      state.currentFrame,
+      state.resolution
     );
     if (!acquired) {
       return;

@@ -308,6 +308,7 @@ export class MapHandler {
         rotation: 0,
         flip: false,
         groundSlope: 1,
+        isBackground: true,
       });
     }
 
@@ -378,6 +379,7 @@ export class MapHandler {
       rotation: number;
       flip: boolean;
       groundSlope: number;
+      isBackground?: boolean;
     }
   ): void {
     const resolved = this.tileResolver.resolve(tileKey);
@@ -407,6 +409,7 @@ export class MapHandler {
       fps: resolved.fps,
       staticFrame,
       layer,
+      isBackground: cell.isBackground === true,
     });
   }
 
@@ -459,9 +462,11 @@ export class MapHandler {
 
     if (this.tileSpriteRenderer) {
       // mapContainer.scale = zoom propagates to the layer containers
-      // and into each tile sprite — no per-sprite resolution rebuild
-      // needed when zoom changes (the texture stays at MAP_BG_ZOOM
-      // density, so up-/down-scaling stays sharp within MAX_DENSITY).
+      // and into each tile sprite. The tile renderer also bumps its
+      // own rasterization density so non-bg tiles get crisp Vello
+      // textures at the new user zoom; backgrounds keep their pinned
+      // BG_RESOLUTION texture (see `setTileResolution` docs).
+      this.tileSpriteRenderer.setTileResolution(zoom);
       this.rebuildTilePlacements();
     } else {
       log.warn(
@@ -480,16 +485,19 @@ export class MapHandler {
    * Returns true so the BattlefieldZoom fast path proceeds.
    */
   async updateTexturesForZoom(
-    _zoom: number,
+    zoom: number,
     _mapData?: MapData,
     _viewport?: Viewport | null
   ): Promise<boolean> {
     if (!this.tileSpriteRenderer) {
       return false;
     }
-    // Container scale propagates zoom to all sprites; rebuild only
-    // touches per-tile state (which is zoom-independent at the
-    // texture level — MAP_BG_ZOOM is the rasterization density).
+    // Bump non-bg tile density so the new zoom level oversamples
+    // crisply, then re-walk placements so any structural changes
+    // land. Backgrounds skip the density bump inside
+    // `setTileResolution` — they keep their pinned-BG_RESOLUTION
+    // texture for the session.
+    this.tileSpriteRenderer.setTileResolution(zoom);
     this.rebuildTilePlacements();
     return true;
   }
