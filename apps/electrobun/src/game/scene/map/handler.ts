@@ -588,8 +588,27 @@ export class MapHandler {
   /**
    * Check if sprite refs are available for texture-swap zoom
    */
+  /**
+   * Returns `true` when the renderer has live tile sprites the
+   * zoom path can update in-place. The new TileSpriteRenderer
+   * pipeline ALWAYS qualifies once `renderMap` has run — `setPlacements`
+   * is incremental, so `updateTexturesForZoom` re-rasterizes each
+   * sprite's texture at the new density without tearing down its
+   * animation state (`currentFrame`, `accumMs`). The legacy
+   * layerBuilder fallback is kept for tactic-mode decor; we OR both
+   * so `BattlefieldZoom` takes the fast path regardless of which
+   * pipeline produced the visible tiles.
+   *
+   * Returning `false` here was the canonical "animated tiles reset
+   * to frame 0 on every zoom step" symptom — the slow path calls
+   * `clearCache()` + `renderMap()`, which destroys every tile state
+   * and re-creates them with `currentFrame = 0`.
+   */
   hasSpriteRefs(): boolean {
-    return this.layerBuilder.getSpriteRefs().length > 0;
+    return (
+      this.tileSpriteRenderer !== null ||
+      this.layerBuilder.getSpriteRefs().length > 0
+    );
   }
 
   /**
