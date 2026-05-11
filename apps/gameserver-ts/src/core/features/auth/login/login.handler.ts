@@ -35,10 +35,40 @@ export class LoginHandler {
       return this.reject(ctx, LoginError.BANNED);
     }
 
-    const ok = await Bun.password.verify(
-      msg.encryptedPassword,
-      account.pwdHash
-    );
+    // Defensive: Bun.password.verify throws AggregateError when the
+    // stored hash isn't in a recognized algorithm format (every algo
+    // it tries rejects → all errors aggregated). That happens when
+    // a row was inserted with a pre-hashed-by-some-other-tool string,
+    // a fixture left a placeholder, or a migration emptied the column.
+    // Treat that as bad credentials rather than letting the dispatch
+    // wrapper log a context-free AggregateError.
+    if (!account.pwdHash || typeof account.pwdHash !== "string") {
+      this.logger.warn(
+        `login refused: account ${account.id} has empty/invalid pwdHash`
+      );
+      return this.reject(ctx, LoginError.INVALID_CREDENTIALS);
+    }
+
+    let ok = false;
+    try {
+      ok = await Bun.password.verify(msg.encryptedPassword, account.pwdHash);
+    } catch (err) {
+      // Malformed hash format → AggregateError (Bun tries multiple
+      // algorithms and aggregates rejections). Log the inner causes
+      // and reject as bad creds — never propagate to the dispatcher.
+      const causes =
+        err instanceof AggregateError
+          ? err.errors
+              .map((e) => (e instanceof Error ? e.message : String(e)))
+              .join(" | ")
+          : err instanceof Error
+            ? err.message
+            : String(err);
+      this.logger.error(
+        `Bun.password.verify failed for account ${account.id}: ${causes}`
+      );
+      return this.reject(ctx, LoginError.INVALID_CREDENTIALS);
+    }
 
     if (!ok) {
       return this.reject(ctx, LoginError.INVALID_CREDENTIALS);

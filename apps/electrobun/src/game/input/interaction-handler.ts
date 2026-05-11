@@ -44,6 +44,33 @@ export class InteractionHandler {
   private lastScreenY = -1;
   private mouseInCanvas = false;
 
+  /**
+   * Shared hover-tint filter — allocated ONCE per InteractionHandler
+   * instance and reused across every hover change. Critical: do NOT
+   * `new ColorMatrixFilter()` per hover. Each `Filter` holds a GPU
+   * shader module + uniform buffer + bind group; on this project's
+   * patched wgpu28 build (per `feedback_pixi_wgpu_texture_lifetime`)
+   * those resources don't release through JS GC. Allocating one per
+   * pointermove (hover throttle is the cell, but cells switch fast
+   * during gameplay) leaks dozens-to-hundreds of GPU pipelines per
+   * minute → after 15 seconds of normal mouse movement the GPU has
+   * accumulated enough pipeline objects to trip the macOS WindowServer
+   * watchdog (observed crash signature 2026-05-06: HUD reported only
+   * 3 instrumented Vello textures alive — the leak was entirely in
+   * Pixi-side filter pipelines, not in tracked textures).
+   *
+   * Matrix is the canonical Dofus 1.29 hover tint: per-channel `0.6 *
+   * input + 0.4` (`Color.setTransform({ra:60, rb:102, ...})`).
+   */
+  private readonly hoverTint: ColorMatrixFilter = (() => {
+    const f = new ColorMatrixFilter();
+    f.matrix = [
+      0.6, 0, 0, 0, 0.4, 0, 0.6, 0, 0, 0.4, 0, 0, 0.6, 0, 0.4, 0, 0, 0, 1, 0,
+    ];
+    f.resolution = 1;
+    return f;
+  })();
+
   private onZoomChange?: (zoom: number, index: number) => void;
   private onPan?: (dx: number, dy: number) => void;
   private onObjectClick?: (result: PickResult) => void;
@@ -315,16 +342,12 @@ export class InteractionHandler {
       }
 
       if (pickResult) {
-        const sprite = pickResult.object.sprite;
-        // Exact Dofus 1.29 hover highlight: Color.setTransform({ra:60, rb:102, ...})
-        // output = input * 0.6 + 102/255 (≈0.4) per channel
-        const colorMatrix = new ColorMatrixFilter();
-        colorMatrix.matrix = [
-          0.6, 0, 0, 0, 0.4, 0, 0.6, 0, 0, 0.4, 0, 0, 0.6, 0, 0.4, 0, 0, 0, 1,
-          0,
-        ];
-        colorMatrix.resolution = 1;
-        sprite.filters = [colorMatrix];
+        // Reuse the singleton hover filter (see `hoverTint` field
+        // declaration). Allocating per-hover leaks GPU pipelines on
+        // this project's wgpu28 build — that was the leak that killed
+        // the host after 15-30 seconds of normal mouse movement, even
+        // though the watchdog HUD reported clean Vello-texture state.
+        pickResult.object.sprite.filters = [this.hoverTint];
       }
 
       this.canvas.style.cursor = pickResult ? "pointer" : "default";

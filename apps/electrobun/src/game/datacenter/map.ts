@@ -37,43 +37,62 @@ export interface MapBounds {
   maxY: number;
 }
 
+/**
+ * Fit a map's cell grid into the `DISPLAY_WIDTH × DISPLAY_HEIGHT` viewport.
+ *
+ * Standard "contain" fit: if either dimension would overflow, scale down
+ * uniformly so both fit; if both fit at scale=1, no scaling. The result
+ * is centered in the viewport.
+ *
+ * Why the rewrite (2026-05-06): the previous implementation only
+ * triggered scaling when BOTH `mapHeight > DEFAULT_HEIGHT` AND
+ * `mapWidth > DEFAULT_WIDTH`. A map with only one over-sized dimension
+ * (e.g. a 15-wide × 22-tall world map) fell into the unscaled branch,
+ * `actualHeight = (22-1)*27 = 567 > DISPLAY_HEIGHT=432`, and every
+ * cell whose `cellY` exceeded 432 rendered OUTSIDE the tile-pass
+ * texture's vertical bounds — producing the "bottom 20% of map is
+ * black" symptom the user hit on real maps. The dual-overflow branch
+ * also picked the wrong scale ratio (DISPLAY_WIDTH/totalWidth when the
+ * map was tall, DISPLAY_HEIGHT/totalHeight when wide — inverted), so
+ * even maps that exceeded both dimensions were partially clipped.
+ *
+ * The new formulation handles all four cases uniformly:
+ *   - both fit              → scale=1, content centered if smaller
+ *   - only width overflows  → scale = DISPLAY_WIDTH / totalWidth
+ *   - only height overflows → scale = DISPLAY_HEIGHT / totalHeight
+ *   - both overflow         → scale = min of the two (whichever is tighter)
+ */
 export function computeMapScale(mapWidth: number, mapHeight: number): MapScale {
-  if (mapHeight === DEFAULT_HEIGHT && mapWidth === DEFAULT_WIDTH) {
+  const totalWidth = (mapWidth - 1) * CELL_WIDTH;
+  const totalHeight = (mapHeight - 1) * CELL_HEIGHT;
+
+  // Uniform "contain" scale — never magnify (cap at 1) so undersized
+  // maps just sit centered with margins on all sides.
+  const scaleW = totalWidth > DISPLAY_WIDTH ? DISPLAY_WIDTH / totalWidth : 1;
+  const scaleH =
+    totalHeight > DISPLAY_HEIGHT ? DISPLAY_HEIGHT / totalHeight : 1;
+  const scale = Math.min(scaleW, scaleH);
+
+  const actualWidth = totalWidth * scale;
+  const actualHeight = totalHeight * scale;
+
+  // Default-sized 15×17 maps land exactly on the viewport (742 × 432) →
+  // fast path zero offset. The general formula below also produces 0
+  // for that case but skipping the trunc() call avoids any chance of
+  // an off-by-half-pixel artifact at the seams.
+  if (
+    mapHeight === DEFAULT_HEIGHT &&
+    mapWidth === DEFAULT_WIDTH &&
+    actualWidth === DISPLAY_WIDTH &&
+    actualHeight === DISPLAY_HEIGHT
+  ) {
     return { scale: 1, offsetX: 0, offsetY: 0 };
   }
 
-  let scale = 1;
-  let actualWidth: number;
-  let actualHeight: number;
-
-  if (mapHeight > DEFAULT_HEIGHT && mapWidth > DEFAULT_WIDTH) {
-    const totalWidth = (mapWidth - 1) * CELL_WIDTH;
-    const totalHeight = (mapHeight - 1) * CELL_HEIGHT;
-
-    scale =
-      mapHeight > mapWidth
-        ? DISPLAY_WIDTH / totalWidth
-        : DISPLAY_HEIGHT / totalHeight;
-
-    actualWidth = Math.floor(totalWidth * scale);
-    actualHeight = Math.floor(totalHeight * scale);
-  } else {
-    scale = 1;
-    actualWidth = (mapWidth - 1) * CELL_WIDTH;
-    actualHeight = (mapHeight - 1) * CELL_HEIGHT;
-  }
-
-  if (actualWidth === DISPLAY_WIDTH && actualHeight === DISPLAY_HEIGHT) {
-    return { scale, offsetX: 0, offsetY: 0 };
-  }
-
-  const offsetX = (DISPLAY_WIDTH - actualWidth) / 2;
-  const offsetY = (DISPLAY_HEIGHT - actualHeight) / 2;
-
   return {
     scale,
-    offsetX: Math.trunc(offsetX),
-    offsetY: Math.trunc(offsetY),
+    offsetX: Math.trunc((DISPLAY_WIDTH - actualWidth) / 2),
+    offsetY: Math.trunc((DISPLAY_HEIGHT - actualHeight) / 2),
   };
 }
 

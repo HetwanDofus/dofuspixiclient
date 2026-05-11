@@ -4,6 +4,7 @@ import "./index.css";
 import "./typography.css";
 
 import { App } from "./App";
+import { StressPage } from "./StressPage";
 
 async function start() {
   // @TODO: fix later — force-load fonts before mount so PixiJS can use them
@@ -20,7 +21,14 @@ async function start() {
   }
 
   const root = createRoot(appEl);
-  root.render(<App />);
+  // `#stress` boots the isolated Pixi+Vello stress test (single canvas,
+  // shared GPUDevice via the patched wgpu fork). Anything else boots
+  // the normal app.
+  if (window.location.hash === "#stress") {
+    root.render(<StressPage />);
+  } else {
+    root.render(<App />);
+  }
 }
 
 start();

@@ -1,190 +1,80 @@
-import type { VelloRenderer } from "vello-wasm";
-
-import type { AccessoryInfo } from "@/game/assets/look-parser";
-
-const SPRITES_BASE_PATH = "/assets/spritesheets/sprites";
-const CHEVAUCHORS_BASE_PATH = "/assets/spritesheets/chevauchors";
+import { loadSwfBundle } from "@/game/render/vello-loader";
 
 /** Offset added to chevauchor gfxIds to avoid collision with regular sprite IDs. */
 export const CHEVAUCHOR_ID_OFFSET = 1_000_000;
 
 /**
- * Loads sprite/chevauchor/accessory `.dofasset` binaries into a Vello renderer
- * and remembers the Vello asset IDs so repeat requests hit the cache.
+ * Loads sprite + chevauchor SWF bundles into the shared `vello-loader` and
+ * remembers the loaded bundle names so repeat requests hit the cache.
  *
  * Separated from CharacterSpriteLoader because it's pure I/O + bookkeeping —
- * everything about animation strips, textures, and caching lives elsewhere.
+ * everything about animation rendering and per-frame texture caching lives
+ * elsewhere.
+ *
+ * Accessory loading was previously done here for the dofasset render path.
+ * It moved out of this file because the SWF render path composes accessories
+ * by reading per-frame attachment matrices from the player SWF (see
+ * `getSwfAccessorySlots`) and rendering each accessory SWF separately, then
+ * compositing in Pixi. That logic lives in Phase 4 of the migration.
  */
 export class VelloAssetRegistry {
-  private vello: VelloRenderer | null = null;
-  // Start well above tile asset IDs to avoid collisions.
-  private nextId = 100000;
+  /** gfxId → SWF bundle name (e.g. 10 → "sprite-10", 1000010 → "chevauchor-10"). */
+  private readonly bundleNames = new Map<number, string>();
+  private readonly pendingLoads = new Map<number, Promise<boolean>>();
 
-  private readonly spriteIds = new Map<number, number>();
-  private readonly pendingSpriteLoads = new Map<number, Promise<boolean>>();
-
-  /** "type:gfxId" → vello asset ID (or -1 for a failed load, so we don't retry). */
-  private readonly accessoryIds = new Map<string, number>();
-  private readonly pendingAccessoryLoads = new Map<
-    string,
-    Promise<number | null>
-  >();
-
-  setVelloRenderer(vello: VelloRenderer): void {
-    this.vello = vello;
-  }
-
-  /** Vello asset ID for this sprite, if already loaded (else undefined). */
-  getSpriteAssetId(gfxId: number): number | undefined {
-    return this.spriteIds.get(gfxId);
+  /** Bundle name for this gfxId, if already loaded (else undefined). */
+  getSpriteBundleName(gfxId: number): string | undefined {
+    return this.bundleNames.get(gfxId);
   }
 
   /**
-   * Load the sprite's .dofasset (regular or chevauchor variant, picked by ID
-   * range) into Vello. Deduplicates concurrent calls.
+   * Load the gfxId's SWF (regular or chevauchor variant, picked by ID range)
+   * into the shared `vello-loader` Vello instance. Deduplicates concurrent
+   * calls. Returns true on success.
    */
   async loadSprite(gfxId: number): Promise<boolean> {
-    if (this.spriteIds.has(gfxId)) {
+    if (this.bundleNames.has(gfxId)) {
       return true;
     }
 
-    const existing = this.pendingSpriteLoads.get(gfxId);
-
+    const existing = this.pendingLoads.get(gfxId);
     if (existing) {
       return existing;
     }
 
     const promise = this.doLoadSprite(gfxId);
-    this.pendingSpriteLoads.set(gfxId, promise);
-
+    this.pendingLoads.set(gfxId, promise);
     try {
       return await promise;
     } finally {
-      this.pendingSpriteLoads.delete(gfxId);
+      this.pendingLoads.delete(gfxId);
     }
   }
 
   private async doLoadSprite(gfxId: number): Promise<boolean> {
     const isChevauchor = gfxId >= CHEVAUCHOR_ID_OFFSET;
     const realId = isChevauchor ? gfxId - CHEVAUCHOR_ID_OFFSET : gfxId;
-    const basePath = isChevauchor ? CHEVAUCHORS_BASE_PATH : SPRITES_BASE_PATH;
+    const bundleName = isChevauchor
+      ? `chevauchor-${realId}`
+      : `sprite-${realId}`;
+    const url = isChevauchor
+      ? `/swf/sprites/chevauchor/${realId}.swf`
+      : `/swf/sprites/${realId}.swf`;
 
     try {
-      const res = await fetch(`${basePath}/${realId}.dofasset`);
-
-      if (!res.ok) {
+      const ok = await loadSwfBundle(bundleName, url);
+      if (!ok) {
         return false;
       }
-
-      const data = new Uint8Array(await res.arrayBuffer());
-      const id = this.nextId++;
-      this.vello?.loadAsset(id, data);
-      this.spriteIds.set(gfxId, id);
+      this.bundleNames.set(gfxId, bundleName);
       return true;
     } catch {
       return false;
     }
   }
 
-  /**
-   * Batch-load every accessory for a parsed look and return a flat
-   * `[asset_id, slot_id, asset_id, slot_id, ...]` array in the shape
-   * `vello.renderFrame` expects. Accessories that fail to load are skipped.
-   */
-  async loadAccessoriesForLook(
-    accessories: AccessoryInfo[]
-  ): Promise<number[] | undefined> {
-    const accInfo: number[] = [];
-
-    await Promise.all(
-      accessories.map(async (acc, index) => {
-        if (acc.gfxId === 0) {
-          return;
-        }
-
-        const assetId = await this.loadAccessory(acc.type, acc.gfxId);
-
-        if (assetId != null) {
-          accInfo.push(assetId, index);
-        }
-      })
-    );
-
-    return accInfo.length > 0 ? accInfo : undefined;
-  }
-
-  /**
-   * Accessories are compiled from /accessories/{type}_{gfxId}/ and stored as
-   * acc_{type}_{gfxId}.dofasset. Negative cache on failure so broken slots
-   * don't trigger a fetch every frame.
-   */
-  private async loadAccessory(
-    type: number,
-    gfxId: number
-  ): Promise<number | null> {
-    if (!this.vello || gfxId === 0) {
-      return null;
-    }
-
-    const key = `${type}:${gfxId}`;
-    const cached = this.accessoryIds.get(key);
-
-    if (cached !== undefined) {
-      return cached === -1 ? null : cached;
-    }
-
-    const pending = this.pendingAccessoryLoads.get(key);
-
-    if (pending) {
-      return pending;
-    }
-
-    const promise = this.doLoadAccessory(type, gfxId, key);
-    this.pendingAccessoryLoads.set(key, promise);
-
-    try {
-      return await promise;
-    } finally {
-      this.pendingAccessoryLoads.delete(key);
-    }
-  }
-
-  private async doLoadAccessory(
-    type: number,
-    gfxId: number,
-    cacheKey: string
-  ): Promise<number | null> {
-    try {
-      const res = await fetch(
-        `${SPRITES_BASE_PATH}/acc_${type}_${gfxId}.dofasset`
-      );
-
-      if (!res.ok) {
-        this.accessoryIds.set(cacheKey, -1);
-        return null;
-      }
-
-      const data = new Uint8Array(await res.arrayBuffer());
-      const id = this.nextId++;
-      const ok = this.vello?.loadAsset(id, data);
-
-      if (!ok) {
-        this.accessoryIds.set(cacheKey, -1);
-        return null;
-      }
-
-      this.accessoryIds.set(cacheKey, id);
-      return id;
-    } catch {
-      this.accessoryIds.set(cacheKey, -1);
-      return null;
-    }
-  }
-
   clear(): void {
-    this.spriteIds.clear();
-    this.accessoryIds.clear();
-    this.pendingSpriteLoads.clear();
-    this.pendingAccessoryLoads.clear();
+    this.bundleNames.clear();
+    this.pendingLoads.clear();
   }
 }

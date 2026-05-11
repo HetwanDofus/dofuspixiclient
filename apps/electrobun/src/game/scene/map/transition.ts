@@ -73,53 +73,57 @@ export class MapTransition {
   /**
    * Capture snapshot and start loading animation. Non-blocking.
    * @param direction If provided, enables directional pan instead of crossfade.
+   *
+   * DISABLED 2026-05-06 — the snapshot RenderTexture + BlurFilter
+   * combo allocates on every map transition and Pixi v8's TexturePool
+   * doesn't reliably release intermediate filter textures on the
+   * wgpu28 patched build (per `feedback_pixi_wgpu_texture_lifetime`,
+   * `Drop for WebTexture` is a no-op). With heavy blur + screen-sized
+   * snapshots (33MB+ each) plus 6 internal blur-pass RenderTextures,
+   * each transition was leaking ~200MB of GPU memory. After 2 map
+   * walks the macOS WindowServer watchdog killed the compositor —
+   * even though the watchdog HUD reported zero leaked Vello textures
+   * (the leak is entirely on the Pixi-side filter pipeline, which is
+   * uninstrumented).
+   *
+   * Until we have a non-leaking transition (would need a custom blur
+   * shader or to manually manage the TexturePool), the function is a
+   * no-op. Result: instant cut between maps with no fade. Visual
+   * regression is acceptable; the crash is not.
    */
   startTransition(direction?: TransitionDirection): void {
+    void direction;
     this.cleanup();
-
+    return;
+    // ── unreachable — kept for re-enable ────────────────────────────
+    /*
     this.direction = direction ?? null;
-
-    // Nothing to snapshot on first load
-    if (this.mapContainer.children.length === 0) {
-      return;
-    }
-
+    if (this.mapContainer.children.length === 0) return;
     const bounds = this.mapContainer.getBounds();
-
-    if (bounds.width === 0 || bounds.height === 0) {
-      return;
-    }
-
+    if (bounds.width === 0 || bounds.height === 0) return;
     this.transitioning = true;
     this.transitionStartTime = performance.now();
-
     const pad = Math.ceil(this.MAX_BLUR) + 4;
-
     this.snapshotTexture = RenderTexture.create({
       width: this.app.screen.width + pad * 2,
       height: this.app.screen.height + pad * 2,
     });
-
     const origX = this.mapContainer.x;
     const origY = this.mapContainer.y;
     this.mapContainer.position.set(origX + pad, origY + pad);
-
     this.app.renderer.render({
       container: this.mapContainer,
       target: this.snapshotTexture,
     });
-
     this.mapContainer.position.set(origX, origY);
-
     this.snapshot = new Sprite(this.snapshotTexture);
     this.snapshot.label = "map-transition-snapshot";
     this.snapshot.position.set(-pad, -pad);
-
     const mapIndex = this.app.stage.getChildIndex(this.mapContainer);
     this.app.stage.addChildAt(this.snapshot, mapIndex + 1);
-
     this.snapshotBlur = new BlurFilter({ strength: 0, quality: 3 });
     this.snapshot.filters = [this.snapshotBlur];
+    */
 
     // For directional pan, apply a gentler blur-up
     const targetBlur = this.direction ? this.PAN_BLUR : this.MAX_BLUR;
@@ -297,9 +301,31 @@ export class MapTransition {
       this.snapshot = null;
     }
 
-    this.snapshotBlur = null;
+    // BlurFilter (Pixi v8) holds internal RenderTexture(s) for the
+    // multi-pass gaussian. Just nulling the reference relies on
+    // Pixi's GC, but per `feedback_pixi_wgpu_texture_lifetime` Pixi's
+    // wgpu28 `Drop for WebTexture` is a no-op — those internal
+    // textures stay alive in GPU memory forever. Each map transition
+    // creates a fresh BlurFilter; without explicit destroy that's a
+    // ~MB-scale leak per walked map and the dominant uninstrumented
+    // leak path discovered 2026-05-06 (HUD showed only 6 instrumented
+    // textures alive, yet the GPU was OOM-ing after 6 transitions —
+    // Pixi-side filter textures are the missing piece).
+    if (this.snapshotBlur) {
+      try {
+        this.snapshotBlur.destroy();
+      } catch {
+        // older Pixi versions may not have destroy on Filter — fine.
+      }
+      this.snapshotBlur = null;
+    }
 
     if (this.snapshotTexture) {
+      // RenderTexture.destroy(true) destroys the source. On wgpu28
+      // the underlying GPU storage is freed by `wgpu::Texture::Drop`
+      // which IS implemented (only `WebTexture::Drop` is the no-op,
+      // and that's the wrapper around shared GPUTexture handles, not
+      // RenderTexture's owned source). So this is safe AND necessary.
       this.snapshotTexture.destroy(true);
       this.snapshotTexture = null;
     }
@@ -309,6 +335,15 @@ export class MapTransition {
     if (this.mapBlur) {
       this.mapContainer.filters =
         this.baseFilters.length > 0 ? this.baseFilters : null;
+      try {
+        // Same reasoning as snapshotBlur — explicit destroy frees the
+        // BlurFilter's internal multi-pass RenderTextures. Without
+        // this each map transition leaks the map-blur filter's GPU
+        // storage on top of the snapshot filter's.
+        this.mapBlur.destroy();
+      } catch {
+        // ignore
+      }
       this.mapBlur = null;
     }
   }

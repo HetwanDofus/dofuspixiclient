@@ -20,18 +20,15 @@
  * load bounded — the same reason the stress test uses this approach.
  */
 import {
-  ExternalSource,
   type Container,
+  ExternalSource,
   type Renderer,
   Sprite,
   Texture,
 } from "pixi.js";
 
 import { ROT_SCALE_X, ROT_SCALE_Y } from "@/game/constants/battlefield";
-import {
-  freeRenderTexture,
-  renderSwfFrame,
-} from "@/game/render/vello-loader";
+import { freeRenderTexture, renderSwfFrame } from "@/game/render/vello-loader";
 import { createLogger } from "@/utils/logger";
 
 /**
@@ -270,8 +267,7 @@ export class TileSpriteRenderer {
       source.scaleMode = "linear";
       source.autoGarbageCollect = false;
       const texture = new Texture({ source });
-      const anchorFracX =
-        result.width > 0 ? result.anchorX / result.width : 0;
+      const anchorFracX = result.width > 0 ? result.anchorX / result.width : 0;
       const anchorFracY =
         result.height > 0 ? result.anchorY / result.height : 0;
       entry = {

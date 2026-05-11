@@ -12,6 +12,7 @@ import { type CellData, getCellPosition } from "@/game/datacenter/cell";
 
 import { Actor, type ActorId, freshActorId } from "../actor";
 import { RENDERED, type Rendered } from "../capabilities";
+import { WorldCellTints } from "./world-cell-tints";
 
 /**
  * Highlight type for fight cells.
@@ -195,6 +196,24 @@ const ZONE_FILL_TYPES: ReadonlySet<HighlightTypeValue> = new Set([
 //   - PLACEMENT_TEAM_0/1 — MapHandler.as:1013,1022
 //   - MOVEMENT_PATH      — InteractionsManager.as:91 hovered path
 //   - SELECTED / HOVER   — single-cell selection flash
+//
+// **Canonical depth (Object2 sub-offset +2)**: when a `WorldCellTints`
+// is wired in via `setWorldCellTints(...)`, these types render
+// through `WorldLayer.upsert(kind: 'cellTint')` at depth = `cell × 100
+// + 2` instead of into this module's Pixi `Graphics`. That puts the
+// tint above foreground tiles (sub-offset 0) and below chars (+30),
+// matching `MapHandler.gfx.select(...)` in the original 1.29 client.
+// When `worldCellTints` is null we fall back to per-cell Pixi diamonds
+// at z=500 — the pre-three-canvas-migration behavior.
+const CANONICAL_DEPTH_FILL_TYPES: ReadonlySet<HighlightTypeValue> = new Set([
+  HighlightType.PLACEMENT_TEAM_0,
+  HighlightType.PLACEMENT_TEAM_1,
+  HighlightType.MOVEMENT_PATH,
+  HighlightType.SELECTED,
+  HighlightType.HOVER,
+  HighlightType.SPELL_RANGE,
+  HighlightType.SPELL_ZONE_INVALID,
+]);
 
 /**
  * Cell highlight configuration.
@@ -217,6 +236,14 @@ export class CellHighlighter extends Actor implements Rendered {
   readonly zIndex = Z_CELL_HIGHLIGHTER;
 
   private graphics: Graphics;
+  /**
+   * Optional bridge to WorldLayer for canonical-depth cell tints.
+   * Wired in by the host via `setWorldCellTints` after the
+   * battlefield bootstrap creates the WorldLayer. When null, all
+   * highlights render in Pixi (legacy behavior, z=500). When set,
+   * `CANONICAL_DEPTH_FILL_TYPES` route through the bridge instead.
+   */
+  private worldCellTints: WorldCellTints | null = null;
   // One Set per highlight type — a single cell can be tinted by
   // multiple layers (e.g. the hovered cell of a movement path is also
   // inside the MOVEMENT reachable-tint), and we want both to render.
@@ -253,6 +280,26 @@ export class CellHighlighter extends Actor implements Rendered {
     this.container.addChild(this.graphics);
 
     parentContainer.addChild(this.container);
+  }
+
+  /**
+   * Wire the optional `WorldCellTints` bridge. Once set,
+   * `CANONICAL_DEPTH_FILL_TYPES` render via `WorldLayer.upsert` at
+   * canonical depth instead of in this module's Pixi `Graphics`.
+   * Pass `null` to revert to the legacy Pixi-only path.
+   */
+  setWorldCellTints(tints: WorldCellTints | null): void {
+    if (this.worldCellTints === tints) {
+      return;
+    }
+    // Tear down whatever the previous bridge was painting so the new
+    // bridge starts from a clean slate; subsequent `redraw()` will
+    // republish the active highlights.
+    if (this.worldCellTints) {
+      this.worldCellTints.clearAll();
+    }
+    this.worldCellTints = tints;
+    this.redraw();
   }
 
   /**
@@ -479,15 +526,38 @@ export class CellHighlighter extends Actor implements Rendered {
         // fill legible against textured tiles — without it the spell
         // range / movement ring read as "too transparent".
         this.drawZoneShape(cells, color, alpha);
+      } else if (
+        this.worldCellTints &&
+        CANONICAL_DEPTH_FILL_TYPES.has(type)
+      ) {
+        // Canonical `gfx.select(...)` path at the correct Object2
+        // sub-offset: publish to WorldLayer so the tint paints above
+        // foreground tiles but below chars. Pixi `Graphics` is
+        // skipped for these types — leaving them out of `this.graphics`
+        // means the full set redraws cleanly when this branch is
+        // taken (clear() above wiped the previous frame's geometry).
+        this.worldCellTints.setLayer(type, cells, color, alpha);
       } else {
-        // Canonical `gfx.select(...)` path: each cell renders as its
-        // own filled diamond. Adjacent diamonds shrink by
+        // Legacy Pixi-only path. Adjacent diamonds shrink by
         // HIGHLIGHT_INSET_PX so neighbours stay visually separated —
         // the gap canonical Dofus 1.29 gets for free from the
         // `clips/gfx/cell.swf` `s<slope>` symbols which carry a
         // built-in 2-3px border-of-air on every side.
         for (const cellId of cells) {
           this.drawCellHighlight(cellId, color, alpha);
+        }
+      }
+    }
+
+    // Layers that have been explicitly cleared from the highlights
+    // map this turn need a matching WorldLayer clearLayer; without
+    // this the WorldLayer would retain stale tints after a
+    // `clearHighlightType()` call. We iterate the set of canonical
+    // types and clear any that are absent from the active highlights.
+    if (this.worldCellTints) {
+      for (const type of CANONICAL_DEPTH_FILL_TYPES) {
+        if (!this.highlights.has(type)) {
+          this.worldCellTints.clearLayer(type);
         }
       }
     }

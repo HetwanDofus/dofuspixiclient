@@ -105,7 +105,25 @@ export class WsRouter implements OnModuleInit {
       try {
         await handler(ctx, msg);
       } catch (err) {
-        this.logger.error(`handler ${msg.$typeName} threw`, err as Error);
+        // AggregateError (thrown by e.g. Bun.password.verify when every
+        // candidate algorithm fails, or by Promise.any when all branches
+        // reject) hides the real cause inside `.errors[]`. NestJS's
+        // Logger.error only stringifies the wrapper, so the original
+        // error path is lost. Unwrap so each underlying cause is visible
+        // — without this every "AggregateError" is undiagnosable.
+        if (err instanceof AggregateError) {
+          this.logger.error(
+            `handler ${msg.$typeName} threw AggregateError with ${err.errors.length} cause(s):`
+          );
+          for (const inner of err.errors) {
+            this.logger.error(
+              `  ↳ ${inner instanceof Error ? `${inner.name}: ${inner.message}` : String(inner)}`,
+              inner instanceof Error ? inner.stack : undefined
+            );
+          }
+        } else {
+          this.logger.error(`handler ${msg.$typeName} threw`, err as Error);
+        }
       }
     }
   }

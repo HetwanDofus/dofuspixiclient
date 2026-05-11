@@ -8,6 +8,7 @@ import { characterStore, closeAllPanels, hudStore } from "@/game/stores";
 import { BannerReact } from "./banner/BannerReact";
 import { TooltipProvider } from "./components/Tooltip";
 import { ConquestPanel } from "./conquest/ConquestPanel";
+import { RenderDebugOverlay } from "./debug/RenderDebugOverlay";
 import { DamagePoints } from "./fight/DamagePoints";
 import { FightEndDialog } from "./fight/FightEndDialog";
 import { FightOverlay } from "./fight/FightOverlay";
@@ -184,6 +185,12 @@ export function HudOverlay({
 
       <MonsterGroupTooltip />
       <GameContextMenu />
+      {/* Render-pipeline diagnostics — fixed-positioned outside the
+          canvas-relative wrapper so it stays anchored top-right of the
+          viewport regardless of canvas sizing. Toggled with Ctrl+Shift+D
+          (defaults hidden; persists via localStorage). Lives in the
+          TooltipProvider so it can host tooltips later if needed. */}
+      <RenderDebugOverlay />
     </TooltipProvider>
   );
 }

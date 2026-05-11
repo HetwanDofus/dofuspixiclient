@@ -1,10 +1,8 @@
 import type { MountDisplay } from "@dofus/proto";
-import { type Container, Sprite } from "pixi.js";
 
-import {
-  type CharacterAnimation,
-  type CharacterSpriteLoader,
-  isDirectionFlipped,
+import type {
+  CharacterAnimation,
+  CharacterSpriteLoader,
 } from "@/game/assets/character-sprite";
 
 /**
@@ -15,121 +13,105 @@ import {
 const CHEVAUCHOR_ID_OFFSET = 1_000_000;
 
 /**
- * Z-indexes inside the player container for mount layering:
- *   -1: mount _Back (saddle/tail — behind rider)
- *    0: chevauchor / rider
- *    1: mount _Front (head/neck — in front of rider)
- * The player's main sprite is repurposed as _Back.
+ * Sub-offset adjustments inside the canonical Object2 cell depth band
+ * for the three mount layers. The base char placement sits at
+ * `cellId * 100 + 30` (FIRST_SPRITE_DEPTH_ON_CELL); mount layers ride
+ * adjacent depth slots so the painter's-algo sort places them in the
+ * canonical back → rider → front order without any z-fighting.
+ *
+ * Slot reservation (each is +/-1 of the base 30):
+ *   28 = mount _Back  (saddle, tail behind rider)
+ *   29 = chevauchor   (rider sprite)
+ *   30 = (player main, but mount overrides — see below)
+ *   31 = mount _Front (mount head/neck in front of rider)
+ *
+ * When mounted, the player's main char placement is hidden (the mount
+ * back layer takes its visual role). The renderer still upserts the
+ * main placement at depth 30 in case the bundle is missing the _Back
+ * variant — invisible to the user when the mount layers render, but
+ * a guaranteed fallback when they don't.
  */
-const Z_BACK = -1;
-const Z_CHEVAUCHOR = 0;
-const Z_FRONT = 1;
-
-/**
- * Chevauchor anchor Y (saddle vertical offset relative to mount anchor).
- * Extracted from _mcChevauchorPos in the legacy mount SVGs; ~-23 to -25 units.
- */
-const CHEVAUCHOR_ANCHOR_Y = -24;
+export const MOUNT_DEPTH_BACK = -2;
+export const MOUNT_DEPTH_RIDER = -1;
+export const MOUNT_DEPTH_FRONT = 1;
 
 const ANIM_PREFIX_RE = /^(static|walk|run|anim\d+|hit|die|bonus|appear)/;
 
 /**
- * Manages the three mount-related sprites for a single mounted player:
- *   - _Back layer (repurposes the main sprite, so we only track its anim)
- *   - _Front layer (own Sprite child)
- *   - Chevauchor / rider (own Sprite child)
+ * Manages the three mount-related animation states for a single
+ * mounted player. Per the canonical Dofus 1.29 mount system, a
+ * mounted character renders as four layered movieclips:
+ *   - Player body's `_Back` half  (replaces the main sprite)
+ *   - Chevauchor rider sprite
+ *   - Player body's `_Front` half (mount head/neck)
+ *   - Mount feet decoration when present
  *
- * The caller drives frame sync via `syncFrame(frameIndex)` each tick.
+ * In the unified World layer this is three `CharWorldPlacement`
+ * upserts at three sub-depths within the same cell. JS keeps the
+ * three animation cursors frame-synchronized on every tick.
+ *
+ * The class itself is now stateless across renders — it owns the
+ * resolved CharacterAnimation refs for the back / rider / front
+ * sub-clips. The PlayerRenderer's `syncPlacement` walker reads them
+ * each tick and emits the three additional placements.
  */
 export class PlayerMountLayers {
-  mountFrontSprite?: Sprite;
+  /** Resolved metadata for the player body's `_Back` half. */
+  backAnim: CharacterAnimation | null = null;
+  /** Resolved metadata for the player body's `_Front` half. */
   mountFrontAnim: CharacterAnimation | null = null;
-  chevauchorSprite?: Sprite;
+  /** Resolved metadata for the chevauchor / rider sprite. */
   chevauchorAnim: CharacterAnimation | null = null;
 
   constructor(
-    private readonly container: Container,
     private readonly spriteLoader: CharacterSpriteLoader,
-    private readonly stillValid: (forAnimName: string) => boolean,
-    private readonly getCurrentDirection: () => number
+    /**
+     * Predicate the loader's late `.then` callbacks consult to decide
+     * if the originally requested anim still matches the player's
+     * current state — guards against direction flips landing while a
+     * mount-layer load is in flight.
+     */
+    private readonly stillValid: (forAnimName: string) => boolean
   ) {}
 
   /**
-   * Load + position all mount layers for the given base anim.
-   * The caller's main sprite is repurposed as _Back; we replace its texture +
-   * offsets and notify via `onBackAnimLoaded` so the caller can cache the
-   * animation data (used by the tick loop to sync frame textures).
+   * Begin loading every mount sub-clip for the given base animation.
+   * Each sub-clip resolves asynchronously via `loadAnimation`; the
+   * placement upsert that consumes their metadata happens on the
+   * next post-tick walk through `syncPlacement`. `onBackAnimLoaded`
+   * informs the caller when the body's `_Back` half resolves, so the
+   * caller can continue treating the player's main `currentAnimData`
+   * as the back half (preserving frame-sync semantics across the
+   * mount/unmount transition).
    */
   apply(
-    mainSprite: Sprite,
     gfxId: number,
     look: string,
     animName: string,
-    flipped: boolean,
     mount: MountDisplay | undefined,
     onBackAnimLoaded: (anim: CharacterAnimation) => void
   ): void {
-    this.applyBack(
-      mainSprite,
-      gfxId,
-      look,
-      animName,
-      flipped,
-      onBackAnimLoaded
-    );
-    this.applyFront(gfxId, look, animName, flipped);
+    this.applyBack(gfxId, look, animName, onBackAnimLoaded);
+    this.applyFront(gfxId, look, animName);
 
     if (mount) {
-      this.applyChevauchor(mount, animName, flipped);
+      this.applyChevauchor(mount, animName);
     }
   }
 
-  /**
-   * Flip all mount layers in place (sprite textures unchanged, just direction).
-   */
-  updateFlip(flipped: boolean): void {
-    if (this.mountFrontSprite && this.mountFrontAnim) {
-      this.mountFrontSprite.scale.x = flipped ? -1 : 1;
-      this.mountFrontSprite.x = flipped
-        ? -this.mountFrontAnim.offsetX
-        : this.mountFrontAnim.offsetX;
-    }
-
-    if (this.chevauchorSprite && this.chevauchorAnim) {
-      this.chevauchorSprite.scale.x = flipped ? -1 : 1;
-      this.chevauchorSprite.x = flipped
-        ? -this.chevauchorAnim.offsetX
-        : this.chevauchorAnim.offsetX;
-    }
+  /** Drop every cached mount layer ref. Called when un-mounting. */
+  clear(): void {
+    this.backAnim = null;
+    this.mountFrontAnim = null;
+    this.chevauchorAnim = null;
   }
 
-  /** Update each mount layer sprite to show the given frame index. */
-  syncFrame(frameIndex: number): void {
-    if (this.mountFrontSprite?.visible && this.mountFrontAnim) {
-      const a = this.mountFrontAnim;
-      const count = a.frameCount ?? a.textures.length;
-      this.mountFrontSprite.texture = a.textures[frameIndex % count];
-    }
-
-    if (this.chevauchorSprite?.visible && this.chevauchorAnim) {
-      const a = this.chevauchorAnim;
-      const count = a.frameCount ?? a.textures.length;
-      this.chevauchorSprite.texture = a.textures[frameIndex % count];
-    }
-  }
-
-  /** Repurpose the main sprite as _Back. */
   private applyBack(
-    mainSprite: Sprite,
     gfxId: number,
     look: string,
     animName: string,
-    flipped: boolean,
     onBackAnimLoaded: (anim: CharacterAnimation) => void
   ): void {
-    mainSprite.zIndex = Z_BACK;
-    mainSprite.visible = false;
-
     const backAnimName = `${animName}_Back`;
     const cached = this.spriteLoader.getAnimationSync(
       gfxId,
@@ -138,9 +120,8 @@ export class PlayerMountLayers {
     );
 
     if (cached) {
+      this.backAnim = cached;
       onBackAnimLoaded(cached);
-      mainSprite.visible = true;
-      positionSprite(mainSprite, cached, flipped);
       return;
     }
 
@@ -151,153 +132,61 @@ export class PlayerMountLayers {
           return;
         }
 
+        this.backAnim = anim;
         onBackAnimLoaded(anim);
-        mainSprite.visible = true;
-        positionSprite(
-          mainSprite,
-          anim,
-          isDirectionFlipped(this.getCurrentDirection())
-        );
       });
   }
 
-  private applyFront(
-    gfxId: number,
-    look: string,
-    animName: string,
-    flipped: boolean
-  ): void {
-    this.loadAndAttach({
+  private applyFront(gfxId: number, look: string, animName: string): void {
+    const frontAnimName = `${animName}_Front`;
+    const cached = this.spriteLoader.getAnimationSync(
       gfxId,
-      look,
-      animName,
-      fullAnimName: `${animName}_Front`,
-      zIndex: Z_FRONT,
-      extraY: 0,
-      flipped,
-      getSprite: () => this.mountFrontSprite,
-      setSprite: (s) => {
-        this.mountFrontSprite = s;
-      },
-      setAnim: (a) => {
-        this.mountFrontAnim = a;
-      },
-    });
+      frontAnimName,
+      look
+    );
+
+    if (cached) {
+      this.mountFrontAnim = cached;
+      return;
+    }
+
+    this.mountFrontAnim = null;
+    void this.spriteLoader
+      .loadAnimation(gfxId, frontAnimName, look)
+      .then((anim) => {
+        if (!this.stillValid(animName)) {
+          return;
+        }
+
+        this.mountFrontAnim = anim ?? null;
+      });
   }
 
-  private applyChevauchor(
-    mount: MountDisplay,
-    animName: string,
-    flipped: boolean
-  ): void {
+  private applyChevauchor(mount: MountDisplay, animName: string): void {
     const chevGfxId = CHEVAUCHOR_ID_OFFSET + mount.gfxId;
     const suffix = animName.replace(ANIM_PREFIX_RE, "");
     const chevAnimName = `static${suffix}`;
 
-    this.loadAndAttach({
-      gfxId: chevGfxId,
-      look: undefined,
-      animName,
-      fullAnimName: chevAnimName,
-      zIndex: Z_CHEVAUCHOR,
-      extraY: CHEVAUCHOR_ANCHOR_Y,
-      flipped,
-      getSprite: () => this.chevauchorSprite,
-      setSprite: (s) => {
-        this.chevauchorSprite = s;
-      },
-      setAnim: (a) => {
-        this.chevauchorAnim = a;
-      },
-    });
-  }
-
-  private loadAndAttach(opts: {
-    gfxId: number;
-    look: string | undefined;
-    animName: string;
-    fullAnimName: string;
-    zIndex: number;
-    extraY: number;
-    flipped: boolean;
-    getSprite: () => Sprite | undefined;
-    setSprite: (s: Sprite) => void;
-    setAnim: (a: CharacterAnimation | null) => void;
-  }): void {
-    // Hide current instance while the new layer loads so stale frames don't flash.
-    const existing = opts.getSprite();
-
-    if (existing) {
-      existing.visible = false;
-    }
-
     const cached = this.spriteLoader.getAnimationSync(
-      opts.gfxId,
-      opts.fullAnimName,
-      opts.look
+      chevGfxId,
+      chevAnimName,
+      undefined
     );
 
     if (cached) {
-      this.attachOrUpdate(opts, cached, opts.flipped);
+      this.chevauchorAnim = cached;
       return;
     }
 
+    this.chevauchorAnim = null;
     void this.spriteLoader
-      .loadAnimation(opts.gfxId, opts.fullAnimName, opts.look)
+      .loadAnimation(chevGfxId, chevAnimName, undefined)
       .then((anim) => {
-        if (!this.stillValid(opts.animName)) {
+        if (!this.stillValid(animName)) {
           return;
         }
 
-        if (!anim) {
-          opts.setAnim(null);
-          return;
-        }
-
-        this.attachOrUpdate(
-          opts,
-          anim,
-          isDirectionFlipped(this.getCurrentDirection())
-        );
+        this.chevauchorAnim = anim ?? null;
       });
   }
-
-  private attachOrUpdate(
-    opts: {
-      zIndex: number;
-      extraY: number;
-      getSprite: () => Sprite | undefined;
-      setSprite: (s: Sprite) => void;
-      setAnim: (a: CharacterAnimation | null) => void;
-    },
-    anim: CharacterAnimation,
-    flipped: boolean
-  ): void {
-    opts.setAnim(anim);
-
-    let sprite = opts.getSprite();
-
-    if (!sprite) {
-      sprite = new Sprite(anim.textures[0]);
-      sprite.anchor.set(0, 0);
-      sprite.zIndex = opts.zIndex;
-      this.container.addChild(sprite);
-      opts.setSprite(sprite);
-    }
-
-    sprite.visible = true;
-    positionSprite(sprite, anim, flipped, opts.extraY);
-  }
-}
-
-function positionSprite(
-  sprite: Sprite,
-  anim: CharacterAnimation,
-  flipped: boolean,
-  extraY = 0
-): void {
-  sprite.texture = anim.textures[0];
-  sprite.scale.x = flipped ? -1 : 1;
-  sprite.x = flipped ? -anim.offsetX : anim.offsetX;
-  sprite.y = anim.offsetY + extraY;
 }

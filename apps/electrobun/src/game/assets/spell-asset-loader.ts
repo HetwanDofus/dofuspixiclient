@@ -1,18 +1,11 @@
-import {
-  readSpellExtras,
-  type SpellExtras,
-  type SpellExtrasAnimation,
-} from "@dofus/dofasset-format";
 import type {
   SpellAnimationInfo,
   SpellTextureProvider,
 } from "@dofus/spell-runtime";
 import { Texture } from "pixi.js";
 
-import type {
-  SpellAnimation,
-  SpellVelloRenderer,
-} from "@/game/render/spell-vello-renderer";
+import type { SpellVelloRenderer } from "@/game/render/spell-vello-renderer";
+import { swfBundleFrameRate } from "@/game/render/vello-loader";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("SpellAssetLoader");
@@ -22,10 +15,22 @@ export interface SpellSoundTrigger {
   soundId: string;
 }
 
+/**
+ * Per-spell metadata. With the live-tick architecture (PreRenderedSpell
+ * runs an `AvmRenderer` per cast, not a pre-baked strip), almost
+ * everything the legacy dofasset Extras carried (`stopFrame`,
+ * `fadingFrame`, `sounds`, `animationMeta`) is now derived from AS2
+ * itself: the canonical SWF + AVM1 are the single source of truth.
+ *
+ * What stays: `id` and `fps` (so the JS update loop knows the cast's
+ * native frame rate). `requiresTypeScript` always `false`; the per-
+ * spell TS handlers under `game/spells/spell-*.ts` are obsolete.
+ */
 export interface SpellMeta {
   id: number;
   fps: number;
   mainTimelineScale: number;
+  /** Always `false` now — kept for legacy callers. */
   requiresTypeScript: boolean;
   sounds: SpellSoundTrigger[];
   animationMeta: Record<
@@ -39,111 +44,64 @@ export interface SpellMeta {
   >;
 }
 
-/**
- * Shape callers still know as `SpellManifest`. Built from the Extras section
- * baked into the .dofasset binary at compile time — no more sidecar JSON
- * fetch.
- */
 export interface SpellManifest {
   version: number;
   spriteId: string;
-  animations: Record<string, SpellExtrasAnimation>;
+  animations: Record<string, { fps: number }>;
   spell: SpellMeta;
 }
 
-export interface LoadedSpell {
-  manifest: SpellManifest;
-  textures: SpellTextureProvider;
-}
-
-class VelloSpellTextureProvider implements SpellTextureProvider {
-  private readonly anims = new Map<string, SpellAnimation | null>();
-
-  constructor(
-    private readonly spellId: number,
-    private readonly manifest: SpellManifest,
-    private readonly vello: SpellVelloRenderer,
-    private readonly resolution: number
-  ) {}
-
-  getTexture(name: string): Texture {
-    const idx = name.lastIndexOf("_");
-    if (idx > 0) {
-      const animName = name.slice(0, idx);
-      const frameIdx = Number.parseInt(name.slice(idx + 1), 10);
-      if (!Number.isNaN(frameIdx)) {
-        const frames = this.getFrames(animName);
-        const tex = frames[frameIdx];
-        if (tex) {
-          return tex;
-        }
-      }
-    }
-    return this.getFrames("anim1")[0] ?? Texture.EMPTY;
+/**
+ * `SpellTextureProvider` is part of the spell-runtime's `init()`
+ * signature, but the live-tick path doesn't slice strips into Pixi
+ * textures — `AvmRenderer` writes pixels into the cast's stable wgpu
+ * texture each tick. This provider is a stub so the interface still
+ * type-checks; if a future RuntimeSpell port wants strip frames it
+ * can subclass and implement.
+ */
+class EmptySpellTextureProvider implements SpellTextureProvider {
+  getTexture(): Texture {
+    return Texture.EMPTY;
   }
-
-  getFrames(prefix: string): Texture[] {
-    const cached = this.anims.get(prefix);
-    if (cached !== undefined) {
-      return cached?.frames ?? [];
-    }
-    if (!(prefix in this.manifest.animations)) {
-      this.anims.set(prefix, null);
-      return [];
-    }
-    const anim = this.vello.buildAnimation(
-      this.spellId,
-      prefix,
-      this.resolution
-    );
-    this.anims.set(prefix, anim);
-    return anim?.frames ?? [];
+  getFrames(): Texture[] {
+    return [];
   }
-
-  hasTexture(name: string): boolean {
-    const idx = name.lastIndexOf("_");
-    if (idx <= 0) {
-      return false;
-    }
-    const animName = name.slice(0, idx);
-    return animName in this.manifest.animations;
+  hasTexture(): boolean {
+    return false;
   }
-
-  getAnimationInfo(name: string): SpellAnimationInfo | null {
-    const cached = this.anims.get(name);
-    const anim =
-      cached !== undefined
-        ? cached
-        : (this.getFrames(name), this.anims.get(name) ?? null);
-    if (!anim) {
-      return null;
-    }
-    return {
-      frameWidth: anim.frameWidth,
-      frameHeight: anim.frameHeight,
-      anchorPxX: anim.anchorPxX,
-      anchorPxY: anim.anchorPxY,
-    };
+  getAnimationInfo(): SpellAnimationInfo | null {
+    return null;
   }
-
-  destroy(): void {
-    for (const anim of this.anims.values()) {
-      if (!anim) {
-        continue;
-      }
-      for (const tex of anim.frames) {
-        tex.destroy(false);
-      }
-    }
-    this.anims.clear();
-  }
+  destroy(): void {}
 }
 
 /**
- * Spell asset loader backed by `.dofasset` binaries compiled by the
- * asset-pipeline (`pipeline compile spells`). Sound triggers, lifecycle
- * frames, requiresTypeScript and per-animation canvas dims live in the
- * binary's Extras section — no sidecar manifest.json is fetched at runtime.
+ * Live-tick spell handle. The asset loader owns SWF lifecycle (load
+ * once per spell id, dispose on scene exit) and exposes the fields a
+ * fresh `PreRenderedSpell` cast needs to allocate its own AVM1 instance:
+ *
+ *   - `bundleName` — `loadSwfBundle` key, passed to `createSwfSpellInstance`.
+ *   - `resolution` — current zoom; controls the pre-allocated GPU
+ *     output texture size.
+ *   - `fps` — spell SWF frame rate; drives the JS update accumulator
+ *     so AVM1 advances at its native cadence regardless of Pixi ticker
+ *     fps.
+ *
+ * `manifest` is kept for legacy diagnostics; `textures` is a stub.
+ */
+export interface LoadedSpell {
+  manifest: SpellManifest;
+  textures: SpellTextureProvider;
+  bundleName: string;
+  resolution: number;
+  fps: number;
+}
+
+/**
+ * Spell asset loader, SWF-only. Each spell's `.swf` is parsed by Vello
+ * once per scene; per-cast state lives in `PreRenderedSpell` (one
+ * `AvmRenderer` instance per cast). No dofasset, no per-spell TS
+ * handlers, no pre-bake.
  */
 export class SpellAssetLoader {
   private vello: SpellVelloRenderer | null = null;
@@ -157,11 +115,12 @@ export class SpellAssetLoader {
       return;
     }
     this.currentResolution = resolution;
-    this.vello?.clearAnimationCache();
+    // The bundle is resolution-independent; only `LoadedSpell.resolution`
+    // is stale. Repopulate it for already-loaded spells so the next
+    // cast allocates its output texture at the new zoom.
     for (const loaded of this.loaded.values()) {
-      (loaded.textures as VelloSpellTextureProvider).destroy();
+      loaded.resolution = resolution;
     }
-    this.loaded.clear();
   }
 
   setVelloRenderer(vello: SpellVelloRenderer): void {
@@ -172,10 +131,8 @@ export class SpellAssetLoader {
     // visualGfxId === 0 means "no spell-specific visual" (StarLoco's
     // sorts.sprite=0 — common for glyphs / buffs / area effects where
     // the canonical client just plays the cast pose + shows the
-    // server-driven GameZoneData overlay). Don't fetch /spells/0.dofasset
-    // for these — that file is the close-combat punch placeholder, not
-    // a fallback, and trying to parse it pollutes the spell-cast
-    // pipeline with an "Uncaught (in promise)" rejection.
+    // server-driven GameZoneData overlay). Don't fetch /spells/0.swf
+    // for these — that file is the close-combat punch placeholder.
     if (spellId <= 0) {
       return null;
     }
@@ -196,10 +153,7 @@ export class SpellAssetLoader {
       }
       return result;
     } catch (err) {
-      // Never let a load error escape the loader — the cast machine
-      // expects a Promise<LoadedSpell|null>, not a rejected promise,
-      // and an unhandled rejection blocks every subsequent cast.
-      log.warn(`spell ${spellId}: dofasset load threw — ${String(err)}`);
+      log.warn(`spell ${spellId}: SWF load threw — ${String(err)}`);
       this.manifests.set(spellId, null);
       return null;
     } finally {
@@ -216,12 +170,8 @@ export class SpellAssetLoader {
   }
 
   destroy(): void {
-    for (const loaded of this.loaded.values()) {
-      (loaded.textures as VelloSpellTextureProvider).destroy();
-    }
     this.loaded.clear();
     this.manifests.clear();
-    this.vello?.clearAnimationCache();
   }
 
   private async doLoad(spellId: number): Promise<LoadedSpell | null> {
@@ -236,90 +186,44 @@ export class SpellAssetLoader {
     const assetOk = await vello.loadAsset(spellId);
     if (!assetOk) {
       log.warn(
-        `spell ${spellId}: dofasset load failed (404 or vello.loadAsset rejected); spell will render nothing`
+        `spell ${spellId}: SWF bundle load failed; spell will render nothing`
       );
       this.manifests.set(spellId, null);
       return null;
     }
 
-    const bytes = vello.getAssetBytes(spellId);
-    if (!bytes) {
-      log.warn(
-        `spell ${spellId}: dofasset bytes missing after successful loadAsset — vello cache invariant broken`
-      );
+    const bundleName = vello.bundleNameFor(spellId);
+    if (!bundleName) {
+      log.warn(`spell ${spellId}: bundle name missing after successful load`);
       this.manifests.set(spellId, null);
       return null;
     }
 
-    // Validate magic bytes before handing to readSpellExtras. Vite's
-    // dev server SPA fallback returns index.html (text/html) for
-    // unknown paths; arrayBuffer of an HTML response starts with `<`
-    // (0x3c) and trips assertMagic with an opaque "bad magic" error
-    // that bubbles up as an Uncaught (in promise). Surface it here
-    // as a clear diagnostic and bail gracefully.
-    if (
-      bytes.length < 4 ||
-      bytes[0] !== 0x44 ||
-      bytes[1] !== 0x41 ||
-      bytes[2] !== 0x53 ||
-      bytes[3] !== 0x46
-    ) {
-      const head =
-        bytes.length >= 4
-          ? `0x${bytes[0]?.toString(16).padStart(2, "0")}${bytes[1]?.toString(16).padStart(2, "0")}${bytes[2]?.toString(16).padStart(2, "0")}${bytes[3]?.toString(16).padStart(2, "0")}`
-          : `len=${bytes.length}`;
-      log.warn(
-        `spell ${spellId}: not a .dofasset (magic=${head}) — likely a 404 or text/html fallback from the dev server`
-      );
-      this.manifests.set(spellId, null);
-      return null;
-    }
+    // `swfBundleFrameRate` reads the SWF header — cheap, no GPU work.
+    // Falls back to 24 (the dofasset-era default) when the bundle has
+    // no explicit rate, which matches the old PreRenderedSpell.DEFAULT_FPS.
+    const fps = swfBundleFrameRate(bundleName) || 24;
 
-    let extras: ReturnType<typeof readSpellExtras>;
-    try {
-      extras = readSpellExtras(bytes);
-    } catch (err) {
-      log.warn(
-        `spell ${spellId}: readSpellExtras threw — ${String(err)} (corrupt .dofasset; re-run \`bun run tools/asset-pipeline/src/cli.ts compile spells\`)`
-      );
-      this.manifests.set(spellId, null);
-      return null;
-    }
-    if (!extras) {
-      log.warn(
-        `spell ${spellId}: readSpellExtras returned null — Extras section missing or malformed in .dofasset (re-compile the spell asset)`
-      );
-      this.manifests.set(spellId, null);
-      return null;
-    }
-
-    const manifest = buildManifestFromExtras(spellId, extras);
+    const manifest: SpellManifest = {
+      version: 2,
+      spriteId: String(spellId),
+      animations: { anim1: { fps } },
+      spell: {
+        id: spellId,
+        fps,
+        mainTimelineScale: 1,
+        requiresTypeScript: false,
+        sounds: [],
+        animationMeta: {},
+      },
+    };
     this.manifests.set(spellId, manifest);
-    const textures = new VelloSpellTextureProvider(
-      spellId,
+    return {
       manifest,
-      vello,
-      this.currentResolution
-    );
-    return { manifest, textures };
+      textures: new EmptySpellTextureProvider(),
+      bundleName,
+      resolution: this.currentResolution,
+      fps,
+    };
   }
-}
-
-function buildManifestFromExtras(
-  spellId: number,
-  extras: SpellExtras
-): SpellManifest {
-  return {
-    version: 1,
-    spriteId: String(spellId),
-    animations: extras.animations ?? {},
-    spell: {
-      id: spellId,
-      fps: extras.fps,
-      mainTimelineScale: extras.mainTimelineScale,
-      requiresTypeScript: extras.requiresTypeScript,
-      sounds: extras.sounds,
-      animationMeta: extras.animationMeta,
-    },
-  };
 }

@@ -1,5 +1,6 @@
 import type { Container } from "pixi.js";
 
+import type { Camera } from "@/game/render/camera";
 import type { MapData } from "@/game/datacenter/map";
 import type { AtlasLoader } from "@/game/render/atlas-loader";
 import type { MapHandler } from "@/game/scene/map/handler";
@@ -28,6 +29,13 @@ export interface BattlefieldZoomDeps {
   getViewport(): Viewport | null;
   onBeforeRebuild(): void;
   onAfterRender(zoom: number): void;
+  /**
+   * Optional Camera reference. When provided, every zoom change
+   * (including debounced and bypass-debounced paths) publishes via
+   * `camera.setZoom(zoom)` so subscribers receive a single
+   * notification per landed change.
+   */
+  camera?(): Camera | null;
 }
 
 /**
@@ -51,6 +59,12 @@ export class BattlefieldZoom {
   /** External entry — call when the user requests a new zoom level. */
   request(zoom: number): void {
     this.pendingZoom = zoom;
+    // Publish to Camera immediately so HUD subscribers (e.g. CSS
+    // wrapper transform, future Vello-canvas scale) react without
+    // waiting for the debounced render. The actual map re-render is
+    // still debounced — only the published state is eager, which is
+    // what consumers want for smooth wheel-zoom feedback.
+    this.deps.camera?.()?.setZoom(zoom);
 
     if (this.debounceTimer) {
       clearTimeout(this.debounceTimer);
@@ -114,7 +128,13 @@ export class BattlefieldZoom {
         log.debug("Texture-swap zoom:", zoom);
         mapContainer.scale.set(zoom);
 
-        if (await mapHandler.updateTexturesForZoom(zoom)) {
+        if (
+          await mapHandler.updateTexturesForZoom(
+            zoom,
+            mapData,
+            this.deps.getViewport()
+          )
+        ) {
           return;
         }
         // Texture swap failed — fall through to full rebuild.

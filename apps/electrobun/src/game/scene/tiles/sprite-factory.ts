@@ -59,7 +59,10 @@ export class TileSpriteFactory {
 
     const sprite = new AnimatedSprite(textures);
     sprite.anchor.set(0, 0);
-    sprite.animationSpeed = 1;
+    // Pixi's AnimatedSprite assumes 60-fps source. SWF tile bundles run at
+    // mixed rates (g1/g2=12, o3/o8/o9/o11=40, others=60). Without scaling,
+    // 12-fps grass animations played 5× too fast and 40-fps water 1.5×.
+    sprite.animationSpeed = (tile.fps ?? 60) / 60;
     sprite.loop = tile.loop !== false;
 
     if (tile.autoplay !== false) {

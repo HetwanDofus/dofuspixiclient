@@ -929,30 +929,27 @@ function MainBannerMorePanel({
       : [];
 
   return (
-    <>
-      <div
-        className={cn(
-          "absolute",
-          "left-[calc(710px*var(--resolution-factor))]",
-          "top-[calc(8px*var(--resolution-factor))]"
-        )}
-      >
-        <MainBannerIconButton
-          icon={open ? "less" : "more"}
-          onClick={() => setOpen((o) => !o)}
-        />
-      </div>
+    <div
+      className={cn(
+        "absolute",
+        "left-[calc(710px*var(--resolution-factor))]",
+        "top-[calc(8px*var(--resolution-factor))]"
+      )}
+    >
+      <MainBannerIconButton
+        icon={open ? "less" : "more"}
+        onClick={() => setOpen((o) => !o)}
+      />
       {open && (
         <div
           className={cn(
-            "absolute z-20 bottom-full",
-            "left-[calc(704px*var(--resolution-factor))]",
+            "absolute z-20 bottom-full left-1/2 -translate-x-1/2",
             className
           )}
         >
           <div
             className={cn(
-              "relative bg-main-banner-bg",
+              "bg-main-banner-bg",
               "border-x-[calc(2px*var(--resolution-factor))] border-t-[calc(2px*var(--resolution-factor))] border-main-banner-circle-border border-b-0",
               "rounded-t-[calc(10px*var(--resolution-factor))]",
               "flex flex-col items-center",
@@ -968,7 +965,7 @@ function MainBannerMorePanel({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
