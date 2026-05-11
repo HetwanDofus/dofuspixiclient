@@ -79,6 +79,18 @@ interface SlotState {
   currentTextureId: number;
   /** De-duplication key — same anim+look+direction skips re-render. */
   currentAnimKey: string;
+  /**
+   * Last `applyAnimation` parameters — captured so a resolution
+   * change can re-invoke Vello at the new density and swap in a
+   * crisper texture without waiting for the next anim change.
+   * Null until the slot has rendered its first strip.
+   */
+  lastAnimation: CharacterAnimation | null;
+  lastAnimName: string;
+  lastDir: DirSuffix;
+  lastFlipped: boolean;
+  /** Owning player — kept for the re-render path (needs `player.look`). */
+  player: ActivePlayer | null;
 }
 
 function makeAnimKey(
@@ -280,6 +292,52 @@ export class PlayerStripRenderer {
     state.currentSource = source;
     state.currentTextureId = strip.textureId;
     state.currentAnimKey = key;
+    state.lastAnimation = animation;
+    state.lastAnimName = animName;
+    state.lastDir = dir;
+    state.lastFlipped = flipped;
+    state.player = player;
+  }
+
+  /**
+   * Re-render every live slot at the new resolution so sprites stay
+   * crisp across user zoom changes (Vello rasterizes from vectors so
+   * up-sampling the texture is free). Invalidates the per-slot
+   * `currentAnimKey` cache before replaying the last `applyAnimation`
+   * call — otherwise the dedup short-circuit would skip the render
+   * even though resolution changed.
+   *
+   * Sprite scale is bound to `1/resolution`, so we also retag every
+   * sprite's local scale before the new strip lands (the texture
+   * pointer swap happens inside `applyAnimation`).
+   */
+  setResolutionAndRerender(res: number): void {
+    const clamped = Math.max(1, res);
+    if (clamped === this.resolution) {
+      return;
+    }
+    this.resolution = clamped;
+    for (const slots of this.states.values()) {
+      for (const [slot, state] of slots) {
+        // Force the dedup key to miss so applyAnimation re-issues
+        // the Vello strip render at the new density.
+        state.currentAnimKey = "";
+        // Sprite scale tracks the density immediately — the new
+        // strip texture lands inside applyAnimation a frame later,
+        // but applyFlipToSlot in the meantime keeps the math right.
+        this.applyFlipToSlot(state, state.lastFlipped);
+        if (state.lastAnimation && state.player) {
+          this.applyAnimation(
+            state.player,
+            slot,
+            state.lastAnimation,
+            state.lastAnimName,
+            state.lastDir,
+            state.lastFlipped
+          );
+        }
+      }
+    }
   }
 
   /**
@@ -358,6 +416,11 @@ export class PlayerStripRenderer {
       currentSource: null,
       currentTextureId: 0,
       currentAnimKey: "",
+      lastAnimation: null,
+      lastAnimName: "",
+      lastDir: "F",
+      lastFlipped: false,
+      player,
     };
   }
 

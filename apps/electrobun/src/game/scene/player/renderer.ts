@@ -547,6 +547,11 @@ export class PlayerRenderer {
 
     this.spriteLoader.setZoom(event.zoom);
     this.sprites.reloadAll(this.players.values());
+    // Re-render every live char strip at the new resolution so
+    // chars stay crisp on zoom (Vello rasterizes from vectors, so
+    // bumping density on demand is the canonical "infinite zoom"
+    // path). Skipped automatically when res didn't actually change.
+    this.stripRenderer.setResolutionAndRerender(res);
     this.pickingSystem?.markDirty();
     this.flushVisibleNameplates();
   }
