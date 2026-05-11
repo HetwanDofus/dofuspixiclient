@@ -1,47 +1,42 @@
-import type { VelloRenderer } from "vello-wasm";
-import {
-  ExternalSource,
-  type Renderer,
-  Sprite,
-  Texture,
-} from "pixi.js";
-
 import { createLogger } from "@/utils/logger";
 
-import type { VelloFrameResult } from "./vello-loader";
+import { renderHudAssetToCanvas } from "./hud-vello-atlas";
+import {
+  loadSwfBundle,
+  renderSwfRoot,
+  setSwfPlayerColors,
+  swfRootNaturalSize,
+} from "./vello-loader";
 
 const log = createLogger("FighterPortrait");
 
 /**
- * Big-artwork portraits served by the asset pipeline. Mirrors canonical
- * `dofus.Constants.ARTWORKS_BIG_PATH` (`clips/artworks/big/<id>.swf`)
- * — every PlayableCharacter (including Monster, which extends it)
- * resolves `artworkFile` to that path keyed by `gfxFileName`. Players
- * use their numeric breed-gfx id, monsters use their monster gfx id; the
- * folder layout is flat with no subdirectories.
+ * Big-artwork portraits for the StringCourse turn-change banner. Mirrors
+ * canonical `dofus.Constants.ARTWORKS_BIG_PATH` (`clips/artworks/big/{gfxId}.swf`).
+ *
+ * Each cached entry owns one Vello-attached `<canvas>` painted by
+ * `renderSwfRootToSurface`. React mounts the canvas directly. No
+ * `ExternalSource`, no Pixi `extract.canvas` round-trip — Vello and
+ * Pixi run on separate `GPUDevice`s.
+ *
+ * Source SWFs at `clips/artworks/big/{gfxId}.swf` have no named exports —
+ * the visible portrait sits on the root timeline — so we use the root
+ * render entry point.
  */
-const ARTWORKS_BIG_PATH = "/assets/dofassets/artworks/big";
-const ARTWORK_ASSET_ID_BASE = 700_000;
+const ARTWORK_SWF_PATH = "/swf/artworks/big";
 
 /**
- * Renders the canonical Dofus 1.29 "big" portrait artwork for a fighter
- * (player breed or monster) into a standalone HTMLCanvasElement that the
- * React StringCourse turn-change banner mounts directly. The canonical
- * client loads `ARTWORKS_BIG_PATH + gfxFileName + ".swf"` (Game.as:389
- * `loadUIComponent("StringCourse", { gfx: artworkFile })`) and applies
- * per-zone color replacement via the artwork's own `stringCourseColor`
- * callback (see `dofus.graphics.gapi.ui.StringCourse.applyColor`). Big
- * artworks DO carry zone scripts (verified in the breed SWFs), so we
- * forward `[c1,c2,c3]` to Vello using the same encoding the in-world
- * character sprites use (`-1` → `0`, meaning "keep palette default").
+ * Soft cap on the (gfxId, pixelSize, colors) → canvas cache. Each entry
+ * holds a 2D `<canvas>` painted from the shared `HudVelloAtlas` via
+ * `drawImage(bitmap)` — NO per-portrait Vello surface. The shared
+ * atlas owns one process-wide surface. 64 entries × 256² ≈ 16 MB CPU.
  */
-export class FighterPortraitRenderer {
-  private vello: VelloRenderer | null = null;
-  private pixi: Renderer | null = null;
-  private nextAssetId = ARTWORK_ASSET_ID_BASE;
+const CANVAS_CACHE_CAP = 64;
 
-  private readonly assetIds = new Map<number, number | null>();
-  private readonly pendingLoads = new Map<number, Promise<number | null>>();
+export class FighterPortraitRenderer {
+  /** gfxId → bundle name (or null when load failed sticky-cached). */
+  private readonly bundleNames = new Map<number, string | null>();
+  private readonly pendingLoads = new Map<number, Promise<string | null>>();
   private readonly naturalSizes = new Map<number, number>();
   private readonly canvasCache = new Map<string, HTMLCanvasElement>();
   private readonly pendingRenders = new Map<
@@ -49,38 +44,44 @@ export class FighterPortraitRenderer {
     Promise<HTMLCanvasElement | null>
   >();
 
-  init(vello: VelloRenderer, pixi: Renderer): void {
-    this.vello = vello;
-    this.pixi = pixi;
+  private ready = false;
+
+  /**
+   * Mark the renderer ready. Two-arg signature preserved so `bootstrap.ts`
+   * doesn't need to change in this pass; both args are ignored.
+   */
+  init(_vello?: unknown, _pixi?: unknown): void {
+    this.ready = true;
   }
 
   isReady(): boolean {
-    return this.vello !== null && this.pixi !== null;
+    return this.ready;
   }
 
   /**
-   * Returns the canvas matching `pixelSize` in physical pixels. The
-   * loader picks a Vello resolution so `naturalSize × resolution =
-   * pixelSize`, producing a crisp DOM canvas at exactly the slot's
-   * dimensions. Concurrent calls for the same (gfxId, size, colors)
-   * collapse onto a single in-flight render via `pendingRenders`.
-   *
-   * `colors` is `[c1, c2, c3]` as 0xRRGGBB (canonical
-   * `stringCourseColor` zones). `-1` means "keep palette default".
-   * Pass `null` / undefined when the fighter has no per-zone colors
-   * (e.g. monsters).
+   * Returns the canvas matching `pixelSize` in physical pixels. Concurrent
+   * calls for the same (gfxId, size, colors) collapse onto a single
+   * in-flight render.
    */
   async getCanvas(
     gfxId: number,
     pixelSize: number,
-    colors?: readonly [number, number, number] | null
+    colors?: readonly [number, number, number] | null,
   ): Promise<HTMLCanvasElement | null> {
-    if (gfxId < 0 || pixelSize <= 0) return null;
+    if (gfxId < 0 || pixelSize <= 0) {
+      return null;
+    }
     const key = cacheKey(gfxId, pixelSize, colors);
     const cached = this.canvasCache.get(key);
-    if (cached) return cached;
+    if (cached) {
+      this.canvasCache.delete(key);
+      this.canvasCache.set(key, cached);
+      return cached;
+    }
     const pending = this.pendingRenders.get(key);
-    if (pending) return pending;
+    if (pending) {
+      return pending;
+    }
     const promise = this.doRender(gfxId, pixelSize, colors, key);
     this.pendingRenders.set(key, promise);
     try {
@@ -94,108 +95,90 @@ export class FighterPortraitRenderer {
     gfxId: number,
     pixelSize: number,
     colors: readonly [number, number, number] | null | undefined,
-    key: string
+    key: string,
   ): Promise<HTMLCanvasElement | null> {
-    const vello = this.vello;
-    const pixi = this.pixi;
-    if (!vello || !pixi) return null;
+    if (!this.ready) {
+      return null;
+    }
 
-    const assetId = await this.loadAsset(gfxId);
-    if (assetId === null) return null;
+    const bundleName = await this.loadBundle(gfxId);
+    if (!bundleName) {
+      return null;
+    }
 
-    const natural = this.naturalSize(gfxId, assetId);
-    if (natural <= 0) return null;
+    const natural = this.naturalSize(gfxId, bundleName);
+    if (natural <= 0) {
+      return null;
+    }
 
     const resolution = pixelSize / natural;
-    const colorsArg = buildColorsArg(colors);
-    const result = vello.renderFrame(
-      assetId,
-      "static",
-      0,
-      resolution,
-      colorsArg
-    ) as VelloFrameResult | null;
-    if (!result) return null;
+    applyZoneColors(colors);
 
-    const source = new ExternalSource({
-      resource: result.texture,
-      renderer: pixi,
-      width: result.width,
-      height: result.height,
-      label: `fighter-portrait:${gfxId}@${pixelSize}`,
-    });
-    source.alphaMode = "no-premultiply-alpha";
-    source.scaleMode = "linear";
-    source.format = "rgba8unorm";
-    source.autoGarbageCollect = false;
-    source.resolution = 1;
-    const texture = new Texture({ source });
-    const sprite = new Sprite(texture);
-
-    try {
-      const canvas = pixi.extract.canvas({
-        target: sprite,
-      }) as HTMLCanvasElement;
-      this.canvasCache.set(key, canvas);
-      return canvas;
-    } catch (err) {
-      log.warn(`extract failed for gfxId=${gfxId}: ${String(err)}`);
+    // Route through the shared HudVelloAtlas. Vello renders to an
+    // off-screen rgba8unorm texture; the atlas's secondary Pixi
+    // Application blits it onto a bgra8unorm OffscreenCanvas (the
+    // browser's preferred format on Mac → no `getCurrentTexture`
+    // perf warning), `createImageBitmap` snapshots the painted
+    // region, and we bake it into a 2D `<canvas>` React mounts
+    // directly. Purely GPU — no pixel readback.
+    const canvas = await renderHudAssetToCanvas(pixelSize, pixelSize, () =>
+      renderSwfRoot(bundleName, 0, resolution),
+    );
+    if (!canvas) {
+      log.warn(`render failed for gfxId=${gfxId}@${pixelSize}`);
       return null;
-    } finally {
-      sprite.destroy();
-      source.destroy();
     }
+
+    this.canvasCache.set(key, canvas);
+    while (this.canvasCache.size > CANVAS_CACHE_CAP) {
+      const oldestKey = this.canvasCache.keys().next().value;
+      if (oldestKey === undefined) break;
+      this.canvasCache.delete(oldestKey);
+    }
+    return canvas;
   }
 
   /**
-   * Tight content long-edge at resolution 1 — Vello's `getFrameSize`
-   * returns the path's actual bbox `[width, height]`, not the SWF's
-   * stored stage rect. Using `max(w, h)` as "natural size" makes the
-   * caller's `pixelSize` parameter behave like a long-edge fit so non-
-   * square artworks (most monsters: pious, dragodindes, bosses with
-   * wide poses) don't render off-scale relative to square breeds. The
-   * earlier width-only path made tall monsters render comfortably but
-   * over-scaled wide ones, which the user reported as "doesn't show
-   * up properly". Cached per gfxId — dofasset geometry is fixed.
+   * Pure-bounds long-edge probe at resolution 1. CPU-only walk inside
+   * WASM, no GPU dispatch. Cached per gfxId (artwork bbox is fixed).
    */
-  private naturalSize(gfxId: number, assetId: number): number {
+  private naturalSize(gfxId: number, bundleName: string): number {
     const cached = this.naturalSizes.get(gfxId);
-    if (cached !== undefined) return cached;
-    const vello = this.vello;
-    if (!vello) return 0;
-    const size = vello.getFrameSize(assetId, "static", 0, 1) as
-      | Uint32Array
-      | null;
-    const w = size?.[0] ?? 0;
-    const h = size?.[1] ?? 0;
-    const longEdge = Math.max(w, h);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const bounds = swfRootNaturalSize(bundleName, 0);
+    const longEdge = bounds ? Math.max(bounds.width, bounds.height) : 0;
     this.naturalSizes.set(gfxId, longEdge);
     return longEdge;
   }
 
-  private async loadAsset(gfxId: number): Promise<number | null> {
-    const cached = this.assetIds.get(gfxId);
-    if (cached !== undefined) return cached;
+  private async loadBundle(gfxId: number): Promise<string | null> {
+    const cached = this.bundleNames.get(gfxId);
+    if (cached !== undefined) {
+      return cached;
+    }
     const pending = this.pendingLoads.get(gfxId);
-    if (pending) return pending;
-    const vello = this.vello;
-    if (!vello) return null;
+    if (pending) {
+      return pending;
+    }
 
     const promise = (async () => {
+      const bundleName = `artwork-big-${gfxId}`;
       try {
-        const res = await fetch(`${ARTWORKS_BIG_PATH}/${gfxId}.dofasset`);
-        if (!res.ok) {
-          this.assetIds.set(gfxId, null);
+        const ok = await loadSwfBundle(
+          bundleName,
+          `${ARTWORK_SWF_PATH}/${gfxId}.swf`,
+        );
+        if (!ok) {
+          this.bundleNames.set(gfxId, null);
           return null;
         }
-        const data = new Uint8Array(await res.arrayBuffer());
-        const id = this.nextAssetId++;
-        vello.loadAsset(id, data);
-        this.assetIds.set(gfxId, id);
-        return id;
+        this.bundleNames.set(gfxId, bundleName);
+        return bundleName;
       } catch (err) {
         log.warn(`fetch failed for gfxId=${gfxId}: ${String(err)}`);
-        this.assetIds.set(gfxId, null);
+        this.bundleNames.set(gfxId, null);
         return null;
       }
     })();
@@ -211,7 +194,7 @@ export class FighterPortraitRenderer {
 function cacheKey(
   gfxId: number,
   pixelSize: number,
-  colors?: readonly [number, number, number] | null
+  colors?: readonly [number, number, number] | null,
 ): string {
   if (!colors || (colors[0] < 0 && colors[1] < 0 && colors[2] < 0)) {
     return `${gfxId}:${pixelSize}`;
@@ -219,24 +202,25 @@ function cacheKey(
   return `${gfxId}:${pixelSize}:${colors[0]},${colors[1]},${colors[2]}`;
 }
 
-// Mirror `character-sprite.ts` buildColorsArg: -1 means "keep palette
-// default", and the Vello replacement encodes that as 0 in the u32 slot.
-function buildColorsArg(
-  colors: readonly [number, number, number] | null | undefined
-): Uint32Array | undefined {
-  if (!colors || (colors[0] < 0 && colors[1] < 0 && colors[2] < 0)) {
-    return undefined;
+function applyZoneColors(
+  colors: readonly [number, number, number] | null | undefined,
+): void {
+  if (!colors) {
+    setSwfPlayerColors(0, 0, 0);
+    return;
   }
-  return new Uint32Array([
+  setSwfPlayerColors(
     colors[0] >= 0 ? colors[0] : 0,
     colors[1] >= 0 ? colors[1] : 0,
     colors[2] >= 0 ? colors[2] : 0,
-  ]);
+  );
 }
 
 let instance: FighterPortraitRenderer | null = null;
 
 export function getFighterPortraitRenderer(): FighterPortraitRenderer {
-  if (!instance) instance = new FighterPortraitRenderer();
+  if (!instance) {
+    instance = new FighterPortraitRenderer();
+  }
   return instance;
 }

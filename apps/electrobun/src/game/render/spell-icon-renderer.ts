@@ -1,67 +1,116 @@
-import type { VelloRenderer } from "vello-wasm";
-import {
-  ExternalSource,
-  type Renderer,
-  Sprite,
-  Texture,
-} from "pixi.js";
-
 import { createLogger } from "@/utils/logger";
 
-import type { VelloFrameResult } from "./vello-loader";
+import { renderHudAssetToCanvas } from "./hud-vello-atlas";
+import {
+  loadSwfBundle,
+  renderSwfSpellIcon,
+  swfSpellIconNaturalSize,
+} from "./vello-loader";
 
 const log = createLogger("SpellIcon");
 
-const ICONS_BASE_PATH = "/assets/dofassets/spells/icons";
-const ICON_ASSET_ID_BASE = 500_000;
+/**
+ * Composition pack — same constant the asset-pipeline used.
+ * Index 2 = "classic" pack: element-coloured backdrops (fire red,
+ * water blue, etc.) — closest to vanilla 1.29.
+ */
+const PACK_INDEX = 2;
+
+const BACK_SWF_PATH = "/swf/spells/icons/back";
+const UP_SWF_PATH = "/swf/spells/icons/up";
+const SPELLS_LANGS_PATH = "/assets/langs/fr/spells.json";
 
 /**
- * Resolves a spell's hotbar icon into an HTMLCanvasElement at exactly the
- * pixel size the caller asks for. Pipeline:
+ * Soft cap on the (spellId, pixelSize) → canvas cache. Each cached
+ * entry holds a 2D `<canvas>` with the painted icon baked in via
+ * `drawImage(bitmap)`. NO per-entry Vello surface — the rendering
+ * routes through the shared `HudVelloAtlas`, which owns ONE surface
+ * for all HUD output. Eviction is just a Map.delete; canvases drop
+ * out via JS GC once no DOM ref remains.
  *
- *   1. fetch `<spell_id>.dofasset` — one per spell, fully tinted at build
- *      time (3-layer backdrop + frame + glyph composed by the asset
- *      pipeline compile stage).
- *   2. query Vello for the dofasset's *tight* content bounds at
- *      resolution 1 (`getFrameSize`). We cache this per-spell — it's
- *      dofasset geometry, independent of render size.
- *   3. pick a Vello resolution so `content × resolution = pixelSize`.
- *      Result: the GPU texture is *exactly* the pixel count the slot
- *      needs — no CSS scaling, no blur.
- *   4. Pixi wraps that GPUTexture via ExternalSource → Texture → Sprite
- *      → `extract.canvas` — a live DOM canvas React mounts directly.
+ * At hotbar's typical 48² each entry is ~9 KB CPU; 256 entries ≈
+ * 2.3 MB. Bounded against extended fights and rapid spell-tooltip
+ * hovers.
+ */
+const CANVAS_CACHE_CAP = 256;
+
+interface SpellInfo {
+  /** "up" icon source id — `up/<up>.swf` glyph layer. */
+  up?: number;
+  /** "back" icon source id — `back/<b>.swf` disc + frame layer. */
+  b?: number;
+  /** Per-pack glyph colours (`pc[PACK_INDEX]` is the active one). */
+  pc?: number[];
+  /** Per-pack disc colours (`bc[PACK_INDEX]`). */
+  bc?: number[];
+  /** Per-pack frame colours (`fc[PACK_INDEX]`). */
+  fc?: number[];
+}
+
+interface SpellsLangsBundle {
+  data: { S: Record<string, { i?: SpellInfo }> };
+}
+
+/**
+ * Resolves a spell's hotbar icon into an `<canvas>` element painted by
+ * Vello at exactly the pixel size the caller asks for. Pipeline:
  *
- * Cache keys combine spell_id + pixel size so a slot resize produces a
- * fresh render rather than a stretched copy.
+ *   1. fetch + cache `langs/fr/spells.json` once — the per-spell
+ *      `info.{up,b,bc,fc,pc}` dictates which back+up SWFs to load and
+ *      with what tints.
+ *   2. lazy-load `back/<b>.swf` + `up/<up>.swf` SWF bundles.
+ *   3. pure-bounds probe via `swfSpellIconNaturalSize` (CPU-only walk
+ *      of the symbol bounds — microseconds, no GPU round-trip).
+ *   4. for each (spellId, pixelSize): route the render through the
+ *      shared `HudVelloAtlas`, which paints into ONE process-wide
+ *      Vello surface and returns an ImageBitmap of the painted
+ *      sub-rect. Bake the bitmap into a fresh 2D `<canvas>` and
+ *      cache it. React mounts the result canvas directly.
+ *
+ * No per-icon Vello surface (the original per-canvas pattern was 40+
+ * concurrent WebGPU swap chains during fights — replaced with a single
+ * shared atlas surface). No `ExternalSource` (Vello and Pixi are on
+ * separate `GPUDevice`s).
  */
 export class SpellIconRenderer {
-  private vello: VelloRenderer | null = null;
-  private pixi: Renderer | null = null;
-  private nextAssetId = ICON_ASSET_ID_BASE;
+  /** Loaded langs bundle, populated lazily on first render request. */
+  private langs: SpellsLangsBundle | null = null;
+  private langsPending: Promise<SpellsLangsBundle | null> | null = null;
 
-  private readonly assetIds = new Map<number, number>();
-  private readonly pendingLoads = new Map<number, Promise<number | null>>();
-  /** Natural content size at resolution 1, per spell. Filled on first load. */
+  /** "back-N" / "up-N" → bundle name once it's been `loadSwfBundle`'d. */
+  private readonly loadedSubBundles = new Set<string>();
+  private readonly pendingSubBundles = new Map<string, Promise<boolean>>();
+
+  /** Tight content size at resolution 1 per spell. */
   private readonly naturalSizes = new Map<number, number>();
   private readonly canvasCache = new Map<string, HTMLCanvasElement>();
   private readonly pendingRenders = new Map<
     string,
     Promise<HTMLCanvasElement | null>
   >();
-  /** Per-(spell, size) subscribers (React hooks), notified when a render lands. */
+  /** Per-(spell, size) subscribers (React hooks), notified on render landing. */
   private readonly subscribers = new Map<string, Set<() => void>>();
-  /** Fired once `init()` attaches the Vello + Pixi handles. */
+  /** Fired once the Vello renderer is ready (i.e. WASM loaded + surface API available). */
   private readonly readySubscribers = new Set<() => void>();
+  private ready = false;
 
-  init(vello: VelloRenderer, pixi: Renderer): void {
-    this.vello = vello;
-    this.pixi = pixi;
-    for (const cb of this.readySubscribers) cb();
+  /**
+   * Mark the renderer ready. Called after Vello WASM `init()` lands;
+   * the legacy two-arg signature `init(vello, pixi)` is preserved so
+   * the call site in `bootstrap.ts` doesn't need to change in this
+   * pass — the args are simply ignored. `getSpellIconRenderer().init()`
+   * (zero-arg) also works.
+   */
+  init(_vello?: unknown, _pixi?: unknown): void {
+    this.ready = true;
+    for (const cb of this.readySubscribers) {
+      cb();
+    }
     this.readySubscribers.clear();
   }
 
   isReady(): boolean {
-    return this.vello !== null && this.pixi !== null;
+    return this.ready;
   }
 
   /** Sync cache peek. */
@@ -69,12 +118,7 @@ export class SpellIconRenderer {
     return this.canvasCache.get(cacheKey(spellId, pixelSize)) ?? null;
   }
 
-  /** Subscribes for the (spellId, pixelSize) render. */
-  subscribe(
-    spellId: number,
-    pixelSize: number,
-    cb: () => void
-  ): () => void {
+  subscribe(spellId: number, pixelSize: number, cb: () => void): () => void {
     const key = cacheKey(spellId, pixelSize);
     let set = this.subscribers.get(key);
     if (!set) {
@@ -83,12 +127,13 @@ export class SpellIconRenderer {
     }
     set.add(cb);
     return () => {
-      set!.delete(cb);
-      if (set!.size === 0) this.subscribers.delete(key);
+      set?.delete(cb);
+      if (set?.size === 0) {
+        this.subscribers.delete(key);
+      }
     };
   }
 
-  /** Subscribes to `init()`. Fires immediately if already ready. */
   subscribeReady(cb: () => void): () => void {
     if (this.isReady()) {
       cb();
@@ -98,22 +143,25 @@ export class SpellIconRenderer {
     return () => this.readySubscribers.delete(cb);
   }
 
-  /**
-   * Entry point the React hook calls. `pixelSize` is the target canvas
-   * width/height in pixels — the renderer produces a canvas whose
-   * *natural* dimensions are exactly that. Concurrent requests for the
-   * same (spellId, pixelSize) collapse onto one in-flight render.
-   */
   async getCanvas(
     spellId: number,
-    pixelSize: number
+    pixelSize: number,
   ): Promise<HTMLCanvasElement | null> {
-    if (spellId < 0 || pixelSize <= 0) return null;
+    if (spellId < 0 || pixelSize <= 0) {
+      return null;
+    }
     const key = cacheKey(spellId, pixelSize);
     const cached = this.canvasCache.get(key);
-    if (cached) return cached;
+    if (cached) {
+      // LRU touch.
+      this.canvasCache.delete(key);
+      this.canvasCache.set(key, cached);
+      return cached;
+    }
     const pending = this.pendingRenders.get(key);
-    if (pending) return pending;
+    if (pending) {
+      return pending;
+    }
     const promise = this.doRender(spellId, pixelSize, key);
     this.pendingRenders.set(key, promise);
     try {
@@ -126,118 +174,152 @@ export class SpellIconRenderer {
   private async doRender(
     spellId: number,
     pixelSize: number,
-    key: string
+    key: string,
   ): Promise<HTMLCanvasElement | null> {
-    const vello = this.vello;
-    const pixi = this.pixi;
-    if (!vello || !pixi) return null;
-
-    const assetId = await this.loadAsset(spellId);
-    if (assetId === null) return null;
-
-    const natural = this.naturalSize(spellId, assetId);
-    if (natural <= 0) return null;
-
-    // Pick the resolution that lands the canvas exactly on `pixelSize`.
-    const resolution = pixelSize / natural;
-    const result = vello.renderFrame(
-      assetId,
-      "static",
-      0,
-      resolution
-    ) as VelloFrameResult | null;
-    if (!result) return null;
-
-    const source = new ExternalSource({
-      resource: result.texture,
-      renderer: pixi,
-      width: result.width,
-      height: result.height,
-      label: `spell-icon:${spellId}@${pixelSize}`,
-    });
-    source.alphaMode = "no-premultiply-alpha";
-    source.scaleMode = "linear";
-    source.format = "rgba8unorm";
-    source.autoGarbageCollect = false;
-    // `ExternalSource.resolution` = physical pixels per logical unit. Tiles
-    // set this to `zoom` because they're placed in a scene scaled by zoom
-    // (logical 1× cell, physical N× cell). For extract-to-standalone-canvas
-    // we want sprite logical size == texture physical size, otherwise Pixi
-    // divides the logical bbox by resolution and `extract.canvas` writes a
-    // canvas at that smaller logical size — producing e.g. a 40×40 canvas
-    // when the texture was 49×49 at resolution 1.225.
-    source.resolution = 1;
-    const texture = new Texture({ source });
-    const pixiSprite = new Sprite(texture);
-
-    try {
-      const canvas = pixi.extract.canvas({
-        target: pixiSprite,
-      }) as HTMLCanvasElement;
-      this.canvasCache.set(key, canvas);
-      this.notify(key);
-      return canvas;
-    } catch (err) {
-      log.warn(`extract failed for spell=${spellId}: ${String(err)}`);
+    if (!this.ready) {
       return null;
-    } finally {
-      pixiSprite.destroy();
-      source.destroy();
     }
+
+    const langs = await this.loadLangs();
+    if (!langs) {
+      return null;
+    }
+    const info = langs.data.S[String(spellId)]?.i;
+    if (!info || info.up === undefined || info.b === undefined) {
+      return null;
+    }
+
+    const upId = info.up;
+    const backId = info.b;
+    if (upId < 0 || backId < 0) {
+      return null;
+    }
+
+    const [backReady, upReady] = await Promise.all([
+      this.loadSubBundle(`back-${backId}`, `${BACK_SWF_PATH}/${backId}.swf`),
+      this.loadSubBundle(`up-${upId}`, `${UP_SWF_PATH}/${upId}.swf`),
+    ]);
+    if (!backReady || !upReady) {
+      return null;
+    }
+    const backBundle = `spell-icon-back-${backId}`;
+    const upBundle = `spell-icon-up-${upId}`;
+
+    const bc = pickPackColor(info.bc);
+    const fc = pickPackColor(info.fc);
+    const pc = pickPackColor(info.pc);
+
+    // Pure-bounds probe — CPU-only `symbol_bounds` walk inside WASM,
+    // no GPU dispatch. Cached per spell.
+    const natural = this.naturalSize(spellId, backBundle, upBundle);
+    if (natural <= 0) {
+      return null;
+    }
+
+    const resolution = pixelSize / natural;
+
+    // Route through the shared HUD atlas: Vello renders an
+    // off-screen rgba8unorm texture, the atlas's secondary Pixi
+    // Application blits it onto a bgra8unorm OffscreenCanvas (no
+    // format warning), `createImageBitmap` snapshots the painted
+    // sub-rect, and we bake the bitmap into a 2D `<canvas>` for
+    // React to mount. Purely GPU — no pixel readback anywhere.
+    const canvas = await renderHudAssetToCanvas(pixelSize, pixelSize, () =>
+      renderSwfSpellIcon(backBundle, upBundle, bc, fc, pc, resolution),
+    );
+    if (!canvas) {
+      log.warn(`render failed for spell=${spellId}@${pixelSize}`);
+      return null;
+    }
+
+    this.canvasCache.set(key, canvas);
+    while (this.canvasCache.size > CANVAS_CACHE_CAP) {
+      const oldestKey = this.canvasCache.keys().next().value;
+      if (oldestKey === undefined) break;
+      this.canvasCache.delete(oldestKey);
+    }
+    this.notify(key);
+    return canvas;
   }
 
   /**
-   * Tight content bounds at resolution 1 (Vello computes tight path bounds,
-   * not the dofasset's stored clipRect). Cached per spell — it's fixed
-   * dofasset geometry, independent of the render size.
+   * Pure-bounds natural-size probe — CPU-only `symbol_bounds` walk in
+   * WASM. Cached per spell (disc geometry is fixed authored content).
+   * No GPU dispatch, no surface attach/detach, no probe render.
    */
-  private naturalSize(spellId: number, assetId: number): number {
+  private naturalSize(
+    spellId: number,
+    backBundle: string,
+    upBundle: string,
+  ): number {
     const cached = this.naturalSizes.get(spellId);
-    if (cached !== undefined) return cached;
-    const vello = this.vello;
-    if (!vello) return 0;
-    const size = vello.getFrameSize(assetId, "static", 0, 1) as
-      | Uint32Array
-      | null;
-    const w = size?.[0] ?? 0;
+    if (cached !== undefined) {
+      return cached;
+    }
+    const bounds = swfSpellIconNaturalSize(backBundle, upBundle);
+    const w = bounds?.width ?? 0;
     this.naturalSizes.set(spellId, w);
     return w;
   }
 
-  private async loadAsset(spellId: number): Promise<number | null> {
-    const cached = this.assetIds.get(spellId);
-    if (cached !== undefined) return cached;
-    const pending = this.pendingLoads.get(spellId);
-    if (pending) return pending;
-    const vello = this.vello;
-    if (!vello) return null;
+  private async loadLangs(): Promise<SpellsLangsBundle | null> {
+    if (this.langs) {
+      return this.langs;
+    }
+    if (!this.langsPending) {
+      this.langsPending = (async () => {
+        try {
+          const res = await fetch(SPELLS_LANGS_PATH);
+          if (!res.ok) {
+            log.warn(`langs fetch failed: ${res.status}`);
+            return null;
+          }
+          const json = (await res.json()) as SpellsLangsBundle;
+          this.langs = json;
+          return json;
+        } catch (err) {
+          log.warn(`langs fetch error: ${String(err)}`);
+          return null;
+        }
+      })();
+    }
+    return this.langsPending;
+  }
 
+  private async loadSubBundle(key: string, url: string): Promise<boolean> {
+    if (this.loadedSubBundles.has(key)) {
+      return true;
+    }
+    const pending = this.pendingSubBundles.get(key);
+    if (pending) {
+      return pending;
+    }
     const promise = (async () => {
       try {
-        const res = await fetch(`${ICONS_BASE_PATH}/${spellId}.dofasset`);
-        if (!res.ok) return null;
-        const data = new Uint8Array(await res.arrayBuffer());
-        const id = this.nextAssetId++;
-        vello.loadAsset(id, data);
-        this.assetIds.set(spellId, id);
-        return id;
+        const ok = await loadSwfBundle(`spell-icon-${key}`, url);
+        if (ok) {
+          this.loadedSubBundles.add(key);
+        }
+        return ok;
       } catch (err) {
-        log.warn(`fetch failed for spell=${spellId}: ${String(err)}`);
-        return null;
+        log.warn(`loadSubBundle ${key} threw: ${String(err)}`);
+        return false;
+      } finally {
+        this.pendingSubBundles.delete(key);
       }
     })();
-    this.pendingLoads.set(spellId, promise);
-    try {
-      return await promise;
-    } finally {
-      this.pendingLoads.delete(spellId);
-    }
+    this.pendingSubBundles.set(key, promise);
+    return promise;
   }
 
   private notify(key: string): void {
     const set = this.subscribers.get(key);
-    if (!set) return;
-    for (const cb of set) cb();
+    if (!set) {
+      return;
+    }
+    for (const cb of set) {
+      cb();
+    }
   }
 }
 
@@ -245,9 +327,23 @@ function cacheKey(spellId: number, pixelSize: number): string {
   return `${spellId}:${pixelSize}`;
 }
 
+/** Read `arr[PACK_INDEX]` as a packed RGB; default to white when absent. */
+function pickPackColor(arr: number[] | undefined): number {
+  if (!Array.isArray(arr) || arr.length === 0) {
+    return 0xffffff;
+  }
+  const v = arr[PACK_INDEX];
+  if (typeof v !== "number" || v < 0) {
+    return 0xffffff;
+  }
+  return v >>> 0;
+}
+
 let instance: SpellIconRenderer | null = null;
 
 export function getSpellIconRenderer(): SpellIconRenderer {
-  if (!instance) instance = new SpellIconRenderer();
+  if (!instance) {
+    instance = new SpellIconRenderer();
+  }
   return instance;
 }
