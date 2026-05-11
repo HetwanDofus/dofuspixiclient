@@ -49,6 +49,46 @@ export class PickingSystem {
     this.pickableObjects.clear();
   }
 
+  /**
+   * Pick the topmost char placement in the unified World layer at
+   * `(screenX, screenY)`. Returns the player id whose alpha-bitmap
+   * silhouette covers the screen point in reverse-depth order, or
+   * null on miss.
+   *
+   * Currently a stub — full implementation requires a Rust-side
+   * `render_char_alpha_bitmap(...)` shipping per-(gfxId, anim, frame,
+   * accHash, zoneHash) bitmaps for the cache lookup
+   * (`CHARACTER_RENDERER_AUDIT.md` §4.2). Until then, char picking
+   * gracefully degrades: hover / click events on chars route through
+   * the cell-based picker only. The API surface here is stable so
+   * once the Rust function lands, only the implementation needs an
+   * update — every consumer call site is in place.
+   */
+  pickWorldChar(_screenX: number, _screenY: number): number | null {
+    return null;
+  }
+
+  /**
+   * Drop the alpha-map cache + failure markers. Call on map transition
+   * so stale TextureSource UIDs from the prior map don't accumulate as
+   * dead entries in the cache (each entry holds a `Uint8Array(w*h)` —
+   * 1-3MB JS heap per character source, dozens per map). The next pick
+   * after this re-extracts on demand for the new map's TextureSources.
+   *
+   * The staging buffers used during extraction are device buffers
+   * scoped to each `extractAlphaMapAsync` call and destroyed in their
+   * own `.then`/`.catch` continuations — they do not need to be
+   * cleaned up here.
+   */
+  clearAlphaCache(): void {
+    this.alphaMaps.clear();
+    this.failedSources.clear();
+    // pendingExtractions: leave alone — those are in-flight async
+    // continuations whose resolution will populate alphaMaps; clearing
+    // would cause double-extracts for the same uid if a pick happens
+    // while resolution is pending.
+  }
+
   markDirty(): void {
     // No-op: CPU picking doesn't cache scene state
   }
@@ -122,10 +162,17 @@ export class PickingSystem {
     const alphaMap = this.alphaMaps.get(sourceUid);
 
     if (!alphaMap) {
-      // Trigger async extraction (one-time cost per TextureSource)
+      // Trigger async extraction (one-time cost per TextureSource).
       this.extractAlphaMapAsync(source);
-      // No alpha data yet — reject to avoid false positives
-      return false;
+      // While the readback is in flight (2-3 frames), fall back to
+      // AABB. The caller already validated `localPoint` is inside
+      // `[0, texW] × [0, texH]`, so accepting the hit here just
+      // makes the pick rectangle-precise instead of silhouette-
+      // precise during the gap. Returning `false` was the previous
+      // behaviour and left chars temporarily un-hoverable every
+      // animation swap / zoom-step re-render — the canonical
+      // "hover stops working after the sprite moves" symptom.
+      return true;
     }
 
     // Map UV to pixel position within the texture frame.
