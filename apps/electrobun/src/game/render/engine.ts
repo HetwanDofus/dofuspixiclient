@@ -20,7 +20,7 @@ import { getRenderWatchdog } from "@/game/render/render-watchdog";
 import { getVelloGpu, setPixiRenderer } from "@/game/render/vello-loader";
 
 extensions.add(LayoutSystem);
-TextureSource.defaultOptions.scaleMode = "nearest";
+TextureSource.defaultOptions.scaleMode = "linear";
 TextureSource.defaultOptions.autoGenerateMipmaps = false;
 
 export interface EngineConfig {
@@ -179,10 +179,17 @@ export class Engine {
     // ExternalSource. Both Vello and Pixi share the same GPUDevice.
     setPixiRenderer(this.app.renderer);
 
-    this.app.stage.layout = {
-      width: this.app.screen.width,
-      height: this.app.screen.height,
-    };
+    // NOTE: `app.stage.layout` was intentionally removed. Setting a
+    // Yoga layout on the stage swaps Container.updateLocalTransform
+    // for the layout-aware version (@pixi/layout ContainerMixin) and
+    // re-derives the stage's transform from Yoga state every frame.
+    // Since no other container has `.layout` set, the stage has a
+    // single-node layout tree with width/height equal to screen size.
+    // Once the screen size desyncs from the actual canvas dims (e.g.
+    // mid-resize or with autoDensity), Yoga keeps applying the stale
+    // computed transform and child content past the cached bounds
+    // never makes it into the render pass — the canonical "bottom
+    // of the map stops rendering at some Y" symptom on every map.
 
     this.setupResizeHandling();
     this.publishToCamera(width, height, zoom);
@@ -307,10 +314,9 @@ export class Engine {
     this.publishResolutionFactor(zoom);
 
     this.app.renderer.resize(width, height);
-    this.app.stage.layout = {
-      width,
-      height,
-    };
+    // See comment in init(): stage layout is intentionally NOT
+    // re-applied on resize — the renderer handles its own viewport,
+    // and a stale Yoga transform would clip rendered content.
     this.publishToCamera(width, height, zoom);
 
     // Notify resize start (only once per resize sequence)

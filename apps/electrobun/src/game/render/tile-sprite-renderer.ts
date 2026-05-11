@@ -67,10 +67,44 @@ export interface TilePlacement {
 
 const log = createLogger("TileSpriteRenderer");
 
-/** Tile rasterization resolution. Matches stress-worker.ts:109 MAP_BG_ZOOM. */
-const MAP_BG_ZOOM = 10;
+/**
+ * Tile rasterization resolution.
+ *
+ * Was 10 to match stress-worker.ts:109 MAP_BG_ZOOM, but at 10×
+ * density a single large foreground tile (e.g. a tall building
+ * sprite ~700×900 logical) lands at 7000×9000 physical pixels,
+ * exceeding the typical WebGPU `maxTextureDimension2d` of 8192 on
+ * Apple Silicon / Chromium. `wgpu::Device::create_texture` panics
+ * when that limit is breached, the WASM module aborts mid-frame,
+ * every subsequent `renderSwfFrame` returns null, and tile
+ * placements that hadn't been processed yet (i.e. cells further
+ * down the map in cellId iteration order) silently fail to render
+ * — the canonical "bottom of every map is black" symptom.
+ *
+ * 4× still gives crisp output at the maximum user zoom (4×
+ * `ZOOM_LEVELS[ZOOM_LEVELS.length - 1]` = 5) and keeps the worst
+ * tile at well under 4000 px per side.
+ */
+const MAP_BG_ZOOM = 4;
 const TICK_INTERVAL_MS = 1000 / 60;
 const RETIRE_DELAY_MS = 2 * TICK_INTERVAL_MS;
+
+/**
+ * Cache entry for a (bundle, export, frame) tuple — every Sprite that
+ * needs the same tile frame reuses the same `ExternalSource` +
+ * `Texture` instance. A 15×17 map has ~50 unique tile keys but ~480
+ * cells × 3 layers = 1440 placements; without sharing, the watchdog's
+ * `TEXTURE_COUNT_HALT = 1024` trips mid-render and the bottom of the
+ * map silently stops drawing because `renderSwfFrame` returns null
+ * once `isHalted()` flips. Mirrors stress-worker.ts:540 `tileCache`.
+ */
+interface CachedTileSource {
+  source: ExternalSource;
+  texture: Texture;
+  textureId: number;
+  anchorFracX: number;
+  anchorFracY: number;
+}
 
 /**
  * Layer-tagged variant of `TilePlacement` — caller marks the
@@ -92,9 +126,12 @@ interface TileSpriteState {
   isAnimated: boolean;
   currentFrame: number;
   accumMs: number;
-  // Owned GPU resource for retire pairing.
-  currentSource: ExternalSource | null;
-  currentTextureId: number;
+  /**
+   * Cache key into `TileSpriteRenderer.tileCache` for the current
+   * frame. Sprites that share the same key reuse one GPU texture.
+   * `removeSprite` decrements the cache's refcount via this key.
+   */
+  cacheKey: string;
   // Cell context — for repositioning on map-scale change.
   cellX: number;
   cellY: number;
@@ -144,6 +181,17 @@ export class TileSpriteRenderer {
   private groundLayer: Container;
   private object1Layer: Container;
   private object2Layer: Container;
+  /**
+   * Shared GPU texture pool keyed by `${bundle}:${exportName}:${frame}`.
+   * Every cell that references the same tile frame reuses one
+   * `ExternalSource` + `Texture` here. Critical: per-placement
+   * textures would blow past the watchdog's TEXTURE_COUNT_HALT=1024
+   * on any non-trivial map and silently halt mid-render — the
+   * canonical "bottom of the map goes black" symptom.
+   */
+  private tileCache = new Map<string, CachedTileSource>();
+  /** Refcount per cache key. When it hits 0 we retire the GPU texture. */
+  private cacheRefs = new Map<string, number>();
 
   constructor(
     pixiRenderer: Renderer,
@@ -155,6 +203,79 @@ export class TileSpriteRenderer {
     this.groundLayer = groundLayer;
     this.object1Layer = object1Layer;
     this.object2Layer = object2Layer;
+  }
+
+  /**
+   * Look up the cached GPU texture for `(bundle, exportName, frame)`
+   * or render + cache it. Increments the cache refcount; pair with
+   * `releaseCachedTile(cacheKey)` on sprite removal so the texture is
+   * freed once the last sprite stops using it. Returns null when the
+   * underlying `renderSwfFrame` fails (watchdog halt, missing export).
+   */
+  private acquireCachedTile(
+    bundle: string,
+    exportName: string,
+    frame: number
+  ): { cacheKey: string; entry: CachedTileSource } | null {
+    const cacheKey = `${bundle}:${exportName}:${frame}`;
+    let entry = this.tileCache.get(cacheKey);
+    if (!entry) {
+      const result = renderSwfFrame(bundle, exportName, frame, MAP_BG_ZOOM);
+      if (!result) {
+        return null;
+      }
+      const source = new ExternalSource({
+        resource: result.texture,
+        renderer: this.pixiRenderer,
+        width: result.width,
+        height: result.height,
+        label: `tile-${bundle}:${exportName}@${frame}`,
+      });
+      source.alphaMode = "no-premultiply-alpha";
+      source.format = "rgba8unorm";
+      source.scaleMode = "linear";
+      source.autoGarbageCollect = false;
+      const texture = new Texture({ source });
+      const anchorFracX =
+        result.width > 0 ? result.anchorX / result.width : 0;
+      const anchorFracY =
+        result.height > 0 ? result.anchorY / result.height : 0;
+      entry = {
+        source,
+        texture,
+        textureId: result.textureId,
+        anchorFracX,
+        anchorFracY,
+      };
+      this.tileCache.set(cacheKey, entry);
+    }
+    this.cacheRefs.set(cacheKey, (this.cacheRefs.get(cacheKey) ?? 0) + 1);
+    return { cacheKey, entry };
+  }
+
+  /**
+   * Drop a refcount against `cacheKey`. When it falls to 0 schedule
+   * the source + GPU texture for retire after a settle delay so any
+   * in-flight Pixi render pass that still references the source
+   * finishes before its memory disappears.
+   */
+  private releaseCachedTile(cacheKey: string): void {
+    const next = (this.cacheRefs.get(cacheKey) ?? 0) - 1;
+    if (next > 0) {
+      this.cacheRefs.set(cacheKey, next);
+      return;
+    }
+    this.cacheRefs.delete(cacheKey);
+    const entry = this.tileCache.get(cacheKey);
+    if (!entry) return;
+    this.tileCache.delete(cacheKey);
+    const { source, textureId } = entry;
+    setTimeout(() => {
+      try {
+        source.destroy();
+      } catch {}
+      freeRenderTexture(textureId);
+    }, RETIRE_DELAY_MS);
   }
 
   /**
@@ -208,28 +329,15 @@ export class TileSpriteRenderer {
 
   private createSprite(key: string, p: LayeredTilePlacement): void {
     const initialFrame = p.isAnimated ? 0 : p.staticFrame;
-    const result = renderSwfFrame(
+    const acquired = this.acquireCachedTile(
       p.bundle,
       p.exportName,
-      initialFrame,
-      MAP_BG_ZOOM
+      initialFrame
     );
-    if (!result) {
+    if (!acquired) {
       return;
     }
-    const source = new ExternalSource({
-      resource: result.texture,
-      renderer: this.pixiRenderer,
-      width: result.width,
-      height: result.height,
-      label: `tile-${p.tileKey}-f${initialFrame}`,
-    });
-    source.alphaMode = "no-premultiply-alpha";
-    source.format = "rgba8unorm";
-    // Nearest filtering matches stress-worker.ts:556 — keeps tile
-    // edges crisp at the small displayed size.
-    source.scaleMode = "nearest";
-    source.autoGarbageCollect = false;
+    const { cacheKey, entry } = acquired;
     // NOTE: do NOT set `source.resolution = MAP_BG_ZOOM`. Pixi
     // interprets resolution as a pixel-density multiplier that makes
     // the texture render 1/N times smaller; combined with our
@@ -237,11 +345,8 @@ export class TileSpriteRenderer {
     // + spread apart"). The native MAP_BG_ZOOM-density rasterization
     // is compensated entirely by `sprite.scale`.
 
-    const anchorFracX = result.width > 0 ? result.anchorX / result.width : 0;
-    const anchorFracY = result.height > 0 ? result.anchorY / result.height : 0;
-
-    const sprite = new Sprite(new Texture({ source }));
-    sprite.anchor.set(anchorFracX, anchorFracY);
+    const sprite = new Sprite(entry.texture);
+    sprite.anchor.set(entry.anchorFracX, entry.anchorFracY);
     applyMatrix(sprite, p.cellX, p.cellY, p.rotation, p.flip);
     // Painter's-order zIndex inside the layer: lower-cellY (back rows)
     // render first so higher-cellY (front rows) overlap correctly.
@@ -266,14 +371,13 @@ export class TileSpriteRenderer {
       isAnimated: p.isAnimated,
       currentFrame: initialFrame,
       accumMs: 0,
-      currentSource: source,
-      currentTextureId: result.textureId,
+      cacheKey,
       cellX: p.cellX,
       cellY: p.cellY,
       rotation: p.rotation,
       flip: p.flip,
-      anchorFracX,
-      anchorFracY,
+      anchorFracX: entry.anchorFracX,
+      anchorFracY: entry.anchorFracY,
     });
   }
 
@@ -282,69 +386,44 @@ export class TileSpriteRenderer {
     if (!state) {
       return;
     }
-    const oldSource = state.currentSource;
-    const oldTextureId = state.currentTextureId;
     try {
       state.sprite.parent?.removeChild(state.sprite);
-      state.sprite.destroy();
+      // Sprite owns no GPU resources — the texture is shared via
+      // tileCache. `destroy({ texture: false })` keeps the shared
+      // resource alive.
+      state.sprite.destroy({ texture: false });
     } catch (e) {
       log.warn("removeSprite: destroy failed", e);
     }
-    if (oldSource && oldTextureId) {
-      setTimeout(() => {
-        try {
-          oldSource.destroy();
-        } catch {}
-        freeRenderTexture(oldTextureId);
-      }, RETIRE_DELAY_MS);
-    }
+    this.releaseCachedTile(state.cacheKey);
     this.states.delete(key);
   }
 
   private swapFrame(state: TileSpriteState): void {
-    const result = renderSwfFrame(
+    const acquired = this.acquireCachedTile(
       state.bundle,
       state.exportName,
-      state.currentFrame,
-      MAP_BG_ZOOM
+      state.currentFrame
     );
-    if (!result) {
+    if (!acquired) {
       return;
     }
-    const oldSource = state.currentSource;
-    const oldTextureId = state.currentTextureId;
+    const { cacheKey, entry } = acquired;
+    const oldCacheKey = state.cacheKey;
 
-    const newSource = new ExternalSource({
-      resource: result.texture,
-      renderer: this.pixiRenderer,
-      width: result.width,
-      height: result.height,
-      label: `tile-${state.bundle}-${state.exportName}-f${state.currentFrame}`,
-    });
-    newSource.alphaMode = "no-premultiply-alpha";
-    newSource.format = "rgba8unorm";
-    newSource.scaleMode = "nearest";
-    newSource.autoGarbageCollect = false;
-    // (See createSprite for why source.resolution is not set.)
+    state.sprite.anchor.set(entry.anchorFracX, entry.anchorFracY);
+    state.sprite.texture = entry.texture;
+    state.cacheKey = cacheKey;
+    state.anchorFracX = entry.anchorFracX;
+    state.anchorFracY = entry.anchorFracY;
 
-    // Re-anchor in case of a rare frame-bounds shift (the WASM should
-    // return uniform anchor per export, but we recompute defensively
-    // — wrong anchor is visually obvious).
-    state.sprite.anchor.set(
-      result.width > 0 ? result.anchorX / result.width : state.anchorFracX,
-      result.height > 0 ? result.anchorY / result.height : state.anchorFracY
-    );
-    state.sprite.texture = new Texture({ source: newSource });
-    state.currentSource = newSource;
-    state.currentTextureId = result.textureId;
-
-    if (oldSource && oldTextureId) {
-      setTimeout(() => {
-        try {
-          oldSource.destroy();
-        } catch {}
-        freeRenderTexture(oldTextureId);
-      }, RETIRE_DELAY_MS);
+    if (oldCacheKey !== cacheKey) {
+      this.releaseCachedTile(oldCacheKey);
+    } else {
+      // Same key → acquireCachedTile incremented refcount even
+      // though the sprite still holds the previous reference. Drop
+      // the spurious increment so the count stays correct.
+      this.releaseCachedTile(cacheKey);
     }
   }
 }

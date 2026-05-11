@@ -95,7 +95,7 @@ export class FrameAtlas {
       label: "frame-atlas",
     });
     this.atlasSource.alphaMode = "no-premultiply-alpha";
-    this.atlasSource.scaleMode = "nearest";
+    this.atlasSource.scaleMode = "linear";
     this.atlasSource.format = "rgba8unorm";
     this.atlasSource.resolution = this.resolution;
     this.atlasSource.autoGarbageCollect = false;

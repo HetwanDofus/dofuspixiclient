@@ -1,31 +1,25 @@
-import type { VelloRenderer } from "vello-wasm";
 import { ExternalSource, Rectangle, type Renderer, Texture } from "pixi.js";
 
 import { createLogger } from "@/utils/logger";
 
+import {
+  freeRenderTexture,
+  loadSwfBundle,
+  renderSwfSpellStrip,
+} from "./vello-loader";
+
 const log = createLogger("SpellVello");
 
-interface VelloStripResult {
-  texture: GPUTexture;
-  textureId: number;
-  width: number;
-  height: number;
-  frameWidth: number;
-  frameHeight: number;
-  frameCount: number;
-  gridCols?: number;
-  boundsOffsetX?: number;
-  boundsOffsetY?: number;
-  anchorX?: number;
-  anchorY?: number;
-}
-
-interface VelloAnimInfo {
-  frameCount: number;
-  fps: number;
-  offsetX: number;
-  offsetY: number;
-}
+/**
+ * Soft cap on the (spellId, animation, resolution) → strip cache. Each
+ * cached entry holds one wgpu texture + ExternalSource (a 256×… RGBA8
+ * strip ≈ a few MB GPU). 128 entries bounds the working set at ~hundreds
+ * of MB worst case — enough for an extended fight + tooltip preview
+ * churn without growing into a session-lifetime leak. On eviction we
+ * destroy the source AND free the wgpu texture (Drop for WebTexture is
+ * a no-op — see feedback_pixi_wgpu_texture_lifetime).
+ */
+const ANIMATION_CACHE_CAP = 128;
 
 /** Pre-rendered animation slice: one GPU strip, sliced into Pixi Textures. */
 export interface SpellAnimation {
@@ -34,75 +28,74 @@ export interface SpellAnimation {
   fps: number;
   offsetX: number;
   offsetY: number;
-  /**
-   * Per-frame logical width/height (in CSS pixels). Equal to the texture
-   * frame size — Vello returns the tight bounds across all frames in
-   * the animation, NOT the canonical SWF sprite bounds. So if the
-   * source manifest claims a 113.3×95.9 bounding box but the actual
-   * path content only fills 80×75 (e.g., morph shapes that retract at
-   * the endpoint), `frameWidth` is 80, not 113.3.
-   */
+  /** Per-frame logical width/height (CSS pixels). Uniform across the strip — */
   frameWidth: number;
   frameHeight: number;
-  /**
-   * Registration point ("anchor") in PIXEL coords within the frame.
-   * Normalized for Pixi via `anchorPx / frameWidth`. Matches what the
-   * SWF's `_x = 0; _y = 0;` would resolve to inside the rendered frame.
-   */
+  /** Registration point in PIXEL coords within the frame; uniform per strip. */
   anchorPxX: number;
   anchorPxY: number;
 }
 
 /**
- * Spell counterpart to the character-sprite loader. A spell's
- * `.dofasset` binary (compiled from the SVG atlases in
- * `assets/spritesheets/spells/<id>/`) gets loaded into Vello once, then
- * per animation we call `renderAnimationStrip` to rasterize every
- * frame into a single GPU texture grid. We slice that grid into
- * per-frame Pixi Textures so FrameAnimatedSprite can swap cheaply.
+ * Spell counterpart to the character-sprite loader. Replaces the legacy
+ * dofasset bake: each spell's `.swf` is loaded into Vello once, then the
+ * AVM1 emulator (`render_avm1::AvmRenderer`) runs across the main timeline
+ * to produce the same composite strip texture the asset-pipeline used to
+ * pre-bake.
  *
- * Mirroring the character-sprite approach instead of calling
- * `renderFrame` per frame gives us (a) one Vello call per animation
- * instead of N, and (b) a single GPU texture shared across all frames
- * so we don't blow the Vello texture-slot budget on long spell
- * timelines like Spell 101 (189 frames).
+ * Result: one Vello dispatch per spell animation, AS2 side-effects faithfully
+ * driving the pixels (gotoAndStop, _alpha fades, _rotation, etc.), no bake
+ * step. JS slices the strip into per-frame Pixi Textures so
+ * FrameAnimatedSprite can swap cheaply.
  */
-export class SpellVelloRenderer {
-  private vello: VelloRenderer | null = null;
-  private nextAssetId = 10_000;
+interface CachedSpellAnimation {
+  animation: SpellAnimation;
+  /** ExternalSource shared by every Texture in `animation.frames`. */
+  source: ExternalSource;
+  /** WASM-side wgpu texture id; freed on eviction. */
+  textureId: number;
+}
 
-  private readonly assetIds = new Map<number, number>();
+export class SpellVelloRenderer {
+  /** spellId → bundle name once loaded (or null = sticky failure). */
+  private readonly bundleNames = new Map<number, string | null>();
   private readonly pendingLoads = new Map<number, Promise<boolean>>();
   private readonly missingAssets = new Set<number>();
-  /** Raw .dofasset bytes, kept so callers can read the Extras section. */
-  private readonly assetBytes = new Map<number, Uint8Array>();
-  /** Cached strip per (spellId, animation, resolution). */
-  private readonly animationCache = new Map<string, SpellAnimation>();
+  /**
+   * Cached strip per (spellId, animation, resolution). Map iteration
+   * preserves insertion order so we can run a simple LRU: read hits
+   * touch (delete + re-set), writes evict the oldest entry past
+   * `ANIMATION_CACHE_CAP`. On eviction we destroy the ExternalSource
+   * AND free the wgpu texture explicitly.
+   */
+  private readonly animationCache = new Map<string, CachedSpellAnimation>();
 
-  constructor(
-    private readonly pixiRenderer: Renderer,
-    private readonly basePath: string
-  ) {}
+  constructor(private readonly pixiRenderer: Renderer) {}
 
-  setVelloRenderer(vello: VelloRenderer): void {
-    this.vello = vello;
+  /**
+   * Compatibility shim — the SWF render path reads its renderer from
+   * the shared `vello-loader` singleton, so the explicit hand-off the
+   * dofasset pipeline did via `setVelloRenderer` is now a no-op.
+   */
+  setVelloRenderer(_vello?: unknown): void {
+    // intentionally empty
   }
 
   hasAsset(spellId: number): boolean {
-    return this.assetIds.has(spellId);
+    return this.bundleNames.get(spellId) != null;
   }
 
-  /** Raw dofasset bytes for a loaded spell, used to parse the Extras section. */
-  getAssetBytes(spellId: number): Uint8Array | undefined {
-    return this.assetBytes.get(spellId);
+  bundleNameFor(spellId: number): string | undefined {
+    return this.bundleNames.get(spellId) ?? undefined;
   }
 
   async loadAsset(spellId: number): Promise<boolean> {
-    if (this.assetIds.has(spellId)) {
-      return true;
-    }
     if (this.missingAssets.has(spellId)) {
       return false;
+    }
+    const cached = this.bundleNames.get(spellId);
+    if (cached !== undefined) {
+      return cached !== null;
     }
     const pending = this.pendingLoads.get(spellId);
     if (pending) {
@@ -118,49 +111,40 @@ export class SpellVelloRenderer {
   }
 
   /**
-   * Build (or reuse) the per-frame Pixi Textures for a given animation
-   * at the current resolution. Returns null if the asset isn't
-   * loaded, the animation isn't in the dofasset, or Vello fails to
-   * rasterize the strip.
+   * Run the AVM1 emulator across the spell's main timeline and slice
+   * the resulting strip into per-frame Pixi Textures. Cached per
+   * `(spellId, animation, resolution)` so re-requests return the same
+   * Textures sharing one ExternalSource.
+   *
+   * Note: spell SWFs only have one main timeline. The `animation` arg
+   * is kept as a cache discriminator (so the dofasset-era manifest's
+   * `anim1`/`anim2`/etc. keys still bucket correctly), but every key
+   * resolves to the SAME strip — the SWF doesn't carry the
+   * dofasset-era multi-animation split.
    */
   buildAnimation(
     spellId: number,
     animation: string,
     resolution: number
   ): SpellAnimation | null {
-    const vello = this.vello;
-    const assetId = this.assetIds.get(spellId);
-    if (!vello || assetId === undefined) {
+    const bundleName = this.bundleNames.get(spellId);
+    if (!bundleName) {
       return null;
     }
 
     const cacheKey = `${spellId}:${animation}:${resolution}`;
     const cached = this.animationCache.get(cacheKey);
     if (cached) {
-      return cached;
+      // LRU touch — re-insert at the tail so eviction targets cold entries.
+      this.animationCache.delete(cacheKey);
+      this.animationCache.set(cacheKey, cached);
+      return cached.animation;
     }
 
-    const animInfo = vello.getAnimationInfo(
-      assetId,
-      animation
-    ) as VelloAnimInfo | null;
-    if (!animInfo || animInfo.frameCount <= 0) {
-      log.warn(
-        `spell ${spellId} anim=${animation}: getAnimationInfo returned ${
-          animInfo ? `frameCount=${animInfo.frameCount}` : "null"
-        } — dofasset likely missing this animation`
-      );
-      return null;
-    }
-
-    const strip = vello.renderAnimationStrip(
-      assetId,
-      animation,
-      resolution
-    ) as VelloStripResult | null;
+    const strip = renderSwfSpellStrip(bundleName, resolution);
     if (!strip) {
       log.warn(
-        `spell ${spellId} anim=${animation}: renderAnimationStrip null (frameCount=${animInfo.frameCount}, resolution=${resolution}) — likely GPU texture dim limit`
+        `spell ${spellId} anim=${animation}: AVM1 strip render returned null (resolution=${resolution})`
       );
       return null;
     }
@@ -170,24 +154,20 @@ export class SpellVelloRenderer {
       renderer: this.pixiRenderer,
       width: strip.width,
       height: strip.height,
-      label: `vello-spell:${spellId}:${animation}`,
+      label: `swf-spell:${spellId}:${animation}`,
     });
     stripSource.alphaMode = "no-premultiply-alpha";
     stripSource.format = "rgba8unorm";
-    stripSource.scaleMode = "nearest";
+    stripSource.scaleMode = "linear";
     stripSource.resolution = resolution;
-    // Lifecycle handled by us — the spell asset loader destroys these
-    // textures when the spell unloads. Pixi's GC would tear the strip
-    // out mid-playback otherwise.
     stripSource.autoGarbageCollect = false;
 
     const fw = strip.frameWidth / resolution;
     const fh = strip.frameHeight / resolution;
-    const cols = strip.gridCols || strip.frameCount;
     const frames: Texture[] = [];
     for (let i = 0; i < strip.frameCount; i++) {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
+      const col = i % strip.gridCols;
+      const row = Math.floor(i / strip.gridCols);
       frames.push(
         new Texture({
           source: stripSource,
@@ -199,44 +179,81 @@ export class SpellVelloRenderer {
     const animation_: SpellAnimation = {
       frames,
       frameCount: strip.frameCount,
-      fps: animInfo.fps,
-      offsetX: animInfo.offsetX,
-      offsetY: animInfo.offsetY,
+      fps: strip.fps,
+      offsetX: -strip.anchorX / resolution,
+      offsetY: -strip.anchorY / resolution,
       frameWidth: fw,
       frameHeight: fh,
-      // strip.anchorX/Y is in render-resolution pixels; convert to logical.
-      anchorPxX: (strip.anchorX ?? 0) / resolution,
-      anchorPxY: (strip.anchorY ?? 0) / resolution,
+      // Uniform anchor inherited from the strip's union-of-bounds origin.
+      anchorPxX: strip.anchorX / resolution,
+      anchorPxY: strip.anchorY / resolution,
     };
-    this.animationCache.set(cacheKey, animation_);
+    // If a prior cast had this same (bundle, level, resolution), the
+    // existing cache entry holds an earlier strip — dispose it before
+    // overwriting so we don't strand a wgpu texture in
+    // `VelloRenderer.textures` (Pixi's Drop for WebTexture is a no-op,
+    // see `feedback_pixi_wgpu_texture_lifetime`).
+    const previous = this.animationCache.get(cacheKey);
+    if (previous) {
+      this.disposeCached(previous);
+    }
+    this.animationCache.set(cacheKey, {
+      animation: animation_,
+      source: stripSource,
+      textureId: strip.textureId,
+    });
+    while (this.animationCache.size > ANIMATION_CACHE_CAP) {
+      const oldestKey = this.animationCache.keys().next().value;
+      if (oldestKey === undefined) break;
+      const evicted = this.animationCache.get(oldestKey);
+      this.animationCache.delete(oldestKey);
+      if (evicted) {
+        this.disposeCached(evicted);
+      }
+    }
     return animation_;
   }
 
+  /**
+   * Drop every cached strip and free the underlying GPU storage.
+   * Called on fight teardown. Live FrameAnimatedSprites still
+   * referencing one of these Textures will sample a destroyed source on
+   * their next render — they're expected to be torn down before this is
+   * invoked. Pixi v8 handles a destroyed source gracefully (renders
+   * empty) so a missed teardown is a visual artifact, not a crash.
+   */
   clearAnimationCache(): void {
+    for (const entry of this.animationCache.values()) {
+      this.disposeCached(entry);
+    }
     this.animationCache.clear();
   }
 
-  private async doLoadAsset(spellId: number): Promise<boolean> {
-    const vello = this.vello;
-    if (!vello) {
-      return false;
-    }
-    const url = `${this.basePath}/spells/${spellId}.dofasset`;
+  private disposeCached(entry: CachedSpellAnimation): void {
     try {
-      const res = await fetch(url);
-      if (!res.ok) {
+      entry.source.destroy();
+    } catch {
+      // already destroyed — fine.
+    }
+    freeRenderTexture(entry.textureId);
+  }
+
+  private async doLoadAsset(spellId: number): Promise<boolean> {
+    const bundleName = `spell-${spellId}`;
+    const url = `/swf/spells/${spellId}.swf`;
+    try {
+      const ok = await loadSwfBundle(bundleName, url);
+      if (!ok) {
         this.missingAssets.add(spellId);
+        this.bundleNames.set(spellId, null);
         return false;
       }
-      const data = new Uint8Array(await res.arrayBuffer());
-      const id = this.nextAssetId++;
-      vello.loadAsset(id, data);
-      this.assetIds.set(spellId, id);
-      this.assetBytes.set(spellId, data);
+      this.bundleNames.set(spellId, bundleName);
       return true;
     } catch (err) {
       log.warn(`Failed to load spell ${spellId}:`, err);
       this.missingAssets.add(spellId);
+      this.bundleNames.set(spellId, null);
       return false;
     }
   }

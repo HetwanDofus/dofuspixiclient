@@ -226,7 +226,7 @@ export class PlayerStripRenderer {
     });
     source.alphaMode = "no-premultiply-alpha";
     source.format = "rgba8unorm";
-    source.scaleMode = "nearest";
+    source.scaleMode = "linear";
     source.autoGarbageCollect = false;
     // NOTE: `source.resolution` is not set. Pixi treats it as a
     // pixel-density multiplier that shrinks rendered output by 1/N;

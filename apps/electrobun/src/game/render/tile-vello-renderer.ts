@@ -1,87 +1,174 @@
-import type { VelloRenderer } from "vello-wasm";
 import { ExternalSource, type Renderer, Texture } from "pixi.js";
 
 import { createLogger } from "@/utils/logger";
 
-import type { VelloAnimationMeta, VelloFrameResult } from "./vello-loader";
+import {
+  isSwfBundleLoaded,
+  renderSwfFrame,
+  swfAnimFrameCount,
+  type VelloSwfFrameResult,
+} from "./vello-loader";
 
 const log = createLogger("TileVello");
 
+/** Probe order for tile-key resolution — matches `swf-spike` `classify_map_tiles.rs`. */
+const GROUND_BUNDLES = ["g1", "g2"] as const;
+const OBJECT_BUNDLES = [
+  "o1",
+  "o2",
+  "o3",
+  "o4",
+  "o5",
+  "o6",
+  "o7",
+  "o8",
+  "o9",
+  "o10",
+  "o11",
+  "o12",
+] as const;
+
+interface TileResolution {
+  bundle: string;
+  exportName: string;
+}
+
 /**
- * Renders tile frames through Vello WASM and wraps the resulting GPUTexture
- * as a Pixi.js ExternalSource. Owns the per-tile Vello asset ID map and the
- * per-frame texture-ID map (the latter is consulted by the atlas cache so
- * evicted frames can release their Vello allocations on dispose).
+ * Tile metadata derived from a single SWF query — uniform canvas size and the
+ * Flash registration point within it. Cached forever per tile.
+ */
+export interface TileSwfMeta {
+  width: number;
+  height: number;
+  anchorX: number;
+  anchorY: number;
+  /** Frame count of the deepest animation reachable from this export. */
+  frameCount: number;
+}
+
+/**
+ * Renders tile frames through Vello WASM by looking each tileKey up in one of
+ * the pre-loaded SWF bundles, then rendering the export. Wraps the resulting
+ * GPUTexture as a Pixi.js ExternalSource. Owns the per-tile bundle/export
+ * resolution cache and the per-frame texture-ID map (consulted by the atlas
+ * cache so evicted frames can release their Vello allocations on dispose).
  */
 export class TileVelloRenderer {
-  private vello: VelloRenderer | null = null;
-  private nextAssetId = 1;
-
-  private readonly assetIds = new Map<string, number>();
-  private readonly pendingLoads = new Map<string, Promise<boolean>>();
-  /** Raw bytes per tileKey, retained so atlas-loader can read the Extras section. */
-  private readonly assetBytes = new Map<string, Uint8Array>();
+  private readonly resolutions = new Map<string, TileResolution | null>();
+  private readonly metaCache = new Map<string, TileSwfMeta>();
   /** cacheKey → vello texture ID, so the frame cache can tell Vello to drop it. */
   private readonly textureIds = new Map<string, number>();
+  /**
+   * Pixi sources created via `renderFrame` since the last drain. The
+   * `AtlasLoader` pulls these on zoom invalidation so it can destroy
+   * them as part of its retire batch — otherwise filter-tile + fallback
+   * sources accumulate forever.
+   */
+  private pendingSources: { source: ExternalSource; textureId: number }[] = [];
 
-  constructor(
-    private readonly pixiRenderer: Renderer,
-    private readonly basePath: string
-  ) {}
+  constructor(private readonly pixiRenderer: Renderer) {}
 
-  setVelloRenderer(vello: VelloRenderer): void {
-    this.vello = vello;
-  }
-
-  hasAsset(tileKey: string): boolean {
-    return this.assetIds.has(tileKey);
-  }
-
-  /** Raw dofasset bytes for a loaded tile, used to parse the Extras section. */
-  getAssetBytes(tileKey: string): Uint8Array | undefined {
-    return this.assetBytes.get(tileKey);
+  /** Drain the list of sources created since the last call. */
+  drainPendingSources(): { source: ExternalSource; textureId: number }[] {
+    const out = this.pendingSources;
+    this.pendingSources = [];
+    return out;
   }
 
   /**
-   * Query the uniform canvas + anchor for this tile's "tile" animation at 1x.
-   * Returns null if Vello isn't ready or the tile hasn't been loaded yet.
+   * Resolve a tileKey to its `(bundle, exportName)` pair by probing the
+   * relevant pre-loaded bundles. Returns null if no bundle owns this tile.
    */
-  getAnimationMeta(tileKey: string): VelloAnimationMeta | null {
-    const vello = this.vello;
-    const assetId = this.assetIds.get(tileKey);
-    if (!vello || assetId === undefined) return null;
-    return vello.getAnimationMeta(
-      assetId,
-      "tile",
-      1.0
-    ) as VelloAnimationMeta | null;
+  resolveTile(tileKey: string): TileResolution | null {
+    const cached = this.resolutions.get(tileKey);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    const underscore = tileKey.indexOf("_");
+    const type = underscore === -1 ? tileKey : tileKey.slice(0, underscore);
+    const idStr = underscore === -1 ? tileKey : tileKey.slice(underscore + 1);
+
+    let result: TileResolution | null = null;
+    if (type === "ground") {
+      result = this.probe(GROUND_BUNDLES, idStr);
+    } else if (type === "objects") {
+      result = this.probe(OBJECT_BUNDLES, idStr);
+    } else if (type === "cell" || type === "tactic") {
+      // cell/tactic tile keys carry the export verbatim (often `s1`, `i7`,
+      // or a string token rather than a decimal).
+      if (isSwfBundleLoaded(type) && swfAnimFrameCount(type, idStr) > 0) {
+        result = { bundle: type, exportName: idStr };
+      }
+    } else {
+      log.warn(`Unknown tile type "${type}" in key "${tileKey}"`);
+    }
+
+    if (!result) {
+      log.warn(`Tile ${tileKey} not found in any SWF bundle`);
+    }
+    this.resolutions.set(tileKey, result);
+    return result;
   }
 
-  /** Load a tile's `.dofasset` into Vello. Deduplicates concurrent loads. */
+  hasAsset(tileKey: string): boolean {
+    return this.resolveTile(tileKey) !== null;
+  }
+
+  /**
+   * Read this tile's cached canvas size + anchor + frame count. Returns
+   * null until at least one frame has rendered (which populates the cache
+   * as a side effect — see `renderFrame`). Avoids the wasted-render storm
+   * the previous "render frame 0 at resolution 1.0 just to peek at the
+   * dimensions" approach caused on map load.
+   */
+  getMeta(tileKey: string): TileSwfMeta | null {
+    return this.metaCache.get(tileKey) ?? null;
+  }
+
+  /**
+   * Externally populate the meta cache — used by the batch path in
+   * `AtlasLoader.prefetchTiles` which goes through `renderSwfBundleBatch`
+   * and `renderSwfStrip` instead of per-tile `renderSwfFrame`.
+   */
+  setMeta(tileKey: string, meta: TileSwfMeta): void {
+    this.metaCache.set(tileKey, meta);
+  }
+
+  /**
+   * Wrap a SWF batch composite texture as a Pixi `ExternalSource` for use
+   * as a shared source across N Pixi `Texture` sub-rectangles.
+   */
+  wrapBatchSource(
+    gpuTexture: GPUTexture,
+    physWidth: number,
+    physHeight: number,
+    zoom: number,
+    label: string
+  ): ExternalSource {
+    const source = new ExternalSource({
+      resource: gpuTexture,
+      renderer: this.pixiRenderer,
+      width: physWidth,
+      height: physHeight,
+      label,
+    });
+    source.alphaMode = "no-premultiply-alpha";
+    source.scaleMode = "linear";
+    source.format = "rgba8unorm";
+    source.autoGarbageCollect = false;
+    source.resolution = zoom;
+    return source;
+  }
+
+  /** Compatibility shim — kept async-shaped for the existing AtlasLoader call sites. */
   async loadAsset(tileKey: string): Promise<boolean> {
-    if (this.assetIds.has(tileKey)) {
-      return true;
-    }
-
-    const pending = this.pendingLoads.get(tileKey);
-
-    if (pending) {
-      return pending;
-    }
-
-    const promise = this.doLoadAsset(tileKey);
-    this.pendingLoads.set(tileKey, promise);
-
-    try {
-      return await promise;
-    } finally {
-      this.pendingLoads.delete(tileKey);
-    }
+    return this.resolveTile(tileKey) !== null;
   }
 
   /**
    * Render a single frame via Vello + wrap the resulting GPUTexture as a Pixi
-   * Texture. Returns null if Vello isn't set or the tile asset isn't loaded.
+   * Texture. Returns null if the tile can't be resolved or rendered.
    */
   renderFrame(
     tileKey: string,
@@ -89,22 +176,34 @@ export class TileVelloRenderer {
     zoom: number,
     cacheKey: string
   ): Texture | null {
-    const vello = this.vello;
-    const assetId = this.assetIds.get(tileKey);
-
-    if (!vello || assetId === undefined) {
+    const res = this.resolveTile(tileKey);
+    if (!res) {
       return null;
     }
 
-    const result = vello.renderFrame(
-      assetId,
-      "tile",
+    const result = renderSwfFrame(
+      res.bundle,
+      res.exportName,
       frameIndex,
       zoom
-    ) as VelloFrameResult | null;
+    ) as VelloSwfFrameResult | null;
 
     if (!result) {
       return null;
+    }
+
+    // Populate the meta cache from the first render — saves a separate
+    // resolution-1.0 query (which used to flood the GPU command queue
+    // during prefetch). Convert from physical pixels at the rendered
+    // zoom to logical units so meta is resolution-independent.
+    if (!this.metaCache.has(tileKey)) {
+      this.metaCache.set(tileKey, {
+        width: result.width / zoom,
+        height: result.height / zoom,
+        anchorX: result.anchorX / zoom,
+        anchorY: result.anchorY / zoom,
+        frameCount: swfAnimFrameCount(res.bundle, res.exportName),
+      });
     }
 
     this.textureIds.set(cacheKey, result.textureId);
@@ -114,56 +213,33 @@ export class TileVelloRenderer {
       renderer: this.pixiRenderer,
       width: result.width,
       height: result.height,
-      label: `vello:${tileKey}:${frameIndex}`,
+      label: `swf:${res.bundle}:${res.exportName}:${frameIndex}`,
     });
 
     // Vello's fine.wgsl emits straight alpha; Pixi's batch shader premultiplies via blend state.
     source.alphaMode = "no-premultiply-alpha";
-    source.scaleMode = "nearest";
+    source.scaleMode = "linear";
     source.format = "rgba8unorm";
     // Manage GPU texture lifecycle ourselves — Pixi's GC would otherwise destroy it mid-render.
     source.autoGarbageCollect = false;
     source.resolution = zoom;
 
+    this.pendingSources.push({ source, textureId: result.textureId });
     return new Texture({ source });
   }
 
-  private async doLoadAsset(tileKey: string): Promise<boolean> {
-    const vello = this.vello;
-
-    if (!vello) {
-      return false;
-    }
-
-    // `tactic_<id>` and `cell_<id>` route to the flat spritesheets/{tactic,cell}/
-    // folders produced by the staticTile publish stage (the tactic-view overlay
-    // reuses this tile loader path because every staticTile dofasset ships a
-    // `TileExtras` section with an `animations.tile` entry).
-    const underscore = tileKey.indexOf("_");
-    const type = underscore === -1 ? tileKey : tileKey.slice(0, underscore);
-    const idStr = underscore === -1 ? "" : tileKey.slice(underscore + 1);
-    const url =
-      type === "tactic" || type === "cell"
-        ? `${this.basePath}/${type}/${idStr}.dofasset`
-        : `${this.basePath}/tiles/${type}/${idStr}.dofasset`;
-
-    try {
-      const res = await fetch(url);
-
-      if (!res.ok) {
-        return false;
+  private probe(
+    bundles: readonly string[],
+    exportName: string
+  ): TileResolution | null {
+    for (const bundle of bundles) {
+      if (!isSwfBundleLoaded(bundle)) {
+        continue;
       }
-
-      const data = new Uint8Array(await res.arrayBuffer());
-      // Auto-increment avoids ID conflicts between ground and objects tile ranges.
-      const id = this.nextAssetId++;
-      vello.loadAsset(id, data);
-      this.assetIds.set(tileKey, id);
-      this.assetBytes.set(tileKey, data);
-      return true;
-    } catch (e) {
-      log.warn(`Failed to load dofasset for ${tileKey}:`, e);
-      return false;
+      if (swfAnimFrameCount(bundle, exportName) > 0) {
+        return { bundle, exportName };
+      }
     }
+    return null;
   }
 }

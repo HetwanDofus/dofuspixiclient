@@ -170,7 +170,7 @@ export class PreRenderedSpell implements ISpellAnimation {
     });
     this.source.alphaMode = "no-premultiply-alpha";
     this.source.format = "rgba8unorm";
-    this.source.scaleMode = "nearest";
+    this.source.scaleMode = "linear";
     this.source.autoGarbageCollect = false;
     // `source.resolution` deliberately not set — Pixi treats it as a
     // pixel-density factor that double-applies with sprite.scale.
