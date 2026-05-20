@@ -14,20 +14,27 @@
 //! - `sprite`   — timeline walker (clip stack, filter handoff, recursion)
 //! - `snapshot` — AVM1-resolved tree consumer (DestIn alpha mask, blend modes)
 
+pub mod band;
 pub mod bounds;
 pub mod cache;
 pub mod clip;
 pub mod ctx;
 pub mod emit;
 pub mod filter;
+pub mod mount_transforms;
 pub mod phased;
+pub mod slot_depths;
 pub mod snapshot;
 pub mod sprite;
 
+pub use band::render_body_band;
 pub use bounds::{build_frame_state, symbol_bounds};
 pub use cache::RenderCache;
 pub use clip::collect_mask_path;
-pub use ctx::RenderCtx;
+pub use ctx::{RenderCtx, RenderMode};
+pub use slot_depths::{
+    band_count, band_range, extract_slot_depths, BandRange, SlotDepth,
+};
 pub use snapshot::{render_snapshot, PlacedSnapshot, ResolvedPlace};
 
 use anyhow::Result;
@@ -377,7 +384,7 @@ fn resolve_pet_symbol<'a>(
 ///
 /// Frame labels are case-insensitive (canonical Flash semantic);
 /// the parser already lowercased the keys.
-fn pick_accessory_frame(
+pub fn pick_accessory_frame(
     doc: &crate::swf_doc::SwfDoc,
     sym: &crate::swf_doc::Symbol,
     slot: u8,
@@ -571,11 +578,48 @@ pub(crate) fn render_symbol_into(ctx: &mut RenderCtx<'_>, sym: &Symbol) {
 /// each brush to the active zone target, then emit. Cache hit avoids
 /// re-walking shape records; the no-recolor path emits the cached
 /// `DrawCmd` directly with no per-fill clone.
+///
+/// Path B `RenderMode::ZoneId` branch: emit zone marker fills only.
+/// Each fill becomes a flat-solid `(zone_id * 60, 0, 0, 255)` brush;
+/// strokes are dropped (zones never cross stroke geometry in canonical
+/// Dofus). Non-zone subtrees emit nothing — the Pixi shader treats
+/// zero-alpha pixels as "no recolour".
 pub(crate) fn render_shape_into(ctx: &mut RenderCtx<'_>, shape: &swf::Shape) {
-    let recolor_target = ctx.recolor_target;
     let transform = ctx.transform;
     let color_xform = ctx.color_xform;
     let cmds = ctx.cache.shape_cmds(shape, ctx.doc);
+
+    if ctx.output_mode == ctx::RenderMode::ZoneId {
+        let Some(zone) = ctx.recolor_zone else {
+            return;
+        };
+        // Zone marker colour. Multiplying by 60 keeps zones 1/2/3 at
+        // 60/120/180 so a single shader threshold ladder reads them
+        // unambiguously and any sub-pixel filtering noise still lands
+        // in the correct bucket.
+        let r = zone.saturating_mul(60);
+        let marker = vello::peniko::Brush::Solid(
+            vello::peniko::color::AlphaColor::from_rgba8(r, 0, 0, 255),
+        );
+        for cmd in cmds.iter() {
+            if let crate::shape::DrawKind::Fill {
+                rule,
+                brush_transform,
+                ..
+            } = &cmd.kind
+            {
+                // ColorTransform intentionally not applied — markers
+                // must be pure so the shader's HSL substitution lands
+                // the right pixel value irrespective of any animated
+                // tint on the body.
+                ctx.scene
+                    .fill(*rule, transform, &marker, *brush_transform, &cmd.path);
+            }
+        }
+        return;
+    }
+
+    let recolor_target = ctx.recolor_target;
     for cmd in cmds.iter() {
         if let Some(target) = recolor_target {
             // Recolor needs a mutable copy. BezPath + Brush are

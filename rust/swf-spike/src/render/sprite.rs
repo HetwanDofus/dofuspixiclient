@@ -18,6 +18,14 @@ use super::ctx::RenderCtx;
 pub(super) fn render_sprite_into(ctx: &mut RenderCtx<'_>, sprite: &OwnedSprite) {
     let state = build_frame_state(sprite, ctx.frame);
 
+    // Path B body-band filter. `band_filter` is `Some` only on the
+    // entry call — `ctx.child()` clears it so nested sub-clip walks
+    // render unconditionally. We capture it locally and clear on the
+    // ctx so the children we recurse into via `ctx.child(...)` start
+    // clean.
+    let band_filter = ctx.band_filter.take();
+    let disable_accessories = ctx.disable_accessories;
+
     // SWF clip-mask stack: each Place with clip_depth=N defines a
     // mask that applies to placements at depths in (this_place_depth,
     // N]. Push a Vello layer with the mask geometry and pop when
@@ -25,6 +33,13 @@ pub(super) fn render_sprite_into(ctx: &mut RenderCtx<'_>, sprite: &OwnedSprite) 
     let mut clip_stack: Vec<u16> = Vec::new();
 
     for (depth, p) in &state {
+        // Band filter (Path B): top-level body walk only. Drop
+        // placements outside the requested depth band.
+        if let Some(range) = band_filter
+            && !range.contains(*depth)
+        {
+            continue;
+        }
         // Pop any clips whose range has ended.
         while clip_stack.last().map(|&end| *depth > end).unwrap_or(false) {
             clip_stack.pop();
@@ -129,7 +144,12 @@ pub(super) fn render_sprite_into(ctx: &mut RenderCtx<'_>, sprite: &OwnedSprite) 
         // declaration carries the canonical `side` string (e.g. "R",
         // "WR", "B") which the accessory frame resolver uses to pick
         // the right directional frame range.
-        if let Some(dict) = child.accessories
+        //
+        // Path B: `disable_accessories=true` skips this block — the
+        // accessory pass bakes accessories independently and the Pixi
+        // compositor stacks them between body bands at runtime.
+        if !disable_accessories
+            && let Some(dict) = child.accessories
             && let Some(mounts) = child.doc.accessory_mounts.get(&id)
         {
             for mount in mounts {

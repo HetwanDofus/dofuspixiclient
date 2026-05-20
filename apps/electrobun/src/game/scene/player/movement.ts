@@ -123,6 +123,15 @@ export class PlayerMovement {
     if (!player.moving || player.path.length === 0) {
       return;
     }
+    // Path B "never frozen" gate: hold physics until the strip
+    // renderer has committed the bot's current walk/run anim. The
+    // bot stays at its previous container position (still rendering
+    // its previous committed anim, idling visually) until the new
+    // strip is on screen — then physics resume and the move plays
+    // with the correct animation from the first pixel of motion.
+    if (!player.animReady) {
+      return;
+    }
 
     let remaining = player.movePixelSpeed * getClampedDeltaMs(deltaMs);
     // Safety cap in case movement state wedges — a 60fps frame at a

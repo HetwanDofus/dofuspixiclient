@@ -80,6 +80,15 @@ export interface ActivePlayer {
    * (the placeholder Pixi graphic stands in).
    */
   spriteReady: boolean;
+  /**
+   * Path B "never frozen" gate: true once the latest applyAnimation
+   * call has committed in the renderer (every band + accessory in
+   * cache, container visible). Goes false the instant a new anim is
+   * requested whose strips aren't fully cached yet. `PlayerMovement`
+   * holds physics ticks back while this is false — the bot waits
+   * until its sprite can actually animate the requested move.
+   */
+  animReady: boolean;
   placeholderGraphics: Graphics | null;
   /**
    * Team-colored under-foot ring shown during fights (ally = blue,

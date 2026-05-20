@@ -25,7 +25,6 @@ export const ChromaSampling = Object.freeze({
 
 export class VelloRenderer {
     static __wrap(ptr) {
-        ptr = ptr >>> 0;
         const obj = Object.create(VelloRenderer.prototype);
         obj.__wbg_ptr = ptr;
         VelloRendererFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -40,20 +39,6 @@ export class VelloRenderer {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_vellorenderer_free(ptr, 0);
-    }
-    /**
-     * Attach a `<canvas>` as a Vello-driven surface. Returns the JS-facing
-     * id used by `configureSurface` / `detachSurface` / future
-     * `renderXxxToSurface` calls. The canvas is consumed (moved into the
-     * Surface). Returns 0 on failure.
-     * @param {HTMLCanvasElement} canvas
-     * @param {number} width
-     * @param {number} height
-     * @returns {number}
-     */
-    attachCanvasSurface(canvas, width, height) {
-        const ret = wasm.vellorenderer_attachCanvasSurface(this.__wbg_ptr, canvas, width, height);
-        return ret >>> 0;
     }
     /**
      * Batch-copy multiple textures into a destination texture. ONE queue.submit for all copies.
@@ -88,16 +73,6 @@ export class VelloRenderer {
         wasm.vellorenderer_clearPathCache(this.__wbg_ptr);
     }
     /**
-     * Reconfigure a previously-attached surface (resize / DPR change).
-     * Idempotent if dims match the current configuration.
-     * @param {number} id
-     * @param {number} width
-     * @param {number} height
-     */
-    configureSurface(id, width, height) {
-        wasm.vellorenderer_configureSurface(this.__wbg_ptr, id, width, height);
-    }
-    /**
      * Create an atlas texture for packing multiple character frames.
      * Returns { texture: GPUTexture, textureId: number, width, height }.
      * All characters' frames are copied into this single texture via renderFrameToAtlas.
@@ -108,62 +83,6 @@ export class VelloRenderer {
     createAtlas(width, height) {
         const ret = wasm.vellorenderer_createAtlas(this.__wbg_ptr, width, height);
         return ret;
-    }
-    /**
-     * Allocate a persistent character instance — pre-resolves
-     * accessory bundles, pre-computes bounds (frame size, accessory
-     * padding, grid layout) over `seed_anims`, and allocates ONE
-     * output GPU texture sized to the worst-case strip.
-     * `tickSwfCharacterStrip` then re-renders any one of those
-     * `seed_anims` into the same texture, overwriting pixels in
-     * place — JS keeps a single Pixi `ExternalSource` for the
-     * instance's lifetime.
-     *
-     * `colors` is `[c1, c2, c3]` packed as `0xRRGGBB`; pass `0` for
-     * "leave the zone untinted" (matches the pre-existing
-     * `setSwfPlayerColors` global semantics, but stored per-
-     * instance so concurrent renders of differently-coloured chars
-     * don't trample each other).
-     *
-     * `seed_anims` MUST cover every anim the caller will pass to
-     * subsequent ticks — the strip texture is sized for the bounds
-     * union over them. Asking for a frame from an anim outside this
-     * list will clip silently. For the canonical Dofus character
-     * pool (staticR/L/F/B/S, walkR/L/F/B/S, runR/L/F/B/S) pass all
-     * 13-15 names; for a stress test you can pass only the subset
-     * you'll cycle.
-     *
-     * `acc_*` are parallel arrays describing accessories — same
-     * shape as `renderSwfStripRangeAccessorized` accepts. Returns 0
-     * on failure (bundle missing, all accessories failed to
-     * resolve, or strip dims exceed GPU limits).
-     * @param {string} bundle
-     * @param {string[]} seed_anims
-     * @param {Uint32Array} acc_slots
-     * @param {string[]} acc_bundles
-     * @param {string[]} acc_exports
-     * @param {Uint32Array} acc_anim_types
-     * @param {number} color1
-     * @param {number} color2
-     * @param {number} color3
-     * @param {number} resolution
-     * @returns {number}
-     */
-    createSwfCharacterInstance(bundle, seed_anims, acc_slots, acc_bundles, acc_exports, acc_anim_types, color1, color2, color3, resolution) {
-        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passArrayJsValueToWasm0(seed_anims, wasm.__wbindgen_malloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ptr2 = passArray32ToWasm0(acc_slots, wasm.__wbindgen_malloc);
-        const len2 = WASM_VECTOR_LEN;
-        const ptr3 = passArrayJsValueToWasm0(acc_bundles, wasm.__wbindgen_malloc);
-        const len3 = WASM_VECTOR_LEN;
-        const ptr4 = passArrayJsValueToWasm0(acc_exports, wasm.__wbindgen_malloc);
-        const len4 = WASM_VECTOR_LEN;
-        const ptr5 = passArray32ToWasm0(acc_anim_types, wasm.__wbindgen_malloc);
-        const len5 = WASM_VECTOR_LEN;
-        const ret = wasm.vellorenderer_createSwfCharacterInstance(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5, color1, color2, color3, resolution);
-        return ret >>> 0;
     }
     /**
      * Create a live AVM1 spell instance: allocates an `AvmRenderer`
@@ -182,35 +101,6 @@ export class VelloRenderer {
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.vellorenderer_createSwfSpellInstance(this.__wbg_ptr, ptr0, len0, resolution);
         return ret >>> 0;
-    }
-    /**
-     * Allocate a viewport-sized output texture for the batched
-     * world-layer render path. Single texture shared by every
-     * `renderSwfWorldLayer` call; JS Pixi wraps it ONCE as an
-     * `ExternalSource` and never re-allocates. Returns the
-     * `{ texture, textureId, width, height }` so JS can wire it
-     * up immediately.
-     * @param {number} width
-     * @param {number} height
-     * @returns {any}
-     */
-    createWorldLayerTexture(width, height) {
-        const ret = wasm.vellorenderer_createWorldLayerTexture(this.__wbg_ptr, width, height);
-        return ret;
-    }
-    /**
-     * Drop a surface attachment. Subsequent renders to this id no-op.
-     * @param {number} id
-     */
-    detachSurface(id) {
-        wasm.vellorenderer_detachSurface(this.__wbg_ptr, id);
-    }
-    /**
-     * Free the character instance + its output GPU texture.
-     * @param {number} instance_id
-     */
-    disposeSwfCharacterInstance(instance_id) {
-        wasm.vellorenderer_disposeSwfCharacterInstance(this.__wbg_ptr, instance_id);
     }
     /**
      * Free the AVM1 instance + its output GPU texture. JS must call
@@ -251,6 +141,16 @@ export class VelloRenderer {
      * next tick's frame. `tex_id` is taken as `f64` since wasm-bindgen
      * marshals JS numbers as f64 — internally cast to u64 to match the
      * `next_texture_id` counter.
+     *
+     * The patched wgpu fork (`rust/wgpu/`) has a no-op `Drop` for
+     * `WebTexture` — see `feedback_pixi_wgpu_texture_lifetime`. So
+     * just removing the entry from the map only releases Rust's
+     * handle, NOT the GPU storage. We have to call `texture.destroy()`
+     * explicitly, which forwards to `GPUTexture.destroy()` on the
+     * browser side and frees the actual VRAM. Without this every
+     * retired strip leaks ~0.5-1 MB of GPU memory and Path B's cache
+     * cap can't bound real memory at all (the JS-side cache evicts
+     * + reallocates, but the freed strips stay resident).
      * @param {number} tex_id
      */
     freeRenderTexture(tex_id) {
@@ -491,7 +391,84 @@ export class VelloRenderer {
         var len1 = WASM_VECTOR_LEN;
         var ptr2 = isLikeNone(acc_info) ? 0 : passArray32ToWasm0(acc_info, wasm.__wbindgen_malloc);
         var len2 = WASM_VECTOR_LEN;
-        const ret = wasm.vellorenderer_renderFrameToAtlas(this.__wbg_ptr, atlas_texture_id, dst_x, dst_y, asset_id, ptr0, len0, frame_index, resolution, ptr1, len1, ptr2, len2, isLikeNone(slot_w) ? 0x100000001 : (slot_w) >>> 0, isLikeNone(slot_h) ? 0x100000001 : (slot_h) >>> 0);
+        const ret = wasm.vellorenderer_renderFrameToAtlas(this.__wbg_ptr, atlas_texture_id, dst_x, dst_y, asset_id, ptr0, len0, frame_index, resolution, ptr1, len1, ptr2, len2, isLikeNone(slot_w) ? Number.MAX_SAFE_INTEGER : (slot_w) >>> 0, isLikeNone(slot_h) ? Number.MAX_SAFE_INTEGER : (slot_h) >>> 0);
+        return ret;
+    }
+    /**
+     * Path B accessory strip rasteriser. Bakes 3 directional sub-
+     * frames of an accessory into a 3-wide × 1-tall BGRA8 strip at
+     * the accessory's own origin. The Pixi compositor positions the
+     * sprite per-frame via the body's mount-transform table; this
+     * entry knows nothing about the body.
+     *
+     * Sub-frame layout (column 0/1/2):
+     * `pick_accessory_frame(..., char_frame = 0)` …
+     * `pick_accessory_frame(..., char_frame = 1)` …
+     * `pick_accessory_frame(..., char_frame = 2)`. The Pixi side
+     * indexes into the strip via `char_frame % 3` per game tick.
+     *
+     * `slot + anim_type + dir` drive the slot-specific direction
+     * fallback chain inside `pick_accessory_frame`. `side` defaults
+     * to `dir` — capes and shields with W-prefix walking variants
+     * can pass the body's mount-declared side directly (e.g. `"WR"`)
+     * to opt into the canonical labelled frame, otherwise the
+     * fallback chain falls back to the cardinal direction.
+     * @param {string} acc_bundle
+     * @param {string} acc_export
+     * @param {number} slot
+     * @param {number} anim_type
+     * @param {string} dir
+     * @param {string} side
+     * @param {number} resolution
+     * @returns {any}
+     */
+    renderSwfAccessoryStrip(acc_bundle, acc_export, slot, anim_type, dir, side, resolution) {
+        const ptr0 = passStringToWasm0(acc_bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(acc_export, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(dir, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(side, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_renderSwfAccessoryStrip(this.__wbg_ptr, ptr0, len0, ptr1, len1, slot, anim_type, ptr2, len2, ptr3, len3, resolution);
+        return ret;
+    }
+    /**
+     * Render ALL Z-ordered bands of a body symbol over a frame range
+     * into a SINGLE atlas pair (colour + zone-id). Bands are stacked
+     * vertically in the atlas with `BAND_PADDING_PX` of transparent
+     * padding between them so LINEAR sampling at band 0's bottom
+     * edge can't bleed into band 1's top edge.
+     *
+     * Cuts texture allocations from `bandCount × 2` per anim to
+     * exactly `2` (one colour atlas, one zone atlas). Vello compute
+     * dispatch count drops from `2 × bandCount` to `2` as well —
+     * all bands' geometry packs into one scene per output mode.
+     *
+     * Pixel-perfect equivalent to per-band rendering: each band's
+     * content is rasterized at the same `(scale, -px_min_x, -px_min_y)`
+     * world transform as before, just offset down the atlas by
+     * `band_idx × (strip_h + BAND_PADDING_PX)`. The Pixi mesh shifts
+     * its UV range to address only its band's sub-region; vertex
+     * positions and anchors are unchanged, so accessory mount
+     * placement (driven by twip-space affine transforms, completely
+     * orthogonal to texture layout) sees no change.
+     * @param {string} bundle
+     * @param {string} _export
+     * @param {number} start
+     * @param {number} count
+     * @param {number} total_frame_count
+     * @param {number} resolution
+     * @param {boolean} apply_b_fix
+     * @returns {any}
+     */
+    renderSwfBodyAtlas(bundle, _export, start, count, total_frame_count, resolution, apply_b_fix) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(_export, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_renderSwfBodyAtlas(this.__wbg_ptr, ptr0, len0, ptr1, len1, start, count, total_frame_count, resolution, apply_b_fix);
         return ret;
     }
     /**
@@ -543,6 +520,35 @@ export class VelloRenderer {
         return ret;
     }
     /**
+     * Path B mount-transform extraction. Returns a dense flat
+     * `Float32Array` of length `count * max_slot * 6` carrying the
+     * affine matrix `(a, b, c, d, tx, ty)` at every accessory mount
+     * in the body's display tree, per frame. Translations are in
+     * TWIP space; JS multiplies by `resolution / 20` for pixel
+     * space. Identity matrix where a slot has no mount in a given
+     * frame.
+     *
+     * `apply_b_fix=true` negates the X translation for mounts that
+     * declare `b_fix=true` — matches the body strip's bFix
+     * behaviour. Caller cache key: `(bundle, export, start, count,
+     * apply_b_fix)`.
+     * @param {string} bundle
+     * @param {string} _export
+     * @param {number} start
+     * @param {number} count
+     * @param {boolean} apply_b_fix
+     * @param {number} max_slot
+     * @returns {Float32Array}
+     */
+    renderSwfMountTransforms(bundle, _export, start, count, apply_b_fix, max_slot) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(_export, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_renderSwfMountTransforms(this.__wbg_ptr, ptr0, len0, ptr1, len1, start, count, apply_b_fix, max_slot);
+        return ret;
+    }
+    /**
      * Render the SWF's ROOT timeline (the main movie stage) at a given
      * frame. Used for SWFs without named exports — artwork/big/{gfxId}.swf
      * and spell icons place their visible content directly on the root
@@ -557,25 +563,6 @@ export class VelloRenderer {
         const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.vellorenderer_renderSwfRoot(this.__wbg_ptr, ptr0, len0, frame, resolution);
-        return ret;
-    }
-    /**
-     * Render the SWF's root timeline directly into a previously-attached
-     * `<canvas>` surface. Used by HUD consumers (fighter portraits,
-     * banner artwork) that need an `<canvas>` element they can mount
-     * in React. Returns `{ width, height, anchorX, anchorY }` on
-     * success or NULL on failure (unknown surface, missing bundle,
-     * degenerate bounds, render error).
-     * @param {number} surface_id
-     * @param {string} bundle
-     * @param {number} frame
-     * @param {number} resolution
-     * @returns {any}
-     */
-    renderSwfRootToSurface(surface_id, bundle, frame, resolution) {
-        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.vellorenderer_renderSwfRootToSurface(this.__wbg_ptr, surface_id, ptr0, len0, frame, resolution);
         return ret;
     }
     /**
@@ -606,30 +593,6 @@ export class VelloRenderer {
         const ptr1 = passStringToWasm0(up_bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len1 = WASM_VECTOR_LEN;
         const ret = wasm.vellorenderer_renderSwfSpellIcon(this.__wbg_ptr, ptr0, len0, ptr1, len1, bc_rgb, fc_rgb, pc_rgb, resolution);
-        return ret;
-    }
-    /**
-     * Render the spell-icon composition (back disc + frame + glyph,
-     * each flat-tinted) into a previously-attached `<canvas>` surface.
-     * Returns the painted (width, height) so the React caller can size
-     * its `<canvas>` slot to the intrinsic content rectangle.
-     * Returns `0` width/height on any failure (missing bundle, empty
-     * bounds, surface dispatch error).
-     * @param {number} surface_id
-     * @param {string} back_bundle
-     * @param {string} up_bundle
-     * @param {number} bc_rgb
-     * @param {number} fc_rgb
-     * @param {number} pc_rgb
-     * @param {number} resolution
-     * @returns {any}
-     */
-    renderSwfSpellIconToSurface(surface_id, back_bundle, up_bundle, bc_rgb, fc_rgb, pc_rgb, resolution) {
-        const ptr0 = passStringToWasm0(back_bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passStringToWasm0(up_bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ret = wasm.vellorenderer_renderSwfSpellIconToSurface(this.__wbg_ptr, surface_id, ptr0, len0, ptr1, len1, bc_rgb, fc_rgb, pc_rgb, resolution);
         return ret;
     }
     /**
@@ -767,6 +730,56 @@ export class VelloRenderer {
         return ret;
     }
     /**
+     * SPIKE — bitmap-bridge twin of `renderSwfStripRangeAccessorized`.
+     * Mirrors every input + every dim/anchor field of the live entry
+     * point but returns `{ bitmap: ImageBitmap, ... }` instead of a
+     * `{ texture: GPUTexture, textureId, ... }` pair. Internally:
+     *   1. Renders Vello's scene into a private `Rgba8Unorm`
+     *      `wgpu::Texture` (same path as the live call).
+     *   2. Blits that texture to a fresh `Bgra8Unorm`
+     *      `OffscreenCanvas` surface frame.
+     *   3. `surface.present()` → `canvas.transferToImageBitmap()` →
+     *      hands the bitmap to JS.
+     *
+     * Used by `apps/electrobun/src/game/render/spike-bitmap-bridge.ts`
+     * to measure `vello_ms` and `upload_ms` for the cross-device
+     * (independent Pixi `GPUDevice`) bitmap import path before
+     * committing to the broader Vello → ImageBitmap migration.
+     *
+     * Delete this entry point once the spike validates Option B.
+     * @param {string} bundle
+     * @param {string} _export
+     * @param {number} start
+     * @param {number} count
+     * @param {number} total_frame_count
+     * @param {number} resolution
+     * @param {Uint32Array} acc_slots
+     * @param {string[]} acc_bundles
+     * @param {string[]} acc_exports
+     * @param {Uint32Array} acc_anim_types
+     * @param {string} char_dir_suffix
+     * @param {boolean} apply_b_fix
+     * @returns {any}
+     */
+    renderSwfStripRangeAccessorizedBitmap(bundle, _export, start, count, total_frame_count, resolution, acc_slots, acc_bundles, acc_exports, acc_anim_types, char_dir_suffix, apply_b_fix) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(_export, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passArray32ToWasm0(acc_slots, wasm.__wbindgen_malloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passArrayJsValueToWasm0(acc_bundles, wasm.__wbindgen_malloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ptr4 = passArrayJsValueToWasm0(acc_exports, wasm.__wbindgen_malloc);
+        const len4 = WASM_VECTOR_LEN;
+        const ptr5 = passArray32ToWasm0(acc_anim_types, wasm.__wbindgen_malloc);
+        const len5 = WASM_VECTOR_LEN;
+        const ptr6 = passStringToWasm0(char_dir_suffix, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len6 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_renderSwfStripRangeAccessorizedBitmap(this.__wbg_ptr, ptr0, len0, ptr1, len1, start, count, total_frame_count, resolution, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5, ptr6, len6, apply_b_fix);
+        return ret;
+    }
+    /**
      * Render the DYNAMIC parts of a multi-frame tile across a contiguous
      * frame range `[start, start+count)`. Output is a strip of
      * per-frame textures at the FULL animation's union bounds — same
@@ -823,316 +836,6 @@ export class VelloRenderer {
         return ret;
     }
     /**
-     * Batch render: composes ALL active character placements into
-     * ONE Vello scene, dispatches ONCE, writes the result into the
-     * shared world-layer texture allocated by
-     * `createWorldLayerTexture`. Replaces N individual
-     * `tickSwfCharacterFrame` calls per tick with 1 call total.
-     *
-     * Per-placement parallel arrays:
-     *   - `instance_ids[i]`: WASM character instance id
-     *   - `frames[i]`:       current frame within the instance's
-     *                        current anim (set via setSwfCharacterAnim)
-     *   - `pos_x[i] / pos_y[i]`: pixel position in the layer texture
-     *                        (== screen coords; layer is viewport-sized)
-     *
-     * Returns true on success, false on parallel-array-length
-     * mismatch / texture-id miss / render error.
-     * @param {number} layer_texture_id
-     * @param {number} width
-     * @param {number} height
-     * @param {Uint32Array} instance_ids
-     * @param {Uint32Array} frames
-     * @param {Float32Array} pos_x
-     * @param {Float32Array} pos_y
-     * @returns {boolean}
-     */
-    renderSwfWorldLayer(layer_texture_id, width, height, instance_ids, frames, pos_x, pos_y) {
-        const ptr0 = passArray32ToWasm0(instance_ids, wasm.__wbindgen_malloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passArray32ToWasm0(frames, wasm.__wbindgen_malloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ptr2 = passArrayF32ToWasm0(pos_x, wasm.__wbindgen_malloc);
-        const len2 = WASM_VECTOR_LEN;
-        const ptr3 = passArrayF32ToWasm0(pos_y, wasm.__wbindgen_malloc);
-        const len3 = WASM_VECTOR_LEN;
-        const ret = wasm.vellorenderer_renderSwfWorldLayer(this.__wbg_ptr, layer_texture_id, width, height, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3);
-        return ret !== 0;
-    }
-    /**
-     * Render an arbitrary set of (bundle, export, frame, matrix)
-     * placements into one output texture in a single Vello dispatch.
-     *
-     * Inputs use small unique-string tables (`bundles`, `exports`)
-     * indexed by per-placement parallel arrays so the marshalling cost
-     * across the JS↔WASM boundary stays in the kilobytes range even for
-     * hundreds of placements per frame.
-     *
-     * Each placement's `matrix` is a 6-element 2D affine `[a, b, c, d,
-     * tx, ty]` mapping the symbol's twip space directly to output
-     * pixels. The caller composes (zoom, world position, rotation,
-     * flip, slope) into this single matrix; the renderer treats every
-     * placement as a drop-in transform.
-     *
-     * Placements that fail to look up (missing bundle/export) are
-     * silently skipped — by design, no per-placement validity flag in
-     * the response since the caller already knows which tiles exist.
-     *
-     * Returns `{ texture, textureId, width, height }` matching the
-     * other render entry points so the JS side can wrap the GPUTexture
-     * as a Pixi `ExternalSource` per layer.
-     * @param {number} target_w
-     * @param {number} target_h
-     * @param {string[]} bundles
-     * @param {string[]} exports
-     * @param {Uint32Array} bundle_idx
-     * @param {Uint32Array} export_idx
-     * @param {Uint32Array} frames
-     * @param {Float32Array} matrices
-     * @returns {any}
-     */
-    renderTilePass(target_w, target_h, bundles, exports, bundle_idx, export_idx, frames, matrices) {
-        const ptr0 = passArrayJsValueToWasm0(bundles, wasm.__wbindgen_malloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passArrayJsValueToWasm0(exports, wasm.__wbindgen_malloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ptr2 = passArray32ToWasm0(bundle_idx, wasm.__wbindgen_malloc);
-        const len2 = WASM_VECTOR_LEN;
-        const ptr3 = passArray32ToWasm0(export_idx, wasm.__wbindgen_malloc);
-        const len3 = WASM_VECTOR_LEN;
-        const ptr4 = passArray32ToWasm0(frames, wasm.__wbindgen_malloc);
-        const len4 = WASM_VECTOR_LEN;
-        const ptr5 = passArrayF32ToWasm0(matrices, wasm.__wbindgen_malloc);
-        const len5 = WASM_VECTOR_LEN;
-        const ret = wasm.vellorenderer_renderTilePass(this.__wbg_ptr, target_w, target_h, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5);
-        return ret;
-    }
-    /**
-     * Render the tile pass (Ground + Object1) directly into a
-     * previously-attached `<canvas>` surface. Replaces the
-     * `renderTilePass` → ExternalSource path: Vello writes the swap
-     * chain texture directly via `render_to_texture`, then the surface
-     * presents to the canvas. The browser composites the resulting
-     * canvas with sibling Pixi/Vello canvases via DOM stacking.
-     *
-     * `surface_id` must come from a prior `attachCanvasSurface` call.
-     * The surface's configured size determines render extents; caller
-     * must `configureSurface(id, w, h)` whenever the viewport changes
-     * before dispatching here. Returns `true` on success, `false` on
-     * any failure (unknown id, lost surface, render error).
-     * @param {number} surface_id
-     * @param {string[]} bundles
-     * @param {string[]} exports
-     * @param {Uint32Array} bundle_idx
-     * @param {Uint32Array} export_idx
-     * @param {Uint32Array} frames
-     * @param {Float32Array} matrices
-     * @returns {boolean}
-     */
-    renderTilePassToSurface(surface_id, bundles, exports, bundle_idx, export_idx, frames, matrices) {
-        const ptr0 = passArrayJsValueToWasm0(bundles, wasm.__wbindgen_malloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passArrayJsValueToWasm0(exports, wasm.__wbindgen_malloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ptr2 = passArray32ToWasm0(bundle_idx, wasm.__wbindgen_malloc);
-        const len2 = WASM_VECTOR_LEN;
-        const ptr3 = passArray32ToWasm0(export_idx, wasm.__wbindgen_malloc);
-        const len3 = WASM_VECTOR_LEN;
-        const ptr4 = passArray32ToWasm0(frames, wasm.__wbindgen_malloc);
-        const len4 = WASM_VECTOR_LEN;
-        const ptr5 = passArrayF32ToWasm0(matrices, wasm.__wbindgen_malloc);
-        const len5 = WASM_VECTOR_LEN;
-        const ret = wasm.vellorenderer_renderTilePassToSurface(this.__wbg_ptr, surface_id, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5);
-        return ret !== 0;
-    }
-    /**
-     * Render the unified L3 World layer.
-     *
-     * Heterogeneous placement-list dispatch matching the canonical
-     * Object2 depth band (foreground tiles + characters + spell VFX
-     * interleaved by `cellNum × 100 + sub-offset`). Four placement
-     * kinds:
-     *   - kind=0  Tile  — bundle/export/frame/matrix
-     *   - kind=1  Char  — bundle/export/frame/matrix + accessories
-     *                     + color zones + dirSuffix + bFix + alpha
-     *   - kind=2  Spell — instance_id (resolved against AVM1 state)
-     *                     + matrix + alpha
-     *   - kind=3  Decal — bundle/export/frame/matrix + alpha
-     *
-     * Caller contract:
-     *   - `kinds[i]` discriminates the placement; out-of-range kinds
-     *     are skipped silently (TS-Rust version skew tolerance).
-     *   - `bundles`/`exports` are dedup'd; `bundle_idx`/`export_idx`
-     *     index into them. Accessory bundles + exports MUST be added
-     *     to those tables (callers intern them).
-     *   - `frames`/`alphas`/`depths` are per-placement.
-     *   - `matrices` is 6 × n floats (`a, b, c, d, tx, ty`).
-     *   - **Caller MUST sort placements by `depths` ascending** —
-     *     `WorldLayer.snapshotByDepth()` does this. Vello renders in
-     *     scene-order; out-of-order placements paint incorrectly.
-     *   - `color_zones` is `3 × n` u32; sentinel `u32::MAX` = absent.
-     *   - `char_dirs[i]` ASCII direction byte ('R','L','F','B','S'),
-     *     or 0 for non-Char.
-     *   - `char_b_fix[i]` 0/1 — non-zero triggers AS2 bFix mirror for
-     *     accessories with `b_fix=true` mounts (capes, shields).
-     *   - **Accessory CSR layout** for variable-length per-Char
-     *     accessory lists: `acc_offsets[i]..acc_offsets[i+1]` slices
-     *     into `acc_*[]`. `acc_offsets` length is `n+1`. Non-Char
-     *     placements emit an empty range.
-     *
-     * Static foreground tile content prepended via `static_world_scene`
-     * (built once by `setStaticWorldTiles`). Per-tick dispatch
-     * re-encodes only the dynamic subset (animated tiles + chars +
-     * spells) on top.
-     *
-     * Returns `{texture, textureId, width, height}` on success, NULL
-     * on input validation failure or render error.
-     * @param {number} target_w
-     * @param {number} target_h
-     * @param {Uint8Array} kinds
-     * @param {string[]} bundles
-     * @param {string[]} exports
-     * @param {Uint32Array} bundle_idx
-     * @param {Uint32Array} export_idx
-     * @param {Uint32Array} frames
-     * @param {Int32Array} depths
-     * @param {Float32Array} matrices
-     * @param {Float32Array} alphas
-     * @param {Uint32Array} color_zones
-     * @param {Uint8Array} char_dirs
-     * @param {Uint8Array} char_b_fix
-     * @param {Uint32Array} acc_offsets
-     * @param {Uint8Array} acc_slots
-     * @param {Uint32Array} acc_bundle_idx
-     * @param {Uint32Array} acc_export_idx
-     * @param {Uint8Array} acc_anim_types
-     * @returns {any}
-     */
-    renderWorldPass(target_w, target_h, kinds, bundles, exports, bundle_idx, export_idx, frames, depths, matrices, alphas, color_zones, char_dirs, char_b_fix, acc_offsets, acc_slots, acc_bundle_idx, acc_export_idx, acc_anim_types) {
-        const ptr0 = passArray8ToWasm0(kinds, wasm.__wbindgen_malloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passArrayJsValueToWasm0(bundles, wasm.__wbindgen_malloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ptr2 = passArrayJsValueToWasm0(exports, wasm.__wbindgen_malloc);
-        const len2 = WASM_VECTOR_LEN;
-        const ptr3 = passArray32ToWasm0(bundle_idx, wasm.__wbindgen_malloc);
-        const len3 = WASM_VECTOR_LEN;
-        const ptr4 = passArray32ToWasm0(export_idx, wasm.__wbindgen_malloc);
-        const len4 = WASM_VECTOR_LEN;
-        const ptr5 = passArray32ToWasm0(frames, wasm.__wbindgen_malloc);
-        const len5 = WASM_VECTOR_LEN;
-        const ptr6 = passArray32ToWasm0(depths, wasm.__wbindgen_malloc);
-        const len6 = WASM_VECTOR_LEN;
-        const ptr7 = passArrayF32ToWasm0(matrices, wasm.__wbindgen_malloc);
-        const len7 = WASM_VECTOR_LEN;
-        const ptr8 = passArrayF32ToWasm0(alphas, wasm.__wbindgen_malloc);
-        const len8 = WASM_VECTOR_LEN;
-        const ptr9 = passArray32ToWasm0(color_zones, wasm.__wbindgen_malloc);
-        const len9 = WASM_VECTOR_LEN;
-        const ptr10 = passArray8ToWasm0(char_dirs, wasm.__wbindgen_malloc);
-        const len10 = WASM_VECTOR_LEN;
-        const ptr11 = passArray8ToWasm0(char_b_fix, wasm.__wbindgen_malloc);
-        const len11 = WASM_VECTOR_LEN;
-        const ptr12 = passArray32ToWasm0(acc_offsets, wasm.__wbindgen_malloc);
-        const len12 = WASM_VECTOR_LEN;
-        const ptr13 = passArray8ToWasm0(acc_slots, wasm.__wbindgen_malloc);
-        const len13 = WASM_VECTOR_LEN;
-        const ptr14 = passArray32ToWasm0(acc_bundle_idx, wasm.__wbindgen_malloc);
-        const len14 = WASM_VECTOR_LEN;
-        const ptr15 = passArray32ToWasm0(acc_export_idx, wasm.__wbindgen_malloc);
-        const len15 = WASM_VECTOR_LEN;
-        const ptr16 = passArray8ToWasm0(acc_anim_types, wasm.__wbindgen_malloc);
-        const len16 = WASM_VECTOR_LEN;
-        const ret = wasm.vellorenderer_renderWorldPass(this.__wbg_ptr, target_w, target_h, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5, ptr6, len6, ptr7, len7, ptr8, len8, ptr9, len9, ptr10, len10, ptr11, len11, ptr12, len12, ptr13, len13, ptr14, len14, ptr15, len15, ptr16, len16);
-        return ret;
-    }
-    /**
-     * Synthetic world-pass benchmark for the M1 gate. Builds a grid
-     * of `n_chars` Char placements, `n_tiles` Tile placements, and
-     * `n_spells` Spell placeholders, each pulling from the first
-     * loaded character + tile bundle. Renders 1 frame; reports
-     * wall-clock ms for the JS caller to gate on.
-     *
-     * **Architecture gate**: if dispatch P99 exceeds the FPS target
-     * budget on the user's machine, the migration aborts before any
-     * consumer-side code is written.
-     *
-     * Returns `{ ms, n_placements, scene_paths_estimated, status }`.
-     * @param {number} n_chars
-     * @param {number} n_tiles
-     * @param {number} n_spells
-     * @returns {any}
-     */
-    renderWorldPassBench(n_chars, n_tiles, n_spells) {
-        const ret = wasm.vellorenderer_renderWorldPassBench(this.__wbg_ptr, n_chars, n_tiles, n_spells);
-        return ret;
-    }
-    /**
-     * Render the unified L3 World pass (Object2: chars + foreground
-     * tiles + spells + decals) directly into a previously-attached
-     * `<canvas>` surface. Same encoding contract as `renderWorldPass`
-     * (kinds + parallel arrays + accessory CSR) — the only difference
-     * is the destination: swap chain frame view instead of an
-     * internally-managed off-screen RT.
-     * @param {number} surface_id
-     * @param {Uint8Array} kinds
-     * @param {string[]} bundles
-     * @param {string[]} exports
-     * @param {Uint32Array} bundle_idx
-     * @param {Uint32Array} export_idx
-     * @param {Uint32Array} frames
-     * @param {Int32Array} depths
-     * @param {Float32Array} matrices
-     * @param {Float32Array} alphas
-     * @param {Uint32Array} color_zones
-     * @param {Uint8Array} char_dirs
-     * @param {Uint8Array} char_b_fix
-     * @param {Uint32Array} acc_offsets
-     * @param {Uint8Array} acc_slots
-     * @param {Uint32Array} acc_bundle_idx
-     * @param {Uint32Array} acc_export_idx
-     * @param {Uint8Array} acc_anim_types
-     * @returns {boolean}
-     */
-    renderWorldPassToSurface(surface_id, kinds, bundles, exports, bundle_idx, export_idx, frames, depths, matrices, alphas, color_zones, char_dirs, char_b_fix, acc_offsets, acc_slots, acc_bundle_idx, acc_export_idx, acc_anim_types) {
-        const ptr0 = passArray8ToWasm0(kinds, wasm.__wbindgen_malloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passArrayJsValueToWasm0(bundles, wasm.__wbindgen_malloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ptr2 = passArrayJsValueToWasm0(exports, wasm.__wbindgen_malloc);
-        const len2 = WASM_VECTOR_LEN;
-        const ptr3 = passArray32ToWasm0(bundle_idx, wasm.__wbindgen_malloc);
-        const len3 = WASM_VECTOR_LEN;
-        const ptr4 = passArray32ToWasm0(export_idx, wasm.__wbindgen_malloc);
-        const len4 = WASM_VECTOR_LEN;
-        const ptr5 = passArray32ToWasm0(frames, wasm.__wbindgen_malloc);
-        const len5 = WASM_VECTOR_LEN;
-        const ptr6 = passArray32ToWasm0(depths, wasm.__wbindgen_malloc);
-        const len6 = WASM_VECTOR_LEN;
-        const ptr7 = passArrayF32ToWasm0(matrices, wasm.__wbindgen_malloc);
-        const len7 = WASM_VECTOR_LEN;
-        const ptr8 = passArrayF32ToWasm0(alphas, wasm.__wbindgen_malloc);
-        const len8 = WASM_VECTOR_LEN;
-        const ptr9 = passArray32ToWasm0(color_zones, wasm.__wbindgen_malloc);
-        const len9 = WASM_VECTOR_LEN;
-        const ptr10 = passArray8ToWasm0(char_dirs, wasm.__wbindgen_malloc);
-        const len10 = WASM_VECTOR_LEN;
-        const ptr11 = passArray8ToWasm0(char_b_fix, wasm.__wbindgen_malloc);
-        const len11 = WASM_VECTOR_LEN;
-        const ptr12 = passArray32ToWasm0(acc_offsets, wasm.__wbindgen_malloc);
-        const len12 = WASM_VECTOR_LEN;
-        const ptr13 = passArray8ToWasm0(acc_slots, wasm.__wbindgen_malloc);
-        const len13 = WASM_VECTOR_LEN;
-        const ptr14 = passArray32ToWasm0(acc_bundle_idx, wasm.__wbindgen_malloc);
-        const len14 = WASM_VECTOR_LEN;
-        const ptr15 = passArray32ToWasm0(acc_export_idx, wasm.__wbindgen_malloc);
-        const len15 = WASM_VECTOR_LEN;
-        const ptr16 = passArray8ToWasm0(acc_anim_types, wasm.__wbindgen_malloc);
-        const len16 = WASM_VECTOR_LEN;
-        const ret = wasm.vellorenderer_renderWorldPassToSurface(this.__wbg_ptr, surface_id, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5, ptr6, len6, ptr7, len7, ptr8, len8, ptr9, len9, ptr10, len10, ptr11, len11, ptr12, len12, ptr13, len13, ptr14, len14, ptr15, len15, ptr16, len16);
-        return ret !== 0;
-    }
-    /**
      * Render a single zone mask frame. Returns { texture, textureId, width, height }.
      * Optional acc_info: flat array of pairs [asset_id, slot_id, ...] for accessory occluders.
      * @param {number} asset_id
@@ -1168,86 +871,6 @@ export class VelloRenderer {
         var len1 = WASM_VECTOR_LEN;
         const ret = wasm.vellorenderer_renderZoneMaskStrip(this.__wbg_ptr, asset_id, ptr0, len0, resolution, ptr1, len1);
         return ret;
-    }
-    /**
-     * Pre-encode every static tile placement into one cached Vello
-     * scene. Called by JS whenever the static set changes (map load,
-     * zoom step, viewport resize, tactic-mode toggle) — never per
-     * Pixi tick. The cached scene persists until the next call;
-     * `renderTilePass` appends it into the per-tick frame scene with
-     * a memcpy-cost path-buffer copy, eliminating the per-dispatch
-     * encoding cost of static cells (typically >99% of the map).
-     *
-     * Empty input clears the cached scene (i.e. the map has no
-     * static placements, e.g. during teardown).
-     * @param {string[]} bundles
-     * @param {string[]} exports
-     * @param {Uint32Array} bundle_idx
-     * @param {Uint32Array} export_idx
-     * @param {Uint32Array} frames
-     * @param {Float32Array} matrices
-     */
-    setStaticTilePlacements(bundles, exports, bundle_idx, export_idx, frames, matrices) {
-        const ptr0 = passArrayJsValueToWasm0(bundles, wasm.__wbindgen_malloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passArrayJsValueToWasm0(exports, wasm.__wbindgen_malloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ptr2 = passArray32ToWasm0(bundle_idx, wasm.__wbindgen_malloc);
-        const len2 = WASM_VECTOR_LEN;
-        const ptr3 = passArray32ToWasm0(export_idx, wasm.__wbindgen_malloc);
-        const len3 = WASM_VECTOR_LEN;
-        const ptr4 = passArray32ToWasm0(frames, wasm.__wbindgen_malloc);
-        const len4 = WASM_VECTOR_LEN;
-        const ptr5 = passArrayF32ToWasm0(matrices, wasm.__wbindgen_malloc);
-        const len5 = WASM_VECTOR_LEN;
-        wasm.vellorenderer_setStaticTilePlacements(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5);
-    }
-    /**
-     * Pre-encode the unified L3 World layer's static foreground-tile
-     * subset into one cached Vello scene. Called whenever the static
-     * set changes (map load, zoom step, tactic-mode toggle); world
-     * pass appends it via memcpy on every dispatch. Mirrors
-     * `setStaticTilePlacements` for the world pass.
-     *
-     * Encoding: tile-only flat arrays. Empty input clears cache.
-     * @param {string[]} bundles
-     * @param {string[]} exports
-     * @param {Uint32Array} bundle_idx
-     * @param {Uint32Array} export_idx
-     * @param {Uint32Array} frames
-     * @param {Float32Array} matrices
-     */
-    setStaticWorldTiles(bundles, exports, bundle_idx, export_idx, frames, matrices) {
-        const ptr0 = passArrayJsValueToWasm0(bundles, wasm.__wbindgen_malloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passArrayJsValueToWasm0(exports, wasm.__wbindgen_malloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ptr2 = passArray32ToWasm0(bundle_idx, wasm.__wbindgen_malloc);
-        const len2 = WASM_VECTOR_LEN;
-        const ptr3 = passArray32ToWasm0(export_idx, wasm.__wbindgen_malloc);
-        const len3 = WASM_VECTOR_LEN;
-        const ptr4 = passArray32ToWasm0(frames, wasm.__wbindgen_malloc);
-        const len4 = WASM_VECTOR_LEN;
-        const ptr5 = passArrayF32ToWasm0(matrices, wasm.__wbindgen_malloc);
-        const len5 = WASM_VECTOR_LEN;
-        wasm.vellorenderer_setStaticWorldTiles(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5);
-    }
-    /**
-     * Update an instance's current anim + direction. Cheap — just
-     * state mutation, no rendering. Called from JS on anim swap.
-     * The batched `renderSwfWorldLayer` then uses these per-instance
-     * values when building each placement's scene fragment.
-     * @param {number} instance_id
-     * @param {string} anim
-     * @param {string} dir_suffix
-     * @param {boolean} apply_b_fix
-     */
-    setSwfCharacterAnim(instance_id, anim, dir_suffix, apply_b_fix) {
-        const ptr0 = passStringToWasm0(anim, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passStringToWasm0(dir_suffix, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len1 = WASM_VECTOR_LEN;
-        wasm.vellorenderer_setSwfCharacterAnim(this.__wbg_ptr, instance_id, ptr0, len0, ptr1, len1, apply_b_fix);
     }
     /**
      * Set the player's three zone colours used by the SWF render path.
@@ -1303,6 +926,40 @@ export class VelloRenderer {
         const len1 = WASM_VECTOR_LEN;
         const ret = wasm.vellorenderer_swfAnimFrameCount(this.__wbg_ptr, ptr0, len0, ptr1, len1);
         return ret >>> 0;
+    }
+    /**
+     * One-shot lookup for a body export's slot/band layout. Returns
+     * `{ slotCount, bandCount, slots: [{ slot, depth }, ...] }`. JS
+     * uses this to decide how many bands to bake per (bundle,
+     * export) and which Z order to stack them in.
+     * @param {string} bundle
+     * @param {string} _export
+     * @returns {any}
+     */
+    swfBodyBandInfo(bundle, _export) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(_export, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_swfBodyBandInfo(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        return ret;
+    }
+    /**
+     * Enumerate every named export in a loaded SWF bundle. Used by
+     * the stress test (and any other "all available accessories"
+     * caller) to build content pools dynamically from what's actually
+     * loaded instead of relying on a hand-curated list. Returns an
+     * empty array if the bundle isn't loaded.
+     * @param {string} bundle
+     * @returns {string[]}
+     */
+    swfBundleExports(bundle) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_swfBundleExports(this.__wbg_ptr, ptr0, len0);
+        var v2 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v2;
     }
     /**
      * Frames-per-second from the SWF header. Bundles vary: g1/g2 = 12,
@@ -1451,32 +1108,6 @@ export class VelloRenderer {
         }
     }
     /**
-     * Render exactly ONE frame of the requested anim into the
-     * instance's stable output texture. The texture handle is
-     * stable across calls — JS Pixi wraps once at create time and
-     * the `ExternalSource` re-samples the GPU memory on each Pixi
-     * render. No strip, no sub-rect, no per-frame Texture wrappers.
-     *
-     * Returns `{ texture, textureId, width, height, anchorX,
-     * anchorY }`. Width/height are constant for the instance's
-     * lifetime (sized at create); anchor is the SWF (0,0) origin
-     * inside the texture.
-     * @param {number} instance_id
-     * @param {string} anim
-     * @param {number} frame
-     * @param {string} char_dir_suffix
-     * @param {boolean} apply_b_fix
-     * @returns {any}
-     */
-    tickSwfCharacterFrame(instance_id, anim, frame, char_dir_suffix, apply_b_fix) {
-        const ptr0 = passStringToWasm0(anim, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passStringToWasm0(char_dir_suffix, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ret = wasm.vellorenderer_tickSwfCharacterFrame(this.__wbg_ptr, instance_id, ptr0, len0, frame, ptr1, len1, apply_b_fix);
-        return ret;
-    }
-    /**
      * Tick the spell's AVM1 by one frame, render the new state into the
      * pre-allocated output texture, and report whether the cast is still
      * active. JS calls this on its rAF loop (rate-limited by the SWF's
@@ -1497,7 +1128,6 @@ export class VelloRenderer {
     }
 }
 if (Symbol.dispose) VelloRenderer.prototype[Symbol.dispose] = VelloRenderer.prototype.free;
-
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
@@ -1509,26 +1139,26 @@ function __wbg_get_imports() {
             const ret = arg0.WorkerGlobalScope;
             return ret;
         },
-        __wbg___wbindgen_debug_string_dd5d2d07ce9e6c57: function(arg0, arg1) {
+        __wbg___wbindgen_debug_string_edece8177ad01481: function(arg0, arg1) {
             const ret = debugString(arg1);
             const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
             const len1 = WASM_VECTOR_LEN;
             getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
             getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
         },
-        __wbg___wbindgen_is_function_49868bde5eb1e745: function(arg0) {
+        __wbg___wbindgen_is_function_5cd60d5cf78b4eef: function(arg0) {
             const ret = typeof(arg0) === 'function';
             return ret;
         },
-        __wbg___wbindgen_is_null_344c8750a8525473: function(arg0) {
+        __wbg___wbindgen_is_null_2042690d351e14f0: function(arg0) {
             const ret = arg0 === null;
             return ret;
         },
-        __wbg___wbindgen_is_undefined_c0cca72b82b86f4d: function(arg0) {
+        __wbg___wbindgen_is_undefined_35bb9f4c7fd651d5: function(arg0) {
             const ret = arg0 === undefined;
             return ret;
         },
-        __wbg___wbindgen_string_get_914df97fcfa788f2: function(arg0, arg1) {
+        __wbg___wbindgen_string_get_d109740c0d18f4d7: function(arg0, arg1) {
             const obj = arg1;
             const ret = typeof(obj) === 'string' ? obj : undefined;
             var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
@@ -1536,21 +1166,25 @@ function __wbg_get_imports() {
             getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
             getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
         },
-        __wbg___wbindgen_throw_81fc77679af83bc6: function(arg0, arg1) {
+        __wbg___wbindgen_throw_9c31b086c2b26051: function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
         },
-        __wbg__wbg_cb_unref_3c3b4f651835fbcb: function(arg0) {
+        __wbg__wbg_cb_unref_3fa391f3fcdb55f8: function(arg0) {
             arg0._wbg_cb_unref();
         },
         __wbg_beginComputePass_31742703ea08718a: function(arg0, arg1) {
             const ret = arg0.beginComputePass(arg1);
             return ret;
         },
-        __wbg_buffer_a77cc90da4bdb503: function(arg0) {
+        __wbg_beginRenderPass_b6be55dca13d3752: function() { return handleError(function (arg0, arg1) {
+            const ret = arg0.beginRenderPass(arg1);
+            return ret;
+        }, arguments); },
+        __wbg_buffer_8d6798e32d1afd34: function(arg0) {
             const ret = arg0.buffer;
             return ret;
         },
-        __wbg_call_d578befcc3145dee: function() { return handleError(function (arg0, arg1, arg2) {
+        __wbg_call_dfde26266607c996: function() { return handleError(function (arg0, arg1, arg2) {
             const ret = arg0.call(arg1, arg2);
             return ret;
         }, arguments); },
@@ -1593,6 +1227,14 @@ function __wbg_get_imports() {
             const ret = arg0.createPipelineLayout(arg1);
             return ret;
         },
+        __wbg_createRenderPipeline_f33944b9347badf7: function() { return handleError(function (arg0, arg1) {
+            const ret = arg0.createRenderPipeline(arg1);
+            return ret;
+        }, arguments); },
+        __wbg_createSampler_dfafeaada8a50f77: function(arg0, arg1) {
+            const ret = arg0.createSampler(arg1);
+            return ret;
+        },
         __wbg_createShaderModule_c951549f9d218b6a: function(arg0, arg1) {
             const ret = arg0.createShaderModule(arg1);
             return ret;
@@ -1605,11 +1247,20 @@ function __wbg_get_imports() {
             const ret = arg0.createView(arg1);
             return ret;
         }, arguments); },
+        __wbg_destroy_5c63d60a4ce171f5: function(arg0) {
+            arg0.destroy();
+        },
         __wbg_dispatchWorkgroupsIndirect_0b5aa70af5409bf1: function(arg0, arg1, arg2) {
             arg0.dispatchWorkgroupsIndirect(arg1, arg2);
         },
         __wbg_dispatchWorkgroups_84e3afede9542ffe: function(arg0, arg1, arg2, arg3) {
             arg0.dispatchWorkgroups(arg1 >>> 0, arg2 >>> 0, arg3 >>> 0);
+        },
+        __wbg_draw_58cc6aabf299781c: function(arg0, arg1, arg2, arg3, arg4) {
+            arg0.draw(arg1 >>> 0, arg2 >>> 0, arg3 >>> 0, arg4 >>> 0);
+        },
+        __wbg_end_39838302f918fcd7: function(arg0) {
+            arg0.end();
         },
         __wbg_end_df1851506654a0d6: function(arg0) {
             arg0.end();
@@ -1633,7 +1284,7 @@ function __wbg_get_imports() {
             const ret = arg0.finish();
             return ret;
         },
-        __wbg_getContext_8f1ff363618c55da: function() { return handleError(function (arg0, arg1, arg2) {
+        __wbg_getContext_47ea64e14d931e3e: function() { return handleError(function (arg0, arg1, arg2) {
             const ret = arg0.getContext(getStringFromWasm0(arg1, arg2));
             return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
         }, arguments); },
@@ -1671,6 +1322,10 @@ function __wbg_get_imports() {
             const len1 = WASM_VECTOR_LEN;
             getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
             getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+        },
+        __wbg_length_13e61aa81636ec86: function(arg0) {
+            const ret = arg0.length;
+            return ret;
         },
         __wbg_limits_0f372ba0de53c8fa: function(arg0) {
             const ret = arg0.limits;
@@ -1799,38 +1454,42 @@ function __wbg_get_imports() {
             const ret = arg0.minUniformBufferOffsetAlignment;
             return ret;
         },
-        __wbg_navigator_9b09ea705d03d227: function(arg0) {
+        __wbg_navigator_3334c390f542c642: function(arg0) {
             const ret = arg0.navigator;
             return ret;
         },
-        __wbg_navigator_af52153252bdf29d: function(arg0) {
+        __wbg_navigator_3db7ba343e05d4d1: function(arg0) {
             const ret = arg0.navigator;
+            return ret;
+        },
+        __wbg_new_02d162bc6cf02f60: function() {
+            const ret = new Object();
             return ret;
         },
         __wbg_new_227d7c05414eb861: function() {
             const ret = new Error();
             return ret;
         },
-        __wbg_new_4f9fafbb3909af72: function() {
-            const ret = new Object();
-            return ret;
-        },
-        __wbg_new_f3c9df4f38f3f798: function() {
+        __wbg_new_310879b66b6e95e1: function() {
             const ret = new Array();
             return ret;
         },
-        __wbg_new_from_slice_2580ff33d0d10520: function(arg0, arg1) {
+        __wbg_new_439823ec67f1ec48: function() { return handleError(function (arg0, arg1) {
+            const ret = new OffscreenCanvas(arg0 >>> 0, arg1 >>> 0);
+            return ret;
+        }, arguments); },
+        __wbg_new_from_slice_269e35316ed2d061: function(arg0, arg1) {
             const ret = new Uint8Array(getArrayU8FromWasm0(arg0, arg1));
             return ret;
         },
-        __wbg_new_typed_14d7cc391ce53d2c: function(arg0, arg1) {
+        __wbg_new_typed_c072c4ce9a2a0cdf: function(arg0, arg1) {
             try {
                 var state0 = {a: arg0, b: arg1};
                 var cb0 = (arg0, arg1) => {
                     const a = state0.a;
                     state0.a = 0;
                     try {
-                        return wasm_bindgen__convert__closures_____invoke__h0a41f10693601c0d(a, state0.b, arg0, arg1);
+                        return wasm_bindgen__convert__closures_____invoke__h2db092c6386880bd(a, state0.b, arg0, arg1);
                     } finally {
                         state0.a = a;
                     }
@@ -1841,31 +1500,35 @@ function __wbg_get_imports() {
                 state0.a = 0;
             }
         },
-        __wbg_new_with_length_41a22191b9bdfd66: function(arg0) {
-            const ret = new Uint32Array(arg0 >>> 0);
-            return ret;
-        },
-        __wbg_new_with_length_6402c1de5dfd4085: function(arg0) {
+        __wbg_new_with_length_1278c16a5c5b497f: function(arg0) {
             const ret = new Float64Array(arg0 >>> 0);
             return ret;
         },
-        __wbg_new_with_length_9cedd08484b73942: function(arg0) {
+        __wbg_new_with_length_58dc420af34edb59: function(arg0) {
+            const ret = new Float32Array(arg0 >>> 0);
+            return ret;
+        },
+        __wbg_new_with_length_99887c91eae4abab: function(arg0) {
             const ret = new Uint8Array(arg0 >>> 0);
+            return ret;
+        },
+        __wbg_new_with_length_f128f2c16ad4f906: function(arg0) {
+            const ret = new Uint32Array(arg0 >>> 0);
             return ret;
         },
         __wbg_onSubmittedWorkDone_a33e32762de21b3d: function(arg0) {
             const ret = arg0.onSubmittedWorkDone();
             return ret;
         },
-        __wbg_push_6bdbc990be5ac37b: function(arg0, arg1) {
+        __wbg_push_b77c476b01548d0a: function(arg0, arg1) {
             const ret = arg0.push(arg1);
             return ret;
         },
-        __wbg_queueMicrotask_abaf92f0bd4e80a4: function(arg0) {
+        __wbg_queueMicrotask_78d584b53af520f5: function(arg0) {
             const ret = arg0.queueMicrotask;
             return ret;
         },
-        __wbg_queueMicrotask_df5a6dac26d818f3: function(arg0) {
+        __wbg_queueMicrotask_b39ea83c7f01971a: function(arg0) {
             queueMicrotask(arg0);
         },
         __wbg_queue_451a2aa83c786578: function(arg0) {
@@ -1880,9 +1543,12 @@ function __wbg_get_imports() {
             const ret = arg0.requestDevice(arg1);
             return ret;
         },
-        __wbg_resolve_0a79de24e9d2267b: function(arg0) {
+        __wbg_resolve_d17db9352f5a220e: function(arg0) {
             const ret = Promise.resolve(arg0);
             return ret;
+        },
+        __wbg_setBindGroup_3fecca142efa3bcf: function(arg0, arg1, arg2) {
+            arg0.setBindGroup(arg1 >>> 0, arg2);
         },
         __wbg_setBindGroup_af7eca394a335db6: function(arg0, arg1, arg2) {
             arg0.setBindGroup(arg1 >>> 0, arg2);
@@ -1890,15 +1556,36 @@ function __wbg_get_imports() {
         __wbg_setPipeline_5cbb15c634c129f9: function(arg0, arg1) {
             arg0.setPipeline(arg1);
         },
-        __wbg_set_8ee2d34facb8466e: function() { return handleError(function (arg0, arg1, arg2) {
+        __wbg_setPipeline_fb3b65583e919c05: function(arg0, arg1) {
+            arg0.setPipeline(arg1);
+        },
+        __wbg_set_5d860a0c0949a838: function(arg0, arg1, arg2) {
+            arg0.set(getArrayF32FromWasm0(arg1, arg2));
+        },
+        __wbg_set_a0e911be3da02782: function() { return handleError(function (arg0, arg1, arg2) {
             const ret = Reflect.set(arg0, arg1, arg2);
             return ret;
         }, arguments); },
         __wbg_set_access_9d39f60326d67278: function(arg0, arg1) {
             arg0.access = __wbindgen_enum_GpuStorageTextureAccess[arg1];
         },
+        __wbg_set_address_mode_u_8c8aaf2ccebb3e8d: function(arg0, arg1) {
+            arg0.addressModeU = __wbindgen_enum_GpuAddressMode[arg1];
+        },
+        __wbg_set_address_mode_v_252818714ab5937f: function(arg0, arg1) {
+            arg0.addressModeV = __wbindgen_enum_GpuAddressMode[arg1];
+        },
+        __wbg_set_address_mode_w_d617929f92a5b8cc: function(arg0, arg1) {
+            arg0.addressModeW = __wbindgen_enum_GpuAddressMode[arg1];
+        },
+        __wbg_set_alpha_a3317d40d97c514e: function(arg0, arg1) {
+            arg0.alpha = arg1;
+        },
         __wbg_set_alpha_mode_1ae7e0aa38a8eba8: function(arg0, arg1) {
             arg0.alphaMode = __wbindgen_enum_GpuCanvasAlphaMode[arg1];
+        },
+        __wbg_set_alpha_to_coverage_enabled_0c11d91caea2b92d: function(arg0, arg1) {
+            arg0.alphaToCoverageEnabled = arg1 !== 0;
         },
         __wbg_set_array_layer_count_83a40d42f8858bba: function(arg0, arg1) {
             arg0.arrayLayerCount = arg1 >>> 0;
@@ -1927,11 +1614,17 @@ function __wbg_get_imports() {
         __wbg_set_binding_d82fdc5364e5b0c5: function(arg0, arg1) {
             arg0.binding = arg1 >>> 0;
         },
+        __wbg_set_blend_00219e805977440c: function(arg0, arg1) {
+            arg0.blend = arg1;
+        },
         __wbg_set_buffer_0c946e9b46823a5c: function(arg0, arg1) {
             arg0.buffer = arg1;
         },
         __wbg_set_buffer_21a336fe62828e11: function(arg0, arg1) {
             arg0.buffer = arg1;
+        },
+        __wbg_set_buffers_070770ce2c0d5522: function(arg0, arg1) {
+            arg0.buffers = arg1;
         },
         __wbg_set_bytes_per_row_8e39002b1f627e4d: function(arg0, arg1) {
             arg0.bytesPerRow = arg1 >>> 0;
@@ -1939,8 +1632,20 @@ function __wbg_get_imports() {
         __wbg_set_code_7a3890c4ffd4f7d4: function(arg0, arg1, arg2) {
             arg0.code = getStringFromWasm0(arg1, arg2);
         },
+        __wbg_set_color_85a6e64ea881593f: function(arg0, arg1) {
+            arg0.color = arg1;
+        },
+        __wbg_set_color_attachments_88b752139b2e1a01: function(arg0, arg1) {
+            arg0.colorAttachments = arg1;
+        },
         __wbg_set_compute_ae49764c749c761e: function(arg0, arg1) {
             arg0.compute = arg1;
+        },
+        __wbg_set_count_036a202e127d1828: function(arg0, arg1) {
+            arg0.count = arg1 >>> 0;
+        },
+        __wbg_set_cull_mode_8c42221bd938897d: function(arg0, arg1) {
+            arg0.cullMode = __wbindgen_enum_GpuCullMode[arg1];
         },
         __wbg_set_depth_or_array_layers_3601a844f36fa25f: function(arg0, arg1) {
             arg0.depthOrArrayLayers = arg1 >>> 0;
@@ -1954,6 +1659,9 @@ function __wbg_get_imports() {
         __wbg_set_dimension_b61b3c48adf487c1: function(arg0, arg1) {
             arg0.dimension = __wbindgen_enum_GpuTextureViewDimension[arg1];
         },
+        __wbg_set_dst_factor_6cbfc3a6898cc9ce: function(arg0, arg1) {
+            arg0.dstFactor = __wbindgen_enum_GpuBlendFactor[arg1];
+        },
         __wbg_set_end_of_pass_write_index_fd531d3ce14a6897: function(arg0, arg1) {
             arg0.endOfPassWriteIndex = arg1 >>> 0;
         },
@@ -1963,7 +1671,13 @@ function __wbg_get_imports() {
         __wbg_set_entries_922ec6089646247e: function(arg0, arg1) {
             arg0.entries = arg1;
         },
+        __wbg_set_entry_point_087ca8094ce666fd: function(arg0, arg1, arg2) {
+            arg0.entryPoint = getStringFromWasm0(arg1, arg2);
+        },
         __wbg_set_entry_point_b770157326a1b59e: function(arg0, arg1, arg2) {
+            arg0.entryPoint = getStringFromWasm0(arg1, arg2);
+        },
+        __wbg_set_entry_point_d7efddda482bc7fe: function(arg0, arg1, arg2) {
             arg0.entryPoint = getStringFromWasm0(arg1, arg2);
         },
         __wbg_set_external_texture_41cadb0b9faf1919: function(arg0, arg1) {
@@ -1978,29 +1692,38 @@ function __wbg_get_imports() {
         __wbg_set_format_98f7ca48143feacb: function(arg0, arg1) {
             arg0.format = __wbindgen_enum_GpuTextureFormat[arg1];
         },
+        __wbg_set_format_b111ffed7e227fef: function(arg0, arg1) {
+            arg0.format = __wbindgen_enum_GpuTextureFormat[arg1];
+        },
         __wbg_set_format_fd82439cf1e1f024: function(arg0, arg1) {
             arg0.format = __wbindgen_enum_GpuTextureFormat[arg1];
+        },
+        __wbg_set_fragment_4026e84121693413: function(arg0, arg1) {
+            arg0.fragment = arg1;
+        },
+        __wbg_set_front_face_abcfb70c2001a63b: function(arg0, arg1) {
+            arg0.frontFace = __wbindgen_enum_GpuFrontFace[arg1];
         },
         __wbg_set_has_dynamic_offset_ebc87f184bf9b1b6: function(arg0, arg1) {
             arg0.hasDynamicOffset = arg1 !== 0;
         },
-        __wbg_set_height_26ab95ff99e2b620: function(arg0, arg1) {
-            arg0.height = arg1 >>> 0;
-        },
         __wbg_set_height_5dc3bf5fd05f449d: function(arg0, arg1) {
             arg0.height = arg1 >>> 0;
         },
-        __wbg_set_height_7d0bbaf691aeef8f: function(arg0, arg1) {
+        __wbg_set_height_bb0dc35fd1d941f5: function(arg0, arg1) {
             arg0.height = arg1 >>> 0;
         },
-        __wbg_set_index_338a66e40fc45dee: function(arg0, arg1, arg2) {
+        __wbg_set_height_bdd58e6b04e88cca: function(arg0, arg1) {
+            arg0.height = arg1 >>> 0;
+        },
+        __wbg_set_index_24a79f6bf22a9e3c: function(arg0, arg1, arg2) {
+            arg0[arg1 >>> 0] = arg2;
+        },
+        __wbg_set_index_6216eb6926d2fbc6: function(arg0, arg1, arg2) {
+            arg0[arg1 >>> 0] = arg2;
+        },
+        __wbg_set_index_b93fd9d797d1ff98: function(arg0, arg1, arg2) {
             arg0[arg1 >>> 0] = arg2 >>> 0;
-        },
-        __wbg_set_index_60d5919b982859a5: function(arg0, arg1, arg2) {
-            arg0[arg1 >>> 0] = arg2;
-        },
-        __wbg_set_index_e93e681c9c5b6486: function(arg0, arg1, arg2) {
-            arg0[arg1 >>> 0] = arg2;
         },
         __wbg_set_label_0ca1d80bd2825a5c: function(arg0, arg1, arg2) {
             arg0.label = getStringFromWasm0(arg1, arg2);
@@ -2020,6 +1743,9 @@ function __wbg_get_imports() {
         __wbg_set_label_64f13c71608a2731: function(arg0, arg1, arg2) {
             arg0.label = getStringFromWasm0(arg1, arg2);
         },
+        __wbg_set_label_6b0d6041cd54c099: function(arg0, arg1, arg2) {
+            arg0.label = getStringFromWasm0(arg1, arg2);
+        },
         __wbg_set_label_76862276b026aadb: function(arg0, arg1, arg2) {
             arg0.label = getStringFromWasm0(arg1, arg2);
         },
@@ -2029,7 +1755,16 @@ function __wbg_get_imports() {
         __wbg_set_label_7d273105ca29a945: function(arg0, arg1, arg2) {
             arg0.label = getStringFromWasm0(arg1, arg2);
         },
+        __wbg_set_label_889010e958e191c9: function(arg0, arg1, arg2) {
+            arg0.label = getStringFromWasm0(arg1, arg2);
+        },
         __wbg_set_label_96ff54a6b9baaf90: function(arg0, arg1, arg2) {
+            arg0.label = getStringFromWasm0(arg1, arg2);
+        },
+        __wbg_set_label_b80919003c66c761: function(arg0, arg1, arg2) {
+            arg0.label = getStringFromWasm0(arg1, arg2);
+        },
+        __wbg_set_label_cbbe51e986da3989: function(arg0, arg1, arg2) {
             arg0.label = getStringFromWasm0(arg1, arg2);
         },
         __wbg_set_label_ccc4850f4197dc22: function(arg0, arg1, arg2) {
@@ -2038,14 +1773,38 @@ function __wbg_get_imports() {
         __wbg_set_layout_0561f0404037d441: function(arg0, arg1) {
             arg0.layout = arg1;
         },
+        __wbg_set_layout_464ae8395c01fe6e: function(arg0, arg1) {
+            arg0.layout = arg1;
+        },
         __wbg_set_layout_b990b908a7810b31: function(arg0, arg1) {
             arg0.layout = arg1;
+        },
+        __wbg_set_load_op_5d3a8abceb4a5269: function(arg0, arg1) {
+            arg0.loadOp = __wbindgen_enum_GpuLoadOp[arg1];
+        },
+        __wbg_set_lod_max_clamp_bf825cfbdd106655: function(arg0, arg1) {
+            arg0.lodMaxClamp = arg1;
+        },
+        __wbg_set_lod_min_clamp_35ccf45d8ee31c7e: function(arg0, arg1) {
+            arg0.lodMinClamp = arg1;
+        },
+        __wbg_set_mag_filter_8f8d84435d8db92a: function(arg0, arg1) {
+            arg0.magFilter = __wbindgen_enum_GpuFilterMode[arg1];
         },
         __wbg_set_mapped_at_creation_ff06f7ed93a315dd: function(arg0, arg1) {
             arg0.mappedAtCreation = arg1 !== 0;
         },
+        __wbg_set_mask_ad9d29606115a472: function(arg0, arg1) {
+            arg0.mask = arg1 >>> 0;
+        },
+        __wbg_set_max_anisotropy_c82fc429f1b1e064: function(arg0, arg1) {
+            arg0.maxAnisotropy = arg1;
+        },
         __wbg_set_min_binding_size_746ae443396eb1f4: function(arg0, arg1) {
             arg0.minBindingSize = arg1;
+        },
+        __wbg_set_min_filter_fb0add0b126873ab: function(arg0, arg1) {
+            arg0.minFilter = __wbindgen_enum_GpuFilterMode[arg1];
         },
         __wbg_set_mip_level_count_1d3d8f433adfb7ae: function(arg0, arg1) {
             arg0.mipLevelCount = arg1 >>> 0;
@@ -2056,8 +1815,20 @@ function __wbg_get_imports() {
         __wbg_set_mip_level_f4e04afe7e030b52: function(arg0, arg1) {
             arg0.mipLevel = arg1 >>> 0;
         },
+        __wbg_set_mipmap_filter_202e81e75b49e109: function(arg0, arg1) {
+            arg0.mipmapFilter = __wbindgen_enum_GpuMipmapFilterMode[arg1];
+        },
         __wbg_set_module_3d1725eef3718083: function(arg0, arg1) {
             arg0.module = arg1;
+        },
+        __wbg_set_module_6d0431faccebdcc4: function(arg0, arg1) {
+            arg0.module = arg1;
+        },
+        __wbg_set_module_701adba2958bd873: function(arg0, arg1) {
+            arg0.module = arg1;
+        },
+        __wbg_set_multisample_e577402263e48ad4: function(arg0, arg1) {
+            arg0.multisample = arg1;
         },
         __wbg_set_multisampled_2180d2b5d246ae13: function(arg0, arg1) {
             arg0.multisampled = arg1 !== 0;
@@ -2068,11 +1839,17 @@ function __wbg_get_imports() {
         __wbg_set_offset_fa633343238c309f: function(arg0, arg1) {
             arg0.offset = arg1;
         },
+        __wbg_set_operation_3a748fcc4d122201: function(arg0, arg1) {
+            arg0.operation = __wbindgen_enum_GpuBlendOperation[arg1];
+        },
         __wbg_set_origin_5531aa268ce97d9d: function(arg0, arg1) {
             arg0.origin = arg1;
         },
         __wbg_set_power_preference_f8956c3fea27c41d: function(arg0, arg1) {
             arg0.powerPreference = __wbindgen_enum_GpuPowerPreference[arg1];
+        },
+        __wbg_set_primitive_65a118359b90be29: function(arg0, arg1) {
+            arg0.primitive = arg1;
         },
         __wbg_set_query_set_0c94267b03620b43: function(arg0, arg1) {
             arg0.querySet = arg1;
@@ -2104,8 +1881,17 @@ function __wbg_get_imports() {
         __wbg_set_size_e76794a3069a90d7: function(arg0, arg1) {
             arg0.size = arg1;
         },
+        __wbg_set_src_factor_00c2d54742fd17a4: function(arg0, arg1) {
+            arg0.srcFactor = __wbindgen_enum_GpuBlendFactor[arg1];
+        },
         __wbg_set_storage_texture_dab6c69662cecb15: function(arg0, arg1) {
             arg0.storageTexture = arg1;
+        },
+        __wbg_set_store_op_2bf481ef4a30f927: function(arg0, arg1) {
+            arg0.storeOp = __wbindgen_enum_GpuStoreOp[arg1];
+        },
+        __wbg_set_targets_f00488491d26619c: function(arg0, arg1) {
+            arg0.targets = arg1;
         },
         __wbg_set_texture_8732ea1b0f00cc28: function(arg0, arg1) {
             arg0.texture = arg1;
@@ -2116,11 +1902,17 @@ function __wbg_get_imports() {
         __wbg_set_timestamp_writes_dd465cc31736e9dd: function(arg0, arg1) {
             arg0.timestampWrites = arg1;
         },
+        __wbg_set_topology_774e967bf9bd3600: function(arg0, arg1) {
+            arg0.topology = __wbindgen_enum_GpuPrimitiveTopology[arg1];
+        },
         __wbg_set_type_3e89072317fa3a02: function(arg0, arg1) {
             arg0.type = __wbindgen_enum_GpuSamplerBindingType[arg1];
         },
         __wbg_set_type_fc5fb8ab00ac41ab: function(arg0, arg1) {
             arg0.type = __wbindgen_enum_GpuBufferBindingType[arg1];
+        },
+        __wbg_set_unclipped_depth_bbe4b97da619705e: function(arg0, arg1) {
+            arg0.unclippedDepth = arg1 !== 0;
         },
         __wbg_set_usage_215da50f99ff465b: function(arg0, arg1) {
             arg0.usage = arg1 >>> 0;
@@ -2133,6 +1925,12 @@ function __wbg_get_imports() {
         },
         __wbg_set_usage_ece80ba45b896722: function(arg0, arg1) {
             arg0.usage = arg1 >>> 0;
+        },
+        __wbg_set_vertex_879729b1ef5390a2: function(arg0, arg1) {
+            arg0.vertex = arg1;
+        },
+        __wbg_set_view_9850fe7aa8b4eae3: function(arg0, arg1) {
+            arg0.view = arg1;
         },
         __wbg_set_view_dimension_5c6c0dc0d28476c3: function(arg0, arg1) {
             arg0.viewDimension = __wbindgen_enum_GpuTextureViewDimension[arg1];
@@ -2149,14 +1947,17 @@ function __wbg_get_imports() {
         __wbg_set_visibility_22877d2819bea70b: function(arg0, arg1) {
             arg0.visibility = arg1 >>> 0;
         },
-        __wbg_set_width_1ae13bf0b65e6395: function(arg0, arg1) {
+        __wbg_set_width_25112eb6bf1148df: function(arg0, arg1) {
             arg0.width = arg1 >>> 0;
         },
-        __wbg_set_width_81fa781e87b17891: function(arg0, arg1) {
+        __wbg_set_width_9d385df435c1f79d: function(arg0, arg1) {
             arg0.width = arg1 >>> 0;
         },
         __wbg_set_width_a6d5409d7980ccca: function(arg0, arg1) {
             arg0.width = arg1 >>> 0;
+        },
+        __wbg_set_write_mask_dceb6456d5310b39: function(arg0, arg1) {
+            arg0.writeMask = arg1 >>> 0;
         },
         __wbg_set_x_40188fe21190a1a8: function(arg0, arg1) {
             arg0.x = arg1 >>> 0;
@@ -2174,42 +1975,46 @@ function __wbg_get_imports() {
             getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
             getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
         },
-        __wbg_static_accessor_GLOBAL_THIS_a1248013d790bf5f: function() {
+        __wbg_static_accessor_GLOBAL_THIS_02344c9b09eb08a9: function() {
             const ret = typeof globalThis === 'undefined' ? null : globalThis;
             return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
         },
-        __wbg_static_accessor_GLOBAL_f2e0f995a21329ff: function() {
+        __wbg_static_accessor_GLOBAL_ac6d4ac874d5cd54: function() {
             const ret = typeof global === 'undefined' ? null : global;
             return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
         },
-        __wbg_static_accessor_SELF_24f78b6d23f286ea: function() {
+        __wbg_static_accessor_SELF_9b2406c23aeb2023: function() {
             const ret = typeof self === 'undefined' ? null : self;
             return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
         },
-        __wbg_static_accessor_WINDOW_59fd959c540fe405: function() {
+        __wbg_static_accessor_WINDOW_b34d2126934e16ba: function() {
             const ret = typeof window === 'undefined' ? null : window;
             return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
         },
         __wbg_submit_19b0e21319bc36d7: function(arg0, arg1) {
             arg0.submit(arg1);
         },
-        __wbg_then_00eed3ac0b8e82cb: function(arg0, arg1, arg2) {
-            const ret = arg0.then(arg1, arg2);
-            return ret;
-        },
-        __wbg_then_479d77cb064907ee: function(arg0, arg1, arg2) {
-            const ret = arg0.then(arg1, arg2);
-            return ret;
-        },
-        __wbg_then_a0c8db0381c8994c: function(arg0, arg1) {
+        __wbg_then_837494e384b37459: function(arg0, arg1) {
             const ret = arg0.then(arg1);
             return ret;
         },
+        __wbg_then_87e0b598b245104b: function(arg0, arg1, arg2) {
+            const ret = arg0.then(arg1, arg2);
+            return ret;
+        },
+        __wbg_then_bd927500e8905df2: function(arg0, arg1, arg2) {
+            const ret = arg0.then(arg1, arg2);
+            return ret;
+        },
+        __wbg_transferToImageBitmap_ef78ff480500ad5d: function() { return handleError(function (arg0) {
+            const ret = arg0.transferToImageBitmap();
+            return ret;
+        }, arguments); },
         __wbg_vellorenderer_new: function(arg0) {
             const ret = VelloRenderer.__wrap(arg0);
             return ret;
         },
-        __wbg_warn_2b0a27f629a4bb1e: function(arg0) {
+        __wbg_warn_c4e0780980765a86: function(arg0) {
             console.warn(arg0);
         },
         __wbg_writeBuffer_1fa3becf9f9f970e: function() { return handleError(function (arg0, arg1, arg2, arg3, arg4, arg5) {
@@ -2219,13 +2024,13 @@ function __wbg_get_imports() {
             arg0.writeTexture(arg1, arg2, arg3, arg4);
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 193, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h27a34c19f56d26f6);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 194, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h095281891b062598);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 253, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__he75b7269c1eb9773);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 258, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h6910d188bddc1532);
             return ret;
         },
         __wbindgen_cast_0000000000000003: function(arg0) {
@@ -2254,20 +2059,29 @@ function __wbg_get_imports() {
     };
 }
 
-function wasm_bindgen__convert__closures_____invoke__he75b7269c1eb9773(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures_____invoke__he75b7269c1eb9773(arg0, arg1, arg2);
+function wasm_bindgen__convert__closures_____invoke__h6910d188bddc1532(arg0, arg1, arg2) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h6910d188bddc1532(arg0, arg1, arg2);
 }
 
-function wasm_bindgen__convert__closures_____invoke__h27a34c19f56d26f6(arg0, arg1, arg2) {
-    const ret = wasm.wasm_bindgen__convert__closures_____invoke__h27a34c19f56d26f6(arg0, arg1, arg2);
+function wasm_bindgen__convert__closures_____invoke__h095281891b062598(arg0, arg1, arg2) {
+    const ret = wasm.wasm_bindgen__convert__closures_____invoke__h095281891b062598(arg0, arg1, arg2);
     if (ret[1]) {
         throw takeFromExternrefTable0(ret[0]);
     }
 }
 
-function wasm_bindgen__convert__closures_____invoke__h0a41f10693601c0d(arg0, arg1, arg2, arg3) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h0a41f10693601c0d(arg0, arg1, arg2, arg3);
+function wasm_bindgen__convert__closures_____invoke__h2db092c6386880bd(arg0, arg1, arg2, arg3) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h2db092c6386880bd(arg0, arg1, arg2, arg3);
 }
+
+
+const __wbindgen_enum_GpuAddressMode = ["clamp-to-edge", "repeat", "mirror-repeat"];
+
+
+const __wbindgen_enum_GpuBlendFactor = ["zero", "one", "src", "one-minus-src", "src-alpha", "one-minus-src-alpha", "dst", "one-minus-dst", "dst-alpha", "one-minus-dst-alpha", "src-alpha-saturated", "constant", "one-minus-constant", "src1", "one-minus-src1", "src1-alpha", "one-minus-src1-alpha"];
+
+
+const __wbindgen_enum_GpuBlendOperation = ["add", "subtract", "reverse-subtract", "min", "max"];
 
 
 const __wbindgen_enum_GpuBufferBindingType = ["uniform", "storage", "read-only-storage"];
@@ -2276,13 +2090,34 @@ const __wbindgen_enum_GpuBufferBindingType = ["uniform", "storage", "read-only-s
 const __wbindgen_enum_GpuCanvasAlphaMode = ["opaque", "premultiplied"];
 
 
+const __wbindgen_enum_GpuCullMode = ["none", "front", "back"];
+
+
+const __wbindgen_enum_GpuFilterMode = ["nearest", "linear"];
+
+
+const __wbindgen_enum_GpuFrontFace = ["ccw", "cw"];
+
+
+const __wbindgen_enum_GpuLoadOp = ["load", "clear"];
+
+
+const __wbindgen_enum_GpuMipmapFilterMode = ["nearest", "linear"];
+
+
 const __wbindgen_enum_GpuPowerPreference = ["low-power", "high-performance"];
+
+
+const __wbindgen_enum_GpuPrimitiveTopology = ["point-list", "line-list", "line-strip", "triangle-list", "triangle-strip"];
 
 
 const __wbindgen_enum_GpuSamplerBindingType = ["filtering", "non-filtering", "comparison"];
 
 
 const __wbindgen_enum_GpuStorageTextureAccess = ["write-only", "read-only", "read-write"];
+
+
+const __wbindgen_enum_GpuStoreOp = ["store", "discard"];
 
 
 const __wbindgen_enum_GpuTextureAspect = ["all", "stencil-only", "depth-only"];
@@ -2300,7 +2135,7 @@ const __wbindgen_enum_GpuTextureSampleType = ["float", "unfilterable-float", "de
 const __wbindgen_enum_GpuTextureViewDimension = ["1d", "2d", "2d-array", "cube", "cube-array", "3d"];
 const VelloRendererFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_vellorenderer_free(ptr >>> 0, 1));
+    : new FinalizationRegistry(ptr => wasm.__wbg_vellorenderer_free(ptr, 1));
 
 function addToExternrefTable0(obj) {
     const idx = wasm.__externref_table_alloc();
@@ -2377,6 +2212,11 @@ function debugString(val) {
     return className;
 }
 
+function getArrayF32FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
+}
+
 function getArrayJsValueFromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     const mem = getDataViewMemory0();
@@ -2423,8 +2263,7 @@ function getFloat64ArrayMemory0() {
 }
 
 function getStringFromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return decodeText(ptr, len);
+    return decodeText(ptr >>> 0, len);
 }
 
 let cachedUint32ArrayMemory0 = null;
@@ -2494,13 +2333,6 @@ function passArray32ToWasm0(arg, malloc) {
 function passArray8ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 1, 1) >>> 0;
     getUint8ArrayMemory0().set(arg, ptr / 1);
-    WASM_VECTOR_LEN = arg.length;
-    return ptr;
-}
-
-function passArrayF32ToWasm0(arg, malloc) {
-    const ptr = malloc(arg.length * 4, 4) >>> 0;
-    getFloat32ArrayMemory0().set(arg, ptr / 4);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
 }
@@ -2594,8 +2426,9 @@ if (!('encodeInto' in cachedTextEncoder)) {
 
 let WASM_VECTOR_LEN = 0;
 
-let wasmModule, wasm;
+let wasmModule, wasmInstance, wasm;
 function __wbg_finalize_init(instance, module) {
+    wasmInstance = instance;
     wasm = instance.exports;
     wasmModule = module;
     cachedDataViewMemory0 = null;

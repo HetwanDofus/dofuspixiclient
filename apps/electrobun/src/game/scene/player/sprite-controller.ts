@@ -129,6 +129,20 @@ export class PlayerSpriteController {
     if (!player.currentAnimData) {
       return;
     }
+    // Path B atomic-commit: while a new anim is still staging in
+    // the strip renderer (`animReady=false`), the strip we're
+    // ACTUALLY drawing is the previous anim — but `currentAnimData`
+    // already points at the new anim, so advancing the frame cursor
+    // here makes `swapFrame` cycle the OLD atlas through indices
+    // intended for the NEW anim (e.g., walkR → walkL transition
+    // cycles walkR frames in place while physics is gated). Freezing
+    // the cursor until commit keeps the visible bot frozen on
+    // whatever the last committed frame was; physics is gated by
+    // `movement.ts`, so the bot stays still both visually and
+    // positionally until the new strip lands.
+    if (!player.animReady) {
+      return;
+    }
 
     const anim = player.currentAnimData;
     const realFrameCount = anim.frameCount;

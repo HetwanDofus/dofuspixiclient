@@ -42,13 +42,24 @@ import {
   freeRenderTexture,
   renderSwfStripRangeAccessorized,
   setSwfPlayerColors,
+  type VelloSwfStripResult,
 } from "@/game/render/vello-loader";
+import {
+  getStripBakeQueue,
+  type StripBakeCallback,
+} from "@/game/render/strip-bake-queue";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("PlayerStripRenderer");
 
 const TICK_INTERVAL_MS = 1000 / 60;
 const RETIRE_DELAY_MS = 2 * TICK_INTERVAL_MS;
+
+// Path B cut-over: every existing `import { PlayerStripRenderer }` from
+// this module now lands on the V2 implementation (band-mesh + per-bot
+// shader uniforms). The legacy single-strip path stays exported as
+// `PlayerStripRendererLegacy` for rollback / pixel-parity tests.
+export { PlayerStripRendererV2 as PlayerStripRenderer } from "./player-strip-renderer-v2";
 
 export type DirSuffix = "R" | "L" | "F" | "B" | "S";
 
@@ -78,8 +89,16 @@ interface SlotState {
   currentSource: ExternalSource | null;
   /** wgpu textureId for the strip composite (paired with freeRenderTexture). */
   currentTextureId: number;
-  /** De-duplication key — same anim+look+direction skips re-render. */
+  /** Anim key currently INSTALLED on the sprite. */
   currentAnimKey: string;
+  /**
+   * Anim key MOST RECENTLY REQUESTED via `applyAnimation`. Diverges
+   * from `currentAnimKey` while a bake is in flight in the queue.
+   * The queue callback uses this to detect stale results (caller
+   * changed mind before the strip landed) and free the GPU texture
+   * immediately rather than installing it.
+   */
+  requestedAnimKey: string;
   /**
    * Last `applyAnimation` parameters — captured so a resolution
    * change can re-invoke Vello at the new density and swap in a
@@ -107,8 +126,14 @@ function makeAnimKey(
 /**
  * Strip-render coordinator. One instance per Battlefield; owns the
  * sprite + texture lifecycle for every active player.
+ *
+ * Path B: the live `PlayerStripRenderer` export now points at the V2
+ * (band-mesh + accessory-sprite) implementation in
+ * `./player-strip-renderer-v2.ts`. This V1 class stays available as
+ * `PlayerStripRendererLegacy` for rollback / pixel-parity tests until
+ * step 11 (fork removal) deletes it.
  */
-export class PlayerStripRenderer {
+export class PlayerStripRendererLegacy {
   /** playerId → slot → SlotState. */
   private states = new Map<number, Map<PlayerStripSlot, SlotState>>();
   private resolution: number;
@@ -127,6 +152,18 @@ export class PlayerStripRenderer {
     let slots = 0;
     for (const m of this.states.values()) slots += m.size;
     return { players: this.states.size, slots };
+  }
+
+  /**
+   * True once the slot has at least one strip installed (initial bake
+   * landed). Callers that want "don't start moving / animating until
+   * the bot's first sprite is on screen" poll this. Subsequent anim
+   * swaps don't reset it — the slot keeps the previous strip as a
+   * fallback while a new bake is in flight.
+   */
+  isSlotReady(playerId: number, slot: PlayerStripSlot = "main"): boolean {
+    const state = this.states.get(playerId)?.get(slot);
+    return !!(state?.currentSource && state.currentFrames?.length);
   }
 
   /**
@@ -197,9 +234,23 @@ export class PlayerStripRenderer {
   }
 
   /**
-   * Render a strip for the given slot's animation and replace the
-   * sprite's frame array. Idempotent — same key skips work.
-   * Synchronous: vello-wasm returns the GPUTexture in the same call.
+   * Request a strip for the given slot's animation. Routes through
+   * the global per-frame-budgeted bake queue so N simultaneous
+   * applyAnimation calls (spawn ramp, simultaneous walk-starts) get
+   * spread across multiple rAF ticks instead of blocking the main
+   * thread.
+   *
+   * Visible behaviour:
+   *   - Same `(bundle, anim, dir, flipped, look)` as currently
+   *     installed → no-op (cache hit on the slot itself).
+   *   - Bake already in flight for this key (this slot or another
+   *     slot's identical request) → dedup collapse; second caller
+   *     gets the same strip when it lands.
+   *   - Bake lands → strip installs, previous strip retires after
+   *     2-tick settle. Sprite stays on the old strip in the meantime
+   *     (or remains empty if this is the slot's first strip).
+   *   - Bot changed mind before bake landed → stale-result detector
+   *     frees the GPU texture immediately.
    */
   applyAnimation(
     player: ActivePlayer,
@@ -221,7 +272,22 @@ export class PlayerStripRenderer {
       this.applyFlipToSlot(state, flipped);
       return;
     }
+    // If a bake for this same key is already in flight, the queue
+    // will dedup; we just need to make sure we've staked our claim.
+    // Set requestedAnimKey eagerly so a stale callback (for a key we
+    // no longer want) recognises itself and frees its strip.
+    state.requestedAnimKey = key;
+    // Flip applies to the OLD strip while we wait — direction
+    // changes that are just mirror flips (R↔SW etc.) visually align
+    // with the move immediately, even though the new strip hasn't
+    // landed.
+    this.applyFlipToSlot(state, flipped);
 
+    // Snapshot every arg the bake closure needs. The closure runs
+    // potentially many frames after this method returns — by then
+    // the bot may have changed anim, despawned, or had its look
+    // mutated. Capturing primitives by value keeps the closure
+    // deterministic.
     const accessoryEntries: AccessoryRenderEntry[] = animation.accessories.map(
       (a) => ({
         slot: a.slot,
@@ -230,41 +296,97 @@ export class PlayerStripRenderer {
         animType: a.animType,
       })
     );
-
-    // Apply this fighter's color zones before rendering the strip.
-    // `renderSwfStripRangeAccessorized` reads `swf_player_colors`
-    // from the global Vello renderer state (the legacy AS2 setter
-    // pattern), so without this call the strip would inherit
-    // whatever colors were last set by ANOTHER consumer — typically
-    // the FighterPortraitRenderer painting another fighter's
-    // portrait, or the previous player rendered in the same frame.
-    // That's the "player suddenly takes the monster's colors mid-
-    // fight" bug. Setting (0, 0, 0) for monsters / no-class looks
-    // disables the tint entirely.
+    const bundle = animation.bundle;
+    const exportName = animation.exportName;
+    const frameCount = animation.frameCount;
+    const resolution = this.resolution;
     const cz = animation.colorZones;
-    if (cz) {
-      setSwfPlayerColors(cz[0], cz[1], cz[2]);
-    } else {
-      setSwfPlayerColors(0, 0, 0);
-    }
+    const c1 = cz ? cz[0] : 0;
+    const c2 = cz ? cz[1] : 0;
+    const c3 = cz ? cz[2] : 0;
 
-    const strip = renderSwfStripRangeAccessorized(
-      animation.bundle,
-      animation.exportName,
-      0,
-      animation.frameCount,
-      animation.frameCount,
-      this.resolution,
-      accessoryEntries,
-      dir,
-      flipped
+    const render = (): unknown => {
+      // Apply this bot's color zones immediately before the render —
+      // `renderSwfStripRangeAccessorized` reads global Vello state,
+      // so any other consumer's setSwfPlayerColors call in between
+      // would have polluted it. Pairing set+render inside the queue
+      // closure keeps them atomic on the JS thread.
+      setSwfPlayerColors(c1, c2, c3);
+      return renderSwfStripRangeAccessorized(
+        bundle,
+        exportName,
+        0,
+        frameCount,
+        frameCount,
+        resolution,
+        accessoryEntries,
+        dir,
+        flipped
+      );
+    };
+
+    const callback: StripBakeCallback = (raw) => {
+      const strip = raw as VelloSwfStripResult | null;
+      // Stale-result guard. By the time this fires the bot may have
+      // already requested a different anim, or the player container
+      // may have been destroyed. Either way: free the strip if it's
+      // not the one we still want, and bail.
+      if (state.requestedAnimKey !== key) {
+        if (strip) {
+          try {
+            freeRenderTexture(strip.textureId);
+          } catch {}
+        }
+        return;
+      }
+      if (!strip) {
+        // Render failed or watchdog halted — keep previous frames.
+        return;
+      }
+      this.installStrip(
+        state,
+        player,
+        slot,
+        animation,
+        animName,
+        dir,
+        flipped,
+        strip,
+        key
+      );
+    };
+
+    // The wanted-check lets the queue skip stale renders entirely
+    // when the bot has changed direction (or despawned) before its
+    // bake reached the front of the queue. At 400 bots with churn,
+    // this is the difference between draining the queue and falling
+    // behind exponentially.
+    getStripBakeQueue().enqueue(
+      key,
+      render,
+      callback,
+      () => state.requestedAnimKey === key,
     );
+  }
 
-    if (!strip) {
-      // Halted or render failed — keep the previous frames showing.
-      return;
-    }
-
+  /**
+   * Apply a freshly-baked strip to its slot — sets up the
+   * ExternalSource, per-frame Texture views, sprite anchor + texture,
+   * and retires the previous strip with the 2-tick settle. Extracted
+   * from `applyAnimation` so the queue callback can call it cleanly
+   * after the async wait.
+   */
+  private installStrip(
+    state: SlotState,
+    player: ActivePlayer,
+    slot: PlayerStripSlot,
+    animation: CharacterAnimation,
+    animName: string,
+    dir: DirSuffix,
+    flipped: boolean,
+    strip: VelloSwfStripResult,
+    key: string
+  ): void {
     const source = new ExternalSource({
       resource: strip.texture,
       renderer: this.pixiRenderer,
@@ -300,16 +422,18 @@ export class PlayerStripRenderer {
     state.sprite.texture =
       frames[player.frameIndex % frames.length] ?? frames[0];
 
-    // Retire previous strip after a 2-tick settle.
+    // Retire previous strip after a 2-tick settle. We must destroy
+    // each per-frame `Texture` wrapper explicitly — Pixi v8 keeps
+    // them in internal weak/strong maps and orphaning them doesn't
+    // release the underlying GPU resources. For a 24-frame strip
+    // anim-swapping every 200ms, leaking those wrappers across 400
+    // bots = ~50K Texture objects/min, which is where the 2GB+ RSS
+    // growth comes from.
     const oldSource = state.currentSource;
+    const oldFrames = state.currentFrames;
     const oldTextureId = state.currentTextureId;
     if (oldSource && oldTextureId) {
-      setTimeout(() => {
-        try {
-          oldSource.destroy();
-        } catch {}
-        freeRenderTexture(oldTextureId);
-      }, RETIRE_DELAY_MS);
+      this.scheduleRetire(oldFrames, oldSource, oldTextureId);
     }
 
     state.currentFrames = frames;
@@ -321,6 +445,34 @@ export class PlayerStripRenderer {
     state.lastDir = dir;
     state.lastFlipped = flipped;
     state.player = player;
+  }
+
+  /**
+   * Schedule the 2-tick retire of a previous strip's resources.
+   * Destroys per-frame Texture wrappers first (Pixi-internal cleanup),
+   * then the ExternalSource (releases the GPU texture binding), then
+   * the wgpu::Texture itself via `freeRenderTexture`.
+   */
+  private scheduleRetire(
+    frames: Texture[] | null,
+    source: ExternalSource,
+    textureId: number,
+  ): void {
+    setTimeout(() => {
+      if (frames) {
+        for (const t of frames) {
+          // destroy(false) — don't recurse into the source; we
+          // destroy it explicitly below in the right order.
+          try {
+            t.destroy(false);
+          } catch {}
+        }
+      }
+      try {
+        source.destroy();
+      } catch {}
+      freeRenderTexture(textureId);
+    }, RETIRE_DELAY_MS);
   }
 
   /**
@@ -440,6 +592,7 @@ export class PlayerStripRenderer {
       currentSource: null,
       currentTextureId: 0,
       currentAnimKey: "",
+      requestedAnimKey: "",
       lastAnimation: null,
       lastAnimName: "",
       lastDir: "F",
@@ -455,18 +608,20 @@ export class PlayerStripRenderer {
 
   private retireSlotState(state: SlotState): void {
     const oldSource = state.currentSource;
+    const oldFrames = state.currentFrames;
     const oldTextureId = state.currentTextureId;
+    // Poison the request key so any queued bake's callback recognises
+    // the slot is gone and frees its strip via the stale-result guard
+    // instead of installing it on the destroyed sprite.
+    state.requestedAnimKey = "<retired>";
+    state.currentAnimKey = "<retired>";
+    state.player = null;
     try {
       state.sprite.parent?.removeChild(state.sprite);
       state.sprite.destroy();
     } catch {}
     if (oldSource && oldTextureId) {
-      setTimeout(() => {
-        try {
-          oldSource.destroy();
-        } catch {}
-        freeRenderTexture(oldTextureId);
-      }, RETIRE_DELAY_MS);
+      this.scheduleRetire(oldFrames, oldSource, oldTextureId);
     }
   }
 }

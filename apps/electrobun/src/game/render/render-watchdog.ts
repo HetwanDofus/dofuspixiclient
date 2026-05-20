@@ -2,28 +2,25 @@
  * RenderWatchdog — central safety net for the GPU rendering pipeline.
  *
  * Background: a previous session crashed the host PC. The most likely root
- * causes (per the hazard map in `tile-layer-renderer.ts:263-268`, the texture
- * lifetime memory, and the wide-open stress-test) all share a pattern: a tight
- * loop on the JS side keeps submitting GPU work faster than the driver can
- * drain it, until the WindowServer hangs. The watchdog's job is to (1) make
- * those conditions OBSERVABLE — frame-time spikes, texture-count growth,
- * device loss — and (2) provide a single emergency-halt that pulls every
- * known throttle simultaneously.
+ * causes all share a pattern: a tight loop on the JS side keeps submitting
+ * GPU work faster than the driver can drain it, until the WindowServer hangs.
+ * The watchdog's job is to (1) make those conditions OBSERVABLE — frame-time
+ * spikes, texture-count growth, device loss — and (2) provide a single
+ * emergency-halt that pulls every known throttle simultaneously.
  *
  * Architecture:
  *   - Singleton (`getRenderWatchdog()`).
  *   - Pixi `Ticker` calls `recordFrame(dtMs)` every tick.
  *   - The shared `vello-loader` increments/decrements texture counters as
- *     `renderTilePass`/`createSwfSpellInstance`/etc. allocate, and
- *     `freeRenderTexture`/`disposeSwfSpellInstance` release.
+ *     various render entry points allocate, and `freeRenderTexture` /
+ *     `disposeSwfSpellInstance` release.
  *   - The `RenderDebugOverlay` React component subscribes via
  *     `subscribe(listener)` and reads `getSnapshot()` from
  *     `useSyncExternalStore`. Snapshots are cached + invalidated only when
  *     state changes (so React doesn't infinite-loop on identity churn).
  *   - Frame budget is enforced cooperatively: when the watchdog goes into
  *     emergency halt, `vello-loader.isHalted()` returns true and every
- *     render entry point early-returns null. Callers handle null gracefully
- *     (existing pattern — see `renderTilePass` consumers).
+ *     render entry point early-returns null. Callers handle null gracefully.
  *
  * Public API is small on purpose: `recordFrame`, the texture
  * register/unregister pair, `setDeviceLost`, `setStatsProvider`, and

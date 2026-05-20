@@ -2832,7 +2832,12 @@ impl dispatch::BufferInterface for WebBuffer {
 }
 impl Drop for WebBuffer {
     fn drop(&mut self) {
-        // no-op
+        // Intentional no-op — same use-after-destroy concern as
+        // WebTexture's Drop. Vello's render path creates intermediate
+        // buffers whose lifetime ends before the command buffer that
+        // references them has been submitted; calling destroy() in
+        // Drop trips Chromium's validator and breaks rendering.
+        // Resource lifecycle is the caller's responsibility.
     }
 }
 
@@ -2877,7 +2882,23 @@ impl dispatch::TextureInterface for WebTexture {
 }
 impl Drop for WebTexture {
     fn drop(&mut self) {
-        // no-op
+        // Intentional no-op. Step 11 attempt at calling destroy()
+        // here triggered "Destroyed texture used in a submit"
+        // validation errors in Chrome/WebKit — Vello / wgpu construct
+        // intermediate wgpu::Texture wrappers around staging resources
+        // that drop AFTER their command buffer is built but BEFORE
+        // `queue.submit()` is executed. Even though the WebGPU spec
+        // permits destroy() under in-flight commands, Chromium's
+        // validator rejects the affected submission so any rendering
+        // dependent on those textures gets dropped on the floor.
+        //
+        // Resource lifecycle MUST stay explicit: call
+        // `texture.destroy()` from `free_render_texture` etc. after
+        // a 2-tick settle so Pixi/Vello have finished sampling.
+        // Vello internal textures continue to leak through this no-op
+        // — eliminating that leak requires the bridge migration
+        // (separate GPUDevice for Pixi + ImageBitmap handoff), which
+        // is the full architectural Step 11.
     }
 }
 

@@ -11,6 +11,10 @@ import {
 import type { AdjacentMapCache } from "@/game/assets/adjacent-map-cache";
 import type { InteractionHandler } from "@/game/input/interaction-handler";
 import type { AtlasLoader } from "@/game/render/atlas-loader";
+// Side-effect import: registers `window.__spike` for the
+// OffscreenCanvas + ImageBitmap bridge spike. Invoke from devtools
+// inside a loaded battle. Delete with the spike file.
+import "@/game/render/spike-bitmap-bridge";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import type {
@@ -571,12 +575,6 @@ export class Battlefield {
         __getTestPlayerCount?: () => number;
         __pathCacheStats?: () => unknown;
         __clearPathCache?: () => void;
-        __benchWorldPass?: (
-          nChars?: number,
-          nTiles?: number,
-          nSpells?: number,
-          iterations?: number
-        ) => Promise<unknown>;
       };
       w.spawnTestPlayers = async (n: number) => {
         const renderer = this.worldActors?.getRenderer() ?? null;
@@ -586,7 +584,12 @@ export class Battlefield {
             "spawnTestPlayers: no PlayerRenderer (load a map first)"
           );
         }
-        return spawnTestPlayers(n, renderer, cells);
+        if (!this.pathfinding) {
+          throw new Error(
+            "spawnTestPlayers: no DofusPathfinding (load a map first)"
+          );
+        }
+        return spawnTestPlayers(n, renderer, cells, this.pathfinding);
       };
       w.despawnTestPlayers = () => {
         const renderer = this.worldActors?.getRenderer() ?? null;
@@ -599,59 +602,10 @@ export class Battlefield {
       // Path-cache observability hooks. Console:
       //   __pathCacheStats() → { bundleCacheCount, sceneCacheCount, sceneBytesEstimate }
       //   __clearPathCache() → drop both caches (memory-pressure recovery).
-      const { getPathCacheStats, clearPathCache, renderWorldPassBench } =
+      const { getPathCacheStats, clearPathCache } =
         await import("@/game/render/vello-loader");
       w.__pathCacheStats = () => getPathCacheStats();
       w.__clearPathCache = () => clearPathCache();
-      // M1 architecture gate — synthetic worst-case world-pass benchmark.
-      //   await __benchWorldPass(200, 30, 10, 30)
-      // Args: nChars=200, nTiles=30, nSpells=10, iterations=30 (default).
-      // Returns { warmup, samples, p50, p95, p99, max, status }.
-      // Decision criterion: p99 < 8ms → migration architecture passes
-      // gate; M3-M7 (consumer migration) is warranted. p99 >= 8ms →
-      // architecture insufficient on this hardware/wasm-bindgen stack;
-      // abort migration.
-      w.__benchWorldPass = async (
-        nChars = 200,
-        nTiles = 30,
-        nSpells = 10,
-        iterations = 30
-      ) => {
-        // First call may include cache warming (subscene encoding for
-        // unique tile placements). Run once before timing to capture
-        // warm-cache cost only.
-        const warmupStart = performance.now();
-        const warmup = renderWorldPassBench(nChars, nTiles, nSpells);
-        const warmupMs = performance.now() - warmupStart;
-        if (!warmup || warmup.status !== "ok") {
-          // eslint-disable-next-line no-console
-          console.error("[bench] warmup failed:", warmup);
-          return { error: "warmup-failed", warmup };
-        }
-        const samples: number[] = [];
-        for (let i = 0; i < iterations; i++) {
-          const t0 = performance.now();
-          renderWorldPassBench(nChars, nTiles, nSpells);
-          samples.push(performance.now() - t0);
-        }
-        samples.sort((a, b) => a - b);
-        const pick = (q: number) =>
-          samples[Math.min(samples.length - 1, Math.floor(q * samples.length))];
-        const result = {
-          warmupMs: Number(warmupMs.toFixed(2)),
-          warmup,
-          iterations,
-          placements: nChars + nTiles + nSpells,
-          p50: Number(pick(0.5)?.toFixed(2)),
-          p95: Number(pick(0.95)?.toFixed(2)),
-          p99: Number(pick(0.99)?.toFixed(2)),
-          max: Number(samples[samples.length - 1]?.toFixed(2)),
-          gate: (pick(0.99) ?? 0) < 8 ? "PASS" : "FAIL",
-        };
-        // eslint-disable-next-line no-console
-        console.log("[bench] result:", result);
-        return result;
-      };
       // Boot-time safe mode escape hatch. Crash → reboot → run
       // `__safeMode()` in console → reload (or close+reopen) → app
       // boots halted, no Vello work, React HUD stays alive so the dev

@@ -6,6 +6,8 @@ use vello::peniko::Color;
 use vello::{wgpu, AaConfig, Renderer, RendererOptions};
 use wasm_bindgen::prelude::*;
 
+mod bitmap_bridge;
+
 
 #[wasm_bindgen]
 extern "C" {
@@ -34,43 +36,6 @@ fn extract_gpu_adapter(adapter: &wgpu::Adapter) -> JsValue {
 /// wrap it in a Pixi `Texture` via `new ExternalSource({ resource: gpuTexture })`.
 fn extract_gpu_texture(texture: &wgpu::Texture) -> JsValue {
     texture.inner.as_webgpu().inner.clone().into()
-}
-
-/// Pick the best frame to render an accessory at. Accessories pack
-/// 5 directions × 3 sub-frames each (R=0/L=3/F=6/B=9/S=12) but not
-/// every accessory authors all directions — some only have R. Walk
-/// the canonical fallback chain until we find a frame with non-
-/// degenerate symbol bounds.
-///
-///   requested → F (front) → R (right) → frame 0
-///
-/// Returns the requested frame if it has geometry; otherwise the
-/// first fallback that does. Final fallback (frame 0) is returned
-/// unchecked even if degenerate so the caller can still log + skip.
-fn pick_accessory_frame(
-    doc: &swf_spike::swf_doc::SwfDoc,
-    sym: &swf_spike::swf_doc::Symbol,
-    requested: u16,
-) -> u16 {
-    let try_frame = |f: u16| -> bool {
-        let b = swf_spike::render::symbol_bounds(doc, sym, f);
-        b.width() > 0.0 && b.height() > 0.0
-    };
-    if try_frame(requested) {
-        return requested;
-    }
-    // Direction → fallback frame index. Walk the closest authored
-    // direction first: F (front, frame 6) is a reasonable default
-    // because it's the most face-on view; then R (frame 0).
-    for fb in [6, 0] {
-        if fb == requested {
-            continue;
-        }
-        if try_frame(fb) {
-            return fb;
-        }
-    }
-    requested
 }
 
 /// One layer of the spell-icon composition: the symbol to render plus the
@@ -146,56 +111,23 @@ struct QueuedFrame {
     dst_y: u32,
 }
 
-/// Persistent target texture for `renderTilePass`. Recreated only when
-/// the requested size changes; otherwise reused tick-to-tick to avoid
-/// per-frame `create_texture` cost. The cached `tex_id` is what
-/// `renderTilePass` returns to JS, so the JS side can stash one Pixi
-/// `ExternalSource` and let the GPU storage update in place.
-struct TilePassTarget {
-    width: u32,
-    height: u32,
-    texture: wgpu::Texture,
-    tex_id: u64,
-}
-
-/// Cached uniform bounds for an animation (union across all frames, anchor-aligned).
-#[derive(Clone, Copy)]
-struct UniformBounds {
-    min_x: f64,
-    min_y: f64,
-    width: f64,
-    height: f64,
-    /// Frame 0's offset_x/offset_y (reference anchor position)
-    trim_x: f64,
-    trim_y: f64,
-}
-
 #[wasm_bindgen]
 pub struct VelloRenderer {
-    /// Retained `wgpu::Instance` so we can mint new `wgpu::Surface`s
-    /// against arbitrary `<canvas>` elements after init. Each Pixi/HUD
-    /// layer that wants its own GPU canvas calls `attachCanvasSurface`
-    /// post-init; the instance must outlive every surface we hand out.
+    /// Retained `wgpu::Instance` — required to mint `wgpu::Surface`s
+    /// for the OffscreenCanvas-bitmap bridge in `bitmap_bridge`.
     instance: wgpu::Instance,
     device: wgpu::Device,
     queue: wgpu::Queue,
     renderer: Renderer,
-    /// JS-supplied id → live `wgpu::Surface`. Surfaces own their canvas
-    /// indirectly through the `web_sys::HtmlCanvasElement` JS handle that
-    /// was passed to `attachCanvasSurface` and consumed by the
-    /// `SurfaceTarget::Canvas` variant. `'static` because the canvas is
-    /// not borrowed; the JS GPU pipeline pins it through the JS-side
-    /// canvas context.
-    surfaces: HashMap<u32, wgpu::Surface<'static>>,
-    next_surface_id: u32,
+    /// Lazy-initialised blit pipeline used by the OffscreenCanvas
+    /// bridge to copy Vello's `Rgba8Unorm` output texture onto a
+    /// `Bgra8Unorm` surface texture (the canvas's preferred format,
+    /// avoiding Chromium's "preferred format" perf warning).
+    blit_bgra_pipeline: Option<bitmap_bridge::BlitPipeline>,
     assets: HashMap<u32, DofAsset>,
     textures: HashMap<u64, wgpu::Texture>,
     next_texture_id: u64,
     queued_frames: Vec<QueuedFrame>,
-    anim_bounds: HashMap<String, UniformBounds>,
-    /// Raw JS GPUDevice/GPUAdapter — stored because wgpu 28 makes backend fields private.
-    raw_gpu_device: JsValue,
-    raw_gpu_adapter: JsValue,
     /// SWF bundles loaded by `loadSwfBundle`. Keyed by JS-supplied name (e.g.
     /// "g1", "o3", "player10"). Used by the SWF→Vello spike path that bypasses
     /// the SVG/.dofasset pipeline.
@@ -214,21 +146,6 @@ pub struct VelloRenderer {
     /// `disposeSwfSpellInstance` when the cast completes.
     swf_spell_instances: HashMap<u32, SwfSpellInstance>,
     next_spell_instance_id: u32,
-    /// Live character instances — one per visible Dofus 1.29 character
-    /// (player, monster, NPC). Each owns:
-    ///   - pre-resolved accessory bundle/symbol references (avoids the
-    ///     per-call lookup_export + 15-frame bounds padding loops that
-    ///     dominate cold `renderSwfStripRangeAccessorized` calls);
-    ///   - per-zone player colours (no longer global mutation between
-    ///     calls, so two characters with different colours can be
-    ///     rendered without `setSwfPlayerColors` interleaving);
-    ///   - a stable output GPU texture sized for the worst-case anim
-    ///     strip the caller declared at create time. Re-rendering on
-    ///     anim swap overwrites the same texture so JS Pixi keeps one
-    ///     `ExternalSource` for the character's lifetime — no
-    ///     allocation churn, no `freeRenderTexture` per swap.
-    swf_character_instances: HashMap<u32, SwfCharacterInstance>,
-    next_character_instance_id: u32,
     /// Cached union-of-bounds per `(bundle, export, total_frame_count)`.
     /// `renderSwfStripRange` originally walked `symbol_bounds` once per
     /// frame on every chunk dispatch — for a 200-frame anim split into 4
@@ -251,18 +168,6 @@ pub struct VelloRenderer {
     /// WGPU on extreme zoom. Per-bundle keying eliminates the
     /// collision while keeping memoization within a bundle.
     tile_render_caches: HashMap<String, swf_spike::render::cache::RenderCache>,
-    /// Reusable wgpu output texture for `renderTilePass`. Recreated
-    /// only when the requested target size changes — avoids the per-
-    /// tick texture allocation that was burning ~ms each call.
-    tile_pass_target: Option<TilePassTarget>,
-    /// Pre-encoded Vello scene of every *static* tile placement. Built
-    /// once via `setStaticTilePlacements` (called by JS whenever map /
-    /// zoom / mapscale changes); then `renderTilePass` appends it into
-    /// a fresh per-tick scene and only encodes the small dynamic
-    /// placements on top. Drops per-dispatch encoding cost from O(all
-    /// cells) to O(animated cells) — the architectural lever for
-    /// 60fps with infinite zoom.
-    static_tile_scene: Option<vello::Scene>,
     /// Per-tile sub-scenes encoded at twip-identity. Keyed by
     /// `(bundle, export, frame)`. Built once per unique tile and
     /// re-used across cells (multiple cells share the same tile) AND
@@ -271,21 +176,6 @@ pub struct VelloRenderer {
     /// makes zoom re-render fast: we don't re-walk symbol trees, we
     /// just `scene.append(subscene, matrix)` for each placement.
     tile_subscenes: HashMap<(String, String, u32), vello::Scene>,
-    /// Persistent render target for the unified L3 World layer
-    /// (chars + foreground tiles + spells, one depth-sorted Vello
-    /// pass per dirty tick). Separate from `tile_pass_target` so the
-    /// two layers can coexist without thrashing each other's GPU
-    /// storage. Allocated lazily on first `renderWorldPass` dispatch
-    /// and reused until the requested target size changes.
-    world_pass_target: Option<TilePassTarget>,
-    /// Pre-encoded Vello scene of the static foreground tile subset
-    /// (Object2 tiles whose `(bundle, export, frame, matrix)` don't
-    /// change tick-to-tick). Built once via `setStaticWorldTiles`
-    /// when the static set changes (map load, zoom step,
-    /// tactic-mode toggle); appended via memcpy on every world-pass
-    /// dispatch so per-tick encoding cost is bounded by the dynamic
-    /// subset (animated tiles + chars + spells).
-    static_world_scene: Option<vello::Scene>,
 }
 
 /// Memoised result of the strip pre-pass: bounds union over a frame
@@ -309,80 +199,6 @@ struct CachedAnimBounds {
 /// reused across ticks: each `tick_swf_spell_frame` overwrites its
 /// pixels rather than allocating a fresh GPU texture, so the cast's
 /// total GPU memory is one texture, not N.
-/// Pre-validated accessory entry stored on a `SwfCharacterInstance`.
-/// Bundle + export are looked up + sanity-checked at create time; the
-/// per-tick render path just resolves them via `swf_bundles` lookup
-/// (O(1) HashMap probes) instead of redoing the full
-/// `renderSwfStripRangeAccessorized` accessory resolution dance every
-/// call.
-struct CharacterAccessory {
-    slot: u8,
-    bundle_name: String,
-    export_name: String,
-    anim_type: u8,
-}
-
-/// One live Dofus 1.29 character — owns the accessory list, color
-/// zones, and a STABLE output GPU texture sized to a SINGLE worst-
-/// case frame across the seed anims. Each `tickSwfCharacterFrame`
-/// re-renders just one frame of the current anim into that texture
-/// (overwrites, no allocation). JS Pixi holds one `ExternalSource`
-/// for the character's lifetime; sprite.texture never changes.
-/// Anim swap is a free state mutation — no Vello call. Frame
-/// advance is exactly ONE Vello call per character per tick when
-/// it lands on the bundle's authored fps boundary.
-///
-/// Compared to per-swap `renderSwfStripRangeAccessorized`:
-///   - No accessory bundle/symbol lookup (~µs each, but adds up at
-///     800 chars × 4 accessories = 3200 lookups/sec).
-///   - No 15-frame accessory bounds padding compute (~0.5ms/call).
-///   - No bounds union compute (~0.3ms/call after first time).
-///   - No `wgpu::Texture` allocation (~0.05ms/call but more
-///     importantly: no JS-side `ExternalSource` alloc/destroy churn).
-///   - `setSwfPlayerColors` no longer needs to be called as global
-///     mutable state — colours are owned per-instance.
-///
-/// Saves ~1.5-2ms per anim-swap render. At 800 players ×
-/// 0.5 swaps/sec, that's ~600-800ms/sec of WASM work eliminated.
-struct SwfCharacterInstance {
-    bundle_name: String,
-    accessories: Vec<CharacterAccessory>,
-    colors: swf_spike::recolor::PlayerColors,
-    /// Single-frame texture dims (worst-case across seed anims +
-    /// accessory padding). Each `tickSwfCharacterFrame` overwrites
-    /// these pixels with the current frame's render — sprites and
-    /// accessories are placed at the anchor offset below so the
-    /// foot/origin stays aligned across anims.
-    frame_w: u32,
-    frame_h: u32,
-    /// Frame-anchored origin offset in pixels (negative twip min).
-    /// Same role as the strip's `px_min_x` but applied per-frame.
-    px_min_x: f64,
-    px_min_y: f64,
-    resolution: f32,
-    /// Stable output texture allocated once at create time.
-    /// In the per-tick batched model (`renderSwfWorldLayer`) this
-    /// is no longer used — the layer texture replaces it. Kept so
-    /// the per-instance `tickSwfCharacterFrame` API still works.
-    texture_id: u64,
-    /// Per-(anim, frame) scene cache. The dominant per-call cost
-    /// is the SWF tree walk + accessory composition + colour
-    /// tinting that builds the `vello::Scene`. With this cache,
-    /// the FIRST time a (anim, frame) is requested we build and
-    /// store; every subsequent request is just a scene reference
-    /// + an `append()` into a parent scene — pure JS-style memcpy.
-    scene_cache: HashMap<(String, u32), vello::Scene>,
-    /// Current anim + direction + b-fix, set by JS via
-    /// `setSwfCharacterAnim` on anim swap. The batched
-    /// `renderSwfWorldLayer` reads these per instance instead of
-    /// taking them as per-call parameters (which would mean N
-    /// string allocations per tick across the wasm-bindgen
-    /// boundary).
-    current_anim: String,
-    current_dir_suffix: char,
-    current_apply_b_fix: bool,
-}
-
 struct SwfSpellInstance {
     avm: swf_spike::render_avm1::AvmRenderer,
     bundle_name: String,
@@ -663,29 +479,19 @@ impl VelloRenderer {
             device,
             queue,
             renderer,
-            surfaces: HashMap::new(),
-            next_surface_id: 1,
+            blit_bgra_pipeline: None,
             assets: HashMap::new(),
             textures: HashMap::new(),
             next_texture_id: 0,
             queued_frames: Vec::new(),
-            anim_bounds: HashMap::new(),
-            raw_gpu_device: gpu_device.clone(),
-            raw_gpu_adapter: gpu_adapter.clone(),
             swf_bundles: HashMap::new(),
             swf_filter_pipelines: None,
             swf_player_colors: swf_spike::recolor::PlayerColors::default(),
             swf_spell_instances: HashMap::new(),
             next_spell_instance_id: 1,
-            swf_character_instances: HashMap::new(),
-            next_character_instance_id: 1,
             swf_strip_bounds_cache: HashMap::new(),
             tile_render_caches: HashMap::new(),
-            tile_pass_target: None,
-            static_tile_scene: None,
             tile_subscenes: HashMap::new(),
-            world_pass_target: None,
-            static_world_scene: None,
         };
 
         // Return { renderer, adapter, device, maxTextureSize }
@@ -1189,48 +995,6 @@ impl VelloRenderer {
         result.into()
     }
 
-    /// Render the spell-icon composition (back disc + frame + glyph,
-    /// each flat-tinted) into a previously-attached `<canvas>` surface.
-    /// Returns the painted (width, height) so the React caller can size
-    /// its `<canvas>` slot to the intrinsic content rectangle.
-    /// Returns `0` width/height on any failure (missing bundle, empty
-    /// bounds, surface dispatch error).
-    #[wasm_bindgen(js_name = "renderSwfSpellIconToSurface")]
-    pub fn render_swf_spell_icon_to_surface(
-        &mut self,
-        surface_id: u32,
-        back_bundle: &str,
-        up_bundle: &str,
-        bc_rgb: u32,
-        fc_rgb: u32,
-        pc_rgb: u32,
-        resolution: f32,
-    ) -> JsValue {
-        if !self.surfaces.contains_key(&surface_id) {
-            console_log!(
-                "renderSwfSpellIconToSurface: unknown surface id {surface_id}"
-            );
-            return JsValue::NULL;
-        }
-        let Some((scene, w, h)) = self.prepare_spell_icon_scene(
-            back_bundle, up_bundle, bc_rgb, fc_rgb, pc_rgb, resolution,
-        ) else {
-            return JsValue::NULL;
-        };
-        if !self.dispatch_scene_to_surface(
-            surface_id,
-            "renderSwfSpellIconToSurface",
-            &scene,
-        ) {
-            return JsValue::NULL;
-        }
-        // Hand back the painted bounds so React can size the slot.
-        let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(w));
-        let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(h));
-        result.into()
-    }
-
     /// Pure-bounds probe for the spell-icon composition. Returns the
     /// natural pixel rectangle `{width, height}` at resolution 1
     /// without ever touching the GPU. Replaces the 16×16 throwaway
@@ -1678,642 +1442,12 @@ impl VelloRenderer {
     #[wasm_bindgen(js_name = "disposeSwfSpellInstance")]
     pub fn dispose_swf_spell_instance(&mut self, instance_id: u32) {
         if let Some(inst) = self.swf_spell_instances.remove(&instance_id) {
-            self.textures.remove(&inst.texture_id);
-        }
-    }
-
-    /// Allocate a persistent character instance — pre-resolves
-    /// accessory bundles, pre-computes bounds (frame size, accessory
-    /// padding, grid layout) over `seed_anims`, and allocates ONE
-    /// output GPU texture sized to the worst-case strip.
-    /// `tickSwfCharacterStrip` then re-renders any one of those
-    /// `seed_anims` into the same texture, overwriting pixels in
-    /// place — JS keeps a single Pixi `ExternalSource` for the
-    /// instance's lifetime.
-    ///
-    /// `colors` is `[c1, c2, c3]` packed as `0xRRGGBB`; pass `0` for
-    /// "leave the zone untinted" (matches the pre-existing
-    /// `setSwfPlayerColors` global semantics, but stored per-
-    /// instance so concurrent renders of differently-coloured chars
-    /// don't trample each other).
-    ///
-    /// `seed_anims` MUST cover every anim the caller will pass to
-    /// subsequent ticks — the strip texture is sized for the bounds
-    /// union over them. Asking for a frame from an anim outside this
-    /// list will clip silently. For the canonical Dofus character
-    /// pool (staticR/L/F/B/S, walkR/L/F/B/S, runR/L/F/B/S) pass all
-    /// 13-15 names; for a stress test you can pass only the subset
-    /// you'll cycle.
-    ///
-    /// `acc_*` are parallel arrays describing accessories — same
-    /// shape as `renderSwfStripRangeAccessorized` accepts. Returns 0
-    /// on failure (bundle missing, all accessories failed to
-    /// resolve, or strip dims exceed GPU limits).
-    #[wasm_bindgen(js_name = "createSwfCharacterInstance")]
-    pub fn create_swf_character_instance(
-        &mut self,
-        bundle: &str,
-        seed_anims: Vec<String>,
-        acc_slots: Vec<u32>,
-        acc_bundles: Vec<String>,
-        acc_exports: Vec<String>,
-        acc_anim_types: Vec<u32>,
-        color1: u32,
-        color2: u32,
-        color3: u32,
-        resolution: f32,
-    ) -> u32 {
-        if !self.swf_bundles.contains_key(bundle) {
-            console_log!("createSwfCharacterInstance: bundle `{bundle}` not loaded");
-            return 0;
-        }
-        let n_acc = acc_slots.len();
-        if acc_bundles.len() != n_acc
-            || acc_exports.len() != n_acc
-            || acc_anim_types.len() != n_acc
-        {
-            console_log!(
-                "createSwfCharacterInstance: parallel acc array length mismatch"
-            );
-            return 0;
-        }
-        if seed_anims.is_empty() {
-            console_log!("createSwfCharacterInstance: seed_anims empty");
-            return 0;
-        }
-
-        // 1. Pre-validate accessories — keep only the ones whose
-        //    bundles are loaded AND whose export resolves AND whose
-        //    geometry is non-degenerate. Track the worst-case bounds
-        //    padding across all accessories so the strip texture
-        //    leaves room for hats / weapons that extend past the
-        //    base character bounds.
-        let mut accessories: Vec<CharacterAccessory> = Vec::with_capacity(n_acc);
-        let mut acc_pad_left = 0.0_f64;
-        let mut acc_pad_right = 0.0_f64;
-        let mut acc_pad_top = 0.0_f64;
-        let mut acc_pad_bottom = 0.0_f64;
-        for i in 0..n_acc {
-            let slot = acc_slots[i] as u8;
-            let acc_bundle = &acc_bundles[i];
-            let acc_export = &acc_exports[i];
-            let Some(acc_doc) = self.swf_bundles.get(acc_bundle) else {
-                console_log!(
-                    "createSwfCharacterInstance: accessory bundle `{acc_bundle}` not loaded"
-                );
-                continue;
-            };
-            let Some(acc_sym) = acc_doc.lookup_export(acc_export) else {
-                console_log!(
-                    "createSwfCharacterInstance: accessory export `{acc_bundle}/{acc_export}` not found"
-                );
-                continue;
-            };
-            let mut got_bounds = false;
-            for f in 0u16..15 {
-                let b = swf_spike::render::symbol_bounds(acc_doc, acc_sym, f);
-                if b.width() <= 0.0 || b.height() <= 0.0 {
-                    continue;
-                }
-                got_bounds = true;
-                if b.x0 < 0.0 { acc_pad_left = acc_pad_left.max(-b.x0); }
-                if b.x1 > 0.0 { acc_pad_right = acc_pad_right.max(b.x1); }
-                if b.y0 < 0.0 { acc_pad_top = acc_pad_top.max(-b.y0); }
-                if b.y1 > 0.0 { acc_pad_bottom = acc_pad_bottom.max(b.y1); }
-            }
-            if !got_bounds {
-                console_log!(
-                    "createSwfCharacterInstance: accessory `{acc_bundle}/{acc_export}` has no geometry"
-                );
-                continue;
-            }
-            accessories.push(CharacterAccessory {
-                slot,
-                bundle_name: acc_bundle.clone(),
-                export_name: acc_export.clone(),
-                anim_type: acc_anim_types[i] as u8,
-            });
-        }
-
-        // 2. Compute the worst-case (bounds, frame_count) over all
-        //    seed anims. The output strip texture is sized so any of
-        //    them fits. Use `swf_anim_frame_count` (which walks the
-        //    deepest nested sprite, mirroring the JS `swfAnimFrameCount`
-        //    contract) to get the ACTUAL frame count per anim — passing
-        //    a large dummy total to `cache_strip_bounds` triggers its
-        //    stride-sampling path which inflates `anim_end` to that
-        //    dummy total, causing tick renders to iterate vastly more
-        //    frames than authored (the "4fps" symptom).
-        let mut union_min_x = f64::INFINITY;
-        let mut union_min_y = f64::INFINITY;
-        let mut union_max_x = f64::NEG_INFINITY;
-        let mut union_max_y = f64::NEG_INFINITY;
-        let mut max_frame_count: u32 = 1;
-        let bundle_owned = bundle.to_string();
-        for anim in &seed_anims {
-            let actual = self.swf_anim_frame_count(&bundle_owned, anim);
-            if actual == 0 {
-                continue;
-            }
-            let Some(cached) = self.cache_strip_bounds(&bundle_owned, anim, actual) else {
-                continue;
-            };
-            union_min_x = union_min_x.min(cached.min_x);
-            union_min_y = union_min_y.min(cached.min_y);
-            union_max_x = union_max_x.max(cached.max_x);
-            union_max_y = union_max_y.max(cached.max_y);
-            if actual > max_frame_count {
-                max_frame_count = actual;
+            // Patched-wgpu Drop is a no-op — call destroy() explicitly
+            // to release VRAM. See `free_render_texture` doc-comment.
+            if let Some(tex) = self.textures.remove(&inst.texture_id) {
+                tex.destroy();
             }
         }
-        if !union_min_x.is_finite() {
-            console_log!(
-                "createSwfCharacterInstance: no seed anim resolved for `{bundle}`"
-            );
-            return 0;
-        }
-
-        // 3. Compute SINGLE-FRAME pixel dims, including accessory
-        //    padding. Each `tickSwfCharacterFrame` writes one frame
-        //    into this texture; we don't allocate a strip.
-        let _ = max_frame_count; // not used in single-frame layout
-        let scale = f64::from(resolution) / 20.0;
-        let pad = 1.0;
-        let twip_min_x = union_min_x - acc_pad_left;
-        let twip_min_y = union_min_y - acc_pad_top;
-        let twip_max_x = union_max_x + acc_pad_right;
-        let twip_max_y = union_max_y + acc_pad_bottom;
-        let px_min_x = (twip_min_x * scale).floor() - pad;
-        let px_min_y = (twip_min_y * scale).floor() - pad;
-        let px_max_x = (twip_max_x * scale).ceil() + pad;
-        let px_max_y = (twip_max_y * scale).ceil() + pad;
-        let frame_w = ((px_max_x - px_min_x) as u32).max(1);
-        let frame_h = ((px_max_y - px_min_y) as u32).max(1);
-        if frame_w > 16384 || frame_h > 16384 {
-            console_log!(
-                "createSwfCharacterInstance: frame {frame_w}x{frame_h} exceeds GPU limits"
-            );
-            return 0;
-        }
-
-        // 4. Allocate the per-instance output texture once. Subsequent
-        //    `tickSwfCharacterFrame` calls render INTO this texture so
-        //    JS Pixi keeps one `ExternalSource` for the lifetime.
-        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("vello_swf_character_live"),
-            size: wgpu::Extent3d {
-                width: frame_w,
-                height: frame_h,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Unorm,
-            usage: wgpu::TextureUsages::STORAGE_BINDING
-                | wgpu::TextureUsages::COPY_SRC
-                | wgpu::TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
-        let tex_id = self.next_texture_id;
-        self.next_texture_id += 1;
-        self.textures.insert(tex_id, texture);
-
-        let to_opt = |c: u32| if c == 0 { None } else { Some(c) };
-        let colors = swf_spike::recolor::PlayerColors([
-            to_opt(color1), to_opt(color2), to_opt(color3),
-        ]);
-
-        let _ = (acc_pad_left, acc_pad_right, acc_pad_top, acc_pad_bottom);
-        let instance = SwfCharacterInstance {
-            bundle_name: bundle_owned,
-            accessories,
-            colors,
-            frame_w,
-            frame_h,
-            px_min_x,
-            px_min_y,
-            resolution,
-            texture_id: tex_id,
-            scene_cache: HashMap::new(),
-            // JS sets these via setSwfCharacterAnim BEFORE the
-            // first batched render. Defaulting here keeps the
-            // struct valid if no setter call lands first.
-            current_anim: seed_anims.first().cloned().unwrap_or_default(),
-            current_dir_suffix: 'R',
-            current_apply_b_fix: false,
-        };
-
-        let id = self.next_character_instance_id;
-        self.next_character_instance_id += 1;
-        self.swf_character_instances.insert(id, instance);
-        id
-    }
-
-    /// Render exactly ONE frame of the requested anim into the
-    /// instance's stable output texture. The texture handle is
-    /// stable across calls — JS Pixi wraps once at create time and
-    /// the `ExternalSource` re-samples the GPU memory on each Pixi
-    /// render. No strip, no sub-rect, no per-frame Texture wrappers.
-    ///
-    /// Returns `{ texture, textureId, width, height, anchorX,
-    /// anchorY }`. Width/height are constant for the instance's
-    /// lifetime (sized at create); anchor is the SWF (0,0) origin
-    /// inside the texture.
-    #[wasm_bindgen(js_name = "tickSwfCharacterFrame")]
-    pub fn tick_swf_character_frame(
-        &mut self,
-        instance_id: u32,
-        anim: &str,
-        frame: u32,
-        char_dir_suffix: String,
-        apply_b_fix: bool,
-    ) -> JsValue {
-        let Some(inst) = self.swf_character_instances.get(&instance_id) else {
-            return JsValue::NULL;
-        };
-        let bundle_name = inst.bundle_name.clone();
-        let frame_w = inst.frame_w;
-        let frame_h = inst.frame_h;
-        let px_min_x = inst.px_min_x;
-        let px_min_y = inst.px_min_y;
-        let resolution = inst.resolution;
-        let texture_id = inst.texture_id;
-        let player_colors = inst.colors;
-
-        // SCENE CACHE FAST PATH — if we've already built the
-        // scene for this (anim, frame) on this instance, reuse it
-        // and skip the entire SWF tree walk + accessory composition.
-        // This eliminates the dominant ~70% of per-call cost on
-        // cache hits; only the GPU dispatch + scene encoding to the
-        // device queue remains. After each player cycles each anim
-        // once, every render is a hit.
-        let cache_key = (anim.to_string(), frame);
-        let cache_hit = inst.scene_cache.contains_key(&cache_key);
-
-        if !cache_hit {
-            // COLD PATH — build the scene and store it.
-            let Some(doc) = self.swf_bundles.get(&bundle_name) else {
-                return JsValue::NULL;
-            };
-            let Some(symbol) = doc.lookup_export(anim) else {
-                return JsValue::NULL;
-            };
-
-            struct ResolvedAcc<'a> {
-                slot: u8,
-                doc: &'a swf_spike::swf_doc::SwfDoc,
-                symbol: &'a swf_spike::swf_doc::Symbol,
-                anim_type: u8,
-            }
-            let inst_ref = &self.swf_character_instances[&instance_id];
-            let mut resolved: Vec<ResolvedAcc> = Vec::with_capacity(inst_ref.accessories.len());
-            for a in &inst_ref.accessories {
-                let Some(acc_doc) = self.swf_bundles.get(&a.bundle_name) else { continue; };
-                let Some(acc_sym) = acc_doc.lookup_export(&a.export_name) else { continue; };
-                resolved.push(ResolvedAcc {
-                    slot: a.slot,
-                    doc: acc_doc,
-                    symbol: acc_sym,
-                    anim_type: a.anim_type,
-                });
-            }
-
-            if self.swf_filter_pipelines.is_none() {
-                self.swf_filter_pipelines = Some(
-                    swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-                );
-            }
-            let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
-
-            let scale = f64::from(resolution) / 20.0;
-            let mut ctx = swf_spike::render::WgpuCtx {
-                device: &self.device,
-                queue: &self.queue,
-                renderer: &mut self.renderer,
-                filter_pipelines,
-                output_scale: scale,
-            };
-
-            let cache = swf_spike::render::cache::RenderCache::new();
-
-            let xform = vello::kurbo::Affine::scale(scale)
-                .then_translate(vello::kurbo::Vec2::new(-px_min_x, -px_min_y));
-            let dir_char = char_dir_suffix
-                .chars()
-                .next()
-                .unwrap_or('R')
-                .to_ascii_uppercase();
-            let mut accessories: swf_spike::render::ctx::AccessoryDict = HashMap::new();
-            for r in &resolved {
-                accessories.insert(
-                    r.slot,
-                    swf_spike::render::ctx::AccessoryEntry {
-                        doc: r.doc,
-                        symbol: r.symbol,
-                        anim_type: r.anim_type,
-                        char_frame: frame as u16,
-                        char_dir_suffix: dir_char,
-                    },
-                );
-            }
-            let mut scene = vello::Scene::new();
-            swf_spike::render::render_symbol_with_ctx_tinted_accessorized_bfixed(
-                &mut ctx,
-                doc,
-                symbol,
-                &mut scene,
-                xform,
-                frame as u16,
-                player_colors,
-                &cache,
-                &accessories,
-                apply_b_fix,
-            );
-
-            // Cache the built scene for next time.
-            let inst_mut = self.swf_character_instances.get_mut(&instance_id).unwrap();
-            inst_mut.scene_cache.insert(cache_key.clone(), scene);
-        }
-
-        // WARM PATH — render from the cached scene. Same code for
-        // both the just-built and pre-existing cases.
-        let inst_ref = &self.swf_character_instances[&instance_id];
-        let scene = inst_ref.scene_cache.get(&cache_key).unwrap();
-
-        let Some(out_texture) = self.textures.get(&texture_id) else {
-            return JsValue::NULL;
-        };
-        let view = out_texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let params = vello::RenderParams {
-            base_color: Color::TRANSPARENT,
-            width: frame_w,
-            height: frame_h,
-            antialiasing_method: AaConfig::Area,
-        };
-        if let Err(e) = self.renderer.render_to_texture(
-            &self.device, &self.queue, scene, &view, &params,
-        ) {
-            console_log!("tickSwfCharacterFrame: render error: {e}");
-            return JsValue::NULL;
-        }
-
-        let gpu_texture = extract_gpu_texture(out_texture);
-        let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
-        let _ = js_sys::Reflect::set(&result, &"textureId".into(), &JsValue::from(texture_id as f64));
-        let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(frame_w));
-        let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(frame_h));
-        let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
-        let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
-        result.into()
-    }
-
-    /// Free the character instance + its output GPU texture.
-    #[wasm_bindgen(js_name = "disposeSwfCharacterInstance")]
-    pub fn dispose_swf_character_instance(&mut self, instance_id: u32) {
-        if let Some(inst) = self.swf_character_instances.remove(&instance_id) {
-            self.textures.remove(&inst.texture_id);
-        }
-    }
-
-    /// Allocate a viewport-sized output texture for the batched
-    /// world-layer render path. Single texture shared by every
-    /// `renderSwfWorldLayer` call; JS Pixi wraps it ONCE as an
-    /// `ExternalSource` and never re-allocates. Returns the
-    /// `{ texture, textureId, width, height }` so JS can wire it
-    /// up immediately.
-    #[wasm_bindgen(js_name = "createWorldLayerTexture")]
-    pub fn create_world_layer_texture(&mut self, width: u32, height: u32) -> JsValue {
-        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("vello_world_layer"),
-            size: wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Unorm,
-            usage: wgpu::TextureUsages::STORAGE_BINDING
-                | wgpu::TextureUsages::COPY_SRC
-                | wgpu::TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
-        let gpu_texture = extract_gpu_texture(&texture);
-        let tex_id = self.next_texture_id;
-        self.next_texture_id += 1;
-        self.textures.insert(tex_id, texture);
-        let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
-        let _ = js_sys::Reflect::set(&result, &"textureId".into(), &JsValue::from(tex_id as f64));
-        let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(width));
-        let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(height));
-        result.into()
-    }
-
-    /// Update an instance's current anim + direction. Cheap — just
-    /// state mutation, no rendering. Called from JS on anim swap.
-    /// The batched `renderSwfWorldLayer` then uses these per-instance
-    /// values when building each placement's scene fragment.
-    #[wasm_bindgen(js_name = "setSwfCharacterAnim")]
-    pub fn set_swf_character_anim(
-        &mut self,
-        instance_id: u32,
-        anim: &str,
-        dir_suffix: String,
-        apply_b_fix: bool,
-    ) {
-        if let Some(inst) = self.swf_character_instances.get_mut(&instance_id) {
-            inst.current_anim = anim.to_string();
-            inst.current_dir_suffix = dir_suffix.chars().next().unwrap_or('R');
-            inst.current_apply_b_fix = apply_b_fix;
-        }
-    }
-
-    /// Batch render: composes ALL active character placements into
-    /// ONE Vello scene, dispatches ONCE, writes the result into the
-    /// shared world-layer texture allocated by
-    /// `createWorldLayerTexture`. Replaces N individual
-    /// `tickSwfCharacterFrame` calls per tick with 1 call total.
-    ///
-    /// Per-placement parallel arrays:
-    ///   - `instance_ids[i]`: WASM character instance id
-    ///   - `frames[i]`:       current frame within the instance's
-    ///                        current anim (set via setSwfCharacterAnim)
-    ///   - `pos_x[i] / pos_y[i]`: pixel position in the layer texture
-    ///                        (== screen coords; layer is viewport-sized)
-    ///
-    /// Returns true on success, false on parallel-array-length
-    /// mismatch / texture-id miss / render error.
-    #[wasm_bindgen(js_name = "renderSwfWorldLayer")]
-    pub fn render_swf_world_layer(
-        &mut self,
-        layer_texture_id: f64,
-        width: u32,
-        height: u32,
-        instance_ids: Vec<u32>,
-        frames: Vec<u32>,
-        pos_x: Vec<f32>,
-        pos_y: Vec<f32>,
-    ) -> bool {
-        let n = instance_ids.len();
-        if frames.len() != n || pos_x.len() != n || pos_y.len() != n {
-            console_log!("renderSwfWorldLayer: array length mismatch");
-            return false;
-        }
-        let layer_tex_id = layer_texture_id as u64;
-        if !self.textures.contains_key(&layer_tex_id) {
-            console_log!("renderSwfWorldLayer: layer texture id {layer_tex_id} not found");
-            return false;
-        }
-
-        // Lazy filter pipeline init (each character may use filters).
-        if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
-        }
-
-        // Pass 1: ensure every (instance, current_anim, frame[i]) is
-        // cached. We have to walk `swf_character_instances` mutably
-        // here because cold-path scene building inserts into the
-        // instance's `scene_cache`. Doing this in a separate pass
-        // lets pass 2 just borrow each scene immutably.
-        for i in 0..n {
-            let id = instance_ids[i];
-            let frame = frames[i];
-            let cache_key = {
-                let Some(inst) = self.swf_character_instances.get(&id) else {
-                    continue;
-                };
-                (inst.current_anim.clone(), frame)
-            };
-            // Already cached? skip the build.
-            let already = self
-                .swf_character_instances
-                .get(&id)
-                .map(|i| i.scene_cache.contains_key(&cache_key))
-                .unwrap_or(false);
-            if already {
-                continue;
-            }
-
-            // Cold path — build the scene fragment for this
-            // (instance, anim, frame). Same logic as
-            // `tick_swf_character_frame`'s cold branch but writes
-            // directly into the instance's cache.
-            let (
-                bundle_name, accessories_meta, player_colors,
-                px_min_x, px_min_y, resolution, dir_char, apply_b_fix, anim_owned,
-            ) = {
-                let inst = &self.swf_character_instances[&id];
-                (
-                    inst.bundle_name.clone(),
-                    inst.accessories.iter().map(|a| {
-                        (a.slot, a.bundle_name.clone(), a.export_name.clone(), a.anim_type)
-                    }).collect::<Vec<_>>(),
-                    inst.colors,
-                    inst.px_min_x,
-                    inst.px_min_y,
-                    inst.resolution,
-                    inst.current_dir_suffix,
-                    inst.current_apply_b_fix,
-                    inst.current_anim.clone(),
-                )
-            };
-            let _ = (apply_b_fix, anim_owned);
-            let Some(doc) = self.swf_bundles.get(&bundle_name) else { continue; };
-            let Some(symbol) = doc.lookup_export(&cache_key.0) else { continue; };
-
-            // Resolve accessory docs/symbols.
-            struct ResolvedAcc<'a> {
-                slot: u8,
-                doc: &'a swf_spike::swf_doc::SwfDoc,
-                symbol: &'a swf_spike::swf_doc::Symbol,
-                anim_type: u8,
-            }
-            let mut resolved: Vec<ResolvedAcc> = Vec::with_capacity(accessories_meta.len());
-            for (slot, bn, en, at) in &accessories_meta {
-                let Some(acc_doc) = self.swf_bundles.get(bn) else { continue; };
-                let Some(acc_sym) = acc_doc.lookup_export(en) else { continue; };
-                resolved.push(ResolvedAcc { slot: *slot, doc: acc_doc, symbol: acc_sym, anim_type: *at });
-            }
-
-            let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
-            let scale = f64::from(resolution) / 20.0;
-            let mut ctx = swf_spike::render::WgpuCtx {
-                device: &self.device,
-                queue: &self.queue,
-                renderer: &mut self.renderer,
-                filter_pipelines,
-                output_scale: scale,
-            };
-            let cache = swf_spike::render::cache::RenderCache::new();
-            let xform = vello::kurbo::Affine::scale(scale)
-                .then_translate(vello::kurbo::Vec2::new(-px_min_x, -px_min_y));
-            let mut accessories: swf_spike::render::ctx::AccessoryDict = HashMap::new();
-            for r in &resolved {
-                accessories.insert(r.slot, swf_spike::render::ctx::AccessoryEntry {
-                    doc: r.doc,
-                    symbol: r.symbol,
-                    anim_type: r.anim_type,
-                    char_frame: frame as u16,
-                    char_dir_suffix: dir_char,
-                });
-            }
-            let mut scene = vello::Scene::new();
-            swf_spike::render::render_symbol_with_ctx_tinted_accessorized_bfixed(
-                &mut ctx, doc, symbol, &mut scene, xform, frame as u16,
-                player_colors, &cache, &accessories, apply_b_fix,
-            );
-            // Insert into cache.
-            if let Some(inst_mut) = self.swf_character_instances.get_mut(&id) {
-                inst_mut.scene_cache.insert(cache_key, scene);
-            }
-        }
-
-        // Pass 2: assemble the giant world-layer scene. Pure cache
-        // lookups + appends — no scene building, no GPU work yet.
-        // JS passes (pos_x, pos_y) as the WORLD ANCHOR position
-        // (the character's foot point). The cached scene was built
-        // with its anchor at (-px_min_x, -px_min_y) in scene-pixel
-        // space, so the translation that lands the anchor on the
-        // world point is `(pos + px_min)`.
-        let mut layer_scene = vello::Scene::new();
-        for i in 0..n {
-            let id = instance_ids[i];
-            let frame = frames[i];
-            let x = pos_x[i] as f64;
-            let y = pos_y[i] as f64;
-            let Some(inst) = self.swf_character_instances.get(&id) else { continue; };
-            let cache_key = (inst.current_anim.clone(), frame);
-            let Some(sprite_scene) = inst.scene_cache.get(&cache_key) else { continue; };
-            let tx = x + inst.px_min_x;
-            let ty = y + inst.px_min_y;
-            let xform = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(tx, ty));
-            layer_scene.append(sprite_scene, Some(xform));
-        }
-
-        // Single GPU dispatch for the whole world layer.
-        let Some(out_texture) = self.textures.get(&layer_tex_id) else {
-            return false;
-        };
-        let view = out_texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let params = vello::RenderParams {
-            base_color: Color::TRANSPARENT,
-            width,
-            height,
-            antialiasing_method: AaConfig::Area,
-        };
-        if let Err(e) = self.renderer.render_to_texture(
-            &self.device, &self.queue, &layer_scene, &view, &params,
-        ) {
-            console_log!("renderSwfWorldLayer: render error: {e}");
-            return false;
-        }
-        true
     }
 
     /// Render the SWF's ROOT timeline (the main movie stage) at a given
@@ -2427,90 +1561,6 @@ impl VelloRenderer {
             &"textureId".into(),
             &JsValue::from(tex_id as f64),
         );
-        let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(w));
-        let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(h));
-        let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
-        let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
-        result.into()
-    }
-
-    /// Render the SWF's root timeline directly into a previously-attached
-    /// `<canvas>` surface. Used by HUD consumers (fighter portraits,
-    /// banner artwork) that need an `<canvas>` element they can mount
-    /// in React. Returns `{ width, height, anchorX, anchorY }` on
-    /// success or NULL on failure (unknown surface, missing bundle,
-    /// degenerate bounds, render error).
-    #[wasm_bindgen(js_name = "renderSwfRootToSurface")]
-    pub fn render_swf_root_to_surface(
-        &mut self,
-        surface_id: u32,
-        bundle: &str,
-        frame: u32,
-        resolution: f32,
-    ) -> JsValue {
-        if !self.surfaces.contains_key(&surface_id) {
-            console_log!(
-                "renderSwfRootToSurface: unknown surface id {surface_id}"
-            );
-            return JsValue::NULL;
-        }
-        let Some(doc) = self.swf_bundles.get(bundle) else {
-            return JsValue::NULL;
-        };
-        let root_symbol =
-            swf_spike::swf_doc::Symbol::Sprite(doc.root.clone());
-        let bounds =
-            swf_spike::render::symbol_bounds(doc, &root_symbol, frame as u16);
-        if bounds.width() <= 0.0 || bounds.height() <= 0.0 {
-            return JsValue::NULL;
-        }
-        let scale = f64::from(resolution) / 20.0;
-        let pad = 1.0;
-        let px_min_x = (bounds.x0 * scale).floor() - pad;
-        let px_min_y = (bounds.y0 * scale).floor() - pad;
-        let px_max_x = (bounds.x1 * scale).ceil() + pad;
-        let px_max_y = (bounds.y1 * scale).ceil() + pad;
-        let w = ((px_max_x - px_min_x) as u32).max(1);
-        let h = ((px_max_y - px_min_y) as u32).max(1);
-        let xform = vello::kurbo::Affine::scale(scale)
-            .then_translate(vello::kurbo::Vec2::new(-px_min_x, -px_min_y));
-
-        if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
-        }
-
-        let mut scene = vello::Scene::new();
-        let player_colors = self.swf_player_colors;
-        {
-            let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
-            let mut ctx = swf_spike::render::WgpuCtx {
-                device: &self.device,
-                queue: &self.queue,
-                renderer: &mut self.renderer,
-                filter_pipelines,
-                output_scale: scale,
-            };
-            swf_spike::render::render_symbol_with_ctx_tinted(
-                &mut ctx,
-                doc,
-                &root_symbol,
-                &mut scene,
-                xform,
-                frame as u16,
-                player_colors,
-            );
-        }
-
-        if !self.dispatch_scene_to_surface(
-            surface_id,
-            "renderSwfRootToSurface",
-            &scene,
-        ) {
-            return JsValue::NULL;
-        }
-        let result = js_sys::Object::new();
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(h));
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
@@ -2868,6 +1918,647 @@ impl VelloRenderer {
         result.into()
     }
 
+    // ---------------------------------------------------------------
+    // Path B: body-band rasteriser. Slices the body display list into
+    // Z-ordered bands at accessory mount depths. Each band caches
+    // independently of player tint + accessory loadout, so 400 bots
+    // of the same class share the same body strips at steady state.
+    // See `RENDER_SCALING_PLAN.md`.
+    // ---------------------------------------------------------------
+
+    /// One-shot lookup for a body export's slot/band layout. Returns
+    /// `{ slotCount, bandCount, slots: [{ slot, depth }, ...] }`. JS
+    /// uses this to decide how many bands to bake per (bundle,
+    /// export) and which Z order to stack them in.
+    #[wasm_bindgen(js_name = "swfBodyBandInfo")]
+    pub fn swf_body_band_info(&self, bundle: &str, export: &str) -> JsValue {
+        let Some(doc) = self.swf_bundles.get(bundle) else {
+            return JsValue::NULL;
+        };
+        let Some(symbol) = doc.lookup_export(export) else {
+            return JsValue::NULL;
+        };
+        let swf_spike::swf_doc::Symbol::Sprite(body) = symbol else {
+            // Non-sprite body would just render as one band; surface
+            // the degenerate case explicitly so the caller knows.
+            let result = js_sys::Object::new();
+            let _ = js_sys::Reflect::set(&result, &"slotCount".into(), &JsValue::from(0u32));
+            let _ = js_sys::Reflect::set(&result, &"bandCount".into(), &JsValue::from(1u32));
+            let _ = js_sys::Reflect::set(
+                &result,
+                &"slots".into(),
+                &js_sys::Array::new().into(),
+            );
+            return result.into();
+        };
+        let slots = swf_spike::render::extract_slot_depths(doc, body, 0);
+        let band_count = swf_spike::render::band_count(&slots) as u32;
+        let arr = js_sys::Array::new();
+        for s in &slots {
+            let o = js_sys::Object::new();
+            let _ = js_sys::Reflect::set(&o, &"slot".into(), &JsValue::from(u32::from(s.slot)));
+            let _ =
+                js_sys::Reflect::set(&o, &"depth".into(), &JsValue::from(u32::from(s.depth)));
+            arr.push(&o.into());
+        }
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"slotCount".into(),
+            &JsValue::from(slots.len() as u32),
+        );
+        let _ = js_sys::Reflect::set(&result, &"bandCount".into(), &JsValue::from(band_count));
+        let _ = js_sys::Reflect::set(&result, &"slots".into(), &arr.into());
+        result.into()
+    }
+
+    /// Render ALL Z-ordered bands of a body symbol over a frame range
+    /// into a SINGLE atlas pair (colour + zone-id). Bands are stacked
+    /// vertically in the atlas with `BAND_PADDING_PX` of transparent
+    /// padding between them so LINEAR sampling at band 0's bottom
+    /// edge can't bleed into band 1's top edge.
+    ///
+    /// Cuts texture allocations from `bandCount × 2` per anim to
+    /// exactly `2` (one colour atlas, one zone atlas). Vello compute
+    /// dispatch count drops from `2 × bandCount` to `2` as well —
+    /// all bands' geometry packs into one scene per output mode.
+    ///
+    /// Pixel-perfect equivalent to per-band rendering: each band's
+    /// content is rasterized at the same `(scale, -px_min_x, -px_min_y)`
+    /// world transform as before, just offset down the atlas by
+    /// `band_idx × (strip_h + BAND_PADDING_PX)`. The Pixi mesh shifts
+    /// its UV range to address only its band's sub-region; vertex
+    /// positions and anchors are unchanged, so accessory mount
+    /// placement (driven by twip-space affine transforms, completely
+    /// orthogonal to texture layout) sees no change.
+    #[wasm_bindgen(js_name = "renderSwfBodyAtlas")]
+    pub fn render_swf_body_atlas(
+        &mut self,
+        bundle: &str,
+        export: &str,
+        start: u32,
+        count: u32,
+        total_frame_count: u32,
+        resolution: f32,
+        apply_b_fix: bool,
+    ) -> JsValue {
+        const BAND_PADDING_PX: u32 = 2;
+        if count == 0 || total_frame_count == 0 || start >= total_frame_count {
+            return JsValue::NULL;
+        }
+        let Some(cached) = self.cache_strip_bounds(bundle, export, total_frame_count) else {
+            return JsValue::NULL;
+        };
+        let Some(doc) = self.swf_bundles.get(bundle) else {
+            return JsValue::NULL;
+        };
+        let Some(symbol) = doc.lookup_export(export) else {
+            return JsValue::NULL;
+        };
+        let swf_spike::swf_doc::Symbol::Sprite(body) = symbol else {
+            console_log!(
+                "renderSwfBodyAtlas: export `{bundle}/{export}` is not a sprite"
+            );
+            return JsValue::NULL;
+        };
+
+        let slots = swf_spike::render::extract_slot_depths(doc, body, 0);
+        let band_total = swf_spike::render::band_count(&slots);
+        if band_total == 0 {
+            return JsValue::NULL;
+        }
+        // Precompute every band's depth range so the per-band scene
+        // builder can loop without re-deriving them.
+        let band_ranges: Vec<swf_spike::render::BandRange> = (0..band_total)
+            .map(|i| swf_spike::render::band_range(&slots, i))
+            .collect();
+
+        let end = start.saturating_add(count).min(total_frame_count);
+        let chunk_end = end.min(cached.anim_end);
+        if chunk_end <= start {
+            return JsValue::NULL;
+        }
+        let chunk_count = chunk_end - start;
+
+        // Cell layout matches the legacy single-strip path — every
+        // band shares the same anchor + cell size + grid cols, so
+        // mounts and accessory positions align identically to the
+        // pre-atlas path.
+        let scale = f64::from(resolution) / 20.0;
+        let pad = 1.0;
+        let px_min_x = (cached.min_x * scale).floor() - pad;
+        let px_min_y = (cached.min_y * scale).floor() - pad;
+        let px_max_x = (cached.max_x * scale).ceil() + pad;
+        let px_max_y = (cached.max_y * scale).ceil() + pad;
+        let frame_w = ((px_max_x - px_min_x) as u32).max(1);
+        let frame_h = ((px_max_y - px_min_y) as u32).max(1);
+
+        let max_cols = (16384u32 / frame_w).max(1) as usize;
+        let chunk_usize = chunk_count as usize;
+        let grid_cols = chunk_usize.min(max_cols);
+        let grid_rows = (chunk_usize + grid_cols - 1) / grid_cols;
+        let strip_w = frame_w * grid_cols as u32;
+        let strip_h = frame_h * grid_rows as u32;
+
+        // Atlas layout: bands stacked vertically. Width = single-band
+        // strip width (already constrained ≤ 16384). Height = N bands
+        // × strip_h + (N-1) × BAND_PADDING_PX. If the atlas height
+        // would exceed 16384 we'd have to flow into 2D — refuse for
+        // now; the body characters we ship all fit.
+        let band_total_u32 = band_total as u32;
+        let padding_total = if band_total_u32 > 0 {
+            (band_total_u32 - 1) * BAND_PADDING_PX
+        } else {
+            0
+        };
+        let atlas_w = strip_w;
+        let atlas_h = strip_h * band_total_u32 + padding_total;
+        if atlas_w == 0
+            || atlas_h == 0
+            || atlas_w > 16384
+            || atlas_h > 16384
+        {
+            console_log!(
+                "renderSwfBodyAtlas: atlas {atlas_w}x{atlas_h} exceeds GPU limits \
+                 (strip {strip_w}x{strip_h}, bands={band_total})"
+            );
+            return JsValue::NULL;
+        }
+
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines = Some(
+                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
+            );
+        }
+        let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+        // Cache shared across both passes — shape flatten + frame
+        // state are pass-independent. Halves the second-pass cost.
+        let cache = swf_spike::render::cache::RenderCache::new();
+        let player_colors = swf_spike::recolor::PlayerColors::default();
+
+        // Helper: build the atlas scene containing EVERY band's cell
+        // grid. Each band's content is translated down the atlas by
+        // `band_idx × (strip_h + BAND_PADDING_PX)` so the bands stack
+        // with a transparent gutter that LINEAR sampling can't cross.
+        let band_ranges_ref = &band_ranges;
+        let build_scene = |mode: swf_spike::render::RenderMode,
+                           device: &wgpu::Device,
+                           queue: &wgpu::Queue,
+                           renderer: &mut Renderer,
+                           filter_pipelines: &swf_spike::wgpu_filters::FilterPipelines|
+         -> vello::Scene {
+            let mut wctx = swf_spike::render::WgpuCtx {
+                device,
+                queue,
+                renderer,
+                filter_pipelines,
+                output_scale: scale,
+            };
+            let mut scene = vello::Scene::new();
+            for band_idx in 0..band_total {
+                let band = band_ranges_ref[band_idx];
+                let band_atlas_y =
+                    (band_idx as f64) * (f64::from(strip_h) + f64::from(BAND_PADDING_PX));
+                for slot in 0..chunk_count {
+                    let frame_idx = start + slot;
+                    let col = (slot as usize) % grid_cols;
+                    let row = (slot as usize) / grid_cols;
+                    let cell_x = (col * frame_w as usize) as f64;
+                    let cell_y = band_atlas_y + (row * frame_h as usize) as f64;
+                    let xform = vello::kurbo::Affine::scale(scale).then_translate(
+                        vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y + cell_y),
+                    );
+                    swf_spike::render::render_body_band(
+                        &mut wctx,
+                        doc,
+                        symbol,
+                        &mut scene,
+                        xform,
+                        frame_idx as u16,
+                        band,
+                        mode,
+                        player_colors,
+                        &cache,
+                        apply_b_fix,
+                    );
+                }
+            }
+            scene
+        };
+
+        let colour_scene = build_scene(
+            swf_spike::render::RenderMode::Colour,
+            &self.device,
+            &self.queue,
+            &mut self.renderer,
+            filter_pipelines,
+        );
+        let zone_scene = build_scene(
+            swf_spike::render::RenderMode::ZoneId,
+            &self.device,
+            &self.queue,
+            &mut self.renderer,
+            filter_pipelines,
+        );
+
+        // Render both scenes into their respective atlas textures.
+        // Atlas dims = (strip_w, band_total * strip_h + padding).
+        let render_one = |scene: &vello::Scene,
+                          label: &'static str,
+                          device: &wgpu::Device,
+                          queue: &wgpu::Queue,
+                          renderer: &mut Renderer|
+         -> Option<wgpu::Texture> {
+            let texture = device.create_texture(&wgpu::TextureDescriptor {
+                label: Some(label),
+                size: wgpu::Extent3d {
+                    width: atlas_w,
+                    height: atlas_h,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::STORAGE_BINDING
+                    | wgpu::TextureUsages::COPY_SRC
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            });
+            let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+            let params = vello::RenderParams {
+                base_color: Color::TRANSPARENT,
+                width: atlas_w,
+                height: atlas_h,
+                antialiasing_method: AaConfig::Area,
+            };
+            if let Err(e) = renderer.render_to_texture(device, queue, scene, &view, &params) {
+                console_log!("renderSwfBodyAtlas[{label}]: render error: {e}");
+                return None;
+            }
+            Some(texture)
+        };
+
+        let Some(colour_tex) = render_one(
+            &colour_scene,
+            "vello_swf_body_atlas_color",
+            &self.device,
+            &self.queue,
+            &mut self.renderer,
+        ) else {
+            return JsValue::NULL;
+        };
+        let Some(zone_tex) = render_one(
+            &zone_scene,
+            "vello_swf_body_atlas_zone",
+            &self.device,
+            &self.queue,
+            &mut self.renderer,
+        ) else {
+            return JsValue::NULL;
+        };
+
+        let colour_gpu = extract_gpu_texture(&colour_tex);
+        let zone_gpu = extract_gpu_texture(&zone_tex);
+        let colour_tex_id = self.next_texture_id;
+        self.next_texture_id += 1;
+        self.textures.insert(colour_tex_id, colour_tex);
+        let zone_tex_id = self.next_texture_id;
+        self.next_texture_id += 1;
+        self.textures.insert(zone_tex_id, zone_tex);
+
+        // Per-band atlas region. JS uses this to derive UV ranges:
+        //   u0 = 0,            v0 = atlasY / atlas_h
+        //   u1 = strip_w/atlas_w (= 1.0),   v1 = (atlasY + strip_h) / atlas_h
+        // and within the band, per-frame UVs follow the grid_cols ×
+        // grid_rows layout exactly like the legacy single-strip path.
+        let bands_arr = js_sys::Array::new();
+        for band_idx in 0..band_total {
+            let band_atlas_y =
+                (band_idx as u32) * (strip_h + BAND_PADDING_PX);
+            let entry = js_sys::Object::new();
+            let _ = js_sys::Reflect::set(
+                &entry,
+                &"bandIndex".into(),
+                &JsValue::from(band_idx as u32),
+            );
+            let _ = js_sys::Reflect::set(
+                &entry,
+                &"atlasX".into(),
+                &JsValue::from(0u32),
+            );
+            let _ = js_sys::Reflect::set(
+                &entry,
+                &"atlasY".into(),
+                &JsValue::from(band_atlas_y),
+            );
+            bands_arr.push(&entry.into());
+        }
+
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"colorTexture".into(), &colour_gpu);
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"colorTextureId".into(),
+            &JsValue::from(colour_tex_id as f64),
+        );
+        let _ = js_sys::Reflect::set(&result, &"zoneTexture".into(), &zone_gpu);
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"zoneTextureId".into(),
+            &JsValue::from(zone_tex_id as f64),
+        );
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"atlasWidth".into(),
+            &JsValue::from(atlas_w),
+        );
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"atlasHeight".into(),
+            &JsValue::from(atlas_h),
+        );
+        // `stripWidth` / `stripHeight` = ONE band's strip dims inside
+        // the atlas. JS uses these + atlasY to compute per-band UV.
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"stripWidth".into(),
+            &JsValue::from(strip_w),
+        );
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"stripHeight".into(),
+            &JsValue::from(strip_h),
+        );
+        let _ =
+            js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
+        let _ =
+            js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"gridCols".into(),
+            &JsValue::from(grid_cols as u32),
+        );
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"frameCount".into(),
+            &JsValue::from(chunk_count),
+        );
+        let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
+        let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"bandCount".into(),
+            &JsValue::from(band_total as u32),
+        );
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"slotCount".into(),
+            &JsValue::from(slots.len() as u32),
+        );
+        let _ = js_sys::Reflect::set(&result, &"bands".into(), &bands_arr.into());
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"bandPadding".into(),
+            &JsValue::from(BAND_PADDING_PX),
+        );
+        result.into()
+    }
+
+    /// Path B accessory strip rasteriser. Bakes 3 directional sub-
+    /// frames of an accessory into a 3-wide × 1-tall BGRA8 strip at
+    /// the accessory's own origin. The Pixi compositor positions the
+    /// sprite per-frame via the body's mount-transform table; this
+    /// entry knows nothing about the body.
+    ///
+    /// Sub-frame layout (column 0/1/2):
+    /// `pick_accessory_frame(..., char_frame = 0)` …
+    /// `pick_accessory_frame(..., char_frame = 1)` …
+    /// `pick_accessory_frame(..., char_frame = 2)`. The Pixi side
+    /// indexes into the strip via `char_frame % 3` per game tick.
+    ///
+    /// `slot + anim_type + dir` drive the slot-specific direction
+    /// fallback chain inside `pick_accessory_frame`. `side` defaults
+    /// to `dir` — capes and shields with W-prefix walking variants
+    /// can pass the body's mount-declared side directly (e.g. `"WR"`)
+    /// to opt into the canonical labelled frame, otherwise the
+    /// fallback chain falls back to the cardinal direction.
+    #[wasm_bindgen(js_name = "renderSwfAccessoryStrip")]
+    pub fn render_swf_accessory_strip(
+        &mut self,
+        acc_bundle: &str,
+        acc_export: &str,
+        slot: u32,
+        anim_type: u32,
+        dir: String,
+        side: String,
+        resolution: f32,
+    ) -> JsValue {
+        let Some(acc_doc) = self.swf_bundles.get(acc_bundle) else {
+            console_log!(
+                "renderSwfAccessoryStrip: bundle `{acc_bundle}` not loaded"
+            );
+            return JsValue::NULL;
+        };
+        let Some(acc_sym) = acc_doc.lookup_export(acc_export) else {
+            console_log!(
+                "renderSwfAccessoryStrip: export `{acc_bundle}/{acc_export}` not found"
+            );
+            return JsValue::NULL;
+        };
+
+        let dir_char = dir.chars().next().unwrap_or('R').to_ascii_uppercase();
+        let dir_str = dir_char.to_string();
+        let side_str = if side.is_empty() { dir_str.clone() } else { side };
+        let slot_u8 = slot as u8;
+        let anim_type_u8 = anim_type as u8;
+
+        // Resolve the 3 sub-frames + their union bounds. Using the
+        // union keeps cell size + anchor stable across cycles so the
+        // Pixi sprite swap is a free pointer flip.
+        let mut frame_indices = [0u16; 3];
+        let mut union: Option<vello::kurbo::Rect> = None;
+        for cycle in 0u16..3u16 {
+            let f = swf_spike::render::pick_accessory_frame(
+                acc_doc, acc_sym, slot_u8, anim_type_u8, &side_str, cycle,
+            );
+            frame_indices[cycle as usize] = f;
+            let b = swf_spike::render::symbol_bounds(acc_doc, acc_sym, f);
+            if b.width() <= 0.0 || b.height() <= 0.0 {
+                continue;
+            }
+            union = Some(match union {
+                Some(u) => u.union(b),
+                None => b,
+            });
+        }
+        let Some(bounds) = union else {
+            console_log!(
+                "renderSwfAccessoryStrip: `{acc_bundle}/{acc_export}` has no \
+                 geometry at slot={slot_u8} anim_type={anim_type_u8} side={side_str}"
+            );
+            return JsValue::NULL;
+        };
+
+        let scale = f64::from(resolution) / 20.0;
+        let pad = 1.0;
+        let px_min_x = (bounds.x0 * scale).floor() - pad;
+        let px_min_y = (bounds.y0 * scale).floor() - pad;
+        let px_max_x = (bounds.x1 * scale).ceil() + pad;
+        let px_max_y = (bounds.y1 * scale).ceil() + pad;
+        let frame_w = ((px_max_x - px_min_x) as u32).max(1);
+        let frame_h = ((px_max_y - px_min_y) as u32).max(1);
+        let grid_cols: u32 = 3;
+        let strip_w = frame_w * grid_cols;
+        let strip_h = frame_h;
+        if strip_w == 0 || strip_h == 0 || strip_w > 16384 || strip_h > 16384 {
+            console_log!(
+                "renderSwfAccessoryStrip: strip {strip_w}x{strip_h} exceeds GPU limits"
+            );
+            return JsValue::NULL;
+        }
+
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines = Some(
+                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
+            );
+        }
+        let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+        let mut ctx = swf_spike::render::WgpuCtx {
+            device: &self.device,
+            queue: &self.queue,
+            renderer: &mut self.renderer,
+            filter_pipelines,
+            output_scale: scale,
+        };
+
+        let mut scene = vello::Scene::new();
+        for cycle in 0u32..grid_cols {
+            let cell_x = (cycle * frame_w) as f64;
+            let xform = vello::kurbo::Affine::scale(scale).then_translate(
+                vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y),
+            );
+            swf_spike::render::render_symbol_with_ctx(
+                &mut ctx,
+                acc_doc,
+                acc_sym,
+                &mut scene,
+                xform,
+                frame_indices[cycle as usize],
+            );
+        }
+
+        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("vello_swf_accessory_strip"),
+            size: wgpu::Extent3d {
+                width: strip_w,
+                height: strip_h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let params = vello::RenderParams {
+            base_color: Color::TRANSPARENT,
+            width: strip_w,
+            height: strip_h,
+            antialiasing_method: AaConfig::Area,
+        };
+        if let Err(e) =
+            self.renderer
+                .render_to_texture(&self.device, &self.queue, &scene, &view, &params)
+        {
+            console_log!("renderSwfAccessoryStrip: render error: {e}");
+            return JsValue::NULL;
+        }
+
+        let gpu_texture = extract_gpu_texture(&texture);
+        let tex_id = self.next_texture_id;
+        self.next_texture_id += 1;
+        self.textures.insert(tex_id, texture);
+
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"textureId".into(),
+            &JsValue::from(tex_id as f64),
+        );
+        let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(strip_w));
+        let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
+        let _ =
+            js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
+        let _ =
+            js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
+        let _ = js_sys::Reflect::set(&result, &"frameCount".into(), &JsValue::from(3u32));
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"gridCols".into(),
+            &JsValue::from(grid_cols),
+        );
+        let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
+        let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
+        result.into()
+    }
+
+    /// Path B mount-transform extraction. Returns a dense flat
+    /// `Float32Array` of length `count * max_slot * 6` carrying the
+    /// affine matrix `(a, b, c, d, tx, ty)` at every accessory mount
+    /// in the body's display tree, per frame. Translations are in
+    /// TWIP space; JS multiplies by `resolution / 20` for pixel
+    /// space. Identity matrix where a slot has no mount in a given
+    /// frame.
+    ///
+    /// `apply_b_fix=true` negates the X translation for mounts that
+    /// declare `b_fix=true` — matches the body strip's bFix
+    /// behaviour. Caller cache key: `(bundle, export, start, count,
+    /// apply_b_fix)`.
+    #[wasm_bindgen(js_name = "renderSwfMountTransforms")]
+    pub fn render_swf_mount_transforms(
+        &self,
+        bundle: &str,
+        export: &str,
+        start: u32,
+        count: u32,
+        apply_b_fix: bool,
+        max_slot: u32,
+    ) -> js_sys::Float32Array {
+        // Empty Float32Array on any resolution failure — JS treats a
+        // zero-length response as "no transforms available".
+        let empty = js_sys::Float32Array::new_with_length(0);
+        if count == 0 || max_slot == 0 {
+            return empty;
+        }
+        let Some(doc) = self.swf_bundles.get(bundle) else {
+            console_log!("renderSwfMountTransforms: bundle `{bundle}` not loaded");
+            return empty;
+        };
+        let Some(symbol) = doc.lookup_export(export) else {
+            console_log!(
+                "renderSwfMountTransforms: export `{bundle}/{export}` not found"
+            );
+            return empty;
+        };
+        let data = swf_spike::render::mount_transforms::extract_mount_transforms(
+            doc,
+            symbol,
+            start as u16,
+            count as u16,
+            apply_b_fix,
+            max_slot as u8,
+        );
+        let arr = js_sys::Float32Array::new_with_length(data.len() as u32);
+        arr.copy_from(&data);
+        arr
+    }
+
     /// Like `renderSwfStripRange` but composes accessory SWFs at the
     /// base character's body part mount points (declared via
     /// `GAC.applyAccessory(this, slot, side)` in the AS2 frame
@@ -3179,6 +2870,289 @@ impl VelloRenderer {
             &"textureId".into(),
             &JsValue::from(tex_id as f64),
         );
+        let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(strip_w));
+        let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
+        let _ =
+            js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
+        let _ =
+            js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"gridCols".into(),
+            &JsValue::from(grid_cols as u32),
+        );
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"frameCount".into(),
+            &JsValue::from(chunk_count),
+        );
+        let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
+        let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
+        result.into()
+    }
+
+    /// SPIKE — bitmap-bridge twin of `renderSwfStripRangeAccessorized`.
+    /// Mirrors every input + every dim/anchor field of the live entry
+    /// point but returns `{ bitmap: ImageBitmap, ... }` instead of a
+    /// `{ texture: GPUTexture, textureId, ... }` pair. Internally:
+    ///   1. Renders Vello's scene into a private `Rgba8Unorm`
+    ///      `wgpu::Texture` (same path as the live call).
+    ///   2. Blits that texture to a fresh `Bgra8Unorm`
+    ///      `OffscreenCanvas` surface frame.
+    ///   3. `surface.present()` → `canvas.transferToImageBitmap()` →
+    ///      hands the bitmap to JS.
+    ///
+    /// Used by `apps/electrobun/src/game/render/spike-bitmap-bridge.ts`
+    /// to measure `vello_ms` and `upload_ms` for the cross-device
+    /// (independent Pixi `GPUDevice`) bitmap import path before
+    /// committing to the broader Vello → ImageBitmap migration.
+    ///
+    /// Delete this entry point once the spike validates Option B.
+    #[wasm_bindgen(js_name = "renderSwfStripRangeAccessorizedBitmap")]
+    pub fn render_swf_strip_range_accessorized_bitmap(
+        &mut self,
+        bundle: &str,
+        export: &str,
+        start: u32,
+        count: u32,
+        total_frame_count: u32,
+        resolution: f32,
+        acc_slots: Vec<u32>,
+        acc_bundles: Vec<String>,
+        acc_exports: Vec<String>,
+        acc_anim_types: Vec<u32>,
+        char_dir_suffix: String,
+        apply_b_fix: bool,
+    ) -> JsValue {
+        if count == 0 || total_frame_count == 0 || start >= total_frame_count {
+            return JsValue::NULL;
+        }
+        let n_acc = acc_slots.len();
+        if acc_bundles.len() != n_acc
+            || acc_exports.len() != n_acc
+            || acc_anim_types.len() != n_acc
+        {
+            console_log!(
+                "renderSwfStripRangeAccessorizedBitmap: parallel array length mismatch"
+            );
+            return JsValue::NULL;
+        }
+
+        let Some(cached) = self.cache_strip_bounds(bundle, export, total_frame_count) else {
+            return JsValue::NULL;
+        };
+        let end = start.saturating_add(count).min(total_frame_count);
+        if end <= start {
+            return JsValue::NULL;
+        }
+        let chunk_end = end.min(cached.anim_end);
+        if chunk_end <= start {
+            return JsValue::NULL;
+        }
+        let chunk_count = chunk_end - start;
+
+        struct ResolvedAcc<'a> {
+            slot: u8,
+            doc: &'a swf_spike::swf_doc::SwfDoc,
+            symbol: &'a swf_spike::swf_doc::Symbol,
+            anim_type: u8,
+        }
+        let mut resolved: Vec<ResolvedAcc> = Vec::with_capacity(n_acc);
+        let mut acc_pad_left = 0.0_f64;
+        let mut acc_pad_right = 0.0_f64;
+        let mut acc_pad_top = 0.0_f64;
+        let mut acc_pad_bottom = 0.0_f64;
+        for i in 0..n_acc {
+            let slot = acc_slots[i] as u8;
+            let Some(acc_doc) = self.swf_bundles.get(&acc_bundles[i]) else {
+                continue;
+            };
+            let Some(acc_sym) = acc_doc.lookup_export(&acc_exports[i]) else {
+                continue;
+            };
+            let mut got_any_bounds = false;
+            for f in 0u16..15 {
+                let b = swf_spike::render::symbol_bounds(acc_doc, acc_sym, f);
+                if b.width() <= 0.0 || b.height() <= 0.0 {
+                    continue;
+                }
+                got_any_bounds = true;
+                if b.x0 < 0.0 {
+                    acc_pad_left = acc_pad_left.max(-b.x0);
+                }
+                if b.x1 > 0.0 {
+                    acc_pad_right = acc_pad_right.max(b.x1);
+                }
+                if b.y0 < 0.0 {
+                    acc_pad_top = acc_pad_top.max(-b.y0);
+                }
+                if b.y1 > 0.0 {
+                    acc_pad_bottom = acc_pad_bottom.max(b.y1);
+                }
+            }
+            if !got_any_bounds {
+                continue;
+            }
+            resolved.push(ResolvedAcc {
+                slot,
+                doc: acc_doc,
+                symbol: acc_sym,
+                anim_type: acc_anim_types[i] as u8,
+            });
+        }
+
+        let scale = f64::from(resolution) / 20.0;
+        let pad = 1.0;
+        let twip_min_x = cached.min_x - acc_pad_left;
+        let twip_min_y = cached.min_y - acc_pad_top;
+        let twip_max_x = cached.max_x + acc_pad_right;
+        let twip_max_y = cached.max_y + acc_pad_bottom;
+        let px_min_x = (twip_min_x * scale).floor() - pad;
+        let px_min_y = (twip_min_y * scale).floor() - pad;
+        let px_max_x = (twip_max_x * scale).ceil() + pad;
+        let px_max_y = (twip_max_y * scale).ceil() + pad;
+        let frame_w = ((px_max_x - px_min_x) as u32).max(1);
+        let frame_h = ((px_max_y - px_min_y) as u32).max(1);
+
+        let max_cols = (16384u32 / frame_w).max(1) as usize;
+        let chunk_usize = chunk_count as usize;
+        let grid_cols = chunk_usize.min(max_cols);
+        let grid_rows = (chunk_usize + grid_cols - 1) / grid_cols;
+        let strip_w = frame_w * grid_cols as u32;
+        let strip_h = frame_h * grid_rows as u32;
+        if strip_w == 0 || strip_h == 0 || strip_w > 16384 || strip_h > 16384 {
+            console_log!(
+                "renderSwfStripRangeAccessorizedBitmap: strip {strip_w}x{strip_h} exceeds GPU limits"
+            );
+            return JsValue::NULL;
+        }
+
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines = Some(
+                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
+            );
+        }
+
+        let Some(doc) = self.swf_bundles.get(bundle) else {
+            return JsValue::NULL;
+        };
+        let Some(symbol) = doc.lookup_export(export) else {
+            return JsValue::NULL;
+        };
+
+        let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+        let mut ctx = swf_spike::render::WgpuCtx {
+            device: &self.device,
+            queue: &self.queue,
+            renderer: &mut self.renderer,
+            filter_pipelines,
+            output_scale: scale,
+        };
+
+        let cache = swf_spike::render::cache::RenderCache::new();
+        let player_colors = self.swf_player_colors;
+
+        let mut scene = vello::Scene::new();
+        for slot in 0..chunk_count {
+            let frame_idx = start + slot;
+            let col = (slot as usize) % grid_cols;
+            let row = (slot as usize) / grid_cols;
+            let cell_x = (col * frame_w as usize) as f64;
+            let cell_y = (row * frame_h as usize) as f64;
+            let xform = vello::kurbo::Affine::scale(scale).then_translate(
+                vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y + cell_y),
+            );
+            let dir_char = char_dir_suffix
+                .chars()
+                .next()
+                .unwrap_or('R')
+                .to_ascii_uppercase();
+            let mut accessories: swf_spike::render::ctx::AccessoryDict = HashMap::new();
+            for r in &resolved {
+                accessories.insert(
+                    r.slot,
+                    swf_spike::render::ctx::AccessoryEntry {
+                        doc: r.doc,
+                        symbol: r.symbol,
+                        anim_type: r.anim_type,
+                        char_frame: frame_idx as u16,
+                        char_dir_suffix: dir_char,
+                    },
+                );
+            }
+            swf_spike::render::render_symbol_with_ctx_tinted_accessorized_bfixed(
+                &mut ctx,
+                doc,
+                symbol,
+                &mut scene,
+                xform,
+                frame_idx as u16,
+                player_colors,
+                &cache,
+                &accessories,
+                apply_b_fix,
+            );
+        }
+
+        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("vello_swf_strip_acc_bitmap_spike"),
+            size: wgpu::Extent3d {
+                width: strip_w,
+                height: strip_h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let params = vello::RenderParams {
+            base_color: Color::TRANSPARENT,
+            width: strip_w,
+            height: strip_h,
+            antialiasing_method: AaConfig::Area,
+        };
+        if let Err(e) =
+            self.renderer
+                .render_to_texture(&self.device, &self.queue, &scene, &view, &params)
+        {
+            console_log!("renderSwfStripRangeAccessorizedBitmap: render error: {e}");
+            return JsValue::NULL;
+        }
+
+        // Bridge: Rgba8Unorm texture → Bgra8Unorm OffscreenCanvas → ImageBitmap.
+        if self.blit_bgra_pipeline.is_none() {
+            self.blit_bgra_pipeline = Some(bitmap_bridge::BlitPipeline::new(
+                &self.device,
+                wgpu::TextureFormat::Bgra8Unorm,
+            ));
+        }
+        let blit = self.blit_bgra_pipeline.as_ref().unwrap();
+        let bitmap = match bitmap_bridge::render_texture_to_bitmap(
+            &self.instance,
+            &self.device,
+            &self.queue,
+            blit,
+            &texture,
+            strip_w,
+            strip_h,
+        ) {
+            Ok(b) => b,
+            Err(e) => {
+                console_log!(
+                    "renderSwfStripRangeAccessorizedBitmap: bridge error: {e:?}"
+                );
+                return JsValue::NULL;
+            }
+        };
+
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(strip_w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
         let _ =
@@ -3702,502 +3676,6 @@ impl VelloRenderer {
         result.into()
     }
 
-    /// Pre-encode every static tile placement into one cached Vello
-    /// scene. Called by JS whenever the static set changes (map load,
-    /// zoom step, viewport resize, tactic-mode toggle) — never per
-    /// Pixi tick. The cached scene persists until the next call;
-    /// `renderTilePass` appends it into the per-tick frame scene with
-    /// a memcpy-cost path-buffer copy, eliminating the per-dispatch
-    /// encoding cost of static cells (typically >99% of the map).
-    ///
-    /// Empty input clears the cached scene (i.e. the map has no
-    /// static placements, e.g. during teardown).
-    #[wasm_bindgen(js_name = "setStaticTilePlacements")]
-    pub fn set_static_tile_placements(
-        &mut self,
-        bundles: Vec<String>,
-        exports: Vec<String>,
-        bundle_idx: Vec<u32>,
-        export_idx: Vec<u32>,
-        frames: Vec<u32>,
-        matrices: Vec<f32>,
-    ) {
-        let n = bundle_idx.len();
-        if n == 0 {
-            self.static_tile_scene = None;
-            return;
-        }
-        if export_idx.len() != n
-            || frames.len() != n
-            || matrices.len() != n * 6
-        {
-            console_log!(
-                "setStaticTilePlacements: array length mismatch (n={n})"
-            );
-            return;
-        }
-
-        if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
-        }
-        for name in bundles.iter() {
-            self.tile_render_caches
-                .entry(name.clone())
-                .or_default();
-        }
-
-        // Phase 1: ensure a sub-scene exists for each unique
-        // `(bundle, export, frame)` triple. Sub-scenes are encoded at
-        // twip-identity once and reused across cells AND across zoom
-        // changes; only frame advancement on animated tiles (not
-        // expected to land in `set_static_tile_placements`) would
-        // trigger a new sub-scene build.
-        let player_colors = self.swf_player_colors;
-        {
-            let renderer_ref = &mut self.renderer;
-            let device_ref = &self.device;
-            let queue_ref = &self.queue;
-            let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
-            let bundles_map = &self.swf_bundles;
-            let caches_map = &self.tile_render_caches;
-            let subscene_map = &mut self.tile_subscenes;
-            let mut ctx = swf_spike::render::WgpuCtx {
-                device: device_ref,
-                queue: queue_ref,
-                renderer: renderer_ref,
-                filter_pipelines,
-                output_scale: 1.0,
-            };
-            for i in 0..n {
-                let b_idx = bundle_idx[i] as usize;
-                let e_idx = export_idx[i] as usize;
-                if b_idx >= bundles.len() || e_idx >= exports.len() {
-                    continue;
-                }
-                let bundle_name = &bundles[b_idx];
-                let export_name = &exports[e_idx];
-                let frame = frames[i];
-                let key = (bundle_name.clone(), export_name.clone(), frame);
-                if subscene_map.contains_key(&key) {
-                    continue;
-                }
-                let Some(doc) = bundles_map.get(bundle_name) else {
-                    continue;
-                };
-                let Some(symbol) = doc.lookup_export(export_name) else {
-                    continue;
-                };
-                let cache = caches_map
-                    .get(bundle_name)
-                    .expect("cache pre-created above");
-                let mut subscene = vello::Scene::new();
-                swf_spike::render::render_symbol_with_shared_cache(
-                    &mut ctx,
-                    doc,
-                    symbol,
-                    &mut subscene,
-                    vello::kurbo::Affine::IDENTITY,
-                    frame as u16,
-                    player_colors,
-                    cache,
-                );
-                subscene_map.insert(key, subscene);
-            }
-        }
-
-        // Phase 2: build the static_tile_scene by appending each
-        // placement's cached sub-scene with its per-cell matrix.
-        // Pure memcpy + matrix-compose work — no symbol tree walks.
-        let mut scene = vello::Scene::new();
-        for i in 0..n {
-            let b_idx = bundle_idx[i] as usize;
-            let e_idx = export_idx[i] as usize;
-            if b_idx >= bundles.len() || e_idx >= exports.len() {
-                continue;
-            }
-            let key = (
-                bundles[b_idx].clone(),
-                exports[e_idx].clone(),
-                frames[i],
-            );
-            let Some(subscene) = self.tile_subscenes.get(&key) else {
-                continue;
-            };
-            let m = &matrices[i * 6..i * 6 + 6];
-            let xform = vello::kurbo::Affine::new([
-                m[0] as f64,
-                m[1] as f64,
-                m[2] as f64,
-                m[3] as f64,
-                m[4] as f64,
-                m[5] as f64,
-            ]);
-            scene.append(subscene, Some(xform));
-        }
-        self.static_tile_scene = Some(scene);
-    }
-
-    /// Render an arbitrary set of (bundle, export, frame, matrix)
-    /// placements into one output texture in a single Vello dispatch.
-    ///
-    /// Inputs use small unique-string tables (`bundles`, `exports`)
-    /// indexed by per-placement parallel arrays so the marshalling cost
-    /// across the JS↔WASM boundary stays in the kilobytes range even for
-    /// hundreds of placements per frame.
-    ///
-    /// Each placement's `matrix` is a 6-element 2D affine `[a, b, c, d,
-    /// tx, ty]` mapping the symbol's twip space directly to output
-    /// pixels. The caller composes (zoom, world position, rotation,
-    /// flip, slope) into this single matrix; the renderer treats every
-    /// placement as a drop-in transform.
-    ///
-    /// Placements that fail to look up (missing bundle/export) are
-    /// silently skipped — by design, no per-placement validity flag in
-    /// the response since the caller already knows which tiles exist.
-    ///
-    /// Returns `{ texture, textureId, width, height }` matching the
-    /// other render entry points so the JS side can wrap the GPUTexture
-    /// as a Pixi `ExternalSource` per layer.
-    #[wasm_bindgen(js_name = "renderTilePass")]
-    pub fn render_tile_pass(
-        &mut self,
-        target_w: u32,
-        target_h: u32,
-        bundles: Vec<String>,
-        exports: Vec<String>,
-        bundle_idx: Vec<u32>,
-        export_idx: Vec<u32>,
-        frames: Vec<u32>,
-        matrices: Vec<f32>,
-    ) -> JsValue {
-        if target_w == 0
-            || target_h == 0
-            || target_w > 16384
-            || target_h > 16384
-        {
-            return JsValue::NULL;
-        }
-        let Some(scene) = self.prepare_tile_scene(
-            &bundles,
-            &exports,
-            &bundle_idx,
-            &export_idx,
-            &frames,
-            &matrices,
-        ) else {
-            return JsValue::NULL;
-        };
-
-        // Persistent target texture: only recreated when the size
-        // changes (resize, zoom step crosses a DPR threshold, etc).
-        // Reusing the same wgpu::Texture means Pixi's ExternalSource
-        // can hold one stable handle while the GPU storage updates in
-        // place every tick — eliminates per-tick texture allocation
-        // and keeps Pixi's bind groups warm.
-        let target = match &self.tile_pass_target {
-            Some(t) if t.width == target_w && t.height == target_h => t,
-            _ => {
-                // Drop the old texture from the registry (if any) so
-                // its GPU storage frees promptly. JS callers shouldn't
-                // be holding a Pixi sprite over a stale handle past
-                // the resize event that triggered the recreate.
-                if let Some(old) = self.tile_pass_target.take() {
-                    self.textures.remove(&old.tex_id);
-                }
-                let texture = self.device.create_texture(&wgpu::TextureDescriptor {
-                    label: Some("vello_tile_pass"),
-                    size: wgpu::Extent3d {
-                        width: target_w,
-                        height: target_h,
-                        depth_or_array_layers: 1,
-                    },
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: wgpu::TextureFormat::Rgba8Unorm,
-                    usage: wgpu::TextureUsages::STORAGE_BINDING
-                        | wgpu::TextureUsages::COPY_SRC
-                        | wgpu::TextureUsages::TEXTURE_BINDING,
-                    view_formats: &[],
-                });
-                let tex_id = self.next_texture_id;
-                self.next_texture_id += 1;
-                self.textures.insert(tex_id, texture);
-                self.tile_pass_target = Some(TilePassTarget {
-                    width: target_w,
-                    height: target_h,
-                    // Re-fetch the texture from the map by id to satisfy
-                    // the borrow checker — we just inserted it. Cloning
-                    // the wgpu::Texture would double-own the GPU resource,
-                    // so we keep the canonical copy in `self.textures`
-                    // and stash a clone in the target. wgpu textures are
-                    // `Arc`-like internally so clone is a refcount bump.
-                    texture: self.textures.get(&tex_id).unwrap().clone(),
-                    tex_id,
-                });
-                self.tile_pass_target.as_ref().unwrap()
-            }
-        };
-
-        let view = target
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let params = vello::RenderParams {
-            base_color: Color::TRANSPARENT,
-            width: target_w,
-            height: target_h,
-            antialiasing_method: AaConfig::Area,
-        };
-        if let Err(e) = self.renderer.render_to_texture(
-            &self.device,
-            &self.queue,
-            &scene,
-            &view,
-            &params,
-        ) {
-            console_log!("renderTilePass: render error: {e}");
-            return JsValue::NULL;
-        }
-
-        let gpu_texture = extract_gpu_texture(&target.texture);
-        let tex_id = target.tex_id;
-
-        let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"textureId".into(),
-            &JsValue::from(tex_id as f64),
-        );
-        let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(target_w));
-        let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(target_h));
-        result.into()
-    }
-
-    /// Tile-pass scene assembly — shared by `renderTilePass` (texture
-    /// output, transitional) and `renderTilePassToSurface` (Phase 3+,
-    /// canonical). Returns `None` only on parallel-array length mismatch;
-    /// `n == 0` is valid and yields a scene containing only the cached
-    /// `static_tile_scene`.
-    ///
-    /// Side effects: lazily inits `swf_filter_pipelines`, populates
-    /// `tile_render_caches` for any new bundle, builds + memoizes
-    /// `tile_subscenes` for each `(bundle, export, frame)` triple. The
-    /// returned `Scene` is a fresh per-call assembly (static prepended,
-    /// dynamic placements appended with their per-cell matrix) — caller
-    /// owns the dispatch.
-    fn prepare_tile_scene(
-        &mut self,
-        bundles: &[String],
-        exports: &[String],
-        bundle_idx: &[u32],
-        export_idx: &[u32],
-        frames: &[u32],
-        matrices: &[f32],
-    ) -> Option<vello::Scene> {
-        let n = bundle_idx.len();
-        if n > 0
-            && (export_idx.len() != n
-                || frames.len() != n
-                || matrices.len() != n * 6)
-        {
-            console_log!(
-                "prepare_tile_scene: parallel array length mismatch (n={n}, export_idx={}, frames={}, matrices={})",
-                export_idx.len(),
-                frames.len(),
-                matrices.len()
-            );
-            return None;
-        }
-
-        if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
-        }
-        for name in bundles.iter() {
-            self.tile_render_caches.entry(name.clone()).or_default();
-        }
-
-        // Phase 1: ensure sub-scenes exist for each unique dynamic
-        // placement (bundle, export, frame). Cache grows up to
-        // (animated_tiles × frame_count) entries — bounded.
-        let player_colors = self.swf_player_colors;
-        {
-            let renderer_ref = &mut self.renderer;
-            let device_ref = &self.device;
-            let queue_ref = &self.queue;
-            let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
-            let bundles_map = &self.swf_bundles;
-            let caches_map = &self.tile_render_caches;
-            let subscene_map = &mut self.tile_subscenes;
-            let mut ctx = swf_spike::render::WgpuCtx {
-                device: device_ref,
-                queue: queue_ref,
-                renderer: renderer_ref,
-                filter_pipelines,
-                output_scale: 1.0,
-            };
-            for i in 0..n {
-                let b_idx = bundle_idx[i] as usize;
-                let e_idx = export_idx[i] as usize;
-                if b_idx >= bundles.len() || e_idx >= exports.len() {
-                    continue;
-                }
-                let bundle_name = &bundles[b_idx];
-                let export_name = &exports[e_idx];
-                let frame = frames[i];
-                let key = (bundle_name.clone(), export_name.clone(), frame);
-                if subscene_map.contains_key(&key) {
-                    continue;
-                }
-                let Some(doc) = bundles_map.get(bundle_name) else {
-                    continue;
-                };
-                let Some(symbol) = doc.lookup_export(export_name) else {
-                    continue;
-                };
-                let cache = caches_map
-                    .get(bundle_name)
-                    .expect("cache pre-created above");
-                let mut subscene = vello::Scene::new();
-                swf_spike::render::render_symbol_with_shared_cache(
-                    &mut ctx,
-                    doc,
-                    symbol,
-                    &mut subscene,
-                    vello::kurbo::Affine::IDENTITY,
-                    frame as u16,
-                    player_colors,
-                    cache,
-                );
-                subscene_map.insert(key, subscene);
-            }
-        }
-
-        // Phase 2: per-frame scene = cached static + dynamic placements.
-        let mut scene = vello::Scene::new();
-        if let Some(static_scene) = &self.static_tile_scene {
-            scene.append(static_scene, None);
-        }
-        for i in 0..n {
-            let b_idx = bundle_idx[i] as usize;
-            let e_idx = export_idx[i] as usize;
-            if b_idx >= bundles.len() || e_idx >= exports.len() {
-                continue;
-            }
-            let key = (bundles[b_idx].clone(), exports[e_idx].clone(), frames[i]);
-            let Some(subscene) = self.tile_subscenes.get(&key) else {
-                continue;
-            };
-            let m = &matrices[i * 6..i * 6 + 6];
-            let xform = vello::kurbo::Affine::new([
-                m[0] as f64,
-                m[1] as f64,
-                m[2] as f64,
-                m[3] as f64,
-                m[4] as f64,
-                m[5] as f64,
-            ]);
-            scene.append(subscene, Some(xform));
-        }
-        Some(scene)
-    }
-
-    /// Render the tile pass (Ground + Object1) directly into a
-    /// previously-attached `<canvas>` surface. Replaces the
-    /// `renderTilePass` → ExternalSource path: Vello writes the swap
-    /// chain texture directly via `render_to_texture`, then the surface
-    /// presents to the canvas. The browser composites the resulting
-    /// canvas with sibling Pixi/Vello canvases via DOM stacking.
-    ///
-    /// `surface_id` must come from a prior `attachCanvasSurface` call.
-    /// The surface's configured size determines render extents; caller
-    /// must `configureSurface(id, w, h)` whenever the viewport changes
-    /// before dispatching here. Returns `true` on success, `false` on
-    /// any failure (unknown id, lost surface, render error).
-    #[wasm_bindgen(js_name = "renderTilePassToSurface")]
-    pub fn render_tile_pass_to_surface(
-        &mut self,
-        surface_id: u32,
-        bundles: Vec<String>,
-        exports: Vec<String>,
-        bundle_idx: Vec<u32>,
-        export_idx: Vec<u32>,
-        frames: Vec<u32>,
-        matrices: Vec<f32>,
-    ) -> bool {
-        if !self.surfaces.contains_key(&surface_id) {
-            console_log!(
-                "renderTilePassToSurface: unknown surface id {surface_id}"
-            );
-            return false;
-        }
-        let Some(scene) = self.prepare_tile_scene(
-            &bundles,
-            &exports,
-            &bundle_idx,
-            &export_idx,
-            &frames,
-            &matrices,
-        ) else {
-            return false;
-        };
-        self.dispatch_scene_to_surface(surface_id, "renderTilePassToSurface", &scene)
-    }
-
-    /// Acquire the next swap chain frame for `surface_id`, render `scene`
-    /// into it via Vello, and present. Internal helper shared by all
-    /// `renderXxxToSurface` entry points so the boilerplate around
-    /// frame acquisition / present / error handling is centralized.
-    fn dispatch_scene_to_surface(
-        &mut self,
-        surface_id: u32,
-        label: &str,
-        scene: &vello::Scene,
-    ) -> bool {
-        let Some(surface) = self.surfaces.get(&surface_id) else {
-            return false;
-        };
-        let frame = match surface.get_current_texture() {
-            Ok(f) => f,
-            Err(e) => {
-                console_log!(
-                    "{label}: get_current_texture failed for surface {surface_id}: {e}"
-                );
-                return false;
-            }
-        };
-        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor {
-            label: Some("vello_surface_view"),
-            format: Some(wgpu::TextureFormat::Rgba8Unorm),
-            dimension: Some(wgpu::TextureViewDimension::D2),
-            usage: Some(wgpu::TextureUsages::STORAGE_BINDING),
-            aspect: wgpu::TextureAspect::All,
-            base_mip_level: 0,
-            mip_level_count: Some(1),
-            base_array_layer: 0,
-            array_layer_count: Some(1),
-        });
-        let params = vello::RenderParams {
-            base_color: Color::TRANSPARENT,
-            width: frame.texture.width(),
-            height: frame.texture.height(),
-            antialiasing_method: AaConfig::Area,
-        };
-        if let Err(e) =
-            self.renderer
-                .render_to_texture(&self.device, &self.queue, scene, &view, &params)
-        {
-            console_log!("{label}: render error: {e}");
-            return false;
-        }
-        frame.present();
-        true
-    }
-
     /// Drop a previously-allocated render output texture by id.
     /// Tile-pass outputs are allocated fresh per dispatch; the caller
     /// holds a Pixi `Texture` referencing the GPUTexture handle, and
@@ -4205,9 +3683,21 @@ impl VelloRenderer {
     /// next tick's frame. `tex_id` is taken as `f64` since wasm-bindgen
     /// marshals JS numbers as f64 — internally cast to u64 to match the
     /// `next_texture_id` counter.
+    ///
+    /// The patched wgpu fork (`rust/wgpu/`) has a no-op `Drop` for
+    /// `WebTexture` — see `feedback_pixi_wgpu_texture_lifetime`. So
+    /// just removing the entry from the map only releases Rust's
+    /// handle, NOT the GPU storage. We have to call `texture.destroy()`
+    /// explicitly, which forwards to `GPUTexture.destroy()` on the
+    /// browser side and frees the actual VRAM. Without this every
+    /// retired strip leaks ~0.5-1 MB of GPU memory and Path B's cache
+    /// cap can't bound real memory at all (the JS-side cache evicts
+    /// + reallocates, but the freed strips stay resident).
     #[wasm_bindgen(js_name = "freeRenderTexture")]
     pub fn free_render_texture(&mut self, tex_id: f64) {
-        self.textures.remove(&(tex_id as u64));
+        if let Some(tex) = self.textures.remove(&(tex_id as u64)) {
+            tex.destroy();
+        }
     }
 
     /// True if this export's symbol tree contains any placement with filters
@@ -4426,6 +3916,21 @@ impl VelloRenderer {
         let mut best = top.num_frames;
         recurse(doc, top, 4, &mut best);
         u32::from(best)
+    }
+
+    /// Enumerate every named export in a loaded SWF bundle. Used by
+    /// the stress test (and any other "all available accessories"
+    /// caller) to build content pools dynamically from what's actually
+    /// loaded instead of relying on a hand-curated list. Returns an
+    /// empty array if the bundle isn't loaded.
+    #[wasm_bindgen(js_name = "swfBundleExports")]
+    pub fn swf_bundle_exports(&self, bundle: &str) -> Vec<String> {
+        let Some(doc) = self.swf_bundles.get(bundle) else {
+            return Vec::new();
+        };
+        let mut names: Vec<String> = doc.by_name.keys().cloned().collect();
+        names.sort();
+        names
     }
 
     /// Set the player's three zone colours used by the SWF render path.
@@ -5426,7 +4931,11 @@ impl VelloRenderer {
     /// Free all cached textures.
     #[wasm_bindgen(js_name = "freeAllTextures")]
     pub fn free_all_textures(&mut self) {
-        self.textures.clear();
+        // Patched-wgpu Drop is a no-op — destroy explicitly so VRAM
+        // actually releases (e.g. on map transition / hot-reload).
+        for (_, tex) in self.textures.drain() {
+            tex.destroy();
+        }
     }
 
 
@@ -5483,950 +4992,6 @@ impl VelloRenderer {
         result.into()
     }
 
-    /// Render the unified L3 World layer.
-    ///
-    /// Heterogeneous placement-list dispatch matching the canonical
-    /// Object2 depth band (foreground tiles + characters + spell VFX
-    /// interleaved by `cellNum × 100 + sub-offset`). Four placement
-    /// kinds:
-    ///   - kind=0  Tile  — bundle/export/frame/matrix
-    ///   - kind=1  Char  — bundle/export/frame/matrix + accessories
-    ///                     + color zones + dirSuffix + bFix + alpha
-    ///   - kind=2  Spell — instance_id (resolved against AVM1 state)
-    ///                     + matrix + alpha
-    ///   - kind=3  Decal — bundle/export/frame/matrix + alpha
-    ///
-    /// Caller contract:
-    ///   - `kinds[i]` discriminates the placement; out-of-range kinds
-    ///     are skipped silently (TS-Rust version skew tolerance).
-    ///   - `bundles`/`exports` are dedup'd; `bundle_idx`/`export_idx`
-    ///     index into them. Accessory bundles + exports MUST be added
-    ///     to those tables (callers intern them).
-    ///   - `frames`/`alphas`/`depths` are per-placement.
-    ///   - `matrices` is 6 × n floats (`a, b, c, d, tx, ty`).
-    ///   - **Caller MUST sort placements by `depths` ascending** —
-    ///     `WorldLayer.snapshotByDepth()` does this. Vello renders in
-    ///     scene-order; out-of-order placements paint incorrectly.
-    ///   - `color_zones` is `3 × n` u32; sentinel `u32::MAX` = absent.
-    ///   - `char_dirs[i]` ASCII direction byte ('R','L','F','B','S'),
-    ///     or 0 for non-Char.
-    ///   - `char_b_fix[i]` 0/1 — non-zero triggers AS2 bFix mirror for
-    ///     accessories with `b_fix=true` mounts (capes, shields).
-    ///   - **Accessory CSR layout** for variable-length per-Char
-    ///     accessory lists: `acc_offsets[i]..acc_offsets[i+1]` slices
-    ///     into `acc_*[]`. `acc_offsets` length is `n+1`. Non-Char
-    ///     placements emit an empty range.
-    ///
-    /// Static foreground tile content prepended via `static_world_scene`
-    /// (built once by `setStaticWorldTiles`). Per-tick dispatch
-    /// re-encodes only the dynamic subset (animated tiles + chars +
-    /// spells) on top.
-    ///
-    /// Returns `{texture, textureId, width, height}` on success, NULL
-    /// on input validation failure or render error.
-    #[wasm_bindgen(js_name = "renderWorldPass")]
-    pub fn render_world_pass(
-        &mut self,
-        target_w: u32,
-        target_h: u32,
-        kinds: Vec<u8>,
-        bundles: Vec<String>,
-        exports: Vec<String>,
-        bundle_idx: Vec<u32>,
-        export_idx: Vec<u32>,
-        frames: Vec<u32>,
-        depths: Vec<i32>,
-        matrices: Vec<f32>,
-        alphas: Vec<f32>,
-        color_zones: Vec<u32>,
-        char_dirs: Vec<u8>,
-        char_b_fix: Vec<u8>,
-        acc_offsets: Vec<u32>,
-        acc_slots: Vec<u8>,
-        acc_bundle_idx: Vec<u32>,
-        acc_export_idx: Vec<u32>,
-        acc_anim_types: Vec<u8>,
-    ) -> JsValue {
-        if target_w == 0
-            || target_h == 0
-            || target_w > 16384
-            || target_h > 16384
-        {
-            return JsValue::NULL;
-        }
-        let Some(scene) = self.prepare_world_scene(
-            &kinds,
-            &bundles,
-            &exports,
-            &bundle_idx,
-            &export_idx,
-            &frames,
-            &depths,
-            &matrices,
-            &alphas,
-            &color_zones,
-            &char_dirs,
-            &char_b_fix,
-            &acc_offsets,
-            &acc_slots,
-            &acc_bundle_idx,
-            &acc_export_idx,
-            &acc_anim_types,
-        ) else {
-            return JsValue::NULL;
-        };
-        // Persistent world target. Reused across dispatches; only
-        // recreated on size change so Pixi's ExternalSource holds a
-        // stable handle while contents update in place.
-        let target = match &self.world_pass_target {
-            Some(t) if t.width == target_w && t.height == target_h => t,
-            _ => {
-                if let Some(old) = self.world_pass_target.take() {
-                    self.textures.remove(&old.tex_id);
-                }
-                let texture =
-                    self.device.create_texture(&wgpu::TextureDescriptor {
-                        label: Some("vello_world_pass"),
-                        size: wgpu::Extent3d {
-                            width: target_w,
-                            height: target_h,
-                            depth_or_array_layers: 1,
-                        },
-                        mip_level_count: 1,
-                        sample_count: 1,
-                        dimension: wgpu::TextureDimension::D2,
-                        format: wgpu::TextureFormat::Rgba8Unorm,
-                        usage: wgpu::TextureUsages::STORAGE_BINDING
-                            | wgpu::TextureUsages::COPY_SRC
-                            | wgpu::TextureUsages::TEXTURE_BINDING,
-                        view_formats: &[],
-                    });
-                let tex_id = self.next_texture_id;
-                self.next_texture_id += 1;
-                self.textures.insert(tex_id, texture);
-                self.world_pass_target = Some(TilePassTarget {
-                    width: target_w,
-                    height: target_h,
-                    texture: self.textures.get(&tex_id).unwrap().clone(),
-                    tex_id,
-                });
-                self.world_pass_target.as_ref().unwrap()
-            }
-        };
-
-        let view = target
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let params = vello::RenderParams {
-            base_color: Color::TRANSPARENT,
-            width: target_w,
-            height: target_h,
-            antialiasing_method: AaConfig::Area,
-        };
-        if let Err(e) = self.renderer.render_to_texture(
-            &self.device,
-            &self.queue,
-            &scene,
-            &view,
-            &params,
-        ) {
-            console_log!("renderWorldPass: render error: {e}");
-            return JsValue::NULL;
-        }
-
-        let gpu_texture = extract_gpu_texture(&target.texture);
-        let tex_id = target.tex_id;
-        let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"textureId".into(),
-            &JsValue::from(tex_id as f64),
-        );
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"width".into(),
-            &JsValue::from(target_w),
-        );
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"height".into(),
-            &JsValue::from(target_h),
-        );
-        result.into()
-    }
-
-    /// World-pass scene assembly — shared by `renderWorldPass` (texture
-    /// output, transitional) and `renderWorldPassToSurface` (Phase 4+,
-    /// canonical). Returns `None` only on parallel-array length
-    /// mismatch; `n == 0` is valid and yields a scene containing only
-    /// the cached `static_world_scene`.
-    ///
-    /// Encoding contract — same as `render_world_pass`:
-    ///   kinds[i]: 0=tile, 1=char, 2=spell, 3=decal.
-    ///   Tile/Decal use `(bundle, export, frame)` keyed subscene cache.
-    ///   Char re-renders per-placement (color zones can't cache).
-    ///   Spell composes live AVM1 state via `frames[i] = instance_id`.
-    fn prepare_world_scene(
-        &mut self,
-        kinds: &[u8],
-        bundles: &[String],
-        exports: &[String],
-        bundle_idx: &[u32],
-        export_idx: &[u32],
-        frames: &[u32],
-        depths: &[i32],
-        matrices: &[f32],
-        alphas: &[f32],
-        color_zones: &[u32],
-        char_dirs: &[u8],
-        char_b_fix: &[u8],
-        acc_offsets: &[u32],
-        acc_slots: &[u8],
-        acc_bundle_idx: &[u32],
-        acc_export_idx: &[u32],
-        acc_anim_types: &[u8],
-    ) -> Option<vello::Scene> {
-        let n = kinds.len();
-        if n > 0
-            && (bundle_idx.len() != n
-                || export_idx.len() != n
-                || frames.len() != n
-                || depths.len() != n
-                || alphas.len() != n
-                || matrices.len() != n * 6
-                || color_zones.len() != n * 3
-                || char_dirs.len() != n
-                || char_b_fix.len() != n
-                || acc_offsets.len() != n + 1)
-        {
-            console_log!(
-                "prepare_world_scene: parallel array length mismatch (n={n})"
-            );
-            return None;
-        }
-        if n > 0 {
-            let acc_total = *acc_offsets.last().unwrap_or(&0) as usize;
-            if acc_slots.len() != acc_total
-                || acc_bundle_idx.len() != acc_total
-                || acc_export_idx.len() != acc_total
-                || acc_anim_types.len() != acc_total
-            {
-                console_log!(
-                    "prepare_world_scene: accessory CSR length mismatch (total={acc_total})"
-                );
-                return None;
-            }
-        }
-        let _ = depths; // depths threaded for future ordering asserts.
-
-        if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
-        }
-        for name in bundles.iter() {
-            self.tile_render_caches.entry(name.clone()).or_default();
-        }
-
-        // Phase 1: ensure tile subscenes exist for every Tile/Decal
-        // placement (kind 0 or 3) at unique (bundle, export, frame).
-        // Char (kind=1) skips this — color zones are per-placement and
-        // can't be cached at the (bundle, export, frame) key.
-        // Spell (kind=2) skips this — AVM1 state is dynamic.
-        let mut warned_kinds: u8 = 0;
-        {
-            let renderer_ref = &mut self.renderer;
-            let device_ref = &self.device;
-            let queue_ref = &self.queue;
-            let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
-            let bundles_map = &self.swf_bundles;
-            let caches_map = &self.tile_render_caches;
-            let subscene_map = &mut self.tile_subscenes;
-            let mut ctx = swf_spike::render::WgpuCtx {
-                device: device_ref,
-                queue: queue_ref,
-                renderer: renderer_ref,
-                filter_pipelines,
-                output_scale: 1.0,
-            };
-            for i in 0..n {
-                let kind = kinds[i];
-                if kind == 1 || kind == 2 {
-                    continue;
-                }
-                if kind != 0 && kind != 3 {
-                    let bit = 1u8 << kind.min(7);
-                    if warned_kinds & bit == 0 {
-                        warned_kinds |= bit;
-                        console_log!(
-                            "prepare_world_scene: kind={kind} unknown; skipped"
-                        );
-                    }
-                    continue;
-                }
-                let b_idx = bundle_idx[i] as usize;
-                let e_idx = export_idx[i] as usize;
-                if b_idx >= bundles.len() || e_idx >= exports.len() {
-                    continue;
-                }
-                let bundle_name = &bundles[b_idx];
-                let export_name = &exports[e_idx];
-                let frame = frames[i];
-                let key = (bundle_name.clone(), export_name.clone(), frame);
-                if subscene_map.contains_key(&key) {
-                    continue;
-                }
-                let Some(doc) = bundles_map.get(bundle_name) else {
-                    continue;
-                };
-                let Some(symbol) = doc.lookup_export(export_name) else {
-                    continue;
-                };
-                let cache = caches_map
-                    .get(bundle_name)
-                    .expect("cache pre-created above");
-                let mut subscene = vello::Scene::new();
-                swf_spike::render::render_symbol_with_shared_cache(
-                    &mut ctx,
-                    doc,
-                    symbol,
-                    &mut subscene,
-                    vello::kurbo::Affine::IDENTITY,
-                    frame as u16,
-                    self.swf_player_colors,
-                    cache,
-                );
-                subscene_map.insert(key, subscene);
-            }
-        }
-
-        // Phase 2: build per-frame scene. Static foreground tile scene
-        // prepended via memcpy; dynamic placements (animated tiles +
-        // chars + spells + decals) re-encoded.
-        let mut scene = vello::Scene::new();
-        if let Some(static_scene) = &self.static_world_scene {
-            scene.append(static_scene, None);
-        }
-        {
-            let renderer_ref = &mut self.renderer;
-            let device_ref = &self.device;
-            let queue_ref = &self.queue;
-            let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
-            let bundles_map = &self.swf_bundles;
-            let subscene_map = &self.tile_subscenes;
-            let spell_instances = &self.swf_spell_instances;
-            let mut ctx = swf_spike::render::WgpuCtx {
-                device: device_ref,
-                queue: queue_ref,
-                renderer: renderer_ref,
-                filter_pipelines,
-                output_scale: 1.0,
-            };
-            for i in 0..n {
-                let kind = kinds[i];
-                let b_idx = bundle_idx[i] as usize;
-                let e_idx = export_idx[i] as usize;
-                let m = &matrices[i * 6..i * 6 + 6];
-                let xform = vello::kurbo::Affine::new([
-                    m[0] as f64, m[1] as f64, m[2] as f64,
-                    m[3] as f64, m[4] as f64, m[5] as f64,
-                ]);
-                let alpha = alphas[i];
-                match kind {
-                    0 => {
-                        if b_idx >= bundles.len() || e_idx >= exports.len() {
-                            continue;
-                        }
-                        let key = (
-                            bundles[b_idx].clone(),
-                            exports[e_idx].clone(),
-                            frames[i],
-                        );
-                        let Some(subscene) = subscene_map.get(&key) else {
-                            continue;
-                        };
-                        scene.append(subscene, Some(xform));
-                    }
-                    1 => {
-                        if b_idx >= bundles.len() || e_idx >= exports.len() {
-                            continue;
-                        }
-                        let bundle_name = &bundles[b_idx];
-                        let export_name = &exports[e_idx];
-                        let Some(doc) = bundles_map.get(bundle_name) else {
-                            continue;
-                        };
-                        let Some(symbol) = doc.lookup_export(export_name)
-                        else {
-                            continue;
-                        };
-                        let zo = i * 3;
-                        let z = |v: u32| -> Option<u32> {
-                            if v == u32::MAX { None } else { Some(v) }
-                        };
-                        let player_colors = swf_spike::recolor::PlayerColors([
-                            z(color_zones[zo]),
-                            z(color_zones[zo + 1]),
-                            z(color_zones[zo + 2]),
-                        ]);
-                        let acc_start = acc_offsets[i] as usize;
-                        let acc_end = acc_offsets[i + 1] as usize;
-                        let mut accessories: swf_spike::render::ctx::AccessoryDict =
-                            std::collections::HashMap::with_capacity(
-                                acc_end - acc_start,
-                            );
-                        let dir_byte = char_dirs[i];
-                        let dir_char = if dir_byte == 0 {
-                            'R'
-                        } else {
-                            char::from(dir_byte).to_ascii_uppercase()
-                        };
-                        let char_frame = frames[i] as u16;
-                        for k in acc_start..acc_end {
-                            let abi = acc_bundle_idx[k] as usize;
-                            let aei = acc_export_idx[k] as usize;
-                            if abi >= bundles.len() || aei >= exports.len() {
-                                continue;
-                            }
-                            let acc_bundle = &bundles[abi];
-                            let acc_export = &exports[aei];
-                            let Some(acc_doc) = bundles_map.get(acc_bundle)
-                            else {
-                                continue;
-                            };
-                            let Some(acc_sym) =
-                                acc_doc.lookup_export(acc_export)
-                            else {
-                                continue;
-                            };
-                            accessories.insert(
-                                acc_slots[k],
-                                swf_spike::render::ctx::AccessoryEntry {
-                                    doc: acc_doc,
-                                    symbol: acc_sym,
-                                    anim_type: acc_anim_types[k],
-                                    char_frame,
-                                    char_dir_suffix: dir_char,
-                                },
-                            );
-                        }
-                        let cache =
-                            swf_spike::render::cache::RenderCache::new();
-                        let apply_b_fix = char_b_fix[i] != 0;
-                        let needs_layer = alpha < 0.999 && alpha > 0.0;
-                        if needs_layer {
-                            let big_clip = vello::kurbo::Rect::new(
-                                -1.0e7, -1.0e7, 1.0e7, 1.0e7,
-                            );
-                            scene.push_layer(
-                                vello::peniko::Fill::NonZero,
-                                vello::peniko::BlendMode::default(),
-                                alpha,
-                                vello::kurbo::Affine::IDENTITY,
-                                &big_clip,
-                            );
-                        }
-                        if alpha > 0.0 {
-                            swf_spike::render::render_symbol_with_ctx_tinted_accessorized_bfixed(
-                                &mut ctx,
-                                doc,
-                                symbol,
-                                &mut scene,
-                                xform,
-                                char_frame,
-                                player_colors,
-                                &cache,
-                                &accessories,
-                                apply_b_fix,
-                            );
-                        }
-                        if needs_layer {
-                            scene.pop_layer();
-                        }
-                    }
-                    2 => {
-                        let inst_id = frames[i];
-                        let Some(inst) = spell_instances.get(&inst_id)
-                        else {
-                            continue;
-                        };
-                        let Some(doc) = bundles_map.get(&inst.bundle_name)
-                        else {
-                            continue;
-                        };
-                        let root_sym = swf_spike::swf_doc::Symbol::Sprite(
-                            doc.root.clone(),
-                        );
-                        let needs_layer = alpha < 0.999 && alpha > 0.0;
-                        if needs_layer {
-                            let big_clip = vello::kurbo::Rect::new(
-                                -1.0e7, -1.0e7, 1.0e7, 1.0e7,
-                            );
-                            scene.push_layer(
-                                vello::peniko::Fill::NonZero,
-                                vello::peniko::BlendMode::default(),
-                                alpha,
-                                vello::kurbo::Affine::IDENTITY,
-                                &big_clip,
-                            );
-                        }
-                        if alpha > 0.0 {
-                            inst.avm.render(
-                                doc,
-                                &root_sym,
-                                &mut scene,
-                                xform,
-                                Some(&mut ctx),
-                            );
-                        }
-                        if needs_layer {
-                            scene.pop_layer();
-                        }
-                    }
-                    3 => {
-                        if b_idx >= bundles.len() || e_idx >= exports.len() {
-                            continue;
-                        }
-                        let key = (
-                            bundles[b_idx].clone(),
-                            exports[e_idx].clone(),
-                            frames[i],
-                        );
-                        let Some(subscene) = subscene_map.get(&key) else {
-                            continue;
-                        };
-                        if alpha >= 0.999 {
-                            scene.append(subscene, Some(xform));
-                        } else if alpha > 0.0 {
-                            let big_clip = vello::kurbo::Rect::new(
-                                -1.0e7, -1.0e7, 1.0e7, 1.0e7,
-                            );
-                            scene.push_layer(
-                                vello::peniko::Fill::NonZero,
-                                vello::peniko::BlendMode::default(),
-                                alpha,
-                                vello::kurbo::Affine::IDENTITY,
-                                &big_clip,
-                            );
-                            scene.append(subscene, Some(xform));
-                            scene.pop_layer();
-                        }
-                    }
-                    4 => {
-                        // CellTint — solid filled diamond at canonical
-                        // Object2 sub-offset +2 (between foreground tiles
-                        // at +0 and chars at +30). Encoding:
-                        //   frames[i]  = packed AARRGGBB color
-                        //   alphas[i]  = additional opacity multiplier
-                        //   matrix     = maps unit diamond (vertices at
-                        //                (-0.5, 0), (0, -0.5), (0.5, 0),
-                        //                (0, 0.5)) to surface pixels
-                        let packed = frames[i];
-                        let a = ((packed >> 24) & 0xff) as f32 / 255.0;
-                        let r = ((packed >> 16) & 0xff) as u8;
-                        let g = ((packed >> 8) & 0xff) as u8;
-                        let b = (packed & 0xff) as u8;
-                        let final_alpha = (a * alpha).clamp(0.0, 1.0);
-                        if final_alpha <= 0.0 {
-                            continue;
-                        }
-                        let alpha_byte = (final_alpha * 255.0) as u8;
-                        let color =
-                            vello::peniko::Color::from_rgba8(r, g, b, alpha_byte);
-                        let mut path = vello::kurbo::BezPath::new();
-                        path.move_to((-0.5, 0.0));
-                        path.line_to((0.0, -0.5));
-                        path.line_to((0.5, 0.0));
-                        path.line_to((0.0, 0.5));
-                        path.close_path();
-                        scene.fill(
-                            vello::peniko::Fill::NonZero,
-                            xform,
-                            color,
-                            None,
-                            &path,
-                        );
-                    }
-                    _ => {}
-                }
-            }
-        }
-        Some(scene)
-    }
-
-    /// Render the unified L3 World pass (Object2: chars + foreground
-    /// tiles + spells + decals) directly into a previously-attached
-    /// `<canvas>` surface. Same encoding contract as `renderWorldPass`
-    /// (kinds + parallel arrays + accessory CSR) — the only difference
-    /// is the destination: swap chain frame view instead of an
-    /// internally-managed off-screen RT.
-    #[wasm_bindgen(js_name = "renderWorldPassToSurface")]
-    pub fn render_world_pass_to_surface(
-        &mut self,
-        surface_id: u32,
-        kinds: Vec<u8>,
-        bundles: Vec<String>,
-        exports: Vec<String>,
-        bundle_idx: Vec<u32>,
-        export_idx: Vec<u32>,
-        frames: Vec<u32>,
-        depths: Vec<i32>,
-        matrices: Vec<f32>,
-        alphas: Vec<f32>,
-        color_zones: Vec<u32>,
-        char_dirs: Vec<u8>,
-        char_b_fix: Vec<u8>,
-        acc_offsets: Vec<u32>,
-        acc_slots: Vec<u8>,
-        acc_bundle_idx: Vec<u32>,
-        acc_export_idx: Vec<u32>,
-        acc_anim_types: Vec<u8>,
-    ) -> bool {
-        if !self.surfaces.contains_key(&surface_id) {
-            console_log!(
-                "renderWorldPassToSurface: unknown surface id {surface_id}"
-            );
-            return false;
-        }
-        let Some(scene) = self.prepare_world_scene(
-            &kinds,
-            &bundles,
-            &exports,
-            &bundle_idx,
-            &export_idx,
-            &frames,
-            &depths,
-            &matrices,
-            &alphas,
-            &color_zones,
-            &char_dirs,
-            &char_b_fix,
-            &acc_offsets,
-            &acc_slots,
-            &acc_bundle_idx,
-            &acc_export_idx,
-            &acc_anim_types,
-        ) else {
-            return false;
-        };
-        self.dispatch_scene_to_surface(
-            surface_id,
-            "renderWorldPassToSurface",
-            &scene,
-        )
-    }
-
-    /// Pre-encode the unified L3 World layer's static foreground-tile
-    /// subset into one cached Vello scene. Called whenever the static
-    /// set changes (map load, zoom step, tactic-mode toggle); world
-    /// pass appends it via memcpy on every dispatch. Mirrors
-    /// `setStaticTilePlacements` for the world pass.
-    ///
-    /// Encoding: tile-only flat arrays. Empty input clears cache.
-    #[wasm_bindgen(js_name = "setStaticWorldTiles")]
-    pub fn set_static_world_tiles(
-        &mut self,
-        bundles: Vec<String>,
-        exports: Vec<String>,
-        bundle_idx: Vec<u32>,
-        export_idx: Vec<u32>,
-        frames: Vec<u32>,
-        matrices: Vec<f32>,
-    ) {
-        let n = bundle_idx.len();
-        if n == 0 {
-            self.static_world_scene = None;
-            return;
-        }
-        if export_idx.len() != n
-            || frames.len() != n
-            || matrices.len() != n * 6
-        {
-            console_log!(
-                "setStaticWorldTiles: array length mismatch (n={n})"
-            );
-            return;
-        }
-
-        if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
-        }
-        for name in bundles.iter() {
-            self.tile_render_caches.entry(name.clone()).or_default();
-        }
-
-        let player_colors = self.swf_player_colors;
-        {
-            let renderer_ref = &mut self.renderer;
-            let device_ref = &self.device;
-            let queue_ref = &self.queue;
-            let filter_pipelines =
-                self.swf_filter_pipelines.as_ref().unwrap();
-            let bundles_map = &self.swf_bundles;
-            let caches_map = &self.tile_render_caches;
-            let subscene_map = &mut self.tile_subscenes;
-            let mut ctx = swf_spike::render::WgpuCtx {
-                device: device_ref,
-                queue: queue_ref,
-                renderer: renderer_ref,
-                filter_pipelines,
-                output_scale: 1.0,
-            };
-            for i in 0..n {
-                let b_idx = bundle_idx[i] as usize;
-                let e_idx = export_idx[i] as usize;
-                if b_idx >= bundles.len() || e_idx >= exports.len() {
-                    continue;
-                }
-                let bundle_name = &bundles[b_idx];
-                let export_name = &exports[e_idx];
-                let frame = frames[i];
-                let key = (bundle_name.clone(), export_name.clone(), frame);
-                if subscene_map.contains_key(&key) {
-                    continue;
-                }
-                let Some(doc) = bundles_map.get(bundle_name) else {
-                    continue;
-                };
-                let Some(symbol) = doc.lookup_export(export_name) else {
-                    continue;
-                };
-                let cache = caches_map
-                    .get(bundle_name)
-                    .expect("cache pre-created above");
-                let mut subscene = vello::Scene::new();
-                swf_spike::render::render_symbol_with_shared_cache(
-                    &mut ctx,
-                    doc,
-                    symbol,
-                    &mut subscene,
-                    vello::kurbo::Affine::IDENTITY,
-                    frame as u16,
-                    player_colors,
-                    cache,
-                );
-                subscene_map.insert(key, subscene);
-            }
-        }
-
-        let mut scene = vello::Scene::new();
-        for i in 0..n {
-            let b_idx = bundle_idx[i] as usize;
-            let e_idx = export_idx[i] as usize;
-            if b_idx >= bundles.len() || e_idx >= exports.len() {
-                continue;
-            }
-            let key = (
-                bundles[b_idx].clone(),
-                exports[e_idx].clone(),
-                frames[i],
-            );
-            let Some(subscene) = self.tile_subscenes.get(&key) else {
-                continue;
-            };
-            let m = &matrices[i * 6..i * 6 + 6];
-            let xform = vello::kurbo::Affine::new([
-                m[0] as f64, m[1] as f64, m[2] as f64,
-                m[3] as f64, m[4] as f64, m[5] as f64,
-            ]);
-            scene.append(subscene, Some(xform));
-        }
-        self.static_world_scene = Some(scene);
-    }
-
-    /// Synthetic world-pass benchmark for the M1 gate. Builds a grid
-    /// of `n_chars` Char placements, `n_tiles` Tile placements, and
-    /// `n_spells` Spell placeholders, each pulling from the first
-    /// loaded character + tile bundle. Renders 1 frame; reports
-    /// wall-clock ms for the JS caller to gate on.
-    ///
-    /// **Architecture gate**: if dispatch P99 exceeds the FPS target
-    /// budget on the user's machine, the migration aborts before any
-    /// consumer-side code is written.
-    ///
-    /// Returns `{ ms, n_placements, scene_paths_estimated, status }`.
-    #[wasm_bindgen(js_name = "renderWorldPassBench")]
-    pub fn render_world_pass_bench(
-        &mut self,
-        n_chars: u32,
-        n_tiles: u32,
-        n_spells: u32,
-    ) -> JsValue {
-        let n_total = (n_chars + n_tiles + n_spells) as usize;
-        if n_total == 0 {
-            return JsValue::NULL;
-        }
-
-        // Pick first available char bundle (sprite/N) and tile bundle
-        // (gfx/g1 etc.) from loaded swf_bundles.
-        let char_bundle = self
-            .swf_bundles
-            .iter()
-            .find(|(name, _)| name.starts_with("sprite-"))
-            .map(|(name, _)| name.clone());
-        let tile_bundle = self
-            .swf_bundles
-            .iter()
-            .find(|(name, _)| {
-                name.as_str() == "g1"
-                    || name.as_str() == "g2"
-                    || name.starts_with('o')
-            })
-            .map(|(name, _)| name.clone());
-
-        let mut bundles: Vec<String> = Vec::new();
-        let mut exports: Vec<String> = Vec::new();
-        let char_b_idx = if let Some(ref b) = char_bundle {
-            bundles.push(b.clone());
-            exports.push("static_R".to_string());
-            0u32
-        } else if n_chars > 0 {
-            console_log!("renderWorldPassBench: no character bundle loaded");
-            return JsValue::NULL;
-        } else {
-            0
-        };
-        let tile_b_idx = if let Some(ref b) = tile_bundle {
-            bundles.push(b.clone());
-            exports.push("g1".to_string());
-            (bundles.len() - 1) as u32
-        } else if n_tiles > 0 {
-            console_log!("renderWorldPassBench: no tile bundle loaded");
-            return JsValue::NULL;
-        } else {
-            0
-        };
-
-        let mut kinds: Vec<u8> = Vec::with_capacity(n_total);
-        let mut bundle_idx: Vec<u32> = Vec::with_capacity(n_total);
-        let mut export_idx: Vec<u32> = Vec::with_capacity(n_total);
-        let mut frames: Vec<u32> = Vec::with_capacity(n_total);
-        let mut depths: Vec<i32> = Vec::with_capacity(n_total);
-        let mut matrices: Vec<f32> = Vec::with_capacity(n_total * 6);
-        let mut alphas: Vec<f32> = Vec::with_capacity(n_total);
-        let mut color_zones: Vec<u32> =
-            Vec::with_capacity(n_total * 3);
-        let mut char_dirs: Vec<u8> = Vec::with_capacity(n_total);
-        let mut char_b_fix: Vec<u8> = Vec::with_capacity(n_total);
-        let mut acc_offsets: Vec<u32> = Vec::with_capacity(n_total + 1);
-        acc_offsets.push(0);
-
-        // Lay placements in a grid. Each placement at a unique cell
-        // for canonical-style depth dispersion. `cellNum` derived
-        // from grid index; depth = cellNum * 100 + sub_offset.
-        let cols = ((n_total as f32).sqrt().ceil() as u32).max(1);
-        let cell_w = 86.0_f32; // canonical cell width
-        let cell_h = 43.0_f32;
-
-        for i in 0..n_chars {
-            let cell = i;
-            let col = (cell % cols) as f32;
-            let row = (cell / cols) as f32;
-            kinds.push(1);
-            bundle_idx.push(char_b_idx);
-            export_idx.push(0); // "static_R"
-            frames.push(0);
-            depths.push((cell as i32) * 100 + 30);
-            matrices.extend_from_slice(&[
-                1.0, 0.0, 0.0, 1.0,
-                col * cell_w, row * cell_h,
-            ]);
-            alphas.push(1.0);
-            color_zones.extend_from_slice(&[
-                0xFF0000, 0x00FF00, 0x0000FF,
-            ]);
-            char_dirs.push(b'R');
-            char_b_fix.push(0);
-            acc_offsets.push(*acc_offsets.last().unwrap_or(&0));
-        }
-        for i in 0..n_tiles {
-            let cell = n_chars + i;
-            let col = (cell % cols) as f32;
-            let row = (cell / cols) as f32;
-            kinds.push(0);
-            bundle_idx.push(tile_b_idx);
-            export_idx.push(1.min(exports.len() as u32 - 1));
-            frames.push(0);
-            depths.push((cell as i32) * 100 + 0);
-            matrices.extend_from_slice(&[
-                1.0, 0.0, 0.0, 1.0,
-                col * cell_w, row * cell_h,
-            ]);
-            alphas.push(1.0);
-            color_zones.extend_from_slice(&[
-                u32::MAX, u32::MAX, u32::MAX,
-            ]);
-            char_dirs.push(0);
-            char_b_fix.push(0);
-            acc_offsets.push(*acc_offsets.last().unwrap_or(&0));
-        }
-        // Spell placeholders skip if no spell instance is live.
-        // Skipped with kind=2; renderWorldPass logs and continues.
-        for i in 0..n_spells {
-            let cell = n_chars + n_tiles + i;
-            let col = (cell % cols) as f32;
-            let row = (cell / cols) as f32;
-            kinds.push(2);
-            bundle_idx.push(0);
-            export_idx.push(0);
-            frames.push(0);
-            depths.push((cell as i32) * 100 + 50);
-            matrices.extend_from_slice(&[
-                1.0, 0.0, 0.0, 1.0,
-                col * cell_w, row * cell_h,
-            ]);
-            alphas.push(1.0);
-            color_zones.extend_from_slice(&[
-                u32::MAX, u32::MAX, u32::MAX,
-            ]);
-            char_dirs.push(0);
-            char_b_fix.push(0);
-            acc_offsets.push(*acc_offsets.last().unwrap_or(&0));
-        }
-
-        let target_w = 2048u32;
-        let target_h = 1024u32;
-
-        let result = self.render_world_pass(
-            target_w,
-            target_h,
-            kinds,
-            bundles,
-            exports,
-            bundle_idx,
-            export_idx,
-            frames,
-            depths,
-            matrices,
-            alphas,
-            color_zones,
-            char_dirs,
-            char_b_fix,
-            acc_offsets,
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-        );
-        let status = if result.is_null() { "fail" } else { "ok" };
-
-        let ret = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(
-            &ret,
-            &"placements".into(),
-            &JsValue::from(n_total as u32),
-        );
-        let _ = js_sys::Reflect::set(
-            &ret,
-            &"status".into(),
-            &JsValue::from_str(status),
-        );
-        ret.into()
-    }
-
     /// Phase 3c — Drop both long-lived path caches.
     ///
     /// Use cases:
@@ -6444,100 +5009,5 @@ impl VelloRenderer {
     pub fn clear_path_cache(&mut self) {
         self.tile_subscenes.clear();
         self.tile_render_caches.clear();
-    }
-
-    // ──────────────────────────────────────────────────────────────────────
-    // Surface API — Phase 2 of the three-canvas migration.
-    //
-    // Each Vello-output `<canvas>` (ground+Object1, Object2, HUD slices)
-    // is attached as its own `wgpu::Surface`; per-tick render dispatch
-    // targets that surface directly via `render_to_texture` on the
-    // swap-chain frame view. Eliminates the Pixi `ExternalSource` indirection
-    // and the patched-wgpu GPUTexture extraction path entirely.
-    //
-    // Configuration uses `RENDER_ATTACHMENT | STORAGE_BINDING | COPY_DST`
-    // because Vello writes via a compute pipeline (STORAGE_BINDING is
-    // mandatory for `render_to_texture`'s output target). Browser support
-    // for STORAGE_BINDING on canvas swap chains: Chrome 113+ allows it for
-    // `rgba8unorm`. If unsupported, the configure call surfaces an error
-    // and the JS side falls back (Phase 5 deletion of the wgpu fork
-    // implies STORAGE_BINDING-on-canvas is available).
-
-    /// Attach a `<canvas>` as a Vello-driven surface. Returns the JS-facing
-    /// id used by `configureSurface` / `detachSurface` / future
-    /// `renderXxxToSurface` calls. The canvas is consumed (moved into the
-    /// Surface). Returns 0 on failure.
-    #[wasm_bindgen(js_name = "attachCanvasSurface")]
-    pub fn attach_canvas_surface(
-        &mut self,
-        canvas: web_sys::HtmlCanvasElement,
-        width: u32,
-        height: u32,
-    ) -> u32 {
-        if width == 0 || height == 0 || width > 16384 || height > 16384 {
-            console_log!(
-                "attachCanvasSurface: invalid size {width}x{height}"
-            );
-            return 0;
-        }
-        let surface = match self
-            .instance
-            .create_surface(wgpu::SurfaceTarget::Canvas(canvas))
-        {
-            Ok(s) => s,
-            Err(e) => {
-                console_log!("attachCanvasSurface: create_surface failed: {e}");
-                return 0;
-            }
-        };
-        let cfg = surface_config(width, height);
-        surface.configure(&self.device, &cfg);
-        let id = self.next_surface_id;
-        self.next_surface_id = self.next_surface_id.wrapping_add(1).max(1);
-        self.surfaces.insert(id, surface);
-        console_log!(
-            "attachCanvasSurface: id={id} {width}x{height}"
-        );
-        id
-    }
-
-    /// Reconfigure a previously-attached surface (resize / DPR change).
-    /// Idempotent if dims match the current configuration.
-    #[wasm_bindgen(js_name = "configureSurface")]
-    pub fn configure_surface(&mut self, id: u32, width: u32, height: u32) {
-        if width == 0 || height == 0 || width > 16384 || height > 16384 {
-            return;
-        }
-        let Some(surface) = self.surfaces.get(&id) else {
-            return;
-        };
-        surface.configure(&self.device, &surface_config(width, height));
-    }
-
-    /// Drop a surface attachment. Subsequent renders to this id no-op.
-    #[wasm_bindgen(js_name = "detachSurface")]
-    pub fn detach_surface(&mut self, id: u32) {
-        self.surfaces.remove(&id);
-    }
-}
-
-/// Standard `wgpu::SurfaceConfiguration` used for every Vello-attached
-/// canvas. Format is `Rgba8Unorm` to match Vello's required output
-/// format. Usage includes `STORAGE_BINDING` because Vello's compute
-/// pipeline writes the final image directly into the storage view.
-/// `COPY_DST` is included so future passes (debug overlays, blits) can
-/// also write into the surface texture without reconfiguring.
-fn surface_config(width: u32, height: u32) -> wgpu::SurfaceConfiguration {
-    wgpu::SurfaceConfiguration {
-        usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-            | wgpu::TextureUsages::STORAGE_BINDING
-            | wgpu::TextureUsages::COPY_DST,
-        format: wgpu::TextureFormat::Rgba8Unorm,
-        width,
-        height,
-        present_mode: wgpu::PresentMode::AutoVsync,
-        alpha_mode: wgpu::CompositeAlphaMode::PreMultiplied,
-        view_formats: vec![],
-        desired_maximum_frame_latency: 1,
     }
 }

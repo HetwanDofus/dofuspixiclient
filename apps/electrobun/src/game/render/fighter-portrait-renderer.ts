@@ -11,13 +11,11 @@ import {
 const log = createLogger("FighterPortrait");
 
 /**
- * Big-artwork portraits for the StringCourse turn-change banner. Mirrors
- * canonical `dofus.Constants.ARTWORKS_BIG_PATH` (`clips/artworks/big/{gfxId}.swf`).
+ * Big-artwork portraits for the turn-change banner. Mirrors canonical
+ * `dofus.Constants.ARTWORKS_BIG_PATH` (`clips/artworks/big/{gfxId}.swf`).
  *
- * Each cached entry owns one Vello-attached `<canvas>` painted by
- * `renderSwfRootToSurface`. React mounts the canvas directly. No
- * `ExternalSource`, no Pixi `extract.canvas` round-trip — Vello and
- * Pixi run on separate `GPUDevice`s.
+ * Each cached entry owns one 2D `<canvas>` painted via the shared
+ * `HudVelloAtlas`. React mounts the canvas directly.
  *
  * Source SWFs at `clips/artworks/big/{gfxId}.swf` have no named exports —
  * the visible portrait sits on the root timeline — so we use the root

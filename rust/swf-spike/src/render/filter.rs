@@ -322,10 +322,18 @@ fn apply_compute(ctx: &mut RenderCtx<'_>, sym: &Symbol, filters: &[OwnedFilter])
             ratio: ctx.ratio,
             color_xform: ctx.color_xform,
             recolor_target: ctx.recolor_target,
+            recolor_zone: ctx.recolor_zone,
             player_colors: ctx.player_colors,
             cache: ctx.cache,
             accessories: ctx.accessories,
             apply_b_fix: ctx.apply_b_fix,
+            // Path B: filter sub-renders are sub-tree walks, never
+            // top-level body walks — band filter doesn't apply.
+            band_filter: None,
+            // Sticky modes propagate into the filter pass so a body
+            // band's drop-shadow obeys the same rules.
+            disable_accessories: ctx.disable_accessories,
+            output_mode: ctx.output_mode,
         };
         super::render_symbol_into(&mut sub_ctx, sym);
     }

@@ -128,14 +128,31 @@ export class PlayerRenderer {
         // Sprite-controller drives the `main` slot only; mount slots
         // are dispatched per-tick in `syncPlacement` based on the
         // mountLayers' separately-loaded animation refs.
-        this.stripRenderer.applyAnimation(
-          player,
-          "main",
-          animation,
-          animName,
-          dir,
-          flipped
-        );
+        //
+        // Path B "never frozen" gate: clear animReady the moment a
+        // new anim is requested, then flip it back to true only when
+        // the strip renderer's atomic commit lands. `PlayerMovement`
+        // and any other action that depends on the bot animating
+        // checks `player.animReady` per tick and holds physics until
+        // it's true. Bots stay where they are (with their previous
+        // committed anim still rendering) instead of moving with the
+        // wrong/no animation.
+        player.animReady = false;
+        const playerId = player.id;
+        void this.stripRenderer
+          .applyAnimation(player, "main", animation, animName, dir, flipped)
+          .then((committed) => {
+            // The applyAnimation Promise may resolve after the
+            // player was despawned or retargeted to a different
+            // anim. Only honour the success path while the player
+            // still exists AND the live anim is the one we just
+            // requested.
+            const live = this.players.get(playerId);
+            if (!live) return;
+            if (!committed) return;
+            if (live.currentAnimName !== animName) return;
+            live.animReady = true;
+          });
       }
     );
 
@@ -406,6 +423,17 @@ export class PlayerRenderer {
     return this.players.has(id);
   }
 
+  /**
+   * True once the player's main slot has its first strip installed.
+   * Used by the stress test to defer movement-loop kickoff per bot —
+   * a bot that hasn't received its initial bake stays at its spawn
+   * cell with whatever placeholder graphic the renderer uses, rather
+   * than sliding around with no animation.
+   */
+  isStripReady(id: number): boolean {
+    return this.stripRenderer.isSlotReady(id);
+  }
+
   getContainer(): Container {
     return this.container;
   }
@@ -590,6 +618,7 @@ export class PlayerRenderer {
       container: display.container,
       placementId: `char-${data.id}`,
       spriteReady: false,
+      animReady: false,
       placeholderGraphics: display.placeholderGraphics,
       groundCircle: display.groundCircle,
       overhead: display.overhead,

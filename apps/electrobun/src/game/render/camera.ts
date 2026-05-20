@@ -1,14 +1,11 @@
 /**
  * Camera — single source of truth for the battlefield viewport state.
  *
- * The three-canvas stack has multiple consumers that must stay in
- * lockstep when zoom, pan, viewport size, or device pixel ratio
- * changes:
- *   - Pixi `Application` on the middle canvas: `mapContainer.scale`
- *     + position, `app.renderer.resize` + `resolution`.
- *   - Vello bottom canvas (TileLayerRenderer): `configureSurface(id,
- *     w, h)` so the swap chain sizes match.
- *   - Vello top canvas (WorldLayer): same.
+ * Multiple consumers stay in lockstep when zoom, pan, viewport size, or
+ * device pixel ratio changes:
+ *   - Pixi `Application`: `mapContainer.scale` + position,
+ *     `app.renderer.resize` + `resolution`.
+ *   - Vello renders: resolution scaling for GPU output textures.
  *   - Wrapper `<div>` CSS dims in the React tree (CanvasStack
  *     stretches to its parent, so this is implicit).
  *

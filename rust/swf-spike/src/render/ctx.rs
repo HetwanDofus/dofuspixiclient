@@ -21,7 +21,22 @@ use crate::recolor::PlayerColors;
 use crate::swf_doc::{OwnedColorTransform, OwnedPlace, Symbol, SwfDoc};
 
 use super::cache::RenderCache;
+use super::slot_depths::BandRange;
 use super::WgpuCtx;
+
+/// Choose what the renderer emits into the scene. The default
+/// `Colour` mode is the existing behaviour — fills carry their
+/// authored RGB (or, when `recolor_target` is set, the HSL-substituted
+/// player tint). `ZoneId` mode replaces every recoloured fill with
+/// `(zone_id * 60, 0, 0, 255)` and drops every other fill — used to
+/// bake the per-band zone-id sidecar texture that drives the Pixi
+/// shader's HSL substitution at composite time.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum RenderMode {
+    #[default]
+    Colour,
+    ZoneId,
+}
 
 /// One accessory's render data. Keyed by the AS2 mount slot id (1-4
 /// in vanilla Dofus character SWFs) inside `AccessoryDict`. The
@@ -91,6 +106,13 @@ pub struct RenderCtx<'a> {
     /// colour for whichever zone covers this subtree). `None` means
     /// no recolor — fills emit as authored.
     pub recolor_target: Option<u32>,
+    /// Active zone id (1..=3) when the current subtree is under an
+    /// `applyColor` zone. Mirrors `recolor_target` lifetime but
+    /// preserves the original zone identity — needed by Path B's
+    /// `RenderMode::ZoneId` output mode, which emits the zone id as
+    /// a fill marker (so the Pixi shader can apply per-bot HSL
+    /// substitution at composite time).
+    pub recolor_zone: Option<u8>,
     /// Player's three zone colours. Used to *resolve* a child's
     /// `applyColor` zone into a `recolor_target`. Stays the same as
     /// we descend; the per-subtree change is `recolor_target`, not
@@ -121,6 +143,23 @@ pub struct RenderCtx<'a> {
     /// wrong side when walking SW/W/NE — the user-visible "cape
     /// reversed when walking" symptom.
     pub apply_b_fix: bool,
+
+    /// Path B body-band filter. When `Some`, the timeline walker
+    /// drops placements at the TOP-LEVEL body walk whose depth falls
+    /// outside this band. Set only on the entry call; `child()`
+    /// clears it so nested sub-clips render normally. `None` means
+    /// "no filter" — every depth renders.
+    pub band_filter: Option<BandRange>,
+
+    /// Path B accessory composition toggle. When `true`, the walker
+    /// skips the `accessory_mounts` emit block in `sprite.rs` —
+    /// accessories are baked separately and composed in Pixi at
+    /// runtime. Propagates through `child()`.
+    pub disable_accessories: bool,
+
+    /// Selects fill emission strategy. Propagates through `child()`.
+    /// See `RenderMode`.
+    pub output_mode: RenderMode,
 }
 
 impl<'a> RenderCtx<'a> {
@@ -140,11 +179,38 @@ impl<'a> RenderCtx<'a> {
             ratio: 0,
             color_xform: OwnedColorTransform::IDENTITY,
             recolor_target: None,
+            recolor_zone: None,
             player_colors: PlayerColors::default(),
             cache,
             accessories: None,
             apply_b_fix: false,
+            band_filter: None,
+            disable_accessories: false,
+            output_mode: RenderMode::default(),
         }
+    }
+
+    /// Restrict the TOP-LEVEL body walk to the given depth band.
+    /// Used by Path B's body-band rasteriser. Cleared by `child()` so
+    /// nested sub-clips render in full.
+    pub fn with_band_filter(mut self, band: BandRange) -> Self {
+        self.band_filter = Some(band);
+        self
+    }
+
+    /// Disable the `accessory_mounts` composition block in
+    /// `sprite.rs`. Used by Path B: accessories are baked separately
+    /// and composed in Pixi. Propagates through `child()`.
+    pub fn with_disable_accessories(mut self, disable: bool) -> Self {
+        self.disable_accessories = disable;
+        self
+    }
+
+    /// Override fill emission strategy (`Colour` vs `ZoneId`).
+    /// Propagates through `child()`.
+    pub fn with_output_mode(mut self, mode: RenderMode) -> Self {
+        self.output_mode = mode;
+        self
     }
 
     /// Attach an accessory dictionary so the sprite walker composes
@@ -224,7 +290,15 @@ impl<'a> RenderCtx<'a> {
 
         // Zone resolution: if this child sprite has its own
         // applyColor zone, that overrides the inherited recolor
-        // target for this subtree.
+        // target for this subtree. `recolor_zone` mirrors
+        // `recolor_target` but preserves the zone id (1..=3) so
+        // `RenderMode::ZoneId` can emit per-zone marker fills.
+        let recolor_zone = self
+            .doc
+            .sprite_color_zones
+            .get(&child_id)
+            .copied()
+            .or(self.recolor_zone);
         let recolor_target = self
             .doc
             .sprite_color_zones
@@ -262,10 +336,18 @@ impl<'a> RenderCtx<'a> {
             ratio,
             color_xform,
             recolor_target,
+            recolor_zone,
             player_colors: self.player_colors,
             cache: self.cache,
             accessories: self.accessories,
             apply_b_fix: self.apply_b_fix,
+            // Band filter applies only to the entry walk; children
+            // (sub-clips) render in full.
+            band_filter: None,
+            // Accessory toggle + output mode are sticky — propagate
+            // through the recursion.
+            disable_accessories: self.disable_accessories,
+            output_mode: self.output_mode,
         }
     }
 }

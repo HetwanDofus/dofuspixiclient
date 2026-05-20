@@ -5,30 +5,20 @@
  * renderers) borrow to paint a frame and snapshot the result as an
  * `ImageBitmap`.
  *
- * **Why a secondary Pixi app, not a Vello-attached canvas:** Vello
- * writes its final image via `STORAGE_BINDING`, which WebGPU only
- * allows on `Rgba8Unorm`. On every Mac the browser's preferred
- * canvas format is `Bgra8Unorm`, so configuring an
- * `attachCanvasSurface(canvas, rgba8unorm)` made `getCurrentTexture`
- * emit the canonical "different format than preferred" perf
- * warning on every HUD asset render (and Chromium did a per-frame
- * driver-level format conversion behind the scenes).
- *
- * Instead we run Vello render-to-texture (off-screen Rgba8Unorm
- * storage texture, no swap chain) and then have a dedicated
- * Pixi `Application` blit that texture onto an OffscreenCanvas that
- * Pixi configures with its OWN preferred format (Bgra8Unorm on Mac).
- * The blit is a single sprite render — purely GPU, zero readback —
- * and `createImageBitmap` on the canvas is the same browser-side
- * GPU snapshot path the old surface implementation used.
- *
- * **Why a separate Pixi app:** the main battlefield Pixi `Application`
+ * **Why a secondary Pixi app:** the main battlefield Pixi `Application`
  * owns its own canvas/stage and renders the game world every frame.
  * Routing HUD blits through it would force per-asset stage churn and
  * leak HUD content into the live frame. A dedicated atlas
  * `Application` is offscreen (OffscreenCanvas, not in the DOM), shares
  * the underlying `GPUDevice` (via `getVelloGpu()`), and renders only
  * on demand.
+ *
+ * **Workflow:** Vello renders to an off-screen Rgba8Unorm storage texture
+ * (no swap chain), then the atlas Pixi app blits that texture onto an
+ * OffscreenCanvas that Pixi configures with its preferred format
+ * (Bgra8Unorm on Mac). The blit is a single sprite render — purely GPU,
+ * zero readback — and `createImageBitmap` on the canvas snapshot works
+ * on both old surface paths and the new texture-only approach.
  *
  * **Concurrency:** Every render serializes through `this.queue`. Two
  * concurrent dispatches against the same atlas canvas would race on

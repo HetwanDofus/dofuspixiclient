@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import { CanvasStack } from "@/components/CanvasStack";
+import { StressTestPanel } from "@/components/StressTestPanel";
 import type { GameSession as GameClient } from "@/game/session";
 import { getLoadProgress } from "@/game/render/load-progress";
 import { Battlefield } from "@/game/scene";
@@ -306,6 +307,8 @@ export function MapRenderer({ client, onReady, onProgress }: MapRendererProps) {
             canvasRect={canvasRect}
             gameClient={gameClientRef.current}
           />
+
+          <StressTestPanel />
 
           {/*
             Side chat panel — fills the space between the game canvas edge
