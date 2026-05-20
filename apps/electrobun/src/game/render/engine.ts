@@ -70,6 +70,10 @@ export class Engine {
   private lastContainerSize = { width: 0, height: 0 };
   private resizeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private isResizing = false;
+  /** Bound window-resize handler so `destroy()` can remove it. The
+   *  prior inline-arrow registration could not be paired with
+   *  `removeEventListener`, leaking the Engine closure on rebuild. */
+  private readonly boundHandleResize = (): void => this.handleResize();
 
   constructor(config: EngineConfig) {
     this.container = config.container;
@@ -244,7 +248,7 @@ export class Engine {
   private setupResizeHandling(): void {
     this.resizeObserver = new ResizeObserver(() => this.handleResize());
     this.resizeObserver.observe(this.container);
-    window.addEventListener("resize", () => this.handleResize());
+    window.addEventListener("resize", this.boundHandleResize);
   }
 
   /**
@@ -446,6 +450,8 @@ export class Engine {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
     }
+
+    window.removeEventListener("resize", this.boundHandleResize);
 
     if (this.dprMqlCleanup) {
       this.dprMqlCleanup();

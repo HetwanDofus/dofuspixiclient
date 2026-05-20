@@ -45,6 +45,18 @@
   --color-side-chat-arrow-gradient-start: var(--side-chat-arrow-gradient-start);
   --color-side-chat-arrow-gradient-end: var(--side-chat-arrow-gradient-end);
 
+  /* Console / Debug widget (dofus/graphics/gapi/ui/Debug.as) */
+  --color-console-logs-bg: var(--console-logs-bg);
+  --color-console-input-bg: var(--console-input-bg);
+  --color-console-log-default: var(--console-log-default);
+  --color-console-log-error: var(--console-log-error);
+  --color-console-log-info: var(--console-log-info);
+  --color-console-prompt: var(--console-prompt);
+  --color-console-button-bg: var(--console-button-bg);
+  --color-console-button-bg-active: var(--console-button-bg-active);
+  --color-console-button-fg: var(--console-button-fg);
+  --color-console-button-fg-active: var(--console-button-fg-active);
+
   /* SideChatPanel channel palette (dofus/Constants.as:158-172) */
   --color-side-chat-channel-infos: var(--side-chat-channel-infos);
   --color-side-chat-channel-errors: var(--side-chat-channel-errors);
@@ -106,6 +118,23 @@
   --side-chat-arrow-outline: #204a87;
   --side-chat-arrow-gradient-start: #82aad5;
   --side-chat-arrow-gradient-end: #366aa2;
+
+  /* Console colors — DofusStylePackage.as:359-360,94,170 + Kernel.as:407-429 */
+  --console-logs-bg: rgba(0, 0, 0, 0.7); /* DebugLogsStylizedRectangle */
+  --console-input-bg: rgba(
+    255,
+    255,
+    255,
+    0.7
+  ); /* DebugCommandLineStylizedRectangle */
+  --console-log-default: #ffffff; /* Kernel.as:408 DEBUG_LOG */
+  --console-log-error: #ff0000; /* Kernel.as:416 DEBUG_ERROR */
+  --console-log-info: #00ff00; /* Kernel.as:424 DEBUG_INFO */
+  --console-prompt: #000000; /* BlackLeftDebugLabel (DofusStylePackage.as:98) */
+  --console-button-bg: #ffffff; /* WhiteCrossButton bgcolor */
+  --console-button-bg-active: #999999; /* WhiteCrossButton bgdowncolor */
+  --console-button-fg: #000000; /* BlackCenterSmallLabel labelcolor */
+  --console-button-fg-active: #514a3c; /* BrownCenterSmallLabel labelcolor */
 
   /* Chat channel colors — dofus/Constants.as:158-172 */
   --side-chat-channel-infos: #009900;

@@ -41,6 +41,7 @@ import {
   type AccessoryRenderEntry,
   freeRenderTexture,
   renderSwfStripRangeAccessorized,
+  setSwfPlayerColors,
 } from "@/game/render/vello-loader";
 import { createLogger } from "@/utils/logger";
 
@@ -120,6 +121,12 @@ export class PlayerStripRenderer {
 
   setResolution(res: number): void {
     this.resolution = Math.max(1, res);
+  }
+
+  getStats(): { players: number; slots: number } {
+    let slots = 0;
+    for (const m of this.states.values()) slots += m.size;
+    return { players: this.states.size, slots };
   }
 
   /**
@@ -223,6 +230,23 @@ export class PlayerStripRenderer {
         animType: a.animType,
       })
     );
+
+    // Apply this fighter's color zones before rendering the strip.
+    // `renderSwfStripRangeAccessorized` reads `swf_player_colors`
+    // from the global Vello renderer state (the legacy AS2 setter
+    // pattern), so without this call the strip would inherit
+    // whatever colors were last set by ANOTHER consumer — typically
+    // the FighterPortraitRenderer painting another fighter's
+    // portrait, or the previous player rendered in the same frame.
+    // That's the "player suddenly takes the monster's colors mid-
+    // fight" bug. Setting (0, 0, 0) for monsters / no-class looks
+    // disables the tint entirely.
+    const cz = animation.colorZones;
+    if (cz) {
+      setSwfPlayerColors(cz[0], cz[1], cz[2]);
+    } else {
+      setSwfPlayerColors(0, 0, 0);
+    }
 
     const strip = renderSwfStripRangeAccessorized(
       animation.bundle,

@@ -1,8 +1,21 @@
-import type { Application } from "pixi.js";
-import { Assets, Container, Graphics, Sprite } from "pixi.js";
+import type { Application, Renderer as PixiRenderer } from "pixi.js";
+import {
+  Container,
+  ExternalSource,
+  Graphics,
+  Rectangle,
+  Sprite,
+  Texture,
+} from "pixi.js";
 
+import { freeRenderTexture } from "@/game/render/vello-loader";
+import {
+  loadHintsBundle,
+  loadWorldmapBundle,
+  renderHintIcon,
+  renderWorldmapChunk,
+} from "@/game/render/worldmap-swf-renderer";
 import type {
-  HintManifest,
   HintsLayering,
   MapCoordinates,
   WorldMapManifest,
@@ -24,19 +37,37 @@ interface MinimapRendererConfig {
 }
 
 export class MinimapRenderer {
+  /**
+   * The slot's Pixi renderer (the secondary Application that
+   * `usePixiSlot` mounts into the banner-circle viewport). Passed to
+   * `ExternalSource({ renderer })` so the wrapper texture is bound to
+   * the same Pixi instance that will draw the sprite — using
+   * `getPixiRenderer()` here would wire the texture to the main
+   * battlefield app instead, which never reads it.
+   */
+  private pixiRenderer: PixiRenderer;
   private worldContainer: Container;
   private mapContainer: Container;
   private hintsContainer: Container;
   private positionMarker: Graphics;
 
   private manifest: WorldMapManifest | null = null;
-  private hintManifest: HintManifest | null = null;
   private hintsLayering: HintsLayering | null = null;
   private mapCoordinates: MapCoordinates | null = null;
 
   private currentSuperarea = 0;
 
+  /**
+   * One sprite + ExternalSource + Vello GPUTexture per worldmap chunk.
+   * Texture lifetime is hand-managed — we own the textureId returned by
+   * `renderWorldmapChunk` and MUST call `freeRenderTexture` on destroy
+   * (patched wgpu's `Drop for WebTexture` is a no-op; see
+   * `feedback_pixi_wgpu_texture_lifetime`).
+   */
+  private tileTextureIds: number[] = [];
   private tileSprites: Sprite[] = [];
+  /** Same memory-discipline contract as `tileTextureIds`. */
+  private hintTextureIds: number[] = [];
   private hintSprites: Sprite[] = [];
 
   private centerMapId?: number;
@@ -46,6 +77,7 @@ export class MinimapRenderer {
   constructor(config: MinimapRendererConfig) {
     this.centerMapId = config.centerOnMapId;
     this.initialCenterCoordinates = config.centerOnCoordinates;
+    this.pixiRenderer = config.app.renderer;
 
     this.worldContainer = new Container();
     this.mapContainer = new Container();
@@ -63,14 +95,17 @@ export class MinimapRenderer {
   async loadWorldMap(superarea: number = 0): Promise<void> {
     this.currentSuperarea = superarea;
 
-    const data = await loadWorldMapData(superarea);
+    const [data] = await Promise.all([
+      loadWorldMapData(superarea),
+      loadWorldmapBundle(superarea),
+      loadHintsBundle(),
+    ]);
     this.manifest = data.manifest;
-    this.hintManifest = data.hintManifest;
     this.hintsLayering = data.hintsLayering;
     this.mapCoordinates = data.mapCoordinates;
 
-    await this.renderMap();
-    await this.renderHints();
+    this.renderMap();
+    this.renderHints();
 
     if (this.centerMapId && this.mapCoordinates) {
       this.centerOnMap(this.centerMapId);
@@ -82,57 +117,109 @@ export class MinimapRenderer {
     }
   }
 
-  private async renderMap(): Promise<void> {
+  /**
+   * Walk the chunk bounds rect and emit one Pixi sprite per declared
+   * `X_Y` export in the worldmap SWF. Missing exports (ocean cells,
+   * unmapped regions) return null from `renderWorldmapChunk` and are
+   * silently skipped.
+   *
+   * Resolution=1 matches the SWF's native 742×432 chunk size — the
+   * banner-circle viewport is small (~80 px diameter) and we further
+   * downscale via the viewport's `scale = 0.5`, so a 1:1 chunk render
+   * is sampled DOWN at composition time (smooth linear filter handled
+   * by the GPU). The full minimap covers ~9×12 chunks for Amakna; at
+   * resolution 1 that's ~6678×5184 GPU pixels distributed across
+   * sprites — bounded and acceptable.
+   */
+  private renderMap(): void {
     if (!this.manifest) {
       return;
     }
+    this.disposeTileSprites();
 
-    this.mapContainer.removeChildren();
-    this.tileSprites = [];
+    const pixiRenderer = this.pixiRenderer;
+    const { DISPLAY_WIDTH, DISPLAY_HEIGHT } = WORLDMAP_CONSTANTS;
+    const { bounds } = this.manifest;
 
-    const { tile_size, tiles, worldmap } = this.manifest;
-
-    const tilePromises = tiles.map(async (tileInfo) => {
-      const texturePath = `/assets/maps/world/${worldmap}/${tileInfo.file}`;
-
-      try {
-        const texture = await Assets.load({
-          src: texturePath,
-          data: { autoGenerateMipmaps: true },
+    for (let cx = bounds.xMin; cx <= bounds.xMax; cx++) {
+      for (let cy = bounds.yMin; cy <= bounds.yMax; cy++) {
+        const result = renderWorldmapChunk(this.currentSuperarea, cx, cy, 1);
+        if (!result) {
+          continue;
+        }
+        const source = new ExternalSource({
+          resource: result.texture,
+          renderer: pixiRenderer,
+          width: result.width,
+          height: result.height,
+          label: `worldmap-${this.currentSuperarea}-${cx}_${cy}`,
         });
+        source.alphaMode = "no-premultiply-alpha";
+        source.format = "rgba8unorm";
+        source.scaleMode = "linear";
+        source.autoGarbageCollect = false;
 
-        if (!texture) {
-          return;
-        }
-
-        if (texture.source) {
-          texture.source.autoGenerateMipmaps = true;
-          texture.source.scaleMode = "linear";
-          texture.source.updateMipmaps();
-        }
-
+        // Vello wraps every render with a 1-px transparent AA pad on
+        // each side (rust/vello-wasm/src/lib.rs:801). A Pixi `frame`
+        // Rectangle does NOT clamp the GPU sampler — at the sprite's
+        // edge the linear filter still samples on a half-texel
+        // boundary that straddles the last content pixel and the pad
+        // pixel one over, dropping seam alpha to ~50% and producing
+        // visible "separation lines" between chunks. The fix is to
+        // inset the frame by an *additional* half-texel on every
+        // side so the sampler at sprite UV (0, 0) reads the content
+        // texel's CENTER (continuous source 1.5) rather than its
+        // boundary (continuous source 1.0).
+        const AA_PAD = 1;
+        const HALF_TEXEL = 0.5;
+        const inset = AA_PAD + HALF_TEXEL;
+        const contentW = Math.max(1, result.width - 2 * inset);
+        const contentH = Math.max(1, result.height - 2 * inset);
+        const texture = new Texture({
+          source,
+          frame: new Rectangle(inset, inset, contentW, contentH),
+        });
         const sprite = new Sprite(texture);
-        sprite.x = tileInfo.x * tile_size;
-        sprite.y = tileInfo.y * tile_size;
+        // SWF (0,0) sits at source texel (anchorX, anchorY). After the
+        // half-texel inset crop, the SWF origin is at frame-relative
+        // (anchorX - inset, anchorY - inset). For chunks where the SWF
+        // origin is at the bbox top-left (texel (1, 1)) this evaluates
+        // to (-0.5, -0.5) — a negative anchor, which Pixi handles
+        // (places the SWF origin half a source-pixel to the upper-left
+        // of `sprite.x/y`). The half-pixel shift is consistent across
+        // every chunk so tiling alignment is preserved; the absolute
+        // worldmap origin just shifts by ~0.5 display px.
+        sprite.anchor.set(
+          (result.anchorX - inset) / contentW,
+          (result.anchorY - inset) / contentH,
+        );
+        sprite.x = (cx - bounds.xMin) * DISPLAY_WIDTH;
+        sprite.y = (cy - bounds.yMin) * DISPLAY_HEIGHT;
+        // Force the sprite to display at exactly DISPLAY_WIDTH ×
+        // DISPLAY_HEIGHT — the half-texel inset shrunk the frame by
+        // 1 source px in each axis, so without this override the
+        // sprite would render 1 display px short and leave a visible
+        // gap between neighbouring chunks. With the override Pixi
+        // scales the frame by ~1.0017× (imperceptible) and chunks
+        // tile pixel-perfect at integer DISPLAY_WIDTH boundaries.
+        sprite.width = DISPLAY_WIDTH;
+        sprite.height = DISPLAY_HEIGHT;
 
         this.tileSprites.push(sprite);
+        this.tileTextureIds.push(result.textureId);
         this.mapContainer.addChild(sprite);
-      } catch {
-        // Skip failed tiles
       }
-    });
-
-    await Promise.all(tilePromises);
+    }
   }
 
-  private async renderHints(): Promise<void> {
-    if (!this.hintsLayering || !this.manifest || !this.hintManifest) {
+  private renderHints(): void {
+    if (!this.hintsLayering || !this.manifest) {
       return;
     }
 
-    this.hintsContainer.removeChildren();
-    this.hintSprites = [];
+    this.disposeHintSprites();
 
+    const pixiRenderer = this.pixiRenderer;
     const { bounds } = this.manifest;
     const enabledCategories = new Set<number>([1, 2, 3, 4, 5, 6]);
 
@@ -143,28 +230,46 @@ export class MinimapRenderer {
       this.currentSuperarea
     );
 
-    const hintUrls = new Set<string>();
-
-    const hintsToRender: Array<{
-      pixelX: number;
-      pixelY: number;
-      hintInfo: {
-        file: string;
-        width: number;
-        height: number;
-        offsetX: number;
-        offsetY: number;
-      };
-      texturePath: string;
-    }> = [];
+    const targetSize = 30;
 
     for (const { overlay, hint } of filteredHints) {
-      const gfxID = hint.gfxID.toString();
-      const hintInfo = this.hintManifest.graphics[gfxID];
-
-      if (!hintInfo) {
+      const result = renderHintIcon(hint.gfxID, 1);
+      if (!result) {
         continue;
       }
+      const source = new ExternalSource({
+        resource: result.texture,
+        renderer: pixiRenderer,
+        width: result.width,
+        height: result.height,
+        label: `hint-${hint.gfxID}`,
+      });
+      source.alphaMode = "no-premultiply-alpha";
+      source.format = "rgba8unorm";
+      source.scaleMode = "linear";
+      source.autoGarbageCollect = false;
+      // Same half-texel inset as the chunk path. See the chunk render
+      // for the full rationale: a plain `frame` crop leaves the linear
+      // sampler bleeding into the AA pad on UV (0, 0) / (1, 1); insetting
+      // by +0.5 source pixels parks sampling at content texel centres.
+      const AA_PAD = 1;
+      const HALF_TEXEL = 0.5;
+      const inset = AA_PAD + HALF_TEXEL;
+      const contentW = Math.max(1, result.width - 2 * inset);
+      const contentH = Math.max(1, result.height - 2 * inset);
+      const texture = new Texture({
+        source,
+        frame: new Rectangle(inset, inset, contentW, contentH),
+      });
+      const sprite = new Sprite(texture);
+      // SWF (0,0) is the hint's authored pin. After the half-texel
+      // inset crop, the pin sits at frame-relative
+      // (anchorX - inset, anchorY - inset). Normalize to 0..1 anchor
+      // space so `sprite.x/y` lands the pin on the map cell centre.
+      sprite.anchor.set(
+        (result.anchorX - inset) / contentW,
+        (result.anchorY - inset) / contentH,
+      );
 
       const [pixelX, pixelY] = mapCoordToPixel(
         overlay.x,
@@ -172,52 +277,15 @@ export class MinimapRenderer {
         bounds.xMin,
         bounds.yMin
       );
+      sprite.x = pixelX;
+      sprite.y = pixelY;
 
-      const texturePath = `/assets/maps/hints/${hintInfo.file}`;
-
-      hintsToRender.push({ pixelX, pixelY, hintInfo, texturePath });
-      hintUrls.add(texturePath);
-    }
-
-    if (hintUrls.size === 0) {
-      return;
-    }
-
-    const loadedTextures = await Assets.load([...hintUrls]);
-
-    // Enable mipmaps on hint textures for smooth downscaling
-    for (const texture of Object.values(loadedTextures)) {
-      if (texture?.source) {
-        texture.source.autoGenerateMipmaps = true;
-        texture.source.updateMipmaps();
-      }
-    }
-
-    const targetSize = 30;
-
-    for (const hintData of hintsToRender) {
-      const texture = loadedTextures[hintData.texturePath];
-
-      if (!texture) {
-        continue;
-      }
-
-      const sprite = new Sprite(texture);
-      sprite.anchor.set(0.5, 0.5);
-
-      sprite.x =
-        hintData.pixelX +
-        hintData.hintInfo.offsetX +
-        hintData.hintInfo.width / 2;
-      sprite.y =
-        hintData.pixelY +
-        hintData.hintInfo.offsetY +
-        hintData.hintInfo.height / 2;
-      const maxDim = Math.max(texture.width, texture.height);
+      const maxDim = Math.max(contentW, contentH);
       const hintScale = maxDim > 0 ? targetSize / maxDim : 1;
       sprite.scale.set(hintScale);
 
       this.hintSprites.push(sprite);
+      this.hintTextureIds.push(result.textureId);
       this.hintsContainer.addChild(sprite);
     }
   }
@@ -343,11 +411,56 @@ export class MinimapRenderer {
     this.worldContainer.visible = false;
   }
 
+  /**
+   * Tear down all live Vello-allocated chunk textures. The patched
+   * wgpu's `Drop for WebTexture` is a no-op; without this call every
+   * worldmap reload (loadWorldMap → renderMap) would leak the previous
+   * chunk textures permanently. Mirrors the tile-sprite-renderer +
+   * fighter-portrait-renderer contracts.
+   */
+  private disposeTileSprites(): void {
+    for (const sprite of this.tileSprites) {
+      const source = sprite.texture?.source;
+      sprite.destroy();
+      if (source && typeof (source as ExternalSource).destroy === "function") {
+        try {
+          (source as ExternalSource).destroy();
+        } catch {}
+      }
+    }
+    this.tileSprites = [];
+    for (const id of this.tileTextureIds) {
+      freeRenderTexture(id);
+    }
+    this.tileTextureIds = [];
+    this.mapContainer.removeChildren();
+  }
+
+  private disposeHintSprites(): void {
+    for (const sprite of this.hintSprites) {
+      const source = sprite.texture?.source;
+      sprite.destroy();
+      if (source && typeof (source as ExternalSource).destroy === "function") {
+        try {
+          (source as ExternalSource).destroy();
+        } catch {}
+      }
+    }
+    this.hintSprites = [];
+    for (const id of this.hintTextureIds) {
+      freeRenderTexture(id);
+    }
+    this.hintTextureIds = [];
+    this.hintsContainer.removeChildren();
+  }
+
   destroy(): void {
     if (this.animationFrame !== null) {
       cancelAnimationFrame(this.animationFrame);
     }
 
+    this.disposeTileSprites();
+    this.disposeHintSprites();
     this.worldContainer.destroy({ children: true, texture: false });
   }
 }

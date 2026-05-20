@@ -1,7 +1,4 @@
-import { Assets } from "pixi.js";
-
 import type {
-  HintManifest,
   HintsData,
   HintsLayering,
   MapCoordinates,
@@ -9,10 +6,16 @@ import type {
 } from "@/game/types/worldmap";
 import { WORLDMAP_CONSTANTS } from "@/game/types/worldmap";
 
+/**
+ * Coordinate + metadata bundle for one superarea. All the visual assets
+ * (chunk tiles, hint icons) are rendered live from the worldmap SWF +
+ * hints.swf via `worldmap-swf-renderer` — this bundle only carries the
+ * tabular data the renderer needs (worldmap bounds, hint layering, map
+ * coords, category names).
+ */
 export interface WorldMapDataSet {
   manifest: WorldMapManifest;
   hintsData: HintsData;
-  hintManifest: HintManifest;
   hintsLayering: HintsLayering;
   mapCoordinates: MapCoordinates;
 }
@@ -31,94 +34,30 @@ export async function loadWorldMapData(
     return cached;
   }
 
-  const [manifest, hintsData, hintManifest, hintsLayering, mapData] =
-    await Promise.all([
-      fetch(`/assets/maps/world/${worldMapName}/manifest.json`).then((r) =>
-        r.json()
-      ) as Promise<WorldMapManifest>,
-      fetch("/assets/data/hints-data.json").then((r) =>
-        r.json()
-      ) as Promise<HintsData>,
-      fetch("/assets/maps/hints/manifest.json").then((r) =>
-        r.json()
-      ) as Promise<HintManifest>,
-      fetch("/assets/data/hints-layering.json").then((r) =>
-        r.json()
-      ) as Promise<HintsLayering>,
-      fetch("/assets/data/map-data.json").then((r) => r.json()) as Promise<{
-        maps: MapCoordinates;
-      }>,
-    ]);
+  const [manifest, hintsData, hintsLayering, mapData] = await Promise.all([
+    fetch(`/assets/maps/world/${worldMapName}/manifest.json`).then((r) =>
+      r.json()
+    ) as Promise<WorldMapManifest>,
+    fetch("/assets/data/hints-data.json").then((r) =>
+      r.json()
+    ) as Promise<HintsData>,
+    fetch("/assets/data/hints-layering.json").then((r) =>
+      r.json()
+    ) as Promise<HintsLayering>,
+    fetch("/assets/data/map-data.json").then((r) => r.json()) as Promise<{
+      maps: MapCoordinates;
+    }>,
+  ]);
 
   const dataSet: WorldMapDataSet = {
     manifest,
     hintsData,
-    hintManifest,
     hintsLayering,
     mapCoordinates: mapData.maps,
   };
 
   dataCache.set(cacheKey, dataSet);
   return dataSet;
-}
-
-export async function loadWorldMapTiles(
-  manifest: WorldMapManifest
-): Promise<Map<string, import("pixi.js").Texture>> {
-  const worldMapName = manifest.worldmap;
-  const urls = manifest.tiles.map(
-    (t) => `/assets/maps/world/${worldMapName}/${t.file}`
-  );
-
-  const textures = await Assets.load(urls);
-  const textureMap = new Map<string, import("pixi.js").Texture>();
-
-  for (const tile of manifest.tiles) {
-    const url = `/assets/maps/world/${worldMapName}/${tile.file}`;
-
-    if (textures[url]) {
-      textureMap.set(tile.file, textures[url]);
-    }
-  }
-
-  return textureMap;
-}
-
-export async function loadHintTextures(
-  hints: Array<{ gfxID: number }>,
-  hintManifest: HintManifest
-): Promise<Map<string, import("pixi.js").Texture>> {
-  const uniqueGfxIds = new Set(hints.map((h) => h.gfxID.toString()));
-  const urls: string[] = [];
-
-  for (const gfxID of uniqueGfxIds) {
-    const info = hintManifest.graphics[gfxID];
-
-    if (info) {
-      urls.push(`/assets/maps/hints/${info.file}`);
-    }
-  }
-
-  if (urls.length === 0) {
-    return new Map();
-  }
-
-  const textures = await Assets.load(urls);
-  const textureMap = new Map<string, import("pixi.js").Texture>();
-
-  for (const gfxID of uniqueGfxIds) {
-    const info = hintManifest.graphics[gfxID];
-
-    if (info) {
-      const url = `/assets/maps/hints/${info.file}`;
-
-      if (textures[url]) {
-        textureMap.set(gfxID, textures[url]);
-      }
-    }
-  }
-
-  return textureMap;
 }
 
 export function mapCoordToPixel(

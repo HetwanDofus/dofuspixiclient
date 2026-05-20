@@ -1,1 +1,0 @@
-GAC.applyAnim(this,"Static");

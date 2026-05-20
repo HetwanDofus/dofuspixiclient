@@ -1,17 +1,25 @@
 import {
   type Application,
-  Assets,
   BlurFilter,
   Container,
+  ExternalSource,
   Graphics,
+  Rectangle,
   Sprite,
   Text,
+  Texture,
   TextStyle,
 } from "pixi.js";
 
+import { freeRenderTexture } from "@/game/render/vello-loader";
+import {
+  loadHintsBundle,
+  loadWorldmapBundle,
+  renderHintIcon,
+  renderWorldmapChunk,
+} from "@/game/render/worldmap-swf-renderer";
 import type {
   HintGroup,
-  HintManifest,
   HintSpriteData,
   HintsData,
   HintsLayering,
@@ -50,9 +58,17 @@ export class WorldMapRenderer {
 
   private manifest: WorldMapManifest | null = null;
   private hintsData: HintsData | null = null;
-  private hintManifest: HintManifest | null = null;
   private hintsLayering: HintsLayering | null = null;
   private mapCoordinates: MapCoordinates | null = null;
+
+  /**
+   * One Vello GPUTexture per worldmap chunk + one per hint icon. Tracked
+   * here so `destroy()` retires them via `freeRenderTexture` — patched
+   * wgpu's `Drop for WebTexture` is a no-op (see
+   * `feedback_pixi_wgpu_texture_lifetime`).
+   */
+  private tileTextureIds: number[] = [];
+  private hintTextureIds: number[] = [];
 
   private enabledCategories = new Set<number>([1, 2, 3, 4, 5, 6]);
   private currentSuperarea = 0;
@@ -188,10 +204,15 @@ export class WorldMapRenderer {
       return;
     }
 
-    const mapSize = this.manifest.grid_size * this.manifest.tile_size;
+    const { bounds } = this.manifest;
+    const { DISPLAY_WIDTH, DISPLAY_HEIGHT } = WORLDMAP_CONSTANTS;
+    const chunksW = bounds.xMax - bounds.xMin + 1;
+    const chunksH = bounds.yMax - bounds.yMin + 1;
+    const mapPixelW = chunksW * DISPLAY_WIDTH;
+    const mapPixelH = chunksH * DISPLAY_HEIGHT;
     const scale = this.getScale();
-    const scaledW = mapSize * scale;
-    const scaledH = mapSize * scale;
+    const scaledW = mapPixelW * scale;
+    const scaledH = mapPixelH * scale;
 
     // Don't let the map leave the viewport entirely — keep at least half visible
     const minX = this.viewWidth - scaledW;
@@ -311,60 +332,101 @@ export class WorldMapRenderer {
   async loadWorldMap(superarea: number = 0): Promise<void> {
     this.currentSuperarea = superarea;
 
-    const data = await loadWorldMapData(superarea);
+    const [data] = await Promise.all([
+      loadWorldMapData(superarea),
+      loadWorldmapBundle(superarea),
+      loadHintsBundle(),
+    ]);
     this.manifest = data.manifest;
     this.hintsData = data.hintsData;
-    this.hintManifest = data.hintManifest;
     this.hintsLayering = data.hintsLayering;
     this.mapCoordinates = data.mapCoordinates;
 
-    await this.renderMap();
+    this.renderMap();
     this.drawGrid();
-    await this.renderHints();
+    this.renderHints();
     this.createCategoryUI();
   }
 
-  private async renderMap(): Promise<void> {
+  /**
+   * Render every declared chunk from the worldmap SWF as a Pixi sprite.
+   * Chunks are placed on a `DISPLAY_WIDTH × DISPLAY_HEIGHT` grid offset
+   * by `bounds.xMin/yMin` so the world's top-left corner sits at pixel
+   * (0,0). Missing exports (ocean) silently return null from
+   * `renderWorldmapChunk` and skip placement.
+   *
+   * Texture ownership: every chunk's `textureId` is captured in
+   * `tileTextureIds` so `destroy()` can return them via
+   * `freeRenderTexture` — patched wgpu's `Drop for WebTexture` is a
+   * no-op (see `feedback_pixi_wgpu_texture_lifetime`).
+   */
+  private renderMap(): void {
     if (!this.manifest) {
       return;
     }
 
-    this.mapContainer.removeChildren();
+    this.disposeTileSprites();
     this.centerMap();
 
-    const { tile_size, tiles, worldmap } = this.manifest;
+    const pixiRenderer = this.app.renderer;
+    const { DISPLAY_WIDTH, DISPLAY_HEIGHT } = WORLDMAP_CONSTANTS;
+    const { bounds } = this.manifest;
 
-    const tilePromises = tiles.map(async (tileInfo) => {
-      const texturePath = `/assets/maps/world/${worldmap}/${tileInfo.file}`;
-
-      try {
-        const texture = await Assets.load(texturePath);
-
-        if (!texture) {
-          return;
+    for (let cx = bounds.xMin; cx <= bounds.xMax; cx++) {
+      for (let cy = bounds.yMin; cy <= bounds.yMax; cy++) {
+        const result = renderWorldmapChunk(this.currentSuperarea, cx, cy, 1);
+        if (!result) {
+          continue;
         }
-
-        // Enable mipmaps for smooth downscaling
-        if (texture.source) {
-          texture.source.autoGenerateMipmaps = true;
-          texture.source.updateMipmaps();
-        }
-
+        const source = new ExternalSource({
+          resource: result.texture,
+          renderer: pixiRenderer,
+          width: result.width,
+          height: result.height,
+          label: `worldmap-${this.currentSuperarea}-${cx}_${cy}`,
+        });
+        source.alphaMode = "no-premultiply-alpha";
+        source.format = "rgba8unorm";
+        source.scaleMode = "linear";
+        source.autoGarbageCollect = false;
+        // Half-texel inset to absorb Vello's 1-px transparent AA pad
+        // (rust/vello-wasm/src/lib.rs:801). A plain `frame` crop
+        // leaves the GPU linear sampler bleeding into the pad on the
+        // sprite's UV (0, 0)/(1, 1) edges; the inset parks sampling
+        // at content texel centres instead. See `minimap-renderer.ts`
+        // for the matching note.
+        const AA_PAD = 1;
+        const HALF_TEXEL = 0.5;
+        const inset = AA_PAD + HALF_TEXEL;
+        const contentW = Math.max(1, result.width - 2 * inset);
+        const contentH = Math.max(1, result.height - 2 * inset);
+        const texture = new Texture({
+          source,
+          frame: new Rectangle(inset, inset, contentW, contentH),
+        });
         const sprite = new Sprite(texture);
-        sprite.x = tileInfo.x * tile_size;
-
-        const finalY = tileInfo.y * tile_size;
-        sprite.alpha = 0;
+        sprite.anchor.set(
+          (result.anchorX - inset) / contentW,
+          (result.anchorY - inset) / contentH,
+        );
+        const finalX = (cx - bounds.xMin) * DISPLAY_WIDTH;
+        const finalY = (cy - bounds.yMin) * DISPLAY_HEIGHT;
+        // Stretch the inset frame back up to the canonical chunk size
+        // so adjacent chunks tile pixel-perfect at integer
+        // DISPLAY_WIDTH boundaries.
+        sprite.width = DISPLAY_WIDTH;
+        sprite.height = DISPLAY_HEIGHT;
+        sprite.x = finalX;
+        // Preserve the original drop-in surface animation: tiles slide
+        // up 20 px and fade in from alpha=0 over 200 ms.
         sprite.y = finalY + 20;
+        sprite.alpha = 0;
 
+        this.tileTextureIds.push(result.textureId);
         this.mapContainer.addChild(sprite);
         animateTileSurface(sprite, finalY, 200);
-      } catch {
-        // Skip failed tiles
       }
-    });
-
-    await Promise.all(tilePromises);
+    }
   }
 
   setViewSize(w: number, h: number): void {
@@ -398,10 +460,9 @@ export class WorldMapRenderer {
     this.currentZoom = WORLDMAP_CONSTANTS.DEFAULT_ZOOM;
 
     const scale = this.getScale();
-    const mapSize = this.manifest.grid_size * this.manifest.tile_size;
     this.worldContainer.scale.set(scale);
-    this.worldContainer.x = (this.viewWidth - mapSize * scale) / 2;
-    this.worldContainer.y = (this.viewHeight - mapSize * scale) / 2;
+    this.worldContainer.x = (this.viewWidth - mapPixelW * scale) / 2;
+    this.worldContainer.y = (this.viewHeight - mapPixelH * scale) / 2;
   }
 
   private drawGrid(): void {
@@ -457,14 +518,22 @@ export class WorldMapRenderer {
     return this.showGrid;
   }
 
-  private async renderHints(): Promise<void> {
-    if (!this.hintsLayering || !this.manifest || !this.hintManifest) {
+  /**
+   * Build hint sprites by rendering each declared hint's gfxID through
+   * `renderHintIcon`. The SWF's `anchorX/anchorY` is the canonical (0,0)
+   * pin (i.e. where `attachMovie` would place the symbol) — we
+   * translate to a Pixi anchor in [0,1] so `sprite.x/y` directly
+   * positions the pin at the map cell center.
+   */
+  private renderHints(): void {
+    if (!this.hintsLayering || !this.manifest) {
       return;
     }
 
-    this.hintsContainer.removeChildren();
+    this.disposeHintSprites();
     this.clearHintGroups();
 
+    const pixiRenderer = this.app.renderer;
     const { bounds } = this.manifest;
 
     const filteredHints = filterHintsByArea(
@@ -474,80 +543,77 @@ export class WorldMapRenderer {
       this.currentSuperarea
     );
 
-    const hintUrls = new Set<string>();
-
     const hintsToRender: Array<{
       hint: { name: string; categoryID: number; gfxID: number; mapID: number };
       pixelX: number;
       pixelY: number;
-      hintInfo: {
-        file: string;
-        width: number;
-        height: number;
-        offsetX: number;
-        offsetY: number;
-      };
-      texturePath: string;
+      texture: Texture;
+      textureWidth: number;
+      textureHeight: number;
+      anchorFracX: number;
+      anchorFracY: number;
+      textureId: number;
     }> = [];
 
     for (const { overlay, hint } of filteredHints) {
-      const gfxID = hint.gfxID.toString();
-      const hintInfo = this.hintManifest.graphics[gfxID];
-
-      if (!hintInfo) {
+      const result = renderHintIcon(hint.gfxID, 1);
+      if (!result) {
         continue;
       }
-
       const [pixelX, pixelY] = mapCoordToPixel(
         overlay.x,
         overlay.y,
         bounds.xMin,
         bounds.yMin
       );
-
-      const texturePath = `/assets/maps/hints/${hintInfo.file}`;
-
-      hintsToRender.push({ hint, pixelX, pixelY, hintInfo, texturePath });
-      hintUrls.add(texturePath);
-    }
-
-    if (hintUrls.size === 0) {
-      return;
-    }
-
-    const loadedTextures = await Assets.load([...hintUrls]);
-
-    // Enable mipmaps on hint textures for smooth downscaling
-    for (const texture of Object.values(loadedTextures)) {
-      if (texture?.source) {
-        texture.source.autoGenerateMipmaps = true;
-        texture.source.updateMipmaps();
-      }
+      const source = new ExternalSource({
+        resource: result.texture,
+        renderer: pixiRenderer,
+        width: result.width,
+        height: result.height,
+        label: `hint-${hint.gfxID}`,
+      });
+      source.alphaMode = "no-premultiply-alpha";
+      source.format = "rgba8unorm";
+      source.scaleMode = "linear";
+      source.autoGarbageCollect = false;
+      // Half-texel inset to dodge linear-filter pad bleed — see the
+      // chunk path's note above.
+      const AA_PAD = 1;
+      const HALF_TEXEL = 0.5;
+      const inset = AA_PAD + HALF_TEXEL;
+      const contentW = Math.max(1, result.width - 2 * inset);
+      const contentH = Math.max(1, result.height - 2 * inset);
+      const texture = new Texture({
+        source,
+        frame: new Rectangle(inset, inset, contentW, contentH),
+      });
+      const anchorFracX = (result.anchorX - inset) / contentW;
+      const anchorFracY = (result.anchorY - inset) / contentH;
+      this.hintTextureIds.push(result.textureId);
+      hintsToRender.push({
+        hint,
+        pixelX,
+        pixelY,
+        texture,
+        textureWidth: contentW,
+        textureHeight: contentH,
+        anchorFracX,
+        anchorFracY,
+        textureId: result.textureId,
+      });
     }
 
     const positionGroups = this.groupHintsByPosition(hintsToRender);
-
     for (const [posKey, groupData] of positionGroups) {
-      this.createHintGroup(posKey, groupData, loadedTextures);
+      this.createHintGroup(posKey, groupData);
     }
   }
 
-  private groupHintsByPosition(
-    hints: Array<{
-      hint: { name: string; categoryID: number; gfxID: number; mapID: number };
-      pixelX: number;
-      pixelY: number;
-      hintInfo: {
-        file: string;
-        width: number;
-        height: number;
-        offsetX: number;
-        offsetY: number;
-      };
-      texturePath: string;
-    }>
-  ): Map<string, typeof hints> {
-    const groups = new Map<string, typeof hints>();
+  private groupHintsByPosition<
+    T extends { pixelX: number; pixelY: number },
+  >(hints: T[]): Map<string, T[]> {
+    const groups = new Map<string, T[]>();
 
     for (const hintData of hints) {
       const posKey = `${Math.round(hintData.pixelX)},${Math.round(hintData.pixelY)}`;
@@ -566,38 +632,27 @@ export class WorldMapRenderer {
       hint: { name: string; categoryID: number; gfxID: number; mapID: number };
       pixelX: number;
       pixelY: number;
-      hintInfo: {
-        file: string;
-        width: number;
-        height: number;
-        offsetX: number;
-        offsetY: number;
-      };
-      texturePath: string;
+      texture: Texture;
+      textureWidth: number;
+      textureHeight: number;
+      anchorFracX: number;
+      anchorFracY: number;
+      textureId: number;
     }>,
-    textures: Record<string, import("pixi.js").Texture>
   ): void {
-    if (!this.hintManifest) {
-      return;
-    }
-
     const sprites: HintSprite[] = [];
 
     for (let i = 0; i < groupData.length; i++) {
       const hintData = groupData[i];
-      const texture = textures[hintData.texturePath];
 
-      if (!texture) {
-        continue;
-      }
+      const sprite = new Sprite(hintData.texture) as HintSprite;
+      // The SWF's anchor (0,0) is what `attachMovie` places at the
+      // parent's _x,_y. Translate to a Pixi anchor in [0,1] so
+      // sprite.x/y directly positions the pin at the map cell center.
+      sprite.anchor.set(hintData.anchorFracX, hintData.anchorFracY);
 
-      const sprite = new Sprite(texture) as HintSprite;
-      sprite.anchor.set(0.5, 0.5);
-
-      const halfWidth = hintData.hintInfo.width / 2;
-      const halfHeight = hintData.hintInfo.height / 2;
-      const baseX = hintData.pixelX + hintData.hintInfo.offsetX + halfWidth;
-      const baseY = hintData.pixelY + hintData.hintInfo.offsetY + halfHeight;
+      const baseX = hintData.pixelX;
+      const baseY = hintData.pixelY;
 
       sprite.baseX = baseX;
       sprite.baseY = baseY;
@@ -613,7 +668,7 @@ export class WorldMapRenderer {
       }
 
       const targetSize = 30;
-      const maxDim = Math.max(texture.width, texture.height);
+      const maxDim = Math.max(hintData.textureWidth, hintData.textureHeight);
       const hintScale = maxDim > 0 ? targetSize / maxDim : 1;
       sprite.scale.set(hintScale);
       sprite.eventMode = "static";
@@ -1056,12 +1111,36 @@ export class WorldMapRenderer {
     this.positionMarker.stroke({ color: 0xff0000, width: 1, alpha: 0.5 });
   }
 
+  /**
+   * Retire every live Vello-allocated chunk texture. Patched wgpu's
+   * `Drop for WebTexture` is a no-op — without these explicit
+   * `freeRenderTexture` calls each `loadWorldMap` reload would leak
+   * the previous superarea's textures.
+   */
+  private disposeTileSprites(): void {
+    this.mapContainer.removeChildren();
+    for (const id of this.tileTextureIds) {
+      freeRenderTexture(id);
+    }
+    this.tileTextureIds = [];
+  }
+
+  private disposeHintSprites(): void {
+    this.hintsContainer.removeChildren();
+    for (const id of this.hintTextureIds) {
+      freeRenderTexture(id);
+    }
+    this.hintTextureIds = [];
+  }
+
   destroy(): void {
     if (this.wheelHandler) {
       this.app.canvas?.removeEventListener("wheel", this.wheelHandler);
     }
 
     this.clearHintGroups();
+    this.disposeTileSprites();
+    this.disposeHintSprites();
     this.worldContainer.destroy({ children: true, texture: false });
     this.uiContainer.destroy({ children: true, texture: false });
     this.tooltip.destroy({ children: true, texture: false });

@@ -1,13 +1,10 @@
 import { Container } from "pixi.js";
 
-import type { Renderer } from "pixi.js";
-
 import type { CharacterSpriteLoader } from "@/game/assets/character-sprite";
 import type { CellData } from "@/game/datacenter/cell";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import type { RendererRegistry } from "@/game/render/renderer-registry";
-import type { SpellVelloRenderer } from "@/game/render/spell-vello-renderer";
 import type { Scene } from "@/game/scene/scene";
 import { Z_FIGHT_CONTAINER } from "@/game/constants/z-index";
 import {
@@ -15,10 +12,6 @@ import {
   DamageRenderer,
   DamageType,
 } from "@/game/scene/fight/damage-view";
-import {
-  type SpellAnimationConfig,
-  SpellRenderer,
-} from "@/game/scene/fight/spell-view";
 import {
   CellHighlighter,
   HighlightType,
@@ -31,7 +24,6 @@ import {
   type PlayerSpriteData,
 } from "@/game/scene/player/renderer";
 import { fightActor } from "@/game/stores/fight-store";
-import { spellsStore } from "@/game/stores/spells-store";
 
 export class FightUI {
   private fightContainer: Container | null = null;
@@ -44,7 +36,6 @@ export class FightUI {
   private worldCellTints: WorldCellTints | null = null;
   private playerRenderer: PlayerRenderer | null = null;
   private damageRenderer: DamageRenderer | null = null;
-  private spellRenderer: SpellRenderer | null = null;
 
   constructor(
     private mapContainer: Container | null,
@@ -55,27 +46,12 @@ export class FightUI {
     private spriteLoader: CharacterSpriteLoader,
     private scene: Scene,
     /**
-     * Container where spell FX attach directly (one per cast). This is
-     * the battlefield's objectLayer2 — the same container that holds
-     * fighters and object2 tiles — so Pixi's sortable-children puts
-     * each spell at `targetCell*100+50` and gets occluded by any
-     * sprite at a higher per-cell zIndex, matching the original.
-     */
-    private objectLayer2: Container | null,
-    private spellVelloRenderer: SpellVelloRenderer | null,
-    /**
      * Strip renderer for the stub PlayerRenderer's config. The fight-
      * mode renderer never actually loads players — fighters live in
      * the world-actors PlayerRenderer — so the strip renderer is used
      * as a config-shaped placeholder.
      */
-    private stripRenderer: PlayerStripRenderer,
-    /**
-     * Pixi renderer threaded through to `SpellRenderer` so each cast
-     * can wrap its AVM1 GPU texture as a Pixi `ExternalSource` (Phase
-     * 2 made Vello + Pixi share a device, so the wrap is cheap).
-     */
-    private pixiRenderer: Renderer
+    private stripRenderer: PlayerStripRenderer
   ) {}
 
   /**
@@ -152,39 +128,6 @@ export class FightUI {
       cellDataMap: this.cellDataMap,
     });
 
-    // Spell FX attach directly to objectLayer2 (falls back to fight
-    // container if the map hasn't built its object layer yet, which
-    // only happens in unit tests). The Vello renderer is injected so
-    // each spell class can rasterize its frames through the shared
-    // GPU pipeline.
-    const spellParent = this.objectLayer2 ?? this.fightContainer;
-    this.spellRenderer = new SpellRenderer(spellParent, this.scene, {
-      mapWidth,
-      groundLevel,
-      cellDataMap: this.cellDataMap,
-      velloRenderer: this.spellVelloRenderer,
-      pixiRenderer: this.pixiRenderer,
-    });
-
-    // Fire-and-forget preload of every spell on the local player's bar.
-    // Without this, the first cast of each spell stalls between the cast
-    // pose's launch frame (`onComplete` at applyEnd) and the visual's
-    // first tick while the SWF is fetched + parsed — perceived as a
-    // post-cast hang of ~50–250 ms on cold spells. Vanilla 1.29's wire
-    // protocol uses `sorts.sprite == spellId` for the overwhelming
-    // majority of spells, so preloading by `spellId` covers the
-    // hot-path; the rare spells whose visual id differs still pay the
-    // first-cast penalty but those are uncommon. We don't await the
-    // promise — the visuals just need to be ready by the time the
-    // *first* cast lands, which is far longer than the parallel fetch.
-    const bar = spellsStore.getSnapshot().spells;
-    if (bar.length > 0 && this.spellRenderer) {
-      const spellIds = bar
-        .map((s) => s.spellId)
-        .filter((id) => Number.isFinite(id) && id > 0);
-      void this.spellRenderer.preload(spellIds);
-    }
-
     // Register fight renderers
     this.rendererRegistry.register("cell-highlighter", (e) =>
       this.cellHighlighter?.onResize(e)
@@ -195,9 +138,6 @@ export class FightUI {
     this.rendererRegistry.register("damage-renderer", (e) =>
       this.damageRenderer?.onResize(e)
     );
-    this.rendererRegistry.register("spell-renderer", (e) =>
-      this.spellRenderer?.onResize(e)
-    );
   }
 
   /**
@@ -207,9 +147,6 @@ export class FightUI {
     if (!this.fightContainer) {
       return;
     }
-
-    this.spellRenderer?.destroy();
-    this.spellRenderer = null;
 
     this.damageRenderer?.destroy();
     this.damageRenderer = null;
@@ -224,7 +161,6 @@ export class FightUI {
     this.rendererRegistry.unregister("cell-highlighter");
     this.rendererRegistry.unregister("player-renderer");
     this.rendererRegistry.unregister("damage-renderer");
-    this.rendererRegistry.unregister("spell-renderer");
 
     if (this.fightContainer) {
       this.mapContainer?.removeChild(this.fightContainer);
@@ -412,19 +348,8 @@ export class FightUI {
   }
 
   // ============================================================================
-  // Spell & Damage Methods
+  // Damage Methods
   // ============================================================================
-
-  /**
-   * Play spell animation.
-   */
-  async playSpell(config: SpellAnimationConfig): Promise<void> {
-    if (!this.spellRenderer) {
-      return;
-    }
-
-    await this.spellRenderer.playSpell(config);
-  }
 
   /**
    * Show damage number.
@@ -493,7 +418,6 @@ export class FightUI {
     this.cellHighlighter?.setOffset(x, y);
     this.playerRenderer?.setOffset(x, y);
     this.damageRenderer?.setOffset(x, y);
-    this.spellRenderer?.setOffset(x, y);
   }
 
   /**
@@ -503,7 +427,6 @@ export class FightUI {
     this.cellHighlighter?.setScale(scale);
     this.playerRenderer?.setScale(scale);
     this.damageRenderer?.setScale(scale);
-    this.spellRenderer?.setScale(scale);
   }
 
   /**
@@ -513,7 +436,6 @@ export class FightUI {
     this.cellHighlighter?.setMapDimensions(width, groundLevel);
     this.playerRenderer?.setMapDimensions(width, groundLevel);
     this.damageRenderer?.setMapDimensions(width, groundLevel);
-    this.spellRenderer?.setMapDimensions(width, groundLevel);
   }
 
   // ============================================================================
@@ -542,13 +464,6 @@ export class FightUI {
   }
 
   /**
-   * Get the spell renderer.
-   */
-  getSpellRenderer(): SpellRenderer | null {
-    return this.spellRenderer;
-  }
-
-  /**
    * Get the fight container.
    */
   getCombatContainer(): Container | null {
@@ -562,7 +477,6 @@ export class FightUI {
     this.cellHighlighter?.clearAll();
     this.playerRenderer?.clear();
     this.damageRenderer?.clear();
-    this.spellRenderer?.clear();
   }
 
   destroy(): void {

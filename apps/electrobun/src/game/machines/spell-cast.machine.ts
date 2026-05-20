@@ -1,4 +1,4 @@
-import { createActor, assign, setup } from "xstate";
+import { assign, createActor, setup } from "xstate";
 
 import type { SpellEntry } from "@/game/stores/spells-store";
 
@@ -108,9 +108,7 @@ export const spellCastMachine = setup({
       event.type === "TARGET_CELL" ? { targetCellId: event.cellId } : {}
     ),
     applyRejection: assign(({ event }) =>
-      event.type === "SERVER_REJECTED"
-        ? { rejectionReason: event.reason }
-        : {}
+      event.type === "SERVER_REJECTED" ? { rejectionReason: event.reason } : {}
     ),
     reset: assign(() => ({ ...initialContext })),
   },

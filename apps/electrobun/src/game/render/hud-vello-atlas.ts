@@ -126,11 +126,20 @@ class HudVelloAtlas {
    * atlas canvas via a Pixi GPU blit, then snapshot the painted
    * region as an `ImageBitmap`. Returns null when the dispatch
    * couldn't resolve a SWF or the atlas init failed.
+   *
+   * When `center` is true the Vello sprite is placed so its bitmap
+   * centroid lines up with the snapshot region's centroid — needed
+   * for rotating views (clock/compass) where the React side spins
+   * the canvas around `center center` and any asymmetric padding in
+   * the snapshot would offset the rotation pivot from the dial pin.
+   * Default false keeps the spell-icon path's existing top-left
+   * placement.
    */
   render(
     width: number,
     height: number,
     dispatch: HudRenderDispatch,
+    center = false,
   ): Promise<ImageBitmap | null> {
     const w = Math.max(1, Math.floor(width));
     const h = Math.max(1, Math.floor(height));
@@ -169,12 +178,23 @@ class HudVelloAtlas {
         const tex = new Texture({ source });
         const sprite = new Sprite(tex);
         sprite.anchor.set(0, 0);
+        if (center) {
+          // Float the sprite so the Vello bitmap is centred within
+          // the snapshot region (rounded so the canvas-2D copy
+          // doesn't sample on half-pixels). Used by banner/portrait
+          // paths where the snapshot canvas is intentionally
+          // oversized to absorb Vello's AA pad + floor/ceil rounding.
+          sprite.x = Math.round((w - result.width) / 2);
+          sprite.y = Math.round((h - result.height) / 2);
+        }
         this.app.stage.removeChildren();
         this.app.stage.addChild(sprite);
-        // Pixi blits the rgba8unorm sample into the bgra8unorm
-        // canvas backing — purely GPU. Format mismatch lives in the
-        // ExternalSource (sampled) → render target write, which is
-        // canonical Pixi behaviour (no warning).
+        // Clear the prior frame's contents — without an explicit
+        // canvas clear, when a smaller asset paints into the
+        // grow-only canvas it leaves stale pixels from a previous
+        // larger paint visible in the snapshot's letterbox area.
+        // `renderer.render({ clear: true })` clears the colour
+        // attachment to (0,0,0,0) before drawing the new sprite.
         this.app.renderer.render({
           container: this.app.stage,
           clear: true,
@@ -202,6 +222,14 @@ class HudVelloAtlas {
   /** For diagnostics — current canvas dims. */
   getCurrentSize(): { width: number; height: number } {
     return { width: this.currentW, height: this.currentH };
+  }
+
+  getStats(): { width: number; height: number; bytes: number } {
+    return {
+      width: this.currentW,
+      height: this.currentH,
+      bytes: this.currentW * this.currentH * 4,
+    };
   }
 
   /**
@@ -249,9 +277,10 @@ export async function renderHudAssetToCanvas(
   width: number,
   height: number,
   dispatch: HudRenderDispatch,
+  center = false,
 ): Promise<HTMLCanvasElement | null> {
   const atlas = getHudVelloAtlas();
-  const bitmap = await atlas.render(width, height, dispatch);
+  const bitmap = await atlas.render(width, height, dispatch, center);
   if (!bitmap) {
     return null;
   }

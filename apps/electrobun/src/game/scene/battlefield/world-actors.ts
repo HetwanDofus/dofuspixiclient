@@ -1,5 +1,8 @@
 import type { DofusPathfinding } from "@dofus/grid";
-import type { MonsterGroupMember, MountDisplay } from "@dofus/proto";
+import type {
+  MonsterGroupMember,
+  MountDisplay,
+} from "@/game/scene/sprite-types";
 import { Container } from "pixi.js";
 
 import type { CharacterSpriteLoader } from "@/game/assets/character-sprite";
@@ -312,6 +315,23 @@ export class BattlefieldWorldActors {
     await this.renderer?.movePlayer(id, path);
   }
 
+  /** Snap an actor onto a cell without animating (placement swaps,
+   *  GIC server-pushed coord updates). Mid-animation snaps are
+   *  suppressed inside `PlayerRenderer.updatePlayer` to avoid
+   *  fighting an in-flight movement. */
+  teleport(id: number, cellId: number): void {
+    this.renderer?.teleportPlayer(id, cellId);
+  }
+
+  /** Propagate map-grid dims into the live renderer so cell→pixel
+   *  interpolation stays in sync after a roleplay map change. The
+   *  renderer caches mapWidth at construction (PlayerRenderer ctor),
+   *  so without this, the sprite walks on the previous map's brick
+   *  pattern after every teleport / zaap. */
+  setMapDimensions(width: number, groundLevel?: number): void {
+    this.renderer?.setMapDimensions(width, groundLevel);
+  }
+
   clear(): void {
     this.renderer?.clear();
   }
@@ -373,24 +393,30 @@ export class BattlefieldWorldActors {
       .rendererRegistry()
       .register("world-actor-renderer", (e) => this.renderer?.onResize(e));
 
-    // Mirror the fight store's hp/maxHp into each fighter's overhead
-    // panel. The store is the single source of truth (FIGHTER_UPSERT
-    // on placement, FIGHTER_UPDATE on damage / heal / turn snapshots),
-    // so every store change must reach the renderer or the bar drifts
-    // out of sync (was the user's "HP bar goes to 0 after any damage"
-    // bug — onDamage's local delta computation was racing with the
-    // store update fired right after).
-    const lastHpKey = new Map<string, string>();
+    // Mirror the fight store's hp/maxHp/cell into each fighter's
+    // visual state. The store is the single source of truth
+    // (FIGHTER_UPSERT on placement, FIGHTER_UPDATE on damage / heal /
+    // GTM snapshots / GIC coord swaps), so every store change must
+    // reach the renderer or the bar drifts (HP bug — onDamage's
+    // local delta raced with the store update) OR the sprite stays
+    // on the pre-placement cell (the "I placed myself but the avatar
+    // didn't move" bug: GIC/GTM updated the store cell, but only
+    // hp/maxHp were forwarded here).
+    const lastKey = new Map<string, string>();
     this.fightStoreUnsub = fightStore.subscribe(() => {
       const renderer = this.renderer;
       if (!renderer) return;
       for (const f of fightStore.getSnapshot().fighters.values()) {
         const numericId = Number(f.spriteId);
         if (!Number.isFinite(numericId)) continue;
-        const key = `${f.hp}/${f.maxHp}`;
-        if (lastHpKey.get(f.spriteId) === key) continue;
-        lastHpKey.set(f.spriteId, key);
-        renderer.updatePlayer(numericId, { hp: f.hp, maxHp: f.maxHp });
+        const key = `${f.hp}/${f.maxHp}/${f.cell}`;
+        if (lastKey.get(f.spriteId) === key) continue;
+        lastKey.set(f.spriteId, key);
+        renderer.updatePlayer(numericId, {
+          hp: f.hp,
+          maxHp: f.maxHp,
+          cellId: f.cell,
+        });
       }
     });
   }

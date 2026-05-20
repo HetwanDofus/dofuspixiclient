@@ -1,4 +1,4 @@
-import type { MonsterGroupMember } from "@dofus/proto";
+import type { MonsterGroupMember } from "@/game/scene/sprite-types";
 import type { Application, Sprite } from "pixi.js";
 
 import type { PickingSystem } from "@/game/render/picking-system";

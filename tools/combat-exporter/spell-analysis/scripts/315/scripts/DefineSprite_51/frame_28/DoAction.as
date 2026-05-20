@@ -1,1 +1,0 @@
-gotoAndPlay(2);

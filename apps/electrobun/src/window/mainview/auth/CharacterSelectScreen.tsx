@@ -1,5 +1,5 @@
-import type { GameClient } from "@/game/game-client";
-import type { CharacterListEntry } from "@/game/network/protocol";
+import type { GameSession as GameClient } from "@/game/session";
+import type { CharacterListEntry } from "@/game/machines/login.machine";
 
 interface Props {
   client: GameClient;
@@ -21,22 +21,22 @@ export function CharacterSelectScreen({ client, characters, busy }: Props) {
         ) : (
           <ul className="space-y-2">
             {characters.map((c) => {
-              const id = Number(c.id);
               return (
                 <li key={c.id}>
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => client.selectCharacter(id)}
+                    onClick={() => client.selectCharacter(c.id)}
                     className="flex w-full items-center justify-between rounded bg-neutral-800/70 px-4 py-3 text-left text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <span className="font-medium">{c.name}</span>
                     <span className="flex items-center gap-3 text-sm text-neutral-400">
                       <span>lvl {c.level}</span>
                       <span>gfx {c.gfxId}</span>
-                      {c.isDead && (
-                        <span className="text-red-400">dead</span>
-                      )}
+                      {"isDead" in c &&
+                        (c as { isDead?: boolean }).isDead && (
+                          <span className="text-red-400">dead</span>
+                        )}
                     </span>
                   </button>
                 </li>

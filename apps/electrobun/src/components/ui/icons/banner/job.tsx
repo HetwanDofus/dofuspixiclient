@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 
-export function JobIcon({ className }: { className?: string }) {
+export default function JobIcon({ className }: { className?: string }) {
   const id0 = useId();
 
   return (

@@ -113,6 +113,26 @@ export class SpellIconRenderer {
     return this.ready;
   }
 
+  getStats(): {
+    canvasCache: number;
+    pendingRenders: number;
+    pendingSubBundles: number;
+    loadedSubBundles: number;
+    naturalSizes: number;
+    subscribers: number;
+  } {
+    let subTotal = 0;
+    for (const s of this.subscribers.values()) subTotal += s.size;
+    return {
+      canvasCache: this.canvasCache.size,
+      pendingRenders: this.pendingRenders.size,
+      pendingSubBundles: this.pendingSubBundles.size,
+      loadedSubBundles: this.loadedSubBundles.size,
+      naturalSizes: this.naturalSizes.size,
+      subscribers: subTotal,
+    };
+  }
+
   /** Sync cache peek. */
   peekCanvas(spellId: number, pixelSize: number): HTMLCanvasElement | null {
     return this.canvasCache.get(cacheKey(spellId, pixelSize)) ?? null;

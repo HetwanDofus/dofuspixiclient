@@ -37,7 +37,19 @@ export class FighterPortraitRenderer {
   /** gfxId → bundle name (or null when load failed sticky-cached). */
   private readonly bundleNames = new Map<number, string | null>();
   private readonly pendingLoads = new Map<number, Promise<string | null>>();
-  private readonly naturalSizes = new Map<number, number>();
+  /**
+   * Cached pixel bounds per gfxId — width, height, and long-edge.
+   * Long-edge feeds the resolution math; per-axis dims feed the
+   * snapshot canvas so it matches the artwork's natural aspect.
+   * Earlier path forced a `pixelSize × pixelSize` square snapshot
+   * which left the artwork pinned at the top-left of an oversized
+   * canvas — the React mount with `objectFit: contain` then showed
+   * the artwork crammed into one corner of its host.
+   */
+  private readonly naturalDimsByGfx = new Map<
+    number,
+    { width: number; height: number; longEdge: number }
+  >();
   private readonly canvasCache = new Map<string, HTMLCanvasElement>();
   private readonly pendingRenders = new Map<
     string,
@@ -56,6 +68,22 @@ export class FighterPortraitRenderer {
 
   isReady(): boolean {
     return this.ready;
+  }
+
+  getStats(): {
+    canvasCache: number;
+    pendingRenders: number;
+    pendingLoads: number;
+    bundleNames: number;
+    naturalDims: number;
+  } {
+    return {
+      canvasCache: this.canvasCache.size,
+      pendingRenders: this.pendingRenders.size,
+      pendingLoads: this.pendingLoads.size,
+      bundleNames: this.bundleNames.size,
+      naturalDims: this.naturalDimsByGfx.size,
+    };
   }
 
   /**
@@ -106,23 +134,32 @@ export class FighterPortraitRenderer {
       return null;
     }
 
-    const natural = this.naturalSize(gfxId, bundleName);
-    if (natural <= 0) {
+    const dims = this.naturalDims(gfxId, bundleName);
+    if (dims.longEdge <= 0) {
       return null;
     }
 
-    const resolution = pixelSize / natural;
+    const resolution = pixelSize / dims.longEdge;
     applyZoneColors(colors);
 
-    // Route through the shared HudVelloAtlas. Vello renders to an
-    // off-screen rgba8unorm texture; the atlas's secondary Pixi
-    // Application blits it onto a bgra8unorm OffscreenCanvas (the
-    // browser's preferred format on Mac → no `getCurrentTexture`
-    // perf warning), `createImageBitmap` snapshots the painted
-    // region, and we bake it into a 2D `<canvas>` React mounts
-    // directly. Purely GPU — no pixel readback.
-    const canvas = await renderHudAssetToCanvas(pixelSize, pixelSize, () =>
-      renderSwfRoot(bundleName, 0, resolution),
+    // Over-size the snapshot to absorb Vello's 1-px AA pad + worst-
+    // case floor/ceil rounding (rust/vello-wasm/src/lib.rs:801-807,
+    // 2325-2358 for the root path). A naive `Math.round(natural *
+    // resolution)` snapshot is 2–3 px short and `createImageBitmap`
+    // crops the artwork's right/bottom edges, pinning the bitmap to
+    // the canvas top-left. The React mount's `objectFit: contain`
+    // centers the natural-aspect bitmap; the negligible transparent
+    // overshoot is invisible.
+    const SAFE_PAD = 4;
+    const targetW =
+      Math.max(1, Math.ceil(dims.width * resolution)) + SAFE_PAD;
+    const targetH =
+      Math.max(1, Math.ceil(dims.height * resolution)) + SAFE_PAD;
+    const canvas = await renderHudAssetToCanvas(
+      targetW,
+      targetH,
+      () => renderSwfRoot(bundleName, 0, resolution),
+      true,
     );
     if (!canvas) {
       log.warn(`render failed for gfxId=${gfxId}@${pixelSize}`);
@@ -139,18 +176,25 @@ export class FighterPortraitRenderer {
   }
 
   /**
-   * Pure-bounds long-edge probe at resolution 1. CPU-only walk inside
-   * WASM, no GPU dispatch. Cached per gfxId (artwork bbox is fixed).
+   * Pure-bounds probe at resolution 1. CPU-only walk inside WASM, no
+   * GPU dispatch. Cached per gfxId (artwork bbox is fixed). Returns
+   * width + height + long-edge so the render path can preserve the
+   * artwork's natural aspect ratio in the snapshot canvas.
    */
-  private naturalSize(gfxId: number, bundleName: string): number {
-    const cached = this.naturalSizes.get(gfxId);
+  private naturalDims(
+    gfxId: number,
+    bundleName: string,
+  ): { width: number; height: number; longEdge: number } {
+    const cached = this.naturalDimsByGfx.get(gfxId);
     if (cached !== undefined) {
       return cached;
     }
     const bounds = swfRootNaturalSize(bundleName, 0);
-    const longEdge = bounds ? Math.max(bounds.width, bounds.height) : 0;
-    this.naturalSizes.set(gfxId, longEdge);
-    return longEdge;
+    const width = bounds?.width ?? 0;
+    const height = bounds?.height ?? 0;
+    const dims = { width, height, longEdge: Math.max(width, height) };
+    this.naturalDimsByGfx.set(gfxId, dims);
+    return dims;
   }
 
   private async loadBundle(gfxId: number): Promise<string | null> {

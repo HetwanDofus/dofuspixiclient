@@ -1,2 +1,0 @@
-removeMovieClip(this);
-stop();

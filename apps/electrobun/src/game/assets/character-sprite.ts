@@ -203,10 +203,18 @@ export class CharacterSpriteLoader {
    * is small and maps bundle + accessory state per look — wiping it
    * on map change avoids leaking entries for actors that won't
    * appear on the new map. SWF bundles inside the WASM stay loaded.
+   *
+   * Also clears the asset registry's gfxId→bundle-name map so its
+   * `bundleNames` and `pendingLoads` don't accumulate one entry per
+   * unique NPC ever encountered. The WASM-side `loadedSwfBundles`
+   * set is the canonical "is this bundle ready" gate and stays
+   * intact, so re-encountering the same gfxId on a future map
+   * re-runs only the (cheap) `loadSprite` bookkeeping path.
    */
   clearForMapChange(): void {
     this.cache.clear();
     this.pending.clear();
+    this.assets.clear();
   }
 
   async loadAnimation(
@@ -374,6 +382,23 @@ export class CharacterSpriteLoader {
   /** Read-only access to the current zoom for any zoom-aware consumer. */
   getZoom(): number {
     return this.currentZoom;
+  }
+
+  getStats(): {
+    cache: number;
+    pending: number;
+    applyEnd: number;
+    assetBundles: number;
+    assetPending: number;
+  } {
+    const a = this.assets.getStats();
+    return {
+      cache: this.cache.size,
+      pending: this.pending.size,
+      applyEnd: this.applyEndByGfx.size,
+      assetBundles: a.bundleNames,
+      assetPending: a.pendingLoads,
+    };
   }
 }
 

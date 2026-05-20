@@ -1,6 +1,7 @@
 import type { DofusPathfinding } from "@dofus/grid";
-import type { MountDisplay } from "@dofus/proto";
 import type { Container, Graphics, Sprite } from "pixi.js";
+
+import type { MountDisplay } from "@/game/scene/sprite-types";
 
 import type {
   CharacterAnimation,

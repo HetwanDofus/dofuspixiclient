@@ -7,6 +7,12 @@ export default {
 		version: "0.0.1",
 	},
 	build: {
+		bun: {
+			// The bun-side entry was moved under `src/window/bun/` to
+			// sit next to the matching mainview React tree, so the
+			// default `src/bun/index.ts` path doesn't apply.
+			entrypoint: "src/window/bun/index.ts",
+		},
 		copy: {
 			"dist/index.html": "views/mainview/index.html",
 			"dist/assets": "views/mainview/assets",

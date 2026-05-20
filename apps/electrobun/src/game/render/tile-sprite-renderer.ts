@@ -235,6 +235,18 @@ export class TileSpriteRenderer {
     this.object2Layer = object2Layer;
   }
 
+  getStats(): {
+    states: number;
+    tileCache: number;
+    cacheRefs: number;
+  } {
+    return {
+      states: this.states.size,
+      tileCache: this.tileCache.size,
+      cacheRefs: this.cacheRefs.size,
+    };
+  }
+
   /**
    * Look up the cached GPU texture for `(bundle, exportName, frame)`
    * or render + cache it. Increments the cache refcount; pair with

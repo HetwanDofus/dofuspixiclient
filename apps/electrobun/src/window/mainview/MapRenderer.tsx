@@ -8,7 +8,7 @@ import {
 } from "react";
 
 import { CanvasStack } from "@/components/CanvasStack";
-import type { GameClient } from "@/game/game-client";
+import type { GameSession as GameClient } from "@/game/session";
 import { getLoadProgress } from "@/game/render/load-progress";
 import { Battlefield } from "@/game/scene";
 import {

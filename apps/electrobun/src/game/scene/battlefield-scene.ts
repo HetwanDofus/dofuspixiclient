@@ -12,9 +12,7 @@ import type { AdjacentMapCache } from "@/game/assets/adjacent-map-cache";
 import type { InteractionHandler } from "@/game/input/interaction-handler";
 import type { AtlasLoader } from "@/game/render/atlas-loader";
 import type { PickingSystem } from "@/game/render/picking-system";
-import type { SpellVelloRenderer } from "@/game/render/spell-vello-renderer";
 import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
-import type { SpellAnimationConfig } from "@/game/scene/fight/spell-view";
 import type {
   MapTransition,
   TransitionDirection,
@@ -31,6 +29,14 @@ import { type CellData, findCellAtPosition } from "@/game/datacenter/cell";
 import { computeMapScale, type MapData } from "@/game/datacenter/map";
 import { Camera } from "@/game/render/camera";
 import { Engine } from "@/game/render/engine";
+import {
+  diffMemSnapshot,
+  formatLeakReport,
+  formatMemSnapshot,
+  takeMemSnapshot,
+  type MemSnapshot,
+  type MemSources,
+} from "@/game/render/mem-snapshot";
 import { RendererRegistry } from "@/game/render/renderer-registry";
 import {
   type BattlefieldBootstrapContext,
@@ -120,12 +126,6 @@ export class Battlefield {
   private app: Application | null = null;
   private mapContainer: Container | null = null;
   private atlasLoader: AtlasLoader | null = null;
-  /**
-   * Shared spell SWF loader. Populated by `initPickingAndAtlas` via
-   * the bootstrap context; FightUI pulls it out of the battlefield to
-   * hand to its SpellRenderer.
-   */
-  private spellVelloRenderer: SpellVelloRenderer | null = null;
   /**
    * Strip-rendered character sprite owner. Constructed by
    * `initEngineAndVello` (after Pixi adopts Vello's GPUDevice); each
@@ -421,25 +421,11 @@ export class Battlefield {
           : null,
         this.characterSpriteLoader,
         this.scene,
-        // Spell FX get attached into objectLayer2 per-cell so sprites
-        // on closer cells still occlude effects on farther ones, same
-        // as VisualEffectHandler.as:35 in the original (effects live
-        // inside Object2 at `cellNum*100+50±idx`).
-        this.mapHandler?.getObjectLayer2() ?? null,
-        this.spellVelloRenderer,
-        this.playerStripRenderer,
-        this.app.renderer
+        this.playerStripRenderer
       );
     }
     this.fightUI.enterFightMode(mode);
 
-    // SpellRenderer + its asset loader are constructed inside
-    // enterFightMode, so the rasterizer's resolution starts at its
-    // default (1×). Sync it to the current zoom now — without this
-    // the first spell cast renders at half the supersample density
-    // of the rest of the canvas and looks blurry next to characters.
-    const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
-    this.fightUI.getSpellRenderer()?.getAssetLoader().setResolution(zoom);
   }
 
   exitFightMode(): void {
@@ -701,7 +687,30 @@ export class Battlefield {
       getRenderWatchdog().setStatsProvider({
         testPlayerCount: () => getTestPlayerCount(),
       });
+
+      // Memory snapshot probe — call `__memSnapshot()` from DevTools to
+      // dump every tracked counter + JS heap. Returns the snapshot
+      // object so it can be diff'd against a stored prior snapshot.
+      const wm = window as unknown as {
+        __memSnapshot?: () => MemSnapshot;
+      };
+      wm.__memSnapshot = () => {
+        const snap = takeMemSnapshot(this.memSources());
+        // eslint-disable-next-line no-console
+        console.log("[memSnapshot]", formatMemSnapshot(snap));
+        return snap;
+      };
     }
+  }
+
+  /** Build the source bag used by `takeMemSnapshot` and the window helper. */
+  private memSources(): MemSources {
+    return {
+      atlasLoader: this.atlasLoader,
+      tileSpriteRenderer: this.mapHandler?.getTileSpriteRenderer() ?? null,
+      playerStripRenderer: this.playerStripRenderer,
+      pickingSystem: this.pickingSystem,
+    };
   }
 
   async loadMapFromData(
@@ -717,6 +726,12 @@ export class Battlefield {
       return;
     }
 
+    // Snapshot every tracked counter BEFORE map cleanup runs. We log a
+    // diff at the end so per-map growth shows up as a one-line report
+    // in the dev console; consistently-non-zero deltas across multiple
+    // map changes are the canonical leak signature.
+    const memBefore: MemSnapshot = takeMemSnapshot(this.memSources());
+
     // Non-blocking snapshot of the old map; new tiles render behind it.
     this.mapTransition?.startTransition(direction);
 
@@ -727,6 +742,12 @@ export class Battlefield {
       this.cellDataMap.set(cell.id, cell);
     }
 
+    // PlayerRenderer caches mapWidth at construction. Without this
+    // push, non-default-size maps animate sprites on the previous
+    // map's grid (cell→pixel uses width-based brick stride), so the
+    // sprite "runs everywhere" after a teleport / zaap.
+    this.worldActors.setMapDimensions(mapData.width);
+
     this.mapContainer.x = 0;
     this.mapContainer.y = 0;
 
@@ -736,6 +757,16 @@ export class Battlefield {
     // sprite source); without this clear they accumulate forever
     // because TextureSource uids are monotonic — old uids never reappear.
     this.pickingSystem?.clearAlphaCache();
+    // Drop the atlas-loader's per-tile GPU sources, static-base textures,
+    // frame-strip cache, and animation metadata accumulated by the prior
+    // map + its prefetched neighbours. Without this, every Pixi
+    // `ExternalSource` (autoGarbageCollect=false) and its wasm wgpu
+    // texture stay pinned both Pixi-side and inside `VelloRenderer.textures`,
+    // so RAM climbs ~hundreds of MB per map walk. clearCache() retires
+    // both via the existing 250ms+2rAF deferred-destroy path
+    // (`freeRenderTexture`). The active tile pipeline (TileSpriteRenderer)
+    // has its own refcounted cache and is unaffected.
+    this.atlasLoader.clearCache();
     this.debugOverlay?.clear();
     this.gridOverlay?.clear();
 
@@ -756,14 +787,6 @@ export class Battlefield {
     // loaded in WASM (per `feedback_no_animation_preload`).
     this.characterSpriteLoader.clearForMapChange();
     this.characterSpriteLoader.setZoom(zoom);
-    // Spell asset loader sits inside FightUI's SpellRenderer, which
-    // doesn't exist until enterFightMode runs. Push the current zoom
-    // directly through the FightUI handle when present so the spell
-    // strip rasterizer matches character density. No registry fan-out
-    // — that would re-fire onResize on every other renderer mid-
-    // renderMap and disturb placement-cell / preview state.
-    const spellLoader = this.fightUI?.getSpellRenderer()?.getAssetLoader();
-    spellLoader?.setResolution(zoom);
     await this.mapHandler.renderMap(
       mapData,
       this.mapContainer,
@@ -793,6 +816,16 @@ export class Battlefield {
       );
     }
     // Map is ready — world actor container gets re-created on MAP_ACTORS.
+
+    // After-map-change snapshot. Reports only positive deltas (growth) —
+    // the goal is "this map change leaked X" not "after the change we
+    // have Y total". Empty report means the per-map invariant held.
+    const memAfter = takeMemSnapshot(this.memSources());
+    const diff = diffMemSnapshot(memBefore, memAfter);
+    const leakReport = formatLeakReport(diff);
+    if (leakReport !== "(no growth)") {
+      log.info(`[mem] map=${mapData.id} grew: ${leakReport}`);
+    }
   }
 
   /**
@@ -859,6 +892,12 @@ export class Battlefield {
     this.pathfinding = pathfinding;
   }
 
+  /** Accessor for callers who need to compute paths against the
+   *  current map (e.g. GameSession when resolving a cell click). */
+  getPathfinding(): DofusPathfinding | null {
+    return this.pathfinding;
+  }
+
   // ============================================================================
   // World Actor Methods (Roleplay Mode)
   // ============================================================================
@@ -889,6 +928,13 @@ export class Battlefield {
 
   moveWorldActor(id: number, path: number[]): Promise<void> {
     return this.worldActors.move(id, path);
+  }
+
+  /** Snap an actor to a cell without animating. Used by the GIC
+   *  handler when the server pushes placement / coord changes that
+   *  carry no movement path. */
+  teleportWorldActor(id: number, cellId: number): void {
+    this.worldActors.teleport(id, cellId);
   }
 
   clearWorldActors(): void {
@@ -1120,12 +1166,8 @@ export class Battlefield {
     this.worldActors.getRenderer()?.setGhostView(this.transparencyMode);
   }
 
-  // Only playSpell + getPlayerRenderer are reachable externally; the rest of the
+  // Only getPlayerRenderer is reachable externally; the rest of the
   // fight API lives on FightUI directly.
-
-  async playSpell(config: SpellAnimationConfig): Promise<void> {
-    await this.fightUI?.playSpell(config);
-  }
 
   getPlayerRenderer(): PlayerRenderer | null {
     return this.fightUI?.getPlayerRenderer() ?? null;

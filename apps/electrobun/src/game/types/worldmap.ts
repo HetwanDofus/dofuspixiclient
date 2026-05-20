@@ -112,13 +112,25 @@ export interface MinimapConfig {
 }
 
 /**
- * Zoom matches original MapNavigator.as: range 10–100, step ±5.
- * MIN_ZOOM (10) = full map fits viewport. MAX_ZOOM (100) = ~14 cells across ≈ 4×4 grid.
- * DEFAULT_ZOOM (50) = opens at mid-zoom, matching Basics.as `mapExplorer_zoom = 50`.
+ * Worldmap layout constants — calibrated against the canonical
+ * `clips/maps/<superarea>.swf` chunk symbols.
+ *
+ * - `DISPLAY_WIDTH/HEIGHT`: native pixel size of one chunk symbol. Every
+ *   `X_Y` export in the worldmap SWFs is exactly 12000×6900 twips =
+ *   600×345 px. Probed via swf-spike's `dump_acc_bounds`. Chunks render
+ *   at resolution=1 → 600×345 px GPU textures, placed adjacent on a
+ *   pixel grid so neighbouring chunks tile seamlessly.
+ * - `CHUNK_SIZE`: 15 game maps per chunk axis (mirrors AS
+ *   `MiniMap.MAP_IMG_WIDTH/HEIGHT = 15`). Pixels per map cell within a
+ *   chunk = DISPLAY_WIDTH/CHUNK_SIZE = 40 (× 23 vertical).
+ * - Zoom matches the original MapNavigator.as: range 10–100, step ±5.
+ *   MIN_ZOOM=10 fits the full worldmap to the viewport; MAX_ZOOM=100
+ *   gives ~14 cells across ≈ 4×4 grid; DEFAULT_ZOOM=50 mid-zoom matches
+ *   Basics.as `mapExplorer_zoom = 50`.
  */
 export const WORLDMAP_CONSTANTS = {
-  DISPLAY_WIDTH: 742,
-  DISPLAY_HEIGHT: 432,
+  DISPLAY_WIDTH: 600,
+  DISPLAY_HEIGHT: 345,
   CHUNK_SIZE: 15,
   DEFAULT_ZOOM: 50,
   MIN_ZOOM: 10,

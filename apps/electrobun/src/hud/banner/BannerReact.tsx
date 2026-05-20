@@ -19,6 +19,7 @@ import {
   MainBannerIconButton,
   MainBannerMorePanel,
   MainBannerRightPanel,
+  useSetCircleExpanded,
 } from "@/components/ui/main-banner";
 import { useSpellCast } from "@/game/machines/spell-cast-selectors";
 import { getSpellIconRenderer } from "@/game/render/spell-icon-renderer";
@@ -28,6 +29,10 @@ import { type SpellEntry, spellsStore } from "@/game/stores/spells-store";
 import { useFightMode } from "@/hud/fight/useFightMode";
 
 import { Minimap } from "../minimap/Minimap";
+import { BannerXtraClock } from "./BannerXtraClock";
+import { BannerXtraCompass } from "./BannerXtraCompass";
+import { BannerXtraHelper } from "./BannerXtraHelper";
+import { BannerXtraPortrait } from "./BannerXtraPortrait";
 
 /**
  * In-fight cast state for a single hotbar slot. Used to drive the
@@ -301,6 +306,75 @@ const ICON_BUTTONS = [
   { icon: "mount", panel: "mount" },
 ] as const;
 
+/**
+ * Canonical Dofus banner-circle "xtra" views. Mirrors the 5 values
+ * accepted by `dofus.graphics.gapi.ui.banner.BannerCircleXtra.showCircleXtra(name, …)`:
+ *
+ *   - `map`      — minimap (runtime-rendered worldmap.swf chunks)
+ *   - `clock`    — core.swf dial + animated hour/minute hands
+ *   - `compass`  — core.swf "boussole" with target-coord needle
+ *   - `helper`   — core.swf `Helper` symbol (the "boune" — little NPC monster)
+ *   - `artwork`  — per-gfxId player portrait from clips/artworks/big/<id>.swf
+ */
+type CircleXtra = "map" | "clock" | "compass" | "helper" | "artwork";
+
+const XTRA_CYCLE: readonly CircleXtra[] = [
+  "map",
+  "clock",
+  "compass",
+  "helper",
+  "artwork",
+] as const;
+
+/**
+ * Click-to-cycle wrapper that mounts one banner-circle xtra view at a
+ * time. Click anywhere on the circle to advance to the next view —
+ * canonical Dofus cycles via the right-click menu in
+ * `Banner.as:1175-1179`; this click is a stop-gap until that menu lands.
+ * The label badge in the bottom corner names the active view so it's
+ * obvious during testing.
+ *
+ * `MainBannerCircle` mounts its own hover-detection button as a
+ * later sibling — so without `z-20` here our click hit-target sits
+ * below that button and never receives events. We absorb the
+ * mouseEnter/leave duty too (driving `useSetCircleExpanded`), keeping
+ * the chrome expansion behavior intact.
+ */
+function BannerCircleXtraRouter() {
+  const [view, setView] = useState<CircleXtra>("map");
+  const setExpanded = useSetCircleExpanded();
+  const advance = () => {
+    setView((prev) => {
+      const idx = XTRA_CYCLE.indexOf(prev);
+      return XTRA_CYCLE[(idx + 1) % XTRA_CYCLE.length] ?? "map";
+    });
+  };
+
+  return (
+    <>
+      {view === "map" && <Minimap />}
+      {view === "clock" && <BannerXtraClock />}
+      {view === "compass" && <BannerXtraCompass />}
+      {view === "helper" && <BannerXtraHelper />}
+      {view === "artwork" && <BannerXtraPortrait />}
+      <button
+        type="button"
+        onClick={advance}
+        onMouseEnter={() => setExpanded(true)}
+        onMouseLeave={() => setExpanded(false)}
+        aria-label={`Banner xtra view: ${view} (click to cycle)`}
+        className="absolute inset-0 z-20 cursor-pointer border-none bg-transparent p-0 pointer-events-auto"
+      />
+      <span
+        aria-hidden="true"
+        className="absolute bottom-1 left-1/2 -translate-x-1/2 z-30 rounded bg-black/60 px-1 text-[8px] font-bold uppercase tracking-wider text-white pointer-events-none"
+      >
+        {view}
+      </span>
+    </>
+  );
+}
+
 interface BannerReactProps {
   /** Callback when a spell slot is clicked during a fight (cast/select). */
   onSelectSpell?: (spellId: number) => void;
@@ -387,7 +461,7 @@ export function BannerReact({ onSelectSpell }: BannerReactProps = {}) {
         <MainBannerChatInput placeholder="Chat here..." />
 
         <MainBannerCircle>
-          <Minimap />
+          <BannerCircleXtraRouter />
         </MainBannerCircle>
 
         <MainBannerHeart hp={hp} max={maxHp} />

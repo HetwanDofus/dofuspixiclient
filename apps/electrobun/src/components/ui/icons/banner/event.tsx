@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 
-export function EventIcon({ className }: { className?: string }) {
+export default function EventIcon({ className }: { className?: string }) {
   const id0 = useId();
 
   return (

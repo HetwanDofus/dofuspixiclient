@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = ["swf-spike", "vello-wasm", "renderer"]
+
+[patch.crates-io]
+wgpu = { path = "wgpu" }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1

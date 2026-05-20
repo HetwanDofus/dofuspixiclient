@@ -1,0 +1,19 @@
+[package]
+name = "vello-wasm"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+dofasset-renderer = { path = "../renderer" }
+swf-spike = { path = "../swf-spike" }
+vello = "0.8"
+wgpu = { version = "28", features = ["webgpu"] }
+wasm-bindgen = "0.2.117"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["console", "HtmlCanvasElement"] }
+console_error_panic_hook = "0.1"
+

@@ -1,4 +1,4 @@
-import type { MountDisplay } from "@dofus/proto";
+import type { MountDisplay } from "@/game/scene/sprite-types";
 
 import type {
   CharacterAnimation,

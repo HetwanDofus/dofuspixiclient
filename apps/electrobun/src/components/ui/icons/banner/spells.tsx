@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 
-export function SpellsIcon({ className }: { className?: string }) {
+export default function SpellsIcon({ className }: { className?: string }) {
   const id0 = useId();
   const id1 = useId();
   const id2 = useId();

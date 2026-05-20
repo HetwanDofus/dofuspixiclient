@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 
-export function TitleIcon({ className }: { className?: string }) {
+export default function TitleIcon({ className }: { className?: string }) {
   const id0 = useId();
   const id1 = useId();
   const id2 = useId();

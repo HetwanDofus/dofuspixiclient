@@ -1,2 +1,0 @@
-stop();
-_parent.removeMovieClip();

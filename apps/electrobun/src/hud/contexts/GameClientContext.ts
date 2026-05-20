@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 
-import type { GameClient } from "@/game/game-client";
+import type { GameSession as GameClient } from "@/game/session";
 
 /**
  * Provides the GameClient instance to React components

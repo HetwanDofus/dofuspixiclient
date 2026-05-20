@@ -1,1 +1,0 @@
-pied.gotoAndPlay(186);

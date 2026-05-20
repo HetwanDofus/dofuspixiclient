@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 
-export function LessIcon({ className }: { className?: string }) {
+export default function LessIcon({ className }: { className?: string }) {
   const id0 = useId();
 
   return (

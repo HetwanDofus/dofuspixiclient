@@ -1,12 +1,27 @@
-import type {
-  GameCreate,
-  GameEnd,
-  GameJoin,
-  GameReady,
-  GameTurnFinish,
-  GameTurnStart,
-} from "@/game/network/protocol";
 import { assign, setup } from "xstate";
+
+/**
+ * Wire-decoupled fight events. The network handlers in
+ * `@/game/net/handlers/game/*` translate dofus1-net frames into these
+ * primitive shapes; the machine never imports a network type, so the
+ * wire format can evolve without touching the state graph.
+ */
+export interface FightInitInput {
+  /** Server-supplied game type (1 = solo roleplay / spectate join). */
+  gameType?: number;
+}
+export interface FightTurnStartInput {
+  /** Canonical sprite id of the fighter whose turn just started. */
+  spriteId: string;
+  /** `tableTurnNum` — 1-based round number (a full cycle of fighters). */
+  tableTurnNum: number;
+}
+export interface FightTurnFinishInput {
+  spriteId: string;
+}
+export interface FightEndInput {
+  winnerTeam: number;
+}
 
 /**
  * Per-fighter snapshot projected from the various gameAction /
@@ -60,19 +75,19 @@ export interface FightContext {
 export type FightMachineEvent =
   | {
       type: "FIGHT_INIT";
-      payload: GameCreate | GameJoin;
+      payload?: FightInitInput;
       fightId?: number;
       mySpriteId?: string;
     }
   | {
       type: "FIGHT_SPECTATE_INIT";
-      payload: GameJoin;
+      payload?: FightInitInput;
       fightId?: number;
     }
-  | { type: "PLACEMENT_READY"; payload: GameReady }
+  | { type: "PLACEMENT_READY" }
   | { type: "FIGHT_START" }
-  | { type: "TURN_START"; payload: GameTurnStart }
-  | { type: "TURN_END"; payload: GameTurnFinish }
+  | { type: "TURN_START"; payload: FightTurnStartInput }
+  | { type: "TURN_END"; payload: FightTurnFinishInput }
   | {
       type: "STATS_UPDATE";
       ap?: number;
@@ -96,7 +111,7 @@ export type FightMachineEvent =
       >;
     }
   | { type: "FIGHTER_REMOVE"; spriteId: string }
-  | { type: "FIGHT_END"; payload: GameEnd }
+  | { type: "FIGHT_END"; payload: FightEndInput }
   | { type: "LEAVE" };
 
 const initialContext: FightContext = {
@@ -192,6 +207,24 @@ export const fightMachine = setup({
           }
         : event.fighter;
       next.set(merged.spriteId, merged);
+      // When the upsert is for the local fighter, mirror their
+      // ap/mp/maxAp/maxMp into the top-level context so the AP/MP
+      // gauges + the hover-path MP guard (`fight.mp > 0` in
+      // hover-preview.ts) work — without this top-level mirror those
+      // counters stay at 0 because no separate STATS_UPDATE event ever
+      // fires from the protocol.
+      if (
+        context.mySpriteId !== null &&
+        merged.spriteId === context.mySpriteId
+      ) {
+        return {
+          fighters: next,
+          ap: merged.ap > 0 ? merged.ap : context.ap,
+          mp: merged.mp > 0 ? merged.mp : context.mp,
+          maxAp: merged.maxAp > 0 ? merged.maxAp : context.maxAp,
+          maxMp: merged.maxMp > 0 ? merged.maxMp : context.maxMp,
+        };
+      }
       return { fighters: next };
     }),
     updateFighter: assign(({ context, event }) => {
@@ -210,6 +243,22 @@ export const fightMachine = setup({
         patched.maxMp = patched.mp;
       }
       next.set(event.spriteId, patched);
+      // Mirror to top-level ctx when this fighter is us — see the
+      // matching block in `upsertFighter` above. GTM is the canonical
+      // every-turn ap/mp refresh, so without this the gauges + the
+      // MP-bound path preview never update past 0.
+      if (
+        context.mySpriteId !== null &&
+        event.spriteId === context.mySpriteId
+      ) {
+        return {
+          fighters: next,
+          ap: patched.ap,
+          mp: patched.mp,
+          maxAp: patched.maxAp > 0 ? patched.maxAp : context.maxAp,
+          maxMp: patched.maxMp > 0 ? patched.maxMp : context.maxMp,
+        };
+      }
       return { fighters: next };
     }),
     removeFighter: assign(({ context, event }) => {

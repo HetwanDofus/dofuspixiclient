@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 
-export function MoreIcon({ className }: { className?: string }) {
+export default function MoreIcon({ className }: { className?: string }) {
   const id0 = useId();
 
   return (

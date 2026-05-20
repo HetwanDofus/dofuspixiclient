@@ -1,6 +1,36 @@
-import type { AreaKind, SpellData } from "@/game/network/protocol";
+import { AreaKind } from "@dofus/grid";
 
 import { ExternalStore } from "./game-store";
+
+export { AreaKind };
+
+/**
+ * Wire-agnostic spell row. Network handlers map dofus1-net frames into
+ * this shape; the store never imports a transport type.
+ */
+export interface SpellData {
+  spellId: number;
+  level: number;
+  position: number;
+  apCost: number;
+  rangeMin: number;
+  rangeMax: number;
+  lineOfSight: boolean;
+  modifiableRange: boolean;
+  emptyCell: boolean;
+  lineOnly: boolean;
+  castPerTurn: number;
+  castPerTarget: number;
+  cooldown: number;
+  criticalRate: number;
+  failureRate: number;
+  areaKind: AreaKind;
+  areaSize: number;
+  targetMask: number;
+  singleTargetSpawn: boolean;
+  name: string;
+  description: string;
+}
 
 /**
  * Client-side spell metadata mirroring the extended SpellList frame

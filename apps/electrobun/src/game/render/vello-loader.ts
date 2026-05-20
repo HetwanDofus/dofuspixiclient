@@ -27,6 +27,31 @@ let renderer: VelloRenderer | null = null;
 let maxTextureSize = 8192;
 let pixiRenderer: PixiRenderer | null = null;
 /**
+ * Resolves the first time `initVello()` finishes wiring up `renderer`
+ * + `velloGpu`. Consumers (HUD renderers, minimap, worldmap) `await
+ * whenVelloReady()` before issuing the first WASM call instead of
+ * checking `getVelloRenderer()` and crashing — the React component
+ * tree mounts ahead of the Battlefield's `initVello()` so the gate
+ * matters in practice.
+ */
+let velloReadyResolve: (() => void) | null = null;
+const velloReadyPromise = new Promise<void>((res) => {
+  velloReadyResolve = res;
+});
+
+/**
+ * Resolves once `initVello()` has installed the Vello renderer + GPU
+ * device on this module. Safe to call before, during, or after
+ * `initVello()`: pre-init callers wait, post-init callers see an
+ * already-resolved promise. Use this in any code path that touches
+ * `loadSwfBundle`, `renderSwfFrame`, … from React (HUD asset
+ * renderers, minimap, worldmap) — the React tree mounts ahead of the
+ * Battlefield bootstrap.
+ */
+export function whenVelloReady(): Promise<void> {
+  return velloReadyPromise;
+}
+/**
  * Captured at `initVello()` from the WASM init result. Pixi's
  * `Application.init({ gpu })` consumes this so both libraries share
  * ONE `GPUDevice`. Cleared only on full teardown (Vello has no
@@ -53,7 +78,7 @@ const liveSpellInstanceIds = new Set<number>();
 /**
  * Initialize the Vello WASM renderer. Vello creates its own
  * `wgpu::Instance` + requests an `Adapter` + `GPUDevice` internally.
- * The patched wgpu fork (`patches/wgpu`) exposes those raw JS
+ * The patched wgpu fork (`rust/wgpu`) exposes those raw JS
  * `GPUAdapter` / `GPUDevice` handles back through wasm-bindgen so we
  * can hand them to Pixi's `Application.init({ gpu })`. Pixi then
  * renders on the SAME device — no cross-device textures, no DOM
@@ -91,6 +116,12 @@ export async function initVello(wasmUrl?: string): Promise<{
     adapter: result.adapter as GPUAdapter,
     device: result.device as GPUDevice,
   };
+
+  // Unblock any consumers that called `whenVelloReady()` before
+  // initVello finished. Subsequent calls to `whenVelloReady()` see an
+  // already-resolved promise (Promise resolution is idempotent).
+  velloReadyResolve?.();
+  velloReadyResolve = null;
 
   // Device-loss notification still flows through the watchdog. Vello's
   // `init()` retains the JS GPUDevice on the renderer side; for now we
@@ -156,6 +187,21 @@ function isHalted(): boolean {
 /** Public read-only view of in-flight Vello-allocated GPU textures. */
 export function getLiveRenderTextureCount(): number {
   return liveRenderTextureIds.size + liveSpellInstanceIds.size;
+}
+
+/** Just the render-texture-id set size (renderTilePass / renderSwfFrame / strips). */
+export function getLiveRenderTextureIdCount(): number {
+  return liveRenderTextureIds.size;
+}
+
+/** Just the AVM1 spell-instance id set size (createSwfSpellInstance). */
+export function getLiveSpellInstanceCount(): number {
+  return liveSpellInstanceIds.size;
+}
+
+/** Loaded SWF bundle names in WASM (per-bundle metadata, not per-texture). */
+export function getLoadedSwfBundleCount(): number {
+  return loadedSwfBundles.size;
 }
 
 /** SWF load queue diagnostics for the HUD. */
@@ -1444,6 +1490,40 @@ export function swfSpellIconNaturalSize(
   }
   const result = renderer.swfSpellIconNaturalSize(backBundle, upBundle);
   return (result as { width: number; height: number } | null) ?? null;
+}
+
+/**
+ * Pure-bounds probe for a named SWF export across `totalFrameCount`
+ * frames. Returns the union bounding box in twips (1/20 px), plus the
+ * deepest reachable animation end frame. CPU-only walk in WASM. Pass
+ * `totalFrameCount: 1` for single-frame banner-view exports
+ * (`UI_BannerClockBack`, `UI_BannerCompassArrow`, …) — the result's
+ * twip extents give the natural pixel size after `/ 20`.
+ */
+export function swfStripBounds(
+  bundle: string,
+  exportName: string,
+  totalFrameCount: number,
+): {
+  minXTwip: number;
+  minYTwip: number;
+  maxXTwip: number;
+  maxYTwip: number;
+  animEnd: number;
+} | null {
+  if (!renderer) {
+    return null;
+  }
+  const result = renderer.swfStripBounds(bundle, exportName, totalFrameCount);
+  return (
+    (result as {
+      minXTwip: number;
+      minYTwip: number;
+      maxXTwip: number;
+      maxYTwip: number;
+      animEnd: number;
+    } | null) ?? null
+  );
 }
 
 /**

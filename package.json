@@ -21,11 +21,7 @@
   "workspaces": {
     "packages": [
       "apps/*",
-      "packages/*",
-      "services/*",
-      "tools/asset-pipeline",
-      "tools/combat-exporter",
-      "tools/combat-exporter/test-player"
+      "packages/*"
     ],
     "catalog": {
       "typescript": "^5.9.3",

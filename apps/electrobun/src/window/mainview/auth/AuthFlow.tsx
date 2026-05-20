@@ -1,7 +1,7 @@
 import { useSelector } from "@xstate/react";
 import { useEffect, useMemo } from "react";
 
-import type { GameClient } from "@/game/game-client";
+import type { GameSession as GameClient } from "@/game/session";
 import { loginActor } from "@/game/machines/actors";
 
 import { CharacterSelectScreen } from "./CharacterSelectScreen";

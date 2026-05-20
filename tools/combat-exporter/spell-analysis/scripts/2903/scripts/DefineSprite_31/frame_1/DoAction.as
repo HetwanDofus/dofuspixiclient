@@ -1,1 +1,0 @@
-SOMA.playSound("fireworks01");

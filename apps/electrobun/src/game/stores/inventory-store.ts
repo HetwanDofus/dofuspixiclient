@@ -1,13 +1,51 @@
-import type {
-  ItemAdd,
-  ItemChange,
-  ItemData,
-  ItemMovement,
-  ItemQuantity,
-  ItemRemove,
-  ItemWeight,
-} from "@/game/network/protocol";
 import { createLogger } from "@/utils/logger";
+
+/**
+ * Wire-agnostic item row. Handlers in `@/game/net/handlers/items/*`
+ * project the dofus1-net OA/OR/OQ/Ow frames into this shape so the
+ * store has no network coupling.
+ *
+ * Field set matches the canonical 1.29 inventory row passed to
+ * `addObjet` (`Items.as`): unicId, templateId, quantity, position,
+ * effects (raw `,` separated string), price.
+ */
+export interface ItemData {
+  unicId: number;
+  templateId: number;
+  quantity: number;
+  position: number;
+  effects: string;
+  price: number;
+}
+
+export interface ItemAdd {
+  items: ItemData[];
+  /** Kamas delta included on the same OA frame (negative when spent). */
+  kamaReceived?: number;
+}
+
+export interface ItemChange {
+  items: ItemData[];
+}
+
+export interface ItemRemove {
+  itemUnicId: number;
+}
+
+export interface ItemQuantity {
+  itemUnicId: number;
+  newQuantity: number;
+}
+
+export interface ItemMovement {
+  itemUnicId: number;
+  position: number;
+}
+
+export interface ItemWeight {
+  currentWeight: number;
+  maxWeight: number;
+}
 
 const log = createLogger("InventoryStore");
 

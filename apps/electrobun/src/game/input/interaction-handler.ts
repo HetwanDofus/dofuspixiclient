@@ -78,6 +78,30 @@ export class InteractionHandler {
   private onGroundClick?: (mapX: number, mapY: number) => void;
   private onGroundHover?: (mapX: number, mapY: number) => void;
 
+  /** Bound canvas-event handlers so `destroy()` can actually remove
+   *  them. Inline arrow registrations cannot be paired with
+   *  `removeEventListener` (different function identity per call), so
+   *  the prior wheel-only cleanup was a no-op that leaked one
+   *  handler-bound `InteractionHandler` closure per construction. */
+  private readonly boundOnWheel = (e: WheelEvent): void => this.handleWheel(e);
+  private readonly boundOnPointerEnter = (): void => {
+    this.mouseInCanvas = true;
+  };
+  private readonly boundOnPointerLeave = (): void => {
+    this.mouseInCanvas = false;
+    this.updateHover(null);
+  };
+
+  /** Pixi stage-event bound handlers. Initialised lazily by
+   *  `attachToStage` so the call site doesn't need to know the
+   *  handler shapes. `detachFromStage` pairs cleanup. */
+  private readonly boundOnStagePointerDown = (e: FederatedPointerEvent): void =>
+    this.handlePointerDown(e);
+  private readonly boundOnStagePointerMove = (e: FederatedPointerEvent): void =>
+    this.handlePointerMove(e);
+  private readonly boundOnStagePointerUp = (): void => this.handlePointerUp();
+  private attachedStage: Container | null = null;
+
   constructor(config: InteractionHandlerConfig) {
     this.mapContainer = config.mapContainer;
     this.pickingSystem = config.pickingSystem;
@@ -91,14 +115,31 @@ export class InteractionHandler {
   }
 
   init(): void {
-    this.canvas.addEventListener("wheel", (e) => this.handleWheel(e));
-    this.canvas.addEventListener("pointerenter", () => {
-      this.mouseInCanvas = true;
-    });
-    this.canvas.addEventListener("pointerleave", () => {
-      this.mouseInCanvas = false;
-      this.updateHover(null);
-    });
+    this.canvas.addEventListener("wheel", this.boundOnWheel);
+    this.canvas.addEventListener("pointerenter", this.boundOnPointerEnter);
+    this.canvas.addEventListener("pointerleave", this.boundOnPointerLeave);
+  }
+
+  /** Bind pointer-down/move/up to the Pixi stage. Symmetric with
+   *  `detachFromStage` — both safe to call multiple times. */
+  attachToStage(stage: Container): void {
+    if (this.attachedStage === stage) return;
+    if (this.attachedStage) this.detachFromStage();
+    stage.on("pointerdown", this.boundOnStagePointerDown);
+    stage.on("pointermove", this.boundOnStagePointerMove);
+    stage.on("pointerup", this.boundOnStagePointerUp);
+    stage.on("pointerupoutside", this.boundOnStagePointerUp);
+    this.attachedStage = stage;
+  }
+
+  detachFromStage(): void {
+    if (!this.attachedStage) return;
+    const stage = this.attachedStage;
+    stage.off("pointerdown", this.boundOnStagePointerDown);
+    stage.off("pointermove", this.boundOnStagePointerMove);
+    stage.off("pointerup", this.boundOnStagePointerUp);
+    stage.off("pointerupoutside", this.boundOnStagePointerUp);
+    this.attachedStage = null;
   }
 
   setBaseZoom(zoom: number): void {
@@ -360,6 +401,9 @@ export class InteractionHandler {
   }
 
   destroy(): void {
-    this.canvas.removeEventListener("wheel", this.handleWheel);
+    this.canvas.removeEventListener("wheel", this.boundOnWheel);
+    this.canvas.removeEventListener("pointerenter", this.boundOnPointerEnter);
+    this.canvas.removeEventListener("pointerleave", this.boundOnPointerLeave);
+    this.detachFromStage();
   }
 }

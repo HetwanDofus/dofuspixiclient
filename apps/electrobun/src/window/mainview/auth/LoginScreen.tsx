@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { GameClient } from "@/game/game-client";
+import type { GameSession as GameClient } from "@/game/session";
 
 interface Props {
   client: GameClient;

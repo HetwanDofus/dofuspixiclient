@@ -224,6 +224,24 @@ export class AtlasLoader {
     this.velloRenderer = new TileVelloRenderer(renderer);
   }
 
+  getStats(): {
+    staticBase: number;
+    liveSources: number;
+    retiredSources: number;
+    pendingAnimations: number;
+    animationsByKey: number;
+    inFlightChunks: number;
+  } {
+    return {
+      staticBase: this.staticBaseCache.size,
+      liveSources: this.liveSources.length,
+      retiredSources: this.retiredSources.length,
+      pendingAnimations: this.pendingAnimations.length,
+      animationsByKey: this.animationsByKey.size,
+      inFlightChunks: this.inFlightChunks.size,
+    };
+  }
+
   private trackSource(source: ExternalSource, textureId: number): void {
     this.liveSources.push({ source, textureId });
   }
@@ -1293,6 +1311,12 @@ export class AtlasLoader {
     this.cache.clearAll();
     this.staticBaseCache.clear();
     this.retireAllSources();
+    // Any animation queued for background finalization references the
+    // prior map's tile keys. Dropping the queue here prevents the next
+    // map's renderer from continuing to grind on bundles it'll never
+    // surface, and keeps the per-map-change snapshot delta at zero.
+    this.pendingAnimations.length = 0;
+    this.animationsByKey.clear();
   }
 
   /**

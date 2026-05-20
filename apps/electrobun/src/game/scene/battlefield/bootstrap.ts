@@ -11,7 +11,6 @@ import { AtlasLoader } from "@/game/render/atlas-loader";
 import { PickingSystem } from "@/game/render/picking-system";
 import { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import { getRenderWatchdog } from "@/game/render/render-watchdog";
-import { SpellVelloRenderer } from "@/game/render/spell-vello-renderer";
 import { MapTransition } from "@/game/scene/map/transition";
 import { DebugOverlay } from "@/game/scene/overlays/debug";
 import { GridOverlay } from "@/game/scene/overlays/grid";
@@ -64,13 +63,6 @@ export interface BattlefieldBootstrapContext {
   gridOverlay: GridOverlay | null;
   sceneTickerCallback: (() => void) | null;
   /**
-   * Shared spell SWF loader. Instantiated in `initPickingAndAtlas` and
-   * bound to the Vello WASM renderer in `wireVelloLoaders`; FightUI
-   * reads it when creating SpellRenderer so each cast's `AvmRenderer`
-   * runs through the same GPU pipeline as tiles and character sprites.
-   */
-  spellVelloRenderer: SpellVelloRenderer | null;
-  /**
    * Strip-rendered character sprite owner. Constructed in
    * `initEngineAndVello` after Pixi adopts Vello's GPUDevice; each
    * player gets a Pixi sprite child of `player.container`, with
@@ -116,9 +108,9 @@ export async function initEngineAndVello(
   ctx.mapContainer = new Container();
   // mapContainer holds every renderable: ground/object1/object2 tile
   // sprites (TileSpriteRenderer), per-player containers with strip-
-  // rendered char sprites (PlayerStripRenderer), spell sprites
-  // (PreRenderedSpell), cell-tint diamonds (WorldCellTints), and
-  // overlays (grid, debug). One canvas, one Pixi compositor.
+  // rendered char sprites (PlayerStripRenderer), cell-tint diamonds
+  // (WorldCellTints), and overlays (grid, debug). One canvas, one
+  // Pixi compositor.
   ctx.mapContainer.sortableChildren = true;
   ctx.app.stage.addChild(ctx.mapContainer);
   ctx.mapTransition = new MapTransition(ctx.app, ctx.mapContainer);
@@ -140,7 +132,6 @@ export function initPickingAndAtlas(ctx: BattlefieldBootstrapContext): void {
     ctx.app.screen.height
   );
   ctx.atlasLoader = new AtlasLoader(ctx.app.renderer);
-  ctx.spellVelloRenderer = new SpellVelloRenderer(ctx.app.renderer);
 }
 
 /**
@@ -203,7 +194,6 @@ export async function wireVelloLoaders(
 
   ctx.atlasLoader.setVelloRenderer(vello);
   ctx.characterSpriteLoader.setVelloRenderer(vello, ctx.app.renderer);
-  ctx.spellVelloRenderer?.setVelloRenderer(vello);
   ctx.adjacentMapCache = new AdjacentMapCache(ctx.atlasLoader);
 
   // HUD spell-icon renderer composes `/swf/spells/icons/back/<b>.swf` +
@@ -224,6 +214,16 @@ export async function wireVelloLoaders(
     "@/game/render/fighter-portrait-renderer"
   );
   getFighterPortraitRenderer().init(vello, ctx.app.renderer);
+
+  // Banner-circle "xtra" views from core.swf — UI_BannerClockBack,
+  // UI_BannerCompassArrow, Helper, … — rendered at the React side as
+  // 2D canvases. Bundle is fetched lazily on the first getCanvas call;
+  // init() just flips the ready flag so the React hook fires once Vello
+  // is up.
+  const { getBannerViewRenderer } = await import(
+    "@/game/render/banner-view-renderer"
+  );
+  getBannerViewRenderer().init();
 
   const spriteLoader = ctx.characterSpriteLoader;
   ctx.engine.debugInfo = () => {
@@ -294,12 +294,11 @@ export function initInteraction(ctx: BattlefieldBootstrapContext): void {
   });
   ctx.interactionHandler.init();
   ctx.interactionHandler.setBaseZoom(ctx.engine.getBaseZoom());
-
-  const handler = ctx.interactionHandler;
-  ctx.app.stage.on("pointerdown", (e) => handler.handlePointerDown(e));
-  ctx.app.stage.on("pointermove", (e) => handler.handlePointerMove(e));
-  ctx.app.stage.on("pointerup", () => handler.handlePointerUp());
-  ctx.app.stage.on("pointerupoutside", () => handler.handlePointerUp());
+  // Stage pointer events route through the handler's own bound methods
+  // (registered + removable). The previous inline-arrow `.on()` calls
+  // could not be unbound, pinning the handler closure when the stage
+  // was rebuilt.
+  ctx.interactionHandler.attachToStage(ctx.app.stage);
 }
 
 export function initOverlays(ctx: BattlefieldBootstrapContext): void {

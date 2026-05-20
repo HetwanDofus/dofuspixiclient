@@ -1,4 +1,9 @@
 import { BrowserWindow, Updater, Utils } from "electrobun/bun";
+import { defineElectrobunRPC } from "electrobun/bun";
+
+import type { NetRPCSchema } from "@/shared/net-rpc";
+
+import { createNetBridge } from "./net-bridge";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -25,6 +30,18 @@ async function getMainViewUrl(): Promise<string> {
 // Create the main application window
 const url = await getMainViewUrl();
 
+// TCP bridge — the webview proxies every dofus1-net socket op
+// through this RPC handler. See `apps/electrobun/src/shared/net-rpc.ts`
+// for the schema.
+const netBridge = createNetBridge();
+
+const rpc = defineElectrobunRPC<NetRPCSchema, "bun">("bun", {
+  handlers: {
+    requests: netBridge.requests,
+    messages: netBridge.messages,
+  },
+});
+
 const mainWindow = new BrowserWindow({
   title: "Dofus Web Client",
   url,
@@ -35,7 +52,16 @@ const mainWindow = new BrowserWindow({
     x: 200,
     y: 200,
   },
+  rpc,
 });
+
+// `mainWindow.webview.rpc` is the bound RPC instance; the bridge
+// needs it to emit messages back to the webview.
+netBridge.attach(
+  mainWindow.webview.rpc as unknown as {
+    send: Record<string, (p: unknown) => void>;
+  },
+);
 
 // Quit the app when the main window is closed
 mainWindow.on("close", () => {

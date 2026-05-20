@@ -68,6 +68,12 @@ export function Minimap() {
 
       if (currentMapId != null) {
         renderer.centerOnMap(currentMapId);
+      } else {
+        // No active map yet (UI shown before a server map is received) —
+        // center on world game-coord (0,0) so the viewer sees the middle
+        // of the worldmap instead of the SWF's top-left corner (which
+        // tends to be ocean and thus empty / black).
+        renderer.centerOnCoordinates(0, 0);
       }
     });
 
@@ -82,7 +88,11 @@ export function Minimap() {
       renderer.destroy();
       rendererRef.current = null;
     };
-  }, []);
+    // The slot's Pixi `Application` must share Vello's `GPUDevice` so
+    // `ExternalSource`-wrapped Vello GPUTextures render here. Without
+    // this flag the slot gets its own device and every chunk sprite
+    // silently draws nothing.
+  }, [], { shareVelloGpu: true });
 
   useEffect(() => {
     if (!readyRef.current || minimapMapId == null) {

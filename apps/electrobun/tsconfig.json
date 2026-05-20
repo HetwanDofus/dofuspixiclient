@@ -13,6 +13,7 @@
     "jsx": "react-jsx",
     "jsxImportSource": "react",
     "strict": true,
+    "strictPropertyInitialization": false,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
@@ -20,7 +21,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "vello-wasm": ["../../packages/vello-wasm/pkg/vello_wasm.d.ts"]
+      "vello-wasm": ["../../rust/vello-wasm/pkg/vello_wasm.d.ts"]
     }
   },
   "include": ["src", "lingui.config.ts", "*.d.ts"],

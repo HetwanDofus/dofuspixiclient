@@ -1,3 +1,4 @@
+import { CMOut } from "@dofus/dofus1-net";
 import { useCallback, useState, useSyncExternalStore } from "react";
 
 import { SideChatSearchIcon } from "@/components/ui/icons/side-chat-panel/search";
@@ -22,6 +23,7 @@ import {
   SIDE_CHAT_FILTER_CHANNELS,
   type SideChatChannel,
 } from "@/components/ui/side-chat-panel.channels";
+import { parseChatInput } from "@/game/chat/parser";
 import {
   appendChatMessage,
   chatStore,
@@ -29,6 +31,7 @@ import {
   setChannelVisible,
   setChatSide,
 } from "@/game/stores/chat-store";
+import { useGameClient } from "@/hud/contexts/GameClientContext";
 
 /**
  * Labels rendered in parens next to each message (e.g. `(Guild)`). Keep
@@ -59,23 +62,42 @@ export function SideChatContainer() {
   const { infos, messages, visibleChannels, side, prefix, isOpen } =
     useSyncExternalStore(chatStore.subscribe, chatStore.getSnapshot);
   const [draft, setDraft] = useState("");
+  const gameClient = useGameClient();
 
-  const handleSubmit = useCallback((value: string) => {
-    const text = value.trim();
-    if (!text) {
-      return;
-    }
-    // Local echo until the server-side chat round-trip lands — keeps the
-    // UI responsive and gives us a target to diff against when wiring the
-    // real dispatch in `GameClient`.
-    appendChatMessage({
-      channel: SIDE_CHAT_CHANNEL.MESSAGES,
-      player: "You",
-      time: new Date().toTimeString().slice(0, 5),
-      text,
-    });
-    setDraft("");
-  }, []);
+  const handleSubmit = useCallback(
+    (value: string) => {
+      const text = value.trim();
+      if (!text) {
+        return;
+      }
+      // Route through the slash-command parser first so `/console` and
+      // friends are intercepted client-side (ChatConsoleParser.as:382)
+      // instead of being shipped to the server as chat text.
+      parseChatInput(text, {
+        sendChat: (msg) => {
+          // Local echo so the user sees their own line immediately;
+          // the server-broadcast cM also arrives but the canonical
+          // client doesn't dedupe (Chat.as#onMessage just appends).
+          appendChatMessage({
+            channel: SIDE_CHAT_CHANNEL.MESSAGES,
+            player: "You",
+            time: new Date().toTimeString().slice(0, 5),
+            text: msg,
+          });
+          const client = gameClient?.getClient();
+          if (client?.isConnected()) {
+            // Canonical 1.29 wire: `cM*|<msg>` — channel `*` is
+            // general/say with no named recipient
+            // (ChatConsoleParser.as:573, CMOut serializer in
+            // dofus1-net/src/messages/chat/message.ts).
+            client.send(CMOut, { channel: "*", recipient: "", message: msg });
+          }
+        },
+      });
+      setDraft("");
+    },
+    [gameClient]
+  );
 
   const handleFilterChange = useCallback(
     (channel: SideChatChannel, checked: boolean) => {

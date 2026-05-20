@@ -1,1 +1,0 @@
-_parent.move.removeMovieClip();

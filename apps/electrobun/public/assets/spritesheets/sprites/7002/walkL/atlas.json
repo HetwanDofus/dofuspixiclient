@@ -1,1 +1,0 @@
-{"version":1,"animation":"walkL","width":59,"height":79,"offsetX":-26.9,"offsetY":-60.35,"frames":[{"id":"walkL_0","x":1,"y":1,"width":57,"height":77,"offsetX":0,"offsetY":0}],"frameOrder":["walkL_0"],"duplicates":{},"fps":60,"elementDedup":{"totalElements":2,"uniqueElements":2,"pooledElements":0,"baseElements":0,"flipPairs":0}}

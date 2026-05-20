@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 
-export function AchievementIcon({ className }: { className?: string }) {
+export default function AchievementIcon({ className }: { className?: string }) {
   const id0 = useId();
 
   return (

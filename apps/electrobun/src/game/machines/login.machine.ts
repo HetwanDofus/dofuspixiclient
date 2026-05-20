@@ -1,16 +1,33 @@
 import { assign, setup } from "xstate";
 
-import type {
-  CharacterListEntry,
-  ServerEntry,
-} from "@/game/network/protocol";
+import type { CharacterEntry } from "@dofus/dofus1-net";
+
+/**
+ * UI-facing server row — joins per-account fields from `Ax` with
+ * per-server live status from `AH`. GameSession computes this join
+ * before pushing into `loginActor` so the React screens never have
+ * to think about which wire frame is current.
+ */
+export interface ServerEntry {
+  id: number;
+  /** From AH — 0=offline, 1=online, 2=saving, 3=full, etc. */
+  status: number;
+  /** From AH — 0..3 completion bar (0=empty, 3=full). */
+  completion: number;
+  /** From AH — true when new characters are allowed. */
+  canCreate: boolean;
+  /** From Ax — how many characters this account has on the server. */
+  charactersWatched: number;
+}
+
+export type CharacterListEntry = CharacterEntry;
 
 export interface LoginContext {
   username: string;
   servers: ServerEntry[];
   selectedServerId: number | null;
   characters: CharacterListEntry[];
-  selectedCharacterId: number | null;
+  selectedCharacterId: string | null;
   failureReason: string | null;
 }
 
@@ -22,7 +39,7 @@ export type LoginMachineEvent =
   | { type: "SELECT_SERVER"; serverId: number }
   | { type: "SERVER_SELECTED" }
   | { type: "CHARACTERS_RECEIVED"; characters: CharacterListEntry[] }
-  | { type: "SELECT_CHARACTER"; characterId: number }
+  | { type: "SELECT_CHARACTER"; characterId: string }
   | { type: "CHARACTER_LOADED" }
   | { type: "LOGOUT" };
 

@@ -49,6 +49,20 @@ export class PickingSystem {
     this.pickableObjects.clear();
   }
 
+  getStats(): {
+    pickable: number;
+    alphaMaps: number;
+    pendingExtractions: number;
+    failedSources: number;
+  } {
+    return {
+      pickable: this.pickableObjects.size,
+      alphaMaps: this.alphaMaps.size,
+      pendingExtractions: this.pendingExtractions.size,
+      failedSources: this.failedSources.size,
+    };
+  }
+
   /**
    * Pick the topmost char placement in the unified World layer at
    * `(screenX, screenY)`. Returns the player id whose alpha-bitmap

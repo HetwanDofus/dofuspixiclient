@@ -1,13 +1,14 @@
 import { useSyncExternalStore } from "react";
 
-import type { GameClient } from "@/game/game-client";
-import { fightActor } from "@/game/stores/fight-store";
+import type { GameSession as GameClient } from "@/game/session";
 import { DISPLAY_HEIGHT, FULL_HEIGHT } from "@/game/constants/battlefield";
 import { characterStore, closeAllPanels, hudStore } from "@/game/stores";
+import { fightActor } from "@/game/stores/fight-store";
 
 import { BannerReact } from "./banner/BannerReact";
 import { TooltipProvider } from "./components/Tooltip";
 import { ConquestPanel } from "./conquest/ConquestPanel";
+import { ConsoleContainer } from "./console/ConsoleContainer";
 import { RenderDebugOverlay } from "./debug/RenderDebugOverlay";
 import { DamagePoints } from "./fight/DamagePoints";
 import { FightEndDialog } from "./fight/FightEndDialog";
@@ -20,9 +21,9 @@ import { MountPanel } from "./mount/MountPanel";
 import { QuestsPanel } from "./quests/QuestsPanel";
 import { SpellsPanel } from "./spells/SpellsPanel";
 import { StatsPanel } from "./stats/StatsPanel";
-import { WorldMapPanel } from "./worldmap/WorldMapPanel";
 import { MonsterGroupTooltip } from "./world/MonsterGroupTooltip";
 import { PlayerNameplate } from "./world/PlayerNameplate";
+import { WorldMapPanel } from "./worldmap/WorldMapPanel";
 
 interface HudOverlayProps {
   baseZoom: number;
@@ -150,7 +151,10 @@ export function HudOverlay({
 
         <BannerReact
           {...(gameClient
-            ? { onSelectSpell: (spellId) => gameClient.fightSelectSpell(spellId) }
+            ? {
+                onSelectSpell: (spellId) =>
+                  gameClient.fightSelectSpell(spellId),
+              }
             : {})}
         />
 
@@ -181,6 +185,15 @@ export function HudOverlay({
             fightActor.send({ type: "LEAVE" });
           }}
         />
+
+        {/* Admin console (Debug widget). Mounted INSIDE the canvas-rect
+            wrapper so `inset-x-0` resolves to the canvas's horizontal
+            span — keeps the widget centred on the game area instead of
+            the full window (which would overlap the side chat sitting
+            outside the canvas). Matches the canonical Flash placement:
+            the Debug UI sat docked to the game viewport, not the
+            window chrome. */}
+        <ConsoleContainer />
       </div>
 
       <MonsterGroupTooltip />

@@ -1,3 +1,0 @@
-onClipEvent(enterFrame){
-   play();
-}

@@ -13,16 +13,23 @@ import babel from "vite-plugin-babel";
 const __dirname = import.meta.dirname;
 
 /**
- * Serves raw SWF files from `assets/sources/clips/` under the `/swf/...` URL.
- * Replaces the dofasset bake — the frontend fetches SWFs and parses them via
- * the swf-spike WASM at runtime.
+ * Serves raw SWF files under the `/swf/...` URL. The frontend fetches SWFs
+ * and parses them via the swf-spike WASM at runtime (no dofasset bake).
  *
- * Production: serve `/swf/*` from a copy of `assets/sources/clips/` (same
- * paths) via the CDN/static host. No build-time copy here; the dev plugin
- * does not run in production.
+ * Lookup order — first hit wins:
+ *   1. `assets/sources/clips/<rel>` — gfx, sprites, items, maps, artworks
+ *      (the bulk of asset SWFs, organized in subdirs).
+ *   2. `assets/sources/<rel>` — top-level SWFs that aren't under clips/
+ *      (e.g. `/swf/core.swf` → `assets/sources/core.swf`). core.swf holds
+ *      the banner views (Clock, Compass, Helper, MiniMap, UI_Banner*).
+ *
+ * Production: mirror both roots into a single `/swf/<rel>` tree on the
+ * static host. The dev plugin doesn't run in production.
  */
 function swfPlugin(): Plugin {
-  const sourceRoot = resolve(__dirname, "../../assets/sources/clips");
+  const clipsRoot = resolve(__dirname, "../../assets/sources/clips");
+  const sourcesRoot = resolve(__dirname, "../../assets/sources");
+  const roots = [clipsRoot, sourcesRoot];
 
   return {
     name: "vite-plugin-swf",
@@ -50,31 +57,39 @@ function swfPlugin(): Plugin {
         }
 
         const relPath = pathname.slice("/swf/".length);
-        const filePath = resolve(sourceRoot, relPath);
-        if (!filePath.startsWith(sourceRoot + "/") && filePath !== sourceRoot) {
-          res.statusCode = 403;
-          res.end();
-          return;
-        }
 
-        stat(filePath).then(
-          (s) => {
-            if (!s.isFile()) {
-              next();
-              return;
-            }
-            res.setHeader("Content-Type", "application/x-shockwave-flash");
-            res.setHeader("Content-Length", String(s.size));
-            res.setHeader(
-              "Cache-Control",
-              "public, max-age=31536000, immutable"
-            );
-            createReadStream(filePath).pipe(res);
-          },
-          () => {
+        const tryNext = (idx: number) => {
+          if (idx >= roots.length) {
             next();
+            return;
           }
-        );
+          const root = roots[idx];
+          const filePath = resolve(root, relPath);
+          if (!filePath.startsWith(root + "/") && filePath !== root) {
+            tryNext(idx + 1);
+            return;
+          }
+          stat(filePath).then(
+            (s) => {
+              if (!s.isFile()) {
+                tryNext(idx + 1);
+                return;
+              }
+              res.setHeader("Content-Type", "application/x-shockwave-flash");
+              res.setHeader("Content-Length", String(s.size));
+              res.setHeader(
+                "Cache-Control",
+                "public, max-age=31536000, immutable"
+              );
+              createReadStream(filePath).pipe(res);
+            },
+            () => {
+              tryNext(idx + 1);
+            }
+          );
+        };
+
+        tryNext(0);
       });
     },
   };
@@ -124,8 +139,15 @@ export default defineConfig({
         ],
       },
       // Exclude ECS files that use TypeScript decorators + declare fields
-      // — they don't contain JSX and would break Babel's class transform
-      exclude: [/\/ecs\//, /\.messages\.ts$/],
+      // — they don't contain JSX and would break Babel's class transform.
+      // Also exclude `@dofus/dofus1-net` (also decorator-heavy) — the
+      // package is consumed as raw TS via the workspace symlink and
+      // doesn't need React's transform.
+      exclude: [
+        /\/ecs\//,
+        /\.messages\.ts$/,
+        /\/packages\/dofus1-net\//,
+      ],
     }),
     lingui(),
   ],
@@ -134,7 +156,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
-      "vello-wasm": resolve(__dirname, "../../packages/vello-wasm/pkg"),
+      "vello-wasm": resolve(__dirname, "../../rust/vello-wasm/pkg"),
     },
   },
   build: {

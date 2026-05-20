@@ -1,6 +1,8 @@
+import { setTransportFactory } from "@dofus/dofus1-net";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { GameClient } from "@/game/game-client";
+import { initRpcTransport, openRpcSocket } from "@/game/net/rpc-transport";
+import { GameSession } from "@/game/session";
 import { classicTheme } from "@/themes/classic";
 import { ThemeProvider } from "@/themes/ThemeProvider";
 
@@ -8,21 +10,43 @@ import { AuthFlow } from "./auth/AuthFlow";
 import { Loader } from "./Loader";
 import { MapRenderer } from "./MapRenderer";
 
+// AraknemuHorizon defaults — the emulator binds the auth socket on
+// `localhost:5555` (canonical 1.29). Override via env-driven config
+// once the dev-shell exposes it.
+const AUTH_HOST = "127.0.0.1";
+const AUTH_PORT = 4444;
+// AraknemuHorizon's `config.conf` ships `client.version = "1.43.7"`
+// by default. Match it here or edit `config.conf` so the two agree —
+// otherwise the server replies `AlEv<expected>` and closes the
+// socket before the credentials packet is even processed.
+const CLIENT_VERSION = "1.43.7";
+const LANGUAGE = "en";
+
+// CEF / Chromium can't open raw TCP. Route every dofus1-net socket
+// through electrobun's RPC bridge to the Bun main process — where
+// `Bun.connect` lives. Runs once at module load (idempotent).
+initRpcTransport();
+setTransportFactory(openRpcSocket);
+
 export function App() {
-  // Single GameClient shared across AuthFlow (pre-game) and MapRenderer
-  // (in-game). Lifting the client here keeps the authenticated WebSocket
+  // Single GameSession shared across AuthFlow (pre-game) and
+  // MapRenderer (in-game). Lifting it here keeps the authenticated TCP
   // session alive across the AuthFlow → MapRenderer swap.
-  const clientRef = useRef<GameClient | null>(null);
-  if (!clientRef.current) {
-    clientRef.current = new GameClient({ serverUrl: "ws://localhost:8080/auth" });
-    clientRef.current.connect();
+  const sessionRef = useRef<GameSession | null>(null);
+  if (!sessionRef.current) {
+    sessionRef.current = new GameSession({
+      authHost: AUTH_HOST,
+      authPort: AUTH_PORT,
+      clientVersion: CLIENT_VERSION,
+      language: LANGUAGE,
+    });
   }
-  const client = clientRef.current;
+  const session = sessionRef.current;
 
   useEffect(() => {
     return () => {
-      clientRef.current?.destroy();
-      clientRef.current = null;
+      sessionRef.current?.destroy();
+      sessionRef.current = null;
     };
   }, []);
 
@@ -84,12 +108,12 @@ export function App() {
         >
           {inGame ? (
             <MapRenderer
-              client={client}
+              client={session}
               onReady={handleReady}
               onProgress={handleProgress}
             />
           ) : (
-            <AuthFlow client={client} onEnterGame={handleEnterGame} />
+            <AuthFlow client={session} onEnterGame={handleEnterGame} />
           )}
         </div>
       </main>

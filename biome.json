@@ -9,7 +9,7 @@
 		"ignoreUnknown": false,
 		"includes": [
 			"**",
-			"!**/apps/electrobun/src/game/spells/**"
+			"!**/apps/electrobun/src/game/spells"
 		]
 	},
 	"formatter": {
@@ -32,7 +32,7 @@
 				"noArrayIndexKey": "off"
 			},
 			"style": {
-				"noDefaultExport": "error",
+				"noDefaultExport": "off",
 				"useImportType": "error",
 				"useNodejsImportProtocol": "error",
 				"useConst": "error",

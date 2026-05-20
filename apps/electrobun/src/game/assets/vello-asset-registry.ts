@@ -77,4 +77,11 @@ export class VelloAssetRegistry {
     this.bundleNames.clear();
     this.pendingLoads.clear();
   }
+
+  getStats(): { bundleNames: number; pendingLoads: number } {
+    return {
+      bundleNames: this.bundleNames.size,
+      pendingLoads: this.pendingLoads.size,
+    };
+  }
 }

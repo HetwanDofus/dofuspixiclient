@@ -7,11 +7,11 @@ import {
 } from "pixi.js";
 
 import type { AtlasLoader } from "@/game/render/atlas-loader";
+import { TileResolver } from "@/game/render/tile-resolver";
 import {
   type LayeredTilePlacement,
   TileSpriteRenderer,
 } from "@/game/render/tile-sprite-renderer";
-import { TileResolver } from "@/game/render/tile-resolver";
 import { frameIndexForTile } from "@/game/scene/tiles/sprite-factory";
 import { createLogger } from "@/utils/logger";
 
@@ -101,6 +101,17 @@ export interface Viewport {
  * per-cell elevation is no longer carried here.
  */
 const TACTIC_LAYER1_LOS_BLOCKED = 100012;
+/**
+ * Tile rendered on cells the player simply cannot stand on (walls,
+ * obstacle cells with `movement <= 1`). Canonical AS2 uses the
+ * hardcoded `10002` tile id (Cell.as:191); we reuse the same
+ * "blocked" visual we ship for LOS-blocked cells because no
+ * `100002` asset was extracted into `public/assets/dofassets/gfx/tactic/`
+ * — falling through to id 0 (previous behaviour) left a gap on the
+ * tactic grid wherever there's a wall or hole, which is what the
+ * user reports as "doesn't display all the cells".
+ */
+const TACTIC_LAYER1_NON_WALKABLE = 100012;
 const TACTIC_LAYER2_LOS_BLOCKED = 100010;
 const TRIGGER_LAYER2_ID = 1030;
 const SAND_PIT_LAYER2_ID = 25;
@@ -130,25 +141,42 @@ interface LangSubarea {
   tt?: string;
   tc?: string[];
 }
-let tacticLangCache: Record<string, LangSubarea> | null = null;
-let tacticLangPending: Promise<Record<string, LangSubarea> | null> | null =
-  null;
-async function loadTacticLangSubareas(): Promise<Record<
-  string,
-  LangSubarea
-> | null> {
+interface LangMapEntry {
+  /** Subarea id — keys into `MA.sa[<subareaId>]` for theme + colours. */
+  sa?: number;
+}
+interface LangMapsCache {
+  sa: Record<string, LangSubarea>;
+  m: Record<string, LangMapEntry>;
+}
+let tacticLangCache: LangMapsCache | null = null;
+let tacticLangPending: Promise<LangMapsCache | null> | null = null;
+async function loadTacticLangData(): Promise<LangMapsCache | null> {
   if (tacticLangCache) return tacticLangCache;
   if (tacticLangPending) return tacticLangPending;
   tacticLangPending = (async () => {
     try {
+      // Theme strings + map subarea mapping are both locale-agnostic;
+      // any locale's `maps.json` yields the same `MA.sa` themes and
+      // `MA.m.<id>.sa` subarea references. Fetch `fr` since it ships
+      // by default with the asset pack.
       const res = await fetch("/assets/langs/fr/maps.json");
       if (!res.ok) return null;
       const json = (await res.json()) as {
-        data?: { MA?: { sa?: Record<string, LangSubarea> } };
+        data?: {
+          MA?: {
+            sa?: Record<string, LangSubarea>;
+            m?: Record<string, LangMapEntry>;
+          };
+        };
       };
       const sa = json.data?.MA?.sa ?? null;
-      if (sa) tacticLangCache = sa;
-      return sa;
+      const m = json.data?.MA?.m ?? null;
+      if (sa && m) {
+        tacticLangCache = { sa, m };
+        return tacticLangCache;
+      }
+      return null;
     } catch {
       return null;
     } finally {
@@ -156,6 +184,19 @@ async function loadTacticLangSubareas(): Promise<Record<
     }
   })();
   return tacticLangPending;
+}
+async function loadTacticLangSubareas(): Promise<Record<
+  string,
+  LangSubarea
+> | null> {
+  const data = await loadTacticLangData();
+  return data?.sa ?? null;
+}
+async function loadMapSubareaId(mapId: number): Promise<number> {
+  const data = await loadTacticLangData();
+  if (!data) return 0;
+  const entry = data.m[String(mapId)];
+  return entry?.sa ?? 0;
 }
 
 function tacticWalkableTileId(
@@ -207,6 +248,38 @@ export class MapHandler {
   private currentMapScale: MapScale | null = null;
   /** Cell prefix override snapshot for tactic-mode tile-key routing. */
   private currentPrefixOverride: Map<number, TilePrefixOverride> | null = null;
+  /**
+   * Tactic-mode extra placements that travel through the same
+   * `TileSpriteRenderer` pipeline as cells: an optional wide-area
+   * background placement plus the per-LOS-cell theme decor sprites.
+   *
+   * Theme decor lives in `gfx/tactic.swf` as multi-frame symbols named
+   * by theme (`arene`, `foret`, `cimetiere`, ...) with 3 frames each —
+   * NOT as separate `arene_0/_1/_2` exports. Each decor placement
+   * therefore shares the same tile key `tactic_<theme>` and varies the
+   * frame via `staticFrame`, which round-robins 0/1/2 across selected
+   * cells (matches AS `gotoAndStop(counter % 3 + 1)`).
+   *
+   * The canonical tactic background (`backgroundNum = 631/632`) is a
+   * standalone `tiles/grounds/631.swf` / `632.swf` in vanilla 1.29; our
+   * extraction pipeline does not include those clips, so `bgTileKey`
+   * stays null until they're added and only the gridded cells + decor
+   * render. (Skipping the bg gracefully leaves the original map
+   * background visible through the tactic grid — acceptable until the
+   * assets land.)
+   *
+   * Null when not in tactic mode.
+   */
+  private tacticExtras: {
+    bgTileKey: string | null;
+    decor: Array<{
+      tileKey: string;
+      frame: number;
+      cellId: number;
+      basePos: { x: number; y: number };
+      groundSlope: number;
+    }>;
+  } | null = null;
 
   constructor(config: MapHandlerConfig) {
     this.atlasLoader = config.atlasLoader;
@@ -310,6 +383,23 @@ export class MapHandler {
         groundSlope: 1,
         isBackground: true,
       });
+    } else if (this.tacticExtras?.bgTileKey) {
+      // Tactic background — `backgroundNum` on tacticMapData is 0
+      // (canonical AS suppresses the normal bg path on enter), so we
+      // emit the tactic bg here. Same shape as the canonical bg slot:
+      // one placement at cell origin (0, 0), background-density
+      // texture pinned by `TileSpriteRenderer.createSprite`. Skipped
+      // entirely when the bg asset isn't available — leaving the
+      // original map background visible behind the tactic grid.
+      this.pushPlacementByKey(out, this.tacticExtras.bgTileKey, 0, {
+        cellId: 0,
+        cellX: 0,
+        cellY: 0,
+        rotation: 0,
+        flip: false,
+        groundSlope: 1,
+        isBackground: true,
+      });
     }
 
     // Layer 0: ground.
@@ -365,6 +455,30 @@ export class MapHandler {
       });
     }
 
+    // Tactic decor — same painter's-order layer as object2 so the
+    // theme sprites (clouds / leaves / etc.) sit above the cell tile
+    // markers and below fighters (which live in objectLayer2 too via
+    // the world-actors renderer, at higher per-cell zIndex offsets).
+    // Canonical AS `MapHandler.addTacticAdditionnalDecor` walks every
+    // Nth LOS-blocking cell + `gotoAndStop(counter % 3 + 1)` to cycle
+    // the three frames of the theme sprite. We mirror that with the
+    // `staticFrameOverride` so each decor placement renders the right
+    // frame (theme exports are multi-frame symbols, not 3 separate
+    // exports — that was the previous bug).
+    if (this.tacticExtras) {
+      for (const d of this.tacticExtras.decor) {
+        this.pushPlacementByKey(out, d.tileKey, 2, {
+          cellId: d.cellId,
+          cellX: d.basePos.x,
+          cellY: d.basePos.y,
+          rotation: 0,
+          flip: false,
+          groundSlope: d.groundSlope,
+          staticFrameOverride: d.frame,
+        });
+      }
+    }
+
     return out;
   }
 
@@ -380,22 +494,45 @@ export class MapHandler {
       flip: boolean;
       groundSlope: number;
       isBackground?: boolean;
+      /**
+       * Explicit frame index override — bypasses `frameIndexForTile`'s
+       * slope/random selection. Used by tactic decor where the caller
+       * round-robins 0/1/2 across LOS cells deterministically rather
+       * than letting the per-cell hash pick.
+       */
+      staticFrameOverride?: number;
     }
   ): void {
     const resolved = this.tileResolver.resolve(tileKey);
     if (!resolved) return;
-    const isAnimated = resolved.kind === "animated" && resolved.frameCount > 1;
+    // `staticFrameOverride` forces a fixed-frame render — required for
+    // tactic decor, where every cell sits on a specific frame of the
+    // multi-frame theme symbol (canonical AS `gotoAndStop(counter % 3)`).
+    // Without this, the resolver classifies multi-frame symbols as
+    // `kind === "animated"` and the ticker auto-cycles them; the
+    // override path below otherwise gets short-circuited to
+    // staticFrame=0 by the `isAnimated` branch.
+    const hasFrameOverride = cell.staticFrameOverride !== undefined;
+    const isAnimated =
+      !hasFrameOverride &&
+      resolved.kind === "animated" &&
+      resolved.frameCount > 1;
     const behavior = resolved.kind === "" ? "static" : resolved.kind;
     const staticFrame = isAnimated
       ? 0
-      : frameIndexForTile(
-          {
-            frameCount: resolved.frameCount,
-            behavior,
-          } as Parameters<typeof frameIndexForTile>[0],
-          cell.cellId,
-          cell.groundSlope
-        );
+      : hasFrameOverride
+        ? Math.max(
+            0,
+            Math.min(resolved.frameCount - 1, cell.staticFrameOverride!)
+          )
+        : frameIndexForTile(
+            {
+              frameCount: resolved.frameCount,
+              behavior,
+            } as Parameters<typeof frameIndexForTile>[0],
+            cell.cellId,
+            cell.groundSlope
+          );
     out.push({
       tileKey,
       bundle: resolved.bundle,
@@ -664,9 +801,16 @@ export class MapHandler {
       let tacticLayer1: number;
       const layer1Prefix: TilePrefixOverride["layer1"] = { prefix: "tactic" };
       if (!los) {
+        // LOS-blocked: opaque "wall" tint that explicitly signals
+        // "spells can't pass through here". Canonical `getTacticGfx(s, 0)`.
         tacticLayer1 = TACTIC_LAYER1_LOS_BLOCKED;
       } else if (movement <= 1) {
-        tacticLayer1 = 0;
+        // Non-walkable but visible (movement 0 or 1 — walls,
+        // obstacles). Canonical Cell.as:191 paints these too —
+        // dropping them to 0 left holes in the tactic grid. Reuse
+        // the LOS-blocked sprite as a stand-in until we extract
+        // canonical `10002` separately.
+        tacticLayer1 = TACTIC_LAYER1_NON_WALKABLE;
       } else {
         tacticLayer1 = tacticWalkableTileId(subareaIndex, parityMatch);
       }
@@ -708,16 +852,50 @@ export class MapHandler {
       backgroundNum: mapData.backgroundNum,
     };
     this.layerBuilder.setTilePrefixOverride(prefixes);
-    this.currentPrefixOverride = prefixes;
 
-    // AS MapHandler.method_260 sets backgroundNum = 631 on enter, falls
-    // back to 632 when the map had no original background. Both tiles ship
-    // under tiles/objects/ (not tiles/ground/) because they come from the
-    // o*.swf atlases in the Dofus asset pack — Flash's attachMovie looks
-    // up symbols by name regardless of tile category, so the original
-    // client didn't care. Our atlas loader splits grounds and objects, so
-    // we suppress the generic renderBackground path and paint the tactic
-    // background explicitly from the objects atlas.
+    // Theme lookup drives the per-LOS-cell decor sprites. Subarea 0
+    // means "unknown" → decor is skipped (the gridded cells still
+    // render; only the cosmetic clouds/leaves go away).
+    //
+    // Canonical AS `gotoAndStop(counter % 3 + 1)` cycles the three
+    // frames of the theme symbol — they're frames of ONE multi-frame
+    // sprite (`arene`, `foret`, ...) inside `gfx/tactic.swf`, not
+    // three sibling exports `arene_0/_1/_2`. The tile key stays
+    // `tactic_<theme>`; the frame is selected per placement via
+    // `staticFrameOverride`.
+    //
+    // `mapData.subareaId` is currently never populated by the map
+    // loader (subarea lives in `lang/maps.json:MA.m[mapId].sa`, not in
+    // the per-map SWF blob), so we fall back to that lookup here.
+    let subareaId = mapData.subareaId ?? 0;
+    if (subareaId === 0) {
+      subareaId = await loadMapSubareaId(mapData.id);
+    }
+    const themeTileKey =
+      subareaId > 0 ? await this.resolveTacticThemeTileKey(subareaId) : null;
+
+    // Prefetch the theme symbol so its bundle entries are registered
+    // before the next `TileResolver.resolve` pass. Backgrounds are
+    // intentionally NOT prefetched here — `631.swf`/`632.swf` live as
+    // standalone streaming SWFs in vanilla 1.29 and aren't bundled in
+    // our extraction, so we skip the bg entirely until the assets land.
+    if (themeTileKey) {
+      await this.atlasLoader.prefetchTiles([themeTileKey], 1);
+    }
+
+    const decorPlacements = themeTileKey
+      ? this.computeTacticDecorPlacements(
+          mapData,
+          themeTileKey,
+          TACTIC_DECOR_FRAME_COUNT
+        )
+      : [];
+
+    this.tacticExtras = {
+      bgTileKey: null,
+      decor: decorPlacements,
+    };
+
     const tacticMapData: MapData = {
       ...mapData,
       cells: tacticCells,
@@ -728,38 +906,69 @@ export class MapHandler {
       preserveWorldActors: true,
     });
 
-    const tacticBgId =
-      mapData.backgroundNum && mapData.backgroundNum > 0 ? 631 : 632;
-    const tacticBgTileKey = `objects_${tacticBgId}`;
-    const mapScale = computeMapScale(mapData.width, mapData.height);
+    // `renderMap` resets `currentPrefixOverride` to null (it's the
+    // canonical "fresh map" path), so we install the tactic prefix
+    // AFTER it and re-walk placements — otherwise the tactic tile ids
+    // (e.g. `tactic_100012`) get composed as `objects_100012` and the
+    // TileResolver fails every cell with "Tile objects_100012 not
+    // found in any SWF bundle". The decor lives in `tacticExtras`
+    // (still set across the renderMap call), so this single
+    // rebuildTilePlacements emits cells + decor at once.
+    this.currentPrefixOverride = prefixes;
+    this.rebuildTilePlacements();
+  }
 
-    // Theme lookup drives both decor sprite selection and the eventual
-    // theme-coloured overlay (not wired yet — stubbed). Subarea 0 means
-    // "unknown" so decor is skipped; the tactic background still renders.
-    const subareaId = mapData.subareaId ?? 0;
-    const themeTileKey =
-      subareaId > 0 ? await this.resolveTacticThemeTileKey(subareaId) : null;
-
-    const prefetchKeys = [tacticBgTileKey];
-    const themeFrameKeys: string[] = [];
-    if (themeTileKey) {
-      for (let f = 0; f < TACTIC_DECOR_FRAME_COUNT; f++) {
-        themeFrameKeys.push(`${themeTileKey}_${f}`);
-      }
-      prefetchKeys.push(...themeFrameKeys);
+  /**
+   * Compute the per-LOS-cell decor placements for tactic mode — the
+   * pure-data half of canonical `MapHandler.addTacticAdditionnalDecor`.
+   * Edge filter skips the top 3 rows + even-row map edges so decor
+   * sprites never clip at the border. Round-robins the theme symbol's
+   * frames 0..frameCount-1 across the selected cells (matches AS
+   * `gotoAndStop(counter % _nTacticDecorTotalAsset + 1)`).
+   */
+  private computeTacticDecorPlacements(
+    mapData: MapData,
+    themeTileKey: string,
+    frameCount: number
+  ): Array<{
+    tileKey: string;
+    frame: number;
+    cellId: number;
+    basePos: { x: number; y: number };
+    groundSlope: number;
+  }> {
+    const width = mapData.width;
+    const stride = 2 * width - 1;
+    const losCells: CellData[] = [];
+    for (const cell of mapData.cells) {
+      if (!cell.active) continue;
+      if (cell.lineOfSight !== false) continue;
+      if (cell.id <= width * 3) continue;
+      const rem = cell.id % stride;
+      if (rem === 0 || rem === width - 1) continue;
+      losCells.push(cell);
     }
-    await this.atlasLoader.prefetchTiles(prefetchKeys, 1);
-
-    this.layerBuilder.renderBackgroundByTileKey(
-      tacticBgTileKey,
-      this.backgroundLayer,
-      mapScale,
-      String(tacticBgId)
-    );
-
-    if (themeFrameKeys.length > 0) {
-      this.renderTacticDecor(mapData, themeFrameKeys, mapScale);
+    const frequency = tacticDecorFrequency(losCells.length);
+    const out: Array<{
+      tileKey: string;
+      frame: number;
+      cellId: number;
+      basePos: { x: number; y: number };
+      groundSlope: number;
+    }> = [];
+    let frameCounter = 0;
+    for (let i = 0; i < losCells.length; i += frequency) {
+      const cell = losCells[i]!;
+      out.push({
+        tileKey: themeTileKey,
+        frame: frameCounter % frameCount,
+        cellId: cell.id,
+        basePos: getCellPosition(cell.id, width, cell.groundLevel),
+        groundSlope: cell.groundSlope ?? 1,
+      });
+      frameCounter++;
     }
+    return out;
   }
 
   /**
@@ -777,51 +986,6 @@ export class MapHandler {
   }
 
   /**
-   * Port of AS `MapHandler.addTacticAdditionnalDecor` — step through the
-   * line-of-sight-blocking cells at `tacticDecorFrequency` intervals and
-   * stamp a theme decor sprite on objectLayer2 at each sampled cell,
-   * cycling through the 3 theme frames round-robin (matches AS
-   * `gotoAndStop(counter % _nTacticDecorTotalAsset + 1)`). Filter matches
-   * `Cell.method_2506` (skip top 3 rows + even-row edges so decor never
-   * clips at the map border).
-   */
-  private renderTacticDecor(
-    mapData: MapData,
-    themeFrameKeys: string[],
-    mapScale: MapScale
-  ): void {
-    const width = mapData.width;
-    const stride = 2 * width - 1;
-    const losCells: CellData[] = [];
-    for (const cell of mapData.cells) {
-      if (!cell.active) continue;
-      if (cell.lineOfSight !== false) continue;
-      if (cell.id <= width * 3) continue;
-      const rem = cell.id % stride;
-      if (rem === 0 || rem === width - 1) continue;
-      losCells.push(cell);
-    }
-
-    const frequency = tacticDecorFrequency(losCells.length);
-    const frameCount = themeFrameKeys.length;
-    let frameCounter = 0;
-
-    for (let i = 0; i < losCells.length; i += frequency) {
-      const cell = losCells[i]!;
-      const tileKey = themeFrameKeys[frameCounter % frameCount]!;
-      frameCounter++;
-      const basePosition = getCellPosition(cell.id, width, cell.groundLevel);
-      this.layerBuilder.renderTacticDecor(
-        tileKey,
-        cell.id,
-        basePosition,
-        mapScale,
-        this.objectLayer2
-      );
-    }
-  }
-
-  /**
    * Reverse {@link enterTacticMode}: clear the prefix override map and
    * re-render using the original MapData so the normal terrain comes back.
    * No-op when tactic mode isn't active.
@@ -836,6 +1000,7 @@ export class MapHandler {
       return;
     }
     this.tacticBackup = null;
+    this.tacticExtras = null;
     this.layerBuilder.setTilePrefixOverride(null);
     await this.renderMap(mapData, mapContainer, zoom, viewport, {
       preserveWorldActors: true,
@@ -847,14 +1012,15 @@ export class MapHandler {
   }
 
   /**
-   * Drop internal tactic-mode state (backup + prefix override) without
-   * re-rendering. Used by the battlefield when loading a new map while
-   * tactic mode was active — the normal {@link renderMap} pass then runs
-   * unadorned, and the caller re-applies {@link enterTacticMode} on the
-   * fresh map afterwards.
+   * Drop internal tactic-mode state (backup + prefix override + bg/
+   * decor extras) without re-rendering. Used by the battlefield when
+   * loading a new map while tactic mode was active — the normal
+   * {@link renderMap} pass then runs unadorned, and the caller
+   * re-applies {@link enterTacticMode} on the fresh map afterwards.
    */
   clearTacticState(): void {
     this.tacticBackup = null;
+    this.tacticExtras = null;
     this.layerBuilder.setTilePrefixOverride(null);
     this.currentPrefixOverride = null;
   }
@@ -870,5 +1036,12 @@ export class MapHandler {
   getObjectLayer2(): Container {
     return this.objectLayer2;
   }
-}
 
+  getTileSpriteRenderer(): TileSpriteRenderer | null {
+    return this.tileSpriteRenderer;
+  }
+
+  getAtlasLoader(): AtlasLoader {
+    return this.atlasLoader;
+  }
+}

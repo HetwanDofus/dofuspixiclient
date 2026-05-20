@@ -1,0 +1,27 @@
+{
+  "name": "@dofus/fla-scene-extractor",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Parses Adobe FLA Symbol XMLs into structured JSON scene descriptors consumable by the dofus1-registry SceneRenderer.",
+  "bin": {
+    "fla-scene-extractor": "./src/cli.ts"
+  },
+  "scripts": {
+    "extract": "bun run src/cli.ts",
+    "copy-bitmaps": "bun run scripts/copy-bitmaps.ts",
+    "sync-registry": "bun run scripts/sync-registry.ts"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "fast-xml-parser": "^4.5.0",
+    "image-size": "^1.1.1",
+    "pino": "^10.1.0",
+    "pino-pretty": "^13.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  }
+}

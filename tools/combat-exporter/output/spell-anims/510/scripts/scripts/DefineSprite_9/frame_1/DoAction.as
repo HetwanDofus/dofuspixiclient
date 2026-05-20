@@ -1,1 +1,0 @@
-SOMA.playSound("lance");
