@@ -22,13 +22,18 @@
 import {
   type Container,
   ExternalSource,
+  Rectangle,
   type Renderer,
   Sprite,
   Texture,
 } from "pixi.js";
 
 import { ROT_SCALE_X, ROT_SCALE_Y } from "@/game/constants/battlefield";
-import { freeRenderTexture, renderSwfFrame } from "@/game/render/vello-loader";
+import {
+  freeRenderTexture,
+  renderSwfFrame,
+  renderSwfTileDynamicStripRange,
+} from "@/game/render/vello-loader";
 import { createLogger } from "@/utils/logger";
 
 /**
@@ -100,21 +105,47 @@ const TICK_INTERVAL_MS = 1000 / 60;
 const RETIRE_DELAY_MS = 2 * TICK_INTERVAL_MS;
 
 /**
- * Cache entry for a (bundle, export, frame) tuple — every Sprite that
- * needs the same tile frame reuses the same `ExternalSource` +
- * `Texture` instance. A 15×17 map has ~50 unique tile keys but ~480
- * cells × 3 layers = 1440 placements; without sharing, the watchdog's
- * `TEXTURE_COUNT_HALT = 1024` trips mid-render and the bottom of the
- * map silently stops drawing because `renderSwfFrame` returns null
- * once `isHalted()` flips. Mirrors stress-worker.ts:540 `tileCache`.
+ * Cache entry for a tile bake — either:
+ *
+ * - **Single-frame**: one `ExternalSource` with one `Texture`
+ *   covering the whole source. Used for static tiles, AVM1
+ *   Random-pick tiles (frozen at load), and slope tiles whose
+ *   `gotoAndStop(slopeId)` lands on a fixed frame.
+ *
+ * - **Strip atlas** (B2): one `ExternalSource` holding ALL frames
+ *   of an animated tile in a grid, plus a per-frame array of
+ *   `Texture` objects (each pointing at one cell rect). Animation
+ *   tick swaps `sprite.texture = frames[idx]` with zero Vello
+ *   dispatch — the strip was baked once at first acquire.
+ *
+ * Cache key: `${bundle}:${export}:${resolution}` (NOT keyed by
+ * frame — the strip covers every frame). The first sprite to
+ * acquire a tile triggers the strip bake; subsequent sprites
+ * (same map, same tile, same density) share the bake.
  */
 interface CachedTileSource {
   source: ExternalSource;
-  texture: Texture;
   textureId: number;
+  /** Per-frame Texture instances; length = frameCount. For
+   *  single-frame tiles, length 1 with `frames[0]` covering the
+   *  whole source. */
+  frames: Texture[];
+  /** Anchor in (texel / cell_size) units. For strip atlases this
+   *  refers to the SWF (0,0) inside ONE cell. Same for every
+   *  frame, by Rust-side bounds-union construction. */
   anchorFracX: number;
   anchorFracY: number;
 }
+
+/**
+ * Maximum frame count we attempt to fold into a single strip
+ * atlas. Beyond this, a tile falls back to per-frame on-demand
+ * rendering (see `acquireSingleFrame`) — keeps any one strip
+ * texture under wgpu's 16384-pixel limit and bounds the worst-
+ * case GPU memory commit per acquire. ~150 frames at 256×256 BGRA
+ * fits in 39 MB which is safely below the strip-side cap.
+ */
+const STRIP_MAX_FRAMES = 150;
 
 /**
  * Layer-tagged variant of `TilePlacement` — caller marks the
@@ -248,51 +279,150 @@ export class TileSpriteRenderer {
   }
 
   /**
-   * Look up the cached GPU texture for `(bundle, exportName, frame)`
-   * or render + cache it. Increments the cache refcount; pair with
-   * `releaseCachedTile(cacheKey)` on sprite removal so the texture is
-   * freed once the last sprite stops using it. Returns null when the
-   * underlying `renderSwfFrame` fails (watchdog halt, missing export).
+   * Acquire a cache entry covering every frame of an animated tile,
+   * or the single fixed frame of a static / AVM1-frozen tile.
+   *
+   * Animated tile path (frameCount > 1 AND <= STRIP_MAX_FRAMES):
+   * bake ALL frames as one strip atlas via
+   * `renderSwfTileDynamicStripRange`. Slice into N per-frame
+   * `Texture` objects sharing one `TextureSource`. The first
+   * sprite acquire pays the bake cost; subsequent sprites (same
+   * bundle/export/resolution) reuse it. **Zero per-frame Vello
+   * dispatch after warmup.**
+   *
+   * Static + AVM1-frozen + outlier (> STRIP_MAX_FRAMES) path:
+   * single-frame `renderSwfFrame` as before (one cell, one Texture).
+   *
+   * Cache key always omits `frame` for strips so the SAME entry
+   * serves every animation tick. Single-frame tiles append `@F`
+   * so multiple slope variants of the same tile coexist.
    */
   private acquireCachedTile(
     bundle: string,
     exportName: string,
-    frame: number,
+    fixedFrame: number,
+    frameCount: number,
+    isAnimated: boolean,
     resolution: number
   ): { cacheKey: string; entry: CachedTileSource } | null {
-    const cacheKey = `${bundle}:${exportName}:${frame}:${resolution}`;
+    const useStrip =
+      isAnimated && frameCount > 1 && frameCount <= STRIP_MAX_FRAMES;
+    const cacheKey = useStrip
+      ? `strip|${bundle}:${exportName}:${resolution}`
+      : `frame|${bundle}:${exportName}:${resolution}@${fixedFrame}`;
     let entry = this.tileCache.get(cacheKey);
     if (!entry) {
-      const result = renderSwfFrame(bundle, exportName, frame, resolution);
-      if (!result) {
-        return null;
-      }
-      const source = new ExternalSource({
-        resource: result.texture,
-        renderer: this.pixiRenderer,
-        width: result.width,
-        height: result.height,
-        label: `tile-${bundle}:${exportName}@${frame}@${resolution}`,
-      });
-      source.alphaMode = "no-premultiply-alpha";
-      source.format = "rgba8unorm";
-      source.scaleMode = "linear";
-      source.autoGarbageCollect = false;
-      const texture = new Texture({ source });
-      const anchorFracX = result.width > 0 ? result.anchorX / result.width : 0;
-      const anchorFracY =
-        result.height > 0 ? result.anchorY / result.height : 0;
-      entry = {
-        source,
-        texture,
-        textureId: result.textureId,
-        anchorFracX,
-        anchorFracY,
-      };
+      const baked = useStrip
+        ? this.bakeStrip(bundle, exportName, frameCount, resolution)
+        : this.bakeSingleFrame(bundle, exportName, fixedFrame, resolution);
+      if (!baked) return null;
+      entry = baked;
       this.tileCache.set(cacheKey, entry);
     }
     this.cacheRefs.set(cacheKey, (this.cacheRefs.get(cacheKey) ?? 0) + 1);
     return { cacheKey, entry };
+  }
+
+  /**
+   * Bake one frame as a single-cell texture (static tiles, AVM1
+   * Random-pick tiles, slope tiles at a fixed frame, outliers
+   * exceeding `STRIP_MAX_FRAMES`).
+   */
+  private bakeSingleFrame(
+    bundle: string,
+    exportName: string,
+    frame: number,
+    resolution: number
+  ): CachedTileSource | null {
+    const result = renderSwfFrame(bundle, exportName, frame, resolution);
+    if (!result) return null;
+    const source = new ExternalSource({
+      resource: result.texture,
+      renderer: this.pixiRenderer,
+      width: result.width,
+      height: result.height,
+      label: `tile-${bundle}:${exportName}@${frame}@${resolution}`,
+    });
+    source.alphaMode = "no-premultiply-alpha";
+    source.format = "rgba8unorm";
+    source.scaleMode = "linear";
+    source.autoGarbageCollect = false;
+    const texture = new Texture({ source });
+    const anchorFracX = result.width > 0 ? result.anchorX / result.width : 0;
+    const anchorFracY = result.height > 0 ? result.anchorY / result.height : 0;
+    return {
+      source,
+      textureId: result.textureId,
+      frames: [texture],
+      anchorFracX,
+      anchorFracY,
+    };
+  }
+
+  /**
+   * Bake all `frameCount` frames as ONE strip atlas in one Vello
+   * dispatch via `renderSwfTileDynamicStripRange`. Slice into N
+   * Pixi `Texture` objects sharing one `TextureSource`; each
+   * `Texture` has a `frame` rect addressing its cell in the grid.
+   *
+   * **Path B for tiles**: zero per-frame Vello calls thereafter —
+   * animation tick is `sprite.texture = frames[i]`.
+   */
+  private bakeStrip(
+    bundle: string,
+    exportName: string,
+    frameCount: number,
+    resolution: number
+  ): CachedTileSource | null {
+    const result = renderSwfTileDynamicStripRange(
+      bundle,
+      exportName,
+      0,
+      frameCount,
+      frameCount,
+      resolution,
+    );
+    if (!result) return null;
+    const source = new ExternalSource({
+      resource: result.texture,
+      renderer: this.pixiRenderer,
+      width: result.width,
+      height: result.height,
+      label: `tile-strip-${bundle}:${exportName}@${resolution}`,
+    });
+    source.alphaMode = "no-premultiply-alpha";
+    source.format = "rgba8unorm";
+    source.scaleMode = "linear";
+    source.autoGarbageCollect = false;
+
+    // Slice the strip into per-frame Texture objects. Each cell is
+    // (frameWidth × frameHeight); cells stack left-to-right then
+    // wrap by `gridCols`. Anchor inside each cell is the SWF (0,0)
+    // expressed as a fraction of cell dims — uniform across cells
+    // by the Rust-side bounds-union construction.
+    const frames: Texture[] = new Array(result.frameCount);
+    for (let i = 0; i < result.frameCount; i++) {
+      const col = i % result.gridCols;
+      const row = Math.floor(i / result.gridCols);
+      const rect = new Rectangle(
+        col * result.frameWidth,
+        row * result.frameHeight,
+        result.frameWidth,
+        result.frameHeight,
+      );
+      frames[i] = new Texture({ source, frame: rect });
+    }
+    const anchorFracX =
+      result.frameWidth > 0 ? result.anchorX / result.frameWidth : 0;
+    const anchorFracY =
+      result.frameHeight > 0 ? result.anchorY / result.frameHeight : 0;
+    return {
+      source,
+      textureId: result.textureId,
+      frames,
+      anchorFracX,
+      anchorFracY,
+    };
   }
 
   /**
@@ -404,6 +534,8 @@ export class TileSpriteRenderer {
         state.bundle,
         state.exportName,
         state.currentFrame,
+        state.frameCount,
+        state.isAnimated,
         clamped
       );
       if (!acquired) {
@@ -413,8 +545,9 @@ export class TileSpriteRenderer {
       }
       const { cacheKey, entry } = acquired;
       const oldCacheKey = state.cacheKey;
+      const frameIdx = state.currentFrame % entry.frames.length;
       state.sprite.anchor.set(entry.anchorFracX, entry.anchorFracY);
-      state.sprite.texture = entry.texture;
+      state.sprite.texture = entry.frames[frameIdx];
       applyMatrix(
         state.sprite,
         state.cellX,
@@ -439,6 +572,8 @@ export class TileSpriteRenderer {
       p.bundle,
       p.exportName,
       initialFrame,
+      p.frameCount,
+      p.isAnimated,
       resolution
     );
     if (!acquired) {
@@ -451,7 +586,8 @@ export class TileSpriteRenderer {
     // it produces 1/N² tiles. The native density compensation lives
     // entirely in `applyMatrix`'s `sprite.scale`.
 
-    const sprite = new Sprite(entry.texture);
+    const initialTexture = entry.frames[initialFrame % entry.frames.length];
+    const sprite = new Sprite(initialTexture);
     sprite.anchor.set(entry.anchorFracX, entry.anchorFracY);
     applyMatrix(sprite, p.cellX, p.cellY, p.rotation, p.flip, resolution);
     // Painter's-order zIndex inside the layer: lower-cellY (back rows)
@@ -507,31 +643,49 @@ export class TileSpriteRenderer {
     this.states.delete(key);
   }
 
+  /**
+   * Advance an animated tile to `state.currentFrame`. Under B2, the
+   * cache entry is a strip atlas covering every frame so this
+   * collapses to swapping the sprite's `texture` reference — **no
+   * Vello dispatch**. For outliers and oddly-keyed legacy entries
+   * that turned out to be single-frame, we fall back to the old
+   * "re-acquire per frame" path so behavior degrades gracefully
+   * (a tile with >`STRIP_MAX_FRAMES` will still animate, just
+   * through per-frame on-demand bakes like before).
+   */
   private swapFrame(state: TileSpriteState): void {
+    const entry = this.tileCache.get(state.cacheKey);
+    if (entry && entry.frames.length > 1) {
+      // Strip path: zero-dispatch UV swap.
+      const idx = state.currentFrame % entry.frames.length;
+      state.sprite.texture = entry.frames[idx];
+      return;
+    }
+    // Outlier / fallback: re-acquire a single-frame texture for the
+    // new frame index. Same lifecycle as pre-B2.
     const acquired = this.acquireCachedTile(
       state.bundle,
       state.exportName,
       state.currentFrame,
+      state.frameCount,
+      state.isAnimated,
       state.resolution
     );
     if (!acquired) {
       return;
     }
-    const { cacheKey, entry } = acquired;
+    const { cacheKey, entry: nextEntry } = acquired;
     const oldCacheKey = state.cacheKey;
-
-    state.sprite.anchor.set(entry.anchorFracX, entry.anchorFracY);
-    state.sprite.texture = entry.texture;
+    state.sprite.anchor.set(nextEntry.anchorFracX, nextEntry.anchorFracY);
+    state.sprite.texture = nextEntry.frames[0];
     state.cacheKey = cacheKey;
-    state.anchorFracX = entry.anchorFracX;
-    state.anchorFracY = entry.anchorFracY;
-
+    state.anchorFracX = nextEntry.anchorFracX;
+    state.anchorFracY = nextEntry.anchorFracY;
     if (oldCacheKey !== cacheKey) {
       this.releaseCachedTile(oldCacheKey);
     } else {
-      // Same key → acquireCachedTile incremented refcount even
-      // though the sprite still holds the previous reference. Drop
-      // the spurious increment so the count stays correct.
+      // Same key → acquire bumped refcount even though the previous
+      // ref still applies. Drop the spurious increment.
       this.releaseCachedTile(cacheKey);
     }
   }

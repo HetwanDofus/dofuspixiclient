@@ -28,6 +28,22 @@ export type OnAnimationApplied = (
 ) => void;
 
 /**
+ * Fire-and-forget pre-warm hook. The first bot to spawn for a given
+ * gfxId triggers a background sweep that loads the metadata for every
+ * (anim_type, direction, flipped) tuple this class will ever need
+ * and primes the strip renderer's atlas cache. By the time the bot
+ * actually walks, every required atlas is already baked.
+ *
+ * Caller (PlayerStripRenderer) is expected to no-op when the atlas
+ * is already cached — this hook fires once per class for free.
+ */
+export type OnPrewarmAtlas = (
+  animation: CharacterAnimation,
+  animName: string,
+  flipped: boolean
+) => void;
+
+/**
  * Owns animation-state transitions for every player. Stateless across
  * calls — operates on whichever ActivePlayer the caller passes in,
  * which lets PlayerRenderer stay a pure coordinator.
@@ -40,10 +56,18 @@ export type OnAnimationApplied = (
  * `CharWorldPlacement` into the world layer.
  */
 export class PlayerSpriteController {
+  /**
+   * gfxIds whose pre-warm sweep has already been kicked off. We only
+   * pre-warm once per class because the resulting atlases are shared
+   * across every bot of the same class via the body atlas cache.
+   */
+  private prewarmedGfxIds: Set<number> = new Set();
+
   constructor(
     private readonly spriteLoader: CharacterSpriteLoader,
     private readonly fighterExists: (id: number) => boolean,
-    private readonly onApplied?: OnAnimationApplied
+    private readonly onApplied?: OnAnimationApplied,
+    private readonly onPrewarm?: OnPrewarmAtlas
   ) {}
 
   /**
@@ -70,6 +94,7 @@ export class PlayerSpriteController {
     if (cached) {
       this.apply(player, cached, animName);
       player.container.visible = true;
+      this.maybeKickoffPrewarm(player);
       return;
     }
 
@@ -80,6 +105,79 @@ export class PlayerSpriteController {
     }
 
     player.container.visible = true;
+    this.maybeKickoffPrewarm(player);
+  }
+
+  /**
+   * Background metadata + atlas prewarm for a class. Fires once per
+   * gfxId (subsequent bots of the same class skip). Loads the
+   * metadata for each (anim_type, direction, flipped) tuple this bot
+   * will plausibly need (walk + run + cast + hit + die in every
+   * cardinal direction, plus the flipped variants for L/F), then
+   * tells the strip renderer to bake the atlas in the background.
+   *
+   * The strip renderer's pre-warm hook is fire-and-forget: it calls
+   * `cache.acquireBodyAtlas` then immediately releases the refcount.
+   * Bake fires through the normal queue (so the adaptive budget
+   * throttles them during heavy frames). The resulting atlas stays
+   * in the cache with refcount=0 — eligible for LRU eviction but
+   * available for the first actual hit.
+   *
+   * Net effect: every cache miss after the prewarm sweep is a
+   * cache HIT instead. Bake queue drains to zero after warmup and
+   * stays there, instead of churning with mid-walk misses.
+   */
+  private maybeKickoffPrewarm(player: ActivePlayer): void {
+    const gfxId = player.gfxId;
+    if (gfxId === 0) return;
+    if (!this.onPrewarm) return;
+    if (this.prewarmedGfxIds.has(gfxId)) return;
+    this.prewarmedGfxIds.add(gfxId);
+
+    // Capture player.look at prewarm-trigger time — look mutations
+    // mid-sweep would land bakes against a stale palette, but the
+    // body atlas key doesn't include look (recolor happens at
+    // composite time via the shader's zone uniforms), so look
+    // doesn't actually matter for the cache key. The local copy is
+    // just to satisfy `loadAnimationWithFallback`'s signature.
+    const look = player.look;
+
+    // Anim types we want pre-warmed. Static is already loaded by
+    // boot above; the high-value ones are walk + run (every move
+    // triggers these in 4 directions). cast/hit/die also have art
+    // but aren't worth pre-warming because they're one-shot and
+    // rarely cause perceived FPS dips.
+    const animTypes = ["walk", "run"];
+    // Cardinal directions Dofus 1.29 art ships separate exports
+    // for: R, L, F, B. (S is static-only.)
+    const directions = [1, 3, 5, 7];
+
+    void this.prewarmSweep(gfxId, look, animTypes, directions);
+  }
+
+  private async prewarmSweep(
+    gfxId: number,
+    look: string,
+    animTypes: string[],
+    directions: number[]
+  ): Promise<void> {
+    for (const baseAnim of animTypes) {
+      for (const direction of directions) {
+        try {
+          const result = await this.spriteLoader.loadAnimationWithFallback(
+            gfxId,
+            baseAnim,
+            direction,
+            look
+          );
+          if (!result || !this.onPrewarm) continue;
+          const flipped = isDirectionFlipped(direction);
+          this.onPrewarm(result.animation, result.animName, flipped);
+        } catch {
+          // Swallow — prewarm is best-effort.
+        }
+      }
+    }
   }
 
   /** Used for the parent of a linked-children family during mount-up. */

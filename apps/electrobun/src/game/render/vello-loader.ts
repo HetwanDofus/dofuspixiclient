@@ -822,6 +822,11 @@ export interface VelloSwfBodyBandInfo {
   bandCount: number;
   /** Sorted by depth ascending. */
   slots: Array<{ slot: number; depth: number }>;
+  /** True when at least one accessory mount declares `b_fix=true`.
+   *  When false the body bake is pixel-identical regardless of the
+   *  `applyBFix` flag — the cache layer collapses both variants into
+   *  one entry, halving bake count on this class. */
+  bFixUsed: boolean;
 }
 
 export function swfBodyBandInfo(
@@ -841,10 +846,16 @@ export interface VelloSwfBodyAtlasBand {
 }
 
 export interface VelloSwfBodyAtlasResult {
-  /** Single colour atlas containing every band's strip. */
+  /**
+   * Direct GPUTexture path: Vello renders to a `wgpu::Texture` that
+   * stays pinned in the Rust-side `self.textures` HashMap. Pixi
+   * samples it directly via `ExternalSource` over the shared
+   * GPUDevice. `freeRenderTexture(textureId)` on retire releases the
+   * VRAM via the explicit `tex.destroy()` we added in
+   * `free_render_texture`.
+   */
   colorTexture: GPUTexture;
   colorTextureId: number;
-  /** Single zone-id atlas (same layout as colour). */
   zoneTexture: GPUTexture;
   zoneTextureId: number;
   /** Atlas pixel dimensions. */
@@ -871,10 +882,10 @@ export interface VelloSwfBodyAtlasResult {
 
 /**
  * Render ALL Z-ordered bands of a body export into a SINGLE atlas
- * pair (colour + zone-id), bands stacked vertically with transparent
- * padding. Pixel-perfect equivalent to the per-band path; only the
- * texture layout differs. Cuts allocation count from
- * `bandCount × 2` to exactly `2` per (bundle, export, anim).
+ * pair (colour + zone-id) returned as `ImageBitmap`s. The Vello output
+ * textures are blitted to a Bgra8Unorm OffscreenCanvas via
+ * `bitmap_bridge.rs` and the canvas is transferred to a bitmap; the
+ * source textures are destroyed before this function returns.
  */
 export function renderSwfBodyAtlas(
   bundle: string,
@@ -1154,6 +1165,108 @@ export function freeRenderTexture(textureId: number): void {
     } catch {
       // ignore
     }
+  }
+}
+
+/**
+ * Step-11 deferred-destroy tick. Calls into the patched wgpu fork's
+ * pending-destroy queue: advances its frame counter and calls
+ * `GPUTexture.destroy()` / `GPUBuffer.destroy()` on every Rust-side
+ * wgpu resource that was dropped at least `minAgeFrames` ticks ago
+ * (past WebGPU's submission completion window).
+ *
+ * Returns `[texturesDestroyed, buffersDestroyed, texturesPending,
+ * buffersPending]` so callers can log queue health.
+ *
+ * `maxDestroysPerTick` caps the per-tick destroy count to avoid
+ * stalling a single rAF when a burst (anim transition / cache
+ * eviction) leaves the queue deep.
+ */
+export interface DeferredDestroyStats {
+  texturesDestroyed: number;
+  buffersDestroyed: number;
+  texturesPending: number;
+  buffersPending: number;
+}
+
+/**
+ * Session-wide cumulative destroy counters. Each `tickDeferredDestroys`
+ * call adds its per-tick destroys here so the monitor can report
+ * totals + rates over the whole stress run.
+ */
+let cumulativeTexturesDestroyed = 0;
+let cumulativeBuffersDestroyed = 0;
+let lastTickTexturesPending = 0;
+let lastTickBuffersPending = 0;
+
+export function tickDeferredDestroys(
+  minAgeFrames = 2,
+  maxDestroysPerTick = 256,
+): DeferredDestroyStats | null {
+  if (!renderer) return null;
+  const r = renderer as unknown as {
+    tickDeferredDestroys(min: number, max: number): Uint32Array;
+  };
+  const out = r.tickDeferredDestroys(minAgeFrames, maxDestroysPerTick);
+  const td = out[0] ?? 0;
+  const bd = out[1] ?? 0;
+  const tp = out[2] ?? 0;
+  const bp = out[3] ?? 0;
+  cumulativeTexturesDestroyed += td;
+  cumulativeBuffersDestroyed += bd;
+  lastTickTexturesPending = tp;
+  lastTickBuffersPending = bp;
+  return {
+    texturesDestroyed: td,
+    buffersDestroyed: bd,
+    texturesPending: tp,
+    buffersPending: bp,
+  };
+}
+
+/**
+ * Aggregate deferred-destroy stats for the monitor log. Returns
+ * cumulative destroyed counts since renderer init plus the latest
+ * pending queue depths.
+ */
+export function getDeferredDestroyStats(): {
+  cumulativeTexturesDestroyed: number;
+  cumulativeBuffersDestroyed: number;
+  texturesPending: number;
+  buffersPending: number;
+} {
+  return {
+    cumulativeTexturesDestroyed,
+    cumulativeBuffersDestroyed,
+    texturesPending: lastTickTexturesPending,
+    buffersPending: lastTickBuffersPending,
+  };
+}
+
+/**
+ * Number of `wgpu::Texture` instances Vello currently holds in its
+ * Rust-side HashMap. Useful for cross-checking with
+ * `liveRenderTextureIds` — if the JS set has N entries but the Rust
+ * map has M ≠ N entries, something's mistracked.
+ */
+export function getRustTexturesCount(): number {
+  if (!renderer) return 0;
+  const r = renderer as unknown as { rustTexturesCount(): number };
+  try {
+    return r.rustTexturesCount();
+  } catch {
+    return 0;
+  }
+}
+
+/** WASM linear-memory bytes (Rust side allocations, not GPU). */
+export function getWasmHeapBytes(): number {
+  if (!renderer) return 0;
+  const r = renderer as unknown as { wasmHeapBytes(): number };
+  try {
+    return r.wasmHeapBytes();
+  } catch {
+    return 0;
   }
 }
 

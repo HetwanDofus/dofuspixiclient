@@ -33,6 +33,7 @@
  *    `PlayerStripRenderer` does this check inside its callback.
  */
 
+import { getRenderWatchdog } from "@/game/render/render-watchdog";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("StripBakeQueue");
@@ -167,19 +168,63 @@ class StripBakeQueue {
   }
 
   /**
-   * Pick the right per-frame budget for the current backlog. Hysteresis
-   * via two thresholds prevents oscillation when the queue dances
-   * around the boundary.
+   * Pick the right per-frame budget for the current backlog.
+   *
+   * Two ladders compose:
+   *   1. Queue depth → base budget (4 / 8 / 12 ms).
+   *   2. Recent frame time → damping multiplier (0.6× / 0.4×).
+   *
+   * KEY INVARIANT: budget never falls below `MIN_BUDGET_MS`. Earlier
+   * iteration zeroed the budget when `frameMsAvg ≥ 25 ms` thinking
+   * the frame was over-budget because of bakes — but at 300+ bots
+   * the frame is over-budget because of Pixi DRAWS, not bakes.
+   * Yielding bake budget didn't speed up rendering, it just starved
+   * the cache: bake throughput dropped below the miss rate so the
+   * queue grew unboundedly, hit rate stalled, eviction churn fed
+   * MORE misses, and the death spiral kicked in.
+   *
+   * The bake queue MUST always make progress proportional to the
+   * miss rate or the cache never fills. At 300-bot stress the floor
+   * works out to ~4 ms/frame just to break even (50 misses/s × 5 ms
+   * per bake / 60 fps).
+   *
+   * Additionally: if the queue is HEAVY we override the frame-time
+   * damping and run full budget. The bakes are the only way out of
+   * the churn state — choking them perpetuates it.
    */
   private adaptBudget(): void {
     const n = this.pending.size;
+    let target: number;
     if (n >= HIGH_WATERMARK) {
-      this.budgetMs = BUDGET_HEAVY_MS;
+      target = BUDGET_HEAVY_MS;
     } else if (n >= LOW_WATERMARK) {
-      this.budgetMs = BUDGET_BUSY_MS;
+      target = BUDGET_BUSY_MS;
     } else {
-      this.budgetMs = BUDGET_IDLE_MS;
+      target = BUDGET_IDLE_MS;
     }
+    // Only dampen for frame time when the queue is below the heavy
+    // watermark — if the queue is deep we MUST drain to escape the
+    // churn state, regardless of what the framerate looks like.
+    if (n < HIGH_WATERMARK) {
+      try {
+        const snap = getRenderWatchdog().getSnapshot();
+        const frameMs = snap.frameMsAvg;
+        if (Number.isFinite(frameMs) && frameMs > 0) {
+          if (frameMs >= 25) {
+            target = target * 0.4;
+          } else if (frameMs >= 16.7) {
+            target = target * 0.6;
+          }
+        }
+      } catch {
+        // ignore — watchdog might not be initialised yet.
+      }
+    }
+    // Floor: never below the rate needed to keep up with steady-
+    // state miss rate at stress scale. Below this, the cache never
+    // fills and the queue grows forever.
+    const MIN_BUDGET_MS = 3;
+    this.budgetMs = Math.max(MIN_BUDGET_MS, target);
   }
 
   private drain(): void {

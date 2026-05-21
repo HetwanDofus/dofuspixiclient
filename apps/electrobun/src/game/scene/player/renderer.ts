@@ -153,6 +153,15 @@ export class PlayerRenderer {
             if (live.currentAnimName !== animName) return;
             live.animReady = true;
           });
+      },
+      // Pre-warm hook: first bot per gfxId triggers a background
+      // sweep that bakes every (walk/run × R/L/F/B) atlas via the
+      // bake queue. Routes through the SAME queue with the same
+      // adaptive budget, so spawn-time bakes only fire during idle
+      // frames. By the time the bot walks, every needed atlas is a
+      // cache hit instead of a mid-frame Vello compute stall.
+      (animation, animName, flipped) => {
+        this.stripRenderer.prewarmAtlas(animation, animName, flipped);
       }
     );
 

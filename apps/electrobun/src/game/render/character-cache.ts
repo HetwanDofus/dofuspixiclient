@@ -44,6 +44,7 @@ import {
   renderSwfBodyAtlas,
   renderSwfMountTransforms,
   swfBodyBandInfo,
+  tickDeferredDestroys,
   type VelloSwfAccessoryStripResult,
   type VelloSwfBodyAtlasResult,
   type VelloSwfBodyBandInfo,
@@ -60,22 +61,41 @@ export const MAX_SLOT = 5;
 /**
  * Default LRU cap in bytes.
  *
- * Atlas-packed working set at stress-test scale (~25 classes × 5
- * dirs × 3 anim types = ~375 unique body atlases × ~3.5 MB) is
- * ~1.3 GB for bodies + ~325 MB for accessories ≈ 1.6 GB total. A
- * cap below that forces constant LRU eviction; under the patched
- * wgpu fork's no-op Drop + browser-deferred GPUTexture reclaim, each
- * eviction drips into zombie GPU memory the compositor releases
- * slowly. Net effect: a *smaller* cap paradoxically INFLATES total
- * memory because it manufactures churn — the bigger the cap, the
- * less churn, the lower the total. Steady state at 1.5 GB:
- * hit% → 95%+, bake queue drains to ~0, evicts plateau, deferred-
- * reclaim pressure stops, total GPU memory settles around ~2 GB
- * (cap + Pixi/Vello runtime overhead) instead of climbing past 4 GB.
+ * Counter-intuitive sizing rule under the patched wgpu fork: bigger
+ * is often lower-total-memory.
  *
- * Bounding memory BELOW this needs the full Step-11 bridge migration
- * (separate Pixi GPUDevice + ImageBitmap handoff) — with upstream
- * wgpu, Drop actually releases VRAM and the cap can shrink safely.
+ * Why: the fork's no-op `Drop for WebTexture` leaks Vello-internal
+ * staging textures + buffers on every render. The leak is bounded
+ * by the cumulative number of bakes done, NOT by the cache size.
+ * So a smaller cap that forces LRU eviction churn perpetually
+ * triggers re-bakes — every re-bake adds to the permanent leak.
+ *
+ * Net effect: cap too small → cache churns → bake queue stays full
+ * → Vello leak grows forever → total memory CLIMBS even though the
+ * cache stays small. Cap large enough to hold the full working set
+ * → bakes settle to ~0 after warmup → Vello leak plateaus → total
+ * memory PLATEAUS.
+ *
+ * Stress-test working set: 12 classes × 2 genders × 5 dirs × 3
+ * anim types × 2 flipped = up to 720 unique body atlases × ~2.5 MB
+ * = ~1.8 GB peak. Real gameplay's working set is far smaller (20-50
+ * bots ≈ 100-250 unique anims).
+ *
+ * The 1.5 GB cap below is the smallest value that lets the
+ * common-case stress test (~400-500 unique anims sampled randomly)
+ * reach > 90 % hit rate within ~30 s. Below that, you stay in
+ * churn purgatory. Above that, you waste memory.
+ *
+ * Memory budget at this cap at 200-300 bots:
+ *  - Cache: ~1.5 GB.
+ *  - Vello internal leak ceiling (after warmup): ~700 MB.
+ *  - Pixi runtime + browser overhead: ~500 MB.
+ *  - WASM heap high-water-mark: ~600 MB.
+ *  - JS heap: ~150 MB.
+ *  - Total: ~3.3-3.5 GB plateaued.
+ *
+ * If you can't afford that ceiling, the patched fork has to go —
+ * see STEP_11_BRIDGE_NOTES.md "How to drop the patched fork".
  */
 const DEFAULT_BYTES_CAP = 1.5 * 1024 * 1024 * 1024;
 
@@ -106,10 +126,14 @@ export interface BodyAtlasBand {
  */
 export interface BodyAtlas {
   readonly key: string;
-  /** Shared atlas — wraps the Vello-allocated colour `GPUTexture`. */
+  /**
+   * Direct GPUTexture path: Pixi `Texture` wrapping an
+   * `ExternalSource` over the Vello-side `wgpu::Texture`. Shared
+   * device, zero-copy. Retire calls `freeRenderTexture(textureId)`
+   * which destroys the wgpu::Texture via our patched-Drop fix.
+   */
   readonly colorTexture: Texture;
   readonly colorTextureId: number;
-  /** Shared atlas — zone-id (R channel encodes zone × 60). */
   readonly zoneTexture: Texture;
   readonly zoneTextureId: number;
   /** Atlas pixel dimensions (sub-region origin uses these as denom). */
@@ -191,6 +215,14 @@ interface RetireQueueEntry {
   textureIds: number[];
   destroyTextures: Texture[];
   externalSources: ExternalSource[];
+  /**
+   * Step 11 bridge: ImageBitmaps owned by an evicted body atlas.
+   * Closing them releases the canvas drawing buffer's GPU resource
+   * immediately rather than waiting for JS GC. `Texture.destroy(true)`
+   * destroys the wrapping `ImageSource` but doesn't auto-`close` the
+   * bitmap — that's our responsibility.
+   */
+  closeBitmaps: ImageBitmap[];
   ticksRemaining: number;
 }
 
@@ -312,7 +344,12 @@ class CharacterCache {
     isWanted: () => boolean,
   ): void {
     this.ensureTickerInstalled();
-    const key = bodyAtlasKey(parts);
+    // A1: when no accessory mount on this character declares bFix,
+    // the Rust sprite walker's bFix path is a no-op — the bake is
+    // pixel-identical regardless of applyBFix. Collapse both variants
+    // to a single cache entry by forcing applyBFix=false in the key.
+    const normalized = this.normalizeBFix(parts);
+    const key = bodyAtlasKey(normalized);
     const existing = this.bodyAtlasEntries.get(key);
     if (existing) {
       existing.refcount += 1;
@@ -331,13 +368,13 @@ class CharacterCache {
       key,
       () =>
         renderSwfBodyAtlas(
-          parts.bundle,
-          parts.exportName,
-          parts.start,
-          parts.count,
-          parts.totalFrameCount,
-          parts.resolution,
-          parts.applyBFix,
+          normalized.bundle,
+          normalized.exportName,
+          normalized.start,
+          normalized.count,
+          normalized.totalFrameCount,
+          normalized.resolution,
+          normalized.applyBFix,
         ),
       (raw) => {
         this.finalizeBodyAtlasBake(key, raw as VelloSwfBodyAtlasResult | null);
@@ -348,6 +385,25 @@ class CharacterCache {
         return bake.callbacks.some((c) => c.isWanted());
       },
     );
+  }
+
+  /**
+   * Returns a copy of `parts` with `applyBFix` forced to `false` when
+   * the character has no bFix-active accessory mount — in that case
+   * the Rust bake produces the same pixels either way. Cuts the bake
+   * key dimension in half for cape/shieldless classes.
+   *
+   * Applied to both body-atlas and mount-transform key construction.
+   */
+  private normalizeBFix<T extends { bundle: string; exportName: string; applyBFix: boolean }>(
+    parts: T,
+  ): T {
+    if (!parts.applyBFix) return parts;
+    const info = this.getBodyBandInfo(parts.bundle, parts.exportName);
+    if (info && info.bFixUsed === false) {
+      return { ...parts, applyBFix: false };
+    }
+    return parts;
   }
 
   /** Drop a previously-acquired body atlas. */
@@ -425,22 +481,26 @@ class CharacterCache {
    * indefinitely until `clearAll()`.
    */
   getMounts(parts: MountKeyParts): MountTransforms | null {
-    const key = mountKey(parts);
+    // A1: dedup the bFix dimension when the character has no
+    // bFix-active mount — the mount-transform bake produces the same
+    // affine matrices either way.
+    const normalized = this.normalizeBFix(parts);
+    const key = mountKey(normalized);
     const existing = this.mountEntries.get(key);
     if (existing) return existing;
     const data = renderSwfMountTransforms(
-      parts.bundle,
-      parts.exportName,
-      parts.start,
-      parts.count,
-      parts.applyBFix,
+      normalized.bundle,
+      normalized.exportName,
+      normalized.start,
+      normalized.count,
+      normalized.applyBFix,
       MAX_SLOT,
     );
     if (!data) return null;
     const entry: MountTransforms = {
       key,
       data,
-      frameCount: parts.count,
+      frameCount: normalized.count,
     };
     this.mountEntries.set(key, entry);
     return entry;
@@ -477,8 +537,23 @@ class CharacterCache {
     };
   }
 
-  /** Tick the retire queue. Call once per Pixi ticker tick. */
+  /**
+   * Tick the retire queue + the patched-fork's deferred-destroy
+   * queue. Call once per Pixi ticker tick.
+   *
+   * The deferred-destroy tick is what actually releases VRAM from
+   * Vello-internal staging textures/buffers that get dropped during
+   * a Vello render. Without it, those handles leak forever via the
+   * patched fork's no-op Drop. We bound the per-tick destroy work to
+   * 256 to avoid stalling a single rAF when a burst of drops needs
+   * processing.
+   */
   tick(): void {
+    try {
+      tickDeferredDestroys(2, 256);
+    } catch (e) {
+      log.warn("tickDeferredDestroys threw", e);
+    }
     if (this.retireQueue.length === 0) return;
     const remaining: RetireQueueEntry[] = [];
     for (const entry of this.retireQueue) {
@@ -489,7 +564,7 @@ class CharacterCache {
       }
       for (const tex of entry.destroyTextures) {
         try {
-          tex.destroy(false);
+          tex.destroy(true);
         } catch (e) {
           log.warn("Texture destroy threw", e);
         }
@@ -499,6 +574,13 @@ class CharacterCache {
           src.destroy();
         } catch (e) {
           log.warn("ExternalSource destroy threw", e);
+        }
+      }
+      for (const bitmap of entry.closeBitmaps) {
+        try {
+          bitmap.close();
+        } catch (e) {
+          log.warn("ImageBitmap close threw", e);
         }
       }
       for (const id of entry.textureIds) {
@@ -685,14 +767,23 @@ class CharacterCache {
       height,
       label,
     });
-    // Mirror `player-strip-renderer.ts` — Vello emits straight-alpha
-    // RGBA, Pixi must NOT pre-multiply on upload.
+    // Vello emits straight alpha (fine.wgsl un-premultiplies before
+    // textureStore). Tell Pixi the source is straight — that flips
+    // its NORMAL blend mode to the NPM factors
+    //   (srcAlpha, 1-srcAlpha) for color
+    // which is the correct compositing formula for straight RGB.
     source.alphaMode = "no-premultiply-alpha";
     source.format = "rgba8unorm";
     source.scaleMode = "linear";
+    // Pixi's ImageSource constructor overrides autoGarbageCollect to
+    // true; ExternalSource doesn't, but set explicitly anyway so
+    // Pixi GC never touches our cache-managed sources.
     source.autoGarbageCollect = false;
     return new Texture({ source });
   }
+
+  // (former Step 11 bridge `buildPixiTextureFromBitmap` removed —
+  // direct GPUTexture path uses `buildPixiTexture` above.)
 
   private buildFrameTextures(
     base: Texture,
@@ -766,6 +857,10 @@ class CharacterCache {
   }
 
   private scheduleRetireBodyAtlas(entry: BodyAtlas): void {
+    // Direct path: ExternalSource over Vello GPUTexture. Tear-down
+    // chain mirrors the accessory path — destroy Pixi wrappers,
+    // destroy the ExternalSource, then freeRenderTexture which
+    // explicitly calls tex.destroy() on the wgpu::Texture.
     this.retireQueue.push({
       textureIds: [entry.colorTextureId, entry.zoneTextureId],
       destroyTextures: [entry.colorTexture, entry.zoneTexture],
@@ -773,6 +868,7 @@ class CharacterCache {
         entry.colorTexture.source as ExternalSource,
         entry.zoneTexture.source as ExternalSource,
       ],
+      closeBitmaps: [],
       ticksRemaining: RETIRE_TICKS,
     });
   }
@@ -782,6 +878,7 @@ class CharacterCache {
       textureIds: [entry.textureId],
       destroyTextures: [...entry.frames, entry.texture],
       externalSources: [entry.texture.source as ExternalSource],
+      closeBitmaps: [],
       ticksRemaining: RETIRE_TICKS,
     });
   }

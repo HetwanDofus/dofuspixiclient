@@ -442,6 +442,13 @@ export class VelloRenderer {
      */
     renderZoneMaskStrip(asset_id: number, animation: string, resolution: number, acc_info?: Uint32Array | null): any;
     /**
+     * Diagnostics: how many `wgpu::Texture`s we hold in
+     * `self.textures` (every render target the Vello side has
+     * outstanding). Useful for cross-checking the JS-side
+     * `liveRenderTextureIds` set.
+     */
+    rustTexturesCount(): number;
+    /**
      * Set the player's three zone colours used by the SWF render path.
      * Each value is `0xRRGGBB`; pass `0` to leave that zone untinted.
      * Mirrors what the dofasset path does via `build_color_replacements`
@@ -468,9 +475,18 @@ export class VelloRenderer {
     swfAnimFrameCount(bundle: string, _export: string): number;
     /**
      * One-shot lookup for a body export's slot/band layout. Returns
-     * `{ slotCount, bandCount, slots: [{ slot, depth }, ...] }`. JS
-     * uses this to decide how many bands to bake per (bundle,
-     * export) and which Z order to stack them in.
+     * `{ slotCount, bandCount, slots: [{ slot, depth }, ...],
+     * bFixUsed }`. JS uses this to decide how many bands to bake per
+     * (bundle, export) and which Z order to stack them in.
+     *
+     * `bFixUsed` reports whether ANY of this character's accessory
+     * mount declarations have `b_fix = true`. When false, the body
+     * bake is pixel-identical with `apply_b_fix = true` vs `false`
+     * (the sprite walker only acts on bFix for placements whose
+     * mount declares `b_fix=true` — without any such mount, the
+     * override is a no-op). JS uses this to collapse the bake-key's
+     * `applyBFix` dimension for characters without capes/shields,
+     * roughly halving bakes on those classes.
      */
     swfBodyBandInfo(bundle: string, _export: string): any;
     /**
@@ -564,6 +580,23 @@ export class VelloRenderer {
      */
     swfTileAnimKind(bundle: string, _export: string): string;
     /**
+     * Step-11 deferred-destroy tick. JS calls this once per Pixi
+     * shared-ticker tick. It advances the patched-fork's frame
+     * counter and calls `GPUTexture.destroy()` /
+     * `GPUBuffer.destroy()` on every Rust-side wgpu resource that
+     * was dropped at least `min_age_frames` ticks ago — past
+     * WebGPU's submission completion window, so destroying now is
+     * safe.
+     *
+     * `max_destroys_per_tick` caps the per-tick destroy count so a
+     * burst (anim transitions, cache evictions) doesn't stall a
+     * single rAF.
+     *
+     * Returns `[texturesDestroyed, buffersDestroyed,
+     * texturesPending, buffersPending]` for diagnostics.
+     */
+    tickDeferredDestroys(min_age_frames: number, max_destroys_per_tick: number): Uint32Array;
+    /**
      * Tick the spell's AVM1 by one frame, render the new state into the
      * pre-allocated output texture, and report whether the cast is still
      * active. JS calls this on its rAF loop (rate-limited by the SWF's
@@ -577,6 +610,12 @@ export class VelloRenderer {
      * `JsValue::NULL` if the instance id is unknown.
      */
     tickSwfSpellFrame(instance_id: number): any;
+    /**
+     * Diagnostics: WASM linear-memory size in bytes. Tracks how
+     * much memory the Rust side itself is consuming (excluding GPU
+     * resources, which live in the browser GPU process).
+     */
+    wasmHeapBytes(): number;
 }
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -622,6 +661,7 @@ export interface InitOutput {
     readonly vellorenderer_renderSwfTileStaticBase: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
     readonly vellorenderer_renderZoneMaskFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
     readonly vellorenderer_renderZoneMaskStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
+    readonly vellorenderer_rustTexturesCount: (a: number) => number;
     readonly vellorenderer_setSwfPlayerColors: (a: number, b: number, c: number, d: number) => void;
     readonly vellorenderer_setSwfSpellHostCell: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly vellorenderer_setSwfSpellHostNumber: (a: number, b: number, c: number, d: number, e: number) => void;
@@ -634,7 +674,9 @@ export interface InitOutput {
     readonly vellorenderer_swfSpellIconNaturalSize: (a: number, b: number, c: number, d: number, e: number) => any;
     readonly vellorenderer_swfStripBounds: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
     readonly vellorenderer_swfTileAnimKind: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly vellorenderer_tickDeferredDestroys: (a: number, b: number, c: number) => [number, number];
     readonly vellorenderer_tickSwfSpellFrame: (a: number, b: number) => any;
+    readonly vellorenderer_wasmHeapBytes: (a: number) => number;
     readonly wasm_bindgen__convert__closures_____invoke__h095281891b062598: (a: number, b: number, c: any) => [number, number];
     readonly wasm_bindgen__convert__closures_____invoke__h2db092c6386880bd: (a: number, b: number, c: any, d: any) => void;
     readonly wasm_bindgen__convert__closures_____invoke__h6910d188bddc1532: (a: number, b: number, c: any) => void;

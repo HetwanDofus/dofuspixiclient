@@ -34,8 +34,17 @@ fn extract_gpu_adapter(adapter: &wgpu::Adapter) -> JsValue {
 
 /// Extract the raw `GPUTexture` JsValue from a `wgpu::Texture` so JS callers can
 /// wrap it in a Pixi `Texture` via `new ExternalSource({ resource: gpuTexture })`.
+///
+/// Also marks the underlying `WebTexture` as `extracted`, which
+/// switches its `Drop` behaviour from "queue for deferred destroy"
+/// to "no-op". Pixi holds an independent JS reference to the same
+/// `GPUTexture` handle; we must NOT auto-destroy when the Rust
+/// wrapper drops (Round 5 race). Lifecycle stays explicit via the
+/// JS-driven `free_render_texture` retire path.
 fn extract_gpu_texture(texture: &wgpu::Texture) -> JsValue {
-    texture.inner.as_webgpu().inner.clone().into()
+    let web = texture.inner.as_webgpu();
+    web.mark_extracted();
+    web.inner.clone().into()
 }
 
 /// One layer of the spell-icon composition: the symbol to render plus the
@@ -124,6 +133,10 @@ pub struct VelloRenderer {
     /// `Bgra8Unorm` surface texture (the canvas's preferred format,
     /// avoiding Chromium's "preferred format" perf warning).
     blit_bgra_pipeline: Option<bitmap_bridge::BlitPipeline>,
+    /// Pooled OffscreenCanvas + wgpu Surface for the bridge. Resized
+    /// in-place when callers ask for different dims, so the hot path
+    /// avoids the ~10ms canvas+surface allocation cost per bake.
+    bridge_canvas_pool: Option<bitmap_bridge::BridgeCanvasPool>,
     assets: HashMap<u32, DofAsset>,
     textures: HashMap<u64, wgpu::Texture>,
     next_texture_id: u64,
@@ -480,6 +493,7 @@ impl VelloRenderer {
             queue,
             renderer,
             blit_bgra_pipeline: None,
+            bridge_canvas_pool: None,
             assets: HashMap::new(),
             textures: HashMap::new(),
             next_texture_id: 0,
@@ -1927,9 +1941,18 @@ impl VelloRenderer {
     // ---------------------------------------------------------------
 
     /// One-shot lookup for a body export's slot/band layout. Returns
-    /// `{ slotCount, bandCount, slots: [{ slot, depth }, ...] }`. JS
-    /// uses this to decide how many bands to bake per (bundle,
-    /// export) and which Z order to stack them in.
+    /// `{ slotCount, bandCount, slots: [{ slot, depth }, ...],
+    /// bFixUsed }`. JS uses this to decide how many bands to bake per
+    /// (bundle, export) and which Z order to stack them in.
+    ///
+    /// `bFixUsed` reports whether ANY of this character's accessory
+    /// mount declarations have `b_fix = true`. When false, the body
+    /// bake is pixel-identical with `apply_b_fix = true` vs `false`
+    /// (the sprite walker only acts on bFix for placements whose
+    /// mount declares `b_fix=true` — without any such mount, the
+    /// override is a no-op). JS uses this to collapse the bake-key's
+    /// `applyBFix` dimension for characters without capes/shields,
+    /// roughly halving bakes on those classes.
     #[wasm_bindgen(js_name = "swfBodyBandInfo")]
     pub fn swf_body_band_info(&self, bundle: &str, export: &str) -> JsValue {
         let Some(doc) = self.swf_bundles.get(bundle) else {
@@ -1949,6 +1972,7 @@ impl VelloRenderer {
                 &"slots".into(),
                 &js_sys::Array::new().into(),
             );
+            let _ = js_sys::Reflect::set(&result, &"bFixUsed".into(), &JsValue::FALSE);
             return result.into();
         };
         let slots = swf_spike::render::extract_slot_depths(doc, body, 0);
@@ -1961,6 +1985,14 @@ impl VelloRenderer {
                 js_sys::Reflect::set(&o, &"depth".into(), &JsValue::from(u32::from(s.depth)));
             arr.push(&o.into());
         }
+        // bFix is a no-op unless at least one mount declares `b_fix=true`.
+        // accessory_mounts maps character_id -> mounts; scan all entries
+        // because a body part placement inside `body` may reference any
+        // mount-declaring character id.
+        let b_fix_used = doc
+            .accessory_mounts
+            .values()
+            .any(|mounts| mounts.iter().any(|m| m.b_fix));
         let result = js_sys::Object::new();
         let _ = js_sys::Reflect::set(
             &result,
@@ -1969,6 +2001,11 @@ impl VelloRenderer {
         );
         let _ = js_sys::Reflect::set(&result, &"bandCount".into(), &JsValue::from(band_count));
         let _ = js_sys::Reflect::set(&result, &"slots".into(), &arr.into());
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"bFixUsed".into(),
+            &JsValue::from_bool(b_fix_used),
+        );
         result.into()
     }
 
@@ -2218,6 +2255,17 @@ impl VelloRenderer {
             return JsValue::NULL;
         };
 
+        // Direct GPUTexture path (NO bridge for body atlas). Vello
+        // and Pixi share the GPUDevice via the patched-wgpu fork, so
+        // Pixi can sample the Vello-output texture directly via
+        // `ExternalSource` — no extra blit pass, no surface.present
+        // GPU sync, no transferToImageBitmap sync, no
+        // copyExternalImageToTexture re-upload, no double GPU memory
+        // while bitmap + Pixi texture coexist. The bridge path is
+        // only needed for the future "drop the fork → upstream wgpu"
+        // ending of Step 11; memory-wise the bridge was a wash, but
+        // per-bake perf cost was substantial (4 GPU sync points per
+        // bake) and caused random 100-300 ms rAF spikes.
         let colour_gpu = extract_gpu_texture(&colour_tex);
         let zone_gpu = extract_gpu_texture(&zone_tex);
         let colour_tex_id = self.next_texture_id;
@@ -3132,9 +3180,28 @@ impl VelloRenderer {
                 wgpu::TextureFormat::Bgra8Unorm,
             ));
         }
+        if self.bridge_canvas_pool.is_none() {
+            self.bridge_canvas_pool = Some(
+                match bitmap_bridge::BridgeCanvasPool::new(
+                    &self.instance,
+                    &self.device,
+                    strip_w,
+                    strip_h,
+                ) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        console_log!(
+                            "renderSwfStripRangeAccessorizedBitmap: pool init error: {e:?}"
+                        );
+                        return JsValue::NULL;
+                    }
+                },
+            );
+        }
         let blit = self.blit_bgra_pipeline.as_ref().unwrap();
+        let pool = self.bridge_canvas_pool.as_mut().unwrap();
         let bitmap = match bitmap_bridge::render_texture_to_bitmap(
-            &self.instance,
+            pool,
             &self.device,
             &self.queue,
             blit,
@@ -3698,6 +3765,69 @@ impl VelloRenderer {
         if let Some(tex) = self.textures.remove(&(tex_id as u64)) {
             tex.destroy();
         }
+    }
+
+    /// Diagnostics: how many `wgpu::Texture`s we hold in
+    /// `self.textures` (every render target the Vello side has
+    /// outstanding). Useful for cross-checking the JS-side
+    /// `liveRenderTextureIds` set.
+    #[wasm_bindgen(js_name = "rustTexturesCount")]
+    pub fn rust_textures_count(&self) -> u32 {
+        self.textures.len() as u32
+    }
+
+    /// Diagnostics: WASM linear-memory size in bytes. Tracks how
+    /// much memory the Rust side itself is consuming (excluding GPU
+    /// resources, which live in the browser GPU process).
+    #[wasm_bindgen(js_name = "wasmHeapBytes")]
+    pub fn wasm_heap_bytes(&self) -> f64 {
+        // Each WASM page is 64 KiB. `wasm_bindgen::memory()` returns
+        // a `JsValue` for the WebAssembly.Memory; the easier path is
+        // to just expose `core::arch::wasm32::memory_size`.
+        #[cfg(target_arch = "wasm32")]
+        {
+            let pages = core::arch::wasm32::memory_size(0) as f64;
+            pages * 65536.0
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            0.0
+        }
+    }
+
+    /// Step-11 deferred-destroy tick. JS calls this once per Pixi
+    /// shared-ticker tick. It advances the patched-fork's frame
+    /// counter and calls `GPUTexture.destroy()` /
+    /// `GPUBuffer.destroy()` on every Rust-side wgpu resource that
+    /// was dropped at least `min_age_frames` ticks ago — past
+    /// WebGPU's submission completion window, so destroying now is
+    /// safe.
+    ///
+    /// `max_destroys_per_tick` caps the per-tick destroy count so a
+    /// burst (anim transitions, cache evictions) doesn't stall a
+    /// single rAF.
+    ///
+    /// Returns `[texturesDestroyed, buffersDestroyed,
+    /// texturesPending, buffersPending]` for diagnostics.
+    #[wasm_bindgen(js_name = "tickDeferredDestroys")]
+    pub fn tick_deferred_destroys(
+        &mut self,
+        min_age_frames: u32,
+        max_destroys_per_tick: u32,
+    ) -> Vec<u32> {
+        use wgpu::backend::webgpu::deferred_destroy;
+        let (tex_destroyed, buf_destroyed) =
+            deferred_destroy::tick_deferred_destroys(
+                min_age_frames,
+                max_destroys_per_tick,
+            );
+        let (tex_pending, buf_pending) = deferred_destroy::pending_counts();
+        vec![
+            tex_destroyed,
+            buf_destroyed,
+            tex_pending as u32,
+            buf_pending as u32,
+        ]
     }
 
     /// True if this export's symbol tree contains any placement with filters

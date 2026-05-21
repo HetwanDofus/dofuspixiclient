@@ -34,11 +34,15 @@ import { getRenderWatchdog } from "@/game/render/render-watchdog";
 import { getCharacterCache } from "@/game/render/character-cache";
 import { getStripBakeQueue } from "@/game/render/strip-bake-queue";
 import {
+  getDeferredDestroyStats,
   getLiveRenderTextureCount,
   getLiveRenderTextureIdCount,
   getLiveSpellInstanceCount,
   getLoadedSwfBundleCount,
   getPathCacheStats,
+  getPixiRenderer,
+  getRustTexturesCount,
+  getWasmHeapBytes,
   swfBundleExports,
 } from "@/game/render/vello-loader";
 import { createLogger } from "@/utils/logger";
@@ -266,6 +270,31 @@ function logMonitorSnapshot(): void {
   const cacheReqs = charCache.hits + charCache.misses;
   const hitRate = cacheReqs > 0 ? (charCache.hits / cacheReqs) * 100 : 0;
 
+  // Memory subsystem telemetry — gives us per-bucket attribution so
+  // we can localise growth instead of just staring at Activity
+  // Monitor's process total.
+  const defStats = getDeferredDestroyStats();
+  const rustTexCount = getRustTexturesCount();
+  const wasmHeapBytes = getWasmHeapBytes();
+  // Pixi-side managed-source counts (best effort — depends on Pixi
+  // v8 internals being accessible).
+  let pixiManagedSources = -1;
+  let pixiBindGroupHash = -1;
+  try {
+    const renderer = getPixiRenderer() as unknown as
+      | { texture?: { _managedTextures?: { items?: Record<string, unknown> }; _bindGroupHash?: Record<string, unknown> } }
+      | null;
+    const sys = renderer?.texture;
+    if (sys?._managedTextures?.items) {
+      pixiManagedSources = Object.keys(sys._managedTextures.items).length;
+    }
+    if (sys?._bindGroupHash) {
+      pixiBindGroupHash = Object.keys(sys._bindGroupHash).length;
+    }
+  } catch {
+    // ignore
+  }
+
   const completedPerSec = dt > 0 ? completedDelta / dt : 0;
   const startedPerSec = dt > 0 ? startedDelta / dt : 0;
 
@@ -273,23 +302,154 @@ function logMonitorSnapshot(): void {
   const fmtPc = (n: number | null | undefined, digits = 0): string =>
     n == null ? "?" : `${n.toFixed(digits)}`;
 
-  // Single multi-line block so it's easy to skim in console (and not
-  // interleaved with watchdog heartbeats / GameSession logs).
-  log.info(
-    [
-      "── stress monitor ──",
-      `  bots: active=${activePlayers.size}  inflight=${traversalsInflight}  started=${traversalsStarted}(+${startedDelta} = ${fmt(startedPerSec)}/s)  arrived=${traversalsCompleted}(+${completedDelta} = ${fmt(completedPerSec)}/s)`,
-      `  fps:  inst=${fmt(snap.fpsInstant)}  avg1s=${fmt(snap.fpsAvg1s)}  min10s=${fmt(snap.fpsMin10s)}  frameMs avg=${fmt(snap.frameMsAvg, 2)} p99=${fmt(snap.frameMsP99, 2)} longest10s=${fmt(snap.frameMsLongest10s, 1)}`,
-      `  slow: slow1s=${snap.slowFrames1s}  stall10s=${snap.stalledFrames10s}  halted=${snap.emergencyHalt}`,
-      `  gpu:  textures(active=${snap.textureCountActive} created=${snap.texturesCreatedTotal} freed=${snap.texturesFreedTotal})  surfaces=${snap.surfaceCountActive}`,
-      `  vello: liveTex=${getLiveRenderTextureCount()} (renderIds=${getLiveRenderTextureIdCount()} spells=${getLiveSpellInstanceCount()})  bundles=${getLoadedSwfBundleCount()}`,
-      `  bake: pending=${bakeQueue.pending}  enq=${bakeQueue.totalEnqueued}  done=${bakeQueue.totalDispatched}  dedup=${bakeQueue.totalDedupCollapses}  stale=${bakeQueue.totalStaleSkipped}  budget=${bakeQueue.budgetMs}ms`,
-      `  char: body=${charCache.bodyEntries}(${fmt(charCache.bodyBytes / 1024 / 1024, 1)}MB) acc=${charCache.accEntries}(${fmt(charCache.accBytes / 1024 / 1024, 1)}MB) mnt=${charCache.mountEntries} total=${fmt(cacheTotal / 1024 / 1024, 1)}MB hit%=${fmt(hitRate, 1)} (hits=${charCache.hits} miss=${charCache.misses} evict=${charCache.evicts})`,
-      `  path: bundleCache=${fmtPc(pc?.bundleCacheCount)} sceneCache=${fmtPc(pc?.sceneCacheCount)} sceneBytes≈${fmtPc(pc?.sceneBytesEstimate ? pc.sceneBytesEstimate / 1024 : null, 0)}KB`,
-      `  heap: ${snap.jsHeapUsedMB ?? "?"}MB / ${snap.jsHeapLimitMB ?? "?"}MB`,
-    ].join("\n"),
-  );
+  const wallClockIso = new Date().toISOString();
+
+  // Build a structured snapshot once; the human-readable text block
+  // and the machine-parseable JSON below both come from the same
+  // source so the two never drift.
+  const structured = {
+    t: wallClockIso,
+    bots: {
+      active: activePlayers.size,
+      inflight: traversalsInflight,
+      started: traversalsStarted,
+      startedDelta,
+      startedPerSec,
+      arrived: traversalsCompleted,
+      arrivedDelta: completedDelta,
+      arrivedPerSec: completedPerSec,
+    },
+    fps: {
+      inst: snap.fpsInstant,
+      avg1s: snap.fpsAvg1s,
+      min10s: snap.fpsMin10s,
+      frameMsAvg: snap.frameMsAvg,
+      frameMsP99: snap.frameMsP99,
+      frameMsLongest10s: snap.frameMsLongest10s,
+      slow1s: snap.slowFrames1s,
+      stall10s: snap.stalledFrames10s,
+      halted: snap.emergencyHalt,
+    },
+    gpu: {
+      textureCountActive: snap.textureCountActive,
+      texturesCreatedTotal: snap.texturesCreatedTotal,
+      texturesFreedTotal: snap.texturesFreedTotal,
+      surfaceCountActive: snap.surfaceCountActive,
+    },
+    vello: {
+      liveTex: getLiveRenderTextureCount(),
+      renderIds: getLiveRenderTextureIdCount(),
+      spells: getLiveSpellInstanceCount(),
+      bundles: getLoadedSwfBundleCount(),
+    },
+    bake: {
+      pending: bakeQueue.pending,
+      enq: bakeQueue.totalEnqueued,
+      done: bakeQueue.totalDispatched,
+      dedup: bakeQueue.totalDedupCollapses,
+      stale: bakeQueue.totalStaleSkipped,
+      budgetMs: bakeQueue.budgetMs,
+    },
+    cache: {
+      bodyEntries: charCache.bodyEntries,
+      bodyMB: charCache.bodyBytes / 1024 / 1024,
+      accEntries: charCache.accEntries,
+      accMB: charCache.accBytes / 1024 / 1024,
+      mntEntries: charCache.mountEntries,
+      totalMB: cacheTotal / 1024 / 1024,
+      hitPct: hitRate,
+      hits: charCache.hits,
+      misses: charCache.misses,
+      evicts: charCache.evicts,
+    },
+    pathCache: pc
+      ? {
+          bundleCacheCount: pc.bundleCacheCount,
+          sceneCacheCount: pc.sceneCacheCount,
+          sceneKB: pc.sceneBytesEstimate / 1024,
+        }
+      : null,
+    rust: {
+      textures: rustTexCount,
+      wasmHeapMB: wasmHeapBytes / 1024 / 1024,
+    },
+    defer: {
+      texturesDestroyedTotal: defStats.cumulativeTexturesDestroyed,
+      buffersDestroyedTotal: defStats.cumulativeBuffersDestroyed,
+      texturesPending: defStats.texturesPending,
+      buffersPending: defStats.buffersPending,
+    },
+    pixi: {
+      managedSources: pixiManagedSources,
+      bindGroups: pixiBindGroupHash,
+    },
+    jsHeap: {
+      usedMB: snap.jsHeapUsedMB ?? null,
+      limitMB: snap.jsHeapLimitMB ?? null,
+    },
+  };
+
+  // Multi-line human-readable block.
+  const textBlock = [
+    "── stress monitor ──",
+    `  t: ${wallClockIso}`,
+    `  bots: active=${activePlayers.size}  inflight=${traversalsInflight}  started=${traversalsStarted}(+${startedDelta} = ${fmt(startedPerSec)}/s)  arrived=${traversalsCompleted}(+${completedDelta} = ${fmt(completedPerSec)}/s)`,
+    `  fps:  inst=${fmt(snap.fpsInstant)}  avg1s=${fmt(snap.fpsAvg1s)}  min10s=${fmt(snap.fpsMin10s)}  frameMs avg=${fmt(snap.frameMsAvg, 2)} p99=${fmt(snap.frameMsP99, 2)} longest10s=${fmt(snap.frameMsLongest10s, 1)}`,
+    `  slow: slow1s=${snap.slowFrames1s}  stall10s=${snap.stalledFrames10s}  halted=${snap.emergencyHalt}`,
+    `  gpu:  textures(active=${snap.textureCountActive} created=${snap.texturesCreatedTotal} freed=${snap.texturesFreedTotal})  surfaces=${snap.surfaceCountActive}`,
+    `  vello: liveTex=${getLiveRenderTextureCount()} (renderIds=${getLiveRenderTextureIdCount()} spells=${getLiveSpellInstanceCount()})  bundles=${getLoadedSwfBundleCount()}`,
+    `  bake: pending=${bakeQueue.pending}  enq=${bakeQueue.totalEnqueued}  done=${bakeQueue.totalDispatched}  dedup=${bakeQueue.totalDedupCollapses}  stale=${bakeQueue.totalStaleSkipped}  budget=${bakeQueue.budgetMs}ms`,
+    `  char: body=${charCache.bodyEntries}(${fmt(charCache.bodyBytes / 1024 / 1024, 1)}MB) acc=${charCache.accEntries}(${fmt(charCache.accBytes / 1024 / 1024, 1)}MB) mnt=${charCache.mountEntries} total=${fmt(cacheTotal / 1024 / 1024, 1)}MB hit%=${fmt(hitRate, 1)} (hits=${charCache.hits} miss=${charCache.misses} evict=${charCache.evicts})`,
+    `  path: bundleCache=${fmtPc(pc?.bundleCacheCount)} sceneCache=${fmtPc(pc?.sceneCacheCount)} sceneBytes≈${fmtPc(pc?.sceneBytesEstimate ? pc.sceneBytesEstimate / 1024 : null, 0)}KB`,
+    `  rust: textures=${rustTexCount}  wasm.heap=${fmt(wasmHeapBytes / 1024 / 1024, 1)}MB`,
+    `  defer: txDestroyed=${defStats.cumulativeTexturesDestroyed} bufDestroyed=${defStats.cumulativeBuffersDestroyed} txPending=${defStats.texturesPending} bufPending=${defStats.buffersPending}`,
+    `  pixi: managedSources=${pixiManagedSources} bindGroups=${pixiBindGroupHash}`,
+    `  heap: ${snap.jsHeapUsedMB ?? "?"}MB / ${snap.jsHeapLimitMB ?? "?"}MB`,
+  ].join("\n");
+
+  // Cache the latest for copy/download buttons + window-callable
+  // accessors. Append to the rolling tail so the user can grab a
+  // history of snapshots, not just the most recent one.
+  latestStressText = textBlock;
+  latestStressJson = structured;
+  stressHistory.push(structured);
+  if (stressHistory.length > STRESS_HISTORY_MAX) {
+    stressHistory.shift();
+  }
+
+  // Tag-prefixed single-line JSON line for terminal redirection
+  // (`bun run dev | grep STRESS_JSON >> stress.log`). Printed via
+  // console.log directly so it skips the logger's pretty prefix
+  // — easier to grep against.
+  // eslint-disable-next-line no-console
+  console.log(`STRESS_JSON ${JSON.stringify(structured)}`);
+
+  log.info(textBlock);
 }
+
+// Module-level cache for the in-app copy/download buttons +
+// window-callable accessors below.
+let latestStressText = "";
+type StressSnapshotJson = ReturnType<typeof buildEmptySnapshot>;
+function buildEmptySnapshot() {
+  return {
+    t: new Date(0).toISOString(),
+    bots: { active: 0, inflight: 0, started: 0, startedDelta: 0, startedPerSec: 0, arrived: 0, arrivedDelta: 0, arrivedPerSec: 0 },
+    fps: { inst: 0, avg1s: 0, min10s: 0, frameMsAvg: 0, frameMsP99: 0, frameMsLongest10s: 0, slow1s: 0, stall10s: 0, halted: false },
+    gpu: { textureCountActive: 0, texturesCreatedTotal: 0, texturesFreedTotal: 0, surfaceCountActive: 0 },
+    vello: { liveTex: 0, renderIds: 0, spells: 0, bundles: 0 },
+    bake: { pending: 0, enq: 0, done: 0, dedup: 0, stale: 0, budgetMs: 0 },
+    cache: { bodyEntries: 0, bodyMB: 0, accEntries: 0, accMB: 0, mntEntries: 0, totalMB: 0, hitPct: 0, hits: 0, misses: 0, evicts: 0 },
+    pathCache: null as { bundleCacheCount: number; sceneCacheCount: number; sceneKB: number } | null,
+    rust: { textures: 0, wasmHeapMB: 0 },
+    defer: { texturesDestroyedTotal: 0, buffersDestroyedTotal: 0, texturesPending: 0, buffersPending: 0 },
+    pixi: { managedSources: 0, bindGroups: 0 },
+    jsHeap: { usedMB: null as number | null, limitMB: null as number | null },
+  };
+}
+let latestStressJson: StressSnapshotJson = buildEmptySnapshot();
+const stressHistory: StressSnapshotJson[] = [];
+const STRESS_HISTORY_MAX = 200;
 
 function startMonitorIfNeeded(): void {
   if (monitorHandle !== null) return;
@@ -529,3 +689,117 @@ export function despawnTestPlayers(renderer: PlayerRenderer): number {
 export function getTestPlayerCount(): number {
   return activePlayers.size;
 }
+
+/**
+ * Most recent stress monitor snapshot in human-readable form. Useful
+ * for a "Copy" button in the dev panel. Returns an empty string if
+ * no snapshot has been logged yet.
+ */
+export function getLatestStressMonitorText(): string {
+  return latestStressText;
+}
+
+/**
+ * Most recent snapshot as a structured object. Best for piping to
+ * logs / dashboards. The fields mirror the textual format.
+ */
+export function getLatestStressMonitorJson(): StressSnapshotJson {
+  return latestStressJson;
+}
+
+/**
+ * Full rolling history of snapshots (most recent last). Capped at
+ * {@link STRESS_HISTORY_MAX} entries to bound memory.
+ */
+export function getStressMonitorHistory(): readonly StressSnapshotJson[] {
+  return stressHistory;
+}
+
+/**
+ * Build a textual dump of the entire snapshot history. Drop into
+ * `await navigator.clipboard.writeText(...)` or a Blob download.
+ */
+export function buildStressHistoryDump(): string {
+  const head = [
+    "# Stress monitor dump",
+    `# Generated: ${new Date().toISOString()}`,
+    `# Snapshots: ${stressHistory.length}`,
+    "",
+  ].join("\n");
+  // Pretty-print each entry as JSON on one line per snapshot so the
+  // file can be parsed line-by-line by external tooling.
+  const body = stressHistory
+    .map((snap, i) => `# ─── snapshot ${i + 1} / ${stressHistory.length} ───\n${JSON.stringify(snap, null, 2)}`)
+    .join("\n\n");
+  return `${head}${body}\n`;
+}
+
+/**
+ * Reset the history buffer. Call before a fresh stress run to get a
+ * clean dump.
+ */
+export function resetStressMonitorHistory(): void {
+  stressHistory.length = 0;
+  latestStressText = "";
+  latestStressJson = buildEmptySnapshot();
+}
+
+// Install convenience window globals so the in-game StressTestPanel
+// (and devtools console) can copy / download snapshots without
+// dragging the React tree into business logic.
+declare global {
+  interface Window {
+    __copyStressSnapshot?: () => Promise<boolean>;
+    __copyStressHistory?: () => Promise<boolean>;
+    __downloadStressHistory?: () => void;
+    __getStressSnapshot?: () => StressSnapshotJson;
+    __getStressSnapshotText?: () => string;
+    __resetStressHistory?: () => void;
+  }
+}
+
+(function installStressWindowGlobals() {
+  if (typeof window === "undefined") return;
+  window.__getStressSnapshot = () => latestStressJson;
+  window.__getStressSnapshotText = () => latestStressText;
+  window.__resetStressHistory = () => {
+    resetStressMonitorHistory();
+  };
+  window.__copyStressSnapshot = async () => {
+    try {
+      await navigator.clipboard.writeText(latestStressText);
+      return true;
+    } catch (e) {
+      log.warn("copyStressSnapshot failed", e);
+      return false;
+    }
+  };
+  window.__copyStressHistory = async () => {
+    try {
+      await navigator.clipboard.writeText(buildStressHistoryDump());
+      return true;
+    } catch (e) {
+      log.warn("copyStressHistory failed", e);
+      return false;
+    }
+  };
+  window.__downloadStressHistory = () => {
+    try {
+      const blob = new Blob([buildStressHistoryDump()], {
+        type: "text/plain;charset=utf-8",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `stress-monitor-${Date.now()}.log`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // Revoke after a tick so the browser has time to start the
+      // download.
+      setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    } catch (e) {
+      log.warn("downloadStressHistory failed", e);
+    }
+  };
+})();

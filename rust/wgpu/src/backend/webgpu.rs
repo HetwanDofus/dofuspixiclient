@@ -1,6 +1,7 @@
 #![allow(clippy::type_complexity)]
 
 mod defined_non_null_js_value;
+pub mod deferred_destroy;
 mod ext_bindings;
 #[allow(clippy::allow_attributes)]
 mod webgpu_sys;
@@ -1239,6 +1240,16 @@ pub struct WebBuffer {
     mapping: Rc<RefCell<WebBufferMapState>>,
     /// Unique identifier for this Buffer.
     ident: crate::cmp::Identifier,
+    /// True iff the underlying `GpuBuffer` JS handle has been handed
+    /// out to JS-side code that may retain it independently of this
+    /// Rust wrapper (Pixi `ExternalSource`, Vello compute bind
+    /// groups, etc.). When set, `Drop` is a no-op — JS owns the
+    /// lifecycle; the explicit `free_render_texture` / similar paths
+    /// will eventually call `destroy()`. When unset, `Drop` queues
+    /// the handle for deferred destruction. Cleared = "Rust owns
+    /// the lifecycle alone." Shared across `Clone` so any later
+    /// extract pins every prior clone too.
+    extracted: Rc<Cell<bool>>,
 }
 
 impl WebBuffer {
@@ -1251,7 +1262,15 @@ impl WebBuffer {
                 range: 0..desc.size,
             })),
             ident: crate::cmp::Identifier::create(),
+            extracted: Rc::new(Cell::new(false)),
         }
+    }
+
+    /// Mark this buffer as extracted to JS — flips the shared flag
+    /// so `Drop` becomes a no-op. Call after handing the inner
+    /// `GpuBuffer` to JS code that may retain it independently.
+    pub fn mark_extracted(&self) {
+        self.extracted.set(true);
     }
 
     /// Obtains a reference to the re-usable buffer mapping as a Javascript array view.
@@ -1284,6 +1303,28 @@ pub struct WebTexture {
     pub inner: webgpu_sys::GpuTexture,
     /// Unique identifier for this Texture.
     ident: crate::cmp::Identifier,
+    /// See `WebBuffer::extracted` — true iff this texture's JS handle
+    /// has been handed to JS-side consumers (Pixi `ExternalSource`,
+    /// Vello compute bind groups, etc.) that may retain it
+    /// independently of this Rust wrapper. When set, `Drop` is a
+    /// no-op — the explicit `free_render_texture` path will call
+    /// `destroy()`. When unset (Vello-internal staging textures
+    /// that never escape to JS), `Drop` records the handle in the
+    /// deferred-destroy queue, which `tickDeferredDestroys` drains
+    /// after a 2-tick settle, freeing GPU memory automatically.
+    /// Shared across `Clone` via `Rc<Cell<>>` so any later extract
+    /// pins every prior clone too.
+    extracted: Rc<Cell<bool>>,
+}
+
+impl WebTexture {
+    /// Mark this texture as extracted to JS — flips the shared flag
+    /// so `Drop` becomes a no-op. Call after handing the inner
+    /// `GpuTexture` to JS code that may retain it independently.
+    /// Idempotent.
+    pub fn mark_extracted(&self) {
+        self.extracted.set(true);
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -2336,6 +2377,7 @@ impl dispatch::DeviceInterface for WebDevice {
         WebTexture {
             inner: texture,
             ident: crate::cmp::Identifier::create(),
+            extracted: Rc::new(Cell::new(false)),
         }
         .into()
     }
@@ -2832,12 +2874,23 @@ impl dispatch::BufferInterface for WebBuffer {
 }
 impl Drop for WebBuffer {
     fn drop(&mut self) {
-        // Intentional no-op — same use-after-destroy concern as
-        // WebTexture's Drop. Vello's render path creates intermediate
-        // buffers whose lifetime ends before the command buffer that
-        // references them has been submitted; calling destroy() in
-        // Drop trips Chromium's validator and breaks rendering.
-        // Resource lifecycle is the caller's responsibility.
+        // Selective deferred destroy: pin-aware variant of the
+        // Round 5 attempt described in STEP_11_BRIDGE_NOTES.md.
+        //
+        // If `extracted` is set, the JS handle has been handed to
+        // JS-side code (Pixi, etc.) that may still hold an
+        // independent reference. Calling `destroy()` here would
+        // race Pixi's next submit. Defer to the explicit
+        // `free_*` paths.
+        //
+        // If `extracted` is unset, this is a Vello-internal staging
+        // buffer that never escaped to JS. Safe to enqueue for
+        // deferred destruction — the 2-tick settle in
+        // `tickDeferredDestroys` covers any in-flight wgpu command
+        // buffer that referenced this buffer at encode time.
+        if !self.extracted.get() {
+            deferred_destroy::record_buffer_drop(&self.inner);
+        }
     }
 }
 
@@ -2882,23 +2935,34 @@ impl dispatch::TextureInterface for WebTexture {
 }
 impl Drop for WebTexture {
     fn drop(&mut self) {
-        // Intentional no-op. Step 11 attempt at calling destroy()
-        // here triggered "Destroyed texture used in a submit"
-        // validation errors in Chrome/WebKit — Vello / wgpu construct
-        // intermediate wgpu::Texture wrappers around staging resources
-        // that drop AFTER their command buffer is built but BEFORE
-        // `queue.submit()` is executed. Even though the WebGPU spec
-        // permits destroy() under in-flight commands, Chromium's
-        // validator rejects the affected submission so any rendering
-        // dependent on those textures gets dropped on the floor.
+        // Selective deferred destroy — the refinement Round 5
+        // (STEP_11_BRIDGE_NOTES.md) didn't try. The bug Round 5 hit
+        // was queueing destroy() for textures Pixi still held; the
+        // pin flag distinguishes those from Vello-internal staging
+        // textures that never escape to JS.
         //
-        // Resource lifecycle MUST stay explicit: call
-        // `texture.destroy()` from `free_render_texture` etc. after
-        // a 2-tick settle so Pixi/Vello have finished sampling.
-        // Vello internal textures continue to leak through this no-op
-        // — eliminating that leak requires the bridge migration
-        // (separate GPUDevice for Pixi + ImageBitmap handoff), which
-        // is the full architectural Step 11.
+        // `extracted == true`:
+        //   JS-visible texture. Its lifecycle is managed by the
+        //   explicit `free_render_texture` /
+        //   `dispose_swf_spell_instance` paths (which already
+        //   destroy() after a 2-tick settle on the Pixi side). Drop
+        //   here is a no-op — auto-destroying would race Pixi's
+        //   in-flight submit.
+        //
+        // `extracted == false`:
+        //   Vello-internal staging texture, dropped at the end of
+        //   `render_to_texture`. Nobody else holds the JS handle.
+        //   Queue the destroy; `tickDeferredDestroys(min_age=2)`
+        //   will fire it once the GPU has consumed any command
+        //   buffer that encoded this texture at scene-build time.
+        //
+        // This is what historically leaked through the no-op Drop —
+        // each Vello render allocated intermediate staging textures
+        // and they accumulated for the renderer's lifetime
+        // (~700-800 MB plateau at stress-test scale).
+        if !self.extracted.get() {
+            deferred_destroy::record_texture_drop(&self.inner);
+        }
     }
 }
 
@@ -3975,6 +4039,9 @@ impl dispatch::SurfaceInterface for WebSurface {
         let web_surface_texture = WebTexture {
             inner: surface_texture,
             ident: crate::cmp::Identifier::create(),
+            // Surface textures are owned by the Surface object and
+            // can't be `destroy()`ed — pin them so Drop is a no-op.
+            extracted: Rc::new(Cell::new(true)),
         };
 
         (

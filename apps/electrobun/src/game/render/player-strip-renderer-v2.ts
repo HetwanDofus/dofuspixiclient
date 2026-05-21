@@ -270,6 +270,45 @@ export class PlayerStripRendererV2 {
    * Once the Promise resolves true, the strip is hot and the next
    * action can fire.
    */
+  /**
+   * Fire-and-forget background atlas warm-up. Called once per class
+   * (gfxId) from the sprite controller after the first bot of that
+   * class spawns. Routes through the SAME bake queue as live
+   * acquires, so the adaptive budget throttles them on busy frames.
+   *
+   * No bot state is touched. The atlas lands in the cache with
+   * refcount=0 (we immediately release after acquire). LRU-eligible
+   * but available for the first actual hit, which is the whole win:
+   * the bot's first `walkR` request becomes a cache HIT instead of
+   * a JS-blocking Vello compute on a mid-frame rAF.
+   */
+  prewarmAtlas(
+    animation: CharacterAnimation,
+    _animName: string,
+    flipped: boolean,
+  ): void {
+    this.cache.acquireBodyAtlas(
+      {
+        bundle: animation.bundle,
+        exportName: animation.exportName,
+        start: 0,
+        count: animation.frameCount,
+        totalFrameCount: animation.frameCount,
+        resolution: this.resolution,
+        applyBFix: flipped,
+      },
+      (atlas) => {
+        // Drop the refcount we just added. Atlas stays in cache for
+        // the first live acquire to hit.
+        if (atlas) this.cache.releaseBodyAtlas(atlas);
+      },
+      // Always wanted — we want this baked unconditionally. If the
+      // queue is overwhelmed and the bake gets stale, the queue's
+      // stale-skip path will free without us hitting the callback.
+      () => true,
+    );
+  }
+
   applyAnimation(
     player: ActivePlayer,
     slot: PlayerStripSlot,
@@ -601,35 +640,58 @@ export class PlayerStripRendererV2 {
 
     const nextAtlas = pending.atlas ?? null;
 
-    // 1. Release prior live state. The old atlas ref drops here; if
-    //    its refcount goes to 0 it becomes eligible for LRU eviction
-    //    via the cache's standard retire flow.
-    for (const band of st.bands) {
-      if (band.mesh) band.mesh.destroy();
-    }
+    // 1. Release the old atlas's refcount (eligible for LRU when 0).
+    //    The MESH instances themselves are reused below — see (2).
     if (st.atlas) {
       this.cache.releaseBodyAtlas(st.atlas);
     }
 
-    // 2. Build new band hooks if the atlas bake succeeded. Each band
-    //    points at the SAME atlas texture pair; the BodyBandMesh
-    //    handles UV math to address its own sub-region.
+    // 2. Mesh reuse: instead of destroy+create, call setStrip() on
+    //    existing meshes to swap textures + UVs in place. Saves the
+    //    per-anim-change cost of:
+    //      - 4× new Shader (Pixi pipeline + bind group lookup),
+    //      - 4× new Geometry + Buffers (GPU alloc),
+    //      - 4× new Mesh wrapper (JS allocation),
+    //    plus the matching destroys. At 200 bots × frequent anim
+    //    transitions that's the bulk of the Pixi-side churn.
+    //
+    //    If band counts differ between old/new, destroy/create the
+    //    delta only.
     const newBands: BandHook[] = [];
     if (nextAtlas) {
-      for (const bandInfo of nextAtlas.bands) {
-        const mesh = new BodyBandMesh(nextAtlas, bandInfo, st.zones);
-        mesh.mesh.zIndex = bandInfo.bandIndex * 2;
-        st.root.addChild(mesh.mesh);
+      const newBandCount = nextAtlas.bands.length;
+      const oldBandCount = st.bands.length;
+      for (let i = 0; i < newBandCount; i++) {
+        const bandInfo = nextAtlas.bands[i];
+        const existing = i < oldBandCount ? st.bands[i].mesh : null;
+        let mesh: BodyBandMesh;
+        if (existing) {
+          existing.setStrip(nextAtlas, bandInfo);
+          existing.mesh.zIndex = bandInfo.bandIndex * 2;
+          mesh = existing;
+        } else {
+          mesh = new BodyBandMesh(nextAtlas, bandInfo, st.zones);
+          mesh.mesh.zIndex = bandInfo.bandIndex * 2;
+          st.root.addChild(mesh.mesh);
+        }
         newBands.push({ bandIndex: bandInfo.bandIndex, mesh });
       }
+      // Destroy any leftover meshes if the new anim has fewer bands.
+      for (let i = newBandCount; i < oldBandCount; i++) {
+        const old = st.bands[i].mesh;
+        if (old) old.destroy();
+      }
       // Picking shim: hit-test reads from the atlas. The bands all
-      // share frame size + anchor so AABB matches the live render;
-      // alpha-test now covers EVERY band (full silhouette), not
-      // just band 0 like the per-strip era.
+      // share frame size + anchor so AABB matches the live render.
       st.hitSprite.texture = nextAtlas.colorTexture;
       const fw = nextAtlas.frameWidth || 1;
       const fh = nextAtlas.frameHeight || 1;
       st.hitSprite.anchor.set(nextAtlas.anchorX / fw, nextAtlas.anchorY / fh);
+    } else {
+      // Atlas bake failed — tear down all existing meshes.
+      for (const band of st.bands) {
+        if (band.mesh) band.mesh.destroy();
+      }
     }
     st.bands = newBands;
     st.atlas = nextAtlas;
@@ -717,9 +779,19 @@ export class PlayerStripRendererV2 {
     // anchor (Pixi `Sprite.anchor`) accounts for the accessory's own
     // local origin offset; the mount affine then positions that
     // origin inside the per-bot container's coord space.
+    //
+    // Mutate the pooled scratch Matrix in place instead of `new
+    // Matrix(...)`. At 300 bots × ~3 accessories × 60 fps that's
+    // ~54 000 Matrix allocations/sec saved → meaningfully less JS
+    // heap churn → fewer GC pauses (a major source of frame spikes).
     const scale = this.resolution / 20;
-    const pixelMatrix = new Matrix(m.a, m.b, m.c, m.d, m.tx * scale, m.ty * scale);
-    acc.sprite.setFromMatrix(pixelMatrix);
+    pixelMatrixScratch.a = m.a;
+    pixelMatrixScratch.b = m.b;
+    pixelMatrixScratch.c = m.c;
+    pixelMatrixScratch.d = m.d;
+    pixelMatrixScratch.tx = m.tx * scale;
+    pixelMatrixScratch.ty = m.ty * scale;
+    acc.sprite.setFromMatrix(pixelMatrixScratch);
   }
 
   private retireSlotState(st: SlotStateV2): void {
@@ -757,6 +829,11 @@ export class PlayerStripRendererV2 {
 
 // Scratch object reused across accessory tick updates to avoid GC.
 const mountScratch = { a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0 };
+
+// Pooled Pixi Matrix instance used by `applyMountToAccessory` — see
+// the comment there. Module-level so it's shared across every
+// PlayerStripRendererV2 instance (in practice there's only one).
+const pixelMatrixScratch = new Matrix();
 
 // Silence unused import warning when `MAX_SLOT` reference is removed in
 // future cleanup. Kept as a compile-time tap so this module flags if

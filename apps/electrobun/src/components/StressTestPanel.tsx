@@ -14,6 +14,10 @@ interface WindowStressGlobals {
   spawnTestPlayers?: (n: number) => Promise<number[]>;
   despawnTestPlayers?: () => number;
   __getTestPlayerCount?: () => number;
+  __copyStressSnapshot?: () => Promise<boolean>;
+  __copyStressHistory?: () => Promise<boolean>;
+  __downloadStressHistory?: () => void;
+  __resetStressHistory?: () => void;
 }
 
 const DEFAULT_SPAWN = 50;
@@ -83,6 +87,40 @@ export function StressTestPanel() {
       // eslint-disable-next-line no-console
       console.error("[StressTestPanel] despawn failed:", e);
     }
+  }, []);
+
+  // Snapshot capture buttons. Pipe-friendly:
+  //  • Copy → puts the latest text block on the clipboard.
+  //  • Save → downloads the full rolling history as
+  //    `stress-monitor-<ts>.log` (line-per-snapshot JSON).
+  //  • Reset → drops the history buffer so a fresh test run produces
+  //    a clean dump.
+  const [copyHint, setCopyHint] = useState<string | null>(null);
+  const handleCopy = useCallback(async () => {
+    const w = window as unknown as WindowStressGlobals;
+    if (!w.__copyStressSnapshot) return;
+    const ok = await w.__copyStressSnapshot();
+    setCopyHint(ok ? "copied" : "failed");
+    setTimeout(() => setCopyHint(null), 1_500);
+  }, []);
+  const handleCopyHistory = useCallback(async () => {
+    const w = window as unknown as WindowStressGlobals;
+    if (!w.__copyStressHistory) return;
+    const ok = await w.__copyStressHistory();
+    setCopyHint(ok ? "copied" : "failed");
+    setTimeout(() => setCopyHint(null), 1_500);
+  }, []);
+  const handleDownload = useCallback(() => {
+    const w = window as unknown as WindowStressGlobals;
+    if (!w.__downloadStressHistory) return;
+    w.__downloadStressHistory();
+  }, []);
+  const handleReset = useCallback(() => {
+    const w = window as unknown as WindowStressGlobals;
+    if (!w.__resetStressHistory) return;
+    w.__resetStressHistory();
+    setCopyHint("reset");
+    setTimeout(() => setCopyHint(null), 1_500);
   }, []);
 
   if (!available) {
@@ -198,6 +236,90 @@ export function StressTestPanel() {
               Despawn
             </button>
           </div>
+          {/* Log capture row — copy current snapshot or download
+              full history as a parseable JSONL file. */}
+          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+            <button
+              type="button"
+              onClick={handleCopy}
+              title="Copy latest stress monitor snapshot to clipboard"
+              style={{
+                background: "#003366",
+                color: "#9cf",
+                border: "1px solid #336699",
+                borderRadius: 3,
+                padding: "3px 6px",
+                font: "inherit",
+                cursor: "pointer",
+                flex: 1,
+              }}
+            >
+              Copy
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyHistory}
+              title="Copy full snapshot history to clipboard (JSONL)"
+              style={{
+                background: "#003366",
+                color: "#9cf",
+                border: "1px solid #336699",
+                borderRadius: 3,
+                padding: "3px 6px",
+                font: "inherit",
+                cursor: "pointer",
+                flex: 1,
+              }}
+            >
+              CopyAll
+            </button>
+            <button
+              type="button"
+              onClick={handleDownload}
+              title="Download snapshot history as a .log file"
+              style={{
+                background: "#003366",
+                color: "#9cf",
+                border: "1px solid #336699",
+                borderRadius: 3,
+                padding: "3px 6px",
+                font: "inherit",
+                cursor: "pointer",
+                flex: 1,
+              }}
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={handleReset}
+              title="Clear snapshot history buffer"
+              style={{
+                background: "#333",
+                color: "#ccc",
+                border: "1px solid #555",
+                borderRadius: 3,
+                padding: "3px 6px",
+                font: "inherit",
+                cursor: "pointer",
+                flex: 0,
+              }}
+            >
+              Reset
+            </button>
+          </div>
+          {copyHint && (
+            <div
+              style={{
+                color: copyHint === "failed" ? "#f88" : "#9cf",
+                marginTop: 4,
+                fontSize: 11,
+                textAlign: "center",
+              }}
+            >
+              {copyHint}
+            </div>
+          )}
         </>
       )}
     </div>

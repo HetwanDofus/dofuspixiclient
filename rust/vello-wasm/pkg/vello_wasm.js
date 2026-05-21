@@ -873,6 +873,17 @@ export class VelloRenderer {
         return ret;
     }
     /**
+     * Diagnostics: how many `wgpu::Texture`s we hold in
+     * `self.textures` (every render target the Vello side has
+     * outstanding). Useful for cross-checking the JS-side
+     * `liveRenderTextureIds` set.
+     * @returns {number}
+     */
+    rustTexturesCount() {
+        const ret = wasm.vellorenderer_rustTexturesCount(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
      * Set the player's three zone colours used by the SWF render path.
      * Each value is `0xRRGGBB`; pass `0` to leave that zone untinted.
      * Mirrors what the dofasset path does via `build_color_replacements`
@@ -929,9 +940,18 @@ export class VelloRenderer {
     }
     /**
      * One-shot lookup for a body export's slot/band layout. Returns
-     * `{ slotCount, bandCount, slots: [{ slot, depth }, ...] }`. JS
-     * uses this to decide how many bands to bake per (bundle,
-     * export) and which Z order to stack them in.
+     * `{ slotCount, bandCount, slots: [{ slot, depth }, ...],
+     * bFixUsed }`. JS uses this to decide how many bands to bake per
+     * (bundle, export) and which Z order to stack them in.
+     *
+     * `bFixUsed` reports whether ANY of this character's accessory
+     * mount declarations have `b_fix = true`. When false, the body
+     * bake is pixel-identical with `apply_b_fix = true` vs `false`
+     * (the sprite walker only acts on bFix for placements whose
+     * mount declares `b_fix=true` — without any such mount, the
+     * override is a no-op). JS uses this to collapse the bake-key's
+     * `applyBFix` dimension for characters without capes/shields,
+     * roughly halving bakes on those classes.
      * @param {string} bundle
      * @param {string} _export
      * @returns {any}
@@ -1108,6 +1128,31 @@ export class VelloRenderer {
         }
     }
     /**
+     * Step-11 deferred-destroy tick. JS calls this once per Pixi
+     * shared-ticker tick. It advances the patched-fork's frame
+     * counter and calls `GPUTexture.destroy()` /
+     * `GPUBuffer.destroy()` on every Rust-side wgpu resource that
+     * was dropped at least `min_age_frames` ticks ago — past
+     * WebGPU's submission completion window, so destroying now is
+     * safe.
+     *
+     * `max_destroys_per_tick` caps the per-tick destroy count so a
+     * burst (anim transitions, cache evictions) doesn't stall a
+     * single rAF.
+     *
+     * Returns `[texturesDestroyed, buffersDestroyed,
+     * texturesPending, buffersPending]` for diagnostics.
+     * @param {number} min_age_frames
+     * @param {number} max_destroys_per_tick
+     * @returns {Uint32Array}
+     */
+    tickDeferredDestroys(min_age_frames, max_destroys_per_tick) {
+        const ret = wasm.vellorenderer_tickDeferredDestroys(this.__wbg_ptr, min_age_frames, max_destroys_per_tick);
+        var v1 = getArrayU32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
      * Tick the spell's AVM1 by one frame, render the new state into the
      * pre-allocated output texture, and report whether the cast is still
      * active. JS calls this on its rAF loop (rate-limited by the SWF's
@@ -1124,6 +1169,16 @@ export class VelloRenderer {
      */
     tickSwfSpellFrame(instance_id) {
         const ret = wasm.vellorenderer_tickSwfSpellFrame(this.__wbg_ptr, instance_id);
+        return ret;
+    }
+    /**
+     * Diagnostics: WASM linear-memory size in bytes. Tracks how
+     * much memory the Rust side itself is consuming (excluding GPU
+     * resources, which live in the browser GPU process).
+     * @returns {number}
+     */
+    wasmHeapBytes() {
+        const ret = wasm.vellorenderer_wasmHeapBytes(this.__wbg_ptr);
         return ret;
     }
 }
@@ -1248,6 +1303,9 @@ function __wbg_get_imports() {
             return ret;
         }, arguments); },
         __wbg_destroy_5c63d60a4ce171f5: function(arg0) {
+            arg0.destroy();
+        },
+        __wbg_destroy_cc5bf33a04815475: function(arg0) {
             arg0.destroy();
         },
         __wbg_dispatchWorkgroupsIndirect_0b5aa70af5409bf1: function(arg0, arg1, arg2) {
@@ -2024,7 +2082,7 @@ function __wbg_get_imports() {
             arg0.writeTexture(arg1, arg2, arg3, arg4);
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 194, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 193, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h095281891b062598);
             return ret;
         },

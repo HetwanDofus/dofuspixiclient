@@ -216,6 +216,13 @@ fn recolor_to_zone(orig: vec3<f32>, tgt: vec3<f32>) -> vec3<f32> {
 fn mainFragment(
   @location(0) vUv: vec2<f32>,
 ) -> @location(0) vec4<f32> {
+  // Direct GPUTexture path: Vello writes STRAIGHT alpha (its
+  // fine.wgsl un-premultiplies before the final textureStore) and
+  // Pixi samples this texture directly via ExternalSource. With
+  // alphaMode "no-premultiply-alpha" Pixi's NORMAL blend mode uses
+  // NPM factors (srcAlpha, 1-srcAlpha) which is the correct
+  // composite for straight RGB — so we just sample, recolor, and
+  // return straight RGB without any pre/un-premultiply gymnastics.
   let colour = textureSample(uBodyTex, uBodySamp, vUv);
   // Sample zone-id with NEAREST so AA-smeared boundaries can't
   // produce intermediate ids. The R channel carries zone_id * 60
@@ -313,6 +320,8 @@ vec3 recolor_to_zone(vec3 orig, vec3 target) {
 }
 
 void main() {
+  // Direct GPU path: Vello writes straight alpha; Pixi NPM blend.
+  // Sample, recolor, return straight RGB.
   vec4 colour = texture(uBodyTex, vUv);
   float zid_r = texture(uZoneTex, vUv).r;
   int id = int(zid_r * 255.0 + 0.5) / 60;
@@ -454,6 +463,17 @@ export class BodyBandMesh {
   private uvData: Float32Array;
   private atlas: BodyAtlas;
   private band: BodyAtlasBand;
+  /**
+   * Tracks the last frame index passed to setFrame. swapFrame calls
+   * setFrame every Pixi tick regardless of whether `player.frameIndex`
+   * advanced (most static anims have frameCount=1, so `idx % 1 = 0`
+   * every tick → would otherwise rewrite UVs + trigger a buffer
+   * upload every frame for no reason). At 300 bots × 4 bands × 60 fps
+   * that's 72 000 redundant buffer.update() calls per second.
+   * Initialised to -1 so the FIRST setFrame call after construction
+   * (which always passes frame 0) is not skipped.
+   */
+  private lastFrame: number = -1;
 
   constructor(
     atlas: BodyAtlas,
@@ -516,10 +536,17 @@ export class BodyBandMesh {
     this.mesh.pivot.set(nextAtlas.anchorX, nextAtlas.anchorY);
     writeAtlasFrameUvs(this.uvData, nextAtlas, nextBand, 0);
     this.uvBuffer.update();
+    // Atlas swap re-initialises the UVs to frame 0; remember that
+    // so the next setFrame(0) is correctly skipped as a no-op.
+    this.lastFrame = 0;
   }
 
   /** O(1) per-tick frame swap — rewrites only 8 floats then dirties. */
   setFrame(frameIndex: number): void {
+    if (frameIndex === this.lastFrame) {
+      return;
+    }
+    this.lastFrame = frameIndex;
     writeAtlasFrameUvs(this.uvData, this.atlas, this.band, frameIndex);
     this.uvBuffer.update();
   }
