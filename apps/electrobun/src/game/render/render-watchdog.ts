@@ -37,8 +37,19 @@ const FRAME_HISTORY = 600; // 10s at 60fps
 const SLOW_FRAME_MS = 33.4;
 /** Above this frame time the frame is considered "stalled" (below 10fps). */
 const STALL_FRAME_MS = 100;
-/** Three consecutive stalled frames trip the auto-halt. */
-const AUTO_HALT_STALL_RUN = 3;
+/**
+ * Consecutive stalled frames before auto-halt fires.
+ *
+ * Bumped from 3 → 30: under the Step 11 bridge migration,
+ * `transferToImageBitmap` is a synchronous GPU sync point per bake
+ * (~5-15ms each) and a burst at battlefield/character first-load can
+ * legitimately exceed 100 ms for several frames in a row while the
+ * cache warms. Auto-halting in that window leaves the player + tiles
+ * invisible until manual resume. 30 ticks (~500ms at 60fps when not
+ * stalling, longer when stalling) is enough headroom for warmup
+ * while still catching a real runaway-stall scenario.
+ */
+const AUTO_HALT_STALL_RUN = 30;
 /** Texture count above this triggers a warning. */
 const TEXTURE_COUNT_WARN = 2048;
 /**

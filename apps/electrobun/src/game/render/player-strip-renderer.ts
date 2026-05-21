@@ -28,7 +28,7 @@
  * before the wgpu storage is reclaimed).
  */
 import {
-  ExternalSource,
+  ImageSource,
   Rectangle,
   type Renderer,
   Sprite,
@@ -39,9 +39,10 @@ import type { CharacterAnimation } from "@/game/assets/character-sprite";
 import type { ActivePlayer } from "@/game/scene/player/types";
 import {
   type AccessoryRenderEntry,
-  freeRenderTexture,
+  getPixiRenderer,
   renderSwfStripRangeAccessorized,
   setSwfPlayerColors,
+  uploadAndCloseBitmap,
   type VelloSwfStripResult,
 } from "@/game/render/vello-loader";
 import {
@@ -85,9 +86,9 @@ interface SlotState {
   sprite: Sprite;
   /** Pre-allocated per-frame sub-rect Textures sharing currentSource. */
   currentFrames: Texture[] | null;
-  /** ExternalSource wrapping the current Vello-rendered strip composite. */
-  currentSource: ExternalSource | null;
-  /** wgpu textureId for the strip composite (paired with freeRenderTexture). */
+  /** ImageSource wrapping the current Vello-rendered strip composite bitmap. */
+  currentSource: ImageSource | null;
+  /** Unused under bridge path. Retained as placeholder for type compatibility. */
   currentTextureId: number;
   /** Anim key currently INSTALLED on the sprite. */
   currentAnimKey: string;
@@ -137,10 +138,11 @@ export class PlayerStripRendererLegacy {
   /** playerId → slot → SlotState. */
   private states = new Map<number, Map<PlayerStripSlot, SlotState>>();
   private resolution: number;
-  private pixiRenderer: Renderer;
 
-  constructor(pixiRenderer: Renderer, resolution = 3) {
-    this.pixiRenderer = pixiRenderer;
+  constructor(_pixiRenderer: Renderer, resolution = 3) {
+    // Bridge path: Pixi resource creation no longer needs the
+    // renderer reference (ImageSource takes a bitmap, not a
+    // device-bound renderer). Param kept for API stability.
     this.resolution = Math.max(1, resolution);
   }
 
@@ -334,7 +336,7 @@ export class PlayerStripRendererLegacy {
       if (state.requestedAnimKey !== key) {
         if (strip) {
           try {
-            freeRenderTexture(strip.textureId);
+            strip.bitmap.close();
           } catch {}
         }
         return;
@@ -387,17 +389,16 @@ export class PlayerStripRendererLegacy {
     strip: VelloSwfStripResult,
     key: string
   ): void {
-    const source = new ExternalSource({
-      resource: strip.texture,
-      renderer: this.pixiRenderer,
+    const source = new ImageSource({
+      resource: strip.bitmap,
       width: strip.width,
       height: strip.height,
       label: `player-strip-${player.id}-${slot}-${animName}`,
+      alphaMode: "premultiply-alpha-on-upload",
+      scaleMode: "linear",
+      autoGarbageCollect: false,
     });
-    source.alphaMode = "no-premultiply-alpha";
-    source.format = "rgba8unorm";
-    source.scaleMode = "linear";
-    source.autoGarbageCollect = false;
+    uploadAndCloseBitmap(getPixiRenderer(), source, strip.bitmap);
     // NOTE: `source.resolution` is not set. Pixi treats it as a
     // pixel-density multiplier that shrinks rendered output by 1/N;
     // combined with our `sprite.scale = 1/this.resolution` that would
@@ -431,14 +432,13 @@ export class PlayerStripRendererLegacy {
     // growth comes from.
     const oldSource = state.currentSource;
     const oldFrames = state.currentFrames;
-    const oldTextureId = state.currentTextureId;
-    if (oldSource && oldTextureId) {
-      this.scheduleRetire(oldFrames, oldSource, oldTextureId);
+    if (oldSource) {
+      this.scheduleRetire(oldFrames, oldSource);
     }
 
     state.currentFrames = frames;
     state.currentSource = source;
-    state.currentTextureId = strip.textureId;
+    state.currentTextureId = 0;
     state.currentAnimKey = key;
     state.lastAnimation = animation;
     state.lastAnimName = animName;
@@ -455,8 +455,7 @@ export class PlayerStripRendererLegacy {
    */
   private scheduleRetire(
     frames: Texture[] | null,
-    source: ExternalSource,
-    textureId: number,
+    source: ImageSource,
   ): void {
     setTimeout(() => {
       if (frames) {
@@ -468,10 +467,12 @@ export class PlayerStripRendererLegacy {
           } catch {}
         }
       }
+      // Bridge path: destroying the ImageSource cascades to Pixi's
+      // uploaded GPUTexture. The Rust-side `wgpu::Texture` already
+      // dropped at end of the bake and queued into deferred destroy.
       try {
         source.destroy();
       } catch {}
-      freeRenderTexture(textureId);
     }, RETIRE_DELAY_MS);
   }
 
@@ -620,8 +621,9 @@ export class PlayerStripRendererLegacy {
       state.sprite.parent?.removeChild(state.sprite);
       state.sprite.destroy();
     } catch {}
-    if (oldSource && oldTextureId) {
-      this.scheduleRetire(oldFrames, oldSource, oldTextureId);
+    if (oldSource) {
+      this.scheduleRetire(oldFrames, oldSource);
     }
+    void oldTextureId;
   }
 }

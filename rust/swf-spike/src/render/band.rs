@@ -46,6 +46,7 @@ pub fn render_body_band(
     player_colors: PlayerColors,
     cache: &RenderCache,
     apply_b_fix: bool,
+    hat_equipped: bool,
 ) {
     let inner = WgpuCtx {
         device: wgpu.device,
@@ -62,6 +63,7 @@ pub fn render_body_band(
         .with_b_fix(apply_b_fix)
         .with_band_filter(band)
         .with_disable_accessories(true)
-        .with_output_mode(output_mode);
+        .with_output_mode(output_mode)
+        .with_hat_equipped(hat_equipped);
     render_symbol_into(&mut ctx, sym);
 }

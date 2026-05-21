@@ -21,7 +21,7 @@
  */
 import {
   type Container,
-  ExternalSource,
+  ImageSource,
   Rectangle,
   type Renderer,
   Sprite,
@@ -30,9 +30,10 @@ import {
 
 import { ROT_SCALE_X, ROT_SCALE_Y } from "@/game/constants/battlefield";
 import {
-  freeRenderTexture,
+  getPixiRenderer,
   renderSwfFrame,
   renderSwfTileDynamicStripRange,
+  uploadAndCloseBitmap,
 } from "@/game/render/vello-loader";
 import { createLogger } from "@/utils/logger";
 
@@ -124,8 +125,7 @@ const RETIRE_DELAY_MS = 2 * TICK_INTERVAL_MS;
  * (same map, same tile, same density) share the bake.
  */
 interface CachedTileSource {
-  source: ExternalSource;
-  textureId: number;
+  source: ImageSource;
   /** Per-frame Texture instances; length = frameCount. For
    *  single-frame tiles, length 1 with `frames[0]` covering the
    *  whole source. */
@@ -233,7 +233,6 @@ function applyMatrix(
 
 export class TileSpriteRenderer {
   private states = new Map<string, TileSpriteState>();
-  private pixiRenderer: Renderer;
   private groundLayer: Container;
   private object1Layer: Container;
   private object2Layer: Container;
@@ -255,12 +254,13 @@ export class TileSpriteRenderer {
   private tileResolution = DEFAULT_TILE_RESOLUTION;
 
   constructor(
-    pixiRenderer: Renderer,
+    _pixiRenderer: Renderer,
     groundLayer: Container,
     object1Layer: Container,
     object2Layer: Container
   ) {
-    this.pixiRenderer = pixiRenderer;
+    // Bridge path: Pixi resource creation no longer needs the
+    // renderer reference (ImageSource takes a bitmap directly).
     this.groundLayer = groundLayer;
     this.object1Layer = object1Layer;
     this.object2Layer = object2Layer;
@@ -336,23 +336,21 @@ export class TileSpriteRenderer {
   ): CachedTileSource | null {
     const result = renderSwfFrame(bundle, exportName, frame, resolution);
     if (!result) return null;
-    const source = new ExternalSource({
-      resource: result.texture,
-      renderer: this.pixiRenderer,
+    const source = new ImageSource({
+      resource: result.bitmap,
       width: result.width,
       height: result.height,
       label: `tile-${bundle}:${exportName}@${frame}@${resolution}`,
+      alphaMode: "premultiply-alpha-on-upload",
+      scaleMode: "linear",
+      autoGarbageCollect: false,
     });
-    source.alphaMode = "no-premultiply-alpha";
-    source.format = "rgba8unorm";
-    source.scaleMode = "linear";
-    source.autoGarbageCollect = false;
+    uploadAndCloseBitmap(getPixiRenderer(), source, result.bitmap);
     const texture = new Texture({ source });
     const anchorFracX = result.width > 0 ? result.anchorX / result.width : 0;
     const anchorFracY = result.height > 0 ? result.anchorY / result.height : 0;
     return {
       source,
-      textureId: result.textureId,
       frames: [texture],
       anchorFracX,
       anchorFracY,
@@ -383,17 +381,16 @@ export class TileSpriteRenderer {
       resolution,
     );
     if (!result) return null;
-    const source = new ExternalSource({
-      resource: result.texture,
-      renderer: this.pixiRenderer,
+    const source = new ImageSource({
+      resource: result.bitmap,
       width: result.width,
       height: result.height,
       label: `tile-strip-${bundle}:${exportName}@${resolution}`,
+      alphaMode: "premultiply-alpha-on-upload",
+      scaleMode: "linear",
+      autoGarbageCollect: false,
     });
-    source.alphaMode = "no-premultiply-alpha";
-    source.format = "rgba8unorm";
-    source.scaleMode = "linear";
-    source.autoGarbageCollect = false;
+    uploadAndCloseBitmap(getPixiRenderer(), source, result.bitmap);
 
     // Slice the strip into per-frame Texture objects. Each cell is
     // (frameWidth × frameHeight); cells stack left-to-right then
@@ -418,7 +415,6 @@ export class TileSpriteRenderer {
       result.frameHeight > 0 ? result.anchorY / result.frameHeight : 0;
     return {
       source,
-      textureId: result.textureId,
       frames,
       anchorFracX,
       anchorFracY,
@@ -427,9 +423,9 @@ export class TileSpriteRenderer {
 
   /**
    * Drop a refcount against `cacheKey`. When it falls to 0 schedule
-   * the source + GPU texture for retire after a settle delay so any
-   * in-flight Pixi render pass that still references the source
-   * finishes before its memory disappears.
+   * the source for retire after a settle delay so any in-flight
+   * Pixi render pass that still references the source finishes
+   * before its memory disappears.
    */
   private releaseCachedTile(cacheKey: string): void {
     const next = (this.cacheRefs.get(cacheKey) ?? 0) - 1;
@@ -441,12 +437,15 @@ export class TileSpriteRenderer {
     const entry = this.tileCache.get(cacheKey);
     if (!entry) return;
     this.tileCache.delete(cacheKey);
-    const { source, textureId } = entry;
+    const { source } = entry;
     setTimeout(() => {
+      // Bridge path: destroying the ImageSource cascades to its
+      // uploaded Pixi GPUTexture. The Rust-side `wgpu::Texture`
+      // already dropped at end of the bake and feeds deferred
+      // destroy on its own — no `freeRenderTexture` plumbing.
       try {
         source.destroy();
       } catch {}
-      freeRenderTexture(textureId);
     }, RETIRE_DELAY_MS);
   }
 

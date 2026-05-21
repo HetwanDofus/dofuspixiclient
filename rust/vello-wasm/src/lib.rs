@@ -137,6 +137,12 @@ pub struct VelloRenderer {
     /// in-place when callers ask for different dims, so the hot path
     /// avoids the ~10ms canvas+surface allocation cost per bake.
     bridge_canvas_pool: Option<bitmap_bridge::BridgeCanvasPool>,
+    /// Lazy-initialised pipeline that combines a body atlas's separate
+    /// colour + zone textures into a single Rgba8Unorm output, with
+    /// the zone-id packed into the low 2 bits of the alpha channel.
+    /// Lets `renderSwfBodyAtlas` return ONE bitmap+source instead of
+    /// two — halves the body atlas working set on the Pixi side.
+    combine_body_pipeline: Option<bitmap_bridge::CombineBodyPipeline>,
     assets: HashMap<u32, DofAsset>,
     textures: HashMap<u64, wgpu::Texture>,
     next_texture_id: u64,
@@ -494,6 +500,7 @@ impl VelloRenderer {
             renderer,
             blit_bgra_pipeline: None,
             bridge_canvas_pool: None,
+            combine_body_pipeline: None,
             assets: HashMap::new(),
             textures: HashMap::new(),
             next_texture_id: 0,
@@ -572,6 +579,60 @@ impl VelloRenderer {
             Err(e) => {
                 console_log!("VelloRenderer: SWF bundle `{}` parse failed: {e}", name);
                 false
+            }
+        }
+    }
+
+    /// Render a freshly-rendered Vello texture out through the
+    /// `bitmap_bridge` and return an `ImageBitmap` JsValue for Pixi
+    /// to consume via `ImageSource`. Lazy-inits the blit pipeline +
+    /// canvas pool the first time it's called.
+    ///
+    /// Lifecycle: the source `wgpu::Texture` is NOT extracted to JS
+    /// and NOT inserted into `self.textures`. It drops at end of the
+    /// caller's scope; the patched-fork's selective `Drop` queues it
+    /// into `deferred_destroy`, which `tickDeferredDestroys` drains
+    /// after a 2-tick settle. Net effect: no manual `freeRenderTexture`
+    /// call is required for bridge-output paths.
+    ///
+    /// Returns `JsValue::NULL` on init / bridge failure; the caller
+    /// surfaces that as a render error.
+    fn texture_to_bitmap(
+        &mut self,
+        texture: &wgpu::Texture,
+        width: u32,
+        height: u32,
+        err_label: &'static str,
+    ) -> Option<web_sys::ImageBitmap> {
+        if self.blit_bgra_pipeline.is_none() {
+            self.blit_bgra_pipeline = Some(bitmap_bridge::BlitPipeline::new(
+                &self.device,
+                wgpu::TextureFormat::Bgra8Unorm,
+            ));
+        }
+        if self.bridge_canvas_pool.is_none() {
+            match bitmap_bridge::BridgeCanvasPool::new(
+                &self.instance,
+                &self.device,
+                width,
+                height,
+            ) {
+                Ok(p) => self.bridge_canvas_pool = Some(p),
+                Err(e) => {
+                    console_log!("{err_label}: bridge pool init error: {e:?}");
+                    return None;
+                }
+            }
+        }
+        let blit = self.blit_bgra_pipeline.as_ref().unwrap();
+        let pool = self.bridge_canvas_pool.as_mut().unwrap();
+        match bitmap_bridge::render_texture_to_bitmap(
+            pool, &self.device, &self.queue, blit, texture, width, height,
+        ) {
+            Ok(b) => Some(b),
+            Err(e) => {
+                console_log!("{err_label}: bridge error: {e:?}");
+                None
             }
         }
     }
@@ -703,22 +764,16 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
 
-        let gpu_texture = extract_gpu_texture(&texture);
-        let tex_id = self.next_texture_id;
-        self.next_texture_id += 1;
-        self.textures.insert(tex_id, texture);
+        let Some(bitmap) = self.texture_to_bitmap(&texture, w, h, "renderSwfFrame") else {
+            return JsValue::NULL;
+        };
 
         // SWF (0,0) lands at (-px_min_x, -px_min_y) inside the texture.
         let anchor_x = -px_min_x;
         let anchor_y = -px_min_y;
 
         let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"textureId".into(),
-            &JsValue::from(tex_id as f64),
-        );
+        let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(h));
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(anchor_x));
@@ -827,9 +882,12 @@ impl VelloRenderer {
 
         // Wrap the doc's root timeline as a Symbol::Sprite — AvmRenderer
         // expects to walk from root, and a spell SWF's root just places
-        // the main sprite at depth 1.
+        // the main sprite at depth 1. Capture the SWF header fps here so
+        // we can drop the `doc` borrow before the `&mut self`
+        // `texture_to_bitmap` call below.
         let root_sym =
             swf_spike::swf_doc::Symbol::Sprite(doc.root.clone());
+        let doc_frame_rate = doc.frame_rate;
 
         let mut renderer =
             swf_spike::render_avm1::AvmRenderer::new(doc.root.num_frames);
@@ -893,18 +951,13 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
 
-        let gpu_texture = extract_gpu_texture(&texture);
-        let tex_id = self.next_texture_id;
-        self.next_texture_id += 1;
-        self.textures.insert(tex_id, texture);
+        let Some(bitmap) = self.texture_to_bitmap(&texture, strip_w, strip_h, "renderSwfSpellStrip")
+        else {
+            return JsValue::NULL;
+        };
 
         let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"textureId".into(),
-            &JsValue::from(tex_id as f64),
-        );
+        let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(strip_w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
         let _ =
@@ -927,7 +980,7 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(
             &result,
             &"fps".into(),
-            &JsValue::from(doc.frame_rate),
+            &JsValue::from(doc_frame_rate),
         );
         result.into()
     }
@@ -992,18 +1045,12 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
 
-        let gpu_texture = extract_gpu_texture(&texture);
-        let tex_id = self.next_texture_id;
-        self.next_texture_id += 1;
-        self.textures.insert(tex_id, texture);
+        let Some(bitmap) = self.texture_to_bitmap(&texture, w, h, "renderSwfSpellIcon") else {
+            return JsValue::NULL;
+        };
 
         let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"textureId".into(),
-            &JsValue::from(tex_id as f64),
-        );
+        let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(h));
         result.into()
@@ -1563,18 +1610,12 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
 
-        let gpu_texture = extract_gpu_texture(&texture);
-        let tex_id = self.next_texture_id;
-        self.next_texture_id += 1;
-        self.textures.insert(tex_id, texture);
+        let Some(bitmap) = self.texture_to_bitmap(&texture, w, h, "renderSwfRoot") else {
+            return JsValue::NULL;
+        };
 
         let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"textureId".into(),
-            &JsValue::from(tex_id as f64),
-        );
+        let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(h));
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
@@ -1893,10 +1934,11 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
 
-        let gpu_texture = extract_gpu_texture(&texture);
-        let tex_id = self.next_texture_id;
-        self.next_texture_id += 1;
-        self.textures.insert(tex_id, texture);
+        let Some(bitmap) =
+            self.texture_to_bitmap(&texture, strip_w, strip_h, "renderSwfStripRange")
+        else {
+            return JsValue::NULL;
+        };
 
         // Anchor (within-cell): SWF (0,0) lands at -px_min relative to each
         // cell's top-left. Same for every frame because we used a uniform
@@ -1905,12 +1947,7 @@ impl VelloRenderer {
         let anchor_y = -px_min_y;
 
         let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"textureId".into(),
-            &JsValue::from(tex_id as f64),
-        );
+        let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(strip_w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
         let _ =
@@ -1983,6 +2020,18 @@ impl VelloRenderer {
             let _ = js_sys::Reflect::set(&o, &"slot".into(), &JsValue::from(u32::from(s.slot)));
             let _ =
                 js_sys::Reflect::set(&o, &"depth".into(), &JsValue::from(u32::from(s.depth)));
+            // Canonical AS2 `applyAccessory(this, slot, side)` argument.
+            // JS uses this string verbatim as the `side` when baking
+            // the accessory's strip — passing the bot's facing `dir`
+            // instead silently routes walking-prefix sides like "WR"
+            // (cape walking right) to the wrong frame. `null` when the
+            // body's mount declaration omitted the side string (legacy
+            // SWFs).
+            let side_value = match &s.side {
+                Some(side) => JsValue::from_str(side),
+                None => JsValue::NULL,
+            };
+            let _ = js_sys::Reflect::set(&o, &"side".into(), &side_value);
             arr.push(&o.into());
         }
         // bFix is a no-op unless at least one mount declares `b_fix=true`.
@@ -2038,6 +2087,7 @@ impl VelloRenderer {
         total_frame_count: u32,
         resolution: f32,
         apply_b_fix: bool,
+        hat_equipped: bool,
     ) -> JsValue {
         const BAND_PADDING_PX: u32 = 2;
         if count == 0 || total_frame_count == 0 || start >= total_frame_count {
@@ -2059,6 +2109,15 @@ impl VelloRenderer {
             return JsValue::NULL;
         };
 
+        // Canonical Dofus body exports nest the actual body parts
+        // (and accessory mounts) inside an unnamed single-placement
+        // wrapper. The band split + filter operate on the WRAPPER's
+        // depth space; if we walked the body export itself we'd see
+        // 1 top-level placement (the wrapper) and 0 mounts → empty
+        // band split → all bands merge into 1 → JS can't interleave
+        // accessories. Descend through the wrapper chain.
+        let (effective_sym, effective_xform) =
+            swf_spike::render::find_effective_body_symbol(doc, symbol, 0);
         let slots = swf_spike::render::extract_slot_depths(doc, body, 0);
         let band_total = swf_spike::render::band_count(&slots);
         if band_total == 0 {
@@ -2165,18 +2224,24 @@ impl VelloRenderer {
                     let xform = vello::kurbo::Affine::scale(scale).then_translate(
                         vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y + cell_y),
                     );
+                    // Render the WRAPPER (effective body), with the
+                    // wrapper's own placement transform composed in.
+                    // This puts the band filter into the wrapper's
+                    // depth space — where the slot mounts live —
+                    // instead of the body export's empty depth space.
                     swf_spike::render::render_body_band(
                         &mut wctx,
                         doc,
-                        symbol,
+                        effective_sym,
                         &mut scene,
-                        xform,
+                        xform * effective_xform,
                         frame_idx as u16,
                         band,
                         mode,
                         player_colors,
                         &cache,
                         apply_b_fix,
+                        hat_equipped,
                     );
                 }
             }
@@ -2255,25 +2320,57 @@ impl VelloRenderer {
             return JsValue::NULL;
         };
 
-        // Direct GPUTexture path (NO bridge for body atlas). Vello
-        // and Pixi share the GPUDevice via the patched-wgpu fork, so
-        // Pixi can sample the Vello-output texture directly via
-        // `ExternalSource` — no extra blit pass, no surface.present
-        // GPU sync, no transferToImageBitmap sync, no
-        // copyExternalImageToTexture re-upload, no double GPU memory
-        // while bitmap + Pixi texture coexist. The bridge path is
-        // only needed for the future "drop the fork → upstream wgpu"
-        // ending of Step 11; memory-wise the bridge was a wash, but
-        // per-bake perf cost was substantial (4 GPU sync points per
-        // bake) and caused random 100-300 ms rAF spikes.
-        let colour_gpu = extract_gpu_texture(&colour_tex);
-        let zone_gpu = extract_gpu_texture(&zone_tex);
-        let colour_tex_id = self.next_texture_id;
-        self.next_texture_id += 1;
-        self.textures.insert(colour_tex_id, colour_tex);
-        let zone_tex_id = self.next_texture_id;
-        self.next_texture_id += 1;
-        self.textures.insert(zone_tex_id, zone_tex);
+        // Color+zone merge: run a single render pass that combines
+        // the two Vello-rendered temp textures into ONE Rgba8Unorm
+        // where the zone-id is packed into the low 2 bits of the
+        // alpha channel. Halves the Pixi-side working set vs. the
+        // previous two-texture approach. See
+        // `CombineBodyPipeline` for the encoding details.
+        if self.combine_body_pipeline.is_none() {
+            self.combine_body_pipeline =
+                Some(bitmap_bridge::CombineBodyPipeline::new(&self.device));
+        }
+        let combined_tex = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("vello_swf_body_atlas_combined"),
+            size: wgpu::Extent3d {
+                width: atlas_w,
+                height: atlas_h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        {
+            let combine = self.combine_body_pipeline.as_ref().unwrap();
+            let colour_view = colour_tex.create_view(&wgpu::TextureViewDescriptor::default());
+            let zone_view = zone_tex.create_view(&wgpu::TextureViewDescriptor::default());
+            let dst_view = combined_tex.create_view(&wgpu::TextureViewDescriptor::default());
+            let mut encoder = self
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("body-atlas-combine-encoder"),
+                });
+            combine.combine(&self.device, &mut encoder, &colour_view, &zone_view, &dst_view);
+            self.queue.submit(std::iter::once(encoder.finish()));
+        }
+        // The two source temp textures are no longer needed. They
+        // drop at the end of this scope (deferred_destroy queues them
+        // for GPU release after the settle window).
+        drop(colour_tex);
+        drop(zone_tex);
+
+        // Bridge the single combined texture into an ImageBitmap.
+        let Some(combined_bitmap) =
+            self.texture_to_bitmap(&combined_tex, atlas_w, atlas_h, "renderSwfBodyAtlas")
+        else {
+            return JsValue::NULL;
+        };
 
         // Per-band atlas region. JS uses this to derive UV ranges:
         //   u0 = 0,            v0 = atlasY / atlas_h
@@ -2304,18 +2401,12 @@ impl VelloRenderer {
         }
 
         let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"colorTexture".into(), &colour_gpu);
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"colorTextureId".into(),
-            &JsValue::from(colour_tex_id as f64),
-        );
-        let _ = js_sys::Reflect::set(&result, &"zoneTexture".into(), &zone_gpu);
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"zoneTextureId".into(),
-            &JsValue::from(zone_tex_id as f64),
-        );
+        // Combined bridge path: ONE bitmap with body color in RGB +
+        // packed (body_alpha & 0xFC | zone_id) in A. The JS-side
+        // body-band shader binds this texture with two samplers —
+        // LINEAR for color/alpha, NEAREST for zone — and decodes
+        // zone_id from the low 2 bits of the alpha byte.
+        let _ = js_sys::Reflect::set(&result, &"combinedBitmap".into(), &combined_bitmap);
         let _ = js_sys::Reflect::set(
             &result,
             &"atlasWidth".into(),
@@ -2527,18 +2618,14 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
 
-        let gpu_texture = extract_gpu_texture(&texture);
-        let tex_id = self.next_texture_id;
-        self.next_texture_id += 1;
-        self.textures.insert(tex_id, texture);
+        let Some(bitmap) =
+            self.texture_to_bitmap(&texture, strip_w, strip_h, "renderSwfAccessoryStrip")
+        else {
+            return JsValue::NULL;
+        };
 
         let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"textureId".into(),
-            &JsValue::from(tex_id as f64),
-        );
+        let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(strip_w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
         let _ =
@@ -2568,6 +2655,18 @@ impl VelloRenderer {
     /// declare `b_fix=true` — matches the body strip's bFix
     /// behaviour. Caller cache key: `(bundle, export, start, count,
     /// apply_b_fix)`.
+    /// Returns a JS object: `{ matrices: Float32Array, presence:
+    /// Uint8Array }`.
+    /// - `matrices` length = `count * max_slot * 6` floats — kurbo
+    ///   affine coefficient order `(a, b, c, d, tx, ty)`. Identity
+    ///   matrix where the body has no mount at that frame.
+    /// - `presence` length = `count * max_slot` bytes — 1 where the
+    ///   body's display list places a mount of that slot at that
+    ///   frame, 0 otherwise. **This is the canonical signal for
+    ///   whether to render the accessory** — checking matrix==identity
+    ///   in JS is a heuristic that can false-positive.
+    ///
+    /// Returns `null` (JsValue::NULL) on resolution failure.
     #[wasm_bindgen(js_name = "renderSwfMountTransforms")]
     pub fn render_swf_mount_transforms(
         &self,
@@ -2577,34 +2676,37 @@ impl VelloRenderer {
         count: u32,
         apply_b_fix: bool,
         max_slot: u32,
-    ) -> js_sys::Float32Array {
-        // Empty Float32Array on any resolution failure — JS treats a
-        // zero-length response as "no transforms available".
-        let empty = js_sys::Float32Array::new_with_length(0);
+    ) -> JsValue {
         if count == 0 || max_slot == 0 {
-            return empty;
+            return JsValue::NULL;
         }
         let Some(doc) = self.swf_bundles.get(bundle) else {
             console_log!("renderSwfMountTransforms: bundle `{bundle}` not loaded");
-            return empty;
+            return JsValue::NULL;
         };
         let Some(symbol) = doc.lookup_export(export) else {
             console_log!(
                 "renderSwfMountTransforms: export `{bundle}/{export}` not found"
             );
-            return empty;
+            return JsValue::NULL;
         };
-        let data = swf_spike::render::mount_transforms::extract_mount_transforms(
-            doc,
-            symbol,
-            start as u16,
-            count as u16,
-            apply_b_fix,
-            max_slot as u8,
-        );
-        let arr = js_sys::Float32Array::new_with_length(data.len() as u32);
-        arr.copy_from(&data);
-        arr
+        let (matrices, presence) =
+            swf_spike::render::mount_transforms::extract_mount_transforms(
+                doc,
+                symbol,
+                start as u16,
+                count as u16,
+                apply_b_fix,
+                max_slot as u8,
+            );
+        let matrices_arr = js_sys::Float32Array::new_with_length(matrices.len() as u32);
+        matrices_arr.copy_from(&matrices);
+        let presence_arr = js_sys::Uint8Array::new_with_length(presence.len() as u32);
+        presence_arr.copy_from(&presence);
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"matrices".into(), &matrices_arr.into());
+        let _ = js_sys::Reflect::set(&result, &"presence".into(), &presence_arr.into());
+        result.into()
     }
 
     /// Like `renderSwfStripRange` but composes accessory SWFs at the
@@ -2906,18 +3008,17 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
 
-        let gpu_texture = extract_gpu_texture(&texture);
-        let tex_id = self.next_texture_id;
-        self.next_texture_id += 1;
-        self.textures.insert(tex_id, texture);
+        let Some(bitmap) = self.texture_to_bitmap(
+            &texture,
+            strip_w,
+            strip_h,
+            "renderSwfStripRangeAccessorized",
+        ) else {
+            return JsValue::NULL;
+        };
 
         let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"textureId".into(),
-            &JsValue::from(tex_id as f64),
-        );
+        let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(strip_w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
         let _ =
@@ -3338,18 +3439,14 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
 
-        let gpu_texture = extract_gpu_texture(&texture);
-        let tex_id = self.next_texture_id;
-        self.next_texture_id += 1;
-        self.textures.insert(tex_id, texture);
+        let Some(bitmap) =
+            self.texture_to_bitmap(&texture, frame_w, frame_h, "renderSwfTileStaticBase")
+        else {
+            return JsValue::NULL;
+        };
 
         let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"textureId".into(),
-            &JsValue::from(tex_id as f64),
-        );
+        let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(frame_w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(frame_h));
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
@@ -3475,18 +3572,17 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
 
-        let gpu_texture = extract_gpu_texture(&texture);
-        let tex_id = self.next_texture_id;
-        self.next_texture_id += 1;
-        self.textures.insert(tex_id, texture);
+        let Some(bitmap) = self.texture_to_bitmap(
+            &texture,
+            strip_w,
+            strip_h,
+            "renderSwfTileDynamicStripRange",
+        ) else {
+            return JsValue::NULL;
+        };
 
         let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"textureId".into(),
-            &JsValue::from(tex_id as f64),
-        );
+        let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(strip_w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
         let _ =
@@ -3699,10 +3795,11 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
 
-        let gpu_texture = extract_gpu_texture(&texture);
-        let tex_id = self.next_texture_id;
-        self.next_texture_id += 1;
-        self.textures.insert(tex_id, texture);
+        let Some(bitmap) =
+            self.texture_to_bitmap(&texture, total_w, total_h, "renderSwfBundleBatch")
+        else {
+            return JsValue::NULL;
+        };
 
         // 5. Build parallel typed arrays for the per-item geometry.
         let item_x = js_sys::Uint32Array::new_with_length(n as u32);
@@ -3725,12 +3822,7 @@ impl VelloRenderer {
         }
 
         let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"texture".into(), &gpu_texture);
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"textureId".into(),
-            &JsValue::from(tex_id as f64),
-        );
+        let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(total_w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(total_h));
         let _ = js_sys::Reflect::set(&result, &"itemX".into(), &item_x.into());
@@ -3827,6 +3919,121 @@ impl VelloRenderer {
             buf_destroyed,
             tex_pending as u32,
             buf_pending as u32,
+        ]
+    }
+
+    /// Memory accounting snapshot from the patched-wgpu fork. Returns
+    /// a `Float64Array` of 8 values in this order:
+    /// `[liveTexBytes, liveBufBytes, createdTexBytes, createdBufBytes,
+    ///   destroyedTexBytes, destroyedBufBytes, pendingTexBytes,
+    ///   pendingBufBytes]`.
+    ///
+    /// `live*` = currently allocated GPU memory referenced by the
+    /// Rust side (incremented on `device.create_texture` /
+    /// `create_buffer`, decremented on `destroy()`).
+    /// `created*` / `destroyed*` = cumulative running totals.
+    /// `pending*` = bytes in the deferred-destroy queue waiting for
+    /// their 2-tick settle.
+    #[wasm_bindgen(js_name = "rustGpuByteStats")]
+    pub fn rust_gpu_byte_stats(&self) -> Vec<f64> {
+        use wgpu::backend::webgpu::deferred_destroy;
+        let (lt, lb, ct, cb, dt, db, pt, pb) = deferred_destroy::byte_stats();
+        vec![
+            lt as f64, lb as f64, ct as f64, cb as f64, dt as f64, db as f64,
+            pt as f64, pb as f64,
+        ]
+    }
+
+    /// For an accessory (bundle/export at slot+dir+side), return the
+    /// SMALLEST `animType` value (in 0..=anim_type) whose
+    /// 3-cycle frame sequence is identical to the one queried.
+    ///
+    /// Purpose: many accessories don't actually animate by anim_type
+    /// — e.g. helmets, capes, shields that look identical in static
+    /// / walk / run. The JS-side accessory cache key includes
+    /// `animType`, so without dedup such accessories get cached
+    /// three times. By calling this function before keying, the JS
+    /// can normalise `animType` to its canonical value and collapse
+    /// the duplicates. Empirically this cuts ~50% of accessory
+    /// cache entries at 200-bot stress (per snapshot 11: 5780 →
+    /// expected ~3000).
+    ///
+    /// Returns the input `anim_type` unchanged on lookup failure
+    /// (bundle/export not loaded) so the caller still produces a
+    /// usable key.
+    #[wasm_bindgen(js_name = "swfAccessoryCanonicalAnimType")]
+    pub fn swf_accessory_canonical_anim_type(
+        &self,
+        acc_bundle: &str,
+        acc_export: &str,
+        slot: u32,
+        dir: &str,
+        side: &str,
+        anim_type: u32,
+    ) -> u32 {
+        let Some(acc_doc) = self.swf_bundles.get(acc_bundle) else {
+            return anim_type;
+        };
+        let Some(acc_sym) = acc_doc.lookup_export(acc_export) else {
+            return anim_type;
+        };
+        let dir_char = dir.chars().next().unwrap_or('R').to_ascii_uppercase();
+        let dir_str = dir_char.to_string();
+        let side_str = if side.is_empty() { dir_str.clone() } else { side.to_string() };
+        let slot_u8 = slot as u8;
+        let anim_type_u8 = anim_type as u8;
+
+        // Frame sequence at the queried anim_type.
+        let target: [u16; 3] = [
+            swf_spike::render::pick_accessory_frame(
+                acc_doc, acc_sym, slot_u8, anim_type_u8, &side_str, 0,
+            ),
+            swf_spike::render::pick_accessory_frame(
+                acc_doc, acc_sym, slot_u8, anim_type_u8, &side_str, 1,
+            ),
+            swf_spike::render::pick_accessory_frame(
+                acc_doc, acc_sym, slot_u8, anim_type_u8, &side_str, 2,
+            ),
+        ];
+
+        // Walk smaller anim_types looking for an identical sequence.
+        for try_at in 0..anim_type_u8 {
+            let candidate: [u16; 3] = [
+                swf_spike::render::pick_accessory_frame(
+                    acc_doc, acc_sym, slot_u8, try_at, &side_str, 0,
+                ),
+                swf_spike::render::pick_accessory_frame(
+                    acc_doc, acc_sym, slot_u8, try_at, &side_str, 1,
+                ),
+                swf_spike::render::pick_accessory_frame(
+                    acc_doc, acc_sym, slot_u8, try_at, &side_str, 2,
+                ),
+            ];
+            if candidate == target {
+                return try_at as u32;
+            }
+        }
+        anim_type
+    }
+
+    /// Diagnostic: counts for non-byte-sized GPU objects (bind
+    /// groups, texture views, samplers). Returns 9 values:
+    /// `[liveBg, createdBg, droppedBg,
+    ///   liveTv, createdTv, droppedTv,
+    ///   liveSa, createdSa, droppedSa]`.
+    ///
+    /// `live_* = created_* - dropped_*`. If `live_*` climbs without
+    /// bound during stress, the wgpu Rust side is holding handles
+    /// past their useful lifetime — pointing to a leak.
+    #[wasm_bindgen(js_name = "rustGpuObjectCounts")]
+    pub fn rust_gpu_object_counts(&self) -> Vec<f64> {
+        use wgpu::backend::webgpu::deferred_destroy;
+        let (lbg, cbg, dbg, ltv, ctv, dtv, lsa, csa, dsa) =
+            deferred_destroy::object_counts();
+        vec![
+            lbg as f64, cbg as f64, dbg as f64,
+            ltv as f64, ctv as f64, dtv as f64,
+            lsa as f64, csa as f64, dsa as f64,
         ]
     }
 

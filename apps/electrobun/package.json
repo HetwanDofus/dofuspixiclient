@@ -10,6 +10,7 @@
 		"build": "vite build && electrobun build",
 		"build:prod": "vite build && electrobun build --channel prod",
 		"start": "electrobun run",
+		"start:hmr": "concurrently \"bun run hmr\" \"bun run start\"",
 		"extract": "lingui extract",
 		"compile": "lingui compile",
 		"test": "bun test",

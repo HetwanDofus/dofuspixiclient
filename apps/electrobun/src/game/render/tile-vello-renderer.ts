@@ -1,4 +1,4 @@
-import { ExternalSource, type Renderer, Texture } from "pixi.js";
+import { ImageSource, type Renderer, Texture } from "pixi.js";
 
 import { createLogger } from "@/utils/logger";
 
@@ -6,6 +6,7 @@ import {
   isSwfBundleLoaded,
   renderSwfFrame,
   swfAnimFrameCount,
+  uploadAndCloseBitmap,
   type VelloSwfFrameResult,
 } from "./vello-loader";
 
@@ -56,20 +57,34 @@ export interface TileSwfMeta {
 export class TileVelloRenderer {
   private readonly resolutions = new Map<string, TileResolution | null>();
   private readonly metaCache = new Map<string, TileSwfMeta>();
-  /** cacheKey → vello texture ID, so the frame cache can tell Vello to drop it. */
-  private readonly textureIds = new Map<string, number>();
   /**
    * Pixi sources created via `renderFrame` since the last drain. The
    * `AtlasLoader` pulls these on zoom invalidation so it can destroy
    * them as part of its retire batch — otherwise filter-tile + fallback
    * sources accumulate forever.
+   *
+   * Bridge path: source is a Pixi `ImageSource` over a Vello bitmap;
+   * destroying it cascades into Pixi's uploaded GPUTexture. The
+   * Rust-side `wgpu::Texture` already dropped during the bake.
    */
-  private pendingSources: { source: ExternalSource; textureId: number }[] = [];
+  private pendingSources: { source: ImageSource }[] = [];
 
-  constructor(private readonly pixiRenderer: Renderer) {}
+  /**
+   * Pixi renderer used to FORCE the source's first upload at bake
+   * time (via `texture.initSource`). Without an explicit renderer
+   * here, the bitmap close would race with Pixi's lazy upload and
+   * crash with "External Image has been detached" the first time
+   * the source is rendered. See `uploadAndCloseBitmap` in
+   * vello-loader.ts.
+   */
+  private readonly pixiRenderer: Renderer;
+
+  constructor(pixiRenderer: Renderer) {
+    this.pixiRenderer = pixiRenderer;
+  }
 
   /** Drain the list of sources created since the last call. */
-  drainPendingSources(): { source: ExternalSource; textureId: number }[] {
+  drainPendingSources(): { source: ImageSource }[] {
     const out = this.pendingSources;
     this.pendingSources = [];
     return out;
@@ -139,25 +154,29 @@ export class TileVelloRenderer {
    * Wrap a SWF batch composite texture as a Pixi `ExternalSource` for use
    * as a shared source across N Pixi `Texture` sub-rectangles.
    */
+  /**
+   * Bridge path: wrap a Vello-produced batch `ImageBitmap` as a Pixi
+   * `ImageSource` for use as a shared source across N Pixi `Texture`
+   * sub-rectangles.
+   */
   wrapBatchSource(
-    gpuTexture: GPUTexture,
+    bitmap: ImageBitmap,
     physWidth: number,
     physHeight: number,
     zoom: number,
     label: string
-  ): ExternalSource {
-    const source = new ExternalSource({
-      resource: gpuTexture,
-      renderer: this.pixiRenderer,
+  ): ImageSource {
+    const source = new ImageSource({
+      resource: bitmap,
       width: physWidth,
       height: physHeight,
       label,
+      alphaMode: "premultiply-alpha-on-upload",
+      scaleMode: "linear",
+      autoGarbageCollect: false,
     });
-    source.alphaMode = "no-premultiply-alpha";
-    source.scaleMode = "linear";
-    source.format = "rgba8unorm";
-    source.autoGarbageCollect = false;
     source.resolution = zoom;
+    uploadAndCloseBitmap(this.pixiRenderer, source, bitmap);
     return source;
   }
 
@@ -206,25 +225,22 @@ export class TileVelloRenderer {
       });
     }
 
-    this.textureIds.set(cacheKey, result.textureId);
-
-    const source = new ExternalSource({
-      resource: result.texture,
-      renderer: this.pixiRenderer,
+    const source = new ImageSource({
+      resource: result.bitmap,
       width: result.width,
       height: result.height,
       label: `swf:${res.bundle}:${res.exportName}:${frameIndex}`,
+      alphaMode: "premultiply-alpha-on-upload",
+      scaleMode: "linear",
+      // Manage GPU texture lifecycle ourselves — Pixi's GC would
+      // otherwise destroy it mid-render.
+      autoGarbageCollect: false,
     });
-
-    // Vello's fine.wgsl emits straight alpha; Pixi's batch shader premultiplies via blend state.
-    source.alphaMode = "no-premultiply-alpha";
-    source.scaleMode = "linear";
-    source.format = "rgba8unorm";
-    // Manage GPU texture lifecycle ourselves — Pixi's GC would otherwise destroy it mid-render.
-    source.autoGarbageCollect = false;
     source.resolution = zoom;
+    uploadAndCloseBitmap(this.pixiRenderer, source, result.bitmap);
 
-    this.pendingSources.push({ source, textureId: result.textureId });
+    void cacheKey;
+    this.pendingSources.push({ source });
     return new Texture({ source });
   }
 

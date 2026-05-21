@@ -13,10 +13,9 @@ import {
 import { getLoadProgress } from "./load-progress";
 import { convertToTileManifest } from "./tile-manifest-converter";
 import { type TileSwfMeta, TileVelloRenderer } from "./tile-vello-renderer";
-import type { ExternalSource } from "pixi.js";
+import type { ImageSource } from "pixi.js";
 
 import {
-  freeRenderTexture,
   getVelloGpu,
   renderSwfBundleBatch,
   renderSwfStripRange,
@@ -202,10 +201,10 @@ export class AtlasLoader {
    * `VelloRenderer.textures` HashMap holds the wgpu::Texture, so the
    * underlying GPU storage is never reclaimed across zoom changes.
    */
-  private liveSources: { source: ExternalSource; textureId: number }[] = [];
+  private liveSources: { source: ImageSource }[] = [];
   /** Sources that have been evicted but not yet destroyed (deferred to
    *  let in-flight `renderCell` paths drain). */
-  private retiredSources: { source: ExternalSource; textureId: number }[] = [];
+  private retiredSources: { source: ImageSource }[] = [];
   private retireTimer: ReturnType<typeof setTimeout> | null = null;
   /**
    * High-water threshold for the retired-source bucket. Rapid zoom
@@ -242,8 +241,8 @@ export class AtlasLoader {
     };
   }
 
-  private trackSource(source: ExternalSource, textureId: number): void {
-    this.liveSources.push({ source, textureId });
+  private trackSource(source: ImageSource): void {
+    this.liveSources.push({ source });
   }
 
   /**
@@ -277,13 +276,12 @@ export class AtlasLoader {
         0,
         this.retiredSources.length - AtlasLoader.RETIRE_HIGH_WATER
       );
-      for (const { source, textureId } of overflow) {
+      for (const { source } of overflow) {
         try {
           source.destroy();
         } catch {
           // already destroyed — fine.
         }
-        freeRenderTexture(textureId);
       }
     }
     if (this.retiredSources.length > 0) {
@@ -318,13 +316,12 @@ export class AtlasLoader {
     }
     const list = this.retiredSources;
     this.retiredSources = [];
-    for (const { source, textureId } of list) {
+    for (const { source } of list) {
       try {
         source.destroy();
       } catch {
         // Already destroyed elsewhere — fine.
       }
-      freeRenderTexture(textureId);
     }
   }
 
@@ -814,13 +811,13 @@ export class AtlasLoader {
       }
 
       const compositeSource = this.velloRenderer.wrapBatchSource(
-        result.texture,
+        result.bitmap,
         result.width,
         result.height,
         zoom,
         `swf-batch:${bundle}`
       );
-      this.trackSource(compositeSource, result.textureId);
+      this.trackSource(compositeSource);
 
       for (let i = 0; i < group.length; i++) {
         if (result.itemValid[i] !== 1) {
@@ -1098,13 +1095,13 @@ export class AtlasLoader {
       return false;
     }
     const source = this.velloRenderer.wrapBatchSource(
-      result.texture,
+      result.bitmap,
       result.width,
       result.height,
       zoom,
       `swf-static:${p.bundle}/${p.exportName}`
     );
-    this.trackSource(source, result.textureId);
+    this.trackSource(source);
     const tex = new Texture({
       source,
       frame: new Rectangle(0, 0, result.width / zoom, result.height / zoom),
@@ -1153,13 +1150,13 @@ export class AtlasLoader {
       return false;
     }
     const stripSource = this.velloRenderer.wrapBatchSource(
-      strip.texture,
+      strip.bitmap,
       strip.width,
       strip.height,
       zoom,
       `swf-dyn:${p.bundle}/${p.exportName}#${chunkIndex}`
     );
-    this.trackSource(stripSource, strip.textureId);
+    this.trackSource(stripSource);
     const fw = strip.frameWidth / zoom;
     const fh = strip.frameHeight / zoom;
     for (let f = 0; f < strip.frameCount; f++) {
@@ -1247,13 +1244,13 @@ export class AtlasLoader {
         break;
       }
       const stripSource = this.velloRenderer.wrapBatchSource(
-        strip.texture,
+        strip.bitmap,
         strip.width,
         strip.height,
         zoom,
         `swf-strip:${m.bundle}/${m.exportName}#${chunkIndex}`
       );
-      this.trackSource(stripSource, strip.textureId);
+      this.trackSource(stripSource);
       const fw = strip.frameWidth / zoom;
       const fh = strip.frameHeight / zoom;
       for (let f = 0; f < strip.frameCount; f++) {

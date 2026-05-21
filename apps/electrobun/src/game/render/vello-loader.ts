@@ -217,7 +217,13 @@ export function getSwfLoadStats(): {
   };
 }
 
-/** Internal helper: ensure first-time observation of a textureId is counted. */
+/**
+ * Internal helper: ensure first-time observation of a textureId is
+ * counted. Bridge migration: most renderSwf* paths no longer return
+ * a textureId, so this is currently unused — kept for the spell-
+ * instance and cool paths that still emit textureIds.
+ */
+// @ts-expect-error currently unused under bridge migration; kept for future re-wiring.
 function trackRenderTexture(textureId: number, label: string): void {
   if (textureId === 0 || textureId === -1) return;
   if (!liveRenderTextureIds.has(textureId)) {
@@ -259,8 +265,13 @@ export const GFX_BUNDLE_NAMES = [
 export type GfxBundleName = (typeof GFX_BUNDLE_NAMES)[number];
 
 export interface VelloSwfFrameResult {
-  texture: GPUTexture;
-  textureId: number;
+  /**
+   * Step 11 bridge: Vello-rendered pixels delivered to Pixi as a
+   * GPU-resident `ImageBitmap` (via OffscreenCanvas
+   * `transferToImageBitmap`). Pixi consumes via `ImageSource` and
+   * may close the bitmap once it has been sampled.
+   */
+  bitmap: ImageBitmap;
   width: number;
   height: number;
   /** Position of SWF (0,0) origin within the rendered texture. */
@@ -394,9 +405,7 @@ export function renderSwfFrame(
     return null;
   }
   const result = renderer.renderSwfFrame(bundle, exportName, frame, resolution);
-  const r = (result as VelloSwfFrameResult | null) ?? null;
-  if (r) trackRenderTexture(r.textureId, `swfFrame:${bundle}/${exportName}`);
-  return r;
+  return (result as VelloSwfFrameResult | null) ?? null;
 }
 
 /**
@@ -415,9 +424,7 @@ export function renderSwfRoot(
     return null;
   }
   const result = renderer.renderSwfRoot(bundle, frame, resolution);
-  const r = (result as VelloSwfFrameResult | null) ?? null;
-  if (r) trackRenderTexture(r.textureId, `swfRoot:${bundle}`);
-  return r;
+  return (result as VelloSwfFrameResult | null) ?? null;
 }
 
 
@@ -511,8 +518,8 @@ export function disposeSwfSpellInstance(instanceId: number): void {
 }
 
 export interface VelloSwfSpellStripResult {
-  texture: GPUTexture;
-  textureId: number;
+  /** Bridge path — Vello pixels delivered as ImageBitmap. */
+  bitmap: ImageBitmap;
   width: number;
   height: number;
   frameWidth: number;
@@ -539,9 +546,7 @@ export function renderSwfSpellStrip(
     return null;
   }
   const result = renderer.renderSwfSpellStrip(bundle, resolution);
-  const r = (result as VelloSwfSpellStripResult | null) ?? null;
-  if (r) trackRenderTexture(r.textureId, `swfSpellStrip:${bundle}`);
-  return r;
+  return (result as VelloSwfSpellStripResult | null) ?? null;
 }
 
 /**
@@ -577,9 +582,7 @@ export function renderSwfSpellIcon(
     pcRgb,
     resolution
   );
-  const r = (result as VelloSwfFrameResult | null) ?? null;
-  if (r) trackRenderTexture(r.textureId, `swfSpellIcon:${upBundle}`);
-  return r;
+  return (result as VelloSwfFrameResult | null) ?? null;
 }
 
 /**
@@ -642,8 +645,8 @@ export function setSwfPlayerColors(c1: number, c2: number, c3: number): void {
 }
 
 export interface VelloSwfStripResult {
-  texture: GPUTexture;
-  textureId: number;
+  /** Bridge: composite delivered to Pixi as ImageBitmap. */
+  bitmap: ImageBitmap;
   /** Composite texture's full pixel dims. */
   width: number;
   height: number;
@@ -679,9 +682,7 @@ export function renderSwfStrip(
     requestedFrameCount,
     resolution
   );
-  const r = (result as VelloSwfStripResult | null) ?? null;
-  if (r) trackRenderTexture(r.textureId, `swfStrip:${bundle}/${exportName}`);
-  return r;
+  return (result as VelloSwfStripResult | null) ?? null;
 }
 
 /**
@@ -720,9 +721,7 @@ export function renderSwfStripRange(
     totalFrameCount,
     resolution
   );
-  const r = (result as VelloSwfStripResult | null) ?? null;
-  if (r) trackRenderTexture(r.textureId, `swfStripRange:${bundle}/${exportName}`);
-  return r;
+  return (result as VelloSwfStripResult | null) ?? null;
 }
 
 
@@ -803,9 +802,7 @@ export function renderSwfStripRangeAccessorized(
     charDirSuffix,
     applyBFix
   );
-  const r = (result as VelloSwfStripResult | null) ?? null;
-  if (r) trackRenderTexture(r.textureId, `swfStripAcc:${bundle}/${exportName}`);
-  return r;
+  return (result as VelloSwfStripResult | null) ?? null;
 }
 
 // ─── Path B body-band rasteriser ──────────────────────────────────────────
@@ -820,8 +817,12 @@ export interface VelloSwfBodyBandInfo {
   /** Total Z-ordered bands. Always `slotCount + 1`. Stack bands 0..N-1
    *  bottom-up; the slot at index i sits between band i and band i+1. */
   bandCount: number;
-  /** Sorted by depth ascending. */
-  slots: Array<{ slot: number; depth: number }>;
+  /** Sorted by depth ascending. `side` is the canonical AS2
+   *  `applyAccessory(this, slot, side)` argument — JS MUST use this
+   *  string verbatim (not the bot's facing `dir`) when baking the
+   *  accessory strip. `null` when the body's mount declaration
+   *  omitted the side string. */
+  slots: Array<{ slot: number; depth: number; side: string | null }>;
   /** True when at least one accessory mount declares `b_fix=true`.
    *  When false the body bake is pixel-identical regardless of the
    *  `applyBFix` flag — the cache layer collapses both variants into
@@ -847,17 +848,21 @@ export interface VelloSwfBodyAtlasBand {
 
 export interface VelloSwfBodyAtlasResult {
   /**
-   * Direct GPUTexture path: Vello renders to a `wgpu::Texture` that
-   * stays pinned in the Rust-side `self.textures` HashMap. Pixi
-   * samples it directly via `ExternalSource` over the shared
-   * GPUDevice. `freeRenderTexture(textureId)` on retire releases the
-   * VRAM via the explicit `tex.destroy()` we added in
-   * `free_render_texture`.
+   * Combined-bridge bitmap: a single Rgba8Unorm output where:
+   *  - RGB encodes the body's tinted colour (LINEAR-sampleable).
+   *  - A encodes `(body_alpha & 0xFC) | zone_id`, zone_id ∈ {0..3}.
+   *
+   * The Rust side runs a fullscreen render pass after the two
+   * Vello renders (colour + zone) to pack them into this single
+   * texture, then bridges ONCE via `bitmap_bridge`. Halves the
+   * Pixi-side working set vs. the previous color+zone two-texture
+   * design.
+   *
+   * Body-band shader binds this texture with two samplers — LINEAR
+   * for color+alpha, NEAREST for zone-id decode from the low 2
+   * bits of the alpha byte.
    */
-  colorTexture: GPUTexture;
-  colorTextureId: number;
-  zoneTexture: GPUTexture;
-  zoneTextureId: number;
+  combinedBitmap: ImageBitmap;
   /** Atlas pixel dimensions. */
   atlasWidth: number;
   atlasHeight: number;
@@ -895,6 +900,7 @@ export function renderSwfBodyAtlas(
   totalFrameCount: number,
   resolution: number,
   applyBFix: boolean,
+  hatEquipped: boolean,
 ): VelloSwfBodyAtlasResult | null {
   if (!renderer || isHalted()) return null;
   const result = renderer.renderSwfBodyAtlas(
@@ -905,23 +911,10 @@ export function renderSwfBodyAtlas(
     totalFrameCount,
     resolution,
     applyBFix,
+    hatEquipped,
   );
   const r = (result as Record<string, unknown> | null) ?? null;
   if (!r) return null;
-  const colorTextureId = Number(r.colorTextureId);
-  const zoneTextureId = Number(r.zoneTextureId);
-  if (Number.isFinite(colorTextureId)) {
-    trackRenderTexture(
-      colorTextureId,
-      `swfBodyAtlas:${bundle}/${exportName}|color`,
-    );
-  }
-  if (Number.isFinite(zoneTextureId)) {
-    trackRenderTexture(
-      zoneTextureId,
-      `swfBodyAtlas:${bundle}/${exportName}|zone`,
-    );
-  }
   const rawBands = (r.bands as Array<Record<string, unknown>>) ?? [];
   const bands: VelloSwfBodyAtlasBand[] = rawBands.map((b) => ({
     bandIndex: Number(b.bandIndex),
@@ -929,10 +922,7 @@ export function renderSwfBodyAtlas(
     atlasY: Number(b.atlasY),
   }));
   return {
-    colorTexture: r.colorTexture as GPUTexture,
-    colorTextureId,
-    zoneTexture: r.zoneTexture as GPUTexture,
-    zoneTextureId,
+    combinedBitmap: r.combinedBitmap as ImageBitmap,
     atlasWidth: Number(r.atlasWidth),
     atlasHeight: Number(r.atlasHeight),
     stripWidth: Number(r.stripWidth),
@@ -951,8 +941,7 @@ export function renderSwfBodyAtlas(
 }
 
 export interface VelloSwfAccessoryStripResult {
-  texture: GPUTexture;
-  textureId: number;
+  bitmap: ImageBitmap;
   width: number;
   height: number;
   /** Per sub-frame cell dimensions (uniform across all 3). */
@@ -996,22 +985,40 @@ export function renderSwfAccessoryStrip(
     side,
     resolution,
   );
-  const r = (result as VelloSwfAccessoryStripResult | null) ?? null;
-  if (r) {
-    trackRenderTexture(
-      r.textureId,
-      `swfAccStrip:${accBundle}/${accExport}/${dir}/${slot}`,
-    );
-  }
-  return r;
+  return (result as VelloSwfAccessoryStripResult | null) ?? null;
 }
 
+export interface VelloSwfMountTransformsResult {
+  /**
+   * Affine matrix table, length `count * maxSlot * 6`. Layout per
+   * (frame, slot): `[a, b, c, d, tx, ty]`. Translations in TWIP
+   * space — multiply by `resolution / 20` for pixel space. Identity
+   * matrix where the body has no mount at that frame; consult
+   * `presence` to know whether the matrix entry is valid.
+   */
+  matrices: Float32Array;
+  /**
+   * Per-(frame, slot) presence bitmap, length `count * maxSlot`.
+   * `1` = body's display list places a mount of that slot at that
+   * frame, `0` = no mount (accessory must be hidden). This is the
+   * canonical signal — JS MUST NOT infer presence from matrix
+   * contents.
+   */
+  presence: Uint8Array;
+}
+
+let warnedOldMountTransformShape = false;
+
 /**
- * CPU-only mount-transform extraction. Returns a flat `Float32Array`
- * of length `count * maxSlot * 6` carrying the affine matrix
- * `(a, b, c, d, tx, ty)` at every accessory mount per frame.
- * Translations are in TWIP space; multiply by `resolution / 20` for
- * pixel space. Identity matrix where a slot has no mount in a frame.
+ * CPU-only mount-transform extraction. Returns both the matrix
+ * table and the per-frame presence bitmap. See
+ * `VelloSwfMountTransformsResult` for layout.
+ *
+ * Detects the OLD wasm shape (bare `Float32Array`) and emits a loud
+ * one-shot console error — without the presence array we have no
+ * way to do canonical accessory rendering, so this path returns
+ * null which surfaces visually as "accessories don't move." If you
+ * see that error: run `just wasm` to rebuild the Rust bindings.
  */
 export function renderSwfMountTransforms(
   bundle: string,
@@ -1020,9 +1027,9 @@ export function renderSwfMountTransforms(
   count: number,
   applyBFix: boolean,
   maxSlot: number,
-): Float32Array | null {
+): VelloSwfMountTransformsResult | null {
   if (!renderer) return null;
-  const arr = renderer.renderSwfMountTransforms(
+  const raw = renderer.renderSwfMountTransforms(
     bundle,
     exportName,
     start >>> 0,
@@ -1030,15 +1037,61 @@ export function renderSwfMountTransforms(
     applyBFix,
     maxSlot >>> 0,
   );
-  if (!arr || (arr as Float32Array).length === 0) return null;
-  return arr as Float32Array;
+  if (!raw) return null;
+  // Stale wasm: detect the legacy Float32Array shape so the failure
+  // mode is obvious (accessories appearing static/disconnected). The
+  // ArrayBuffer view check is robust against being marshaled across
+  // a wasm-bindgen boundary.
+  if (raw instanceof Float32Array || ArrayBuffer.isView(raw)) {
+    if (!warnedOldMountTransformShape) {
+      warnedOldMountTransformShape = true;
+      console.error(
+        "[vello-loader] renderSwfMountTransforms returned the legacy " +
+          "Float32Array shape. Your wasm bundle is older than the Rust " +
+          "source. Rebuild with: `just wasm` (or `cd rust/vello-wasm && " +
+          "wasm-pack build --target web --release`). Accessories will " +
+          "render static + disconnected until you do.",
+      );
+    }
+    return null;
+  }
+  if (typeof raw !== "object") return null;
+  const r = raw as {
+    matrices?: Float32Array;
+    presence?: Uint8Array;
+  };
+  if (!r.matrices || !r.presence || r.matrices.length === 0) return null;
+  return { matrices: r.matrices, presence: r.presence };
 }
 
 export interface VelloSwfStaticBaseResult {
-  texture: GPUTexture;
-  textureId: number;
+  /** Bridge: Vello pixels delivered as ImageBitmap. */
+  bitmap: ImageBitmap;
   width: number;
   height: number;
+  anchorX: number;
+  anchorY: number;
+}
+
+/**
+ * Bridged tile dynamic strip — returned by
+ * `renderSwfTileDynamicStripRange`. Differs from `VelloSwfStripResult`
+ * (the still-direct-GPU character strip path) in that pixels arrive as
+ * an `ImageBitmap` instead of a `GPUTexture`.
+ */
+export interface VelloSwfTileStripResult {
+  bitmap: ImageBitmap;
+  /** Composite texture's full pixel dims. */
+  width: number;
+  height: number;
+  /** Per-cell pixel dims (uniform across all frames). */
+  frameWidth: number;
+  frameHeight: number;
+  /** Number of cells per row in the 2D grid. */
+  gridCols: number;
+  /** Number of valid frames (may be less than `requestedFrameCount`). */
+  frameCount: number;
+  /** SWF (0,0) origin position within each cell. */
   anchorX: number;
   anchorY: number;
 }
@@ -1066,9 +1119,7 @@ export function renderSwfTileStaticBase(
     totalFrameCount,
     resolution
   );
-  const r = (result as VelloSwfStaticBaseResult | null) ?? null;
-  if (r) trackRenderTexture(r.textureId, `swfTileStatic:${bundle}/${exportName}`);
-  return r;
+  return (result as VelloSwfStaticBaseResult | null) ?? null;
 }
 
 /**
@@ -1086,7 +1137,7 @@ export function renderSwfTileDynamicStripRange(
   count: number,
   totalFrameCount: number,
   resolution: number
-): VelloSwfStripResult | null {
+): VelloSwfTileStripResult | null {
   if (!renderer || isHalted()) {
     return null;
   }
@@ -1098,14 +1149,12 @@ export function renderSwfTileDynamicStripRange(
     totalFrameCount,
     resolution
   );
-  const r = (result as VelloSwfStripResult | null) ?? null;
-  if (r) trackRenderTexture(r.textureId, `swfTileDyn:${bundle}/${exportName}`);
-  return r;
+  return (result as VelloSwfTileStripResult | null) ?? null;
 }
 
 export interface VelloSwfBundleBatchResult {
-  texture: GPUTexture;
-  textureId: number;
+  /** Bridge: composite delivered to Pixi as ImageBitmap. */
+  bitmap: ImageBitmap;
   /** Composite texture's full pixel dims. */
   width: number;
   height: number;
@@ -1141,9 +1190,7 @@ export function renderSwfBundleBatch(
     frame,
     resolution
   );
-  const r = (result as VelloSwfBundleBatchResult | null) ?? null;
-  if (r) trackRenderTexture(r.textureId, `swfBundleBatch:${bundle}`);
-  return r;
+  return (result as VelloSwfBundleBatchResult | null) ?? null;
 }
 
 
@@ -1241,6 +1288,306 @@ export function getDeferredDestroyStats(): {
     texturesPending: lastTickTexturesPending,
     buffersPending: lastTickBuffersPending,
   };
+}
+
+/**
+ * Byte-granularity GPU memory accounting from the patched-wgpu fork.
+ *
+ * - `liveTex` / `liveBuf`: GPU bytes currently allocated and not yet
+ *   destroyed. Closest match to "what the GPU process still holds for
+ *   Rust-allocated resources".
+ * - `createdTex` / `createdBuf`: cumulative bytes ever created.
+ * - `destroyedTex` / `destroyedBuf`: cumulative bytes destroyed (via
+ *   `destroy()` from either an explicit path or the deferred queue).
+ * - `pendingTex` / `pendingBuf`: bytes currently sitting in the
+ *   deferred-destroy queue waiting for their 2-tick settle.
+ *
+ * Used by the stress monitor to compute `live = created - destroyed`
+ * and identify whether the unaccounted-for process memory comes from
+ * Rust-side wgpu objects or somewhere else (Pixi, JS heap, browser
+ * overhead).
+ */
+/**
+ * Schedule `bitmap.close()` for after Pixi has uploaded the source
+ * to its own GPUTexture (or until the source is destroyed by cache
+ * eviction, whichever happens first).
+ *
+ * Hard constraint discovered through real stress runs: NEVER
+ * force-close on a timeout. Pixi uploads sources lazily — only on
+ * the first draw that samples them. The mesh that uses the source
+ * may be off-screen, culled, or attached to the scene graph in a
+ * tick that follows Pixi's render in the same rAF window. Any
+ * timer-driven close races those cases and produces:
+ *   `Failed to execute 'copyExternalImageToTexture': External
+ *    Image has been detached` on the eventual upload.
+ *
+ * Two-signal close protocol:
+ *
+ *   1. **Poll `source._gpuData`** every rAF. Pixi sets
+ *      `_gpuData[renderer.uid] = new GPUTextureGpuData(gpuTexture)`
+ *      synchronously inside `_initSource` (immediately before
+ *      `onSourceUpdate` runs the actual upload). Any populated key
+ *      = upload has happened, bitmap is safe to close.
+ *
+ *   2. **`source.once("destroy", ...)`** — listens for the cache's
+ *      retire path (`Texture.destroy(true)` cascades into
+ *      `source.destroy()` which emits "destroy"). If the source
+ *      gets evicted before Pixi ever rendered it, we still need to
+ *      release the bitmap buffer.
+ *
+ * Polling cap: 60 rAFs. After that we STOP polling but do NOT
+ * close — the destroy handler picks it up at eviction time. This
+ * avoids the timeout-race crash AND avoids polling forever on
+ * orphaned sources.
+ *
+ * Worst case (source never rendered, never destroyed): the bitmap
+ * stays alive until something explicitly closes it. In practice
+ * every cached source is eventually evicted, so the destroy
+ * handler always fires. The pre-eviction window holds the bitmap
+ * memory but the typical lifecycle is sub-second.
+ */
+/**
+ * Synchronously upload `source` to `renderer`'s GPUTexture, then
+ * close the bitmap. Deterministic, race-free.
+ *
+ * Why the renderer must be passed explicitly:
+ *
+ *   Pixi v8 tracks per-renderer state in `source._gpuData[renderer.uid]`.
+ *   A source attached to a battlefield mesh is uploaded only when
+ *   the BATTLEFIELD renderer first draws it; a source attached to
+ *   a minimap sprite is uploaded only by the MINIMAP renderer; etc.
+ *
+ *   Previous polling/heuristic attempts watched `_gpuData` for ANY
+ *   populated key as "uploaded; safe to close". That assumption is
+ *   wrong on two axes:
+ *     - Multi-renderer apps: source uploaded by renderer A doesn't
+ *       mean it's been uploaded by renderer B.
+ *     - Pixi's `GCManagedHash.remove(source)` (triggered by source
+ *       "unload" event, internal Pixi cleanup, or context-loss
+ *       recovery) sets `_gpuData[uid] = null`. The next draw of
+ *       that source falls back into `_initSource` → upload →
+ *       `copyExternalImageToTexture(source.resource)` → bitmap was
+ *       closed → "External Image has been detached" crash.
+ *
+ *   Real stress test: deferred polling produced this crash after
+ *   ~50s of stable runtime. Force-upload makes the close window
+ *   the same synchronous tick as the upload — no race with later
+ *   re-init.
+ *
+ * The cost: each bake finalisation now does one synchronous
+ * `device.queue.copyExternalImageToTexture` call instead of letting
+ * Pixi lazy-upload during its first draw of the source. At steady
+ * state (3-10 bakes/sec post-acc-dedup) this is trivially cheap.
+ * At warmup peak (~40 bakes/sec) it's ~40 GPU API calls/sec —
+ * negligible compared to the bake's Vello compute work.
+ *
+ * Additional win: the previous pending-bitmap-close Set was being
+ * walked every rAF. As source count grew over time, per-frame
+ * poll cost grew linearly — likely contributor to the
+ * "fps degrades over time" symptom even at stable cache size.
+ * Force-upload removes that per-frame cost entirely.
+ */
+export function uploadAndCloseBitmap(
+  renderer: object | null | undefined,
+  source: object,
+  bitmap: ImageBitmap | null | undefined,
+): void {
+  if (!bitmap) return;
+  let uploaded = false;
+  if (renderer) {
+    try {
+      const sys = (renderer as {
+        texture?: { initSource?: (s: unknown) => unknown };
+      }).texture;
+      if (sys && typeof sys.initSource === "function") {
+        // Synchronous: by the time this returns Pixi has called
+        // `copyExternalImageToTexture` against the bitmap. The
+        // GPUTexture is populated and `_gpuData[renderer.uid]` is
+        // set, so subsequent draws of this source hit the cached
+        // GPUTexture path and never re-read `source.resource`.
+        sys.initSource(source);
+        uploaded = true;
+      }
+    } catch {
+      // Renderer not ready, version mismatch, etc. — fall through.
+    }
+  }
+  if (uploaded) {
+    try {
+      bitmap.close();
+    } catch {
+      // Already closed or platform-not-supported — fine.
+    }
+    return;
+  }
+  // Fallback path: caller didn't pass a renderer (e.g. worker
+  // context, or renderer not yet initialised). Defer close to the
+  // source's destroy event — bitmap stays alive until cache
+  // eviction destroys the source. Conservative but safe; the
+  // bitmap memory regression is bounded by the LRU cap.
+  const evt = source as {
+    once?: (event: string, handler: () => void) => void;
+  };
+  if (typeof evt.once === "function") {
+    try {
+      evt.once("destroy", () => {
+        try {
+          bitmap.close();
+        } catch {}
+      });
+    } catch {
+      // Best effort — bitmap will be GC'd when its source is.
+    }
+  }
+}
+
+export function getRustGpuByteStats(): {
+  liveTex: number;
+  liveBuf: number;
+  createdTex: number;
+  createdBuf: number;
+  destroyedTex: number;
+  destroyedBuf: number;
+  pendingTex: number;
+  pendingBuf: number;
+} {
+  if (!renderer) {
+    return {
+      liveTex: 0,
+      liveBuf: 0,
+      createdTex: 0,
+      createdBuf: 0,
+      destroyedTex: 0,
+      destroyedBuf: 0,
+      pendingTex: 0,
+      pendingBuf: 0,
+    };
+  }
+  const r = renderer as unknown as { rustGpuByteStats(): Float64Array };
+  let out: Float64Array;
+  try {
+    out = r.rustGpuByteStats();
+  } catch {
+    return {
+      liveTex: 0,
+      liveBuf: 0,
+      createdTex: 0,
+      createdBuf: 0,
+      destroyedTex: 0,
+      destroyedBuf: 0,
+      pendingTex: 0,
+      pendingBuf: 0,
+    };
+  }
+  return {
+    liveTex: out[0] ?? 0,
+    liveBuf: out[1] ?? 0,
+    createdTex: out[2] ?? 0,
+    createdBuf: out[3] ?? 0,
+    destroyedTex: out[4] ?? 0,
+    destroyedBuf: out[5] ?? 0,
+    pendingTex: out[6] ?? 0,
+    pendingBuf: out[7] ?? 0,
+  };
+}
+
+/**
+ * Diagnostic counters for non-byte-sized GPU objects. These do not
+ * have an explicit `destroy()` on the JS side — the resource is
+ * freed when the JsValue ref drops via Rust's automatic field-drop.
+ * `live = created - dropped`; unbounded growth in `live` indicates
+ * the wgpu Rust state is retaining handles past their useful
+ * lifetime.
+ */
+export function getRustGpuObjectCounts(): {
+  liveBg: number;
+  createdBg: number;
+  droppedBg: number;
+  liveTv: number;
+  createdTv: number;
+  droppedTv: number;
+  liveSa: number;
+  createdSa: number;
+  droppedSa: number;
+} {
+  const empty = {
+    liveBg: 0,
+    createdBg: 0,
+    droppedBg: 0,
+    liveTv: 0,
+    createdTv: 0,
+    droppedTv: 0,
+    liveSa: 0,
+    createdSa: 0,
+    droppedSa: 0,
+  };
+  if (!renderer) return empty;
+  const r = renderer as unknown as {
+    rustGpuObjectCounts?: () => Float64Array;
+  };
+  if (typeof r.rustGpuObjectCounts !== "function") return empty;
+  let out: Float64Array;
+  try {
+    out = r.rustGpuObjectCounts();
+  } catch {
+    return empty;
+  }
+  return {
+    liveBg: out[0] ?? 0,
+    createdBg: out[1] ?? 0,
+    droppedBg: out[2] ?? 0,
+    liveTv: out[3] ?? 0,
+    createdTv: out[4] ?? 0,
+    droppedTv: out[5] ?? 0,
+    liveSa: out[6] ?? 0,
+    createdSa: out[7] ?? 0,
+    droppedSa: out[8] ?? 0,
+  };
+}
+
+/**
+ * Returns the smallest `animType` whose rendered frame sequence is
+ * identical to the queried one for the given accessory. Lets the
+ * cache de-duplicate non-animating accessories that would otherwise
+ * occupy 3 cache slots (one per animType value 0/1/2) for the same
+ * pixel output.
+ *
+ * Falls back to the input `animType` if the renderer isn't loaded
+ * yet, or the bundle/export isn't loaded — caller still gets a
+ * usable cache key, just no dedup until WASM is ready.
+ */
+export function swfAccessoryCanonicalAnimType(
+  bundle: string,
+  exportName: string,
+  slot: number,
+  dir: string,
+  side: string,
+  animType: number,
+): number {
+  if (!renderer) return animType;
+  const r = renderer as unknown as {
+    swfAccessoryCanonicalAnimType?: (
+      bundle: string,
+      exportName: string,
+      slot: number,
+      dir: string,
+      side: string,
+      animType: number,
+    ) => number;
+  };
+  if (typeof r.swfAccessoryCanonicalAnimType !== "function") return animType;
+  try {
+    return r.swfAccessoryCanonicalAnimType(
+      bundle,
+      exportName,
+      slot,
+      dir,
+      side,
+      animType,
+    );
+  } catch {
+    return animType;
+  }
 }
 
 /**

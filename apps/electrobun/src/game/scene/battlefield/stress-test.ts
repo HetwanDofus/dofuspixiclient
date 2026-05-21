@@ -27,6 +27,7 @@
  * shared tick.
  */
 import type { DofusPathfinding } from "@dofus/grid";
+import { Ticker, UPDATE_PRIORITY } from "pixi.js";
 
 import type { CellData } from "@/game/datacenter/cell";
 import type { PlayerRenderer } from "@/game/scene/player/renderer";
@@ -41,6 +42,8 @@ import {
   getLoadedSwfBundleCount,
   getPathCacheStats,
   getPixiRenderer,
+  getRustGpuByteStats,
+  getRustGpuObjectCounts,
   getRustTexturesCount,
   getWasmHeapBytes,
   swfBundleExports,
@@ -48,6 +51,53 @@ import {
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("StressTest");
+
+/** Byte cost per texel for the formats Pixi/Vello produce. Used by
+ *  the stress-test memory accounting block to size each managed Pixi
+ *  source. Conservative fallback to 4 bytes (the most common case)
+ *  for any format string we don't recognise — better to over-count
+ *  than to silently hide bytes in the unaccounted bucket. */
+function bytesPerPixelOfFormat(format: string): number {
+  switch (format) {
+    case "r8unorm":
+    case "r8snorm":
+    case "r8uint":
+    case "r8sint":
+      return 1;
+    case "rg8unorm":
+    case "rg8snorm":
+    case "rg8uint":
+    case "rg8sint":
+    case "r16uint":
+    case "r16sint":
+    case "r16float":
+      return 2;
+    case "rgba8unorm":
+    case "rgba8unorm-srgb":
+    case "rgba8snorm":
+    case "rgba8uint":
+    case "rgba8sint":
+    case "bgra8unorm":
+    case "bgra8unorm-srgb":
+    case "rgba16float": // 8 actually — handled below
+      return format === "rgba16float" ? 8 : 4;
+    case "rgba16uint":
+    case "rgba16sint":
+      return 8;
+    case "rgba32float":
+    case "rgba32uint":
+    case "rgba32sint":
+      return 16;
+    case "depth16unorm":
+      return 2;
+    case "depth24plus":
+    case "depth24plus-stencil8":
+    case "depth32float":
+      return 4;
+    default:
+      return 4;
+  }
+}
 
 /**
  * gfxIds known to render via the new SWF pipeline. The full vanilla
@@ -169,6 +219,72 @@ let traversalsStarted = 0;
 let traversalsCompleted = 0;
 let traversalsInflight = 0;
 let monitorHandle: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Per-frame ticker-callback duration tracker. Goal: distinguish
+ * "our code is getting slower" from "browser-side cost is growing"
+ * when `frameMsAvg` degrades.
+ *
+ * Mechanism: register one callback at `INTERACTION` priority (runs
+ * FIRST in each Ticker.shared tick) to capture the start timestamp,
+ * and another at `UTILITY` priority (runs LAST) to compute the
+ * delta. The delta is the total time spent in ALL Ticker.shared
+ * callbacks for that frame — Pixi's render, our cache tick, the
+ * deferred-destroy tick, plus anything else registered on the
+ * shared ticker.
+ *
+ * Interpretation:
+ *  - tickerMsAvg grows alongside frameMsAvg → slowdown is in our
+ *    ticker-driven code (Pixi internals, our systems). Drill into
+ *    individual callback timings next.
+ *  - tickerMsAvg stays flat while frameMsAvg grows → slowdown is
+ *    outside the ticker (browser GPU process, compositor, JS GC).
+ *    Not fixable from app code without architectural change.
+ */
+let tickerFrameStart = 0;
+let tickerSumMs = 0;
+let tickerMaxMs = 0;
+let tickerSamples = 0;
+let tickerInstrumented = false;
+function ensureTickerInstrumented(): void {
+  if (tickerInstrumented) return;
+  tickerInstrumented = true;
+  Ticker.shared.add(
+    () => {
+      tickerFrameStart = performance.now();
+    },
+    null,
+    UPDATE_PRIORITY.INTERACTION,
+  );
+  Ticker.shared.add(
+    () => {
+      if (tickerFrameStart > 0) {
+        const dur = performance.now() - tickerFrameStart;
+        tickerSumMs += dur;
+        if (dur > tickerMaxMs) tickerMaxMs = dur;
+        tickerSamples += 1;
+      }
+    },
+    null,
+    UPDATE_PRIORITY.UTILITY,
+  );
+}
+function readAndResetTickerStats(): {
+  avgMs: number;
+  maxMs: number;
+  samples: number;
+} {
+  const samples = tickerSamples;
+  const out = {
+    avgMs: samples > 0 ? tickerSumMs / samples : 0,
+    maxMs: tickerMaxMs,
+    samples,
+  };
+  tickerSumMs = 0;
+  tickerMaxMs = 0;
+  tickerSamples = 0;
+  return out;
+}
 let monitorLastSnapshotAt = 0;
 let monitorLastCompletedAt = 0;
 let monitorLastStartedAt = 0;
@@ -228,15 +344,32 @@ function pickRandomCell(cells: CellData[]): CellData | null {
   return active[Math.floor(Math.random() * active.length)] ?? null;
 }
 
-function sleep(ms: number, cancelled: Promise<void>): Promise<void> {
-  let handle: ReturnType<typeof setTimeout> | null = null;
-  return new Promise<void>((resolve) => {
-    handle = setTimeout(resolve, ms);
-    void cancelled.then(() => {
-      if (handle !== null) clearTimeout(handle);
-      resolve();
-    });
+/**
+ * Per-bot scoped sleep helper. Attaches ONE `.then()` to `cancelled`
+ * (vs the previous one-per-call sleep). At 200 bots × ~5 sleeps/sec
+ * each, this cuts ~1000 attached-handler entries/sec off the
+ * cancelled Promise's handler list — and the matching `.then()`-
+ * returned Promise allocations that feed major-GC pressure (see
+ * Phase B in RENDER_SCALING_PLAN.md).
+ */
+function makeBotSleep(cancelled: Promise<void>): (ms: number) => Promise<void> {
+  const pending = new Set<ReturnType<typeof setTimeout>>();
+  let cancelledFired = false;
+  void cancelled.then(() => {
+    cancelledFired = true;
+    for (const h of pending) clearTimeout(h);
+    pending.clear();
   });
+  return (ms: number) => {
+    if (cancelledFired) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const h = setTimeout(() => {
+        pending.delete(h);
+        resolve();
+      }, ms);
+      pending.add(h);
+    });
+  };
 }
 
 /**
@@ -254,6 +387,10 @@ function logMonitorSnapshot(): void {
   const startedDelta = traversalsStarted - monitorLastStartedAt;
   monitorLastCompletedAt = traversalsCompleted;
   monitorLastStartedAt = traversalsStarted;
+  // Drain ticker stats ONCE per snapshot; reuse for both JSON and
+  // text output. Reading twice would reset the accumulator between
+  // reads and the text monitor would see zeros.
+  const tickerStats = readAndResetTickerStats();
 
   const wd = getRenderWatchdog();
   const snap = wd.getSnapshot();
@@ -276,23 +413,89 @@ function logMonitorSnapshot(): void {
   const defStats = getDeferredDestroyStats();
   const rustTexCount = getRustTexturesCount();
   const wasmHeapBytes = getWasmHeapBytes();
-  // Pixi-side managed-source counts (best effort — depends on Pixi
-  // v8 internals being accessible).
+  const rustBytes = getRustGpuByteStats();
+  const rustObjs = getRustGpuObjectCounts();
+  // Pixi-side managed-source counts + accounting (best effort —
+  // depends on Pixi v8 internals being accessible). Each entry of
+  // `_managedTextures.items` is a `TextureSource`; we sum its
+  // estimated GPU bytes (pixelWidth × pixelHeight × bytesPerPixel)
+  // and, when the underlying `resource` is still an `ImageBitmap`
+  // (i.e. the bitmap hasn't been .close()'d), its CPU/browser bytes
+  // too. Pixi keeps `source.resource = bitmap` alive forever unless
+  // we close it ourselves, so every uncloced bitmap doubles the
+  // working set of that source.
   let pixiManagedSources = -1;
   let pixiBindGroupHash = -1;
+  let pixiGpuBytes = 0;
+  let pixiBitmapBytes = 0;
+  const pixiByLabel = new Map<
+    string,
+    { count: number; gpuBytes: number; bitmapBytes: number }
+  >();
   try {
     const renderer = getPixiRenderer() as unknown as
-      | { texture?: { _managedTextures?: { items?: Record<string, unknown> }; _bindGroupHash?: Record<string, unknown> } }
+      | {
+          texture?: {
+            _managedTextures?: { items?: Record<string, unknown> };
+            _bindGroupHash?: Record<string, unknown>;
+          };
+        }
       | null;
     const sys = renderer?.texture;
     if (sys?._managedTextures?.items) {
-      pixiManagedSources = Object.keys(sys._managedTextures.items).length;
+      // `GCManagedHash.remove()` sets `items[uid] = null` rather
+      // than deleting — so `Object.values(items)` returns a mix of
+      // live sources and nulls. Filter the nulls before iterating;
+      // count only live sources for `managedSources`. Without this
+      // the iteration throws on the first null and the catch
+      // swallows the rest, leaving most sources unaccounted for.
+      const items = sys._managedTextures.items as Record<string, unknown>;
+      const liveSources = Object.values(items).filter(
+        (s): s is Record<string, unknown> => s !== null && s !== undefined,
+      );
+      pixiManagedSources = liveSources.length;
+      for (const src of liveSources) {
+        const s = src as {
+          pixelWidth?: number;
+          pixelHeight?: number;
+          format?: string;
+          label?: string;
+          resource?: unknown;
+        };
+        const w = s.pixelWidth ?? 0;
+        const h = s.pixelHeight ?? 0;
+        const bpp = bytesPerPixelOfFormat(s.format ?? "rgba8unorm");
+        const gpuBytes = w * h * bpp;
+        pixiGpuBytes += gpuBytes;
+        let bitmapBytes = 0;
+        const resource = s.resource;
+        if (
+          resource &&
+          typeof (resource as { close?: () => void }).close === "function" &&
+          typeof (resource as { width?: number }).width === "number"
+        ) {
+          const bm = resource as { width: number; height: number };
+          bitmapBytes = bm.width * bm.height * 4;
+          pixiBitmapBytes += bitmapBytes;
+        }
+        const labelPrefix =
+          (s.label ?? "(unlabeled)").split(/[:|@]/)[0] || "(other)";
+        const bucket = pixiByLabel.get(labelPrefix) ?? {
+          count: 0,
+          gpuBytes: 0,
+          bitmapBytes: 0,
+        };
+        bucket.count += 1;
+        bucket.gpuBytes += gpuBytes;
+        bucket.bitmapBytes += bitmapBytes;
+        pixiByLabel.set(labelPrefix, bucket);
+      }
     }
     if (sys?._bindGroupHash) {
       pixiBindGroupHash = Object.keys(sys._bindGroupHash).length;
     }
   } catch {
-    // ignore
+    // ignore — instrumentation is best-effort
   }
 
   const completedPerSec = dt > 0 ? completedDelta / dt : 0;
@@ -329,6 +532,16 @@ function logMonitorSnapshot(): void {
       slow1s: snap.slowFrames1s,
       stall10s: snap.stalledFrames10s,
       halted: snap.emergencyHalt,
+      // Total time spent in Ticker.shared callbacks per frame.
+      // Compare against `frameMsAvg`:
+      //   tickerMsAvg ≈ frameMsAvg → all per-frame cost is in our
+      //     ticker callbacks (Pixi + our systems). Fixable from
+      //     app code if we localise the hot listener.
+      //   tickerMsAvg << frameMsAvg → cost is browser-side (GC,
+      //     GPU process, compositor). Not fixable from app code.
+      tickerMsAvg: tickerStats.avgMs,
+      tickerMsMax: tickerStats.maxMs,
+      tickerSamples: tickerStats.samples,
     },
     gpu: {
       textureCountActive: snap.textureCountActive,
@@ -372,6 +585,30 @@ function logMonitorSnapshot(): void {
     rust: {
       textures: rustTexCount,
       wasmHeapMB: wasmHeapBytes / 1024 / 1024,
+      // Byte-granularity GPU accounting from the patched-wgpu fork.
+      // `liveTexMB` is the number we want to compare against the
+      // Pixi-side `pixi.gpuMB`: between them they cover every GPU
+      // texture allocation that touches our code paths.
+      liveTexMB: rustBytes.liveTex / 1024 / 1024,
+      liveBufMB: rustBytes.liveBuf / 1024 / 1024,
+      createdTexMB: rustBytes.createdTex / 1024 / 1024,
+      createdBufMB: rustBytes.createdBuf / 1024 / 1024,
+      destroyedTexMB: rustBytes.destroyedTex / 1024 / 1024,
+      destroyedBufMB: rustBytes.destroyedBuf / 1024 / 1024,
+      pendingTexMB: rustBytes.pendingTex / 1024 / 1024,
+      pendingBufMB: rustBytes.pendingBuf / 1024 / 1024,
+      // Non-byte-sized GPU object counters. `live = created -
+      // dropped`. Unbounded `live` growth = Rust state retaining
+      // handles past their useful lifetime.
+      liveBindGroups: rustObjs.liveBg,
+      createdBindGroups: rustObjs.createdBg,
+      droppedBindGroups: rustObjs.droppedBg,
+      liveTextureViews: rustObjs.liveTv,
+      createdTextureViews: rustObjs.createdTv,
+      droppedTextureViews: rustObjs.droppedTv,
+      liveSamplers: rustObjs.liveSa,
+      createdSamplers: rustObjs.createdSa,
+      droppedSamplers: rustObjs.droppedSa,
     },
     defer: {
       texturesDestroyedTotal: defStats.cumulativeTexturesDestroyed,
@@ -382,6 +619,28 @@ function logMonitorSnapshot(): void {
     pixi: {
       managedSources: pixiManagedSources,
       bindGroups: pixiBindGroupHash,
+      // GPU-side bytes for every Pixi-uploaded TextureSource.
+      gpuMB: pixiGpuBytes / 1024 / 1024,
+      // CPU/browser-side ImageBitmap bytes still held alive via
+      // `source.resource`. If we never call `.close()` on the
+      // bitmap after Pixi uploads it, the browser keeps the backing
+      // buffer alive → doubles the working set of each source.
+      bitmapMB: pixiBitmapBytes / 1024 / 1024,
+      // Per-label-prefix breakdown so we can see where the bytes
+      // actually live (body-color vs body-zone vs accessory vs
+      // tile-strip vs worldmap chunks, etc.).
+      byLabel: Object.fromEntries(
+        Array.from(pixiByLabel.entries())
+          .sort((a, b) => b[1].gpuBytes - a[1].gpuBytes)
+          .map(([k, v]) => [
+            k,
+            {
+              count: v.count,
+              gpuMB: v.gpuBytes / 1024 / 1024,
+              bitmapMB: v.bitmapBytes / 1024 / 1024,
+            },
+          ]),
+      ),
     },
     jsHeap: {
       usedMB: snap.jsHeapUsedMB ?? null,
@@ -394,16 +653,24 @@ function logMonitorSnapshot(): void {
     "── stress monitor ──",
     `  t: ${wallClockIso}`,
     `  bots: active=${activePlayers.size}  inflight=${traversalsInflight}  started=${traversalsStarted}(+${startedDelta} = ${fmt(startedPerSec)}/s)  arrived=${traversalsCompleted}(+${completedDelta} = ${fmt(completedPerSec)}/s)`,
-    `  fps:  inst=${fmt(snap.fpsInstant)}  avg1s=${fmt(snap.fpsAvg1s)}  min10s=${fmt(snap.fpsMin10s)}  frameMs avg=${fmt(snap.frameMsAvg, 2)} p99=${fmt(snap.frameMsP99, 2)} longest10s=${fmt(snap.frameMsLongest10s, 1)}`,
+    `  fps:  inst=${fmt(snap.fpsInstant)}  avg1s=${fmt(snap.fpsAvg1s)}  min10s=${fmt(snap.fpsMin10s)}  frameMs avg=${fmt(snap.frameMsAvg, 2)} p99=${fmt(snap.frameMsP99, 2)} longest10s=${fmt(snap.frameMsLongest10s, 1)}  ticker avg=${fmt(tickerStats.avgMs, 2)}ms max=${fmt(tickerStats.maxMs, 2)}ms`,
     `  slow: slow1s=${snap.slowFrames1s}  stall10s=${snap.stalledFrames10s}  halted=${snap.emergencyHalt}`,
     `  gpu:  textures(active=${snap.textureCountActive} created=${snap.texturesCreatedTotal} freed=${snap.texturesFreedTotal})  surfaces=${snap.surfaceCountActive}`,
     `  vello: liveTex=${getLiveRenderTextureCount()} (renderIds=${getLiveRenderTextureIdCount()} spells=${getLiveSpellInstanceCount()})  bundles=${getLoadedSwfBundleCount()}`,
     `  bake: pending=${bakeQueue.pending}  enq=${bakeQueue.totalEnqueued}  done=${bakeQueue.totalDispatched}  dedup=${bakeQueue.totalDedupCollapses}  stale=${bakeQueue.totalStaleSkipped}  budget=${bakeQueue.budgetMs}ms`,
     `  char: body=${charCache.bodyEntries}(${fmt(charCache.bodyBytes / 1024 / 1024, 1)}MB) acc=${charCache.accEntries}(${fmt(charCache.accBytes / 1024 / 1024, 1)}MB) mnt=${charCache.mountEntries} total=${fmt(cacheTotal / 1024 / 1024, 1)}MB hit%=${fmt(hitRate, 1)} (hits=${charCache.hits} miss=${charCache.misses} evict=${charCache.evicts})`,
     `  path: bundleCache=${fmtPc(pc?.bundleCacheCount)} sceneCache=${fmtPc(pc?.sceneCacheCount)} sceneBytes≈${fmtPc(pc?.sceneBytesEstimate ? pc.sceneBytesEstimate / 1024 : null, 0)}KB`,
-    `  rust: textures=${rustTexCount}  wasm.heap=${fmt(wasmHeapBytes / 1024 / 1024, 1)}MB`,
-    `  defer: txDestroyed=${defStats.cumulativeTexturesDestroyed} bufDestroyed=${defStats.cumulativeBuffersDestroyed} txPending=${defStats.texturesPending} bufPending=${defStats.buffersPending}`,
-    `  pixi: managedSources=${pixiManagedSources} bindGroups=${pixiBindGroupHash}`,
+    `  rust: textures=${rustTexCount}  wasm.heap=${fmt(wasmHeapBytes / 1024 / 1024, 1)}MB  liveTex=${fmt(rustBytes.liveTex / 1024 / 1024, 1)}MB  liveBuf=${fmt(rustBytes.liveBuf / 1024 / 1024, 1)}MB  createdTex=${fmt(rustBytes.createdTex / 1024 / 1024, 1)}MB  destroyedTex=${fmt(rustBytes.destroyedTex / 1024 / 1024, 1)}MB`,
+    `  defer: txDestroyed=${defStats.cumulativeTexturesDestroyed} bufDestroyed=${defStats.cumulativeBuffersDestroyed} txPending=${defStats.texturesPending} bufPending=${defStats.buffersPending} pendTexMB=${fmt(rustBytes.pendingTex / 1024 / 1024, 1)} pendBufMB=${fmt(rustBytes.pendingBuf / 1024 / 1024, 1)}`,
+    `  objs: bg=${rustObjs.liveBg}(±${rustObjs.createdBg - rustObjs.droppedBg}) tv=${rustObjs.liveTv}(±${rustObjs.createdTv - rustObjs.droppedTv}) sa=${rustObjs.liveSa}(±${rustObjs.createdSa - rustObjs.droppedSa})  bg.created=${rustObjs.createdBg} bg.dropped=${rustObjs.droppedBg}`,
+    `  pixi: managedSources=${pixiManagedSources} bindGroups=${pixiBindGroupHash} gpu=${fmt(pixiGpuBytes / 1024 / 1024, 1)}MB bitmap=${fmt(pixiBitmapBytes / 1024 / 1024, 1)}MB`,
+    ...Array.from(pixiByLabel.entries())
+      .sort((a, b) => b[1].gpuBytes - a[1].gpuBytes)
+      .slice(0, 8)
+      .map(
+        ([k, v]) =>
+          `    pixi.${k}: ${v.count}× gpu=${fmt(v.gpuBytes / 1024 / 1024, 1)}MB bmap=${fmt(v.bitmapBytes / 1024 / 1024, 1)}MB`,
+      ),
     `  heap: ${snap.jsHeapUsedMB ?? "?"}MB / ${snap.jsHeapLimitMB ?? "?"}MB`,
   ].join("\n");
 
@@ -435,15 +702,44 @@ function buildEmptySnapshot() {
   return {
     t: new Date(0).toISOString(),
     bots: { active: 0, inflight: 0, started: 0, startedDelta: 0, startedPerSec: 0, arrived: 0, arrivedDelta: 0, arrivedPerSec: 0 },
-    fps: { inst: 0, avg1s: 0, min10s: 0, frameMsAvg: 0, frameMsP99: 0, frameMsLongest10s: 0, slow1s: 0, stall10s: 0, halted: false },
+    fps: { inst: 0, avg1s: 0, min10s: 0, frameMsAvg: 0, frameMsP99: 0, frameMsLongest10s: 0, slow1s: 0, stall10s: 0, halted: false, tickerMsAvg: 0, tickerMsMax: 0, tickerSamples: 0 },
     gpu: { textureCountActive: 0, texturesCreatedTotal: 0, texturesFreedTotal: 0, surfaceCountActive: 0 },
     vello: { liveTex: 0, renderIds: 0, spells: 0, bundles: 0 },
     bake: { pending: 0, enq: 0, done: 0, dedup: 0, stale: 0, budgetMs: 0 },
     cache: { bodyEntries: 0, bodyMB: 0, accEntries: 0, accMB: 0, mntEntries: 0, totalMB: 0, hitPct: 0, hits: 0, misses: 0, evicts: 0 },
     pathCache: null as { bundleCacheCount: number; sceneCacheCount: number; sceneKB: number } | null,
-    rust: { textures: 0, wasmHeapMB: 0 },
+    rust: {
+      textures: 0,
+      wasmHeapMB: 0,
+      liveTexMB: 0,
+      liveBufMB: 0,
+      createdTexMB: 0,
+      createdBufMB: 0,
+      destroyedTexMB: 0,
+      destroyedBufMB: 0,
+      pendingTexMB: 0,
+      pendingBufMB: 0,
+      liveBindGroups: 0,
+      createdBindGroups: 0,
+      droppedBindGroups: 0,
+      liveTextureViews: 0,
+      createdTextureViews: 0,
+      droppedTextureViews: 0,
+      liveSamplers: 0,
+      createdSamplers: 0,
+      droppedSamplers: 0,
+    },
     defer: { texturesDestroyedTotal: 0, buffersDestroyedTotal: 0, texturesPending: 0, buffersPending: 0 },
-    pixi: { managedSources: 0, bindGroups: 0 },
+    pixi: {
+      managedSources: 0,
+      bindGroups: 0,
+      gpuMB: 0,
+      bitmapMB: 0,
+      byLabel: {} as Record<
+        string,
+        { count: number; gpuMB: number; bitmapMB: number }
+      >,
+    },
     jsHeap: { usedMB: null as number | null, limitMB: null as number | null },
   };
 }
@@ -453,6 +749,7 @@ const STRESS_HISTORY_MAX = 200;
 
 function startMonitorIfNeeded(): void {
   if (monitorHandle !== null) return;
+  ensureTickerInstrumented();
   monitorLastSnapshotAt = performance.now();
   monitorLastCompletedAt = traversalsCompleted;
   monitorLastStartedAt = traversalsStarted;
@@ -509,8 +806,19 @@ async function runMovementLoop(
   // The orphan move promise resolves later when arrival hits (or
   // never if the player was removed) — its resolution goes nowhere
   // and is GC'd alongside the player state.
+  //
+  // The cancel-promise is built ONCE per bot. Previously each
+  // raceCancel call attached a new `.then()` handler to `cancelled`,
+  // accumulating O(iterations) handlers per bot. At 200 bots × ~5
+  // movement loops/sec this added thousands of attached callbacks
+  // and equivalent Promise allocations per sec, feeding GC pressure.
+  const cancelAsCancel: Promise<"cancel"> = cancelled.then(
+    () => "cancel" as const,
+  );
   const raceCancel = <T>(p: Promise<T>): Promise<T | "cancel"> =>
-    Promise.race([p, cancelled.then(() => "cancel" as const)]);
+    Promise.race([p, cancelAsCancel]);
+  // Per-bot sleep with a single attached cancel handler — see makeBotSleep.
+  const botSleep = makeBotSleep(cancelled);
 
   // Defer first movement until the bot's initial strip has landed —
   // otherwise bots that spawn while the bake queue is deep slide
@@ -522,12 +830,12 @@ async function runMovementLoop(
     !renderer.isStripReady(id) &&
     performance.now() < readyDeadline
   ) {
-    await sleep(50, cancelled);
+    await botSleep(50);
   }
 
   while (activePlayers.has(id)) {
     if (getRenderWatchdog().isHalted()) {
-      await sleep(500, cancelled);
+      await botSleep(500);
       continue;
     }
     const currentCell = renderer.getPlayerCell(id);
@@ -537,12 +845,12 @@ async function runMovementLoop(
     }
     const target = pickRandomCell(cells);
     if (!target || target.id === currentCell) {
-      await sleep(200, cancelled);
+      await botSleep(200);
       continue;
     }
     const path = pathfinding.findPath(currentCell, target.id);
     if (!path || path.length < 2) {
-      await sleep(200, cancelled);
+      await botSleep(200);
       continue;
     }
 
@@ -558,7 +866,7 @@ async function runMovementLoop(
     const idleMs =
       MIN_DEST_IDLE_MS +
       Math.random() * (MAX_DEST_IDLE_MS - MIN_DEST_IDLE_MS);
-    await sleep(idleMs, cancelled);
+    await botSleep(idleMs);
   }
 }
 

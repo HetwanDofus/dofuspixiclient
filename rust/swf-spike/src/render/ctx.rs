@@ -160,6 +160,15 @@ pub struct RenderCtx<'a> {
     /// Selects fill emission strategy. Propagates through `child()`.
     /// See `RenderMode`.
     pub output_mode: RenderMode,
+
+    /// Canonical AS2 mcToHide signal: true when the bot has a hat
+    /// (slot 1) equipped. Multi-frame accessory-toggle sprites (e.g.
+    /// Iop's `R_tete` with full vs short hair on different frames)
+    /// get PINNED to frame 1 when this is true, frame 0 otherwise —
+    /// instead of cycling with the body's anim frame. Without this
+    /// pin the hair flips every body frame ("alternating hair"
+    /// bug). Propagates through `child()`.
+    pub hat_equipped: bool,
 }
 
 impl<'a> RenderCtx<'a> {
@@ -187,7 +196,15 @@ impl<'a> RenderCtx<'a> {
             band_filter: None,
             disable_accessories: false,
             output_mode: RenderMode::default(),
+            hat_equipped: false,
         }
+    }
+
+    /// Set the canonical mcToHide signal (slot 1 / hat equipped).
+    /// See `hat_equipped` field doc. Propagates through `child()`.
+    pub fn with_hat_equipped(mut self, equipped: bool) -> Self {
+        self.hat_equipped = equipped;
+        self
     }
 
     /// Restrict the TOP-LEVEL body walk to the given depth band.
@@ -312,9 +329,28 @@ impl<'a> RenderCtx<'a> {
         // wrapper sprites) always see 0. Without the modulo a 30-frame
         // smoke clip nested inside a 210-frame parent would clamp to
         // its last frame for 180 of 210 parent frames.
+        //
+        // Special case — `accessory-toggle` sprites: canonical Dofus
+        // AS2 uses a 2-frame sprite with DIFFERENT children per frame
+        // as the `mcToHide` argument to `applyAccessory`. Iop's R_tete
+        // is the textbook case: frame 1 shows full hair
+        // (`cIop_R_Cheveux`), frame 2 swaps it for short
+        // (`cIop_R_CheveuxCourt`) so a hat doesn't clip. The AS2
+        // `gotoAndStop(1 or 2)` PINS the toggle's frame based on
+        // whether the relevant accessory is equipped — it does NOT
+        // cycle. If we let the standard `% num_frames` rule apply,
+        // the hair flips every body frame ("alternating hair" bug).
+        // We detect this pattern structurally (frames have different
+        // active character sets) and pin the frame to `hat_equipped
+        // ? 1 : 0`. For canonical Dofus this only ever fires for
+        // hair/head sprites — slot 1 is the only authored mcToHide.
         let frame = match self.doc.lookup_id(child_id) {
             Some(crate::swf_doc::Symbol::Sprite(c)) if c.num_frames > 1 => {
-                self.frame % c.num_frames
+                if is_accessory_toggle_sprite(c) {
+                    if self.hat_equipped && c.num_frames > 1 { 1 } else { 0 }
+                } else {
+                    self.frame % c.num_frames
+                }
             }
             _ => 0,
         };
@@ -348,6 +384,50 @@ impl<'a> RenderCtx<'a> {
             // through the recursion.
             disable_accessories: self.disable_accessories,
             output_mode: self.output_mode,
+            hat_equipped: self.hat_equipped,
         }
     }
+}
+
+/// Detect the canonical AS2 `mcToHide` pattern: a multi-frame
+/// sprite whose frames have DIFFERENT active character sets (i.e.
+/// the frames swap children, not just animate one child). This is
+/// the structural signature of `applyAccessory`'s mcToHide arg —
+/// Iop's `R_tete` (full hair on frame 1, short hair on frame 2) is
+/// the textbook case.
+///
+/// We track active depth → character_id as we walk the timeline,
+/// rebuilding the snapshot at every ShowFrame. If any frame's char
+/// set differs from frame 1's, the sprite qualifies. Walking-arm
+/// style animation (same child, different transform per frame)
+/// keeps the same char set and is correctly excluded.
+fn is_accessory_toggle_sprite(sprite: &crate::swf_doc::OwnedSprite) -> bool {
+    if sprite.num_frames < 2 {
+        return false;
+    }
+    use std::collections::{BTreeMap, BTreeSet};
+    let mut depth_to_char: BTreeMap<u16, u16> = BTreeMap::new();
+    let mut first_chars: Option<BTreeSet<u16>> = None;
+    for op in &sprite.ops {
+        match op {
+            crate::swf_doc::OwnedOp::Place(p) => {
+                if let Some(cid) = p.character_id {
+                    depth_to_char.insert(p.depth, cid);
+                }
+            }
+            crate::swf_doc::OwnedOp::Remove { depth } => {
+                depth_to_char.remove(depth);
+            }
+            crate::swf_doc::OwnedOp::ShowFrame => {
+                let cur: BTreeSet<u16> = depth_to_char.values().copied().collect();
+                match &first_chars {
+                    None => first_chars = Some(cur),
+                    Some(first) if first != &cur => return true,
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+    false
 }

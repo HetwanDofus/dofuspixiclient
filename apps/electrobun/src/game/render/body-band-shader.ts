@@ -25,10 +25,34 @@ import {
   GpuProgram,
   Mesh,
   Shader,
+  TextureStyle,
   UniformGroup,
 } from "pixi.js";
 
 import type { BodyAtlas, BodyAtlasBand } from "@/game/render/character-cache";
+
+/**
+ * Module-shared NEAREST `TextureStyle` for the zone-id sampling path
+ * in the body-band shader. The combined body atlas is bound twice
+ * with two samplers (LINEAR via the source's default style for
+ * color+alpha, NEAREST via this instance for zone-id decode). A
+ * single shared style is fine — Pixi caches GPU samplers by their
+ * style options, so binding many meshes with the same style instance
+ * hits the same GPUSampler.
+ */
+let cachedNearestSampler: TextureStyle | null = null;
+function getNearestSamplerStyle(): TextureStyle {
+  if (cachedNearestSampler) return cachedNearestSampler;
+  cachedNearestSampler = new TextureStyle({
+    addressModeU: "clamp-to-edge",
+    addressModeV: "clamp-to-edge",
+    addressModeW: "clamp-to-edge",
+    magFilter: "nearest",
+    minFilter: "nearest",
+    mipmapFilter: "nearest",
+  });
+  return cachedNearestSampler;
+}
 
 /**
  * One bot's HSL zone colours, normalised 0..1 RGB packed in vec4
@@ -131,10 +155,18 @@ struct ColourZones {
   uZone3: vec4<f32>,
 };
 
-@group(2) @binding(0) var uBodyTex:  texture_2d<f32>;
-@group(2) @binding(1) var uBodySamp: sampler;
-@group(2) @binding(2) var uZoneTex:  texture_2d<f32>;
-@group(2) @binding(3) var uZoneSamp: sampler;
+// Combined-bridge body texture bound TWICE — once for LINEAR
+// color+alpha sampling, once for NEAREST zone-id decode. Pixi v8's
+// bind-group-layout extraction prefers each sampler paired with its
+// own texture binding (sharing one texture across two samplers in
+// the same group produced a layout-undefined error in Pixi's
+// _createBindGroup). Both texture bindings receive the same
+// combinedTexture.source from the cache, so there's no extra
+// GPU memory — just two binding slots pointing at one texture.
+@group(2) @binding(0) var uBodyTexLinear:   texture_2d<f32>;
+@group(2) @binding(1) var uBodyLinearSamp:  sampler;
+@group(2) @binding(2) var uBodyTexNearest:  texture_2d<f32>;
+@group(2) @binding(3) var uBodyNearestSamp: sampler;
 @group(3) @binding(0) var<uniform> zones: ColourZones;
 
 struct LocalUniforms {
@@ -216,31 +248,48 @@ fn recolor_to_zone(orig: vec3<f32>, tgt: vec3<f32>) -> vec3<f32> {
 fn mainFragment(
   @location(0) vUv: vec2<f32>,
 ) -> @location(0) vec4<f32> {
-  // Direct GPUTexture path: Vello writes STRAIGHT alpha (its
-  // fine.wgsl un-premultiplies before the final textureStore) and
-  // Pixi samples this texture directly via ExternalSource. With
-  // alphaMode "no-premultiply-alpha" Pixi's NORMAL blend mode uses
-  // NPM factors (srcAlpha, 1-srcAlpha) which is the correct
-  // composite for straight RGB — so we just sample, recolor, and
-  // return straight RGB without any pre/un-premultiply gymnastics.
-  let colour = textureSample(uBodyTex, uBodySamp, vUv);
-  // Sample zone-id with NEAREST so AA-smeared boundaries can't
-  // produce intermediate ids. The R channel carries zone_id * 60
-  // (60 / 120 / 180 for zones 1 / 2 / 3).
-  let zid_r = textureSample(uZoneTex, uZoneSamp, vUv).r;
-  let id = i32(zid_r * 255.0 + 0.5) / 60;
+  // Combined-bridge bitmap is PMA (the blit shader premultiplies).
+  // Pixi sees alphaMode=premultiply-alpha-on-upload so the upload
+  // preserves it. We sample LINEAR for color + body alpha, then
+  // un-premultiply for HSL recoloring, then re-premultiply at
+  // output. See STEP_11_BRIDGE_NOTES.md Round 3a/3b.
+  let sampled = textureSample(uBodyTexLinear, uBodyLinearSamp, vUv);
+  // The alpha byte encodes (body_alpha_pma & 0xFC) | zone_id, but
+  // LINEAR-sampling smooths the high 6 bits (body_alpha PMA-form)
+  // while the zone_id LSBs add ≤1.6% noise — invisible at AA
+  // edges. Use this alpha as the body's premultiplied alpha.
+  let pma_alpha = sampled.a;
+  // Un-premultiply for HSL space. Guard alpha=0 to avoid NaN.
+  var straight_rgb = vec3<f32>(0.0);
+  if (pma_alpha > 0.0001) {
+    straight_rgb = sampled.rgb / pma_alpha;
+  }
+  // NEAREST sample of the SAME texture — pixel-perfect alpha byte
+  // (no interpolation across zone boundaries). Decode zone_id
+  // from the low 2 bits.
+  let nearest = textureSample(uBodyTexNearest, uBodyNearestSamp, vUv);
+  let nearest_byte = u32(nearest.a * 255.0 + 0.5);
+  let id = i32(nearest_byte & 0x3u);
 
-  var rgb = colour.rgb;
+  var rgb = straight_rgb;
   if (id == 1 && zones.uZone1.a > 0.5) {
-    rgb = recolor_to_zone(colour.rgb, zones.uZone1.rgb);
+    rgb = recolor_to_zone(straight_rgb, zones.uZone1.rgb);
   } else if (id == 2 && zones.uZone2.a > 0.5) {
-    rgb = recolor_to_zone(colour.rgb, zones.uZone2.rgb);
+    rgb = recolor_to_zone(straight_rgb, zones.uZone2.rgb);
   } else if (id == 3 && zones.uZone3.a > 0.5) {
-    rgb = recolor_to_zone(colour.rgb, zones.uZone3.rgb);
+    rgb = recolor_to_zone(straight_rgb, zones.uZone3.rgb);
   }
 
   let opacity = localUniforms.uColor.a;
-  return vec4<f32>(rgb * localUniforms.uColor.rgb, colour.a * opacity);
+  let tinted = rgb * localUniforms.uColor.rgb;
+  // The packed alpha byte's low 2 bits carry zone_id, the high 6
+  // are the PMA body alpha quantised. Mask them out before using
+  // as the final alpha so blending isn't affected by zone noise.
+  let alpha_byte = u32(pma_alpha * 255.0 + 0.5) & 0xFCu;
+  let body_alpha = f32(alpha_byte) / 252.0;
+  let final_alpha = clamp(body_alpha * opacity, 0.0, 1.0);
+  // Re-premultiply for Pixi's PMA blend pipeline.
+  return vec4<f32>(tinted * final_alpha, final_alpha);
 }
 `;
 
@@ -265,8 +314,17 @@ precision highp float;
 in vec2 vUv;
 out vec4 fragColor;
 
-uniform sampler2D uBodyTex;
-uniform sampler2D uZoneTex;
+// WebGL has no separate sampler objects — filtering modes live on
+// the texture's min_filter / mag_filter. To get a NEAREST read
+// for zone-id decode under the GL fallback, we'd need two distinct
+// GL texture objects with different filter settings, which Pixi
+// doesn't expose cleanly. So under GL we sample both colour and
+// zone bytes with the source's default (LINEAR) filter — zone
+// boundaries may have 1-pixel bleed where adjacent zone-ids
+// interpolate. Acceptable trade-off for a fallback path; the
+// primary WebGPU path uses the NEAREST sampler properly.
+uniform sampler2D uBodyTexLinear;
+uniform sampler2D uBodyTexNearest;
 uniform vec4 uColor;
 // vec4 layout: .rgb = target, .a = active flag (matches WGSL UBO).
 uniform vec4 uZone1;
@@ -320,16 +378,25 @@ vec3 recolor_to_zone(vec3 orig, vec3 target) {
 }
 
 void main() {
-  // Direct GPU path: Vello writes straight alpha; Pixi NPM blend.
-  // Sample, recolor, return straight RGB.
-  vec4 colour = texture(uBodyTex, vUv);
-  float zid_r = texture(uZoneTex, vUv).r;
-  int id = int(zid_r * 255.0 + 0.5) / 60;
-  vec3 rgb = colour.rgb;
-  if (id == 1 && uZone1.a > 0.5) rgb = recolor_to_zone(colour.rgb, uZone1.rgb);
-  else if (id == 2 && uZone2.a > 0.5) rgb = recolor_to_zone(colour.rgb, uZone2.rgb);
-  else if (id == 3 && uZone3.a > 0.5) rgb = recolor_to_zone(colour.rgb, uZone3.rgb);
-  fragColor = vec4(rgb * uColor.rgb, colour.a * uColor.a);
+  // Combined-bridge mirror of FRAGMENT_WGSL: one texture sampled
+  // twice (LINEAR for color+alpha, NEAREST for zone-id decode
+  // from packed alpha byte's low 2 bits).
+  vec4 sampled = texture(uBodyTexLinear, vUv);
+  float pma_alpha = sampled.a;
+  vec3 straight_rgb = vec3(0.0);
+  if (pma_alpha > 0.0001) straight_rgb = sampled.rgb / pma_alpha;
+  vec4 nearest = texture(uBodyTexNearest, vUv);
+  int nearest_byte = int(nearest.a * 255.0 + 0.5);
+  int id = nearest_byte & 0x3;
+  vec3 rgb = straight_rgb;
+  if (id == 1 && uZone1.a > 0.5) rgb = recolor_to_zone(straight_rgb, uZone1.rgb);
+  else if (id == 2 && uZone2.a > 0.5) rgb = recolor_to_zone(straight_rgb, uZone2.rgb);
+  else if (id == 3 && uZone3.a > 0.5) rgb = recolor_to_zone(straight_rgb, uZone3.rgb);
+  vec3 tinted = rgb * uColor.rgb;
+  int alpha_byte = int(pma_alpha * 255.0 + 0.5) & 0xFC;
+  float body_alpha = float(alpha_byte) / 252.0;
+  float final_alpha = clamp(body_alpha * uColor.a, 0.0, 1.0);
+  fragColor = vec4(tinted * final_alpha, final_alpha);
 }
 `;
 
@@ -497,10 +564,16 @@ export class BodyBandMesh {
       gpuProgram: getGpuProgram(),
       glProgram: getGlProgram(),
       resources: {
-        uBodyTex: atlas.colorTexture.source,
-        uBodySamp: atlas.colorTexture.source.style,
-        uZoneTex: atlas.zoneTexture.source,
-        uZoneSamp: atlas.zoneTexture.source.style,
+        // Both texture bindings point at the SAME source — Pixi
+        // dedupes the GPU resource view on the WebGPU side, so the
+        // doubled binding doesn't allocate doubled memory.
+        uBodyTexLinear: atlas.combinedTexture.source,
+        // LINEAR sampler — the source's default style (we set
+        // scaleMode = "linear" in `buildPixiTextureFromBitmap`).
+        uBodyLinearSamp: atlas.combinedTexture.source.style,
+        uBodyTexNearest: atlas.combinedTexture.source,
+        // NEAREST sampler — explicit module-shared TextureStyle.
+        uBodyNearestSamp: getNearestSamplerStyle(),
         zones: zones.uniformGroup,
       },
     });
@@ -524,10 +597,11 @@ export class BodyBandMesh {
       return;
     }
     const resources = shader.resources;
-    resources.uBodyTex = nextAtlas.colorTexture.source;
-    resources.uBodySamp = nextAtlas.colorTexture.source.style;
-    resources.uZoneTex = nextAtlas.zoneTexture.source;
-    resources.uZoneSamp = nextAtlas.zoneTexture.source.style;
+    resources.uBodyTexLinear = nextAtlas.combinedTexture.source;
+    resources.uBodyLinearSamp = nextAtlas.combinedTexture.source.style;
+    resources.uBodyTexNearest = nextAtlas.combinedTexture.source;
+    // Reuse the same NEAREST style instance — it's module-shared.
+    resources.uBodyNearestSamp = getNearestSamplerStyle();
     // Anim swaps can change per-frame cell dimensions (static vs
     // walk vs run). Rewrite the vertex quad to the new cell size,
     // or the pixels render compressed (the "squashed sprite" bug).

@@ -2,7 +2,7 @@ import {
   type Application,
   BlurFilter,
   Container,
-  ExternalSource,
+  ImageSource,
   Graphics,
   Rectangle,
   Sprite,
@@ -11,13 +11,13 @@ import {
   TextStyle,
 } from "pixi.js";
 
-import { freeRenderTexture } from "@/game/render/vello-loader";
 import {
   loadHintsBundle,
   loadWorldmapBundle,
   renderHintIcon,
   renderWorldmapChunk,
 } from "@/game/render/worldmap-swf-renderer";
+import { uploadAndCloseBitmap } from "@/game/render/vello-loader";
 import type {
   HintGroup,
   HintSpriteData,
@@ -67,8 +67,6 @@ export class WorldMapRenderer {
    * wgpu's `Drop for WebTexture` is a no-op (see
    * `feedback_pixi_wgpu_texture_lifetime`).
    */
-  private tileTextureIds: number[] = [];
-  private hintTextureIds: number[] = [];
 
   private enabledCategories = new Set<number>([1, 2, 3, 4, 5, 6]);
   private currentSuperarea = 0;
@@ -368,7 +366,6 @@ export class WorldMapRenderer {
     this.disposeTileSprites();
     this.centerMap();
 
-    const pixiRenderer = this.app.renderer;
     const { DISPLAY_WIDTH, DISPLAY_HEIGHT } = WORLDMAP_CONSTANTS;
     const { bounds } = this.manifest;
 
@@ -378,17 +375,18 @@ export class WorldMapRenderer {
         if (!result) {
           continue;
         }
-        const source = new ExternalSource({
-          resource: result.texture,
-          renderer: pixiRenderer,
+        const source = new ImageSource({
+          resource: result.bitmap,
           width: result.width,
           height: result.height,
           label: `worldmap-${this.currentSuperarea}-${cx}_${cy}`,
+          alphaMode: "premultiply-alpha-on-upload",
+          scaleMode: "linear",
+          autoGarbageCollect: false,
         });
-        source.alphaMode = "no-premultiply-alpha";
-        source.format = "rgba8unorm";
-        source.scaleMode = "linear";
-        source.autoGarbageCollect = false;
+        // World-map has its own Pixi app — no easy renderer ref
+        // here. Fall back to destroy-event close.
+        uploadAndCloseBitmap(null, source, result.bitmap);
         // Half-texel inset to absorb Vello's 1-px transparent AA pad
         // (rust/vello-wasm/src/lib.rs:801). A plain `frame` crop
         // leaves the GPU linear sampler bleeding into the pad on the
@@ -422,7 +420,6 @@ export class WorldMapRenderer {
         sprite.y = finalY + 20;
         sprite.alpha = 0;
 
-        this.tileTextureIds.push(result.textureId);
         this.mapContainer.addChild(sprite);
         animateTileSurface(sprite, finalY, 200);
       }
@@ -533,7 +530,6 @@ export class WorldMapRenderer {
     this.disposeHintSprites();
     this.clearHintGroups();
 
-    const pixiRenderer = this.app.renderer;
     const { bounds } = this.manifest;
 
     const filteredHints = filterHintsByArea(
@@ -566,17 +562,16 @@ export class WorldMapRenderer {
         bounds.xMin,
         bounds.yMin
       );
-      const source = new ExternalSource({
-        resource: result.texture,
-        renderer: pixiRenderer,
+      const source = new ImageSource({
+        resource: result.bitmap,
         width: result.width,
         height: result.height,
         label: `hint-${hint.gfxID}`,
+        alphaMode: "premultiply-alpha-on-upload",
+        scaleMode: "linear",
+        autoGarbageCollect: false,
       });
-      source.alphaMode = "no-premultiply-alpha";
-      source.format = "rgba8unorm";
-      source.scaleMode = "linear";
-      source.autoGarbageCollect = false;
+      uploadAndCloseBitmap(null, source, result.bitmap);
       // Half-texel inset to dodge linear-filter pad bleed — see the
       // chunk path's note above.
       const AA_PAD = 1;
@@ -590,7 +585,6 @@ export class WorldMapRenderer {
       });
       const anchorFracX = (result.anchorX - inset) / contentW;
       const anchorFracY = (result.anchorY - inset) / contentH;
-      this.hintTextureIds.push(result.textureId);
       hintsToRender.push({
         hint,
         pixelX,
@@ -600,7 +594,7 @@ export class WorldMapRenderer {
         textureHeight: contentH,
         anchorFracX,
         anchorFracY,
-        textureId: result.textureId,
+        textureId: 0,
       });
     }
 
@@ -1112,25 +1106,33 @@ export class WorldMapRenderer {
   }
 
   /**
-   * Retire every live Vello-allocated chunk texture. Patched wgpu's
-   * `Drop for WebTexture` is a no-op — without these explicit
-   * `freeRenderTexture` calls each `loadWorldMap` reload would leak
-   * the previous superarea's textures.
+   * Retire every live worldmap chunk. Under the bridge path the
+   * underlying Vello `wgpu::Texture` already dropped at end of the
+   * bake (deferred_destroy reclaims VRAM on the next tick); Pixi's
+   * `ImageSource` GPU upload is freed via the sprite destroy
+   * cascade. `removeChildren` does NOT cascade-destroy children, so
+   * we explicitly destroy each sprite + its source here.
    */
   private disposeTileSprites(): void {
-    this.mapContainer.removeChildren();
-    for (const id of this.tileTextureIds) {
-      freeRenderTexture(id);
+    for (const sprite of this.mapContainer.children) {
+      const source = (sprite as Sprite).texture?.source as ImageSource | undefined;
+      try {
+        (sprite as Sprite).destroy();
+        source?.destroy();
+      } catch {}
     }
-    this.tileTextureIds = [];
+    this.mapContainer.removeChildren();
   }
 
   private disposeHintSprites(): void {
-    this.hintsContainer.removeChildren();
-    for (const id of this.hintTextureIds) {
-      freeRenderTexture(id);
+    for (const sprite of this.hintsContainer.children) {
+      const source = (sprite as Sprite).texture?.source as ImageSource | undefined;
+      try {
+        (sprite as Sprite).destroy();
+        source?.destroy();
+      } catch {}
     }
-    this.hintTextureIds = [];
+    this.hintsContainer.removeChildren();
   }
 
   destroy(): void {

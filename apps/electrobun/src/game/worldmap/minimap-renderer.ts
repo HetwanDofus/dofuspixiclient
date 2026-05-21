@@ -1,20 +1,20 @@
-import type { Application, Renderer as PixiRenderer } from "pixi.js";
+import type { Application } from "pixi.js";
 import {
   Container,
-  ExternalSource,
+  ImageSource,
   Graphics,
   Rectangle,
   Sprite,
   Texture,
 } from "pixi.js";
 
-import { freeRenderTexture } from "@/game/render/vello-loader";
 import {
   loadHintsBundle,
   loadWorldmapBundle,
   renderHintIcon,
   renderWorldmapChunk,
 } from "@/game/render/worldmap-swf-renderer";
+import { uploadAndCloseBitmap } from "@/game/render/vello-loader";
 import type {
   HintsLayering,
   MapCoordinates,
@@ -45,7 +45,6 @@ export class MinimapRenderer {
    * `getPixiRenderer()` here would wire the texture to the main
    * battlefield app instead, which never reads it.
    */
-  private pixiRenderer: PixiRenderer;
   private worldContainer: Container;
   private mapContainer: Container;
   private hintsContainer: Container;
@@ -64,10 +63,7 @@ export class MinimapRenderer {
    * (patched wgpu's `Drop for WebTexture` is a no-op; see
    * `feedback_pixi_wgpu_texture_lifetime`).
    */
-  private tileTextureIds: number[] = [];
   private tileSprites: Sprite[] = [];
-  /** Same memory-discipline contract as `tileTextureIds`. */
-  private hintTextureIds: number[] = [];
   private hintSprites: Sprite[] = [];
 
   private centerMapId?: number;
@@ -77,7 +73,6 @@ export class MinimapRenderer {
   constructor(config: MinimapRendererConfig) {
     this.centerMapId = config.centerOnMapId;
     this.initialCenterCoordinates = config.centerOnCoordinates;
-    this.pixiRenderer = config.app.renderer;
 
     this.worldContainer = new Container();
     this.mapContainer = new Container();
@@ -137,7 +132,6 @@ export class MinimapRenderer {
     }
     this.disposeTileSprites();
 
-    const pixiRenderer = this.pixiRenderer;
     const { DISPLAY_WIDTH, DISPLAY_HEIGHT } = WORLDMAP_CONSTANTS;
     const { bounds } = this.manifest;
 
@@ -147,17 +141,20 @@ export class MinimapRenderer {
         if (!result) {
           continue;
         }
-        const source = new ExternalSource({
-          resource: result.texture,
-          renderer: pixiRenderer,
+        const source = new ImageSource({
+          resource: result.bitmap,
           width: result.width,
           height: result.height,
           label: `worldmap-${this.currentSuperarea}-${cx}_${cy}`,
+          alphaMode: "premultiply-alpha-on-upload",
+          scaleMode: "linear",
+          autoGarbageCollect: false,
         });
-        source.alphaMode = "no-premultiply-alpha";
-        source.format = "rgba8unorm";
-        source.scaleMode = "linear";
-        source.autoGarbageCollect = false;
+        // Minimap has its own Pixi app — no easy renderer ref here.
+      // Fall back to destroy-event close (bitmap stays alive until
+      // the chunk source is destroyed by map navigation). Worldmap
+      // chunks are long-lived and few; memory cost is bounded.
+      uploadAndCloseBitmap(null, source, result.bitmap);
 
         // Vello wraps every render with a 1-px transparent AA pad on
         // each side (rust/vello-wasm/src/lib.rs:801). A Pixi `frame`
@@ -206,7 +203,6 @@ export class MinimapRenderer {
         sprite.height = DISPLAY_HEIGHT;
 
         this.tileSprites.push(sprite);
-        this.tileTextureIds.push(result.textureId);
         this.mapContainer.addChild(sprite);
       }
     }
@@ -219,7 +215,6 @@ export class MinimapRenderer {
 
     this.disposeHintSprites();
 
-    const pixiRenderer = this.pixiRenderer;
     const { bounds } = this.manifest;
     const enabledCategories = new Set<number>([1, 2, 3, 4, 5, 6]);
 
@@ -237,17 +232,20 @@ export class MinimapRenderer {
       if (!result) {
         continue;
       }
-      const source = new ExternalSource({
-        resource: result.texture,
-        renderer: pixiRenderer,
+      const source = new ImageSource({
+        resource: result.bitmap,
         width: result.width,
         height: result.height,
         label: `hint-${hint.gfxID}`,
+        alphaMode: "premultiply-alpha-on-upload",
+        scaleMode: "linear",
+        autoGarbageCollect: false,
       });
-      source.alphaMode = "no-premultiply-alpha";
-      source.format = "rgba8unorm";
-      source.scaleMode = "linear";
-      source.autoGarbageCollect = false;
+      // Minimap has its own Pixi app — no easy renderer ref here.
+      // Fall back to destroy-event close (bitmap stays alive until
+      // the chunk source is destroyed by map navigation). Worldmap
+      // chunks are long-lived and few; memory cost is bounded.
+      uploadAndCloseBitmap(null, source, result.bitmap);
       // Same half-texel inset as the chunk path. See the chunk render
       // for the full rationale: a plain `frame` crop leaves the linear
       // sampler bleeding into the AA pad on UV (0, 0) / (1, 1); insetting
@@ -285,7 +283,6 @@ export class MinimapRenderer {
       sprite.scale.set(hintScale);
 
       this.hintSprites.push(sprite);
-      this.hintTextureIds.push(result.textureId);
       this.hintsContainer.addChild(sprite);
     }
   }
@@ -420,37 +417,29 @@ export class MinimapRenderer {
    */
   private disposeTileSprites(): void {
     for (const sprite of this.tileSprites) {
-      const source = sprite.texture?.source;
+      const source = sprite.texture?.source as ImageSource | undefined;
       sprite.destroy();
-      if (source && typeof (source as ExternalSource).destroy === "function") {
+      if (source && typeof source.destroy === "function") {
         try {
-          (source as ExternalSource).destroy();
+          source.destroy();
         } catch {}
       }
     }
     this.tileSprites = [];
-    for (const id of this.tileTextureIds) {
-      freeRenderTexture(id);
-    }
-    this.tileTextureIds = [];
     this.mapContainer.removeChildren();
   }
 
   private disposeHintSprites(): void {
     for (const sprite of this.hintSprites) {
-      const source = sprite.texture?.source;
+      const source = sprite.texture?.source as ImageSource | undefined;
       sprite.destroy();
-      if (source && typeof (source as ExternalSource).destroy === "function") {
+      if (source && typeof source.destroy === "function") {
         try {
-          (source as ExternalSource).destroy();
+          source.destroy();
         } catch {}
       }
     }
     this.hintSprites = [];
-    for (const id of this.hintTextureIds) {
-      freeRenderTexture(id);
-    }
-    this.hintTextureIds = [];
     this.hintsContainer.removeChildren();
   }
 

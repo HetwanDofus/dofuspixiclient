@@ -31,7 +31,7 @@
 
 import {
   Application,
-  ExternalSource,
+  ImageSource,
   Sprite,
   Texture,
 } from "pixi.js";
@@ -39,7 +39,6 @@ import {
 import { createLogger } from "@/utils/logger";
 
 import {
-  freeRenderTexture,
   getVelloGpu,
   type VelloSwfFrameResult,
 } from "./vello-loader";
@@ -151,20 +150,18 @@ class HudVelloAtlas {
       if (!result) {
         return null;
       }
-      const { texture, textureId } = result;
-      let source: ExternalSource | null = null;
+      const { bitmap } = result;
+      let source: ImageSource | null = null;
       try {
-        source = new ExternalSource({
-          resource: texture,
-          renderer: this.app.renderer,
+        source = new ImageSource({
+          resource: bitmap,
           width: result.width,
           height: result.height,
           label: "hud-atlas-input",
+          alphaMode: "premultiply-alpha-on-upload",
+          scaleMode: "linear",
+          autoGarbageCollect: false,
         });
-        source.alphaMode = "no-premultiply-alpha";
-        source.format = "rgba8unorm";
-        source.scaleMode = "linear";
-        source.autoGarbageCollect = false;
         const tex = new Texture({ source });
         const sprite = new Sprite(tex);
         sprite.anchor.set(0, 0);
@@ -200,9 +197,11 @@ class HudVelloAtlas {
             source.destroy();
           } catch {}
         }
-        // The Vello texture has done its job — the pixels live on
-        // the Pixi canvas now, so free the source GPU texture.
-        freeRenderTexture(textureId);
+        // Bridge path: bitmap pixels live on the Pixi canvas now;
+        // closing releases the canvas drawing buffer.
+        try {
+          bitmap.close();
+        } catch {}
       }
     });
     this.queue = next;

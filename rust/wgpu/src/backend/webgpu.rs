@@ -1250,11 +1250,20 @@ pub struct WebBuffer {
     /// the lifecycle alone." Shared across `Clone` so any later
     /// extract pins every prior clone too.
     extracted: Rc<Cell<bool>>,
+    /// `destroy()` was already called — prevents double-decrement of
+    /// `deferred_destroy::LIVE_BUFFER_BYTES`. Shared across `Clone`.
+    destroyed: Rc<Cell<bool>>,
+    /// GPU memory backing this buffer in bytes. Snapshot of
+    /// `desc.size` at construction; immutable thereafter (buffer
+    /// resizes happen by replacing the handle, not by growing it).
+    byte_size: u64,
 }
 
 impl WebBuffer {
     /// Creates a new web buffer for the given Javascript object and description.
     fn new(inner: webgpu_sys::GpuBuffer, desc: &crate::BufferDescriptor<'_>) -> Self {
+        let byte_size = desc.size;
+        deferred_destroy::record_buffer_created(byte_size);
         Self {
             inner,
             mapping: Rc::new(RefCell::new(WebBufferMapState {
@@ -1263,6 +1272,8 @@ impl WebBuffer {
             })),
             ident: crate::cmp::Identifier::create(),
             extracted: Rc::new(Cell::new(false)),
+            destroyed: Rc::new(Cell::new(false)),
+            byte_size,
         }
     }
 
@@ -1315,6 +1326,13 @@ pub struct WebTexture {
     /// Shared across `Clone` via `Rc<Cell<>>` so any later extract
     /// pins every prior clone too.
     extracted: Rc<Cell<bool>>,
+    /// `destroy()` was already called — prevents double-decrement of
+    /// `deferred_destroy::LIVE_TEXTURE_BYTES`. Shared across `Clone`.
+    destroyed: Rc<Cell<bool>>,
+    /// GPU memory backing this texture in bytes (estimated via
+    /// `estimate_texture_byte_size`). Used for live-bytes accounting
+    /// on destroy.
+    byte_size: u64,
 }
 
 impl WebTexture {
@@ -1325,6 +1343,74 @@ impl WebTexture {
     pub fn mark_extracted(&self) {
         self.extracted.set(true);
     }
+}
+
+/// Estimate the GPU-allocated byte size of a texture for the live-
+/// bytes accounting block. We don't try to be exact for compressed
+/// formats — body atlas, accessory strips, tile bakes, etc. all use
+/// Rgba8Unorm or Bgra8Unorm. Mipmaps add ~33 %; multisample multiplies
+/// by sample count.
+fn estimate_texture_byte_size(desc: &crate::TextureDescriptor<'_>) -> u64 {
+    let bpp: u64 = match desc.format {
+        wgt::TextureFormat::R8Unorm
+        | wgt::TextureFormat::R8Snorm
+        | wgt::TextureFormat::R8Uint
+        | wgt::TextureFormat::R8Sint
+        | wgt::TextureFormat::Stencil8 => 1,
+        wgt::TextureFormat::Rg8Unorm
+        | wgt::TextureFormat::Rg8Snorm
+        | wgt::TextureFormat::Rg8Uint
+        | wgt::TextureFormat::Rg8Sint
+        | wgt::TextureFormat::R16Unorm
+        | wgt::TextureFormat::R16Snorm
+        | wgt::TextureFormat::R16Uint
+        | wgt::TextureFormat::R16Sint
+        | wgt::TextureFormat::R16Float
+        | wgt::TextureFormat::Depth16Unorm => 2,
+        wgt::TextureFormat::Rgba8Unorm
+        | wgt::TextureFormat::Rgba8UnormSrgb
+        | wgt::TextureFormat::Rgba8Snorm
+        | wgt::TextureFormat::Rgba8Uint
+        | wgt::TextureFormat::Rgba8Sint
+        | wgt::TextureFormat::Bgra8Unorm
+        | wgt::TextureFormat::Bgra8UnormSrgb
+        | wgt::TextureFormat::Rg16Unorm
+        | wgt::TextureFormat::Rg16Snorm
+        | wgt::TextureFormat::Rg16Uint
+        | wgt::TextureFormat::Rg16Sint
+        | wgt::TextureFormat::Rg16Float
+        | wgt::TextureFormat::R32Uint
+        | wgt::TextureFormat::R32Sint
+        | wgt::TextureFormat::R32Float
+        | wgt::TextureFormat::Depth24Plus
+        | wgt::TextureFormat::Depth24PlusStencil8
+        | wgt::TextureFormat::Depth32Float => 4,
+        wgt::TextureFormat::Depth32FloatStencil8 => 5,
+        wgt::TextureFormat::Rgba16Unorm
+        | wgt::TextureFormat::Rgba16Snorm
+        | wgt::TextureFormat::Rgba16Uint
+        | wgt::TextureFormat::Rgba16Sint
+        | wgt::TextureFormat::Rgba16Float
+        | wgt::TextureFormat::Rg32Uint
+        | wgt::TextureFormat::Rg32Sint
+        | wgt::TextureFormat::Rg32Float => 8,
+        wgt::TextureFormat::Rgba32Uint
+        | wgt::TextureFormat::Rgba32Sint
+        | wgt::TextureFormat::Rgba32Float => 16,
+        // Fall back to 4 bpp — conservative over-count beats hidden
+        // bytes for an accounting tool.
+        _ => 4,
+    };
+    let w = desc.size.width as u64;
+    let h = desc.size.height as u64;
+    let d = desc.size.depth_or_array_layers as u64;
+    let samples = desc.sample_count.max(1) as u64;
+    let mut bytes = w.saturating_mul(h).saturating_mul(d).saturating_mul(bpp).saturating_mul(samples);
+    if desc.mip_level_count > 1 {
+        // Sum of geometric series 1 + 1/4 + 1/16 + ... ≈ 1.33×. Round up.
+        bytes = bytes.saturating_mul(4) / 3;
+    }
+    bytes
 }
 
 #[derive(Debug, Clone)]
@@ -2152,7 +2238,7 @@ impl dispatch::DeviceInterface for WebDevice {
             mapped_desc.set_label(label);
         }
         let bind_group = self.inner.create_bind_group(&mapped_desc);
-
+        deferred_destroy::record_bind_group_created();
         WebBindGroup {
             inner: bind_group,
             ident: crate::cmp::Identifier::create(),
@@ -2374,10 +2460,14 @@ impl dispatch::DeviceInterface for WebDevice {
         mapped_desc.set_view_formats(&mapped_view_formats);
 
         let texture = self.inner.create_texture(&mapped_desc).unwrap();
+        let byte_size = estimate_texture_byte_size(desc);
+        deferred_destroy::record_texture_created(byte_size);
         WebTexture {
             inner: texture,
             ident: crate::cmp::Identifier::create(),
             extracted: Rc::new(Cell::new(false)),
+            destroyed: Rc::new(Cell::new(false)),
+            byte_size,
         }
         .into()
     }
@@ -2421,7 +2511,7 @@ impl dispatch::DeviceInterface for WebDevice {
         }
 
         let sampler = self.inner.create_sampler_with_descriptor(&mapped_desc);
-
+        deferred_destroy::record_sampler_created();
         WebSampler {
             inner: sampler,
             ident: crate::cmp::Identifier::create(),
@@ -2813,21 +2903,26 @@ impl Drop for WebBindGroupLayout {
 impl dispatch::BindGroupInterface for WebBindGroup {}
 impl Drop for WebBindGroup {
     fn drop(&mut self) {
-        // no-op
+        // No JS-side destroy() exists for GPUBindGroup — the GPU
+        // resource is freed when the JsValue ref drops (handled by
+        // Rust's automatic field-drop on `inner`). The counter
+        // exists purely for diagnostic observability into whether
+        // Rust state is retaining handles longer than expected.
+        deferred_destroy::record_bind_group_dropped();
     }
 }
 
 impl dispatch::TextureViewInterface for WebTextureView {}
 impl Drop for WebTextureView {
     fn drop(&mut self) {
-        // no-op
+        deferred_destroy::record_texture_view_dropped();
     }
 }
 
 impl dispatch::SamplerInterface for WebSampler {}
 impl Drop for WebSampler {
     fn drop(&mut self) {
-        // no-op
+        deferred_destroy::record_sampler_dropped();
     }
 }
 
@@ -2870,6 +2965,9 @@ impl dispatch::BufferInterface for WebBuffer {
 
     fn destroy(&self) {
         self.inner.destroy();
+        if !self.destroyed.replace(true) {
+            deferred_destroy::record_buffer_destroyed(self.byte_size);
+        }
     }
 }
 impl Drop for WebBuffer {
@@ -2887,9 +2985,14 @@ impl Drop for WebBuffer {
         // buffer that never escaped to JS. Safe to enqueue for
         // deferred destruction — the 2-tick settle in
         // `tickDeferredDestroys` covers any in-flight wgpu command
-        // buffer that referenced this buffer at encode time.
-        if !self.extracted.get() {
-            deferred_destroy::record_buffer_drop(&self.inner);
+        // buffer that referenced this buffer at encode time. The
+        // `destroyed.replace(true)` guard prevents double-decrement
+        // both for explicit-destroy-then-Drop AND for the multi-
+        // clone case (every clone shares the same Rc<Cell<bool>>
+        // so only the first Drop pushes; see WebTexture::drop for
+        // the full rationale).
+        if !self.extracted.get() && !self.destroyed.replace(true) {
+            deferred_destroy::record_buffer_drop(&self.inner, self.byte_size);
         }
     }
 }
@@ -2921,7 +3024,7 @@ impl dispatch::TextureInterface for WebTexture {
         mapped.set_usage(desc.usage.unwrap_or(wgt::TextureUsages::empty()).bits());
 
         let view = self.inner.create_view_with_descriptor(&mapped).unwrap();
-
+        deferred_destroy::record_texture_view_created();
         WebTextureView {
             inner: view,
             ident: crate::cmp::Identifier::create(),
@@ -2931,6 +3034,9 @@ impl dispatch::TextureInterface for WebTexture {
 
     fn destroy(&self) {
         self.inner.destroy();
+        if !self.destroyed.replace(true) {
+            deferred_destroy::record_texture_destroyed(self.byte_size);
+        }
     }
 }
 impl Drop for WebTexture {
@@ -2960,8 +3066,23 @@ impl Drop for WebTexture {
         // each Vello render allocated intermediate staging textures
         // and they accumulated for the renderer's lifetime
         // (~700-800 MB plateau at stress-test scale).
-        if !self.extracted.get() {
-            deferred_destroy::record_texture_drop(&self.inner);
+        //
+        // `destroyed` guard prevents double-decrement when Drop fires
+        // after the explicit destroy() path already accounted bytes.
+        // The `replace(true)` is also load-bearing for the
+        // multi-clone case: `WebTexture` is `#[derive(Clone)]` and
+        // every clone shares the same `Rc<Cell<bool>>` destroyed
+        // flag, so the FIRST clone to drop sets it and any
+        // subsequent clones' Drop sees `destroyed=true` and skips
+        // queuing. Without `replace(true)`, every clone of a
+        // Vello-internal texture would push its own copy of the
+        // handle onto the deferred queue, and the queue tick would
+        // call `record_texture_destroyed` once per clone — inflating
+        // the cumulative `destroyed` bytes counter to many times the
+        // actual amount (see real-world `destroyedTex=97 GB` vs
+        // `createdTex=33 GB` symptom).
+        if !self.extracted.get() && !self.destroyed.replace(true) {
+            deferred_destroy::record_texture_drop(&self.inner, self.byte_size);
         }
     }
 }
@@ -4042,6 +4163,13 @@ impl dispatch::SurfaceInterface for WebSurface {
             // Surface textures are owned by the Surface object and
             // can't be `destroy()`ed — pin them so Drop is a no-op.
             extracted: Rc::new(Cell::new(true)),
+            destroyed: Rc::new(Cell::new(false)),
+            // Surface textures don't go through `create_texture`, so
+            // we don't increment `LIVE_TEXTURE_BYTES` for them — the
+            // surface itself owns the GPU memory and the bytes are
+            // accounted for under `BridgeCanvasPool` not the texture
+            // pool. Setting byte_size=0 makes destroy() a no-op.
+            byte_size: 0,
         };
 
         (

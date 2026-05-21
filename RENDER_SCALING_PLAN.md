@@ -1,508 +1,368 @@
-# Render scaling — Path B (shared-cache + depth-band split)
-
-## Status
-
-Next-session work. This supersedes the deleted `OFFSCREEN_CANVAS_BRIDGE_PLAN.md`:
-once Path B lands, the steady-state strip-bake rate drops to ~0 and the
-patched-wgpu fork removal becomes mechanical (pay the bridge cost ~500
-times total over a session, invisibly).
-
-## Problem statement
-
-The current rendering architecture composites body + accessories + zone
-recolour into ONE strip per `(bundle, anim, dir, flipped, look,
-accessories)` tuple. Every player has a unique `look` (random colour
-zones) AND in real Dofus 1.29 maps a unique accessory loadout. Result:
-the cache key never collides across players, the strip cache is
-effectively per-bot, and we pay one full Vello dispatch per direction
-change per bot.
-
-Observed ceiling on the current path:
-- **400 bots**: ~4 GB GPU RAM (per-bot strips × in-flight retire window),
-  bridge migration to ImageBitmap would saturate CPU at 200+ bots, the
-  watchdog had to auto-halt the run.
-- **Scaling**: linear with bot count for both bake rate AND RAM. There
-  is no architectural cap.
-
-What current session added (Tier 4 — already shipped):
-- Per-frame-budgeted bake queue (`strip-bake-queue.ts`).
-- Stale-bake skip (caller can opt out of a bake before it dispatches if
-  the requested anim has moved on — saved ~43 % of bake CPU on the
-  400-bot stress run).
-- Adaptive frame budget (4 / 8 / 12 ms depending on backlog).
-- Pixi `Texture` cleanup in retire — closed a real memory leak.
-- Defer-until-strip-ready in the stress test.
-
-These are the substrate for Tier 3. They don't fix the underlying
-"each bot's strip is unique" cache-miss problem; they just absorb the
-burst better. Tier 3 is what makes that problem go away.
-
-## Goal
-
-Steady-state strip-bake rate **bounded by the universe of unique
-visual things on screen**, not bot count. RAM bounded by the same
-quantity. Real Dofus maps at 200-500 players should be ~1 GB GPU,
-60 fps, sub-second spawn-to-visible latency. 1000+ bots stable.
-
-## Architectural overview
-
-Three changes that ship together:
-
-1. **Body symbol parsed into depth bands.** SWF's display list places
-   accessory slot markers (`applyAccessory(this, slotId, side)`) at
-   specific depths inside the body's display tree. We slice the body
-   at those depths into per-direction "bands" that we can interleave
-   accessory sprites between, preserving Dofus's authored Z-ordering.
-
-2. **Body and accessories rendered separately and cached globally.**
-   Body band cache keyed by `(bundle, anim, dir, flipped, bandIndex)` —
-   shared across every bot of the same class. Accessory cache keyed by
-   `(accBundle, accExport, animType, dir, flipped)` — shared across
-   every bot wearing the same item.
-
-3. **Colour zones become a Pixi shader uniform.** Vello bakes zone
-   pixels with a sentinel alpha value (253/252/251 for zones 1/2/3).
-   Pixi's custom shader detects sentinels and substitutes per-bot HSL
-   tints. Strip pixels become independent of `look`.
-
-Per-bot Pixi composition:
-
-```
-container (player)
-├── body_band_0  Mesh    z=0   (back-most body parts)
-├── slot-2  cape Sprite  z=1   (mount-positioned per frame)
-├── body_band_1  Mesh    z=2   (torso, back legs)
-├── slot-0 weapon Sprite z=3   (mount-positioned per frame)
-├── body_band_2  Mesh    z=4   (front arm)
-├── slot-1   hat Sprite  z=5   (mount-positioned per frame)
-├── slot-4 shield Sprite z=6   (mount-positioned per frame)
-└── body_band_3  Mesh    z=7   (head + hair on top)
-```
-
-Per-frame tick per bot (all O(1), just pointer + uniform updates):
-- body bands: swap to `frames[frameIdx]`
-- accessory sprites: swap to `accStrip.frames[frameIdx % 3]` and
-  `setFromMatrix(mountTransforms[frameIdx][slotId])`
-
-Number of bands per direction is data-driven by where slot markers
-appear in the body symbol. Cape (slot 2) is usually the deepest insert
-(behind everything), so band 0 might be empty for many directions —
-that's fine, we just skip empty bands.
-
-## Detailed design
-
-### Rust — `swf-spike` changes
-
-#### 1. Slot-depth table extraction
-
-New function: `extract_slot_depths(doc, body_symbol_id) -> SlotDepthMap`.
-
-Walks the body symbol's `PlaceObject` ops on each direction's authored
-frame (matched by frame label: `staticR`, `staticL`, …). Records the
-depth at which each `applyAccessory` AS2 call sits in the display
-list.
-
-Returns `Map<DirSuffix, Vec<(SlotId, Depth)>>` — sorted by depth, so
-the bands fall out naturally:
-
-```
-band 0 = display-list entries with depth < depths[0].1
-band 1 = entries with depths[0].1 < depth < depths[1].1
-…
-band N = entries with depth > depths[N-1].1
-```
-
-This runs once per `(bundle, direction)` on first request and caches.
-
-#### 2. Body-band rasteriser
-
-New entry point `renderSwfBodyBand`:
-
-```
-renderSwfBodyBand(
-  bundle: &str, anim: &str, dir: &str, flipped: bool,
-  band_index: u32,
-) -> { bitmap, frame_w, frame_h, frame_count, grid_cols, anchor_x, anchor_y }
-```
-
-Internally:
-- Looks up slot-depth table for `(bundle, dir)`.
-- Computes the depth range for `band_index`.
-- Runs the existing renderer but **filters PlaceObject ops by depth**
-  during the body symbol walk. Out-of-band ops are skipped entirely
-  (no shape commands emitted, no fill commands).
-- Zone fills use sentinel alpha mode (see below).
-- No accessory composition.
-- Cached at the call-site by `(bundle, anim, dir, flipped, bandIndex)`.
-
-Visual contract: rendering all bands of a direction with the slot
-sprites in between produces pixels indistinguishable from today's
-fully-composed body+accessories strip (modulo zone recolour which is
-now a shader uniform).
-
-#### 3. Accessory rasteriser
-
-New entry point `renderSwfAccessoryStrip`:
-
-```
-renderSwfAccessoryStrip(
-  acc_bundle: &str, acc_export: &str, anim_type: u32,
-  dir: &str, flipped: bool,
-) -> { bitmap, frame_w, frame_h, frame_count, grid_cols, anchor_x, anchor_y }
-```
-
-Accessories author 3 sub-frames per direction (cycled via
-`char_frame % 3`). The output strip has the 3 sub-frames in a grid;
-per-frame Pixi sampling picks the right cell.
-
-Bakes from the accessory symbol's own coordinate origin (0, 0). Pixi
-positions the sprite at the body's mount transform per frame.
-
-Cached by `(accBundle, accExport, animType, dir, flipped)`.
-
-#### 4. Mount-transform extraction
-
-New entry point `renderSwfMountTransforms`:
-
-```
-renderSwfMountTransforms(
-  bundle: &str, anim: &str, dir: &str, flipped: bool,
-) -> Float32Array
-```
-
-Walks the body symbol for the requested anim/direction and, for each
-frame in the anim's range, records the accumulated matrix at each
-`applyAccessory` site. Returns `frame_count × max_slot × 6` floats
-(each `(a, b, c, d, tx, ty)` is the 2D affine matrix; 6 floats per slot
-per frame).
-
-`slot_z_order` flag for each slot is also derived from the slot-depth
-table — accessories know which band they slot between by their depth
-index.
-
-Cached by `(bundle, anim, dir, flipped)`. CPU-only, cheap. Small —
-e.g. 24 frames × 5 slots × 6 floats × 4 bytes = ~2.8 KB per anim.
-
-#### 5. Sentinel-alpha zone mode
-
-In `swf-spike`'s fill processing, when the renderer encounters the AS2
-apply-color zone byte pattern (see `feedback_swf_apply_color_zones`
-memory note), instead of HSL-substituting the player colour inline,
-emit the placeholder grey (or the SWF-authored colour) with a sentinel
-alpha:
-
-| Zone | Sentinel alpha |
-|---|---|
-| 1 | 253 |
-| 2 | 252 |
-| 3 | 251 |
-| Non-zone opaque | 255 |
-| Transparent | 0 |
-
-The HSL substitution moves to the Pixi shader (see below).
-
-Caveat: linear filtering on the alpha channel will smear sentinels at
-zone edges. Two mitigations:
-
-- Sample the alpha channel with NEAREST in the shader (sample twice:
-  once linear for the colour test, once nearest for the alpha test).
-- Render strips at sufficient density that the smear is sub-pixel.
-  At current `resolution=3` this is usually fine.
-
-#### 6. Cargo.toml / wgpu-features
-
-No new deps. The existing `wgpu = "28"` (currently patched fork) is
-sufficient.
-
-### TypeScript — caches + Pixi composition
-
-#### 7. Global body-band cache
-
-New module `apps/electrobun/src/game/render/character-cache.ts`:
-
-```ts
-class CharacterCache {
-  private bandCache = new Map<string, RefCounted<BodyBandStrip>>();
-  private accCache  = new Map<string, RefCounted<AccessoryStrip>>();
-  private mountCache = new Map<string, MountTransforms>();
-
-  acquireBody(bundle, anim, dir, flipped, bandIndex): BodyBandStrip
-  releaseBody(strip): void  // refcount-- and evict if hit cap
-
-  acquireAccessory(accBundle, accExport, animType, dir, flipped): AccessoryStrip
-  releaseAccessory(strip): void
-
-  getMounts(bundle, anim, dir, flipped): MountTransforms  // CPU table
-
-  // Optional LRU eviction at hard cap (default unbounded; refcount=0
-  // entries get evicted when active set + retired-but-not-yet-evicted
-  // crosses the threshold).
-  setHardCapBytes(n: number): void
-}
-```
-
-Refcount semantics: each PlayerStripRenderer slot that uses a strip
-holds one ref. On anim swap, drop old ref, acquire new ref. When ref
-count drops to 0, the strip is **eligible** for eviction but stays in
-cache (likely the next bot wants it within ~ms).
-
-LRU eviction: only entries with `refcount === 0` are eligible.
-Eviction policy is "evict least-recently-released entries until under
-cap." Default hard cap: 1.5 GB total (body + accessory). Configurable.
-
-#### 8. PlayerStripRenderer refactor
-
-Replace the current "ExternalSource per bot" model. Each bot's
-container now has:
-
-```
-container (per player)
-└── bands: BodyBand[]   // bodyBandCount Pixi Meshes
-└── slots: AccessorySlot[]  // map<slotId, Sprite>
+# Render scaling — fixing the long-runtime fps dip
+
+## Status (2026-05-21)
+
+**Memory wins shipped, fps stability still failing.** Memory at
+200-bot stress sits at ~3 GB process (down from ~7 GB earlier this
+month). Cache stable at ~830 MB, Pixi GPU at ~943 MB, no leaks
+visible.
+
+**The dip we still see at 200 bots:**
+
+| t (s) | fps avg | frameMs avg | tickerMsAvg | jsHeap |
+|---|---|---|---|---|
+| 15 | 60.0 | 16.67 | 0.71 | 116 |
+| 20 | 60.0 | 16.67 | 0.71 | 195 |
+| 25 | 60.0 | 16.67 | 0.69 | 189 |
+| 30 | 60.0 | 16.67 | 0.69 | 195 |
+| 35 | 60.0 | 16.67 | 0.70 | 178 |
+| 40 | 60.0 | 16.67 | 0.68 | 215 |
+| 45 | 60.0 | 16.67 | 0.69 | 174 |
+| **50** | **55.96** | **17.03** | **0.68** | **125** |
+| 55 | 52.97 | 17.92 | 0.68 | 100 |
+| 60 | 53.98 | 18.62 | 0.67 | 232 |
+
+The diagnostic line `tickerMsAvg` measures total time spent in every
+`Ticker.shared` callback per frame — Pixi's render, our cache tick,
+every ticker listener combined. **It is flat at 0.68-0.71 ms across
+the entire run.** It does not grow when fps drops.
+
+`frameMsAvg` grows from 16.67 to 18.62 over 60 seconds (+1.95 ms).
+That growth is **outside our ticker callbacks**. Specifically: it's
+in the browser's paint+composite phase, the GPU process executing
+queued commands, and JS major-GC pauses on the slowly-growing old
+space.
+
+## What this proves about the search direction
+
+Past attempts that did NOT move the needle on this dip:
+
+- ❌ Bitmap close strategies (poll → batch-poll → force-upload). All
+  bug-free now but none addressed fps.
+- ❌ Cache cap tuning (1.5 GB → 800 MB → 1024 MB → 1.5 GB).
+- ❌ Color+zone atlas merge. Saved ~600 MB memory but fps trajectory
+  unchanged.
+- ❌ Accessory animType dedup. Saved ~50% acc entries; fps unchanged.
+- ❌ Wasm-crossing memoisation. Eliminated ~75 ms/sec of crossings;
+  fps unchanged.
+- ❌ Bind group / texture view deferred-destroy counters. Confirmed
+  there's no Rust-side leak (`liveBindGroups=0` throughout).
+
+None of these targeted the actual bottleneck because they were all
+in the ticker path, which the diagnostic proves is fine.
+
+## What the data points at as the real cause
+
+The 1.95 ms / 60 s growth in browser-side work is consistent with
+two factors that both scale with the cumulative count of Pixi
+resources active in the WebGPU device:
+
+1. **Per-frame draw call count.** At 200 bots × 4 body bands + ~5
+   accessory sprites = ~1800 draws per frame. Each `setBindGroup`
+   has ~5 µs of overhead in WebGPU on the browser side. With ~850
+   bind-group switches per frame (bands aren't batched), that's
+   ~4 ms/frame just for bind-group state transitions. As Pixi's
+   internal bind-group cache grows (more unique sources), state
+   transition cost increases.
+
+2. **JS heap promotion pressure.** `jsHeap` bounces 100-232 MB.
+   That bounce is V8's major-GC freeing ~100 MB of short-lived
+   allocations every ~5 seconds. Each major GC pause is 30-50 ms
+   = one missed vsync = one slow frame at ~33 ms. `slowFrames1s`
+   shows 5 slow frames in 1s at the bottom of the dip — matching
+   ~one major GC per 200ms in that window.
+
+Both root causes are confirmed by the data. Each contributes
+separately. Fixing one without the other will leave the dip
+present but smaller.
+
+## Plan
+
+Two work-streams. Both can land independently; both are required
+for stable 60 fps at 200+ bots.
+
+---
+
+### Phase A — Reduce per-frame draw count
+
+**Current state:** 200 bots × 9 draws/bot = 1800 draws/frame.
+
+**Target state:** 200 bots × 2-3 draws/bot = ~500 draws/frame.
+
+**Expected fps impact:** ~3x reduction in setBindGroup overhead,
+reducing browser-side per-frame work by ~3 ms. Brings frameMs
+ceiling from ~19 ms back to ~16 ms — 60 fps sustained.
+
+#### A.1 Body band merge into a single mesh per bot
+
+**Why bands exist today:** body composition splits into 4-5
+Z-ordered bands so accessories can slot between them at correct
+depths (e.g., cape behind back, weapon in front of arm).
+
+**The constraint:** if we collapse bands into one draw, accessories
+can no longer interleave Z-wise. They have to be either fully
+behind or fully in front of the body.
+
+**The escape hatch:** measure what fraction of Dofus accessories
+actually need mid-body Z-slotting. Strong hypothesis: in canonical
+Dofus 1.29, **the only mid-body accessory is a cape behind the
+body's mid Z-plane.** Hats sit above head (front). Weapons sit in
+hand (front). Shields sit on back arm (back). The cape's "mid"
+position is what motivates the band split.
+
+**The fix:**
+1. Define exactly 3 Z slots: `BEHIND` (cape, shield), `BODY`,
+   `FRONT` (hat, weapon).
+2. Render order per bot: `BEHIND` accessories → 1× body mesh →
+   `FRONT` accessories.
+3. Per-bot body mesh: single Mesh with one quad covering the full
+   atlas region. Drops body draws from 4 → 1 per bot.
+
+**Saves:** 600 draws/frame (200 bots × 3 fewer band draws).
+
+**Visual risk:** accessories that the SWF authored as mid-body Z
+are now either fully behind or fully in front. For canonical
+characters this is invisible (they don't have mid-body slots
+beyond what BEHIND/FRONT covers). For custom mounts and exotic
+art, a per-class audit is needed.
+
+**Implementation:**
+- `extract_slot_depths.rs` (Rust): return only `behindSlots[]` and
+  `frontSlots[]` instead of N depth bands.
+- `character-cache.ts`: drop `bands[]`, drop `BodyAtlasBand`, drop
+  band slicing in the body atlas wrapper.
+- `body-band-shader.ts`: drop band-Y uniform, simplify mesh to
+  cover full atlas.
+- `player-strip-renderer-v2.ts`: instantiate 1 BodyMesh per slot
+  instead of N BodyBandMeshes.
+- `swf_body_band_info` Rust function: change return shape
+  accordingly.
+
+**Effort:** medium. ~1 day. The data restructure is mechanical;
+the visual audit is the gating risk.
+
+**Validation:** A/B comparison render of a canonical character in
+isolation (cape + hat + weapon + body) between current and merged
+pipelines. Each frame should be pixel-identical. If not, the
+unmodified character has accessories slotting at non-{BEHIND, FRONT}
+depths and the merge isn't safe for that class.
+
+#### A.2 Accessory sprite batching
+
+**Current state:** each accessory is its own `Sprite`. Pixi v8
+batches sprites with the same shader + same texture. Each unique
+accessory texture = its own batch. With ~2700 unique acc sources
+at stress, batches are ~16-source wide → ~170 batches.
+
+**Target state:** Pixi batching is already doing what it can; the
+remaining lever is to **reduce unique accessory texture count**.
+
+**Already shipped:** animType dedup (cut acc entries ~50%).
+
+**Remaining options:**
+- **Per-slot texture atlasing.** Pack multiple accessories' frames
+  into one atlas keyed by `(slot, dir)`. Different bots referencing
+  the same slot use the same atlas with different UVs → all in one
+  batch.
+- Cost: rebuild atlas when a new acc is added. Cache eviction in
+  current cache becomes evict-and-repack. Complex.
+
+**Recommendation:** defer until A.1 lands. A.1 cuts draws by ~3 ms.
+Accessory batching's residual win is ~0.5 ms — same scope of work
+but smaller payoff.
+
+#### A.3 Render-to-texture per-bot composition (architectural fallback)
+
+If A.1 visual audit fails (accessories DO slot mid-body in some
+classes) AND we need 60 fps sustained at 200+ bots, the fallback is
+per-bot composition:
+
+1. For each bot, on anim-frame change, render `body + accessories`
+   into a single per-bot RenderTexture in one render pass.
+2. Per main-render frame: draw 1 sprite per bot from its cached
+   RenderTexture.
+3. Result: 200 draws/frame total (down from 1800).
+
+**Cost:**
+- 1 composition per bot per anim-frame change. At 12 fps anim ×
+  200 bots = 2400 compositions/sec. Each composition is ~0.1 ms
+  GPU-side (very light, no shader work, just texture copies).
+  ~240 ms/sec CPU work.
+- Memory: 200 × ~256×256 RGBA = ~50 MB GPU. Acceptable.
+
+**Trade-off:** 240 ms/sec CPU vs ~3 ms/frame win from current
+~1800 draws. Composition wins if GPU per-frame ceiling is the
+bottleneck (which the diagnostic suggests it is).
+
+**Effort:** large. ~2-3 days. Multi-app-renderer plumbing, RT
+lifecycle, eviction-on-anim-change.
+
+---
+
+### Phase B — Reduce JS GC pressure
+
+**Current state:** jsHeap bounces 100-232 MB at 200 bots.
+~100 MB of garbage collected per major GC cycle, every ~5 seconds.
+Each major GC = 30-50 ms pause = 1-3 missed vsyncs.
+
+**Target state:** keep jsHeap stable below 100 MB, major GC every
+~30 seconds. ~1 missed vsync per 30 seconds = effectively invisible.
+
+**Expected fps impact:** removes the spike component of frameMs
+(p99 33ms → 17ms). Doesn't fix the sustained 18ms — that's A's job.
+
+#### B.1 Audit per-frame allocation hot paths
+
+**Suspects in priority order:**
+
+1. **Pixi v8 batcher's vertex/index buffer rebuilds.** Each frame,
+   Pixi rebuilds the batch's vertex array. With ~1800 sprites × 4
+   vertices × 8 floats = ~230 KB of Float32Array per frame. If
+   Pixi's buffer pool fits, no allocation. If it has to grow, a
+   new TypedArray is allocated per frame.
+2. **Per-bot animation tween allocations.** Every player.tick
+   creates Point or similar small objects.
+3. **Stress test movement loop's Promise.race per iteration.**
+   `cancelled.then(() => "cancel")` allocates a Promise per
+   movement iteration × 200 bots × ~0.5 iterations/sec = 100
+   Promises/sec. Small but cumulative.
+4. **Bake-queue callbacks.** Each bake adds a callback array
+   entry. Cleared on completion but allocates.
+
+**Method:**
+- Install Chrome DevTools' allocation profiler during a 60s run.
+- Capture top-10 allocation sites by size.
+- Bisect those against suspect list above.
+
+**Effort:** small. ~2 hours of profiling, then targeted fixes for
+each found source.
+
+#### B.2 Reuse Pixi batcher buffers
+
+If the audit confirms (1) is a top source, the fix is to pre-size
+Pixi's batch buffer pool to hold the worst-case per-frame batch
+size + 25% headroom. Configurable via Pixi v8's BatchSystem
+constructor options.
+
+**Effort:** small. ~30 min change + verification.
+
+#### B.3 Eliminate Promise.race-per-iteration in stress test
+
+**Current pattern in `stress-test.ts`:**
+
+```typescript
+const raceCancel = <T>(p) =>
+  Promise.race([p, cancelled.then(() => "cancel")]);
 ```
 
-State:
+Each call allocates a new Promise.race + a new `.then()` chain.
+After many iterations the cancelled Promise has many attached
+callbacks.
 
-```ts
-interface SlotState_v2 {
-  bandMeshes: Mesh[];          // pixi Meshes; 1 per band
-  bodyStrip: BodyBandStrip;    // refcounted, shared across same-class bots
-  accessories: Map<slot, AccessorySprite>;
-  mounts: MountTransforms;     // CPU lookup table
-  currentAnimKey: string;
-  // ...
-}
-```
+**Fix:**
+- Cache `cancelAsCancel = cancelled.then(() => "cancel")` ONCE per
+  bot. Reuse it in `Promise.race`.
+- Or replace with `AbortSignal` pattern: bot's cancel becomes a
+  synchronous abort flag checked in movement code.
 
-`applyAnimation` becomes:
+**Effort:** small. ~30 min.
 
-1. Look up `(bundle, anim, dir, flipped)` → mounts (CPU, instant).
-2. For each band index: `cache.acquireBody(...bandIndex)` — likely a
-   cache hit; on miss, enqueue a body-band bake on `strip-bake-queue`.
-3. For each accessory: `cache.acquireAccessory(...)` — same cache-hit
-   pattern.
-4. Old refs released (decrement → 0 = eligible for eviction).
-5. Each band Mesh swaps texture to the new strip. Per-bot colour
-   uniforms stay (they belong to the bot, not the strip).
-6. Each accessory sprite swaps texture + jumps to its slot's mount
-   transform.
+**Caveat:** this is in the stress test, not in production game
+code. It improves stress measurement fidelity but doesn't help
+real gameplay. Worth doing because clean stress data is what we
+need to validate Phase A.
 
-Per-tick frame advance (`swapFrame`):
+#### B.4 Verify deferred-destroy tick allocation profile
 
-```ts
-swapFrame(player) {
-  const idx = player.frameIndex;
-  for (const band of slot.bandMeshes) {
-    band.geometry.uvs = bandStrip.frameUVs[idx];
-  }
-  const m = mounts[idx];
-  for (const [slotId, accSprite] of slot.accessories) {
-    accSprite.texture = accSprite.strip.frames[idx % 3];
-    accSprite.setFromMatrix(m[slotId]);  // a, b, c, d, tx, ty
-  }
-}
-```
+Our `tickDeferredDestroys` runs every frame, crosses the wasm
+boundary, allocates a Float64Array return value. With ~30 pending
+textures per tick at warmup, this allocates per-frame. Investigate
+whether it can return tuple-of-numbers via JS-side cache instead.
 
-All O(1) per bot. No Vello dispatch. The work that scales with bot
-count is just texture swaps + matrix sets, both of which Pixi batches
-efficiently.
+**Effort:** small. ~1 hour.
 
-#### 9. Custom Pixi shader for body zone recolour
+---
 
-WGSL fragment shader (sketch):
+## Measurement protocol
 
-```wgsl
-struct PlayerColors {
-  zone1: vec3<f32>,
-  zone2: vec3<f32>,
-  zone3: vec3<f32>,
-};
+After each phase change, capture a stress monitor dump at 200 bots
+for ≥60 seconds. Compare these metrics:
 
-@group(0) @binding(0) var bodyTex: texture_2d<f32>;
-@group(0) @binding(1) var bodySampler: sampler;     // linear
-@group(0) @binding(2) var bodyNearest: sampler;    // nearest, alpha-channel test
-@group(1) @binding(0) var<uniform> playerColors: PlayerColors;
+| Metric | Current | Phase A target | Phase A+B target |
+|---|---|---|---|
+| fps avg @ t=60s | 53.98 | 58-60 | 60 |
+| frameMs avg @ t=60s | 18.62 | 16.7-17.0 | 16.7 |
+| tickerMsAvg @ t=60s | 0.67 | 0.5 | 0.5 |
+| frameMs p99 @ t=60s | 33.7 | 33.7 | 17 |
+| slowFrames1s @ t=60s | 3 | 1-2 | 0 |
+| jsHeap volatility | 100-232 MB | 100-232 MB | 60-100 MB |
 
-@fragment
-fn fs_main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
-  let c = textureSample(bodyTex, bodySampler, uv);    // linear-filtered colour
-  let aNearest = textureSample(bodyTex, bodyNearest, uv).a;
-  let a_int = i32(aNearest * 255.0 + 0.5);
+**Acceptance criteria for "fixed":**
+- fps avg @ t=300s (5 minutes) stays at 58-60 with no monotonic
+  decline.
+- frameMs p99 @ t=300s ≤ 18 ms.
+- No slowFrames1s consistently > 2.
 
-  if (a_int == 253) {
-    return vec4<f32>(hsl_tint(c.rgb, playerColors.zone1), 1.0);
-  } else if (a_int == 252) {
-    return vec4<f32>(hsl_tint(c.rgb, playerColors.zone2), 1.0);
-  } else if (a_int == 251) {
-    return vec4<f32>(hsl_tint(c.rgb, playerColors.zone3), 1.0);
-  }
-  return c;
-}
-```
+**Test at 300 bots:** repeat the same protocol. Acceptance is fps
+avg @ 60s ≥ 55. 300-bot is the stated production stress target;
+500-bot is benchmark-only and outside scope of this plan.
 
-`hsl_tint(rgb, targetHsl)` is the canonical Dofus HSL recolour — the
-function is straightforward (~20 lines of WGSL); we already have the
-Rust implementation, port it to WGSL.
+---
 
-Pixi v8 hosts custom shaders via `Mesh` + `Geometry` + `Shader`. Each
-bot's bands share one `Shader` instance with per-bot uniform groups
-(`Shader.resources.playerColors`). Pixi's batcher merges draws across
-bots when geometry + texture + shader-pipeline match — i.e. same body
-band on same class, different colour uniforms is one draw call per
-distinct strip with instanced uniforms. (If batch-with-different-
-uniforms isn't trivial in Pixi v8, fall back to N draw calls; still
-fine at 400 bots given how cheap each is.)
+## Architectural alternatives if Phase A+B falls short
 
-### Stress-test + observability
+Reserved for the case where 300-bot stress refuses to hit 55 fps
+after both phases land.
 
-#### 10. Stress test integration
+### Alt 1: Lower render-resolution / DPR-cap
 
-`stress-test.ts` keeps the existing pathfinding loop; the only thing
-that changes is what `applyAnimation` does under the hood.
+Drop the canvas DPR cap from 2 to 1.5 (or 1.0 in zoomed-out mode).
+Halves compositor cost, halves GPU fragment shader work. Visible
+detail loss at native resolution.
 
-Add to the 5 s monitor:
+### Alt 2: Render bots to a worker thread
 
-- `bands cache size + bytes`
-- `accessories cache size + bytes`
-- `cache hit/miss/evict counts since last tick`
+Pixi v8 supports offscreen-canvas rendering. Move all bot rendering
+to a worker; the main thread does HUD + UI only. Removes main-thread
+contention but adds a transfer cost per frame.
 
-This gives us a clean signal during validation that the cache is
-working as designed.
+### Alt 3: Cull off-screen bots
 
-#### 11. Stress-test fairness
+Don't render bots outside the viewport. Trivial at the cost of one
+visibility test per bot per frame. Saves draws proportionally to
+camera zoom. Currently we render all 200 bots regardless of camera;
+typical viewport at 1× zoom holds 30-50 bots.
 
-Currently bots have ~25 distinct gfxIds and bounded accessory pools.
-For Path B validation, **deliberately widen** the accessory pool so
-the test resembles a real Dofus crowd:
+This is probably the highest-payoff alternative if Phase A struggles.
 
-- Hat pool 30 items, weapon pool 25, cape pool 20, shield pool 15
-- ~80 % of bots pick accessories from the pool with replacement
-- 12 classes × 2 genders distributed evenly
+---
 
-Target on this load:
-- Cache size < 1.5 GB
-- Cache hit rate > 95 % after 30 s warmup
-- 60 fps steady at 400 bots; 30+ fps at 1000 bots
+## What we explicitly do NOT do, and why
 
-## Migration sequence
+- **No Pixi version downgrade or fork.** Pixi v8 internals have
+  bugs we hit (bind group layout extraction, ImageBitmap detach
+  race) but we've worked around them. Forking creates a long-term
+  maintenance burden disproportionate to the wins.
+- **No reverting the bridge migration.** Memory is in a good place
+  now. Going back to shared-GPUDevice + ExternalSource would mean
+  re-introducing the patched-fork dependency for memory accounting
+  that we now handle via deferred-destroy.
+- **No texture compression (BC1, ETC, ASTC).** The texture memory
+  ceiling is no longer the bottleneck — Pixi GPU at 943 MB out of
+  ~4 GB device memory is fine. Compression saves memory but
+  doesn't help fps.
+- **No further accessory key dimension dedup.** AnimType dedup gave
+  ~50%; further reductions hit diminishing returns. Each remaining
+  dimension corresponds to a real visual difference.
 
-Order matters — each step is independently testable and bisectable.
+---
 
-### Step 1 — slot-depth extraction (`~1 day`)
-- Implement `extract_slot_depths` in `swf-spike`.
-- Print to `console_log` on first load of each sprite-N bundle so we
-  can manually verify the depths match what the SWF authored.
-- No render changes yet.
+## Why this plan and not earlier ones
 
-### Step 2 — body-band rasteriser (`~1 day`)
-- Add `renderSwfBodyBand` with depth-filtered display-list walk.
-- New: `renderSwfBodyBandTest` JS helper that renders all bands of one
-  character + draws them stacked at a debug canvas without any
-  accessory sprites. Confirm the body looks correct (zones still
-  inline-tinted at this point — sentinel alpha is step 6).
-
-### Step 3 — accessory rasteriser (`~1 day`)
-- Add `renderSwfAccessoryStrip`.
-- Test: render one accessory at a time, visually confirm.
-
-### Step 4 — mount-transform extraction (`~half-day`)
-- Add `renderSwfMountTransforms`.
-- Sanity-check by overlaying the mount points on the body band debug
-  canvas — should land at known body-part attachment positions.
-
-### Step 5 — per-band caches + refcounting (`~half-day`)
-- Implement `CharacterCache`.
-- No Pixi changes yet; just confirm cache populates + evicts on
-  refcount drops.
-
-### Step 6 — sentinel-alpha zone mode (`~half-day`)
-- Add the alpha-sentinel branch in `swf-spike` zone-fill processing.
-- Behind a flag for now (default off until step 8 wires the shader).
-
-### Step 7 — Pixi mesh + shader for body bands (`~1 day`)
-- Build the Mesh + Geometry + Shader pipeline. Initially with
-  zone-substitution turned OFF (sentinel alpha = pass-through colour).
-- Confirm Pixi renders the body bands at the same quality as the
-  current ExternalSource path.
-
-### Step 8 — wire sentinel + shader recolour (`~1 day`)
-- Turn on Rust sentinel mode.
-- Implement `hsl_tint` in WGSL.
-- Compare side-by-side with the current path for several known-good
-  test palettes. Pixel parity is the goal; sub-pixel deltas at zone
-  edges acceptable.
-
-### Step 9 — per-bot composition + accessory sprites (`~1.5 days`)
-- Refactor `PlayerStripRenderer` to the band-mesh + accessory-sprite
-  model.
-- Switch the live battlefield render path over.
-- Visual parity validation across all 12 classes × 5 directions × 3
-  anim types × representative accessory combinations.
-
-### Step 10 — stress-test validation (`~half-day`)
-- Re-run 400 / 600 / 1000 bot scenarios.
-- Confirm cache hit rate, RAM cap, steady-state fps.
-
-### Step 11 — fork removal (`~half-day`)
-- With Tier 3 in place, the bridge migration becomes a no-op
-  measurement. Drop the patched-wgpu fork (delete `rust/wgpu/`,
-  flip `vello-wasm/Cargo.toml` to upstream `wgpu = "28"`), delete
-  `extract_gpu_*` functions and the shared-GPUDevice plumbing.
-
-Total budget: **~8-10 days** focused work.
-
-## Risks + mitigations
-
-| Risk | Likelihood | Mitigation |
-|---|---|---|
-| Depth-band split mis-identifies a slot's actual SWF depth → wrong Z-order | Medium | Step 4 visual debug canvas; cross-reference with reference Flash player output on the same sprite |
-| HSL tint in WGSL doesn't match Rust implementation byte-for-byte | High | Step 8 side-by-side; sub-pixel delta acceptable per pixel-regression suite convention (`feedback_swf_apply_color_zones`) |
-| Pixi v8 batches with different uniform groups inefficiently → many draw calls | Low impact | Even 400 separate draws is fine on modern GPUs |
-| Linear-filter alpha smear at zone edges with sentinels | Medium | Dual-sampler approach in shader (linear for colour, nearest for alpha test) |
-| Cache hit rate lower than predicted with real player gear distributions | Low | Step 10 measures hit rate; if < 90 % we re-investigate accessory variant key |
-| Accessory mount transforms differ subtly from current Rust path | Medium | Step 9 visual parity is the gate; if mismatch, debug at single-frame level using the step-4 visualizer |
-
-## Acceptance criteria
-
-Tier 3 ships when ALL hold:
-
-1. Visual parity with current path across 12 classes × 5 directions ×
-   3 anims × 5 representative accessory sets. Pixel delta within
-   sub-AA noise per the existing pixel-regression methodology.
-2. 400 bots stress test at full `resolution=3` runs at 60 fps steady
-   state.
-3. 1000 bots stress test at full resolution runs at 30+ fps steady
-   state.
-4. Cache size stays below 1.5 GB at 400 bots with diverse gear
-   (verified by `bake.bytesCap` field added in monitor).
-5. After 30 s warmup at 400 bots: cache hit rate > 95 %, steady-state
-   bake rate < 5 / sec.
-6. No regressions to the live battlefield game flow (vs current
-   path).
-7. Patched wgpu fork deleted, `rust/wgpu/` directory gone, upstream
-   wgpu builds cleanly.
-
-## What gets deleted after Tier 3 lands
-
-- `rust/wgpu/` (the patched fork) — entire directory.
-- `extract_gpu_device` / `extract_gpu_adapter` / `extract_gpu_texture`
-  in `vello-wasm/src/lib.rs`.
-- The `gpu` parameter in Pixi `Application.init({ gpu })` in
-  `engine.ts`.
-- `getVelloGpu()` and the shared-device plumbing in `vello-loader.ts`.
-- The current single-strip composition in `swf-spike`
-  (`render_symbol_with_ctx_tinted_accessorized_bfixed`) becomes dead
-  code; the per-band + per-accessory entry points replace it.
-
-## Reference — current session context
-
-Tier 4 work that lands today (Path B sits on top of this):
-- `apps/electrobun/src/game/render/strip-bake-queue.ts` — per-frame-budgeted bake queue
-- `apps/electrobun/src/game/render/player-strip-renderer.ts` — uses queue + stale-skip
-- `apps/electrobun/src/game/scene/battlefield/stress-test.ts` — defer-until-ready + monitor
-
-Memory notes load-bearing for the design:
-- `feedback_swf_apply_color_zones` — fixed AS2 byte pattern, ~150 LOC
-- `feedback_swf_accessory_frame_labels` — `gotoAndStop(side)` frame-label lookup
-- `feedback_battlefield_render_architecture` — strip render validated to 60 fps × 500
-- `feedback_pixi_wgpu_texture_lifetime` — patched wgpu Drop is no-op
+This is the fourth iteration. Previous plans (now deleted):
+`STEP_11_BRIDGE_NOTES.md` (bridge migration — completed),
+`OFFSCREEN_CANVAS_BRIDGE_PLAN.md` (Path B — superseded by what
+shipped). Both were memory-focused. The current plan is the first
+that's grounded in **measured per-section frame timing**
+(`tickerMsAvg`), which is what conclusively isolated the bottleneck
+to draw count + GC pressure rather than to anything in our app code.

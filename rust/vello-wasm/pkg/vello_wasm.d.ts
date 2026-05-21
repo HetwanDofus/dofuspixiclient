@@ -247,7 +247,7 @@ export class VelloRenderer {
      * placement (driven by twip-space affine transforms, completely
      * orthogonal to texture layout) sees no change.
      */
-    renderSwfBodyAtlas(bundle: string, _export: string, start: number, count: number, total_frame_count: number, resolution: number, apply_b_fix: boolean): any;
+    renderSwfBodyAtlas(bundle: string, _export: string, start: number, count: number, total_frame_count: number, resolution: number, apply_b_fix: boolean, hat_equipped: boolean): any;
     /**
      * Render multiple exports of ONE bundle at the SAME frame in a single
      * Vello dispatch — used to collapse tile prefetch from N dispatches
@@ -285,8 +285,20 @@ export class VelloRenderer {
      * declare `b_fix=true` — matches the body strip's bFix
      * behaviour. Caller cache key: `(bundle, export, start, count,
      * apply_b_fix)`.
+     * Returns a JS object: `{ matrices: Float32Array, presence:
+     * Uint8Array }`.
+     * - `matrices` length = `count * max_slot * 6` floats — kurbo
+     *   affine coefficient order `(a, b, c, d, tx, ty)`. Identity
+     *   matrix where the body has no mount at that frame.
+     * - `presence` length = `count * max_slot` bytes — 1 where the
+     *   body's display list places a mount of that slot at that
+     *   frame, 0 otherwise. **This is the canonical signal for
+     *   whether to render the accessory** — checking matrix==identity
+     *   in JS is a heuristic that can false-positive.
+     *
+     * Returns `null` (JsValue::NULL) on resolution failure.
      */
-    renderSwfMountTransforms(bundle: string, _export: string, start: number, count: number, apply_b_fix: boolean, max_slot: number): Float32Array;
+    renderSwfMountTransforms(bundle: string, _export: string, start: number, count: number, apply_b_fix: boolean, max_slot: number): any;
     /**
      * Render the SWF's ROOT timeline (the main movie stage) at a given
      * frame. Used for SWFs without named exports — artwork/big/{gfxId}.swf
@@ -442,6 +454,33 @@ export class VelloRenderer {
      */
     renderZoneMaskStrip(asset_id: number, animation: string, resolution: number, acc_info?: Uint32Array | null): any;
     /**
+     * Memory accounting snapshot from the patched-wgpu fork. Returns
+     * a `Float64Array` of 8 values in this order:
+     * `[liveTexBytes, liveBufBytes, createdTexBytes, createdBufBytes,
+     *   destroyedTexBytes, destroyedBufBytes, pendingTexBytes,
+     *   pendingBufBytes]`.
+     *
+     * `live*` = currently allocated GPU memory referenced by the
+     * Rust side (incremented on `device.create_texture` /
+     * `create_buffer`, decremented on `destroy()`).
+     * `created*` / `destroyed*` = cumulative running totals.
+     * `pending*` = bytes in the deferred-destroy queue waiting for
+     * their 2-tick settle.
+     */
+    rustGpuByteStats(): Float64Array;
+    /**
+     * Diagnostic: counts for non-byte-sized GPU objects (bind
+     * groups, texture views, samplers). Returns 9 values:
+     * `[liveBg, createdBg, droppedBg,
+     *   liveTv, createdTv, droppedTv,
+     *   liveSa, createdSa, droppedSa]`.
+     *
+     * `live_* = created_* - dropped_*`. If `live_*` climbs without
+     * bound during stress, the wgpu Rust side is holding handles
+     * past their useful lifetime — pointing to a leak.
+     */
+    rustGpuObjectCounts(): Float64Array;
+    /**
      * Diagnostics: how many `wgpu::Texture`s we hold in
      * `self.textures` (every render target the Vello side has
      * outstanding). Useful for cross-checking the JS-side
@@ -468,6 +507,26 @@ export class VelloRenderer {
      * spell's AVM1 root clip.
      */
     setSwfSpellHostNumber(instance_id: number, name: string, value: number): void;
+    /**
+     * For an accessory (bundle/export at slot+dir+side), return the
+     * SMALLEST `animType` value (in 0..=anim_type) whose
+     * 3-cycle frame sequence is identical to the one queried.
+     *
+     * Purpose: many accessories don't actually animate by anim_type
+     * — e.g. helmets, capes, shields that look identical in static
+     * / walk / run. The JS-side accessory cache key includes
+     * `animType`, so without dedup such accessories get cached
+     * three times. By calling this function before keying, the JS
+     * can normalise `animType` to its canonical value and collapse
+     * the duplicates. Empirically this cuts ~50% of accessory
+     * cache entries at 200-bot stress (per snapshot 11: 5780 →
+     * expected ~3000).
+     *
+     * Returns the input `anim_type` unchanged on lookup failure
+     * (bundle/export not loaded) so the caller still produces a
+     * usable key.
+     */
+    swfAccessoryCanonicalAnimType(acc_bundle: string, acc_export: string, slot: number, dir: string, side: string, anim_type: number): number;
     /**
      * this export — `walkR` is a 1-frame wrapper around the real animation,
      * so JS needs the inner count to drive the ticker.
@@ -646,7 +705,7 @@ export interface InitOutput {
     readonly vellorenderer_renderFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => any;
     readonly vellorenderer_renderFrameToAtlas: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => any;
     readonly vellorenderer_renderSwfAccessoryStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => any;
-    readonly vellorenderer_renderSwfBodyAtlas: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => any;
+    readonly vellorenderer_renderSwfBodyAtlas: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => any;
     readonly vellorenderer_renderSwfBundleBatch: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
     readonly vellorenderer_renderSwfFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
     readonly vellorenderer_renderSwfMountTransforms: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
@@ -661,10 +720,13 @@ export interface InitOutput {
     readonly vellorenderer_renderSwfTileStaticBase: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
     readonly vellorenderer_renderZoneMaskFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
     readonly vellorenderer_renderZoneMaskStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
+    readonly vellorenderer_rustGpuByteStats: (a: number) => [number, number];
+    readonly vellorenderer_rustGpuObjectCounts: (a: number) => [number, number];
     readonly vellorenderer_rustTexturesCount: (a: number) => number;
     readonly vellorenderer_setSwfPlayerColors: (a: number, b: number, c: number, d: number) => void;
     readonly vellorenderer_setSwfSpellHostCell: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly vellorenderer_setSwfSpellHostNumber: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly vellorenderer_swfAccessoryCanonicalAnimType: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => number;
     readonly vellorenderer_swfAnimFrameCount: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly vellorenderer_swfBodyBandInfo: (a: number, b: number, c: number, d: number, e: number) => any;
     readonly vellorenderer_swfBundleExports: (a: number, b: number, c: number) => [number, number];

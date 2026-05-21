@@ -13,9 +13,11 @@
 //! passes through unscaled.
 //!
 //! Slots with no mount at a given frame land an identity matrix
-//! (`a=1, b=0, c=0, d=1, tx=0, ty=0`). JS only consults entries for
-//! slots that actually have an accessory equipped, so the identity
-//! filler is harmless.
+//! (`a=1, b=0, c=0, d=1, tx=0, ty=0`) and a 0 in the parallel
+//! `presence` array. JS uses the presence array (NOT the matrix
+//! contents) as the source of truth for whether to render the
+//! accessory — checking matrix-is-identity is a fragile heuristic
+//! that can false-positive on legitimate identity placements.
 //!
 //! `apply_b_fix=true` negates `tx` for mounts whose `AccessoryMount`
 //! declares `b_fix=true` — mirrors the body strip's bFix behaviour so
@@ -30,10 +32,19 @@ use super::bounds::build_frame_state;
 /// Number of 32-bit floats per mount matrix.
 pub const FLOATS_PER_MATRIX: usize = 6;
 
-/// Walk a body symbol over `[start, start + count)` frames and emit a
-/// dense table of mount transforms. Returns `Vec<f32>` of length
-/// `count as usize * max_slot as usize * 6`. Identity matrix where a
-/// slot has no mount at that frame.
+/// Walk a body symbol over `[start, start + count)` frames and emit
+/// (a) a dense table of mount transforms and (b) a parallel
+/// per-(frame, slot) presence bitmap.
+///
+/// `matrices` length: `count * max_slot * 6`. Layout per (frame, slot):
+///   `[a, b, c, d, tx, ty]` (kurbo/Vello affine coefficient order).
+///   Identity where the slot has no mount at that frame — the JS
+///   side MUST ignore matrix contents for absent slots.
+///
+/// `presence` length: `count * max_slot`. Each byte is 1 when the
+///   body's display list places a mount of that slot at the frame,
+///   0 otherwise. This is the canonical "should I draw the accessory"
+///   signal — no false positives, no heuristics.
 pub fn extract_mount_transforms(
     doc: &SwfDoc,
     body: &Symbol,
@@ -41,23 +52,27 @@ pub fn extract_mount_transforms(
     count: u16,
     apply_b_fix: bool,
     max_slot: u8,
-) -> Vec<f32> {
-    let total = (count as usize) * (max_slot as usize) * FLOATS_PER_MATRIX;
-    let mut out = vec![0.0_f32; total];
+) -> (Vec<f32>, Vec<u8>) {
+    let total_floats = (count as usize) * (max_slot as usize) * FLOATS_PER_MATRIX;
+    let total_presence = (count as usize) * (max_slot as usize);
+    let mut matrices = vec![0.0_f32; total_floats];
+    let mut presence = vec![0u8; total_presence];
 
     for frame_offset in 0..count {
         let frame = start.saturating_add(frame_offset);
         let base = (frame_offset as usize) * (max_slot as usize) * FLOATS_PER_MATRIX;
+        let pbase = (frame_offset as usize) * (max_slot as usize);
         // Pre-fill the per-frame slice with identities so missing
-        // slots show up as identity at the JS side.
+        // slots show up as identity at the JS side. Presence pre-
+        // fills to 0; `collect_frame` flips bytes to 1 as it visits.
         for slot in 0..(max_slot as usize) {
             let off = base + slot * FLOATS_PER_MATRIX;
-            out[off] = 1.0;     // a
-            out[off + 1] = 0.0; // b
-            out[off + 2] = 0.0; // c
-            out[off + 3] = 1.0; // d
-            out[off + 4] = 0.0; // tx
-            out[off + 5] = 0.0; // ty
+            matrices[off] = 1.0;     // a
+            matrices[off + 1] = 0.0; // b
+            matrices[off + 2] = 0.0; // c
+            matrices[off + 3] = 1.0; // d
+            matrices[off + 4] = 0.0; // tx
+            matrices[off + 5] = 0.0; // ty
         }
         collect_frame(
             doc,
@@ -66,10 +81,11 @@ pub fn extract_mount_transforms(
             frame,
             apply_b_fix,
             max_slot,
-            &mut out[base..base + (max_slot as usize) * FLOATS_PER_MATRIX],
+            &mut matrices[base..base + (max_slot as usize) * FLOATS_PER_MATRIX],
+            &mut presence[pbase..pbase + (max_slot as usize)],
         );
     }
-    out
+    (matrices, presence)
 }
 
 fn collect_frame(
@@ -80,6 +96,7 @@ fn collect_frame(
     apply_b_fix: bool,
     max_slot: u8,
     out_frame: &mut [f32],
+    presence_frame: &mut [u8],
 ) {
     let sprite = match sym {
         Symbol::Sprite(sp) => sp,
@@ -124,6 +141,7 @@ fn collect_frame(
                 out_frame[off + 3] = coeffs[3] as f32;
                 out_frame[off + 4] = coeffs[4] as f32;
                 out_frame[off + 5] = coeffs[5] as f32;
+                presence_frame[mount.slot as usize] = 1;
             }
         }
 
@@ -145,6 +163,7 @@ fn collect_frame(
                 apply_b_fix,
                 max_slot,
                 out_frame,
+                presence_frame,
             );
         }
     }

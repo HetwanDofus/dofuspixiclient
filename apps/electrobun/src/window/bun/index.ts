@@ -4,6 +4,11 @@ import { defineElectrobunRPC } from "electrobun/bun";
 import type { NetRPCSchema } from "@/shared/net-rpc";
 
 import { createNetBridge } from "./net-bridge";
+import { startProcessStatsLogger } from "./process-stats";
+
+// Start before the window opens so the first samples capture the
+// CEF host launch + GPU process boot.
+startProcessStatsLogger();
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;

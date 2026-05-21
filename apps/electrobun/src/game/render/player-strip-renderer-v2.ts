@@ -20,7 +20,14 @@
  * Public API mirrors V1 so callers can swap implementations.
  */
 
-import { Container, Matrix, Sprite, type Renderer as PixiRenderer } from "pixi.js";
+import {
+  Container,
+  Matrix,
+  RenderTexture,
+  Sprite,
+  Ticker,
+  type Renderer as PixiRenderer,
+} from "pixi.js";
 
 import type { CharacterAnimation } from "@/game/assets/character-sprite";
 import type { ActivePlayer } from "@/game/scene/player/types";
@@ -101,23 +108,27 @@ interface PendingAnim {
 }
 
 interface SlotStateV2 {
-  /** Per-slot Pixi container under `player.container`. */
+  /** Per-slot Pixi container under `player.container`.
+   *  Holds ONLY `hitSprite` (picking shim) + `compositeSprite`
+   *  (Phase A.3 per-bot RT). Bands + accessories live in
+   *  `compositionStage` (detached). */
   root: Container;
   /**
    * Invisible (`renderable=false`) Sprite that tracks the band-0
    * strip's texture + anchor. Used by the picking layer for AABB +
-   * alpha-test hovers — V2's actual visible content is Mesh+Sprite
-   * mix that the picker doesn't grok, but the bounds match the
-   * legacy `Sprite` exactly so picking behaves identically.
+   * alpha-test hovers — V2's actual visible content is the composite
+   * sprite, which the picker doesn't sample; the atlas alpha pattern
+   * is the right source for hit-test.
    */
   hitSprite: Sprite;
   /** Per-bot colour zone uniforms shared across all bands. */
   zones: BodyBandColourZones;
   /** Currently-live atlas (refcounted; null until the first commit). */
   atlas: BodyAtlas | null;
-  /** Band meshes in Z-order — LIVE, rendering right now. */
+  /** Band meshes in Z-order — LIVE, parented to compositionStage. */
   bands: BandHook[];
-  /** Equipped accessory sprites keyed by slot id (0..MAX_SLOT-1) — LIVE. */
+  /** Equipped accessory sprites keyed by slot id, parented to
+   *  compositionStage. */
   accessories: Map<number, AccessoryHook>;
   /** CPU mount-transform table for the active anim. */
   mounts: MountTransforms | null;
@@ -140,6 +151,22 @@ interface SlotStateV2 {
   lastDir: DirSuffix;
   lastFlipped: boolean;
   player: ActivePlayer | null;
+  /** ── Phase A.3 — per-bot RT composition ─────────────────
+   *  Detached Container parenting the bands + accessory sprites.
+   *  Never added to the scene graph; its only render destination is
+   *  `compositeRT` via `renderer.render({ container, target })`. */
+  compositionStage: Container;
+  /** Sprite the main scene actually sees. Texture = `compositeRT`,
+   *  anchor at SWF (0,0) inside the RT. Added to `root`. */
+  compositeSprite: Sprite;
+  /** Per-bot RT for the composited body+accessories. Reused for the
+   *  bot's lifetime; resized on anim swap if the atlas frame dims
+   *  changed. Retired with a 2-tick settle on detach (see
+   *  `feedback_pixi_wgpu_texture_lifetime`). */
+  compositeRT: RenderTexture | null;
+  /** Last frame index composited into the RT. -1 = needs first
+   *  composition (set on every anim commit). */
+  lastCompositionFrame: number;
 }
 
 function makeAnimKey(
@@ -154,13 +181,237 @@ function makeAnimKey(
   return `${animation.bundle}|${animName}|${dir}|${flipped ? "f" : "u"}`;
 }
 
+/**
+ * Tiny safety margin (atlas-pixel scale) applied around the
+ * computed bot bounding box. Defends against AA fringe + sub-pixel
+ * rounding when accessories are positioned right at the bbox edge.
+ * Functional padding (room for accessories) is NOT done with this —
+ * see `computeBotBounds` which derives extents from the actual
+ * accessory strips + mount transforms across every frame.
+ */
+const RT_SAFETY_PAD = 2;
+
+/**
+ * Hard cap on either dimension of the per-bot composite RT. Defends
+ * against an outlier atlas (giant bosses, future class additions)
+ * blowing the GPU budget. Bots whose atlas exceeds this get rendered
+ * at a scaled-down composition (visible-pixel ratio still ≥ 1× at
+ * the default camera zoom).
+ */
+const RT_MAX_DIM = 384;
+
+/**
+ * Quantization step for RT dimensions. Round computed dims UP to
+ * this multiple so anim swaps with small bbox variations (the same
+ * bot in a different anim) reuse the existing RT instead of
+ * allocating a new one. Realloc + retire is the dominant cost
+ * around anim transitions — quantizing turns N distinct sizes into
+ * ⌈N / QUANT⌉ buckets. 32 px is a sweet spot: small enough to
+ * keep memory waste under ~10 %, big enough to absorb most
+ * frame-to-frame bbox jitter.
+ */
+const RT_QUANT = 32;
+
+/** Two ticks of settle before destroying a per-bot RT. Mirrors
+ *  CharacterCache's RETIRE_TICKS — the patched-wgpu Drop is a no-op,
+ *  so the explicit `destroy(true)` is the ONLY release path. */
+const RT_RETIRE_TICKS = 2;
+
+/** Per-bot retire entry. Holds the RT until its grace window expires,
+ *  then `destroy(true)` releases the underlying GPUTexture. */
+interface RetireRTEntry {
+  rt: RenderTexture;
+  ticksRemaining: number;
+}
+
 export class PlayerStripRendererV2 {
   private states = new Map<number, Map<PlayerStripSlot, SlotStateV2>>();
   private resolution: number;
   private cache = getCharacterCache();
+  private pixiRenderer: PixiRenderer;
+  /** RTs awaiting their 2-tick settle before destroy(). Drained by
+   *  `tickRetireRTs` on the shared ticker. */
+  private retireRTQueue: RetireRTEntry[] = [];
+  private rtTickerInstalled = false;
+  private rtTickerCallback: (() => void) | null = null;
 
-  constructor(_pixiRenderer: PixiRenderer, resolution = 3) {
+  constructor(pixiRenderer: PixiRenderer, resolution = 3) {
+    this.pixiRenderer = pixiRenderer;
     this.resolution = Math.max(1, resolution);
+  }
+
+  private ensureRTTickerInstalled(): void {
+    if (this.rtTickerInstalled) return;
+    this.rtTickerInstalled = true;
+    this.rtTickerCallback = () => this.tickRetireRTs();
+    Ticker.shared.add(this.rtTickerCallback);
+  }
+
+  private tickRetireRTs(): void {
+    if (this.retireRTQueue.length === 0) return;
+    const remaining: RetireRTEntry[] = [];
+    for (const entry of this.retireRTQueue) {
+      entry.ticksRemaining -= 1;
+      if (entry.ticksRemaining > 0) {
+        remaining.push(entry);
+        continue;
+      }
+      try {
+        entry.rt.destroy(true);
+      } catch (e) {
+        log.warn("composite RT destroy threw", e);
+      }
+    }
+    this.retireRTQueue = remaining;
+  }
+
+  /**
+   * Compute the tight bounding box of the bot's body + every equipped
+   * accessory across EVERY anim frame, in compositionStage local
+   * coords (SWF (0,0) at local origin). Output bounds are in
+   * atlas-pixel scale (matches the atlas + mount-matrix output).
+   *
+   * Why we need this: a fixed pad like `frameWidth + 16` cuts long
+   * weapons / trailing capes / fancy hats off at the RT edge. The
+   * user-visible symptom is "accessories cropped." Computing extents
+   * from the actual accessory strips + per-frame mount transforms
+   * gives us the EXACT size the RT must be — no cropping, no
+   * over-allocation.
+   *
+   * The bounds extend across every frame of the bot's anim because
+   * one RT is shared across the whole cycle (we re-composite per
+   * frame, but the RT dimensions stay constant). If frame 3 has the
+   * weapon swung wide and the RT was sized for frame 0's neutral
+   * pose, frame 3's swing gets clipped.
+   */
+  private computeBotBounds(st: SlotStateV2, atlas: BodyAtlas): {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  } {
+    // Body extent. Band meshes draw their atlas cell with the cell's
+    // SWF (0,0) at compositionStage's local origin. So body pixels
+    // span (-anchorX, -anchorY) to (frameWidth-anchorX,
+    // frameHeight-anchorY) in compositionStage local coords.
+    let minX = -atlas.anchorX;
+    let minY = -atlas.anchorY;
+    let maxX = atlas.frameWidth - atlas.anchorX;
+    let maxY = atlas.frameHeight - atlas.anchorY;
+
+    // Accessory extents — only consider frames where the body's
+    // display list actually places the mount (via presence bitmap).
+    // For every present (frame, slot), transform the accessory's 4
+    // strip corners by the mount matrix and union into bounds.
+    const mounts = st.mounts;
+    if (mounts) {
+      const twipScale = this.resolution / 20;
+      const maxSlot = mounts.maxSlot;
+      for (const [slotId, acc] of st.accessories) {
+        if (!acc.strip) continue;
+        const strip = acc.strip;
+        // Strip corners in sprite-local pixel coords, anchored at
+        // SWF (0,0) of the accessory.
+        const cornersX = [
+          -strip.anchorX,
+          strip.frameWidth - strip.anchorX,
+          strip.frameWidth - strip.anchorX,
+          -strip.anchorX,
+        ];
+        const cornersY = [
+          -strip.anchorY,
+          -strip.anchorY,
+          strip.frameHeight - strip.anchorY,
+          strip.frameHeight - strip.anchorY,
+        ];
+        for (let frame = 0; frame < mounts.frameCount; frame++) {
+          if (!this.cache.isMountPresent(mounts, frame, slotId)) continue;
+          const off = (frame * maxSlot + slotId) * 6;
+          const a = mounts.data[off];
+          const b = mounts.data[off + 1];
+          const c = mounts.data[off + 2];
+          const d = mounts.data[off + 3];
+          const tx = mounts.data[off + 4] * twipScale;
+          const ty = mounts.data[off + 5] * twipScale;
+          for (let k = 0; k < 4; k++) {
+            const x = cornersX[k];
+            const y = cornersY[k];
+            const wx = a * x + c * y + tx;
+            const wy = b * x + d * y + ty;
+            if (wx < minX) minX = wx;
+            if (wy < minY) minY = wy;
+            if (wx > maxX) maxX = wx;
+            if (wy > maxY) maxY = wy;
+          }
+        }
+      }
+    }
+
+    // Tiny defensive expansion for AA fringe + sub-pixel rounding.
+    return {
+      minX: minX - RT_SAFETY_PAD,
+      minY: minY - RT_SAFETY_PAD,
+      maxX: maxX + RT_SAFETY_PAD,
+      maxY: maxY + RT_SAFETY_PAD,
+    };
+  }
+
+  /**
+   * Per-bot RT dimensions + composition-side scale derived from the
+   * tight bounding box. If the bbox exceeds `RT_MAX_DIM` on either
+   * axis we shrink uniformly so the RT fits — quality cost is a
+   * slight downsample at the default camera zoom.
+   */
+  private rtSizeFor(bounds: {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  }): { w: number; h: number; scale: number } {
+    const naturalW = Math.max(1, bounds.maxX - bounds.minX);
+    const naturalH = Math.max(1, bounds.maxY - bounds.minY);
+    const scale = Math.min(1, RT_MAX_DIM / Math.max(naturalW, naturalH));
+    // Quantize UP to RT_QUANT so small frame-to-frame bbox jitter
+    // doesn't trigger a fresh RT alloc (the dominant cost around
+    // anim transitions). Same-bucket sizes hit the existing-RT
+    // reuse path in ensureCompositeRT.
+    const quant = (n: number) =>
+      Math.max(RT_QUANT, Math.ceil(n / RT_QUANT) * RT_QUANT);
+    return {
+      w: quant(naturalW * scale),
+      h: quant(naturalH * scale),
+      scale,
+    };
+  }
+
+  /**
+   * Render the bot's compositionStage (bands + accessories at the
+   * current frame) into its per-bot RT. Single render pass into a
+   * 1-bot target; main render pass picks up the result via the
+   * `compositeSprite` next time.
+   *
+   * Pre: `st.compositeRT` allocated, `st.compositionStage` positioned
+   * via `applyCompositionTransform` so the bot's bbox.min lands at
+   * RT (0,0). The composite sprite's anchor matches so the bot's
+   * container origin stays at SWF (0,0).
+   */
+  private composeBot(st: SlotStateV2): void {
+    if (!st.atlas || !st.compositeRT) return;
+    // sortChildren is NOT called here — Pixi v8's `sortableChildren`
+    // flag on `compositionStage` triggers automatic sort during the
+    // render walk, and we already explicitly sort once at tryCommit
+    // (after zIndices are assigned). Calling it per composition was
+    // burning ~12k sortChildren/sec at 200 bots × 60 fps for no
+    // benefit and contributing to the fps regression.
+    try {
+      this.pixiRenderer.render({
+        container: st.compositionStage,
+        target: st.compositeRT,
+        clear: true,
+      });
+    } catch (e) {
+      log.warn("composeBot render failed", e);
+    }
   }
 
   setResolution(res: number): void {
@@ -296,6 +547,10 @@ export class PlayerStripRendererV2 {
         totalFrameCount: animation.frameCount,
         resolution: this.resolution,
         applyBFix: flipped,
+        // Pre-warm both variants would double work; pick the more
+        // common "no hat" variant for warmup. Bots with hat will
+        // miss on first acquire and bake on demand.
+        hatEquipped: false,
       },
       (atlas) => {
         // Drop the refcount we just added. Atlas stays in cache for
@@ -413,7 +668,16 @@ export class PlayerStripRendererV2 {
     return pending.readyPromise;
   }
 
-  /** Per-tick frame swap — O(slots × bands + slots × accessories). */
+  /** Per-tick frame swap — drives bands + accessories to the bot's
+   *  current frame and re-composites the per-bot RT WHEN the frame
+   *  actually changed. Pixi anchor / transforms of the visible
+   *  composite sprite are unchanged across frames, so the main
+   *  scene's per-bot cost reduces to one batched sprite draw.
+   *
+   *  Composition cost: ~bands+accessories sub-draws per anim-frame
+   *  change × N bots × anim fps. At 12 fps anim × 200 bots × ~5
+   *  sub-draws = ~12 000 RT sub-draws/sec — bounded by the bot count
+   *  and anim fps, NOT by the main render fps. */
   swapFrame(player: ActivePlayer): void {
     const slots = this.states.get(player.id);
     if (!slots) return;
@@ -424,24 +688,16 @@ export class PlayerStripRendererV2 {
       const fc = atlas.frameCount;
       if (fc === 0) continue;
       const frame = idx % fc;
-      // Bands: shift UVs. All bands share the same atlas + frame
-      // count, so we compute `frame` once and broadcast.
-      for (const band of st.bands) {
-        if (!band.mesh) continue;
-        band.mesh.setFrame(frame);
+      if (frame === st.lastCompositionFrame) {
+        // No frame change → RT contents still valid. Saves a render
+        // pass per bot for the (very common) case where the bot's
+        // anim hasn't advanced this tick.
+        continue;
       }
-      // Accessories: cycle 3 sub-frames, update mount affine.
-      if (st.mounts) {
-        const frameInMount = idx % st.mounts.frameCount;
-        const tmp = mountScratch;
-        for (const acc of st.accessories.values()) {
-          if (!acc.strip) continue;
-          const subIdx = idx % acc.strip.frameCount;
-          acc.sprite.texture = acc.strip.frames[subIdx];
-          this.cache.readMountMatrix(st.mounts, frameInMount, acc.slot, tmp);
-          this.applyMountToAccessory(acc, tmp);
-        }
-      }
+      this.setBandsFrame(st, frame);
+      this.setAccessoriesFrame(st, frame);
+      this.composeBot(st);
+      st.lastCompositionFrame = frame;
     }
   }
 
@@ -494,6 +750,7 @@ export class PlayerStripRendererV2 {
     player: ActivePlayer,
     slot: PlayerStripSlot,
   ): SlotStateV2 {
+    this.ensureRTTickerInstalled();
     const root = new Container();
     root.scale.set(1 / this.resolution);
     root.sortableChildren = true;
@@ -508,6 +765,19 @@ export class PlayerStripRendererV2 {
     hitSprite.renderable = false;
     hitSprite.anchor.set(0, 0);
     root.addChild(hitSprite);
+
+    // Phase A.3: detached composition stage + visible composite
+    // sprite. Bands + accessories will be added to compositionStage
+    // on first commit; the composite sprite carries the composed RT
+    // and is what the main scene actually renders.
+    const compositionStage = new Container();
+    compositionStage.sortableChildren = true;
+    // NOT added to scene — rendered to RT directly.
+
+    const compositeSprite = new Sprite();
+    compositeSprite.anchor.set(0, 0);
+    compositeSprite.visible = false;
+    root.addChild(compositeSprite);
 
     // Path B "never frozen" contract: a bot stays HIDDEN until its
     // first applyAnimation commits — every band + accessory has
@@ -533,6 +803,10 @@ export class PlayerStripRendererV2 {
       lastDir: "F",
       lastFlipped: false,
       player,
+      compositionStage,
+      compositeSprite,
+      compositeRT: null,
+      lastCompositionFrame: -1,
     };
   }
 
@@ -559,6 +833,11 @@ export class PlayerStripRendererV2 {
    *  metadata in one call — `bandCount × 2` allocations collapse to
    *  exactly 2 per anim. */
   private stageBodyAtlas(st: SlotStateV2, pending: PendingAnim): void {
+    // Canonical AS2 `mcToHide` signal: hat (slot 1) equipped means
+    // hair-toggle sprites (e.g. Iop's R_tete) pin to the short-hair
+    // frame. Becomes part of the atlas cache key so we bake two
+    // variants per affected class.
+    const hatEquipped = pending.accessoryRefs.some((a) => a.slot === 1);
     this.cache.acquireBodyAtlas(
       {
         bundle: pending.animation.bundle,
@@ -568,6 +847,7 @@ export class PlayerStripRendererV2 {
         totalFrameCount: pending.animation.frameCount,
         resolution: this.resolution,
         applyBFix: pending.flipped,
+        hatEquipped,
       },
       (atlas) => this.onAtlasLanded(st, pending, atlas),
       () => st.pendingAnim === pending,
@@ -575,8 +855,26 @@ export class PlayerStripRendererV2 {
   }
 
   /** Kick off accessory acquires for `pending`. Same staging contract
-   *  as `stageBodyAtlas` — no live state mutated until commit. */
+   *  as `stageBodyAtlas` — no live state mutated until commit.
+   *
+   *  Each accessory's `side` argument is the body's CANONICAL authored
+   *  `applyAccessory(this, slot, side)` argument — extracted by
+   *  `swfBodyBandInfo` per slot. Falls back to the bot's facing `dir`
+   *  only if the body's mount declaration omitted the side string
+   *  (legacy assets). Using the bot's `dir` unconditionally is what
+   *  used to break capes' walking variants (`WR`/`WL`). */
   private stageAccessories(st: SlotStateV2, pending: PendingAnim): void {
+    const info = this.cache.getBodyBandInfo(
+      pending.animation.bundle,
+      pending.animation.exportName,
+    );
+    const sideForSlot = (slotId: number): string => {
+      if (info) {
+        const entry = info.slots.find((s) => s.slot === slotId);
+        if (entry && entry.side) return entry.side;
+      }
+      return pending.dir;
+    };
     for (const accDef of pending.accessoryRefs) {
       const slotId = accDef.slot;
       this.cache.acquireAccessory(
@@ -586,10 +884,7 @@ export class PlayerStripRendererV2 {
           slot: slotId,
           animType: accDef.animType,
           dir: pending.dir,
-          // `side` defaults to dir; canonical W-prefix opt-in lives
-          // in the body's mount declaration which we don't surface
-          // here yet — accurate cape walk frames are a follow-up.
-          side: pending.dir,
+          side: sideForSlot(slotId),
           resolution: this.resolution,
         },
         (strip) => this.onAccessoryLanded(st, pending, slotId, strip),
@@ -672,7 +967,9 @@ export class PlayerStripRendererV2 {
         } else {
           mesh = new BodyBandMesh(nextAtlas, bandInfo, st.zones);
           mesh.mesh.zIndex = bandInfo.bandIndex * 2;
-          st.root.addChild(mesh.mesh);
+          // Phase A.3: bands live in the detached compositionStage,
+          // NOT in the visible scene graph.
+          st.compositionStage.addChild(mesh.mesh);
         }
         newBands.push({ bandIndex: bandInfo.bandIndex, mesh });
       }
@@ -683,7 +980,7 @@ export class PlayerStripRendererV2 {
       }
       // Picking shim: hit-test reads from the atlas. The bands all
       // share frame size + anchor so AABB matches the live render.
-      st.hitSprite.texture = nextAtlas.colorTexture;
+      st.hitSprite.texture = nextAtlas.combinedTexture;
       const fw = nextAtlas.frameWidth || 1;
       const fh = nextAtlas.frameHeight || 1;
       st.hitSprite.anchor.set(nextAtlas.anchorX / fw, nextAtlas.anchorY / fh);
@@ -718,7 +1015,10 @@ export class PlayerStripRendererV2 {
       } else {
         const sprite = new Sprite();
         sprite.anchor.set(0, 0);
-        st.root.addChild(sprite);
+        // Phase A.3: accessories live in the detached
+        // compositionStage; the bot's visible content is the
+        // composited RT.
+        st.compositionStage.addChild(sprite);
         hook = { sprite, strip: null, slot: slotId };
       }
       hook.sprite.zIndex = pending.slotZ.get(slotId) ?? 1;
@@ -744,13 +1044,188 @@ export class PlayerStripRendererV2 {
     st.currentAnimKey = pending.key;
     st.pendingAnim = null;
 
-    // 5. First successful commit reveals the bot. Subsequent commits
+    // 5. Phase A.3: (re)allocate the per-bot RT if needed, position
+    //    the composition stage so the bot's bbox fits exactly inside
+    //    the RT (no cropping), run the FIRST composition for frame 0,
+    //    then update the composite sprite's texture+anchor to match.
+    //    Texture swap is deferred to the END of this block so the
+    //    sprite never points at an un-rendered RT.
+    if (nextAtlas) {
+      // Compute tight bounds once — accessory strips + mount table
+      // are now committed, so bbox reflects the bot's actual extent
+      // across every anim frame. Drives RT sizing AND stage offset.
+      const bounds = this.computeBotBounds(st, nextAtlas);
+      this.ensureCompositeRT(st, nextAtlas, bounds);
+      this.applyCompositionTransform(st, bounds);
+      // Force one sort here — zIndex was just (re)assigned on every
+      // band + accessory. After this, the composition stage's child
+      // order is correct; subsequent composeBot calls inherit it
+      // unless zIndex changes again (which only happens on the
+      // next anim commit).
+      st.compositionStage.sortChildren();
+      // Drive the band meshes + accessories to frame 0 BEFORE the
+      // first composition. swapFrame normally does this on every
+      // tick; here we do it once on commit so the RT shows frame 0
+      // without a one-frame gap.
+      this.setBandsFrame(st, 0);
+      this.setAccessoriesFrame(st, 0);
+      this.composeBot(st);
+      st.lastCompositionFrame = 0;
+      // NOW swap the sprite's texture to point at the freshly-filled
+      // RT. Before this line the sprite still showed whatever it had
+      // before (old RT from previous anim, or no texture on first
+      // commit). Order matters — see ensureCompositeRT docstring.
+      if (st.compositeRT && st.compositeSprite.texture !== st.compositeRT) {
+        st.compositeSprite.texture = st.compositeRT;
+      }
+      st.compositeSprite.visible = true;
+    }
+
+    // 6. First successful commit reveals the bot. Subsequent commits
     //    are no-ops on visibility — bots stay visible from here on.
     st.root.visible = true;
 
-    // 6. Signal awaiters that the anim is live. Caller can now
+    // 7. Signal awaiters that the anim is live. Caller can now
     //    trigger the action (movement, etc.) it was holding for.
     pending.resolve(true);
+  }
+
+  /**
+   * Ensure `st.compositeRT` exists at the right dimensions for
+   * `atlas`. If an existing RT is the correct size, reuse it; else
+   * schedule the old one for retire and allocate a fresh one of the
+   * new size. Anim swaps usually keep dims constant (static vs walk
+   * share frame size on most classes); class swaps may differ.
+   */
+  /** Allocate a fresh RT into `st.compositeRT` if the existing one
+   *  doesn't match dimensions. Crucially, does NOT update
+   *  `compositeSprite.texture` — that swap is deferred until the
+   *  caller has filled the new RT via `composeBot`. Without that
+   *  deferral, the sprite would briefly sample an UN-rendered RT
+   *  during anim swaps whose new atlas has different dims → visible
+   *  as a 1-frame black flash on the bot.
+   *
+   *  Returns `true` if a fresh RT was allocated (so the caller knows
+   *  it needs to call `composeBot` THEN swap the sprite texture);
+   *  `false` if the existing RT was reused. */
+  private ensureCompositeRT(
+    st: SlotStateV2,
+    atlas: BodyAtlas,
+    bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  ): boolean {
+    const { w, h } = this.rtSizeFor(bounds);
+    if (
+      st.compositeRT &&
+      st.compositeRT.width === w &&
+      st.compositeRT.height === h
+    ) {
+      return false;
+    }
+    if (st.compositeRT) {
+      this.retireRTQueue.push({
+        rt: st.compositeRT,
+        ticksRemaining: RT_RETIRE_TICKS,
+      });
+    }
+    const rt = RenderTexture.create({ width: w, height: h });
+    // Label MUST start with `bot-composite` so the stress monitor's
+    // `byLabel` breakdown groups every per-bot RT in one bucket — the
+    // labelPrefix split is on `:`, `|`, or `@`. Visibility matters
+    // because these RTs may not show up in `_managedTextures` —
+    // surfacing them somewhere observable is half the point of A.3
+    // memory hygiene.
+    rt.label = `bot-composite|${atlas.key}`;
+    if (rt.source && typeof rt.source === "object") {
+      // Tag the underlying source as well — Pixi's managed-texture
+      // hash keys by source label in some paths.
+      (rt.source as { label?: string }).label = rt.label;
+    }
+    st.compositeRT = rt;
+    // DO NOT touch compositeSprite.texture here — see method docstring.
+    return true;
+  }
+
+  /**
+   * Position `compositionStage` so the tight bot bbox's `min` point
+   * lands at RT (0, 0). Then update the composite sprite's anchor
+   * to point at SWF (0, 0) — that point lands at RT
+   * `(-bbox.min * scale)`. The world-space anchor of the bot stays
+   * at SWF (0, 0) regardless of how far accessories extend in any
+   * direction.
+   */
+  private applyCompositionTransform(
+    st: SlotStateV2,
+    bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  ): void {
+    if (!st.compositeRT) return;
+    const { scale } = this.rtSizeFor(bounds);
+    // The bbox's min point lands at RT (0, 0). compositionStage's
+    // local origin = SWF (0, 0). So compositionStage's position in
+    // RT pixels = (-bbox.min * scale).
+    const swfOriginXRT = -bounds.minX * scale;
+    const swfOriginYRT = -bounds.minY * scale;
+    st.compositionStage.position.set(swfOriginXRT, swfOriginYRT);
+    st.compositionStage.scale.set(scale);
+    // Anchor the composite sprite at SWF (0, 0) inside the RT so the
+    // bot's world-space anchor stays at SWF (0, 0) regardless of how
+    // far accessories extend.
+    st.compositeSprite.anchor.set(
+      swfOriginXRT / st.compositeRT.width,
+      swfOriginYRT / st.compositeRT.height,
+    );
+    // The composite sprite needs to render at SWF-pixel scale (so
+    // `root.scale = 1/resolution` lands it at screen pixels). If the
+    // RT was scaled down to fit `RT_MAX_DIM`, scale the sprite UP by
+    // 1/scale so the on-screen size matches V1.
+    st.compositeSprite.scale.set(1 / scale);
+  }
+
+  /** Drive every band mesh of `st` to `frameIndex`. */
+  private setBandsFrame(st: SlotStateV2, frameIndex: number): void {
+    for (const band of st.bands) {
+      if (!band.mesh) continue;
+      band.mesh.setFrame(frameIndex);
+    }
+  }
+
+  /** Drive accessory sprites of `st` to `frameIndex`. Updates the
+   *  sprite's texture (sub-frame cycle) AND its local affine via the
+   *  active mount table — UNLESS the body's display list has no
+   *  mount placement for this slot on this frame, in which case the
+   *  sprite goes `renderable=false`.
+   *
+   *  Presence comes from the Rust extractor's per-(frame, slot)
+   *  bitmap — canonical truth, no heuristics. Without this gate,
+   *  capes/weapons/shields would render at SWF (0,0) on frames whose
+   *  body anim doesn't include their mount (the "ghost weapon" bug).
+   *
+   *  Defensive: if `st.mounts` failed to load (e.g. stale wasm), we
+   *  still set `renderable=true` and identity-skip so a previously-
+   *  hidden sprite from a prior tick doesn't stay hidden. The sprite
+   *  will render at its tryCommit-time default position — visibly
+   *  wrong but at least visible, which is what surfaces the "wasm
+   *  needs rebuild" failure mode. */
+  private setAccessoriesFrame(st: SlotStateV2, frameIndex: number): void {
+    if (!st.mounts) {
+      for (const acc of st.accessories.values()) {
+        if (acc.strip) acc.sprite.renderable = true;
+      }
+      return;
+    }
+    const frameInMount = frameIndex % st.mounts.frameCount;
+    const tmp = mountScratch;
+    for (const acc of st.accessories.values()) {
+      if (!acc.strip) continue;
+      if (!this.cache.isMountPresent(st.mounts, frameInMount, acc.slot)) {
+        acc.sprite.renderable = false;
+        continue;
+      }
+      acc.sprite.renderable = true;
+      this.cache.readMountMatrix(st.mounts, frameInMount, acc.slot, tmp);
+      const subIdx = frameIndex % acc.strip.frameCount;
+      acc.sprite.texture = acc.strip.frames[subIdx];
+      this.applyMountToAccessory(acc, tmp);
+    }
   }
 
   /** Discard a staging in flight — release any strips that already
@@ -820,6 +1295,24 @@ export class PlayerStripRendererV2 {
       } catch {}
     }
     st.accessories.clear();
+    // Phase A.3: retire the per-bot RT through the 2-tick settle so
+    // in-flight Pixi samplers complete before destroy. The patched
+    // wgpu Drop is a no-op, so explicit destroy is the only release.
+    if (st.compositeRT) {
+      this.retireRTQueue.push({
+        rt: st.compositeRT,
+        ticksRemaining: RT_RETIRE_TICKS,
+      });
+      st.compositeRT = null;
+    }
+    // The detached composition stage is OUR property — destroy
+    // children (any leftover Mesh/Sprite refs) so we don't leak GPU
+    // buffers in the band geometry. Pixi v8 Mesh.destroy doesn't
+    // recurse, so band meshes were already explicitly destroyed
+    // above; this is a defensive sweep for accessories.
+    try {
+      st.compositionStage.destroy({ children: true });
+    } catch {}
     try {
       st.root.parent?.removeChild(st.root);
       st.root.destroy({ children: true });

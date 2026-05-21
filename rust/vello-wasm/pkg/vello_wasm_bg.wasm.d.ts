@@ -25,7 +25,7 @@ export const vellorenderer_renderAnimationStrip: (a: number, b: number, c: numbe
 export const vellorenderer_renderFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => any;
 export const vellorenderer_renderFrameToAtlas: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => any;
 export const vellorenderer_renderSwfAccessoryStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => any;
-export const vellorenderer_renderSwfBodyAtlas: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => any;
+export const vellorenderer_renderSwfBodyAtlas: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => any;
 export const vellorenderer_renderSwfBundleBatch: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
 export const vellorenderer_renderSwfFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
 export const vellorenderer_renderSwfMountTransforms: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
@@ -40,10 +40,13 @@ export const vellorenderer_renderSwfTileDynamicStripRange: (a: number, b: number
 export const vellorenderer_renderSwfTileStaticBase: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
 export const vellorenderer_renderZoneMaskFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => any;
 export const vellorenderer_renderZoneMaskStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
+export const vellorenderer_rustGpuByteStats: (a: number) => [number, number];
+export const vellorenderer_rustGpuObjectCounts: (a: number) => [number, number];
 export const vellorenderer_rustTexturesCount: (a: number) => number;
 export const vellorenderer_setSwfPlayerColors: (a: number, b: number, c: number, d: number) => void;
 export const vellorenderer_setSwfSpellHostCell: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
 export const vellorenderer_setSwfSpellHostNumber: (a: number, b: number, c: number, d: number, e: number) => void;
+export const vellorenderer_swfAccessoryCanonicalAnimType: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => number;
 export const vellorenderer_swfAnimFrameCount: (a: number, b: number, c: number, d: number, e: number) => number;
 export const vellorenderer_swfBodyBandInfo: (a: number, b: number, c: number, d: number, e: number) => any;
 export const vellorenderer_swfBundleExports: (a: number, b: number, c: number) => [number, number];

@@ -334,6 +334,7 @@ fn apply_compute(ctx: &mut RenderCtx<'_>, sym: &Symbol, filters: &[OwnedFilter])
             // band's drop-shadow obeys the same rules.
             disable_accessories: ctx.disable_accessories,
             output_mode: ctx.output_mode,
+            hat_equipped: ctx.hat_equipped,
         };
         super::render_symbol_into(&mut sub_ctx, sym);
     }
