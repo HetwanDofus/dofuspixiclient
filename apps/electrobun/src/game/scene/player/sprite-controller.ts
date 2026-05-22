@@ -142,12 +142,22 @@ export class PlayerSpriteController {
     // just to satisfy `loadAnimationWithFallback`'s signature.
     const look = player.look;
 
-    // Anim types we want pre-warmed. Static is already loaded by
-    // boot above; the high-value ones are walk + run (every move
-    // triggers these in 4 directions). cast/hit/die also have art
-    // but aren't worth pre-warming because they're one-shot and
-    // rarely cause perceived FPS dips.
-    const animTypes = ["walk", "run"];
+    // Anim types we want pre-warmed in every cardinal direction.
+    //
+    // CRITICAL: `static` MUST be included. The original comment here
+    // said "static is already loaded by boot above" — but boot only
+    // loads ONE direction (whichever the bot spawns facing). When a
+    // walking bot stops, it transitions to `static_<currentDir>` —
+    // which is a cache miss for any direction other than the
+    // initial spawn dir → bake → ~50 ms freeze visible at 60 fps as
+    // "bot froze mid-anim instead of going to static pose."
+    //
+    // `walk` + `run` cover the moving-bot transitions; `static`
+    // covers the moving-bot-stopping transitions. Combined with the
+    // post-Phase-1b scene-cache, each pre-warm bake is ~0.6 ms (warm)
+    // or ~5 ms (cold first build) — total pre-warm cost per gfxId
+    // is bounded.
+    const animTypes = ["static", "walk", "run"];
     // Cardinal directions Dofus 1.29 art ships separate exports
     // for: R, L, F, B. (S is static-only.)
     const directions = [1, 3, 5, 7];

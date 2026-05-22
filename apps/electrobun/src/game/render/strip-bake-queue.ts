@@ -33,6 +33,7 @@
  *    `PlayerStripRenderer` does this check inside its callback.
  */
 
+import { recordProbe } from "@/game/render/render-probes";
 import { getRenderWatchdog } from "@/game/render/render-watchdog";
 import { createLogger } from "@/utils/logger";
 
@@ -73,6 +74,31 @@ const BUDGET_BUSY_MS = 8; // ~50 %
 const BUDGET_HEAVY_MS = 12; // ~75 %
 const HIGH_WATERMARK = 200;
 const LOW_WATERMARK = 30;
+
+/**
+ * Max bakes dispatched per `drain()` firing.
+ *
+ * History — Phase 1b introduced the count cap to defend against GPU
+ * pressure when bakes got cheap (5 ms → 0.75 ms): each bake still
+ * allocated 3 wgpu::Textures + combine pass + bitmap bridge + Pixi
+ * GPU upload, so cheap bakes meant 4× more GPU operations per second.
+ * That mattered when the per-bot RT compositor (Phase A.3) was also
+ * eating GPU bandwidth.
+ *
+ * Removed (effectively set to Infinity) after the shared composition
+ * atlas landed: the per-bot RT GPU pressure is gone (200 RT passes
+ * per frame → 1), so the GPU process has plenty of headroom for bake
+ * work. The time-budget below is the right governor — drains stop
+ * when budgetMs elapses, regardless of bake count.
+ *
+ * Why this matters for smoothness: the cap was forcing bake-queue
+ * backlogs to 196+ entries at 200-bot stress. Bots waiting for their
+ * bake to drain saw 1-second freezes while `animReady` stayed false.
+ * Time-budget-only drain pushes throughput from ~170 bakes/sec to
+ * ~480-700 bakes/sec, draining backlogs in <1 s and reducing the
+ * residual freeze window to ~1 main-frame.
+ */
+const MAX_BAKES_PER_DRAIN = Number.POSITIVE_INFINITY;
 
 class StripBakeQueue {
   /**
@@ -229,8 +255,10 @@ class StripBakeQueue {
 
   private drain(): void {
     if (this.pending.size === 0) return;
+    const drainStart = performance.now();
     this.adaptBudget();
-    const deadline = performance.now() + this.budgetMs;
+    const deadline = drainStart + this.budgetMs;
+    let bakesThisDrain = 0;
     // Iterate over the (insertion-ordered) Map. We delete entries as
     // we process them to keep memory steady; the for-of remains valid
     // under deletion of the current key per ECMA-262.
@@ -242,11 +270,30 @@ class StripBakeQueue {
       // texture allocation. This is the dominant savings during heavy
       // direction-change churn (bot rapidly cycles directions while
       // its earlier bakes are still queued).
+      //
+      // CRITICAL: even when a bake is stale-skipped, we MUST fire
+      // every callback with a `null` result. The downstream consumer
+      // (`CharacterCache.finalizeAccessoryBake` / `finalizeBodyAtlasBake`)
+      // forwards that null to the renderer's `onAccessoryLanded` /
+      // `onAtlasLanded`, which adds the slot to `pending.accStrips`
+      // — even with a null strip. Without this, a stale-skipped
+      // accessory leaves `accStrips.size < accSlots.length` forever,
+      // the renderer's tryCommit gate never fires, `pending` leaks,
+      // and (if Phase 2 hadn't moved the promise resolve to body
+      // commit) the bot would freeze on `animReady = false`. Firing
+      // null on stale-skip closes the contract regardless of timing.
       const livingCallbacks = entry.callbacks.filter(
         (c) => c.isWanted === null || c.isWanted(),
       );
       if (livingCallbacks.length === 0) {
         this.totalStaleSkipped += 1;
+        for (const cb of entry.callbacks) {
+          try {
+            cb.onReady(null);
+          } catch (e) {
+            log.error(`stale-skip callback for '${key}' threw:`, e);
+          }
+        }
         if (performance.now() >= deadline) break;
         continue;
       }
@@ -258,6 +305,7 @@ class StripBakeQueue {
         log.error(`render for '${key}' threw:`, e);
       }
       this.totalDispatched += 1;
+      bakesThisDrain += 1;
       // Invoke every still-wanted callback. If two callers requested
       // the same key, both get the SAME result — they share the
       // underlying GPU texture. The last caller to release is
@@ -270,10 +318,19 @@ class StripBakeQueue {
           log.error(`callback for '${key}' threw:`, e);
         }
       }
+      // Two stop conditions: CPU time-budget exceeded, OR per-drain
+      // bake count exceeded. Whichever fires first ends the drain.
+      // The bake-count cap protects against cheap-bake floods that
+      // would otherwise overrun the GPU process; the time-budget
+      // protects against expensive bakes from blocking too long.
+      if (bakesThisDrain >= MAX_BAKES_PER_DRAIN) {
+        break;
+      }
       if (performance.now() >= deadline) {
         break;
       }
     }
+    recordProbe("bakeDrain", performance.now() - drainStart);
     if (this.pending.size > 0) {
       this.scheduleDrain();
     }

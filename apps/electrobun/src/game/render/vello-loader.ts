@@ -21,6 +21,7 @@
 import type { Renderer as PixiRenderer } from "pixi.js";
 import wasmInit, { VelloRenderer } from "vello-wasm";
 
+import { recordProbe } from "./render-probes";
 import { getRenderWatchdog } from "./render-watchdog";
 
 let renderer: VelloRenderer | null = null;
@@ -910,6 +911,7 @@ export function renderSwfBodyAtlas(
   hatEquipped: boolean,
 ): VelloSwfBodyAtlasResult | null {
   if (!renderer || isHalted()) return null;
+  const t0 = performance.now();
   const result = renderer.renderSwfBodyAtlas(
     bundle,
     exportName,
@@ -920,6 +922,7 @@ export function renderSwfBodyAtlas(
     applyBFix,
     hatEquipped,
   );
+  recordProbe("bodyAtlas", performance.now() - t0);
   const r = (result as Record<string, unknown> | null) ?? null;
   if (!r) return null;
   const rawBands = (r.bands as Array<Record<string, unknown>>) ?? [];
@@ -983,6 +986,7 @@ export function renderSwfAccessoryStrip(
   resolution: number,
 ): VelloSwfAccessoryStripResult | null {
   if (!renderer || isHalted()) return null;
+  const t0 = performance.now();
   const result = renderer.renderSwfAccessoryStrip(
     accBundle,
     accExport,
@@ -992,6 +996,7 @@ export function renderSwfAccessoryStrip(
     side,
     resolution,
   );
+  recordProbe("accessoryStrip", performance.now() - t0);
   return (result as VelloSwfAccessoryStripResult | null) ?? null;
 }
 
@@ -1036,6 +1041,7 @@ export function renderSwfMountTransforms(
   maxSlot: number,
 ): VelloSwfMountTransformsResult | null {
   if (!renderer) return null;
+  const t0 = performance.now();
   const raw = renderer.renderSwfMountTransforms(
     bundle,
     exportName,
@@ -1044,6 +1050,7 @@ export function renderSwfMountTransforms(
     applyBFix,
     maxSlot >>> 0,
   );
+  recordProbe("mountTransforms", performance.now() - t0);
   if (!raw) return null;
   // Stale wasm: detect the legacy Float32Array shape so the failure
   // mode is obvious (accessories appearing static/disconnected). The
@@ -1636,6 +1643,8 @@ export interface PathCacheStats {
   bundleCacheCount: number;
   sceneCacheCount: number;
   sceneBytesEstimate: number;
+  /** Phase 1b body-scene cache size (soft-capped at 1500 in wasm). */
+  bodySceneCacheCount?: number;
 }
 
 export function getPathCacheStats(): PathCacheStats | null {

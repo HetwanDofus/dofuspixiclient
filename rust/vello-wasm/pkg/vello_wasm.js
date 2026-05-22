@@ -274,11 +274,12 @@ export class VelloRenderer {
      * Path cache observability.
      *
      * Reports the live state of the two long-lived tile-pass caches:
-     *   - `tile_render_caches` (per-bundle `RenderCache`): shape
+     *   - `swf_render_caches` (per-bundle `RenderCache`): shape
      *     command tessellation, morph interpolations, sprite frame-
-     *     state walks. Populated by tile paths; character + spell
-     *     paths use fresh per-call caches because their bundles
-     *     have shape-id collisions with each other.
+     *     state walks. Populated by EVERY SWF bake (body atlas,
+     *     accessory strip, tile static, tile dynamic, strip-range-
+     *     accessorized). Per-bundle keying side-steps shape-id
+     *     collisions across bundles (g1/shape 5 ≠ player10/shape 5).
      *   - `tile_subscenes`: pre-encoded `vello::Scene` per
      *     `(bundle, export, frame)` used by `setStaticTilePlacements`
      *     + `renderTilePass` to memcpy-append cached tile geometry.
@@ -288,7 +289,8 @@ export class VelloRenderer {
      * typical tile sub-scene). Use the entry count for hit-rate
      * validation; bytes for capacity-planning only.
      *
-     * Returns `{ bundleCacheCount, sceneCacheCount, sceneBytesEstimate }`.
+     * Returns `{ bundleCacheCount, sceneCacheCount, sceneBytesEstimate,
+     * bodySceneCacheCount }`.
      * @returns {any}
      */
     pathCacheStats() {

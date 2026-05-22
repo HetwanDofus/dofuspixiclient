@@ -186,7 +186,34 @@ pub struct VelloRenderer {
     /// catastrophic visual defects + huge bogus geometry that crashes
     /// WGPU on extreme zoom. Per-bundle keying eliminates the
     /// collision while keeping memoization within a bundle.
-    tile_render_caches: HashMap<String, swf_spike::render::cache::RenderCache>,
+    ///
+    /// Phase 1 of `RENDER_BAKE_PLAN.md`: USED BY ALL BAKES (character
+    /// body atlas + accessory strip + tile static/dynamic). Before
+    /// Phase 1, each bake created its own `RenderCache::new()`,
+    /// throwing away the flattened path commands at the end. Shape
+    /// flattening + frame-state walk is the dominant cost of a body
+    /// atlas bake (~5 ms per call observed); sharing the cache
+    /// across bakes of the same bundle drops subsequent bakes by
+    /// ~99 % on the flatten path.
+    swf_render_caches: HashMap<String, swf_spike::render::cache::RenderCache>,
+    /// Phase 1b: pre-built `vello::Scene` cache for the body atlas
+    /// bake. Phase 1's flatten cache lived inside `swf_render_caches`
+    /// and ONLY memoised the `flatten_shape` step. On real workloads
+    /// (200-bot stress, ~26 body bakes/sec) Phase 1 dropped accessory
+    /// bakes ~55 % but left body bakes unchanged at ~5 ms — proof
+    /// that scene encoding (~90 k `scene.fill()` calls per body bake
+    /// to lay out 5 bands × 12 frames × 2 modes worth of path data
+    /// into the Vello encoder) is the dominant cost, NOT shape
+    /// flatten.
+    ///
+    /// Phase 1b caches the FULL built `vello::Scene` per
+    /// `(bundle, export, start, count, scale_q, apply_b_fix,
+    /// hat_equipped, mode)` tuple. Cache hit skips the whole
+    /// `build_scene` step; the bake then only runs the two
+    /// `render_to_texture` rasterizations + combine + bitmap bridge.
+    /// Expected hit cost ~1-1.5 ms (the rasterization floor) vs
+    /// ~5 ms on miss.
+    body_scene_cache: HashMap<BodySceneCacheKey, vello::Scene>,
     /// Per-tile sub-scenes encoded at twip-identity. Keyed by
     /// `(bundle, export, frame)`. Built once per unique tile and
     /// re-used across cells (multiple cells share the same tile) AND
@@ -195,6 +222,24 @@ pub struct VelloRenderer {
     /// makes zoom re-render fast: we don't re-walk symbol trees, we
     /// just `scene.append(subscene, matrix)` for each placement.
     tile_subscenes: HashMap<(String, String, u32), vello::Scene>,
+}
+
+/// Phase 1b body-scene cache key. Every parameter that can change the
+/// produced `vello::Scene` content (or its absolute cell layout) must
+/// be in the key. `scale_q` is `(scale × 1000) as u32` so the float
+/// can participate in the `Hash` impl. The mode byte distinguishes
+/// the two passes (Colour = 0, ZoneId = 1) — they share every other
+/// input but produce different scenes.
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct BodySceneCacheKey {
+    bundle: String,
+    export: String,
+    start: u32,
+    count: u32,
+    scale_q: u32,
+    apply_b_fix: bool,
+    hat_equipped: bool,
+    mode: u8,
 }
 
 /// Memoised result of the strip pre-pass: bounds union over a frame
@@ -511,7 +556,8 @@ impl VelloRenderer {
             swf_spell_instances: HashMap::new(),
             next_spell_instance_id: 1,
             swf_strip_bounds_cache: HashMap::new(),
-            tile_render_caches: HashMap::new(),
+            swf_render_caches: HashMap::new(),
+            body_scene_cache: HashMap::new(),
             tile_subscenes: HashMap::new(),
         };
 
@@ -2239,9 +2285,17 @@ impl VelloRenderer {
             );
         }
         let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
-        // Cache shared across both passes — shape flatten + frame
-        // state are pass-independent. Halves the second-pass cost.
-        let cache = swf_spike::render::cache::RenderCache::new();
+        // Phase 1: long-lived per-bundle cache. Shape flatten + frame
+        // state are pass-independent AND bake-independent — sharing
+        // across the Colour/ZoneId passes halves the second pass's
+        // cost; sharing across BAKES (e.g. every walkR variant of
+        // every Iop look) drops subsequent bakes by ~99 % on the
+        // flatten path. Per-bundle keying because SWF symbol IDs
+        // are only unique within a bundle.
+        let cache: &swf_spike::render::cache::RenderCache = self
+            .swf_render_caches
+            .entry(bundle.to_string())
+            .or_default();
         let player_colors = swf_spike::recolor::PlayerColors::default();
 
         // Helper: build the atlas scene containing EVERY band's cell
@@ -2295,7 +2349,7 @@ impl VelloRenderer {
                         band,
                         mode,
                         player_colors,
-                        &cache,
+                        cache,
                         apply_b_fix,
                         hat_equipped,
                     );
@@ -2304,20 +2358,123 @@ impl VelloRenderer {
             scene
         };
 
-        let colour_scene = build_scene(
-            swf_spike::render::RenderMode::Colour,
-            &self.device,
-            &self.queue,
-            &mut self.renderer,
-            filter_pipelines,
-        );
-        let zone_scene = build_scene(
-            swf_spike::render::RenderMode::ZoneId,
-            &self.device,
-            &self.queue,
-            &mut self.renderer,
-            filter_pipelines,
-        );
+        // Phase 1b: scene-level cache. Skip build_scene entirely
+        // when a previous bake with identical (bundle, export, start,
+        // count, scale, apply_b_fix, hat_equipped, mode) parameters
+        // already encoded the Vello scene. We still pay rasterization
+        // (render_to_texture) + combine + bitmap bridge, but the
+        // ~90 k-fill scene encoding is gone.
+        //
+        // `scale_q` quantises the f32 scale to integer milli-units so
+        // it can participate in `Hash`. Practical scales used in the
+        // app are powers of integers (resolution=3 ⇒ scale=0.15),
+        // so quantization loss is zero.
+        let scale_q = (scale * 1000.0).round() as u32;
+        let colour_key = BodySceneCacheKey {
+            bundle: bundle.to_string(),
+            export: export.to_string(),
+            start,
+            count: chunk_count,
+            scale_q,
+            apply_b_fix,
+            hat_equipped,
+            mode: 0,
+        };
+        let zone_key = BodySceneCacheKey {
+            mode: 1,
+            ..colour_key.clone()
+        };
+        // Build-on-miss into temporaries first so we don't hold a
+        // `&mut self.body_scene_cache` borrow across the closure call
+        // (which needs `&mut self.renderer`). Once the temps are in
+        // scope, the closure has returned and `&mut self.renderer`
+        // is no longer alive — we can then mutate `body_scene_cache`.
+        let new_colour: Option<vello::Scene> =
+            if self.body_scene_cache.contains_key(&colour_key) {
+                None
+            } else {
+                Some(build_scene(
+                    swf_spike::render::RenderMode::Colour,
+                    &self.device,
+                    &self.queue,
+                    &mut self.renderer,
+                    filter_pipelines,
+                ))
+            };
+        let new_zone: Option<vello::Scene> =
+            if self.body_scene_cache.contains_key(&zone_key) {
+                None
+            } else {
+                Some(build_scene(
+                    swf_spike::render::RenderMode::ZoneId,
+                    &self.device,
+                    &self.queue,
+                    &mut self.renderer,
+                    filter_pipelines,
+                ))
+            };
+        // Soft cap on `body_scene_cache` size. Phase 1b made each
+        // body bake ~5× cheaper but accidentally regressed
+        // `tickerMsAvg` from 12 ms to 26 ms when the cache grew past
+        // ~1100 entries (200-bot stress run, t+15 s). Cause: the
+        // WASM heap grew +500 MB as the cache filled, and physical
+        // memory pressure inflated main-thread frame time even
+        // though CPU-side bake work was lower. At real-game scale
+        // (16-50 bots, ~200 unique scene keys) the cap never trips;
+        // at stress scale (200 random-look bots, ~1500+ unique keys)
+        // eviction kicks in and we accept some scene cache misses
+        // (which fall back to ~5 ms bakes — still no worse than the
+        // pre-Phase-1b baseline).
+        //
+        // Approximate-LRU eviction: when the cache crosses the cap,
+        // drop a single entry per insert. CRITICAL: the eviction
+        // candidate MUST NOT match `colour_key` or `zone_key`. The
+        // initial implementation picked `keys().next()` which is
+        // randomized per Rust's default hasher, so it could pick
+        // either of the keys we're about to `get(&key)` back. When
+        // that happened, the `expect("just inserted")` below trapped
+        // the wasm module, taking down every subsequent Vello call
+        // and producing a "black screen" crash. Excluding the active
+        // keys from the victim search is required for correctness,
+        // not just optimization. Hot entries that get evicted will
+        // re-enter the cache on their next bake; lukewarm entries
+        // cycle out. Steady-state size oscillates around the cap.
+        const BODY_SCENE_CACHE_CAP: usize = 1500;
+        let mut inserts_pending = 0usize;
+        if new_colour.is_some() {
+            inserts_pending += 1;
+        }
+        if new_zone.is_some() {
+            inserts_pending += 1;
+        }
+        while self.body_scene_cache.len() + inserts_pending > BODY_SCENE_CACHE_CAP {
+            let Some(victim) = self
+                .body_scene_cache
+                .keys()
+                .find(|k| **k != colour_key && **k != zone_key)
+                .cloned()
+            else {
+                // Every remaining entry is one of the two active
+                // keys — can't evict without breaking the bake.
+                // Accept the over-cap state for this iteration; the
+                // next bake will re-evict.
+                break;
+            };
+            self.body_scene_cache.remove(&victim);
+        }
+        if let Some(s) = new_colour {
+            self.body_scene_cache.insert(colour_key.clone(), s);
+        }
+        if let Some(s) = new_zone {
+            self.body_scene_cache.insert(zone_key.clone(), s);
+        }
+        // Retrieve as `&Scene` — both `render_to_texture` calls below
+        // only need a shared borrow. Safe to `expect()`: either we
+        // built and inserted the scene above, or it was already in
+        // the cache and the eviction loop above is guaranteed to
+        // skip it (see the `find(...)` exclusion).
+        let colour_scene = self.body_scene_cache.get(&colour_key).expect("just inserted");
+        let zone_scene = self.body_scene_cache.get(&zone_key).expect("just inserted");
 
         // Render both scenes into their respective atlas textures.
         // Atlas dims = (strip_w, band_total * strip_h + padding).
@@ -2358,7 +2515,7 @@ impl VelloRenderer {
         };
 
         let Some(colour_tex) = render_one(
-            &colour_scene,
+            colour_scene,
             "vello_swf_body_atlas_color",
             &self.device,
             &self.queue,
@@ -2367,7 +2524,7 @@ impl VelloRenderer {
             return JsValue::NULL;
         };
         let Some(zone_tex) = render_one(
-            &zone_scene,
+            zone_scene,
             "vello_swf_body_atlas_zone",
             &self.device,
             &self.queue,
@@ -2626,6 +2783,15 @@ impl VelloRenderer {
                 swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
             );
         }
+        // Phase 1: persistent per-bundle cache so accessory bakes for
+        // the same acc_bundle (a hat type, a weapon type) reuse the
+        // shape flatten + frame-state work across calls. Before this
+        // change `render_symbol_with_ctx` created a fresh `RenderCache`
+        // internally, throwing away the work after the 3 cycle calls.
+        let cache: &swf_spike::render::cache::RenderCache = self
+            .swf_render_caches
+            .entry(acc_bundle.to_string())
+            .or_default();
         let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
         let mut ctx = swf_spike::render::WgpuCtx {
             device: &self.device,
@@ -2641,13 +2807,14 @@ impl VelloRenderer {
             let xform = vello::kurbo::Affine::scale(scale).then_translate(
                 vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y),
             );
-            swf_spike::render::render_symbol_with_ctx(
+            swf_spike::render::render_symbol_with_ctx_cached(
                 &mut ctx,
                 acc_doc,
                 acc_sym,
                 &mut scene,
                 xform,
                 frame_indices[cycle as usize],
+                cache,
             );
         }
 
@@ -2977,6 +3144,16 @@ impl VelloRenderer {
         };
 
         let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+        // Phase 1: persistent per-bundle cache. `render_symbol_with_
+        // ctx_tinted_accessorized_bfixed` already accepts an external
+        // cache; previously we passed in a fresh one per call, so the
+        // shape-flatten dedup was scoped to this single bake. Lifting
+        // to the per-bundle cache shares across bakes too.
+        let cache: &swf_spike::render::cache::RenderCache = self
+            .swf_render_caches
+            .entry(bundle.to_string())
+            .or_default();
+        let player_colors = self.swf_player_colors;
         let mut ctx = swf_spike::render::WgpuCtx {
             device: &self.device,
             queue: &self.queue,
@@ -2984,11 +3161,6 @@ impl VelloRenderer {
             filter_pipelines,
             output_scale: scale,
         };
-
-        // One shared cache so identical body parts (used across
-        // animation frames + across cells) flatten just once.
-        let cache = swf_spike::render::cache::RenderCache::new();
-        let player_colors = self.swf_player_colors;
 
         let mut scene = vello::Scene::new();
         for slot in 0..chunk_count {
@@ -3035,7 +3207,7 @@ impl VelloRenderer {
                 xform,
                 frame_idx as u16,
                 player_colors,
-                &cache,
+                cache,
                 &accessories,
                 apply_b_fix,
             );
@@ -3254,6 +3426,12 @@ impl VelloRenderer {
         };
 
         let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+        // Phase 1: persistent per-bundle cache shared across bakes.
+        let cache: &swf_spike::render::cache::RenderCache = self
+            .swf_render_caches
+            .entry(bundle.to_string())
+            .or_default();
+        let player_colors = self.swf_player_colors;
         let mut ctx = swf_spike::render::WgpuCtx {
             device: &self.device,
             queue: &self.queue,
@@ -3261,9 +3439,6 @@ impl VelloRenderer {
             filter_pipelines,
             output_scale: scale,
         };
-
-        let cache = swf_spike::render::cache::RenderCache::new();
-        let player_colors = self.swf_player_colors;
 
         let mut scene = vello::Scene::new();
         for slot in 0..chunk_count {
@@ -3301,7 +3476,7 @@ impl VelloRenderer {
                 xform,
                 frame_idx as u16,
                 player_colors,
-                &cache,
+                cache,
                 &accessories,
                 apply_b_fix,
             );
@@ -3458,7 +3633,14 @@ impl VelloRenderer {
         let xform = vello::kurbo::Affine::scale(scale)
             .then_translate(vello::kurbo::Vec2::new(-px_min_x, -px_min_y));
 
-        let cache = swf_spike::render::cache::RenderCache::new();
+        // Phase 1: persistent per-bundle cache. Tile static bases bake
+        // once per tile per session but they share shape geometry
+        // (shapes referenced by both static and dynamic phases). Same
+        // cache is reused by the dynamic strip path below.
+        let cache: &swf_spike::render::cache::RenderCache = self
+            .swf_render_caches
+            .entry(bundle.to_string())
+            .or_default();
         let mut classification_cache = std::collections::HashMap::new();
         let mut scene = vello::Scene::new();
         swf_spike::render::phased::render_symbol_phased(
@@ -3468,7 +3650,7 @@ impl VelloRenderer {
             xform,
             swf_spike::render::phased::RenderPhase::StaticOnly,
             swf_spike::swf_doc::OwnedColorTransform::IDENTITY,
-            &cache,
+            cache,
             &mut classification_cache,
         );
 
@@ -3581,7 +3763,11 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
 
-        let cache = swf_spike::render::cache::RenderCache::new();
+        // Phase 1: persistent per-bundle cache.
+        let cache: &swf_spike::render::cache::RenderCache = self
+            .swf_render_caches
+            .entry(bundle.to_string())
+            .or_default();
         let mut classification_cache = std::collections::HashMap::new();
         let mut scene = vello::Scene::new();
         for slot in 0..chunk_count {
@@ -3600,7 +3786,7 @@ impl VelloRenderer {
                 xform,
                 swf_spike::render::phased::RenderPhase::DynamicAt(frame_idx as u16),
                 swf_spike::swf_doc::OwnedColorTransform::IDENTITY,
-                &cache,
+                cache,
                 &mut classification_cache,
             );
         }
@@ -5352,11 +5538,12 @@ impl VelloRenderer {
     /// Path cache observability.
     ///
     /// Reports the live state of the two long-lived tile-pass caches:
-    ///   - `tile_render_caches` (per-bundle `RenderCache`): shape
+    ///   - `swf_render_caches` (per-bundle `RenderCache`): shape
     ///     command tessellation, morph interpolations, sprite frame-
-    ///     state walks. Populated by tile paths; character + spell
-    ///     paths use fresh per-call caches because their bundles
-    ///     have shape-id collisions with each other.
+    ///     state walks. Populated by EVERY SWF bake (body atlas,
+    ///     accessory strip, tile static, tile dynamic, strip-range-
+    ///     accessorized). Per-bundle keying side-steps shape-id
+    ///     collisions across bundles (g1/shape 5 ≠ player10/shape 5).
     ///   - `tile_subscenes`: pre-encoded `vello::Scene` per
     ///     `(bundle, export, frame)` used by `setStaticTilePlacements`
     ///     + `renderTilePass` to memcpy-append cached tile geometry.
@@ -5366,12 +5553,14 @@ impl VelloRenderer {
     /// typical tile sub-scene). Use the entry count for hit-rate
     /// validation; bytes for capacity-planning only.
     ///
-    /// Returns `{ bundleCacheCount, sceneCacheCount, sceneBytesEstimate }`.
+    /// Returns `{ bundleCacheCount, sceneCacheCount, sceneBytesEstimate,
+    /// bodySceneCacheCount }`.
     #[wasm_bindgen(js_name = "pathCacheStats")]
     pub fn path_cache_stats(&self) -> JsValue {
         const SCENE_BYTES_ESTIMATE: usize = 8 * 1024;
         let scene_count = self.tile_subscenes.len();
-        let bundle_count = self.tile_render_caches.len();
+        let bundle_count = self.swf_render_caches.len();
+        let body_scene_count = self.body_scene_cache.len();
         let bytes_est = scene_count * SCENE_BYTES_ESTIMATE;
 
         let result = js_sys::Object::new();
@@ -5389,6 +5578,15 @@ impl VelloRenderer {
             &result,
             &"sceneBytesEstimate".into(),
             &JsValue::from(bytes_est as f64),
+        );
+        // Phase 1b body-scene cache size. Soft-capped at
+        // `BODY_SCENE_CACHE_CAP` (1500); steady-state count under the
+        // cap means no eviction pressure, over the cap means random
+        // eviction is firing.
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"bodySceneCacheCount".into(),
+            &JsValue::from(body_scene_count as u32),
         );
         result.into()
     }
@@ -5409,6 +5607,7 @@ impl VelloRenderer {
     #[wasm_bindgen(js_name = "clearPathCache")]
     pub fn clear_path_cache(&mut self) {
         self.tile_subscenes.clear();
-        self.tile_render_caches.clear();
+        self.swf_render_caches.clear();
+        self.body_scene_cache.clear();
     }
 }

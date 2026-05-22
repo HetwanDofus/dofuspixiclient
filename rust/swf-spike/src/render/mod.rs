@@ -133,6 +133,29 @@ pub fn render_symbol_with_ctx(
     render_symbol_into(&mut ctx, sym);
 }
 
+/// `render_symbol_with_ctx` variant that takes an externally-owned
+/// `RenderCache`. Used by callers that hold a long-lived per-bundle
+/// cache (Phase 1 of `RENDER_BAKE_PLAN.md`) so shape flattening,
+/// morph interpolation, and sprite frame-state walks dedup across
+/// bakes of the same bundle. Without this, accessory + tile bakes
+/// re-flatten every shape from scratch on every call.
+pub fn render_symbol_with_ctx_cached(
+    wgpu: &mut WgpuCtx,
+    doc: &SwfDoc,
+    sym: &Symbol,
+    scene: &mut Scene,
+    transform: Affine,
+    frame: u16,
+    cache: &crate::render::cache::RenderCache,
+) {
+    let inner = reborrow_wgpu(wgpu);
+    let mut ctx = RenderCtx::new(doc, scene, cache)
+        .with_wgpu(inner)
+        .with_transform(transform)
+        .with_frame(frame);
+    render_symbol_into(&mut ctx, sym);
+}
+
 /// Same as `render_symbol_with_ctx` but applies HSL-preserve-lightness
 /// recolor to every fill inside a sprite tagged with an applyColor
 /// zone (see `SwfDoc.sprite_color_zones`). Used by the player-tinting

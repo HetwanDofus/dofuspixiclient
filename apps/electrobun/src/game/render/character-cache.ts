@@ -127,8 +127,17 @@ export const MAX_SLOT = 5;
  * Real gameplay (16-char fights) never approaches the cap —
  * working set sits at ~400 MB. The cap is purely a stress-
  * test ceiling.
+ *
+ * **2026-05-22 update**: bumped from 1500 MB → 2000 MB. The
+ * canonical band-split fix made body atlases ~3× bigger (each
+ * band gets its own strip in the atlas). After empty-band-skip
+ * + hat-dedup the working set for 200-bot random-look stress
+ * settled at ~410 entries × 3.4 MB ≈ 1.4 GB but kept thrashing
+ * (`hitPct` plateaued at 65 %, ~260 evicts/sec). Bumping to
+ * 2 GB lets ~590 entries fit — comfortably above the working
+ * set with headroom for spikes. Memory cost: +500 MB GPU.
  */
-const DEFAULT_BYTES_CAP = 1500 * 1024 * 1024;
+const DEFAULT_BYTES_CAP = 2000 * 1024 * 1024;
 
 /** GPU pixels are 4 bytes (BGRA8/Rgba8Unorm). */
 const BYTES_PER_PIXEL = 4;

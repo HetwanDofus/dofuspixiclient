@@ -23,8 +23,8 @@
 import {
   Container,
   Matrix,
-  RenderTexture,
   Sprite,
+  Texture,
   Ticker,
   type Renderer as PixiRenderer,
 } from "pixi.js";
@@ -43,6 +43,11 @@ import {
   MAX_SLOT,
   type MountTransforms,
 } from "@/game/render/character-cache";
+import {
+  type CompositionSlot,
+  SharedCompositionAtlas,
+} from "@/game/render/composition-atlas";
+import { recordProbe } from "@/game/render/render-probes";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("PlayerStripRendererV2");
@@ -83,8 +88,8 @@ interface PendingAnim {
   /**
    * The shared atlas covering EVERY band of this anim. Filled in by
    * the body-acquire callback; `undefined` while pending, `null` on
-   * bake failure. Commit fires when this AND every required
-   * accessory slot has reported.
+   * bake failure. Phase 2 progressive commit: body commits as soon
+   * as the atlas lands; accessories follow as their strips land.
    */
   atlas?: BodyAtlas | null;
   atlasArrived: boolean;
@@ -98,10 +103,24 @@ interface PendingAnim {
   slotZ: Map<number, number>;
   mounts: MountTransforms | null;
   /**
-   * Caller-side readiness signal. Resolves `true` on commit (strips
-   * live and rendering); resolves `false` when superseded by a later
+   * Phase 2: tracks whether the body half of the commit has run. Once
+   * true, the bot is visible (with whatever accessories had already
+   * landed); subsequent `tryCommit` calls install remaining accessory
+   * strips into their existing hooks without re-laying-out the bands
+   * or the per-bot RT. Cleared when `pendingAnim` is nulled.
+   */
+  bodyCommitted: boolean;
+  /**
+   * Caller-side readiness signal. Resolves `true` once every band +
+   * accessory strip is in the cache and the bot is rendering the new
+   * anim. Resolves `false` when superseded by a later
    * `applyAnimation` call (movement / AI should bail and re-issue
    * against the latest anim instead of acting on a stale strip).
+   *
+   * Phase 2 note: the bot becomes VISIBLE as soon as the body atlas
+   * commits; the Promise still waits for every accessory so awaiters
+   * that gate an action on "fully-loaded look" get the same contract
+   * as before.
    */
   resolve: (committed: boolean) => void;
   readyPromise: Promise<boolean>;
@@ -151,21 +170,26 @@ interface SlotStateV2 {
   lastDir: DirSuffix;
   lastFlipped: boolean;
   player: ActivePlayer | null;
-  /** ── Phase A.3 — per-bot RT composition ─────────────────
-   *  Detached Container parenting the bands + accessory sprites.
-   *  Never added to the scene graph; its only render destination is
-   *  `compositeRT` via `renderer.render({ container, target })`. */
+  /** ── Shared composition atlas ────────────────────────────
+   *  Container parenting the bands + accessory sprites. Parented
+   *  to `SharedCompositionAtlas.globalCompositionRoot` at slot-
+   *  acquire time (see `RENDER_SHARED_ATLAS_PLAN.md`). Position
+   *  inside the global root = slot origin + (-bounds.min × scale),
+   *  so when the global root is rendered into the atlas, this
+   *  bot's content lands inside its own slot rect. */
   compositionStage: Container;
-  /** Sprite the main scene actually sees. Texture = `compositeRT`,
-   *  anchor at SWF (0,0) inside the RT. Added to `root`. */
+  /** Sprite the main scene actually sees. Texture samples the
+   *  bot's slot sub-rect of the shared atlas. Pixi's sprite
+   *  batcher fuses every bot's compositeSprite into ONE draw call
+   *  because they all share `atlas.renderTexture.source`. */
   compositeSprite: Sprite;
-  /** Per-bot RT for the composited body+accessories. Reused for the
-   *  bot's lifetime; resized on anim swap if the atlas frame dims
-   *  changed. Retired with a 2-tick settle on detach (see
-   *  `feedback_pixi_wgpu_texture_lifetime`). */
-  compositeRT: RenderTexture | null;
-  /** Last frame index composited into the RT. -1 = needs first
-   *  composition (set on every anim commit). */
+  /** Atlas slot this bot occupies. Null if acquisition failed
+   *  (slot exhaustion) — the bot will not render until a slot
+   *  frees up. */
+  compositionSlot: CompositionSlot | null;
+  /** Last frame index composited into the slot. -1 = needs first
+   *  composition (set on every anim commit). Drives swapFrame's
+   *  early-out and the global compose dirty flag. */
   lastCompositionFrame: number;
 }
 
@@ -192,77 +216,94 @@ function makeAnimKey(
 const RT_SAFETY_PAD = 2;
 
 /**
- * Hard cap on either dimension of the per-bot composite RT. Defends
- * against an outlier atlas (giant bosses, future class additions)
- * blowing the GPU budget. Bots whose atlas exceeds this get rendered
- * at a scaled-down composition (visible-pixel ratio still ≥ 1× at
- * the default camera zoom).
+ * Ticker priority for `composeAll`. Pixi v8 `UPDATE_PRIORITY` values:
+ *   INTERACTION = 50, HIGH = 25, NORMAL = 0, LOW = -25, UTILITY = -50.
+ * Per-actor `swapFrame` callbacks run at NORMAL (0). Pixi's
+ * `Application.start()` schedules `app.render()` at LOW (-25). We
+ * want `composeAll` to land BETWEEN those two so the shared atlas
+ * is freshly composed before the main pass samples it. -10 picks a
+ * value strictly inside that band with margin on both sides.
  */
-const RT_MAX_DIM = 384;
-
-/**
- * Quantization step for RT dimensions. Round computed dims UP to
- * this multiple so anim swaps with small bbox variations (the same
- * bot in a different anim) reuse the existing RT instead of
- * allocating a new one. Realloc + retire is the dominant cost
- * around anim transitions — quantizing turns N distinct sizes into
- * ⌈N / QUANT⌉ buckets. 32 px is a sweet spot: small enough to
- * keep memory waste under ~10 %, big enough to absorb most
- * frame-to-frame bbox jitter.
- */
-const RT_QUANT = 32;
-
-/** Two ticks of settle before destroying a per-bot RT. Mirrors
- *  CharacterCache's RETIRE_TICKS — the patched-wgpu Drop is a no-op,
- *  so the explicit `destroy(true)` is the ONLY release path. */
-const RT_RETIRE_TICKS = 2;
-
-/** Per-bot retire entry. Holds the RT until its grace window expires,
- *  then `destroy(true)` releases the underlying GPUTexture. */
-interface RetireRTEntry {
-  rt: RenderTexture;
-  ticksRemaining: number;
-}
+const COMPOSE_ALL_PRIORITY = -10;
 
 export class PlayerStripRendererV2 {
   private states = new Map<number, Map<PlayerStripSlot, SlotStateV2>>();
   private resolution: number;
   private cache = getCharacterCache();
   private pixiRenderer: PixiRenderer;
-  /** RTs awaiting their 2-tick settle before destroy(). Drained by
-   *  `tickRetireRTs` on the shared ticker. */
-  private retireRTQueue: RetireRTEntry[] = [];
-  private rtTickerInstalled = false;
-  private rtTickerCallback: (() => void) | null = null;
+  /** Shared composition atlas. One GPU RenderTexture partitioned
+   *  into fixed-size slots, one per active bot. Replaces the old
+   *  per-bot RenderTexture pool. See `composition-atlas.ts` and
+   *  `RENDER_SHARED_ATLAS_PLAN.md`. */
+  private atlas: SharedCompositionAtlas;
+  /** Set to `true` whenever any bot's frame index advances. Drives
+   *  `composeAll`'s early-out — when nothing changed since the last
+   *  compose, the atlas state from the previous tick is still
+   *  valid for the main pass. */
+  private compositionDirty = false;
+  private composeTickerInstalled = false;
+  private composeTickerCallback: (() => void) | null = null;
 
   constructor(pixiRenderer: PixiRenderer, resolution = 3) {
     this.pixiRenderer = pixiRenderer;
     this.resolution = Math.max(1, resolution);
+    this.atlas = new SharedCompositionAtlas();
+    // Register globally so the stress-test snapshot can read atlas
+    // pressure without threading a reference through the scene tree.
+    activeStripRenderer = this;
   }
 
-  private ensureRTTickerInstalled(): void {
-    if (this.rtTickerInstalled) return;
-    this.rtTickerInstalled = true;
-    this.rtTickerCallback = () => this.tickRetireRTs();
-    Ticker.shared.add(this.rtTickerCallback);
+  /**
+   * Install the global compose tick. Runs once per main frame at
+   * priority -10 — AFTER per-actor swapFrame callbacks (NORMAL=0)
+   * and BEFORE Pixi's auto-render (LOW=-25). The atlas is composed
+   * with the freshest frame state before the main pass samples it.
+   */
+  private ensureComposeTickerInstalled(): void {
+    if (this.composeTickerInstalled) return;
+    this.composeTickerInstalled = true;
+    this.composeTickerCallback = () => this.composeAll();
+    Ticker.shared.add(
+      this.composeTickerCallback,
+      null,
+      COMPOSE_ALL_PRIORITY,
+    );
   }
 
-  private tickRetireRTs(): void {
-    if (this.retireRTQueue.length === 0) return;
-    const remaining: RetireRTEntry[] = [];
-    for (const entry of this.retireRTQueue) {
-      entry.ticksRemaining -= 1;
-      if (entry.ticksRemaining > 0) {
-        remaining.push(entry);
-        continue;
-      }
-      try {
-        entry.rt.destroy(true);
-      } catch (e) {
-        log.warn("composite RT destroy threw", e);
-      }
+  /**
+   * Render every bot's compositionStage into the shared atlas in ONE
+   * `pixiRenderer.render()` call. Cost is bounded by class + accessory
+   * variety (≈ 60-100 batched draws), NOT by bot count — Pixi's
+   * mesh + sprite batchers fuse same-texture children across bots.
+   *
+   * `clear: true` wipes the whole atlas before re-rendering. Pixi v8
+   * doesn't expose scissor-clear; the whole-atlas clear is a single
+   * `clearColorAttachment` on the render pass, cheap. Re-rendering
+   * every bot (rather than just dirty ones) is what avoids stale
+   * pixels in slots whose contents changed shape since last compose.
+   *
+   * Called via Ticker.shared at priority -10 (see
+   * `ensureComposeTickerInstalled`). Public so headless harnesses
+   * (tests, screenshot tools) can drive composition manually.
+   */
+  composeAll(): void {
+    if (!this.compositionDirty) return;
+    if (this.atlas.getStats().slotsUsed === 0) {
+      this.compositionDirty = false;
+      return;
     }
-    this.retireRTQueue = remaining;
+    const t0 = performance.now();
+    try {
+      this.pixiRenderer.render({
+        container: this.atlas.globalCompositionRoot,
+        target: this.atlas.renderTexture,
+        clear: true,
+      });
+    } catch (e) {
+      log.warn("composeAll render failed", e);
+    }
+    recordProbe("composeBot", performance.now() - t0);
+    this.compositionDirty = false;
   }
 
   /**
@@ -357,74 +398,40 @@ export class PlayerStripRendererV2 {
   }
 
   /**
-   * Per-bot RT dimensions + composition-side scale derived from the
-   * tight bounding box. If the bbox exceeds `RT_MAX_DIM` on either
-   * axis we shrink uniformly so the RT fits — quality cost is a
-   * slight downsample at the default camera zoom.
+   * Compute the scale factor needed to fit a bot's tight bbox inside
+   * a fixed atlas slot. Returns a uniform scale ≤ 1; if the bbox
+   * already fits, scale = 1 (no downsample). If the bbox exceeds the
+   * slot dim, scale shrinks uniformly so both axes fit — visible-
+   * pixel ratio at default camera zoom remains close to 1×.
    */
-  private rtSizeFor(bounds: {
+  private slotScaleFor(bounds: {
     minX: number;
     minY: number;
     maxX: number;
     maxY: number;
-  }): { w: number; h: number; scale: number } {
+  }): number {
     const naturalW = Math.max(1, bounds.maxX - bounds.minX);
     const naturalH = Math.max(1, bounds.maxY - bounds.minY);
-    const scale = Math.min(1, RT_MAX_DIM / Math.max(naturalW, naturalH));
-    // Quantize UP to RT_QUANT so small frame-to-frame bbox jitter
-    // doesn't trigger a fresh RT alloc (the dominant cost around
-    // anim transitions). Same-bucket sizes hit the existing-RT
-    // reuse path in ensureCompositeRT.
-    const quant = (n: number) =>
-      Math.max(RT_QUANT, Math.ceil(n / RT_QUANT) * RT_QUANT);
-    return {
-      w: quant(naturalW * scale),
-      h: quant(naturalH * scale),
-      scale,
-    };
-  }
-
-  /**
-   * Render the bot's compositionStage (bands + accessories at the
-   * current frame) into its per-bot RT. Single render pass into a
-   * 1-bot target; main render pass picks up the result via the
-   * `compositeSprite` next time.
-   *
-   * Pre: `st.compositeRT` allocated, `st.compositionStage` positioned
-   * via `applyCompositionTransform` so the bot's bbox.min lands at
-   * RT (0,0). The composite sprite's anchor matches so the bot's
-   * container origin stays at SWF (0,0).
-   */
-  private composeBot(st: SlotStateV2): void {
-    if (!st.atlas || !st.compositeRT) return;
-    // sortChildren is NOT called here — Pixi v8's `sortableChildren`
-    // flag on `compositionStage` triggers automatic sort during the
-    // render walk, and we already explicitly sort once at tryCommit
-    // (after zIndices are assigned). Calling it per composition was
-    // burning ~12k sortChildren/sec at 200 bots × 60 fps for no
-    // benefit and contributing to the fps regression.
-    try {
-      this.pixiRenderer.render({
-        container: st.compositionStage,
-        target: st.compositeRT,
-        clear: true,
-      });
-    } catch (e) {
-      log.warn("composeBot render failed", e);
-    }
+    return Math.min(1, this.atlas.slotSize / Math.max(naturalW, naturalH));
   }
 
   setResolution(res: number): void {
     this.resolution = Math.max(1, res);
   }
 
-  getStats(): { players: number; slots: number; cache: CharacterCacheStats } {
+  getStats(): {
+    players: number;
+    slots: number;
+    cache: CharacterCacheStats;
+    atlas: { slotsUsed: number; slotsCapacity: number };
+  } {
     let slots = 0;
     for (const m of this.states.values()) slots += m.size;
     return {
       players: this.states.size,
       slots,
       cache: this.cache.getStats(),
+      atlas: this.atlas.getStats(),
     };
   }
 
@@ -538,30 +545,39 @@ export class PlayerStripRendererV2 {
     _animName: string,
     flipped: boolean,
   ): void {
-    this.cache.acquireBodyAtlas(
-      {
-        bundle: animation.bundle,
-        exportName: animation.exportName,
-        start: 0,
-        count: animation.frameCount,
-        totalFrameCount: animation.frameCount,
-        resolution: this.resolution,
-        applyBFix: flipped,
-        // Pre-warm both variants would double work; pick the more
-        // common "no hat" variant for warmup. Bots with hat will
-        // miss on first acquire and bake on demand.
-        hatEquipped: false,
-      },
-      (atlas) => {
-        // Drop the refcount we just added. Atlas stays in cache for
-        // the first live acquire to hit.
-        if (atlas) this.cache.releaseBodyAtlas(atlas);
-      },
-      // Always wanted — we want this baked unconditionally. If the
-      // queue is overwhelmed and the bake gets stale, the queue's
-      // stale-skip path will free without us hitting the callback.
-      () => true,
-    );
+    // Pre-warm BOTH hat variants. 80 % of stress bots equip hats; the
+    // original "no-hat only" prewarm meant 80 % of bots cache-missed
+    // on every transition → bake → freeze. CharacterCache's
+    // `normalizeHatEquipped` collapses the two variants into one for
+    // classes without a hair-toggle sprite (canonical Dofus 1.29:
+    // only Iop has the toggle, see
+    // `feedback_swf_apply_color_zones` + `BodyAtlasKeyParts`), so
+    // the doubled prewarm only doubles work for Iop. Every other
+    // class dedupes at the cache layer — no extra memory cost.
+    const keyBase = {
+      bundle: animation.bundle,
+      exportName: animation.exportName,
+      start: 0,
+      count: animation.frameCount,
+      totalFrameCount: animation.frameCount,
+      resolution: this.resolution,
+      applyBFix: flipped,
+    };
+    for (const hatEquipped of [false, true]) {
+      this.cache.acquireBodyAtlas(
+        { ...keyBase, hatEquipped },
+        (atlas) => {
+          // Drop the refcount we just added. Atlas stays in cache for
+          // the first live acquire to hit.
+          if (atlas) this.cache.releaseBodyAtlas(atlas);
+        },
+        // Always wanted — we want this baked unconditionally. If the
+        // queue is overwhelmed and the bake gets stale, the queue's
+        // stale-skip path now fires the callback with null (see
+        // strip-bake-queue.ts).
+        () => true,
+      );
+    }
   }
 
   applyAnimation(
@@ -651,6 +667,7 @@ export class PlayerStripRendererV2 {
       accessoryRefs,
       slotZ,
       mounts: pendingMounts,
+      bodyCommitted: false,
       resolve,
       readyPromise,
     };
@@ -689,15 +706,20 @@ export class PlayerStripRendererV2 {
       if (fc === 0) continue;
       const frame = idx % fc;
       if (frame === st.lastCompositionFrame) {
-        // No frame change → RT contents still valid. Saves a render
-        // pass per bot for the (very common) case where the bot's
-        // anim hasn't advanced this tick.
+        // No frame change → atlas contents still valid. The shared
+        // composition atlas only needs re-rendering when at least
+        // one bot's frame advanced (see `composeAll`).
         continue;
       }
       this.setBandsFrame(st, frame);
       this.setAccessoriesFrame(st, frame);
-      this.composeBot(st);
+      // Mark global compose dirty; the actual render happens once
+      // per tick in `composeAll()` (Ticker.shared at priority -10).
+      // We do NOT call composeBot here — the per-bot RT pass is
+      // gone, replaced by the single global pass that batches all
+      // bots into one render call.
       st.lastCompositionFrame = frame;
+      this.compositionDirty = true;
     }
   }
 
@@ -744,13 +766,24 @@ export class PlayerStripRendererV2 {
       for (const st of slots.values()) this.retireSlotState(st);
     }
     this.states.clear();
+    if (this.composeTickerCallback) {
+      Ticker.shared.remove(this.composeTickerCallback);
+      this.composeTickerCallback = null;
+      this.composeTickerInstalled = false;
+    }
+    try {
+      this.atlas.destroy();
+    } catch (e) {
+      log.warn("atlas destroy threw", e);
+    }
+    if (activeStripRenderer === this) activeStripRenderer = null;
   }
 
   private createSlot(
     player: ActivePlayer,
     slot: PlayerStripSlot,
   ): SlotStateV2 {
-    this.ensureRTTickerInstalled();
+    this.ensureComposeTickerInstalled();
     const root = new Container();
     root.scale.set(1 / this.resolution);
     root.sortableChildren = true;
@@ -766,17 +799,36 @@ export class PlayerStripRendererV2 {
     hitSprite.anchor.set(0, 0);
     root.addChild(hitSprite);
 
-    // Phase A.3: detached composition stage + visible composite
-    // sprite. Bands + accessories will be added to compositionStage
-    // on first commit; the composite sprite carries the composed RT
-    // and is what the main scene actually renders.
+    // Shared atlas: compositionStage gets parented to the atlas's
+    // `globalCompositionRoot` and positioned at the slot's origin
+    // (via `applyCompositionTransform` on first commit). The single
+    // global compose pass then renders this stage's content into
+    // the bot's slot rect of the shared atlas.
     const compositionStage = new Container();
     compositionStage.sortableChildren = true;
-    // NOT added to scene — rendered to RT directly.
+    const compositionSlot = this.atlas.acquire(compositionStage);
+    if (!compositionSlot) {
+      log.warn(
+        `createSlot: atlas exhausted (${this.atlas.getStats().slotsCapacity} slots), ` +
+          `player ${player.id} slot '${slot}' will not render until a slot frees up`,
+      );
+    }
 
+    // Composite sprite samples this bot's slot sub-rect of the
+    // shared atlas. The texture is set immediately on slot
+    // acquisition (frame won't change for the slot's lifetime) so
+    // Pixi's sprite batcher can fuse every bot's compositeSprite
+    // into a single batched draw in the main pass — same source,
+    // different frame rects per bot.
     const compositeSprite = new Sprite();
     compositeSprite.anchor.set(0, 0);
     compositeSprite.visible = false;
+    if (compositionSlot) {
+      compositeSprite.texture = new Texture({
+        source: this.atlas.renderTexture.source,
+        frame: this.atlas.frameRect(compositionSlot),
+      });
+    }
     root.addChild(compositeSprite);
 
     // Path B "never frozen" contract: a bot stays HIDDEN until its
@@ -805,7 +857,7 @@ export class PlayerStripRendererV2 {
       player,
       compositionStage,
       compositeSprite,
-      compositeRT: null,
+      compositionSlot,
       lastCompositionFrame: -1,
     };
   }
@@ -923,16 +975,76 @@ export class PlayerStripRendererV2 {
     this.tryCommit(st);
   }
 
-  /** Atomic swap: only fires once the body atlas AND every staged
-   *  accessory has reported. The live state (bands + accessories +
-   *  mounts + zIndex map) flips in a single tick — bots never display
-   *  a half-loaded anim. */
+  /** Phase 2 progressive commit:
+   *   - As soon as the body atlas lands, `commitBody` runs. Bands are
+   *     swapped, accessory hooks are created (one per equipped slot;
+   *     hooks whose strip hasn't landed yet stay invisible), the RT
+   *     is allocated, and the bot becomes visible.
+   *   - Each subsequent accessory landing installs its strip into the
+   *     existing hook (`installLandedAccessory`) without re-laying out
+   *     anything.
+   *   - The `readyPromise` resolves only when EVERY accessory has
+   *     reported in, preserving the "full look ready" contract for
+   *     callers that `await applyAnimation(...)`.
+   *
+   * Why this matters: the previous design waited for body AND every
+   * accessory before flipping `root.visible = true`. On cold cache at
+   * 200-bot stress, that meant every bot was invisible for the entire
+   * bake window (~1.6 s with 5 ms bakes × 2-3 bakes/frame). Splitting
+   * the commit means the bot appears within ~1 frame of the body bake
+   * landing; accessories pop in within ~5-200 ms each as their strips
+   * land. See `RENDER_BAKE_PLAN.md` Phase 2 for the rationale.
+   */
   private tryCommit(st: SlotStateV2): void {
     const pending = st.pendingAnim;
     if (!pending) return;
     if (!pending.atlasArrived) return;
-    if (pending.accStrips.size < pending.accSlots.length) return;
 
+    // Body half — runs exactly once per pending. After this the bot
+    // is visible; any accessories that already landed are installed.
+    //
+    // CRITICAL: resolve the readyPromise with `true` HERE, on body
+    // commit, NOT on full-accessory completion. The promise gates
+    // `player.animReady` (renderer.ts:140-155): bots whose promise
+    // never resolves true freeze mid-anim because `tickFrame` skips
+    // unready players. Late accessories install progressively via
+    // `installLandedAccessories` and recompute bounds in place;
+    // their absence is a cosmetic glitch, not a state hang.
+    //
+    // We keep `st.pendingAnim` alive after the resolve so that
+    // subsequent accessory-landed callbacks (`onAccessoryLanded`)
+    // still find their pending and install themselves. The pending
+    // is cleared only when ALL accessories have reported in (the
+    // gate below), so stale-skipped bakes don't leak — see
+    // CharacterCache + bake-queue contract for guaranteed null
+    // callbacks on stale-skip.
+    if (!pending.bodyCommitted) {
+      this.commitBody(st, pending);
+      pending.bodyCommitted = true;
+      pending.resolve(true);
+    } else {
+      // Late-arriving accessory: plug each newly-landed strip into
+      // its existing hook + re-bound for the new extents.
+      this.installLandedAccessories(st, pending);
+    }
+
+    // Final-cleanup gate: every accessory has reported in (either as
+    // a real strip or null on failure / stale-skip). We've already
+    // resolved the promise above on body commit; this just frees
+    // `pendingAnim` so the next applyAnimation doesn't see a stale
+    // pending.
+    if (pending.accStrips.size >= pending.accSlots.length) {
+      st.pendingAnim = null;
+    }
+  }
+
+  /** Phase 2 body half — runs once per pending. Idempotent on st.atlas
+   *  (releases old, installs new), st.bands (mesh reuse / destroy),
+   *  st.accessories (hook reuse / destroy), st.mounts / st.slotZ /
+   *  st.currentAnimKey, and the per-bot RT. Accessories whose strips
+   *  have already landed get their textures wired up here; the rest
+   *  get hooks with `strip=null` + `sprite.visible=false`. */
+  private commitBody(st: SlotStateV2, pending: PendingAnim): void {
     const nextAtlas = pending.atlas ?? null;
 
     // 1. Release the old atlas's refcount (eligible for LRU when 0).
@@ -995,6 +1107,10 @@ export class PlayerStripRendererV2 {
 
     // 3. Release old accessory sprites + tear down those no longer
     //    worn; reuse the Sprite for slots that survive the swap.
+    //    Accessories whose strips haven't landed yet get hooks with
+    //    `strip=null` and `sprite.visible=false` — they'll get filled
+    //    in by `installLandedAccessories` on subsequent `tryCommit`
+    //    calls as their bakes finish.
     const newAccessories = new Map<number, AccessoryHook>();
     const keepSlots = new Set(pending.accSlots);
     for (const [slotId, oldHook] of st.accessories) {
@@ -1022,14 +1138,32 @@ export class PlayerStripRendererV2 {
         hook = { sprite, strip: null, slot: slotId };
       }
       hook.sprite.zIndex = pending.slotZ.get(slotId) ?? 1;
-      if (strip) {
-        hook.strip = strip;
-        hook.sprite.texture = strip.frames[0] ?? strip.texture;
-        hook.sprite.anchor.set(
-          strip.anchorX / strip.frameWidth,
-          strip.anchorY / strip.frameHeight,
-        );
-        hook.sprite.visible = true;
+      // Phase 2: only the slots whose strip already landed get textured
+      // here. The rest stay hidden — `installLandedAccessories` plugs
+      // them in later as their bake-queue entries resolve. The
+      // accStrips Map only has entries for SLOTS THAT REPORTED, so a
+      // `null` value (bake failure) is distinguishable from
+      // "still in flight" (missing key).
+      if (pending.accStrips.has(slotId)) {
+        if (strip) {
+          hook.strip = strip;
+          hook.sprite.texture = strip.frames[0] ?? strip.texture;
+          hook.sprite.anchor.set(
+            strip.anchorX / strip.frameWidth,
+            strip.anchorY / strip.frameHeight,
+          );
+          hook.sprite.visible = true;
+          // Ownership transferred from pending → hook. Null the
+          // accStrips entry so a subsequent `discardPending` (caused
+          // by a later `applyAnimation` superseding this one) doesn't
+          // double-release the strip ref. The Map entry stays so
+          // `accStrips.size` continues to count it as "reported"
+          // toward the final resolve gate.
+          pending.accStrips.set(slotId, null);
+        } else {
+          hook.strip = null;
+          hook.sprite.visible = false;
+        }
       } else {
         hook.strip = null;
         hook.sprite.visible = false;
@@ -1038,145 +1172,172 @@ export class PlayerStripRendererV2 {
     }
     st.accessories = newAccessories;
 
+    // Body atlas ownership transferred → null pending.atlas so a
+    // subsequent supersede doesn't double-release st.atlas.
+    pending.atlas = null;
+
     // 4. Promote mount-transform table + Z order + current key.
+    //    `st.pendingAnim` stays pointed at `pending` so subsequent
+    //    accessory-landed callbacks know they're for this anim and
+    //    can install themselves via `installLandedAccessories`.
     st.mounts = pending.mounts;
     st.slotZ = pending.slotZ;
     st.currentAnimKey = pending.key;
-    st.pendingAnim = null;
 
-    // 5. Phase A.3: (re)allocate the per-bot RT if needed, position
-    //    the composition stage so the bot's bbox fits exactly inside
-    //    the RT (no cropping), run the FIRST composition for frame 0,
-    //    then update the composite sprite's texture+anchor to match.
-    //    Texture swap is deferred to the END of this block so the
-    //    sprite never points at an un-rendered RT.
-    if (nextAtlas) {
-      // Compute tight bounds once — accessory strips + mount table
-      // are now committed, so bbox reflects the bot's actual extent
-      // across every anim frame. Drives RT sizing AND stage offset.
+    // 5. Position the bot's compositionStage inside its atlas slot,
+    //    drive bands + accessories to frame 0, and mark the global
+    //    compose pass dirty. The actual atlas render happens once
+    //    per tick in `composeAll()`. The composite sprite's texture
+    //    is fixed for the slot's lifetime (set in createSlot) — we
+    //    only update its anchor here to keep SWF (0,0) at the bot's
+    //    world origin regardless of how the bbox fits in the slot.
+    //
+    //    Phase 2 caveat: at body-commit time, accessories that
+    //    haven't landed yet contribute body-frame bounds (their hook
+    //    has `strip=null`, so `computeBotBounds` skips them). Late
+    //    accessories that land outside that bbox get clipped at the
+    //    slot edge until the next anim commit re-fits. Accepted
+    //    trade-off — a few hundred ms of edge clipping is much less
+    //    ugly than an invisible bot for the full bake window.
+    if (nextAtlas && st.compositionSlot) {
       const bounds = this.computeBotBounds(st, nextAtlas);
-      this.ensureCompositeRT(st, nextAtlas, bounds);
       this.applyCompositionTransform(st, bounds);
       // Force one sort here — zIndex was just (re)assigned on every
       // band + accessory. After this, the composition stage's child
-      // order is correct; subsequent composeBot calls inherit it
-      // unless zIndex changes again (which only happens on the
-      // next anim commit).
+      // order is correct; subsequent composeAll calls inherit it
+      // unless zIndex changes again (next anim commit).
       st.compositionStage.sortChildren();
       // Drive the band meshes + accessories to frame 0 BEFORE the
-      // first composition. swapFrame normally does this on every
-      // tick; here we do it once on commit so the RT shows frame 0
-      // without a one-frame gap.
+      // first composition so the atlas shows frame 0 without a
+      // one-frame gap.
       this.setBandsFrame(st, 0);
       this.setAccessoriesFrame(st, 0);
-      this.composeBot(st);
       st.lastCompositionFrame = 0;
-      // NOW swap the sprite's texture to point at the freshly-filled
-      // RT. Before this line the sprite still showed whatever it had
-      // before (old RT from previous anim, or no texture on first
-      // commit). Order matters — see ensureCompositeRT docstring.
-      if (st.compositeRT && st.compositeSprite.texture !== st.compositeRT) {
-        st.compositeSprite.texture = st.compositeRT;
-      }
+      // The bot is now ready to be rendered by the next composeAll().
+      this.compositionDirty = true;
       st.compositeSprite.visible = true;
+    } else if (nextAtlas && !st.compositionSlot) {
+      // Atlas exhausted at createSlot time — bot stays hidden.
+      // composite sprite remains visible=false; root.visible below
+      // is also a no-op visually because the sprite carries no
+      // texture. Logging happened in createSlot.
+      st.compositeSprite.visible = false;
     }
 
-    // 6. First successful commit reveals the bot. Subsequent commits
-    //    are no-ops on visibility — bots stay visible from here on.
+    // 6. Body-commit reveals the bot. Subsequent body-commits stay
+    //    visible from here on; the visibility flag is not toggled
+    //    again until detach.
     st.root.visible = true;
-
-    // 7. Signal awaiters that the anim is live. Caller can now
-    //    trigger the action (movement, etc.) it was holding for.
-    pending.resolve(true);
   }
 
-  /**
-   * Ensure `st.compositeRT` exists at the right dimensions for
-   * `atlas`. If an existing RT is the correct size, reuse it; else
-   * schedule the old one for retire and allocate a fresh one of the
-   * new size. Anim swaps usually keep dims constant (static vs walk
-   * share frame size on most classes); class swaps may differ.
-   */
-  /** Allocate a fresh RT into `st.compositeRT` if the existing one
-   *  doesn't match dimensions. Crucially, does NOT update
-   *  `compositeSprite.texture` — that swap is deferred until the
-   *  caller has filled the new RT via `composeBot`. Without that
-   *  deferral, the sprite would briefly sample an UN-rendered RT
-   *  during anim swaps whose new atlas has different dims → visible
-   *  as a 1-frame black flash on the bot.
-   *
-   *  Returns `true` if a fresh RT was allocated (so the caller knows
-   *  it needs to call `composeBot` THEN swap the sprite texture);
-   *  `false` if the existing RT was reused. */
-  private ensureCompositeRT(
+  /** Phase 2 accessory half — installs every accStrips entry whose
+   *  hook still has `strip=null`. Idempotent: hooks whose strip is
+   *  already set (from `commitBody` or a prior install pass) are
+   *  skipped. Re-runs `setAccessoriesFrame` + `composeBot` so the
+   *  newly-installed sprite appears in the next composite. */
+  private installLandedAccessories(
     st: SlotStateV2,
-    atlas: BodyAtlas,
-    bounds: { minX: number; minY: number; maxX: number; maxY: number },
-  ): boolean {
-    const { w, h } = this.rtSizeFor(bounds);
-    if (
-      st.compositeRT &&
-      st.compositeRT.width === w &&
-      st.compositeRT.height === h
-    ) {
-      return false;
+    pending: PendingAnim,
+  ): void {
+    let installed = 0;
+    for (const [slotId, strip] of pending.accStrips) {
+      const hook = st.accessories.get(slotId);
+      if (!hook) continue;
+      if (hook.strip) continue; // already installed
+      if (strip === null) {
+        // Two cases land here: (a) bake genuinely failed (the
+        // `onAccessoryLanded` callback got a null) — hook stays
+        // hidden; (b) entry was already nulled by a prior install
+        // pass (we transferred ownership and tagged it as null) —
+        // skip silently. Both are no-ops.
+        continue;
+      }
+      hook.strip = strip;
+      hook.sprite.texture = strip.frames[0] ?? strip.texture;
+      hook.sprite.anchor.set(
+        strip.anchorX / strip.frameWidth,
+        strip.anchorY / strip.frameHeight,
+      );
+      hook.sprite.visible = true;
+      // Ownership transferred from pending → hook. See `commitBody`
+      // for the rationale on nulling instead of deleting.
+      pending.accStrips.set(slotId, null);
+      installed += 1;
     }
-    if (st.compositeRT) {
-      this.retireRTQueue.push({
-        rt: st.compositeRT,
-        ticksRemaining: RT_RETIRE_TICKS,
-      });
+    if (installed > 0 && st.atlas) {
+      // Drive the new sprite to the current frame + mark the global
+      // compose pass dirty. The actual atlas render happens once per
+      // tick in `composeAll()`.
+      //
+      // CRITICAL: re-run `computeBotBounds` + `applyCompositionTransform`
+      // now that the bot has accessories the original `commitBody` call
+      // didn't have. Without this, the slot scale + compositionStage
+      // offset stays sized to body-only bounds; the freshly-installed
+      // accessory (hat, cape, weapon) extends past the original bbox,
+      // gets either CROPPED at the slot edge OR SPILLS pixels into
+      // the adjacent atlas slot — showing up as "pieces of other
+      // players inside some bots" plus visible crop. The whole-atlas
+      // `clear: true` on each `composeAll` keeps the spill from
+      // persisting once we re-apply correct bounds, so the fix is
+      // immediate and self-healing.
+      if (st.atlas && st.compositionSlot) {
+        const bounds = this.computeBotBounds(st, st.atlas);
+        this.applyCompositionTransform(st, bounds);
+      }
+      const fc = st.atlas.frameCount;
+      if (fc > 0) {
+        const frame =
+          st.lastCompositionFrame >= 0 ? st.lastCompositionFrame : 0;
+        this.setAccessoriesFrame(st, frame);
+        this.compositionDirty = true;
+      }
     }
-    const rt = RenderTexture.create({ width: w, height: h });
-    // Label MUST start with `bot-composite` so the stress monitor's
-    // `byLabel` breakdown groups every per-bot RT in one bucket — the
-    // labelPrefix split is on `:`, `|`, or `@`. Visibility matters
-    // because these RTs may not show up in `_managedTextures` —
-    // surfacing them somewhere observable is half the point of A.3
-    // memory hygiene.
-    rt.label = `bot-composite|${atlas.key}`;
-    if (rt.source && typeof rt.source === "object") {
-      // Tag the underlying source as well — Pixi's managed-texture
-      // hash keys by source label in some paths.
-      (rt.source as { label?: string }).label = rt.label;
-    }
-    st.compositeRT = rt;
-    // DO NOT touch compositeSprite.texture here — see method docstring.
-    return true;
   }
 
   /**
-   * Position `compositionStage` so the tight bot bbox's `min` point
-   * lands at RT (0, 0). Then update the composite sprite's anchor
-   * to point at SWF (0, 0) — that point lands at RT
-   * `(-bbox.min * scale)`. The world-space anchor of the bot stays
-   * at SWF (0, 0) regardless of how far accessories extend in any
-   * direction.
+   * Position `compositionStage` inside its atlas slot so the bot's
+   * bbox.min lands at `(slot.x, slot.y)` (= upper-left of the slot
+   * in atlas pixels). compositionStage's local origin is SWF (0, 0);
+   * the offset `(-bbox.min × scale)` puts that origin inside the
+   * slot. When the entire `globalCompositionRoot` is rendered into
+   * the atlas, this bot's content lands in its slot rect.
+   *
+   * The composite sprite's anchor normalises the SWF (0, 0) point
+   * relative to the slot dims — `swfOriginInSlot / slot.size` — so
+   * the bot's world-space anchor stays at SWF (0, 0) regardless of
+   * how the bbox fits inside the slot. Sprite scale is `1/scale` to
+   * convert atlas-pixel-size back to SWF-pixel-size (so
+   * `root.scale = 1/resolution` lands the visible composite at
+   * screen pixels).
    */
   private applyCompositionTransform(
     st: SlotStateV2,
     bounds: { minX: number; minY: number; maxX: number; maxY: number },
   ): void {
-    if (!st.compositeRT) return;
-    const { scale } = this.rtSizeFor(bounds);
-    // The bbox's min point lands at RT (0, 0). compositionStage's
-    // local origin = SWF (0, 0). So compositionStage's position in
-    // RT pixels = (-bbox.min * scale).
-    const swfOriginXRT = -bounds.minX * scale;
-    const swfOriginYRT = -bounds.minY * scale;
-    st.compositionStage.position.set(swfOriginXRT, swfOriginYRT);
-    st.compositionStage.scale.set(scale);
-    // Anchor the composite sprite at SWF (0, 0) inside the RT so the
-    // bot's world-space anchor stays at SWF (0, 0) regardless of how
-    // far accessories extend.
-    st.compositeSprite.anchor.set(
-      swfOriginXRT / st.compositeRT.width,
-      swfOriginYRT / st.compositeRT.height,
+    const slot = st.compositionSlot;
+    if (!slot) return;
+    const scale = this.slotScaleFor(bounds);
+    const swfOriginInSlotX = -bounds.minX * scale;
+    const swfOriginInSlotY = -bounds.minY * scale;
+    // compositionStage's position INSIDE globalCompositionRoot — in
+    // atlas pixels. When the root is rendered into the atlas, this
+    // stage's content lands at (slot.x + offset, slot.y + offset).
+    st.compositionStage.position.set(
+      slot.x + swfOriginInSlotX,
+      slot.y + swfOriginInSlotY,
     );
-    // The composite sprite needs to render at SWF-pixel scale (so
+    st.compositionStage.scale.set(scale);
+    // Anchor the composite sprite at SWF (0, 0) inside the slot.
+    // Denominator is slot.w/h because the sprite's frame is the slot
+    // sub-rect; the anchor is normalised against the frame size.
+    st.compositeSprite.anchor.set(
+      swfOriginInSlotX / slot.w,
+      swfOriginInSlotY / slot.h,
+    );
+    // The composite sprite renders at SWF-pixel scale (so
     // `root.scale = 1/resolution` lands it at screen pixels). If the
-    // RT was scaled down to fit `RT_MAX_DIM`, scale the sprite UP by
-    // 1/scale so the on-screen size matches V1.
+    // bbox was scaled down to fit the slot, scale the sprite UP by
+    // 1/scale so the on-screen size matches the original.
     st.compositeSprite.scale.set(1 / scale);
   }
 
@@ -1232,7 +1393,18 @@ export class PlayerStripRendererV2 {
    *  landed and prevent any still-pending acquires from doing work.
    *  Resolves the staging's promise with `false` so awaiters know
    *  they were superseded and can decide whether to retry against
-   *  the latest anim. */
+   *  the latest anim.
+   *
+   *  Phase 2: ownership semantics. After `commitBody` runs, the body
+   *  atlas's ref AND every installed accessory strip's ref have been
+   *  TRANSFERRED to `st.atlas` / `st.accessories[*].strip`. We clear
+   *  those entries on transfer (`pending.atlas = null`, accStrips
+   *  value set to null) so a subsequent discard doesn't re-release
+   *  what `st` now owns. The check below skips nulls accordingly.
+   *  Untransferred entries (bake landed but `commitBody` hadn't run
+   *  yet because atlas hadn't, or accessory landed mid-stage with
+   *  superseded pending) still hold the only ref and must be
+   *  released here. */
   private discardPending(pending: PendingAnim): void {
     if (pending.atlas) {
       this.cache.releaseBodyAtlas(pending.atlas);
@@ -1295,21 +1467,33 @@ export class PlayerStripRendererV2 {
       } catch {}
     }
     st.accessories.clear();
-    // Phase A.3: retire the per-bot RT through the 2-tick settle so
-    // in-flight Pixi samplers complete before destroy. The patched
-    // wgpu Drop is a no-op, so explicit destroy is the only release.
-    if (st.compositeRT) {
-      this.retireRTQueue.push({
-        rt: st.compositeRT,
-        ticksRemaining: RT_RETIRE_TICKS,
-      });
-      st.compositeRT = null;
+    // Release the atlas slot. The bot's pixels stay in the slot until
+    // the next `composeAll()` clears the whole atlas — invisible
+    // because no composite sprite samples a released slot until the
+    // allocator hands it to a new bot.
+    if (st.compositionSlot) {
+      this.atlas.release(st.compositionStage, st.compositionSlot);
+      st.compositionSlot = null;
+      // The slot's freshly-released area in the atlas will be cleared
+      // on the next composeAll's `clear: true`. Mark dirty so that
+      // pass runs even if no other bots changed this tick — protects
+      // against stale pixels showing through if the slot is reused.
+      this.compositionDirty = true;
     }
-    // The detached composition stage is OUR property — destroy
-    // children (any leftover Mesh/Sprite refs) so we don't leak GPU
-    // buffers in the band geometry. Pixi v8 Mesh.destroy doesn't
-    // recurse, so band meshes were already explicitly destroyed
-    // above; this is a defensive sweep for accessories.
+    // Composite sprite owns a Texture wrapping `atlas.source` with a
+    // slot-specific frame; destroy the wrapper so it doesn't keep
+    // referencing the atlas's source after the slot is gone. The
+    // source itself is owned by SharedCompositionAtlas and survives.
+    try {
+      // destroy(false) — do NOT destroy the wrapped source (shared
+      // across all bots and owned by the atlas).
+      st.compositeSprite.texture.destroy(false);
+    } catch {}
+    // The composition stage is OUR property. Destroy children
+    // (leftover Mesh/Sprite refs) so we don't leak GPU buffers in
+    // band geometry. Pixi v8 Mesh.destroy doesn't recurse, so band
+    // meshes were already explicitly destroyed above; this is a
+    // defensive sweep for accessories.
     try {
       st.compositionStage.destroy({ children: true });
     } catch {}
@@ -1332,3 +1516,19 @@ const pixelMatrixScratch = new Matrix();
 // future cleanup. Kept as a compile-time tap so this module flags if
 // the cache's max slot value changes underneath us.
 void MAX_SLOT;
+
+/**
+ * Last-constructed renderer instance. Exposed so the stress-test
+ * snapshot can pull atlas pressure (`slotsUsed/slotsCapacity`) without
+ * threading a reference through the scene tree. Cleared on `destroy()`
+ * so a torn-down renderer doesn't leak into post-destroy snapshots.
+ */
+let activeStripRenderer: PlayerStripRendererV2 | null = null;
+
+export function getActivePlayerStripRendererStats(): {
+  atlas: { slotsUsed: number; slotsCapacity: number };
+} | null {
+  if (!activeStripRenderer) return null;
+  const s = activeStripRenderer.getStats();
+  return { atlas: s.atlas };
+}

@@ -33,6 +33,11 @@ import type { CellData } from "@/game/datacenter/cell";
 import type { PlayerRenderer } from "@/game/scene/player/renderer";
 import { getRenderWatchdog } from "@/game/render/render-watchdog";
 import { getCharacterCache } from "@/game/render/character-cache";
+import { getActivePlayerStripRendererStats } from "@/game/render/player-strip-renderer-v2";
+import {
+  type ProbeKey,
+  readAndResetProbes,
+} from "@/game/render/render-probes";
 import { getStripBakeQueue } from "@/game/render/strip-bake-queue";
 import {
   getDeferredDestroyStats,
@@ -391,6 +396,23 @@ function logMonitorSnapshot(): void {
   // text output. Reading twice would reset the accumulator between
   // reads and the text monitor would see zeros.
   const tickerStats = readAndResetTickerStats();
+  // Drain the render-pipeline probes (per-bake cost, per-drain cost,
+  // per-composeBot cost) within the same window so all per-frame
+  // averages share the same `tickerStats.samples` denominator.
+  const probes = readAndResetProbes();
+  const frames = tickerStats.samples;
+  /** Pack a counter for emission: ms/call + ms/frame (using the same
+   *  frame count as `tickerMsAvg`). `perFrameMs` is what to compare
+   *  against `tickerMsAvg` and the 16.67 ms frame budget. */
+  const packProbe = (
+    p: typeof probes[ProbeKey],
+  ): { count: number; totalMs: number; maxMs: number; avgMs: number; perFrameMs: number } => ({
+    count: p.count,
+    totalMs: p.totalMs,
+    maxMs: p.maxMs,
+    avgMs: p.count > 0 ? p.totalMs / p.count : 0,
+    perFrameMs: frames > 0 ? p.totalMs / frames : 0,
+  });
 
   const wd = getRenderWatchdog();
   const snap = wd.getSnapshot();
@@ -403,6 +425,7 @@ function logMonitorSnapshot(): void {
   })();
   const bakeQueue = getStripBakeQueue().getStats();
   const charCache = getCharacterCache().getStats();
+  const stripStats = getActivePlayerStripRendererStats();
   const cacheTotal = charCache.bodyBytes + charCache.accBytes;
   const cacheReqs = charCache.hits + charCache.misses;
   const hitRate = cacheReqs > 0 ? (charCache.hits / cacheReqs) * 100 : 0;
@@ -575,11 +598,49 @@ function logMonitorSnapshot(): void {
       misses: charCache.misses,
       evicts: charCache.evicts,
     },
+    /**
+     * Phase-0 instrumentation for `RENDER_BAKE_PLAN.md`. Reads:
+     *   probes.bodyAtlas.avgMs        — per-bake cost. Drives Phase 1
+     *     priority. If <1 ms, tessellation cache is unnecessary; if
+     *     ≥5 ms, Phase 1 is the dominant fix.
+     *   probes.bakeDrain.perFrameMs   — ms/frame spent in the bake
+     *     queue's rAF drain. Compare to `fps.tickerMsAvg` — if it's
+     *     ≥50 % of ticker time, bakes ARE the ticker bottleneck and
+     *     off-thread bakes (Phase 4) help directly.
+     *   probes.composeBot.perFrameMs  — ms/frame spent in per-bot RT
+     *     composition. Compare against the warm-state ceiling
+     *     hypothesis (~6 ms/frame at 200 bots). If <2 ms, Phase 5
+     *     dies; if ~6 ms, Phase 5 is on the path.
+     */
+    probes: {
+      bodyAtlas: packProbe(probes.bodyAtlas),
+      accessoryStrip: packProbe(probes.accessoryStrip),
+      mountTransforms: packProbe(probes.mountTransforms),
+      bakeDrain: packProbe(probes.bakeDrain),
+      composeBot: packProbe(probes.composeBot),
+    },
+    /**
+     * Shared composition atlas pressure. After the Phase-5 refactor
+     * (RENDER_SHARED_ATLAS_PLAN.md), every active bot occupies one
+     * 256² slot in a 4096² shared atlas. `slotsUsed` near
+     * `slotsCapacity` (256) means the atlas is nearly full —
+     * additional bots will fail to attach (logged + invisible) until
+     * we add a multi-page atlas.
+     */
+    atlas: stripStats
+      ? {
+          slotsUsed: stripStats.atlas.slotsUsed,
+          slotsCapacity: stripStats.atlas.slotsCapacity,
+        }
+      : null,
     pathCache: pc
       ? {
           bundleCacheCount: pc.bundleCacheCount,
           sceneCacheCount: pc.sceneCacheCount,
           sceneKB: pc.sceneBytesEstimate / 1024,
+          // Phase 1b: body-scene cache size. Soft cap is 1500.
+          // Stays at cap once steady-state evicts kick in.
+          bodySceneCacheCount: pc.bodySceneCacheCount ?? 0,
         }
       : null,
     rust: {
@@ -658,8 +719,15 @@ function logMonitorSnapshot(): void {
     `  gpu:  textures(active=${snap.textureCountActive} created=${snap.texturesCreatedTotal} freed=${snap.texturesFreedTotal})  surfaces=${snap.surfaceCountActive}`,
     `  vello: liveTex=${getLiveRenderTextureCount()} (renderIds=${getLiveRenderTextureIdCount()} spells=${getLiveSpellInstanceCount()})  bundles=${getLoadedSwfBundleCount()}`,
     `  bake: pending=${bakeQueue.pending}  enq=${bakeQueue.totalEnqueued}  done=${bakeQueue.totalDispatched}  dedup=${bakeQueue.totalDedupCollapses}  stale=${bakeQueue.totalStaleSkipped}  budget=${bakeQueue.budgetMs}ms`,
+    // Phase-0 cost split. `body avg=` is the per-bake wall time we
+    // hypothesised at ~5 ms; `drain /f` and `compose /f` are
+    // ms-per-frame so they can be compared directly with the 16.67 ms
+    // frame budget + `ticker avg`. See `RENDER_BAKE_PLAN.md`.
+    `  bakeCost: body=${probes.bodyAtlas.count}×avg=${fmt(probes.bodyAtlas.count > 0 ? probes.bodyAtlas.totalMs / probes.bodyAtlas.count : 0, 2)}ms max=${fmt(probes.bodyAtlas.maxMs, 2)}ms  acc=${probes.accessoryStrip.count}×avg=${fmt(probes.accessoryStrip.count > 0 ? probes.accessoryStrip.totalMs / probes.accessoryStrip.count : 0, 2)}ms  mnt=${probes.mountTransforms.count}×avg=${fmt(probes.mountTransforms.count > 0 ? probes.mountTransforms.totalMs / probes.mountTransforms.count : 0, 2)}ms`,
+    `  frameCost: drain ${probes.bakeDrain.count}× ${fmt(frames > 0 ? probes.bakeDrain.totalMs / frames : 0, 2)}ms/f (max=${fmt(probes.bakeDrain.maxMs, 2)}ms)  compose ${probes.composeBot.count}× ${fmt(frames > 0 ? probes.composeBot.totalMs / frames : 0, 2)}ms/f (max=${fmt(probes.composeBot.maxMs, 2)}ms)`,
+    `  atlas: ${stripStats ? `${stripStats.atlas.slotsUsed}/${stripStats.atlas.slotsCapacity} slots` : "(no renderer)"}`,
     `  char: body=${charCache.bodyEntries}(${fmt(charCache.bodyBytes / 1024 / 1024, 1)}MB) acc=${charCache.accEntries}(${fmt(charCache.accBytes / 1024 / 1024, 1)}MB) mnt=${charCache.mountEntries} total=${fmt(cacheTotal / 1024 / 1024, 1)}MB hit%=${fmt(hitRate, 1)} (hits=${charCache.hits} miss=${charCache.misses} evict=${charCache.evicts})`,
-    `  path: bundleCache=${fmtPc(pc?.bundleCacheCount)} sceneCache=${fmtPc(pc?.sceneCacheCount)} sceneBytes≈${fmtPc(pc?.sceneBytesEstimate ? pc.sceneBytesEstimate / 1024 : null, 0)}KB`,
+    `  path: bundleCache=${fmtPc(pc?.bundleCacheCount)} sceneCache=${fmtPc(pc?.sceneCacheCount)} bodyScene=${fmtPc(pc?.bodySceneCacheCount)}/1500 sceneBytes≈${fmtPc(pc?.sceneBytesEstimate ? pc.sceneBytesEstimate / 1024 : null, 0)}KB`,
     `  rust: textures=${rustTexCount}  wasm.heap=${fmt(wasmHeapBytes / 1024 / 1024, 1)}MB  liveTex=${fmt(rustBytes.liveTex / 1024 / 1024, 1)}MB  liveBuf=${fmt(rustBytes.liveBuf / 1024 / 1024, 1)}MB  createdTex=${fmt(rustBytes.createdTex / 1024 / 1024, 1)}MB  destroyedTex=${fmt(rustBytes.destroyedTex / 1024 / 1024, 1)}MB`,
     `  defer: txDestroyed=${defStats.cumulativeTexturesDestroyed} bufDestroyed=${defStats.cumulativeBuffersDestroyed} txPending=${defStats.texturesPending} bufPending=${defStats.buffersPending} pendTexMB=${fmt(rustBytes.pendingTex / 1024 / 1024, 1)} pendBufMB=${fmt(rustBytes.pendingBuf / 1024 / 1024, 1)}`,
     `  objs: bg=${rustObjs.liveBg}(±${rustObjs.createdBg - rustObjs.droppedBg}) tv=${rustObjs.liveTv}(±${rustObjs.createdTv - rustObjs.droppedTv}) sa=${rustObjs.liveSa}(±${rustObjs.createdSa - rustObjs.droppedSa})  bg.created=${rustObjs.createdBg} bg.dropped=${rustObjs.droppedBg}`,
@@ -707,7 +775,15 @@ function buildEmptySnapshot() {
     vello: { liveTex: 0, renderIds: 0, spells: 0, bundles: 0 },
     bake: { pending: 0, enq: 0, done: 0, dedup: 0, stale: 0, budgetMs: 0 },
     cache: { bodyEntries: 0, bodyMB: 0, accEntries: 0, accMB: 0, mntEntries: 0, totalMB: 0, hitPct: 0, hits: 0, misses: 0, evicts: 0 },
-    pathCache: null as { bundleCacheCount: number; sceneCacheCount: number; sceneKB: number } | null,
+    probes: {
+      bodyAtlas: { count: 0, totalMs: 0, maxMs: 0, avgMs: 0, perFrameMs: 0 },
+      accessoryStrip: { count: 0, totalMs: 0, maxMs: 0, avgMs: 0, perFrameMs: 0 },
+      mountTransforms: { count: 0, totalMs: 0, maxMs: 0, avgMs: 0, perFrameMs: 0 },
+      bakeDrain: { count: 0, totalMs: 0, maxMs: 0, avgMs: 0, perFrameMs: 0 },
+      composeBot: { count: 0, totalMs: 0, maxMs: 0, avgMs: 0, perFrameMs: 0 },
+    },
+    atlas: null as { slotsUsed: number; slotsCapacity: number } | null,
+    pathCache: null as { bundleCacheCount: number; sceneCacheCount: number; sceneKB: number; bodySceneCacheCount: number } | null,
     rust: {
       textures: 0,
       wasmHeapMB: 0,

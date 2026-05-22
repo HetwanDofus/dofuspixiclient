@@ -129,15 +129,36 @@ export class PlayerRenderer {
         // are dispatched per-tick in `syncPlacement` based on the
         // mountLayers' separately-loaded animation refs.
         //
-        // Path B "never frozen" gate: clear animReady the moment a
-        // new anim is requested, then flip it back to true only when
-        // the strip renderer's atomic commit lands. `PlayerMovement`
-        // and any other action that depends on the bot animating
-        // checks `player.animReady` per tick and holds physics until
-        // it's true. Bots stay where they are (with their previous
-        // committed anim still rendering) instead of moving with the
-        // wrong/no animation.
-        player.animReady = false;
+        // `animReady` is the "bot has SOMETHING committed to render"
+        // flag. We set it to `false` only in the player factory
+        // (initial spawn state); after the first commit lands we
+        // flip it to `true` permanently for the bot's lifetime.
+        //
+        // Why NOT reset to false on every applyAnimation: cache hits
+        // resolve `applyAnimation` synchronously, but the `.then()`
+        // callback below is a MICROTASK — it fires after the current
+        // Ticker tick's NORMAL-priority callbacks finish. If we reset
+        // animReady=false here, the same tick's tickFrame (NORMAL
+        // priority) already skipped, and animReady=true via microtask
+        // happens too late. Bots stutter for 1 main-frame on EVERY
+        // applyAnimation, including cache hits — visible as jitter at
+        // 60 fps in any scene with frequent direction changes.
+        //
+        // Combined with the pre-warm sweep (sprite-controller's
+        // `prewarmSweep`, which now covers static + walk + run for
+        // every direction), all anim transitions for a loaded class
+        // are cache hits → the strip renderer commits atomically →
+        // bot transitions smoothly with no visible artifact.
+        //
+        // Cost: between an applyAnimation request and its commit,
+        // tickFrame keeps cycling `player.frameIndex` against the
+        // requested anim's frameCount/fps while the renderer still
+        // shows the previously-committed atlas. This is a sub-frame
+        // mismatch at worst (commit lands within ~16 ms on cache hit
+        // OR after the bake-queue drain on cache miss — see Phase 1b
+        // scene cache + MAX_BAKES_PER_DRAIN removal in
+        // strip-bake-queue.ts). Pre-warm coverage makes this
+        // mismatch effectively unobservable in steady state.
         const playerId = player.id;
         void this.stripRenderer
           .applyAnimation(player, "main", animation, animName, dir, flipped)
