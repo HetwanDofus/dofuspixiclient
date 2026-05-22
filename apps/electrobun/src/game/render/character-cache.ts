@@ -397,7 +397,10 @@ class CharacterCache {
     // the Rust sprite walker's bFix path is a no-op — the bake is
     // pixel-identical regardless of applyBFix. Collapse both variants
     // to a single cache entry by forcing applyBFix=false in the key.
-    const normalized = this.normalizeBFix(parts);
+    // A2: same trick for hatEquipped — only bodies with toggle
+    // sprites (canonical: just Iop) bake different pixels per hat
+    // state. Other classes dedupe.
+    const normalized = this.normalizeHatEquipped(this.normalizeBFix(parts));
     const key = bodyAtlasKey(normalized);
     const existing = this.bodyAtlasEntries.get(key);
     if (existing) {
@@ -452,6 +455,26 @@ class CharacterCache {
     const info = this.getBodyBandInfo(parts.bundle, parts.exportName);
     if (info && info.bFixUsed === false) {
       return { ...parts, applyBFix: false };
+    }
+    return parts;
+  }
+
+  /**
+   * Returns a copy of `parts` with `hatEquipped` forced to `false`
+   * when the body has no accessory-toggle sprite. In that case the
+   * Rust bake produces pixel-identical output regardless of hat
+   * state — caching both variants wastes ~50 % of cache footprint.
+   *
+   * For canonical Dofus 1.29 only Iop has a toggle sprite, so this
+   * collapses the variant dimension for the other 11 classes.
+   */
+  private normalizeHatEquipped<
+    T extends { bundle: string; exportName: string; hatEquipped: boolean },
+  >(parts: T): T {
+    if (!parts.hatEquipped) return parts;
+    const info = this.getBodyBandInfo(parts.bundle, parts.exportName);
+    if (info && info.hasToggleSprite === false) {
+      return { ...parts, hatEquipped: false };
     }
     return parts;
   }

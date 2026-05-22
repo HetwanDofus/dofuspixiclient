@@ -401,7 +401,7 @@ impl<'a> RenderCtx<'a> {
 /// set differs from frame 1's, the sprite qualifies. Walking-arm
 /// style animation (same child, different transform per frame)
 /// keeps the same char set and is correctly excluded.
-fn is_accessory_toggle_sprite(sprite: &crate::swf_doc::OwnedSprite) -> bool {
+pub fn is_accessory_toggle_sprite(sprite: &crate::swf_doc::OwnedSprite) -> bool {
     if sprite.num_frames < 2 {
         return false;
     }

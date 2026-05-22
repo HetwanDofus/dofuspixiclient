@@ -2055,6 +2055,19 @@ impl VelloRenderer {
             &"bFixUsed".into(),
             &JsValue::from_bool(b_fix_used),
         );
+        // Whether this body's display tree contains a multi-frame
+        // sprite with different children per frame — canonical
+        // `mcToHide` pattern. Only Iop's R_tete matches in vanilla
+        // Dofus 1.29. JS uses this to decide whether to include
+        // `hatEquipped` in the body atlas cache key: classes that
+        // don't have a toggle bake identically regardless of hat
+        // state, so caching two variants wastes ~50 % of cache.
+        let has_toggle = swf_spike::render::body_has_toggle_sprite(doc, body);
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"hasToggleSprite".into(),
+            &JsValue::from_bool(has_toggle),
+        );
         result.into()
     }
 
@@ -2119,15 +2132,54 @@ impl VelloRenderer {
         let (effective_sym, effective_xform) =
             swf_spike::render::find_effective_body_symbol(doc, symbol, 0);
         let slots = swf_spike::render::extract_slot_depths(doc, body, 0);
-        let band_total = swf_spike::render::band_count(&slots);
-        if band_total == 0 {
+        let band_total_logical = swf_spike::render::band_count(&slots);
+        if band_total_logical == 0 {
             return JsValue::NULL;
         }
-        // Precompute every band's depth range so the per-band scene
-        // builder can loop without re-deriving them.
-        let band_ranges: Vec<swf_spike::render::BandRange> = (0..band_total)
-            .map(|i| swf_spike::render::band_range(&slots, i))
+        // Skip "trivial" bands — canonical Dofus character bodies
+        // wrap each accessory slot in an empty placeholder sprite.
+        // Bands containing only such placeholders bake to zero
+        // pixels but still cost full strip_w × strip_h atlas area.
+        // For staticB this drops band count from 5 → 1, shrinking
+        // the atlas ~5× and fixing the "1.5 GB cache thrash" at
+        // 200-bot stress.
+        let effective_body = match effective_sym {
+            swf_spike::swf_doc::Symbol::Sprite(s) => s,
+            _ => body,
+        };
+        let band_presence = swf_spike::render::compute_band_presence(
+            doc,
+            effective_body,
+            0,
+            &slots,
+        );
+        // Logical band indices that actually have content. JS uses
+        // these for mesh.zIndex assignment; sparse bandIndex values
+        // (e.g. just [0] when bands 1-4 are empty) is fine because
+        // accessory zIndex is computed from slot order, not band
+        // density.
+        let present_logical: Vec<usize> = band_presence
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &p)| if p { Some(i) } else { None })
             .collect();
+        let band_total = present_logical.len().max(1);
+        let band_ranges: Vec<swf_spike::render::BandRange> = present_logical
+            .iter()
+            .map(|&i| swf_spike::render::band_range(&slots, i))
+            .collect();
+        // Fallback: if every band was trivial (degenerate body),
+        // bake one full-range band so we don't emit a null atlas.
+        let band_ranges = if band_ranges.is_empty() {
+            vec![swf_spike::render::BandRange::ALL]
+        } else {
+            band_ranges
+        };
+        let present_logical = if present_logical.is_empty() {
+            vec![0usize]
+        } else {
+            present_logical
+        };
 
         let end = start.saturating_add(count).min(total_frame_count);
         let chunk_end = end.min(cached.anim_end);
@@ -2156,19 +2208,19 @@ impl VelloRenderer {
         let strip_w = frame_w * grid_cols as u32;
         let strip_h = frame_h * grid_rows as u32;
 
-        // Atlas layout: bands stacked vertically. Width = single-band
-        // strip width (already constrained ≤ 16384). Height = N bands
-        // × strip_h + (N-1) × BAND_PADDING_PX. If the atlas height
-        // would exceed 16384 we'd have to flow into 2D — refuse for
-        // now; the body characters we ship all fit.
-        let band_total_u32 = band_total as u32;
-        let padding_total = if band_total_u32 > 0 {
-            (band_total_u32 - 1) * BAND_PADDING_PX
+        // Atlas layout: bands stacked vertically. Only PRESENT bands
+        // (those with visible content) get a strip; trivial bands are
+        // skipped entirely. Width = single-band strip width (already
+        // constrained ≤ 16384). Height = N_present × strip_h +
+        // (N_present-1) × BAND_PADDING_PX.
+        let band_present_u32 = present_logical.len() as u32;
+        let padding_total = if band_present_u32 > 0 {
+            (band_present_u32 - 1) * BAND_PADDING_PX
         } else {
             0
         };
         let atlas_w = strip_w;
-        let atlas_h = strip_h * band_total_u32 + padding_total;
+        let atlas_h = strip_h * band_present_u32 + padding_total;
         if atlas_w == 0
             || atlas_h == 0
             || atlas_w > 16384
@@ -2211,10 +2263,14 @@ impl VelloRenderer {
                 output_scale: scale,
             };
             let mut scene = vello::Scene::new();
-            for band_idx in 0..band_total {
-                let band = band_ranges_ref[band_idx];
+            // band_ranges only contains PRESENT bands. We render
+            // them in order; each takes the next strip slot in the
+            // atlas regardless of its logical band index. JS reads
+            // `bandIndex` from the returned `bands` array to recover
+            // the logical position for zIndex math.
+            for (slot_idx, &band) in band_ranges_ref.iter().enumerate() {
                 let band_atlas_y =
-                    (band_idx as f64) * (f64::from(strip_h) + f64::from(BAND_PADDING_PX));
+                    (slot_idx as f64) * (f64::from(strip_h) + f64::from(BAND_PADDING_PX));
                 for slot in 0..chunk_count {
                     let frame_idx = start + slot;
                     let col = (slot as usize) % grid_cols;
@@ -2378,14 +2434,18 @@ impl VelloRenderer {
         // and within the band, per-frame UVs follow the grid_cols ×
         // grid_rows layout exactly like the legacy single-strip path.
         let bands_arr = js_sys::Array::new();
-        for band_idx in 0..band_total {
+        for (slot_idx, &logical_band_idx) in present_logical.iter().enumerate() {
             let band_atlas_y =
-                (band_idx as u32) * (strip_h + BAND_PADDING_PX);
+                (slot_idx as u32) * (strip_h + BAND_PADDING_PX);
             let entry = js_sys::Object::new();
+            // `bandIndex` is the LOGICAL band index (0..band_total_logical),
+            // not the position in the atlas. JS uses this for
+            // mesh.zIndex so bands stay correctly interleaved with
+            // accessory slots even when some bands were skipped.
             let _ = js_sys::Reflect::set(
                 &entry,
                 &"bandIndex".into(),
-                &JsValue::from(band_idx as u32),
+                &JsValue::from(logical_band_idx as u32),
             );
             let _ = js_sys::Reflect::set(
                 &entry,
@@ -2445,10 +2505,14 @@ impl VelloRenderer {
         );
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
         let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
+        // bandCount = number of PRESENT bands (matches `bands` array
+        // length). JS iterates the `bands` array to create meshes.
+        // The LOGICAL band total is implied by `slotCount + 1` and
+        // is already encoded in each `bands[i].bandIndex`.
         let _ = js_sys::Reflect::set(
             &result,
             &"bandCount".into(),
-            &JsValue::from(band_total as u32),
+            &JsValue::from(present_logical.len() as u32),
         );
         let _ = js_sys::Reflect::set(
             &result,

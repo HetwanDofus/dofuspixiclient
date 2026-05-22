@@ -33,8 +33,8 @@ pub use cache::RenderCache;
 pub use clip::collect_mask_path;
 pub use ctx::{RenderCtx, RenderMode};
 pub use slot_depths::{
-    band_count, band_range, extract_slot_depths, find_effective_body_symbol,
-    BandRange, SlotDepth,
+    band_count, band_range, body_has_toggle_sprite, compute_band_presence,
+    extract_slot_depths, find_effective_body_symbol, BandRange, SlotDepth,
 };
 pub use snapshot::{render_snapshot, PlacedSnapshot, ResolvedPlace};
 

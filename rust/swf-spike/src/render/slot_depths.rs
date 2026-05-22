@@ -24,9 +24,11 @@
 //! Caching is the caller's responsibility (the WASM bridge keys cache
 //! by `(bundle_name, export, frame)`).
 
+use std::collections::HashSet;
+
 use vello::kurbo::Affine;
 
-use crate::swf_doc::{OwnedSprite, Symbol, SwfDoc};
+use crate::swf_doc::{OwnedOp, OwnedSprite, Symbol, SwfDoc};
 
 use super::bounds::build_frame_state;
 
@@ -260,6 +262,108 @@ impl BandRange {
 #[inline]
 pub fn band_count(slots: &[SlotDepth]) -> usize {
     slots.len() + 1
+}
+
+/// Does the symbol with `cid` produce any visible pixels when
+/// rendered (recursively)? Used to detect "trivial" bands —
+/// canonical Dofus character bodies wrap accessory mounts in empty
+/// placeholder sprites; bands containing only such placeholders bake
+/// to zero pixels yet still cost full strip_w × strip_h atlas area.
+/// Skipping them lets the atlas shrink ~5× for typical Dofus body
+/// exports.
+fn has_visible_content(doc: &SwfDoc, cid: u16, visited: &mut HashSet<u16>) -> bool {
+    if !visited.insert(cid) {
+        return false;
+    }
+    let Some(sym) = doc.lookup_id(cid) else {
+        return false;
+    };
+    match sym {
+        Symbol::Shape(_) | Symbol::Bitmap(_) | Symbol::MorphShape(_) => true,
+        Symbol::Sprite(sp) => {
+            for op in &sp.ops {
+                if let OwnedOp::Place(p) = op {
+                    if let Some(child_cid) = p.character_id {
+                        if has_visible_content(doc, child_cid, visited) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            false
+        }
+    }
+}
+
+/// Does any sprite reachable from `body` (recursively) match the
+/// `mcToHide` accessory-toggle pattern? Used to decide whether the
+/// body atlas needs to bake separate `hat_equipped=true/false`
+/// variants. For canonical Dofus 1.29 only Iop's body has a toggle
+/// sprite; for every other class this returns false and the JS
+/// cache layer can collapse the `hatEquipped` dimension, halving
+/// the body atlas cache footprint.
+pub fn body_has_toggle_sprite(doc: &SwfDoc, body: &OwnedSprite) -> bool {
+    let mut visited = HashSet::new();
+    has_toggle_sprite_recursive(doc, body, &mut visited)
+}
+
+fn has_toggle_sprite_recursive(
+    doc: &SwfDoc,
+    sprite: &OwnedSprite,
+    visited: &mut HashSet<u16>,
+) -> bool {
+    for op in &sprite.ops {
+        if let OwnedOp::Place(p) = op {
+            if let Some(cid) = p.character_id {
+                if !visited.insert(cid) {
+                    continue;
+                }
+                let Some(Symbol::Sprite(child)) = doc.lookup_id(cid) else {
+                    continue;
+                };
+                if super::ctx::is_accessory_toggle_sprite(child) {
+                    return true;
+                }
+                if has_toggle_sprite_recursive(doc, child, visited) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// For each of the `slots.len() + 1` Z-ordered bands, return `true`
+/// if that band's depth range contains any placement that produces
+/// visible pixels. Bands marked `false` are "trivial" — they only
+/// contain empty mount-placeholder sprites and can be omitted from
+/// the atlas without visual effect. JS still uses `slots.len()` for
+/// accessory Z-ordering; the present bands keep their LOGICAL
+/// bandIndex so accessory zIndex assignments stay correct.
+pub fn compute_band_presence(
+    doc: &SwfDoc,
+    body: &OwnedSprite,
+    frame: u16,
+    slots: &[SlotDepth],
+) -> Vec<bool> {
+    let mut out = vec![false; slots.len() + 1];
+    let state = build_frame_state(body, frame);
+    for (depth, place) in &state {
+        let Some(cid) = place.character_id else {
+            continue;
+        };
+        let mut visited = HashSet::new();
+        if !has_visible_content(doc, cid, &mut visited) {
+            continue;
+        }
+        // Find which band this depth falls into.
+        for (i, present) in out.iter_mut().enumerate() {
+            if band_range(slots, i).contains(*depth) {
+                *present = true;
+            }
+        }
+    }
+    out
 }
 
 #[cfg(test)]

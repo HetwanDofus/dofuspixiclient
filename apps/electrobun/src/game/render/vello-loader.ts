@@ -828,6 +828,13 @@ export interface VelloSwfBodyBandInfo {
    *  `applyBFix` flag — the cache layer collapses both variants into
    *  one entry, halving bake count on this class. */
   bFixUsed: boolean;
+  /** True if this body's display tree contains a multi-frame sprite
+   *  whose frames swap children (canonical AS2 `mcToHide` pattern,
+   *  e.g. Iop's hair toggle). When false, `hatEquipped` doesn't
+   *  affect the bake — the cache layer collapses both variants into
+   *  one entry, halving body atlas footprint for non-toggle
+   *  classes. */
+  hasToggleSprite: boolean;
 }
 
 export function swfBodyBandInfo(
