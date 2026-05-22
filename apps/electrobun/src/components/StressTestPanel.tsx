@@ -179,14 +179,10 @@ export function StressTestPanel() {
               id="stress-count"
               type="number"
               min={1}
-              max={500}
               value={count}
               onChange={(e) =>
                 setCount(
-                  Math.max(
-                    1,
-                    Math.min(500, Number.parseInt(e.target.value, 10) || 1),
-                  ),
+                  Math.max(1, Number.parseInt(e.target.value, 10) || 1),
                 )
               }
               style={{

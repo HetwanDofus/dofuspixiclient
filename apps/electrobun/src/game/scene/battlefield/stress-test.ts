@@ -179,10 +179,24 @@ function buildAccessoryPools(): AccessoryPools {
   return cachedPools;
 }
 
-/** Hard ceiling on concurrent test players. */
-const HARD_CAP = 500;
-/** Soft warning threshold — keeps the dev console honest about cost. */
-const SOFT_WARN = 300;
+/**
+ * Hard ceiling on concurrent test players. Set to Infinity so we
+ * can probe arbitrary scale and watch the curve break.
+ *
+ * NOTE: the shared composition atlas
+ * (`COMPOSITION_SLOT_SIZE × COMPOSITION_SLOT_SIZE` grid in a 4096²
+ * RT) caps visible bots at **256 slots** today — bots beyond that
+ * get a null slot from `atlas.acquireSlot()` and stay invisible,
+ * but their movement + frame ticks still run (useful for measuring
+ * CPU-side scaling). If you need >256 visibly rendered bots,
+ * implement multi-page atlas allocation in
+ * `composition-atlas.ts`.
+ */
+const HARD_CAP = Number.POSITIVE_INFINITY;
+/** Soft warning threshold — keeps the dev console honest about
+ *  cost. Bumped to the atlas slot ceiling so the warning fires
+ *  exactly when bots stop being visible. */
+const SOFT_WARN = 256;
 /**
  * Min ms between consecutive spawns. Was 50ms back when `addPlayer`
  * blocked on a synchronous strip bake (~5ms each + GPU queue drain).
@@ -631,6 +645,8 @@ function logMonitorSnapshot(): void {
       ? {
           slotsUsed: stripStats.atlas.slotsUsed,
           slotsCapacity: stripStats.atlas.slotsCapacity,
+          batchCount: stripStats.atlas.batchCount,
+          pageCount: stripStats.atlas.pageCount,
         }
       : null,
     pathCache: pc
@@ -725,7 +741,7 @@ function logMonitorSnapshot(): void {
     // frame budget + `ticker avg`. See `RENDER_BAKE_PLAN.md`.
     `  bakeCost: body=${probes.bodyAtlas.count}×avg=${fmt(probes.bodyAtlas.count > 0 ? probes.bodyAtlas.totalMs / probes.bodyAtlas.count : 0, 2)}ms max=${fmt(probes.bodyAtlas.maxMs, 2)}ms  acc=${probes.accessoryStrip.count}×avg=${fmt(probes.accessoryStrip.count > 0 ? probes.accessoryStrip.totalMs / probes.accessoryStrip.count : 0, 2)}ms  mnt=${probes.mountTransforms.count}×avg=${fmt(probes.mountTransforms.count > 0 ? probes.mountTransforms.totalMs / probes.mountTransforms.count : 0, 2)}ms`,
     `  frameCost: drain ${probes.bakeDrain.count}× ${fmt(frames > 0 ? probes.bakeDrain.totalMs / frames : 0, 2)}ms/f (max=${fmt(probes.bakeDrain.maxMs, 2)}ms)  compose ${probes.composeBot.count}× ${fmt(frames > 0 ? probes.composeBot.totalMs / frames : 0, 2)}ms/f (max=${fmt(probes.composeBot.maxMs, 2)}ms)`,
-    `  atlas: ${stripStats ? `${stripStats.atlas.slotsUsed}/${stripStats.atlas.slotsCapacity} slots` : "(no renderer)"}`,
+    `  atlas: ${stripStats ? `${stripStats.atlas.slotsUsed}/${stripStats.atlas.slotsCapacity} slots, ${stripStats.atlas.batchCount} batches, ${stripStats.atlas.pageCount} pages` : "(no renderer)"}`,
     `  char: body=${charCache.bodyEntries}(${fmt(charCache.bodyBytes / 1024 / 1024, 1)}MB) acc=${charCache.accEntries}(${fmt(charCache.accBytes / 1024 / 1024, 1)}MB) mnt=${charCache.mountEntries} total=${fmt(cacheTotal / 1024 / 1024, 1)}MB hit%=${fmt(hitRate, 1)} (hits=${charCache.hits} miss=${charCache.misses} evict=${charCache.evicts})`,
     `  path: bundleCache=${fmtPc(pc?.bundleCacheCount)} sceneCache=${fmtPc(pc?.sceneCacheCount)} bodyScene=${fmtPc(pc?.bodySceneCacheCount)}/1500 sceneBytes≈${fmtPc(pc?.sceneBytesEstimate ? pc.sceneBytesEstimate / 1024 : null, 0)}KB`,
     `  rust: textures=${rustTexCount}  wasm.heap=${fmt(wasmHeapBytes / 1024 / 1024, 1)}MB  liveTex=${fmt(rustBytes.liveTex / 1024 / 1024, 1)}MB  liveBuf=${fmt(rustBytes.liveBuf / 1024 / 1024, 1)}MB  createdTex=${fmt(rustBytes.createdTex / 1024 / 1024, 1)}MB  destroyedTex=${fmt(rustBytes.destroyedTex / 1024 / 1024, 1)}MB`,
@@ -782,7 +798,12 @@ function buildEmptySnapshot() {
       bakeDrain: { count: 0, totalMs: 0, maxMs: 0, avgMs: 0, perFrameMs: 0 },
       composeBot: { count: 0, totalMs: 0, maxMs: 0, avgMs: 0, perFrameMs: 0 },
     },
-    atlas: null as { slotsUsed: number; slotsCapacity: number } | null,
+    atlas: null as {
+      slotsUsed: number;
+      slotsCapacity: number;
+      batchCount: number;
+      pageCount: number;
+    } | null,
     pathCache: null as { bundleCacheCount: number; sceneCacheCount: number; sceneKB: number; bodySceneCacheCount: number } | null,
     rust: {
       textures: 0,

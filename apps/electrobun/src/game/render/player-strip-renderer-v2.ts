@@ -32,12 +32,13 @@ import {
 import type { CharacterAnimation } from "@/game/assets/character-sprite";
 import type { ActivePlayer } from "@/game/scene/player/types";
 import {
-  BodyBandColourZones,
-  BodyBandMesh,
-} from "@/game/render/body-band-shader";
+  type BodyBandBatch,
+  computeBandFrameUV,
+} from "@/game/render/body-band-batch";
 import {
   type AccessoryStrip,
   type BodyAtlas,
+  type BodyAtlasBand,
   type CharacterCacheStats,
   getCharacterCache,
   MAX_SLOT,
@@ -68,14 +69,32 @@ const SLOT_Z_INDEX: Record<PlayerStripSlot, number> = {
 };
 
 interface AccessoryHook {
+  /** Direct child of `atlas.globalCompositionRoot`. Position +
+   *  scale are written each frame as
+   *  `(slot translate × bot scale × mount affine)` so the world
+   *  pixel position matches the legacy compositionStage-parented
+   *  path. zIndex = `slotZ.get(mountSlot)` (odd values between
+   *  even band zIndices). */
   sprite: Sprite;
   strip: AccessoryStrip | null;
   slot: number;
 }
 
-interface BandHook {
+/**
+ * Per-band batched-mesh slot reservation. Each bot owns one slot
+ * per band in the corresponding `BodyBandBatch`. Frame changes,
+ * zone updates, and slot-transform writes go through these.
+ */
+interface BandInstance {
   bandIndex: number;
-  mesh: BodyBandMesh | null;
+  batch: BodyBandBatch;
+  /** Index into the batch's instance buffer. */
+  instanceIdx: number;
+  /** Band sub-rect inside the atlas (atlasX, atlasY) — cached so
+   *  `setBandsFrame` can compute UV without re-deriving from the
+   *  atlas every tick. */
+  atlasX: number;
+  atlasY: number;
 }
 
 interface PendingAnim {
@@ -128,9 +147,10 @@ interface PendingAnim {
 
 interface SlotStateV2 {
   /** Per-slot Pixi container under `player.container`.
-   *  Holds ONLY `hitSprite` (picking shim) + `compositeSprite`
-   *  (Phase A.3 per-bot RT). Bands + accessories live in
-   *  `compositionStage` (detached). */
+   *  Holds `hitSprite` (picking shim) + `compositeSprite` (the
+   *  visible composite sampled from the atlas). Band meshes and
+   *  accessory sprites now live under
+   *  `SharedCompositionAtlas.globalCompositionRoot`, not here. */
   root: Container;
   /**
    * Invisible (`renderable=false`) Sprite that tracks the band-0
@@ -140,18 +160,29 @@ interface SlotStateV2 {
    * is the right source for hit-test.
    */
   hitSprite: Sprite;
-  /** Per-bot colour zone uniforms shared across all bands. */
-  zones: BodyBandColourZones;
   /** Currently-live atlas (refcounted; null until the first commit). */
   atlas: BodyAtlas | null;
-  /** Band meshes in Z-order — LIVE, parented to compositionStage. */
-  bands: BandHook[];
-  /** Equipped accessory sprites keyed by slot id, parented to
-   *  compositionStage. */
+  /**
+   * Phase 5: band-instance slots in batched meshes. One entry per
+   * band of `st.atlas`. Each entry holds the `BodyBandBatch` we're
+   * registered with + the instance row index inside that batch.
+   * Frame changes write UV into the batch row; anim swaps release
+   * old batches' slots and allocate in new batches.
+   */
+  bandInstances: Map<number, BandInstance>;
+  /** Per-bot zone colours (packed `0xRRGGBB`, or 0 for inactive).
+   *  Stored so we can re-write to bandInstances when batches change
+   *  (e.g., after an atlas swap). */
+  zone1: number;
+  zone2: number;
+  zone3: number;
+  /** Equipped accessory sprites keyed by mount-slot id. Each
+   *  sprite is a direct child of `atlas.globalCompositionRoot`. */
   accessories: Map<number, AccessoryHook>;
   /** CPU mount-transform table for the active anim. */
   mounts: MountTransforms | null;
-  /** Slot id → Z order between bands. Updated when band info loads. */
+  /** Mount-slot id → zIndex for the accessory sprite. Bands at even
+   *  zIndices (`bandIndex × 2`); accessories at odd. */
   slotZ: Map<number, number>;
   /** Anim key currently INSTALLED (the visible bands). */
   currentAnimKey: string;
@@ -170,26 +201,27 @@ interface SlotStateV2 {
   lastDir: DirSuffix;
   lastFlipped: boolean;
   player: ActivePlayer | null;
-  /** ── Shared composition atlas ────────────────────────────
-   *  Container parenting the bands + accessory sprites. Parented
-   *  to `SharedCompositionAtlas.globalCompositionRoot` at slot-
-   *  acquire time (see `RENDER_SHARED_ATLAS_PLAN.md`). Position
-   *  inside the global root = slot origin + (-bounds.min × scale),
-   *  so when the global root is rendered into the atlas, this
-   *  bot's content lands inside its own slot rect. */
-  compositionStage: Container;
-  /** Sprite the main scene actually sees. Texture samples the
-   *  bot's slot sub-rect of the shared atlas. Pixi's sprite
-   *  batcher fuses every bot's compositeSprite into ONE draw call
-   *  because they all share `atlas.renderTexture.source`. */
+  /**
+   * Visible composite sprite. Its texture samples the bot's slot
+   * sub-rect of the shared atlas; the atlas is filled by the global
+   * composeAll pass that renders every band batch + accessory
+   * sprite into the slot via per-instance / per-sprite transforms.
+   */
   compositeSprite: Sprite;
   /** Atlas slot this bot occupies. Null if acquisition failed
    *  (slot exhaustion) — the bot will not render until a slot
    *  frees up. */
   compositionSlot: CompositionSlot | null;
-  /** Last frame index composited into the slot. -1 = needs first
-   *  composition (set on every anim commit). Drives swapFrame's
-   *  early-out and the global compose dirty flag. */
+  /** Bot's current slot-fit scale (so accessory matrices can read
+   *  it without recomputing from bounds). Set in
+   *  `applyCompositionTransform`. */
+  botScale: number;
+  /** SWF origin offset inside the slot, in atlas pixels. Used to
+   *  compose accessory transforms against the slot. */
+  swfOriginInSlotX: number;
+  swfOriginInSlotY: number;
+  /** Last frame index baked into the band-instance buffers. -1 =
+   *  needs a fresh setBandsFrame on next swap. */
   lastCompositionFrame: number;
 }
 
@@ -292,16 +324,10 @@ export class PlayerStripRendererV2 {
       this.compositionDirty = false;
       return;
     }
+    // Phase 5 + multi-page atlas: each page flushes its own batches
+    // and renders into its own RT. Skip empty pages internally.
     const t0 = performance.now();
-    try {
-      this.pixiRenderer.render({
-        container: this.atlas.globalCompositionRoot,
-        target: this.atlas.renderTexture,
-        clear: true,
-      });
-    } catch (e) {
-      log.warn("composeAll render failed", e);
-    }
+    this.atlas.renderAll(this.pixiRenderer);
     recordProbe("composeBot", performance.now() - t0);
     this.compositionDirty = false;
   }
@@ -423,7 +449,12 @@ export class PlayerStripRendererV2 {
     players: number;
     slots: number;
     cache: CharacterCacheStats;
-    atlas: { slotsUsed: number; slotsCapacity: number };
+    atlas: {
+      slotsUsed: number;
+      slotsCapacity: number;
+      batchCount: number;
+      pageCount: number;
+    };
   } {
     let slots = 0;
     for (const m of this.states.values()) slots += m.size;
@@ -799,14 +830,12 @@ export class PlayerStripRendererV2 {
     hitSprite.anchor.set(0, 0);
     root.addChild(hitSprite);
 
-    // Shared atlas: compositionStage gets parented to the atlas's
-    // `globalCompositionRoot` and positioned at the slot's origin
-    // (via `applyCompositionTransform` on first commit). The single
-    // global compose pass then renders this stage's content into
-    // the bot's slot rect of the shared atlas.
-    const compositionStage = new Container();
-    compositionStage.sortableChildren = true;
-    const compositionSlot = this.atlas.acquire(compositionStage);
+    // Phase 5: no per-bot compositionStage. Bands live in shared
+    // `BodyBandBatch` meshes registered in the atlas; accessory
+    // sprites attach directly to `atlas.globalCompositionRoot` on
+    // first commit. We just need the atlas slot for the composite
+    // sprite to sample.
+    const compositionSlot = this.atlas.acquireSlot();
     if (!compositionSlot) {
       log.warn(
         `createSlot: atlas exhausted (${this.atlas.getStats().slotsCapacity} slots), ` +
@@ -814,18 +843,16 @@ export class PlayerStripRendererV2 {
       );
     }
 
-    // Composite sprite samples this bot's slot sub-rect of the
-    // shared atlas. The texture is set immediately on slot
-    // acquisition (frame won't change for the slot's lifetime) so
-    // Pixi's sprite batcher can fuse every bot's compositeSprite
-    // into a single batched draw in the main pass — same source,
-    // different frame rects per bot.
+    // Composite sprite samples this bot's slot sub-rect of its
+    // page's atlas. Pixi's sprite batcher fuses bots whose slot
+    // lives on the SAME page (same `TextureSource`) into a batched
+    // draw; cross-page bots emit ~1 main-pass draw per page.
     const compositeSprite = new Sprite();
     compositeSprite.anchor.set(0, 0);
     compositeSprite.visible = false;
     if (compositionSlot) {
       compositeSprite.texture = new Texture({
-        source: this.atlas.renderTexture.source,
+        source: this.atlas.sourceForSlot(compositionSlot),
         frame: this.atlas.frameRect(compositionSlot),
       });
     }
@@ -841,9 +868,11 @@ export class PlayerStripRendererV2 {
     return {
       root,
       hitSprite,
-      zones: new BodyBandColourZones(),
       atlas: null,
-      bands: [],
+      bandInstances: new Map(),
+      zone1: 0,
+      zone2: 0,
+      zone3: 0,
       accessories: new Map(),
       mounts: null,
       slotZ: new Map(),
@@ -855,24 +884,34 @@ export class PlayerStripRendererV2 {
       lastDir: "F",
       lastFlipped: false,
       player,
-      compositionStage,
       compositeSprite,
       compositionSlot,
+      botScale: 1,
+      swfOriginInSlotX: 0,
+      swfOriginInSlotY: 0,
       lastCompositionFrame: -1,
     };
   }
 
   private updateZones(st: SlotStateV2, animation: CharacterAnimation): void {
     const cz = animation.colorZones;
-    // Path B mirrors V1's `setSwfPlayerColors`: value 0 (or null look)
-    // means "no override" — the SWF's authored palette renders
-    // untouched. BodyBandColourZones.setColours encodes the inactive
-    // flag in the UBO so the shader skips recolor for that zone.
+    // Phase 5: zones are per-instance attributes, written into every
+    // band batch this bot occupies. Store the values on `st` so
+    // `commitBody` can re-apply them after an atlas swap moves the
+    // bot to different batches.
     if (cz) {
-      st.zones.setColours(cz[0], cz[1], cz[2]);
+      st.zone1 = cz[0];
+      st.zone2 = cz[1];
+      st.zone3 = cz[2];
     } else {
-      st.zones.setColours(0, 0, 0);
+      st.zone1 = 0;
+      st.zone2 = 0;
+      st.zone3 = 0;
     }
+    for (const bi of st.bandInstances.values()) {
+      bi.batch.setZones(bi.instanceIdx, st.zone1, st.zone2, st.zone3);
+    }
+    if (st.bandInstances.size > 0) this.compositionDirty = true;
   }
 
   private applyFlipToSlot(st: SlotStateV2, flipped: boolean): void {
@@ -1038,74 +1077,91 @@ export class PlayerStripRendererV2 {
     }
   }
 
-  /** Phase 2 body half — runs once per pending. Idempotent on st.atlas
-   *  (releases old, installs new), st.bands (mesh reuse / destroy),
-   *  st.accessories (hook reuse / destroy), st.mounts / st.slotZ /
-   *  st.currentAnimKey, and the per-bot RT. Accessories whose strips
-   *  have already landed get their textures wired up here; the rest
-   *  get hooks with `strip=null` + `sprite.visible=false`. */
+  /** Phase 5 body commit — runs once per pending. Idempotent on
+   *  st.atlas (releases old), bandInstances (releases old batches,
+   *  allocates new), accessories (hook reuse / destroy), st.mounts /
+   *  st.slotZ / st.currentAnimKey. Accessories whose strips already
+   *  landed get their textures wired up here; the rest stay hidden
+   *  until `installLandedAccessories` fills them in. */
   private commitBody(st: SlotStateV2, pending: PendingAnim): void {
     const nextAtlas = pending.atlas ?? null;
+    const oldAtlas = st.atlas;
 
-    // 1. Release the old atlas's refcount (eligible for LRU when 0).
-    //    The MESH instances themselves are reused below — see (2).
-    if (st.atlas) {
-      this.cache.releaseBodyAtlas(st.atlas);
+    // 1. Release every band-instance slot we previously held. After
+    //    this the bot is invisible in the atlas; will become visible
+    //    again once new band instances are allocated + setUV'd below.
+    //    Track the bot's page for the empty-batch sweep below — the
+    //    bot stays on the same page for its lifetime, so we can use
+    //    its current compositionSlot.pageIndex even though the bands
+    //    themselves are about to migrate to a new atlas's batches.
+    const releasedBands: { atlas: BodyAtlas; band: BodyAtlasBand }[] = [];
+    if (oldAtlas) {
+      for (const bi of st.bandInstances.values()) {
+        bi.batch.release(bi.instanceIdx);
+        const oldBand = oldAtlas.bands.find(
+          (b) => b.bandIndex === bi.bandIndex,
+        );
+        if (oldBand) {
+          releasedBands.push({ atlas: oldAtlas, band: oldBand });
+        }
+      }
+    }
+    st.bandInstances.clear();
+
+    // 2. Release the old atlas's refcount (eligible for LRU when 0).
+    if (oldAtlas) {
+      this.cache.releaseBodyAtlas(oldAtlas);
     }
 
-    // 2. Mesh reuse: instead of destroy+create, call setStrip() on
-    //    existing meshes to swap textures + UVs in place. Saves the
-    //    per-anim-change cost of:
-    //      - 4× new Shader (Pixi pipeline + bind group lookup),
-    //      - 4× new Geometry + Buffers (GPU alloc),
-    //      - 4× new Mesh wrapper (JS allocation),
-    //    plus the matching destroys. At 200 bots × frequent anim
-    //    transitions that's the bulk of the Pixi-side churn.
-    //
-    //    If band counts differ between old/new, destroy/create the
-    //    delta only.
-    const newBands: BandHook[] = [];
+    // 3. Allocate new band-instance slots in the new atlas's batches
+    //    on the bot's PAGE. Per-bot page assignment is stable for
+    //    the bot's lifetime — every band/accessory of this bot goes
+    //    to the same page's globalRoot.
+    if (nextAtlas && st.compositionSlot) {
+      for (const bandInfo of nextAtlas.bands) {
+        const batch = this.atlas.getOrCreateBatch(
+          st.compositionSlot,
+          nextAtlas,
+          bandInfo,
+        );
+        const instanceIdx = batch.allocate();
+        // Initial UV = frame 0. Will be overwritten by setBandsFrame
+        // below, but having a valid value at allocate-time means a
+        // mid-tick render between allocate and setBandsFrame doesn't
+        // produce garbage.
+        const uv = computeBandFrameUV(nextAtlas, bandInfo, 0);
+        batch.setUV(instanceIdx, uv.u0, uv.v0, uv.u1, uv.v1);
+        batch.setZones(instanceIdx, st.zone1, st.zone2, st.zone3);
+        st.bandInstances.set(bandInfo.bandIndex, {
+          bandIndex: bandInfo.bandIndex,
+          batch,
+          instanceIdx,
+          atlasX: bandInfo.atlasX,
+          atlasY: bandInfo.atlasY,
+        });
+      }
+    }
     if (nextAtlas) {
-      const newBandCount = nextAtlas.bands.length;
-      const oldBandCount = st.bands.length;
-      for (let i = 0; i < newBandCount; i++) {
-        const bandInfo = nextAtlas.bands[i];
-        const existing = i < oldBandCount ? st.bands[i].mesh : null;
-        let mesh: BodyBandMesh;
-        if (existing) {
-          existing.setStrip(nextAtlas, bandInfo);
-          existing.mesh.zIndex = bandInfo.bandIndex * 2;
-          mesh = existing;
-        } else {
-          mesh = new BodyBandMesh(nextAtlas, bandInfo, st.zones);
-          mesh.mesh.zIndex = bandInfo.bandIndex * 2;
-          // Phase A.3: bands live in the detached compositionStage,
-          // NOT in the visible scene graph.
-          st.compositionStage.addChild(mesh.mesh);
-        }
-        newBands.push({ bandIndex: bandInfo.bandIndex, mesh });
-      }
-      // Destroy any leftover meshes if the new anim has fewer bands.
-      for (let i = newBandCount; i < oldBandCount; i++) {
-        const old = st.bands[i].mesh;
-        if (old) old.destroy();
-      }
       // Picking shim: hit-test reads from the atlas. The bands all
       // share frame size + anchor so AABB matches the live render.
       st.hitSprite.texture = nextAtlas.combinedTexture;
       const fw = nextAtlas.frameWidth || 1;
       const fh = nextAtlas.frameHeight || 1;
       st.hitSprite.anchor.set(nextAtlas.anchorX / fw, nextAtlas.anchorY / fh);
-    } else {
-      // Atlas bake failed — tear down all existing meshes.
-      for (const band of st.bands) {
-        if (band.mesh) band.mesh.destroy();
-      }
     }
-    st.bands = newBands;
     st.atlas = nextAtlas;
 
-    // 3. Release old accessory sprites + tear down those no longer
+    // 4. Try to dispose empty batches from the OLD atlas's batches
+    //    on this bot's page. After releasing our instances, batches
+    //    whose last instance was ours can be torn down.
+    const pageIndex = st.compositionSlot?.pageIndex;
+    if (pageIndex !== undefined) {
+      for (const { atlas, band } of releasedBands) {
+        this.atlas.releaseBatchIfEmpty(pageIndex, atlas, band);
+      }
+    }
+
+    // 5. Release old accessory sprites + tear down those no longer
     //    worn; reuse the Sprite for slots that survive the swap.
     //    Accessories whose strips haven't landed yet get hooks with
     //    `strip=null` and `sprite.visible=false` — they'll get filled
@@ -1131,10 +1187,16 @@ export class PlayerStripRendererV2 {
       } else {
         const sprite = new Sprite();
         sprite.anchor.set(0, 0);
-        // Phase A.3: accessories live in the detached
-        // compositionStage; the bot's visible content is the
-        // composited RT.
-        st.compositionStage.addChild(sprite);
+        // Multi-page atlas: accessory sprites live in the bot's
+        // page's globalRoot, not a single shared root. Bots are
+        // page-stable (same compositionSlot.pageIndex for their
+        // lifetime), so every accessory of this bot lands on the
+        // same page. zIndex (set below) drives the band/accessory
+        // interleave; the page's sortableChildren re-sorts each
+        // tick.
+        if (st.compositionSlot) {
+          this.atlas.rootForSlot(st.compositionSlot).addChild(sprite);
+        }
         hook = { sprite, strip: null, slot: slotId };
       }
       hook.sprite.zIndex = pending.slotZ.get(slotId) ?? 1;
@@ -1153,12 +1215,6 @@ export class PlayerStripRendererV2 {
             strip.anchorY / strip.frameHeight,
           );
           hook.sprite.visible = true;
-          // Ownership transferred from pending → hook. Null the
-          // accStrips entry so a subsequent `discardPending` (caused
-          // by a later `applyAnimation` superseding this one) doesn't
-          // double-release the strip ref. The Map entry stays so
-          // `accStrips.size` continues to count it as "reported"
-          // toward the final resolve gate.
           pending.accStrips.set(slotId, null);
         } else {
           hook.strip = null;
@@ -1176,57 +1232,29 @@ export class PlayerStripRendererV2 {
     // subsequent supersede doesn't double-release st.atlas.
     pending.atlas = null;
 
-    // 4. Promote mount-transform table + Z order + current key.
-    //    `st.pendingAnim` stays pointed at `pending` so subsequent
-    //    accessory-landed callbacks know they're for this anim and
-    //    can install themselves via `installLandedAccessories`.
+    // 6. Promote mount-transform table + Z order + current key.
     st.mounts = pending.mounts;
     st.slotZ = pending.slotZ;
     st.currentAnimKey = pending.key;
 
-    // 5. Position the bot's compositionStage inside its atlas slot,
+    // 7. Position the bot's band instances inside its atlas slot,
     //    drive bands + accessories to frame 0, and mark the global
-    //    compose pass dirty. The actual atlas render happens once
-    //    per tick in `composeAll()`. The composite sprite's texture
-    //    is fixed for the slot's lifetime (set in createSlot) — we
-    //    only update its anchor here to keep SWF (0,0) at the bot's
-    //    world origin regardless of how the bbox fits in the slot.
-    //
-    //    Phase 2 caveat: at body-commit time, accessories that
-    //    haven't landed yet contribute body-frame bounds (their hook
-    //    has `strip=null`, so `computeBotBounds` skips them). Late
-    //    accessories that land outside that bbox get clipped at the
-    //    slot edge until the next anim commit re-fits. Accepted
-    //    trade-off — a few hundred ms of edge clipping is much less
-    //    ugly than an invisible bot for the full bake window.
+    //    compose pass dirty.
     if (nextAtlas && st.compositionSlot) {
       const bounds = this.computeBotBounds(st, nextAtlas);
       this.applyCompositionTransform(st, bounds);
-      // Force one sort here — zIndex was just (re)assigned on every
-      // band + accessory. After this, the composition stage's child
-      // order is correct; subsequent composeAll calls inherit it
-      // unless zIndex changes again (next anim commit).
-      st.compositionStage.sortChildren();
-      // Drive the band meshes + accessories to frame 0 BEFORE the
-      // first composition so the atlas shows frame 0 without a
-      // one-frame gap.
+      // Drive band UVs + accessory positions to frame 0 BEFORE the
+      // first composition so the atlas shows frame 0 without gaps.
       this.setBandsFrame(st, 0);
       this.setAccessoriesFrame(st, 0);
       st.lastCompositionFrame = 0;
-      // The bot is now ready to be rendered by the next composeAll().
       this.compositionDirty = true;
       st.compositeSprite.visible = true;
     } else if (nextAtlas && !st.compositionSlot) {
-      // Atlas exhausted at createSlot time — bot stays hidden.
-      // composite sprite remains visible=false; root.visible below
-      // is also a no-op visually because the sprite carries no
-      // texture. Logging happened in createSlot.
       st.compositeSprite.visible = false;
     }
 
-    // 6. Body-commit reveals the bot. Subsequent body-commits stay
-    //    visible from here on; the visibility flag is not toggled
-    //    again until detach.
+    // 8. Body-commit reveals the bot's container.
     st.root.visible = true;
   }
 
@@ -1295,57 +1323,103 @@ export class PlayerStripRendererV2 {
   }
 
   /**
-   * Position `compositionStage` inside its atlas slot so the bot's
-   * bbox.min lands at `(slot.x, slot.y)` (= upper-left of the slot
-   * in atlas pixels). compositionStage's local origin is SWF (0, 0);
-   * the offset `(-bbox.min × scale)` puts that origin inside the
-   * slot. When the entire `globalCompositionRoot` is rendered into
-   * the atlas, this bot's content lands in its slot rect.
+   * Apply the bot's slot-fit transform to (a) each band-instance's
+   * `aTransform` attribute in its batch — this is how the batched
+   * shader knows where in the atlas each instance should land —
+   * and (b) the composite sprite's anchor/scale so the bot's
+   * world-space origin stays at SWF (0,0).
    *
-   * The composite sprite's anchor normalises the SWF (0, 0) point
-   * relative to the slot dims — `swfOriginInSlot / slot.size` — so
-   * the bot's world-space anchor stays at SWF (0, 0) regardless of
-   * how the bbox fits inside the slot. Sprite scale is `1/scale` to
-   * convert atlas-pixel-size back to SWF-pixel-size (so
+   * Each band instance gets `(slot.x + swfOffsetX, slot.y +
+   * swfOffsetY, frameWidth × scale, frameHeight × scale)`. The
+   * shader uses this to position the unit-quad in atlas pixels.
+   *
+   * The composite sprite's anchor + scale match the legacy path so
    * `root.scale = 1/resolution` lands the visible composite at
-   * screen pixels).
+   * screen pixels.
    */
   private applyCompositionTransform(
     st: SlotStateV2,
     bounds: { minX: number; minY: number; maxX: number; maxY: number },
   ): void {
     const slot = st.compositionSlot;
-    if (!slot) return;
+    if (!slot || !st.atlas) return;
     const scale = this.slotScaleFor(bounds);
     const swfOriginInSlotX = -bounds.minX * scale;
     const swfOriginInSlotY = -bounds.minY * scale;
-    // compositionStage's position INSIDE globalCompositionRoot — in
-    // atlas pixels. When the root is rendered into the atlas, this
-    // stage's content lands at (slot.x + offset, slot.y + offset).
-    st.compositionStage.position.set(
-      slot.x + swfOriginInSlotX,
-      slot.y + swfOriginInSlotY,
-    );
-    st.compositionStage.scale.set(scale);
-    // Anchor the composite sprite at SWF (0, 0) inside the slot.
-    // Denominator is slot.w/h because the sprite's frame is the slot
-    // sub-rect; the anchor is normalised against the frame size.
+    st.botScale = scale;
+    st.swfOriginInSlotX = swfOriginInSlotX;
+    st.swfOriginInSlotY = swfOriginInSlotY;
+
+    // Each band instance positions itself at the slot origin + SWF
+    // offset, with the bot's frame dimensions × slot-fit scale. The
+    // shader vertex stage scales the unit quad by aTransform.zw.
+    //
+    // CRITICAL: band cell content's local origin (in SWF space) is
+    // `(-anchorX, -anchorY)`, NOT `(0, 0)`. The unit quad's (0,0)
+    // corner must therefore land at `(slot.x + swfOriginInSlotX
+    // + bounds.minX × scale, ...)`. Because `swfOriginInSlotX =
+    // -bounds.minX × scale`, the two cancel and the quad's (0,0)
+    // is at `(slot.x, slot.y)` only if `bounds.min == -atlas.anchor`.
+    // To keep it correct, anchor at the BAND CELL's origin: the
+    // unit-quad's (0,0) corner = (-anchorX, -anchorY) in SWF space.
+    // Our `aTransform.xy` therefore needs to factor anchorX/Y in.
+    //
+    // Simpler: position the quad so SWF (-anchorX, -anchorY) lands
+    // at (slot.x, slot.y) — i.e. instance origin = slot - anchor*scale
+    // + swfOriginInSlot. But since `swfOriginInSlot = -bounds.min ×
+    // scale` and bounds.min already accounts for anchor, this works
+    // out by setting `aTransform.xy = (slot.x + swfOriginInSlotX +
+    // -atlas.anchorX × scale, slot.y + swfOriginInSlotY + -atlas.anchorY × scale)`
+    // mathematically — let's derive: in legacy code, the
+    // compositionStage at (slot.x + swfOriginInSlotX, ...) wraps the
+    // band mesh whose pivot is (anchorX, anchorY). With pivot, a
+    // local (0,0) on the mesh sample point maps to (-anchorX,
+    // -anchorY) in pre-pivot coords. So compositionStage local
+    // origin (after pivot) corresponds to SWF (0, 0). Thus the
+    // composite-stage origin IS the SWF (0, 0) point in atlas pixels.
+    // For the batched version, our unit quad's (0,0) corner should
+    // map to the cell's SWF (-anchorX, -anchorY) point in atlas
+    // pixels. World position = slot.x + swfOriginInSlotX +
+    // (-anchorX) × scale.
+    const atlasAnchorPxX = st.atlas.anchorX * scale;
+    const atlasAnchorPxY = st.atlas.anchorY * scale;
+    const instanceOriginX = slot.x + swfOriginInSlotX - atlasAnchorPxX;
+    const instanceOriginY = slot.y + swfOriginInSlotY - atlasAnchorPxY;
+    const scaledFrameW = st.atlas.frameWidth * scale;
+    const scaledFrameH = st.atlas.frameHeight * scale;
+    for (const bi of st.bandInstances.values()) {
+      bi.batch.setTransform(
+        bi.instanceIdx,
+        instanceOriginX,
+        instanceOriginY,
+        scaledFrameW,
+        scaledFrameH,
+      );
+    }
+
     st.compositeSprite.anchor.set(
       swfOriginInSlotX / slot.w,
       swfOriginInSlotY / slot.h,
     );
-    // The composite sprite renders at SWF-pixel scale (so
-    // `root.scale = 1/resolution` lands it at screen pixels). If the
-    // bbox was scaled down to fit the slot, scale the sprite UP by
-    // 1/scale so the on-screen size matches the original.
     st.compositeSprite.scale.set(1 / scale);
   }
 
-  /** Drive every band mesh of `st` to `frameIndex`. */
+  /** Drive every band-instance's UV to the cell for `frameIndex`. */
   private setBandsFrame(st: SlotStateV2, frameIndex: number): void {
-    for (const band of st.bands) {
-      if (!band.mesh) continue;
-      band.mesh.setFrame(frameIndex);
+    if (!st.atlas) return;
+    for (const bi of st.bandInstances.values()) {
+      // We have to derive `BodyAtlasBand` from the live atlas in
+      // case it changed — but `bi.atlasX/Y` we cached on commit IS
+      // the live atlas's band info (we set up the batch from
+      // `nextAtlas.bands[*]`). Just reconstruct the band-shaped
+      // object for `computeBandFrameUV`.
+      const band = {
+        bandIndex: bi.bandIndex,
+        atlasX: bi.atlasX,
+        atlasY: bi.atlasY,
+      };
+      const uv = computeBandFrameUV(st.atlas, band, frameIndex);
+      bi.batch.setUV(bi.instanceIdx, uv.u0, uv.v0, uv.u1, uv.v1);
     }
   }
 
@@ -1385,7 +1459,7 @@ export class PlayerStripRendererV2 {
       this.cache.readMountMatrix(st.mounts, frameInMount, acc.slot, tmp);
       const subIdx = frameIndex % acc.strip.frameCount;
       acc.sprite.texture = acc.strip.frames[subIdx];
-      this.applyMountToAccessory(acc, tmp);
+      this.applyMountToAccessory(st, acc, tmp);
     }
   }
 
@@ -1418,27 +1492,72 @@ export class PlayerStripRendererV2 {
   }
 
   private applyMountToAccessory(
+    st: SlotStateV2,
     acc: AccessoryHook,
     m: { a: number; b: number; c: number; d: number; tx: number; ty: number },
   ): void {
     // Mount affine is in TWIP space; translation needs scaling by
-    // `resolution / 20` to land in pixel space. The accessory strip's
-    // anchor (Pixi `Sprite.anchor`) accounts for the accessory's own
-    // local origin offset; the mount affine then positions that
-    // origin inside the per-bot container's coord space.
+    // `resolution / 20` to land in pixel space. Phase 5: accessory
+    // sprites are direct children of `atlas.globalCompositionRoot`
+    // (no per-bot compositionStage anymore), so the sprite's local
+    // matrix must include the bot's slot translate + slot-fit scale
+    // on top of the mount affine.
     //
-    // Mutate the pooled scratch Matrix in place instead of `new
-    // Matrix(...)`. At 300 bots × ~3 accessories × 60 fps that's
-    // ~54 000 Matrix allocations/sec saved → meaningfully less JS
-    // heap churn → fewer GC pauses (a major source of frame spikes).
-    const scale = this.resolution / 20;
-    pixelMatrixScratch.a = m.a;
-    pixelMatrixScratch.b = m.b;
-    pixelMatrixScratch.c = m.c;
-    pixelMatrixScratch.d = m.d;
-    pixelMatrixScratch.tx = m.tx * scale;
-    pixelMatrixScratch.ty = m.ty * scale;
-    acc.sprite.setFromMatrix(pixelMatrixScratch);
+    // World position composition (row-vector convention, applied
+    // left-to-right):
+    //   p_world = p_local × mount × scale_S × translate_T
+    // where:
+    //   mount     = (a, b, c, d, tx × twipScale, ty × twipScale)
+    //   scale_S   = botScale
+    //   translate = (slot.x + swfOriginInSlotX, slot.y + swfOriginInSlotY)
+    //
+    // Pixi v8 `matrix.prepend(other)`: `this = this × other`. So:
+    //   M = mount             (set components)
+    //   M.prepend(combinedST) → M = mount × combinedST = mount × S × T
+    //
+    // combinedST is just `(a=s, b=0, c=0, d=s, tx, ty)` — no need for
+    // a separate Matrix object.
+    const twipScale = this.resolution / 20;
+    const slot = st.compositionSlot;
+    if (!slot) {
+      // No atlas slot → bot can't render anyway; skip.
+      acc.sprite.renderable = false;
+      return;
+    }
+    const M = pixelMatrixScratch;
+    M.a = m.a;
+    M.b = m.b;
+    M.c = m.c;
+    M.d = m.d;
+    M.tx = m.tx * twipScale;
+    M.ty = m.ty * twipScale;
+    // Inline `M.prepend(combinedST)`. Pixi prepend formula:
+    //   tx1 = this.tx, a1 = this.a, c1 = this.c
+    //   this.a = a1*other.a + this.b*other.c
+    //   this.b = a1*other.b + this.b*other.d
+    //   this.c = c1*other.a + this.d*other.c
+    //   this.d = c1*other.b + this.d*other.d
+    //   this.tx = tx1*other.a + this.ty*other.c + other.tx
+    //   this.ty = tx1*other.b + this.ty*other.d + other.ty
+    // With combinedST = (s, 0, 0, s, T.tx, T.ty):
+    //   a → a*s + b*0 = a*s
+    //   b → a*0 + b*s = b*s
+    //   c → c*s + d*0 = c*s
+    //   d → c*0 + d*s = d*s
+    //   tx → tx*s + ty*0 + T.tx = tx*s + T.tx
+    //   ty → tx*0 + ty*s + T.ty = ty*s + T.ty
+    const s = st.botScale;
+    const Tx = slot.x + st.swfOriginInSlotX;
+    const Ty = slot.y + st.swfOriginInSlotY;
+    const newTx = M.tx * s + Tx;
+    const newTy = M.ty * s + Ty;
+    M.a *= s;
+    M.b *= s;
+    M.c *= s;
+    M.d *= s;
+    M.tx = newTx;
+    M.ty = newTy;
+    acc.sprite.setFromMatrix(M);
   }
 
   private retireSlotState(st: SlotStateV2): void {
@@ -1451,14 +1570,30 @@ export class PlayerStripRendererV2 {
       this.discardPending(st.pendingAnim);
       st.pendingAnim = null;
     }
-    for (const band of st.bands) {
-      if (band.mesh) band.mesh.destroy();
+    // Release band-instance slots. Try to dispose batches whose last
+    // instance was ours, on this bot's PAGE.
+    const releasedBands: { atlas: BodyAtlas; band: BodyAtlasBand }[] = [];
+    if (st.atlas) {
+      for (const bi of st.bandInstances.values()) {
+        bi.batch.release(bi.instanceIdx);
+        const band = st.atlas.bands.find((b) => b.bandIndex === bi.bandIndex);
+        if (band) releasedBands.push({ atlas: st.atlas, band });
+      }
     }
-    st.bands = [];
+    st.bandInstances.clear();
     if (st.atlas) {
       this.cache.releaseBodyAtlas(st.atlas);
+      const stAtlas = st.atlas;
+      const stPageIndex = st.compositionSlot?.pageIndex;
       st.atlas = null;
+      if (stPageIndex !== undefined) {
+        for (const { band } of releasedBands) {
+          this.atlas.releaseBatchIfEmpty(stPageIndex, stAtlas, band);
+        }
+      }
     }
+    // Detach + destroy accessory sprites. They live as direct
+    // children of `atlas.globalCompositionRoot` (Phase 5).
     for (const hook of st.accessories.values()) {
       if (hook.strip) this.cache.releaseAccessory(hook.strip);
       try {
@@ -1472,12 +1607,8 @@ export class PlayerStripRendererV2 {
     // because no composite sprite samples a released slot until the
     // allocator hands it to a new bot.
     if (st.compositionSlot) {
-      this.atlas.release(st.compositionStage, st.compositionSlot);
+      this.atlas.releaseSlot(st.compositionSlot);
       st.compositionSlot = null;
-      // The slot's freshly-released area in the atlas will be cleared
-      // on the next composeAll's `clear: true`. Mark dirty so that
-      // pass runs even if no other bots changed this tick — protects
-      // against stale pixels showing through if the slot is reused.
       this.compositionDirty = true;
     }
     // Composite sprite owns a Texture wrapping `atlas.source` with a
@@ -1485,17 +1616,7 @@ export class PlayerStripRendererV2 {
     // referencing the atlas's source after the slot is gone. The
     // source itself is owned by SharedCompositionAtlas and survives.
     try {
-      // destroy(false) — do NOT destroy the wrapped source (shared
-      // across all bots and owned by the atlas).
       st.compositeSprite.texture.destroy(false);
-    } catch {}
-    // The composition stage is OUR property. Destroy children
-    // (leftover Mesh/Sprite refs) so we don't leak GPU buffers in
-    // band geometry. Pixi v8 Mesh.destroy doesn't recurse, so band
-    // meshes were already explicitly destroyed above; this is a
-    // defensive sweep for accessories.
-    try {
-      st.compositionStage.destroy({ children: true });
     } catch {}
     try {
       st.root.parent?.removeChild(st.root);
@@ -1526,7 +1647,12 @@ void MAX_SLOT;
 let activeStripRenderer: PlayerStripRendererV2 | null = null;
 
 export function getActivePlayerStripRendererStats(): {
-  atlas: { slotsUsed: number; slotsCapacity: number };
+  atlas: {
+    slotsUsed: number;
+    slotsCapacity: number;
+    batchCount: number;
+    pageCount: number;
+  };
 } | null {
   if (!activeStripRenderer) return null;
   const s = activeStripRenderer.getStats();
