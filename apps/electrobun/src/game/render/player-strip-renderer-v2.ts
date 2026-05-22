@@ -607,6 +607,11 @@ export class PlayerStripRendererV2 {
         // stale-skip path now fires the callback with null (see
         // strip-bake-queue.ts).
         () => true,
+        // LOW priority — pre-warm bakes drain after every live bot
+        // bake. Without this, a new bot's "I need walkR now" sits
+        // behind 50+ pre-warm bakes and visible spawn latency
+        // balloons to ~3-5 s during ramp-up.
+        "low",
       );
     }
   }
@@ -1058,9 +1063,21 @@ export class PlayerStripRendererV2 {
     // CharacterCache + bake-queue contract for guaranteed null
     // callbacks on stale-skip.
     if (!pending.bodyCommitted) {
-      this.commitBody(st, pending);
-      pending.bodyCommitted = true;
-      pending.resolve(true);
+      const committed = this.commitBody(st, pending);
+      if (committed) {
+        pending.bodyCommitted = true;
+        pending.resolve(true);
+      } else {
+        // commitBody refused to install a null atlas (stale-skipped
+        // or failed bake). Discard the pending so the bot's next
+        // applyAnimation gets a fresh slate; resolve(false) so the
+        // caller knows this request didn't land. The bot keeps its
+        // previous atlas visible — no "moves without animation"
+        // state.
+        pending.resolve(false);
+        st.pendingAnim = null;
+        return;
+      }
     } else {
       // Late-arriving accessory: plug each newly-landed strip into
       // its existing hook + re-bound for the new extents.
@@ -1083,9 +1100,28 @@ export class PlayerStripRendererV2 {
    *  st.slotZ / st.currentAnimKey. Accessories whose strips already
    *  landed get their textures wired up here; the rest stay hidden
    *  until `installLandedAccessories` fills them in. */
-  private commitBody(st: SlotStateV2, pending: PendingAnim): void {
+  /**
+   * Returns `true` when the commit installed a new atlas; `false`
+   * when the pending was abandoned because its bake came back null
+   * (stale-skipped or failed). Caller MUST NOT mark
+   * `pending.bodyCommitted=true` on a `false` return — the pending
+   * needs to be discarded so the next applyAnimation gets a fresh
+   * one. Without this, the renderer would replace `st.atlas` with
+   * null, release the bot's band instances, and leave the bot
+   * visible-but-uncomposited — the "actor moves without animation"
+   * symptom we saw at 500-bot stress.
+   */
+  private commitBody(st: SlotStateV2, pending: PendingAnim): boolean {
     const nextAtlas = pending.atlas ?? null;
     const oldAtlas = st.atlas;
+
+    if (!nextAtlas) {
+      // Stale-skipped or failed bake. Don't touch st.atlas — the
+      // bot keeps its previous variant rendered. A new
+      // applyAnimation will retry; this stale pending should not
+      // become the committed state.
+      return false;
+    }
 
     // 1. Release every band-instance slot we previously held. After
     //    this the bot is invisible in the atlas; will become visible
@@ -1256,6 +1292,7 @@ export class PlayerStripRendererV2 {
 
     // 8. Body-commit reveals the bot's container.
     st.root.visible = true;
+    return true;
   }
 
   /** Phase 2 accessory half — installs every accStrips entry whose

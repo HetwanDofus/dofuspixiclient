@@ -51,6 +51,19 @@ export type StripBakeCallback = (result: unknown) => void;
  *  the wgpu::Texture allocation. */
 export type StripBakeWantedCheck = () => boolean;
 
+/**
+ * Two-tier priority. HIGH bakes (a live bot currently waiting to
+ * render) always drain before LOW bakes (pre-warm: "we MIGHT need
+ * this later"). Within each tier, FIFO holds.
+ *
+ * The drain alternates: it processes every HIGH entry first each
+ * firing, then fills the remaining time budget with LOW entries.
+ * If a new HIGH entry arrives mid-drain (callbacks of a previous
+ * bake can spawn new requests), it gets picked up at the next
+ * drain firing — within ~16 ms.
+ */
+export type StripBakePriority = "high" | "low";
+
 interface PendingCallback {
   onReady: StripBakeCallback;
   isWanted: StripBakeWantedCheck | null;
@@ -59,6 +72,12 @@ interface PendingCallback {
 interface PendingEntry {
   render: StripBakeRender;
   callbacks: PendingCallback[];
+  /** `"high"` — drained first (live bot is waiting to render).
+   *  `"low"` — drained after all HIGH entries (pre-warm / background).
+   *  An entry's priority is set on its FIRST enqueue and can be
+   *  upgraded (low→high) by a subsequent enqueue at higher priority,
+   *  but never downgraded. */
+  priority: StripBakePriority;
 }
 
 /**
@@ -131,17 +150,25 @@ class StripBakeQueue {
     render: StripBakeRender,
     onReady: StripBakeCallback,
     isWanted: StripBakeWantedCheck | null = null,
+    priority: StripBakePriority = "high",
   ): void {
     this.totalEnqueued += 1;
     const existing = this.pending.get(key);
     if (existing) {
       existing.callbacks.push({ onReady, isWanted });
+      // Upgrade priority if a higher-priority caller joined. Never
+      // downgrade — once we know a bot is live-waiting, the entry
+      // stays HIGH even if a follow-up prewarm call piggybacks.
+      if (priority === "high" && existing.priority === "low") {
+        existing.priority = "high";
+      }
       this.totalDedupCollapses += 1;
       return;
     }
     this.pending.set(key, {
       render,
       callbacks: [{ onReady, isWanted }],
+      priority,
     });
     this.scheduleDrain();
   }
@@ -259,10 +286,27 @@ class StripBakeQueue {
     this.adaptBudget();
     const deadline = drainStart + this.budgetMs;
     let bakesThisDrain = 0;
-    // Iterate over the (insertion-ordered) Map. We delete entries as
-    // we process them to keep memory steady; the for-of remains valid
-    // under deletion of the current key per ECMA-262.
+    // Two-pass: HIGH-priority entries first (live bots waiting to
+    // render), then LOW (pre-warm). Cuts spawn latency at heavy
+    // ramp by letting live requests jump past the pre-warm
+    // backlog — without HIGH-first, a bot at queue position 600
+    // (mostly behind pre-warm bakes) waits ~3-4 s. With HIGH-first
+    // it's typically <100 ms.
+    //
+    // We snapshot the priority-filtered keys upfront so a callback
+    // that enqueues a new entry mid-drain (rare, but possible
+    // during finalizeBodyAtlasBake) doesn't get visited in the
+    // same drain — it'll fire next tick.
+    const highKeys: string[] = [];
+    const lowKeys: string[] = [];
     for (const [key, entry] of this.pending) {
+      if (entry.priority === "high") highKeys.push(key);
+      else lowKeys.push(key);
+    }
+    const orderedKeys = [...highKeys, ...lowKeys];
+    for (const key of orderedKeys) {
+      const entry = this.pending.get(key);
+      if (!entry) continue;
       this.pending.delete(key);
 
       // Drop callbacks whose owners have moved on. If everyone moved

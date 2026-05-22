@@ -32,7 +32,10 @@
 import {
   ImageSource,
   Rectangle,
+  RenderTexture,
+  Sprite,
   Texture,
+  type TextureSource,
   Ticker,
 } from "pixi.js";
 
@@ -164,6 +167,173 @@ export interface BodyAtlasBand {
  * sample sub-regions of this shared atlas at runtime; the atlas is
  * refcounted across every bot of the same class.
  */
+/**
+ * Per-class shared atlas page. Holds a 4096² `RenderTexture` into
+ * which every variant (anim, dir, flip, hat) of the class blits its
+ * baked sub-rect via Pixi's renderer. All `BodyAtlas` entries
+ * pointing at this page share `combinedTexture.source.uid`, so the
+ * `BodyBandBatch` registry (`composition-atlas.ts`) collapses from
+ * ~1 batch per variant (~1156 at 500 random-look bots) to ~1 batch
+ * per class × band (~60 max).
+ *
+ * Pages are allocated lazily on first variant bake completion for a
+ * (bundle, resolution) tuple. When all variant entries pointing at
+ * a page are evicted, the page is destroyed.
+ *
+ * The shelf packer fills variants left-to-right, advancing to the
+ * next shelf on overflow. Variant sub-rects are never reclaimed
+ * (no compaction); when the page is full, a new page is allocated
+ * and subsequent variants land there.
+ */
+/**
+ * 8192² pages — verified safe now that `GuillotinePacker`
+ * (replaces the earlier `ShelfPacker`) supports `free`. Stress
+ * verification at 4096² showed page count stabilising at 62 (no
+ * leak). The previous catastrophic 15 GB leak at 8192² was
+ * caused by `ShelfPacker.pack()` not reclaiming evicted
+ * sub-rects, not by the page size itself.
+ *
+ * Memory: 8192² × 4 bytes = 256 MB GPU per page. At ~1-2 pages
+ * per class × 12 classes = ~16-25 pages total = ~4-6 GB GPU.
+ * Same order as 4096²'s 62 × 64 MB = 4 GB. Trading more page
+ * area for fewer pages.
+ *
+ * Batch consolidation: classes likely fit in 1-2 pages each,
+ * dropping `BodyBandBatch` count from ~540 (4096²) to ~120-150
+ * (8192²). Compose pass cost scales linearly with batch count
+ * so this directly reduces `composeBot.perFrameMs`.
+ *
+ * WebGPU spec minimum `maxTextureDimension2d = 8192`. M-series
+ * Macs commonly report 16384. Should be safe everywhere we ship.
+ */
+const CLASS_ATLAS_PAGE_W = 8192;
+const CLASS_ATLAS_PAGE_H = 8192;
+
+/**
+ * Free-list-supporting bin packer (guillotine-style splits, no
+ * merging on free).
+ *
+ * Maintains a list of free rectangles. `alloc` finds the smallest
+ * fitting rect (best-area-fit heuristic), removes it, places the
+ * caller's rect at its top-left, and splits the remainder into 1-2
+ * new free rects via a guillotine cut. `free` adds the released
+ * rect back to the list.
+ *
+ * No merge step on free — keeps the implementation small and
+ * predictable. In our workload (variants of similar dims per anim
+ * type) fragmentation stays bounded because freed slots get reused
+ * by same-anim-type variants nearby.
+ *
+ * Bug history: the earlier `ShelfPacker` had no `free`, so evicted
+ * variants couldn't reuse their slots and pages filled
+ * irreversibly. At 500-bot random-look stress this leaked 256 MB ×
+ * ~60 pages = 15 GB GPU in 30 seconds and caused
+ * "bots moving without animation" symptoms from
+ * `RenderTexture.create` failing under GPU OOM.
+ */
+interface PackedRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+class GuillotinePacker {
+  private freeRects: PackedRect[];
+
+  constructor(
+    private readonly width: number,
+    private readonly height: number,
+  ) {
+    this.freeRects = [{ x: 0, y: 0, w: width, h: height }];
+  }
+
+  /**
+   * Try to place a w×h rect. Returns the allocated rect (caller's
+   * w/h, plus x/y) or null when no free space fits.
+   *
+   * Best-area-fit: pick the SMALLEST free rect that still fits the
+   * request. Reduces fragmentation more than first-fit because
+   * large free rects stay available for the next big variant.
+   */
+  alloc(w: number, h: number): PackedRect | null {
+    if (w <= 0 || h <= 0) return null;
+    if (w > this.width || h > this.height) return null;
+    let bestIdx = -1;
+    let bestArea = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < this.freeRects.length; i++) {
+      const r = this.freeRects[i];
+      if (r.w >= w && r.h >= h) {
+        const area = r.w * r.h;
+        if (area < bestArea) {
+          bestArea = area;
+          bestIdx = i;
+        }
+      }
+    }
+    if (bestIdx < 0) return null;
+
+    const chosen = this.freeRects[bestIdx];
+    const placed: PackedRect = { x: chosen.x, y: chosen.y, w, h };
+    // Remove the chosen free rect; re-add the unused remainder
+    // as 1-2 new free rects via guillotine cut.
+    this.freeRects.splice(bestIdx, 1);
+    const dw = chosen.w - w;
+    const dh = chosen.h - h;
+    if (dw > 0 && dh > 0) {
+      // Split direction: cut along the LONGER unused axis first so
+      // the bigger remaining piece stays whole and accommodates
+      // future large variants. Matches "guillotine split along the
+      // shorter axis" heuristic for fragmentation control.
+      if (dw > dh) {
+        // Vertical cut: right piece is full-height; bottom piece is
+        // only as wide as the placed rect.
+        this.freeRects.push({ x: chosen.x + w, y: chosen.y, w: dw, h: chosen.h });
+        this.freeRects.push({ x: chosen.x, y: chosen.y + h, w, h: dh });
+      } else {
+        // Horizontal cut.
+        this.freeRects.push({ x: chosen.x, y: chosen.y + h, w: chosen.w, h: dh });
+        this.freeRects.push({ x: chosen.x + w, y: chosen.y, w: dw, h });
+      }
+    } else if (dw > 0) {
+      this.freeRects.push({ x: chosen.x + w, y: chosen.y, w: dw, h: chosen.h });
+    } else if (dh > 0) {
+      this.freeRects.push({ x: chosen.x, y: chosen.y + h, w: chosen.w, h: dh });
+    }
+    return placed;
+  }
+
+  /**
+   * Release an allocated rect back to the free list. No merge with
+   * adjacent free rects — accepts some fragmentation in exchange
+   * for O(1) free. Same-anim-type variants have similar dims, so
+   * a freed walkR slot is happily reused by walkL, etc.
+   */
+  free(rect: PackedRect): void {
+    this.freeRects.push({ x: rect.x, y: rect.y, w: rect.w, h: rect.h });
+  }
+
+  /** Diagnostic: total unallocated area. */
+  totalFreeArea(): number {
+    let area = 0;
+    for (const r of this.freeRects) area += r.w * r.h;
+    return area;
+  }
+}
+
+interface ClassAtlasPage {
+  readonly key: string;            // `${bundle}|${resolutionQuantised}#${pageIdx}`
+  readonly bundle: string;
+  readonly resolution: number;
+  readonly renderTexture: RenderTexture;
+  readonly source: TextureSource;
+  readonly packer: GuillotinePacker;
+  /** Number of live `BodyAtlas` entries pointing at this page.
+   *  Page is destroyed once this hits 0 (after the retire-tick
+   *  settle window). */
+  refcount: number;
+}
+
 export interface BodyAtlas {
   readonly key: string;
   /**
@@ -203,6 +373,23 @@ export interface BodyAtlas {
   refcount: number;
   lastReleasedAt: number;
   readonly bytesEst: number;
+  /**
+   * Internal — set when this BodyAtlas's `combinedTexture` samples
+   * a sub-rect of a shared class atlas page. `undefined` for
+   * legacy per-variant atlases that own their own GPU texture
+   * (fallback path when the class page is exhausted or the variant
+   * is too large to pack).
+   *
+   * When set, `combinedTexture.destroy(false)` on retire only drops
+   * the `Texture` wrapper — the underlying source is owned by the
+   * page and stays alive until every variant on the page retires.
+   * `classPageRect` is the sub-rect we allocated; on retire we
+   * `packer.free(classPageRect)` so subsequent allocations can
+   * reuse the slot. WITHOUT this free, pages fill irreversibly
+   * (the bug that caused 15 GB GPU leak at 500-bot stress).
+   */
+  classPage?: ClassAtlasPage;
+  classPageRect?: PackedRect;
 }
 
 export interface AccessoryStrip {
@@ -245,6 +432,13 @@ export interface CharacterCacheStats {
 }
 
 interface PendingBodyAtlasBake {
+  /** Bundle + resolution captured at enqueue time so
+   *  `finalizeBodyAtlasBake` can route the result to the right
+   *  class atlas page even though the bake `key` includes the
+   *  applyBFix / hatEquipped dimensions that the page doesn't care
+   *  about. */
+  bundle: string;
+  resolution: number;
   callbacks: Array<{
     onReady: (atlas: BodyAtlas | null) => void;
     isWanted: () => boolean;
@@ -269,6 +463,10 @@ interface RetireQueueEntry {
    */
   closeBitmaps: ImageBitmap[];
   ticksRemaining: number;
+  /** Class-atlas page retire path: invoked after the settle window
+   *  to drop the variant's `Texture` wrapper (not the shared
+   *  source) and decrement the page's refcount. */
+  onSettled?: () => void;
 }
 
 interface BodyAtlasKeyParts {
@@ -352,6 +550,16 @@ class CharacterCache {
   private capBytes = DEFAULT_BYTES_CAP;
 
   /**
+   * Per-class atlas pages. Key = `${bundle}|${resolution × 1000}`
+   * (resolution quantised so cache hits survive floating-point
+   * resolution values from `setResolutionAndRerender`).
+   *
+   * Each entry is an array because a class may overflow one 4096²
+   * page and roll onto a new one.
+   */
+  private classAtlasPages = new Map<string, ClassAtlasPage[]>();
+
+  /**
    * Lazy-install the retire-queue drain on Pixi's shared ticker the
    * first time a strip is acquired. Self-driving means callers don't
    * have to wire a tick into every scene loop. Cheap — `tick()` is a
@@ -400,6 +608,13 @@ class CharacterCache {
     parts: BodyAtlasKeyParts,
     onReady: (atlas: BodyAtlas | null) => void,
     isWanted: () => boolean,
+    /** `"high"` (default) for live applyAnimation calls — the bot
+     *  is on screen waiting to render. `"low"` for background
+     *  pre-warm sweeps that just want to populate the cache for
+     *  future use; pre-warm bakes drain only after every live
+     *  request has cleared. Cuts spawn-ramp latency from ~3-4 s
+     *  to <100 ms under 200+ bot bursts. */
+    priority: "high" | "low" = "high",
   ): void {
     this.ensureTickerInstalled();
     // A1: when no accessory mount on this character declares bFix,
@@ -423,7 +638,11 @@ class CharacterCache {
     if (pending) {
       pending.callbacks.push({ onReady, isWanted });
     } else {
-      this.bodyAtlasBakes.set(key, { callbacks: [{ onReady, isWanted }] });
+      this.bodyAtlasBakes.set(key, {
+        bundle: normalized.bundle,
+        resolution: normalized.resolution,
+        callbacks: [{ onReady, isWanted }],
+      });
     }
     getStripBakeQueue().enqueue(
       key,
@@ -446,6 +665,7 @@ class CharacterCache {
         if (!bake) return false;
         return bake.callbacks.some((c) => c.isWanted());
       },
+      priority,
     );
   }
 
@@ -710,6 +930,13 @@ class CharacterCache {
           log.warn("ImageBitmap close threw", e);
         }
       }
+      if (entry.onSettled) {
+        try {
+          entry.onSettled();
+        } catch (e) {
+          log.warn("retire onSettled threw", e);
+        }
+      }
     }
     this.retireQueue = remaining;
   }
@@ -750,7 +977,12 @@ class CharacterCache {
       } catch {}
       return;
     }
-    const atlas = this.wrapBodyAtlas(key, result);
+    const atlas = this.wrapBodyAtlas(
+      key,
+      pending.bundle,
+      pending.resolution,
+      result,
+    );
     this.bodyAtlasEntries.set(key, atlas);
     this.bodyBytes += atlas.bytesEst;
     for (const cb of liveCbs) {
@@ -795,17 +1027,172 @@ class CharacterCache {
     this.evictIfOverCap();
   }
 
-  private wrapBodyAtlas(key: string, r: VelloSwfBodyAtlasResult): BodyAtlas {
+  private wrapBodyAtlas(
+    key: string,
+    bundle: string,
+    resolution: number,
+    r: VelloSwfBodyAtlasResult,
+  ): BodyAtlas {
+    // Try to blit this variant's bitmap into a shared class-atlas
+    // page. All variants of the same class share
+    // `combinedTexture.source.uid` so `BodyBandBatch` consolidates
+    // batches from ~1 per variant to ~1 per class. With
+    // `GuillotinePacker` (replaces the broken `ShelfPacker`),
+    // evicted variants release their sub-rect back to the page so
+    // the next variant of similar size reuses it — no leak.
+    //
+    // Fallback (per-variant texture) on:
+    //   - Variant atlas dims > page dims (8192²).
+    //   - GPU allocation failure (true OOM).
+    //   - Blit failure (renderer not ready, etc.).
+    const classWrap = this.tryWrapIntoClassPage(key, bundle, resolution, r);
+    if (classWrap) return classWrap;
+    return this.wrapBodyAtlasLegacy(key, r);
+  }
+
+  /**
+   * Class-atlas path: bin-pack the variant into a per-class page,
+   * blit its bitmap, return a BodyAtlas sampling the shared page.
+   * Returns `null` to signal "couldn't pack; use legacy fallback".
+   */
+  private tryWrapIntoClassPage(
+    key: string,
+    bundle: string,
+    resolution: number,
+    r: VelloSwfBodyAtlasResult,
+  ): BodyAtlas | null {
+    if (
+      r.atlasWidth <= 0 ||
+      r.atlasHeight <= 0 ||
+      r.atlasWidth > CLASS_ATLAS_PAGE_W ||
+      r.atlasHeight > CLASS_ATLAS_PAGE_H
+    ) {
+      return null;
+    }
+    const pageAndRect = this.allocOnClassPage(
+      bundle,
+      resolution,
+      r.atlasWidth,
+      r.atlasHeight,
+    );
+    if (!pageAndRect) return null;
+    const { page, rect: pos } = pageAndRect;
+
+    // Upload bitmap as a transient ImageSource with NEAREST sampling
+    // so the zone-id LSBs in the alpha channel are preserved across
+    // the blit (LINEAR would smear adjacent zone IDs and corrupt
+    // the recolor path).
+    let tempSource: ImageSource;
+    try {
+      tempSource = new ImageSource({
+        resource: r.combinedBitmap,
+        width: r.atlasWidth,
+        height: r.atlasHeight,
+        label: `${key}-blit`,
+        alphaMode: "premultiply-alpha-on-upload",
+        scaleMode: "nearest",
+        autoGarbageCollect: false,
+      });
+      uploadAndCloseBitmap(getPixiRenderer(), tempSource, r.combinedBitmap);
+    } catch (e) {
+      log.warn(`tryWrapIntoClassPage: failed to upload bitmap for ${key}`, e);
+      return null;
+    }
+
+    const renderer = getPixiRenderer();
+    let blitOk = false;
+    if (renderer) {
+      try {
+        const tempTexture = new Texture({ source: tempSource });
+        const sprite = new Sprite({ texture: tempTexture });
+        sprite.position.set(pos.x, pos.y);
+        (renderer as unknown as {
+          render: (o: {
+            container: unknown;
+            target: RenderTexture;
+            clear: boolean;
+          }) => void;
+        }).render({
+          container: sprite,
+          target: page.renderTexture,
+          clear: false,
+        });
+        try {
+          sprite.destroy({ children: false });
+        } catch {}
+        try {
+          tempTexture.destroy(false);
+        } catch {}
+        blitOk = true;
+      } catch (e) {
+        log.warn(`tryWrapIntoClassPage: blit failed for ${key}`, e);
+      }
+    }
+    try {
+      tempSource.unload();
+    } catch {}
+    try {
+      tempSource.destroy();
+    } catch {}
+    if (!blitOk) return null;
+
+    page.refcount += 1;
+    const bytesEst = estimateBytes(r.atlasWidth, r.atlasHeight);
+    const combinedTexture = new Texture({
+      source: page.source,
+      // No `frame` restriction — the body-band shader uses
+      // per-instance `aAtlasUV` derived from `atlasWidth/Height`
+      // (page dims) and the bands' absolute positions. Frame would
+      // be redundant.
+    });
+    return {
+      key,
+      combinedTexture,
+      atlasWidth: CLASS_ATLAS_PAGE_W,
+      atlasHeight: CLASS_ATLAS_PAGE_H,
+      stripWidth: r.stripWidth,
+      stripHeight: r.stripHeight,
+      frameWidth: r.frameWidth,
+      frameHeight: r.frameHeight,
+      gridCols: r.gridCols,
+      frameCount: r.frameCount,
+      anchorX: r.anchorX,
+      anchorY: r.anchorY,
+      // Translate per-variant band sub-rects into absolute
+      // positions inside the class atlas page.
+      bands: r.bands.map((b) => ({
+        bandIndex: b.bandIndex,
+        atlasX: pos.x + b.atlasX,
+        atlasY: pos.y + b.atlasY,
+      })),
+      bandCount: r.bandCount,
+      slotCount: r.slotCount,
+      bandPadding: r.bandPadding,
+      refcount: 0,
+      lastReleasedAt: 0,
+      bytesEst,
+      classPage: page,
+      // Remember the rect we got back from the guillotine packer
+      // so the retire path can `page.packer.free(rect)` and let
+      // the next variant of similar dims reuse the slot. WITHOUT
+      // freeing, pages fill irreversibly under stress (the bug
+      // that caused 15 GB GPU leak at 500-bot stress).
+      classPageRect: pos,
+    };
+  }
+
+  /**
+   * Legacy per-variant atlas — used as fallback when the class
+   * page can't accommodate the variant. The BodyAtlas owns its
+   * own Pixi texture; `BodyBandBatch` keys on this unique source
+   * uid so it gets its own batch (back to the pre-Phase-C path
+   * for this one variant).
+   */
+  private wrapBodyAtlasLegacy(key: string, r: VelloSwfBodyAtlasResult): BodyAtlas {
     const combinedTexture = this.buildPixiTextureFromBitmap(
       r.combinedBitmap,
       key,
     );
-    // The body-band shader binds this same source with TWO Pixi
-    // sampler styles — one LINEAR (the default from
-    // buildPixiTextureFromBitmap) for color+alpha sampling, one
-    // NEAREST for zone-id sampling. We don't override scaleMode
-    // here because the shader specifies its own samplers in its
-    // bind group, separate from the source's default style.
     const bytesEst = estimateBytes(r.atlasWidth, r.atlasHeight);
     return {
       key,
@@ -828,6 +1215,75 @@ class CharacterCache {
       lastReleasedAt: 0,
       bytesEst,
     };
+  }
+
+  /**
+   * Allocate a sub-rect for the variant on a `(bundle, resolution)`
+   * class page. Tries every existing page first via the guillotine
+   * packer's `alloc`; only when ALL existing pages are too
+   * fragmented to fit does it create a new page.
+   *
+   * Returns `{ page, rect }` or `null` on true GPU OOM
+   * (`RenderTexture.create` fails).
+   *
+   * Single-step alloc (no peek-then-commit two-phase) — the
+   * guillotine packer's `alloc` directly returns the placed rect
+   * or null, so we get atomic allocation per call.
+   */
+  private allocOnClassPage(
+    bundle: string,
+    resolution: number,
+    needW: number,
+    needH: number,
+  ): { page: ClassAtlasPage; rect: PackedRect } | null {
+    const key = `${bundle}|${Math.round(resolution * 1000)}`;
+    let pages = this.classAtlasPages.get(key);
+    if (!pages) {
+      pages = [];
+      this.classAtlasPages.set(key, pages);
+    }
+    // Try existing pages. Best-fit is per-page; an outer "try every
+    // page" loop picks the first page with room.
+    for (const p of pages) {
+      const rect = p.packer.alloc(needW, needH);
+      if (rect) return { page: p, rect };
+    }
+    // No existing page fits — allocate a new one.
+    let rt: RenderTexture;
+    try {
+      rt = RenderTexture.create({
+        width: CLASS_ATLAS_PAGE_W,
+        height: CLASS_ATLAS_PAGE_H,
+      });
+    } catch (e) {
+      log.warn(`allocOnClassPage: RT create failed for ${key}`, e);
+      return null;
+    }
+    const pageKey = `${key}#${pages.length}`;
+    rt.label = `class-atlas|${pageKey}`;
+    const source = rt.source;
+    if (source && typeof source === "object") {
+      (source as { label?: string }).label = `class-atlas|${pageKey}`;
+    }
+    const page: ClassAtlasPage = {
+      key: pageKey,
+      bundle,
+      resolution,
+      renderTexture: rt,
+      source,
+      packer: new GuillotinePacker(CLASS_ATLAS_PAGE_W, CLASS_ATLAS_PAGE_H),
+      refcount: 0,
+    };
+    pages.push(page);
+    const rect = page.packer.alloc(needW, needH);
+    if (!rect) {
+      // Should never happen — fresh page can fit any rect ≤ page dims.
+      log.warn(
+        `allocOnClassPage: fresh page rejected ${needW}×${needH} (page ${CLASS_ATLAS_PAGE_W}×${CLASS_ATLAS_PAGE_H})`,
+      );
+      return null;
+    }
+    return { page, rect };
   }
 
   private wrapAccessory(
@@ -962,16 +1418,67 @@ class CharacterCache {
   }
 
   private scheduleRetireBodyAtlas(entry: BodyAtlas): void {
-    // Combined-bridge path: ONE Pixi `ImageSource` per atlas (was
-    // two — color + zone). `Texture.destroy(true)` cascades into
-    // the ImageSource and frees Pixi's uploaded GPUTexture. The
-    // Rust-side temp textures were dropped at end of the bake call
-    // and queued into `deferred_destroy` for VRAM release.
+    if (entry.classPage) {
+      // Class-atlas-backed path: the `combinedTexture` is a thin
+      // wrapper around the page's shared source. On retire:
+      //   1. Drop the `Texture` wrapper (not the source).
+      //   2. `packer.free(rect)` — releases the sub-rect back to
+      //      the guillotine packer's free-list so a future variant
+      //      of similar dims can reuse the slot. This is the
+      //      CRITICAL fix for the page-fill leak: without freeing,
+      //      pages stay full forever and new variants spill onto
+      //      fresh pages, accumulating GPU memory unboundedly.
+      //   3. Decrement page refcount; when no variants remain
+      //      pointing at the page, destroy its RT.
+      const page = entry.classPage;
+      const rect = entry.classPageRect;
+      this.retireQueue.push({
+        destroyTextures: [],
+        closeBitmaps: [],
+        ticksRemaining: RETIRE_TICKS,
+        onSettled: () => {
+          try {
+            entry.combinedTexture.destroy(false);
+          } catch {}
+          if (rect) {
+            try {
+              page.packer.free(rect);
+            } catch (e) {
+              log.warn("packer.free threw", e);
+            }
+          }
+          page.refcount -= 1;
+          if (page.refcount <= 0) {
+            this.destroyClassAtlasPage(page);
+          }
+        },
+      });
+      return;
+    }
+    // Legacy per-variant path: ONE Pixi `ImageSource` per atlas
+    // (was two — color + zone). `Texture.destroy(true)` cascades
+    // into the ImageSource and frees Pixi's uploaded GPUTexture.
+    // The Rust-side temp textures were dropped at end of the bake
+    // call and queued into `deferred_destroy` for VRAM release.
     this.retireQueue.push({
       destroyTextures: [entry.combinedTexture],
       closeBitmaps: [],
       ticksRemaining: RETIRE_TICKS,
     });
+  }
+
+  /** Free a class atlas page's GPU texture + remove from the
+   *  registry. Caller must ensure `page.refcount === 0`. */
+  private destroyClassAtlasPage(page: ClassAtlasPage): void {
+    try {
+      page.renderTexture.destroy(true);
+    } catch {}
+    const bucketKey = `${page.bundle}|${Math.round(page.resolution * 1000)}`;
+    const bucket = this.classAtlasPages.get(bucketKey);
+    if (!bucket) return;
+    const idx = bucket.indexOf(page);
+    if (idx >= 0) bucket.splice(idx, 1);
+    if (bucket.length === 0) this.classAtlasPages.delete(bucketKey);
   }
 
   private scheduleRetireAccessory(entry: AccessoryStrip): void {
