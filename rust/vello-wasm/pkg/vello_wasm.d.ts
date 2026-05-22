@@ -262,6 +262,29 @@ export class VelloRenderer {
      */
     renderSwfBundleBatch(bundle: string, exports: string[], frame: number, resolution: number): any;
     /**
+     * Class atlas bake: pack EVERY animation variant of a body
+     * bundle (walkR/L/F/B/S, staticR/L/F/B/S, runR/L/F/B/S, plus any
+     * other `<word><direction-suffix>` named sprite) × `applyBFix ∈
+     * {false, [true]}` × `hatEquipped ∈ {false, [true]}` into ONE
+     * Rgba8Unorm texture bridged to a single ImageBitmap.
+     *
+     * Normalisation: the `applyBFix` and `hatEquipped` dimensions
+     * expand only when the body uses them (any mount with
+     * `b_fix=true` / a multi-frame toggle sprite respectively).
+     * Otherwise we bake one variant per export.
+     *
+     * Per-variant rasterisation reuses the same scene-build /
+     * render_to_texture / `CombineBodyPipeline` path as
+     * `renderSwfBodyAtlas`. Each variant produces a variant-sized
+     * `combined` texture, then `copy_texture_to_texture` writes it
+     * into the class atlas at the packer-assigned origin. No new
+     * Vello scene-size risk (every per-variant scene stays the
+     * size we know works); the win is purely in (a) Pixi-side
+     * texture count → 1 per class instead of N per variant,
+     * (b) per-variant intermediate `ImageSource` upload gone.
+     */
+    renderSwfClassAtlas(bundle: string, resolution: number): any;
+    /**
      * Render an exported symbol from a loaded SWF bundle to a fresh GPUTexture.
      * `bundle` is the name passed to `loadSwfBundle`. `export` is the SWF
      * export name (e.g. "168" for tile id 168, or "walkR"/"staticR" for the
@@ -709,6 +732,7 @@ export interface InitOutput {
     readonly vellorenderer_renderSwfAccessoryStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => any;
     readonly vellorenderer_renderSwfBodyAtlas: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => any;
     readonly vellorenderer_renderSwfBundleBatch: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
+    readonly vellorenderer_renderSwfClassAtlas: (a: number, b: number, c: number, d: number) => any;
     readonly vellorenderer_renderSwfFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
     readonly vellorenderer_renderSwfMountTransforms: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
     readonly vellorenderer_renderSwfRoot: (a: number, b: number, c: number, d: number, e: number) => any;

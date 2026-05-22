@@ -32,17 +32,18 @@ import {
 import type { CharacterAnimation } from "@/game/assets/character-sprite";
 import type { ActivePlayer } from "@/game/scene/player/types";
 import {
+  type AtlasBand,
   type BodyBandBatch,
   computeBandFrameUV,
 } from "@/game/render/body-band-batch";
 import {
   type AccessoryStrip,
-  type BodyAtlas,
-  type BodyAtlasBand,
   type CharacterCacheStats,
+  type ClassAtlas,
   getCharacterCache,
   MAX_SLOT,
   type MountTransforms,
+  type VariantInfo,
 } from "@/game/render/character-cache";
 import {
   type CompositionSlot,
@@ -105,12 +106,17 @@ interface PendingAnim {
   dir: DirSuffix;
   flipped: boolean;
   /**
-   * The shared atlas covering EVERY band of this anim. Filled in by
-   * the body-acquire callback; `undefined` while pending, `null` on
-   * bake failure. Phase 2 progressive commit: body commits as soon
-   * as the atlas lands; accessories follow as their strips land.
+   * The class atlas covering EVERY animation variant of the class.
+   * Filled in by the body-acquire callback; `undefined` while
+   * pending, `null` on bake failure. Phase 2 progressive commit:
+   * body commits as soon as the atlas lands; accessories follow
+   * as their strips land.
    */
-  atlas?: BodyAtlas | null;
+  atlas?: ClassAtlas | null;
+  /** Variant inside the class atlas that matches this anim's
+   *  `(exportName, applyBFix, hatEquipped)` tuple. Filled in at
+   *  commit time once the atlas is present. */
+  variant?: VariantInfo | null;
   atlasArrived: boolean;
   /** Equipped slot → resolved AccessoryStrip (or null on bake failure). */
   accStrips: Map<number, AccessoryStrip | null>;
@@ -160,8 +166,10 @@ interface SlotStateV2 {
    * is the right source for hit-test.
    */
   hitSprite: Sprite;
-  /** Currently-live atlas (refcounted; null until the first commit). */
-  atlas: BodyAtlas | null;
+  /** Currently-live class atlas (refcounted; null until the first commit). */
+  atlas: ClassAtlas | null;
+  /** Currently-live variant inside `atlas`. */
+  variant: VariantInfo | null;
   /**
    * Phase 5: band-instance slots in batched meshes. One entry per
    * band of `st.atlas`. Each entry holds the `BodyBandBatch` we're
@@ -351,7 +359,7 @@ export class PlayerStripRendererV2 {
    * weapon swung wide and the RT was sized for frame 0's neutral
    * pose, frame 3's swing gets clipped.
    */
-  private computeBotBounds(st: SlotStateV2, atlas: BodyAtlas): {
+  private computeBotBounds(st: SlotStateV2, variant: VariantInfo): {
     minX: number;
     minY: number;
     maxX: number;
@@ -361,10 +369,10 @@ export class PlayerStripRendererV2 {
     // SWF (0,0) at compositionStage's local origin. So body pixels
     // span (-anchorX, -anchorY) to (frameWidth-anchorX,
     // frameHeight-anchorY) in compositionStage local coords.
-    let minX = -atlas.anchorX;
-    let minY = -atlas.anchorY;
-    let maxX = atlas.frameWidth - atlas.anchorX;
-    let maxY = atlas.frameHeight - atlas.anchorY;
+    let minX = -variant.anchorX;
+    let minY = -variant.anchorY;
+    let maxX = variant.frameWidth - variant.anchorX;
+    let maxY = variant.frameHeight - variant.anchorY;
 
     // Accessory extents — only consider frames where the body's
     // display list actually places the mount (via presence bitmap).
@@ -482,6 +490,18 @@ export class PlayerStripRendererV2 {
     return st.currentAnimKey !== "" && st.currentAnimKey !== "<retired>";
   }
 
+  /** Stable view of (page atlas dims) for UV math — passed to
+   *  `computeBandFrameUV` along with the active variant. Uses the
+   *  variant's `pageIndex` because multi-page class atlases scale
+   *  each page independently. */
+  private atlasDimsForVariant(
+    atlas: ClassAtlas,
+    variant: VariantInfo,
+  ): { atlasWidth: number; atlasHeight: number } {
+    const page = atlas.pages[variant.pageIndex];
+    return { atlasWidth: page.atlasWidth, atlasHeight: page.atlasHeight };
+  }
+
   /** Picking layer adapter — returns the slot's hit-test Sprite. */
   getSlotSprite(
     playerId: number,
@@ -574,46 +594,21 @@ export class PlayerStripRendererV2 {
   prewarmAtlas(
     animation: CharacterAnimation,
     _animName: string,
-    flipped: boolean,
+    _flipped: boolean,
   ): void {
-    // Pre-warm BOTH hat variants. 80 % of stress bots equip hats; the
-    // original "no-hat only" prewarm meant 80 % of bots cache-missed
-    // on every transition → bake → freeze. CharacterCache's
-    // `normalizeHatEquipped` collapses the two variants into one for
-    // classes without a hair-toggle sprite (canonical Dofus 1.29:
-    // only Iop has the toggle, see
-    // `feedback_swf_apply_color_zones` + `BodyAtlasKeyParts`), so
-    // the doubled prewarm only doubles work for Iop. Every other
-    // class dedupes at the cache layer — no extra memory cost.
-    const keyBase = {
-      bundle: animation.bundle,
-      exportName: animation.exportName,
-      start: 0,
-      count: animation.frameCount,
-      totalFrameCount: animation.frameCount,
-      resolution: this.resolution,
-      applyBFix: flipped,
-    };
-    for (const hatEquipped of [false, true]) {
-      this.cache.acquireBodyAtlas(
-        { ...keyBase, hatEquipped },
-        (atlas) => {
-          // Drop the refcount we just added. Atlas stays in cache for
-          // the first live acquire to hit.
-          if (atlas) this.cache.releaseBodyAtlas(atlas);
-        },
-        // Always wanted — we want this baked unconditionally. If the
-        // queue is overwhelmed and the bake gets stale, the queue's
-        // stale-skip path now fires the callback with null (see
-        // strip-bake-queue.ts).
-        () => true,
-        // LOW priority — pre-warm bakes drain after every live bot
-        // bake. Without this, a new bot's "I need walkR now" sits
-        // behind 50+ pre-warm bakes and visible spawn latency
-        // balloons to ~3-5 s during ramp-up.
-        "low",
-      );
-    }
+    // Class-atlas migration: one acquire covers every animation
+    // variant of the class (walk/static/run × R/L/F/B/S × bFix ×
+    // hat). The pre-warm bakes the whole class in a single Rust
+    // call. LOW priority keeps it behind any live bot's HIGH bake.
+    this.cache.acquireClassAtlas(
+      animation.bundle,
+      this.resolution,
+      (atlas) => {
+        if (atlas) this.cache.releaseClassAtlas(atlas);
+      },
+      () => true,
+      "low",
+    );
   }
 
   applyAnimation(
@@ -736,9 +731,9 @@ export class PlayerStripRendererV2 {
     if (!slots) return;
     const idx = player.frameIndex;
     for (const st of slots.values()) {
-      const atlas = st.atlas;
-      if (!atlas) continue;
-      const fc = atlas.frameCount;
+      const variant = st.variant;
+      if (!variant) continue;
+      const fc = variant.frameCount;
       if (fc === 0) continue;
       const frame = idx % fc;
       if (frame === st.lastCompositionFrame) {
@@ -874,6 +869,7 @@ export class PlayerStripRendererV2 {
       root,
       hitSprite,
       atlas: null,
+      variant: null,
       bandInstances: new Map(),
       zone1: 0,
       zone2: 0,
@@ -924,29 +920,26 @@ export class PlayerStripRendererV2 {
     st.root.scale.set(flipped ? -s : s, s);
   }
 
-  /** Kick off the single body-atlas acquire for `pending`. The atlas
-   *  bake produces colour + zone textures and the per-band sub-rect
-   *  metadata in one call — `bandCount × 2` allocations collapse to
-   *  exactly 2 per anim. */
+  /** Kick off a body-atlas acquire for `pending`. The cache dispatches
+   *  between two paths:
+   *   - Common anims (static/walk/run): one shared class atlas per
+   *     bundle, covering every direction × bFix × hat variant.
+   *   - Rare anims (die/cast/hit/anim*): a per-variant atlas baked
+   *     on demand via the legacy `renderSwfBodyAtlas` path, wrapped
+   *     as a 1-page, 1-variant `ClassAtlas` so the renderer code
+   *     path is unchanged. */
   private stageBodyAtlas(st: SlotStateV2, pending: PendingAnim): void {
-    // Canonical AS2 `mcToHide` signal: hat (slot 1) equipped means
-    // hair-toggle sprites (e.g. Iop's R_tete) pin to the short-hair
-    // frame. Becomes part of the atlas cache key so we bake two
-    // variants per affected class.
     const hatEquipped = pending.accessoryRefs.some((a) => a.slot === 1);
-    this.cache.acquireBodyAtlas(
-      {
-        bundle: pending.animation.bundle,
-        exportName: pending.animation.exportName,
-        start: 0,
-        count: pending.animation.frameCount,
-        totalFrameCount: pending.animation.frameCount,
-        resolution: this.resolution,
-        applyBFix: pending.flipped,
-        hatEquipped,
-      },
+    this.cache.acquireVariantAtlas(
+      pending.animation.bundle,
+      pending.animation.exportName,
+      pending.flipped,
+      hatEquipped,
+      pending.animation.frameCount,
+      this.resolution,
       (atlas) => this.onAtlasLanded(st, pending, atlas),
       () => st.pendingAnim === pending,
+      "high",
     );
   }
 
@@ -992,15 +985,28 @@ export class PlayerStripRendererV2 {
   private onAtlasLanded(
     st: SlotStateV2,
     pending: PendingAnim,
-    atlas: BodyAtlas | null,
+    atlas: ClassAtlas | null,
   ): void {
     // Pending was discarded (another applyAnimation superseded it)
     // — release the atlas here so we don't leak the ref.
     if (st.pendingAnim !== pending) {
-      if (atlas) this.cache.releaseBodyAtlas(atlas);
+      if (atlas) this.cache.releaseClassAtlas(atlas);
       return;
     }
     pending.atlas = atlas;
+    if (atlas) {
+      const hatEquipped = pending.accessoryRefs.some((a) => a.slot === 1);
+      pending.variant = this.cache.getVariant(
+        atlas,
+        pending.animation.exportName,
+        pending.flipped,
+        hatEquipped,
+      );
+      // Missing variant = the bundle has no bakeable form of this
+      // export (e.g. unusual anim, frame-count too high to fit grid).
+      // Quiet skip — `commitBody` keeps the bot on its previously
+      // committed variant so it stays visible.
+    }
     pending.atlasArrived = true;
     this.tryCommit(st);
   }
@@ -1113,59 +1119,90 @@ export class PlayerStripRendererV2 {
    */
   private commitBody(st: SlotStateV2, pending: PendingAnim): boolean {
     const nextAtlas = pending.atlas ?? null;
+    const nextVariant = pending.variant ?? null;
     const oldAtlas = st.atlas;
+    const oldVariant = st.variant;
 
-    if (!nextAtlas) {
-      // Stale-skipped or failed bake. Don't touch st.atlas — the
-      // bot keeps its previous variant rendered. A new
-      // applyAnimation will retry; this stale pending should not
-      // become the committed state.
+    if (!nextAtlas || !nextVariant) {
+      // Stale-skipped or failed bake, or the class atlas didn't
+      // include this anim variant. Don't touch st.atlas — the bot
+      // keeps its previous variant rendered. If the class atlas
+      // landed but lacked the variant, release the +1 ref the
+      // pending acquire took so we don't leak the class atlas.
+      if (nextAtlas) {
+        this.cache.releaseClassAtlas(nextAtlas);
+        pending.atlas = null;
+        pending.variant = null;
+      }
       return false;
     }
 
     // 1. Release every band-instance slot we previously held. After
     //    this the bot is invisible in the atlas; will become visible
     //    again once new band instances are allocated + setUV'd below.
-    //    Track the bot's page for the empty-batch sweep below — the
-    //    bot stays on the same page for its lifetime, so we can use
-    //    its current compositionSlot.pageIndex even though the bands
-    //    themselves are about to migrate to a new atlas's batches.
-    const releasedBands: { atlas: BodyAtlas; band: BodyAtlasBand }[] = [];
-    if (oldAtlas) {
+    //
+    //    Class-atlas optimisation: when the next class atlas is the
+    //    SAME object as the current one, batches' shader resources
+    //    don't change (same combinedTexture.source.uid) and we could
+    //    in principle reuse the existing instance allocations for
+    //    bands shared between variants. Cheaper just to release +
+    //    re-allocate uniformly: the batch's free-list reuses the
+    //    same instance row index, so the GPU buffer is rewritten in
+    //    place. Batches stay alive between variants (the
+    //    releaseBatchIfEmpty pass below only tears down genuinely
+    //    empty batches).
+    const releasedBands: { combinedTexture: Texture; band: AtlasBand }[] = [];
+    if (oldAtlas && oldVariant) {
+      const oldPage = oldAtlas.pages[oldVariant.pageIndex];
       for (const bi of st.bandInstances.values()) {
         bi.batch.release(bi.instanceIdx);
-        const oldBand = oldAtlas.bands.find(
+        const oldBand = oldVariant.bands.find(
           (b) => b.bandIndex === bi.bandIndex,
         );
-        if (oldBand) {
-          releasedBands.push({ atlas: oldAtlas, band: oldBand });
+        if (oldBand && oldPage) {
+          releasedBands.push({
+            combinedTexture: oldPage.combinedTexture,
+            band: oldBand,
+          });
         }
       }
     }
     st.bandInstances.clear();
 
-    // 2. Release the old atlas's refcount (eligible for LRU when 0).
+    // 2. Release the old class atlas's refcount. The pending side
+    //    holds its own +1 (taken at acquire time); transferring
+    //    ownership means: drop the OLD ref the bot held, the
+    //    pending's ref becomes the bot's ref. When `oldAtlas ===
+    //    nextAtlas` (variant-only swap on the same class), we still
+    //    must release — the acquire added a second ref to the same
+    //    atlas, and skipping the release here would leak +1 per
+    //    same-class anim transition.
     if (oldAtlas) {
-      this.cache.releaseBodyAtlas(oldAtlas);
+      this.cache.releaseClassAtlas(oldAtlas);
     }
 
-    // 3. Allocate new band-instance slots in the new atlas's batches
-    //    on the bot's PAGE. Per-bot page assignment is stable for
-    //    the bot's lifetime — every band/accessory of this bot goes
-    //    to the same page's globalRoot.
-    if (nextAtlas && st.compositionSlot) {
-      for (const bandInfo of nextAtlas.bands) {
+    // 3. Allocate new band-instance slots. Batches are keyed by
+    //    `(page.combinedTexture.source.uid, bandIndex)` — so variants
+    //    on the same class atlas page reuse the same batch object
+    //    (batch consolidation across all bots of the same class).
+    //    A class swap OR a page swap fans out into fresh batches.
+    const nextPage = nextAtlas.pages[nextVariant.pageIndex];
+    if (!nextPage) {
+      log.warn(
+        `commitBody: class atlas '${nextAtlas.key}' missing page ${nextVariant.pageIndex}`,
+      );
+      return false;
+    }
+    if (st.compositionSlot) {
+      for (const bandInfo of nextVariant.bands) {
         const batch = this.atlas.getOrCreateBatch(
           st.compositionSlot,
-          nextAtlas,
+          nextPage.combinedTexture,
           bandInfo,
         );
         const instanceIdx = batch.allocate();
-        // Initial UV = frame 0. Will be overwritten by setBandsFrame
-        // below, but having a valid value at allocate-time means a
-        // mid-tick render between allocate and setBandsFrame doesn't
-        // produce garbage.
-        const uv = computeBandFrameUV(nextAtlas, bandInfo, 0);
+        const atlasDims = this.atlasDimsForVariant(nextAtlas, nextVariant);
+        const uv = computeBandFrameUV(atlasDims, nextVariant, bandInfo, 0);
         batch.setUV(instanceIdx, uv.u0, uv.v0, uv.u1, uv.v1);
         batch.setZones(instanceIdx, st.zone1, st.zone2, st.zone3);
         st.bandInstances.set(bandInfo.bandIndex, {
@@ -1177,23 +1214,25 @@ export class PlayerStripRendererV2 {
         });
       }
     }
-    if (nextAtlas) {
-      // Picking shim: hit-test reads from the atlas. The bands all
-      // share frame size + anchor so AABB matches the live render.
-      st.hitSprite.texture = nextAtlas.combinedTexture;
-      const fw = nextAtlas.frameWidth || 1;
-      const fh = nextAtlas.frameHeight || 1;
-      st.hitSprite.anchor.set(nextAtlas.anchorX / fw, nextAtlas.anchorY / fh);
-    }
+    // Picking shim: hit-test reads from the variant's page. AABB
+    // uses the active variant's frame dims + anchor.
+    st.hitSprite.texture = nextPage.combinedTexture;
+    const fw = nextVariant.frameWidth || 1;
+    const fh = nextVariant.frameHeight || 1;
+    st.hitSprite.anchor.set(nextVariant.anchorX / fw, nextVariant.anchorY / fh);
     st.atlas = nextAtlas;
+    st.variant = nextVariant;
 
     // 4. Try to dispose empty batches from the OLD atlas's batches
     //    on this bot's page. After releasing our instances, batches
-    //    whose last instance was ours can be torn down.
+    //    whose last instance was ours can be torn down. On
+    //    variant-only changes the batch ALSO contains our new
+    //    allocations so it won't be empty — releaseBatchIfEmpty is
+    //    a no-op for non-empty batches.
     const pageIndex = st.compositionSlot?.pageIndex;
     if (pageIndex !== undefined) {
-      for (const { atlas, band } of releasedBands) {
-        this.atlas.releaseBatchIfEmpty(pageIndex, atlas, band);
+      for (const { combinedTexture, band } of releasedBands) {
+        this.atlas.releaseBatchIfEmpty(pageIndex, combinedTexture, band);
       }
     }
 
@@ -1276,8 +1315,8 @@ export class PlayerStripRendererV2 {
     // 7. Position the bot's band instances inside its atlas slot,
     //    drive bands + accessories to frame 0, and mark the global
     //    compose pass dirty.
-    if (nextAtlas && st.compositionSlot) {
-      const bounds = this.computeBotBounds(st, nextAtlas);
+    if (st.compositionSlot) {
+      const bounds = this.computeBotBounds(st, nextVariant);
       this.applyCompositionTransform(st, bounds);
       // Drive band UVs + accessory positions to frame 0 BEFORE the
       // first composition so the atlas shows frame 0 without gaps.
@@ -1286,7 +1325,7 @@ export class PlayerStripRendererV2 {
       st.lastCompositionFrame = 0;
       this.compositionDirty = true;
       st.compositeSprite.visible = true;
-    } else if (nextAtlas && !st.compositionSlot) {
+    } else {
       st.compositeSprite.visible = false;
     }
 
@@ -1329,27 +1368,12 @@ export class PlayerStripRendererV2 {
       pending.accStrips.set(slotId, null);
       installed += 1;
     }
-    if (installed > 0 && st.atlas) {
-      // Drive the new sprite to the current frame + mark the global
-      // compose pass dirty. The actual atlas render happens once per
-      // tick in `composeAll()`.
-      //
-      // CRITICAL: re-run `computeBotBounds` + `applyCompositionTransform`
-      // now that the bot has accessories the original `commitBody` call
-      // didn't have. Without this, the slot scale + compositionStage
-      // offset stays sized to body-only bounds; the freshly-installed
-      // accessory (hat, cape, weapon) extends past the original bbox,
-      // gets either CROPPED at the slot edge OR SPILLS pixels into
-      // the adjacent atlas slot — showing up as "pieces of other
-      // players inside some bots" plus visible crop. The whole-atlas
-      // `clear: true` on each `composeAll` keeps the spill from
-      // persisting once we re-apply correct bounds, so the fix is
-      // immediate and self-healing.
-      if (st.atlas && st.compositionSlot) {
-        const bounds = this.computeBotBounds(st, st.atlas);
+    if (installed > 0 && st.atlas && st.variant) {
+      if (st.compositionSlot) {
+        const bounds = this.computeBotBounds(st, st.variant);
         this.applyCompositionTransform(st, bounds);
       }
-      const fc = st.atlas.frameCount;
+      const fc = st.variant.frameCount;
       if (fc > 0) {
         const frame =
           st.lastCompositionFrame >= 0 ? st.lastCompositionFrame : 0;
@@ -1379,7 +1403,8 @@ export class PlayerStripRendererV2 {
     bounds: { minX: number; minY: number; maxX: number; maxY: number },
   ): void {
     const slot = st.compositionSlot;
-    if (!slot || !st.atlas) return;
+    if (!slot || !st.variant) return;
+    const variant = st.variant;
     const scale = this.slotScaleFor(bounds);
     const swfOriginInSlotX = -bounds.minX * scale;
     const swfOriginInSlotY = -bounds.minY * scale;
@@ -1418,12 +1443,12 @@ export class PlayerStripRendererV2 {
     // map to the cell's SWF (-anchorX, -anchorY) point in atlas
     // pixels. World position = slot.x + swfOriginInSlotX +
     // (-anchorX) × scale.
-    const atlasAnchorPxX = st.atlas.anchorX * scale;
-    const atlasAnchorPxY = st.atlas.anchorY * scale;
+    const atlasAnchorPxX = variant.anchorX * scale;
+    const atlasAnchorPxY = variant.anchorY * scale;
     const instanceOriginX = slot.x + swfOriginInSlotX - atlasAnchorPxX;
     const instanceOriginY = slot.y + swfOriginInSlotY - atlasAnchorPxY;
-    const scaledFrameW = st.atlas.frameWidth * scale;
-    const scaledFrameH = st.atlas.frameHeight * scale;
+    const scaledFrameW = variant.frameWidth * scale;
+    const scaledFrameH = variant.frameHeight * scale;
     for (const bi of st.bandInstances.values()) {
       bi.batch.setTransform(
         bi.instanceIdx,
@@ -1443,19 +1468,15 @@ export class PlayerStripRendererV2 {
 
   /** Drive every band-instance's UV to the cell for `frameIndex`. */
   private setBandsFrame(st: SlotStateV2, frameIndex: number): void {
-    if (!st.atlas) return;
+    if (!st.atlas || !st.variant) return;
+    const atlasDims = this.atlasDimsForVariant(st.atlas, st.variant);
     for (const bi of st.bandInstances.values()) {
-      // We have to derive `BodyAtlasBand` from the live atlas in
-      // case it changed — but `bi.atlasX/Y` we cached on commit IS
-      // the live atlas's band info (we set up the batch from
-      // `nextAtlas.bands[*]`). Just reconstruct the band-shaped
-      // object for `computeBandFrameUV`.
       const band = {
         bandIndex: bi.bandIndex,
         atlasX: bi.atlasX,
         atlasY: bi.atlasY,
       };
-      const uv = computeBandFrameUV(st.atlas, band, frameIndex);
+      const uv = computeBandFrameUV(atlasDims, st.variant, band, frameIndex);
       bi.batch.setUV(bi.instanceIdx, uv.u0, uv.v0, uv.u1, uv.v1);
     }
   }
@@ -1518,8 +1539,9 @@ export class PlayerStripRendererV2 {
    *  released here. */
   private discardPending(pending: PendingAnim): void {
     if (pending.atlas) {
-      this.cache.releaseBodyAtlas(pending.atlas);
+      this.cache.releaseClassAtlas(pending.atlas);
       pending.atlas = null;
+      pending.variant = null;
     }
     for (const strip of pending.accStrips.values()) {
       if (strip) this.cache.releaseAccessory(strip);
@@ -1609,23 +1631,32 @@ export class PlayerStripRendererV2 {
     }
     // Release band-instance slots. Try to dispose batches whose last
     // instance was ours, on this bot's PAGE.
-    const releasedBands: { atlas: BodyAtlas; band: BodyAtlasBand }[] = [];
-    if (st.atlas) {
+    const releasedBands: AtlasBand[] = [];
+    if (st.atlas && st.variant) {
       for (const bi of st.bandInstances.values()) {
         bi.batch.release(bi.instanceIdx);
-        const band = st.atlas.bands.find((b) => b.bandIndex === bi.bandIndex);
-        if (band) releasedBands.push({ atlas: st.atlas, band });
+        const band = st.variant.bands.find((b) => b.bandIndex === bi.bandIndex);
+        if (band) releasedBands.push(band);
       }
     }
     st.bandInstances.clear();
     if (st.atlas) {
-      this.cache.releaseBodyAtlas(st.atlas);
       const stAtlas = st.atlas;
+      const stVariant = st.variant;
       const stPageIndex = st.compositionSlot?.pageIndex;
+      this.cache.releaseClassAtlas(stAtlas);
       st.atlas = null;
-      if (stPageIndex !== undefined) {
-        for (const { band } of releasedBands) {
-          this.atlas.releaseBatchIfEmpty(stPageIndex, stAtlas, band);
+      st.variant = null;
+      if (stPageIndex !== undefined && stVariant) {
+        const page = stAtlas.pages[stVariant.pageIndex];
+        if (page) {
+          for (const band of releasedBands) {
+            this.atlas.releaseBatchIfEmpty(
+              stPageIndex,
+              page.combinedTexture,
+              band,
+            );
+          }
         }
       }
     }

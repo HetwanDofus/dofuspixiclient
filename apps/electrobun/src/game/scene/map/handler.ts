@@ -335,6 +335,27 @@ export class MapHandler {
   }
 
   /**
+   * Push the contain-fit transform into each of the four layer
+   * containers. Maps larger than the canonical 15×17 viewport need
+   * `mapScale.scale < 1` + an offset to fit inside `742 × 432`; we
+   * apply that once at the layer-container level so every descendant
+   * (tile sprites, players, spell VFX) is positioned correctly
+   * without each renderer having to know about mapScale.
+   */
+  private applyMapScaleToLayers(mapScale: MapScale): void {
+    for (const layer of [
+      this.backgroundLayer,
+      this.groundLayer,
+      this.objectLayer1,
+      this.objectLayer2,
+    ]) {
+      layer.scale.set(mapScale.scale);
+      layer.x = mapScale.offsetX;
+      layer.y = mapScale.offsetY;
+    }
+  }
+
+  /**
    * Rebuild the placement list from the current map data + tactic
    * prefix overrides and hand it to the tile renderer. Triggered on
    * `renderMap`, zoom changes, and tactic-mode toggles.
@@ -360,8 +381,11 @@ export class MapHandler {
    * override map (so `cellId → { ground|layer1|layer2: { prefix, idOverride }
    * }` reroutes the bundle/exportName lookup).
    *
-   * Background tiles render as a single placement at cell pos (0, 0)
-   * — the renderer's matrix takes care of map-scale + offset.
+   * Placements carry raw logical-pixel cell positions (no mapScale
+   * baked in). The "contain"-fit transform for bigger-than-default
+   * maps is applied once at the layer-container level (see
+   * `applyMapScaleToLayers`) so every child — tile sprites, players in
+   * `objectLayer2`, etc. — inherits the same scale + offset.
    */
   private buildPlacements(
     mapData: MapData,
@@ -591,6 +615,14 @@ export class MapHandler {
       mapContainer.addChild(this.objectLayer1);
       mapContainer.addChild(this.objectLayer2);
     }
+
+    // Bake the "contain"-fit transform for bigger-than-default maps
+    // into the four layer containers. Tile sprites + players + spell
+    // VFX (all children of these layers) inherit the scale + offset;
+    // grid / debug / world-cell-tints overlays sit elsewhere in
+    // mapContainer and already apply mapScale per-cell themselves so
+    // they're unaffected.
+    this.applyMapScaleToLayers(mapScale);
 
     // Snapshot for ticker-driven re-renders (zoom, tactic toggle, etc).
     this.currentMapData = mapData;

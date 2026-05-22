@@ -111,6 +111,56 @@ fn resolve_only_root_layer(
     found
 }
 
+/// Wall-clock now (ms). Used for per-step instrumentation inside
+/// `renderSwfClassAtlas` so we can measure where time goes (scene
+/// encoding vs Vello compute submit vs combine vs bridge) and decide
+/// architecturally. CPU-side timestamps only — GPU work is async
+/// behind `queue.submit`, so "render+submit" times capture command-
+/// encoding cost, not GPU runtime. The bridge step IS synchronous
+/// (it awaits a present), so its time captures real end-to-end
+/// latency for the rendered page to leave the GPU.
+///
+/// `js_sys::Date::now()` is available without any extra feature gate
+/// (unlike `web_sys::Performance` which requires the `Performance`
+/// feature on `web-sys`). Date.now()'s ms resolution is fine — the
+/// shortest steps we measure are ~1 ms.
+fn perf_now() -> f64 {
+    js_sys::Date::now()
+}
+
+/// True when `name` matches a canonical Dofus character "common"
+/// animation pattern: `static* | walk* | run*` × direction suffix.
+///
+/// We deliberately exclude rare anims (die, hit, cast, dance, salute,
+/// glory, anim0..animH, etc.) because each character SWF defines
+/// 100+ of them; baking them all into a single class atlas blows
+/// past the GPU memory budget AND overflows Vello's tile encoder on
+/// the merged per-page scene. Common anims are the only ones that
+/// fire continuously in normal gameplay; rare anims go through a JS-
+/// side per-variant fallback path (`renderSwfBodyAtlas`) that bakes
+/// a 1-variant ClassAtlas on demand.
+fn is_character_anim_name(name: &str) -> bool {
+    let bytes = name.as_bytes();
+    let n = bytes.len();
+    if n < 2 {
+        return false;
+    }
+    let last = bytes[n - 1];
+    if last != b'R' && last != b'L' && last != b'F' && last != b'B' && last != b'S' {
+        return false;
+    }
+    for &c in bytes.iter() {
+        let ascii_letter = (c >= b'A' && c <= b'Z') || (c >= b'a' && c <= b'z');
+        if !ascii_letter {
+            return false;
+        }
+    }
+    // Only the high-frequency anims live in the class atlas. The JS
+    // layer mirrors this prefix list so its fallback path knows when
+    // to bake per-variant via `renderSwfBodyAtlas`.
+    name.starts_with("static") || name.starts_with("walk") || name.starts_with("run")
+}
+
 /// A frame queued for batch rendering.
 struct QueuedFrame {
     scene: vello::Scene,
@@ -2683,6 +2733,960 @@ impl VelloRenderer {
             &JsValue::from(BAND_PADDING_PX),
         );
         result.into()
+    }
+
+    /// Class atlas bake: pack EVERY animation variant of a body
+    /// bundle (walkR/L/F/B/S, staticR/L/F/B/S, runR/L/F/B/S, plus any
+    /// other `<word><direction-suffix>` named sprite) × `applyBFix ∈
+    /// {false, [true]}` × `hatEquipped ∈ {false, [true]}` into ONE
+    /// Rgba8Unorm texture bridged to a single ImageBitmap.
+    ///
+    /// Normalisation: the `applyBFix` and `hatEquipped` dimensions
+    /// expand only when the body uses them (any mount with
+    /// `b_fix=true` / a multi-frame toggle sprite respectively).
+    /// Otherwise we bake one variant per export.
+    ///
+    /// Per-variant rasterisation reuses the same scene-build /
+    /// render_to_texture / `CombineBodyPipeline` path as
+    /// `renderSwfBodyAtlas`. Each variant produces a variant-sized
+    /// `combined` texture, then `copy_texture_to_texture` writes it
+    /// into the class atlas at the packer-assigned origin. No new
+    /// Vello scene-size risk (every per-variant scene stays the
+    /// size we know works); the win is purely in (a) Pixi-side
+    /// texture count → 1 per class instead of N per variant,
+    /// (b) per-variant intermediate `ImageSource` upload gone.
+    #[wasm_bindgen(js_name = "renderSwfClassAtlas")]
+    pub fn render_swf_class_atlas(
+        &mut self,
+        bundle: &str,
+        resolution: f32,
+    ) -> JsValue {
+        const BAND_PADDING_PX: u32 = 2;
+        const PADDING_PX: u32 = 2;
+        const MAX_ATLAS_DIM: u32 = 8192;
+
+        if resolution <= 0.0 {
+            return JsValue::NULL;
+        }
+
+        // Instrumentation accumulators. Cost is one `performance.now()`
+        // per phase × N variants — negligible vs the Vello work.
+        let bake_start = perf_now();
+        let mut total_scene_build_ms = 0.0_f64;
+        let mut total_render_submit_ms = 0.0_f64;
+        let mut total_combine_copy_ms = 0.0_f64;
+        let mut total_bridge_ms = 0.0_f64;
+        let mut t_enumerate_start = perf_now();
+        let mut per_variant_log: Vec<(String, bool, bool, u32, u32, f64, f64, f64)> =
+            Vec::new();
+
+        // Step 1: enumerate every Sprite export whose name matches
+        // `^[A-Za-z]+[RLFBS]$` — the Dofus convention for character
+        // animations (walkR, staticL, runF, castB, anim2S, ...). Body
+        // parts have underscores (`R_tete`, `H_main`), filter them out.
+        let Some(doc) = self.swf_bundles.get(bundle) else {
+            console_log!("renderSwfClassAtlas: bundle `{bundle}` not loaded");
+            return JsValue::NULL;
+        };
+        let mut export_candidates: Vec<String> = Vec::new();
+        for (name, _) in doc.by_name.iter() {
+            if !is_character_anim_name(name) {
+                continue;
+            }
+            if !matches!(doc.lookup_export(name), Some(swf_spike::swf_doc::Symbol::Sprite(_))) {
+                continue;
+            }
+            export_candidates.push(name.clone());
+        }
+        if export_candidates.is_empty() {
+            console_log!(
+                "renderSwfClassAtlas: bundle `{bundle}` has no character-anim exports"
+            );
+            return JsValue::NULL;
+        }
+        export_candidates.sort();
+
+        // Bundle-wide `b_fix` use: ANY mount with b_fix=true triggers
+        // the bFix dimension. Same heuristic as `swfBodyBandInfo`.
+        let b_fix_used = doc
+            .accessory_mounts
+            .values()
+            .any(|mounts| mounts.iter().any(|m| m.b_fix));
+
+        // Step 2: lay out each variant. We compute every variant's
+        // pixel bbox + per-band sub-rect (in variant-local coords)
+        // before allocating anything, so the bin-pack can choose an
+        // atlas size that fits.
+        struct VariantLayout {
+            export_name: String,
+            apply_b_fix: bool,
+            hat_equipped: bool,
+            // From swf_anim_frame_count for the export.
+            total_frame_count: u32,
+            // Pixel dims of the variant's full sub-rect.
+            atlas_w: u32,
+            atlas_h: u32,
+            // Per-band & cell layout (variant-local).
+            strip_w: u32,
+            strip_h: u32,
+            frame_w: u32,
+            frame_h: u32,
+            grid_cols: u32,
+            frame_count: u32,
+            anchor_x: f64,
+            anchor_y: f64,
+            // Logical band index → variant-local atlasY of that band.
+            present_logical: Vec<usize>,
+            band_ranges: Vec<swf_spike::render::BandRange>,
+            band_atlas_ys: Vec<u32>,
+            slot_count: u32,
+            // Scene-build inputs: chunk range. We bake the whole
+            // animation in one window (start=0, count=chunk_count),
+            // matching the JS-side calling convention.
+            chunk_start: u32,
+            chunk_count: u32,
+            // After packing.
+            page_index: u32,
+            packed_x: u32,
+            packed_y: u32,
+        }
+
+        struct AtlasPage {
+            width: u32,
+            height: u32,
+            shelf_y: u32,
+            shelf_h: u32,
+            shelf_x: u32,
+        }
+
+        let mut variants: Vec<VariantLayout> = Vec::new();
+        for export in &export_candidates {
+            // Inspect the symbol for toggle-sprite dimensionality.
+            // Need a fresh `&doc` borrow each iteration because the
+            // `cache_strip_bounds` call below mutates `self`.
+            let (has_toggle, slot_count_logical) = {
+                let Some(doc) = self.swf_bundles.get(bundle) else {
+                    return JsValue::NULL;
+                };
+                let Some(symbol) = doc.lookup_export(export) else {
+                    continue;
+                };
+                let swf_spike::swf_doc::Symbol::Sprite(body) = symbol else {
+                    continue;
+                };
+                let slots = swf_spike::render::extract_slot_depths(doc, body, 0);
+                let has_toggle = swf_spike::render::body_has_toggle_sprite(doc, body);
+                (has_toggle, slots.len() as u32)
+            };
+
+            // Frame count from the deepest reachable animation. JS-
+            // side `swfAnimFrameCount` matches the legacy walk path.
+            //
+            // Canonical Dofus character `static*` exports are 1-frame
+            // wrappers placing a multi-frame inner rig that drives the
+            // idle breathing animation via AS2 calls we don't run.
+            // Walking the inner rig's full frame count over-iterates;
+            // the renderer needs exactly frame 0 of the wrapper. JS
+            // does the same clamp in `character-sprite.ts:loadAnimation`
+            // — duplicated here so the class atlas's grid sizing
+            // doesn't blow up trying to pack 80 frames of identical
+            // pixels per static variant.
+            let mut total = self.swf_anim_frame_count(bundle, export);
+            if total == 0 {
+                continue;
+            }
+            if export.starts_with("static") {
+                total = 1;
+            }
+
+            // Iterate dimensionality.
+            for &apply_b_fix in if b_fix_used { &[false, true][..] } else { &[false][..] } {
+                for &hat_equipped in if has_toggle { &[false, true][..] } else { &[false][..] } {
+                    // Compute variant layout (mirrors the prelude of
+                    // `render_swf_body_atlas`).
+                    let Some(cached) = self.cache_strip_bounds(bundle, export, total) else {
+                        continue;
+                    };
+                    let Some(doc) = self.swf_bundles.get(bundle) else {
+                        continue;
+                    };
+                    let Some(symbol) = doc.lookup_export(export) else {
+                        continue;
+                    };
+                    let swf_spike::swf_doc::Symbol::Sprite(body) = symbol else {
+                        continue;
+                    };
+                    let (effective_sym, _effective_xform) =
+                        swf_spike::render::find_effective_body_symbol(doc, symbol, 0);
+                    let slots = swf_spike::render::extract_slot_depths(doc, body, 0);
+                    if swf_spike::render::band_count(&slots) == 0 {
+                        continue;
+                    }
+                    let effective_body = match effective_sym {
+                        swf_spike::swf_doc::Symbol::Sprite(s) => s,
+                        _ => body,
+                    };
+                    let band_presence = swf_spike::render::compute_band_presence(
+                        doc,
+                        effective_body,
+                        0,
+                        &slots,
+                    );
+                    let present_logical: Vec<usize> = band_presence
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, &p)| if p { Some(i) } else { None })
+                        .collect();
+                    let band_ranges: Vec<swf_spike::render::BandRange> = present_logical
+                        .iter()
+                        .map(|&i| swf_spike::render::band_range(&slots, i))
+                        .collect();
+                    let (band_ranges, present_logical) = if band_ranges.is_empty() {
+                        (vec![swf_spike::render::BandRange::ALL], vec![0usize])
+                    } else {
+                        (band_ranges, present_logical)
+                    };
+
+                    let chunk_start: u32 = 0;
+                    let chunk_end = total.min(cached.anim_end);
+                    if chunk_end == 0 {
+                        continue;
+                    }
+                    let chunk_count = chunk_end;
+
+                    let scale = f64::from(resolution) / 20.0;
+                    let pad = 1.0;
+                    let px_min_x = (cached.min_x * scale).floor() - pad;
+                    let px_min_y = (cached.min_y * scale).floor() - pad;
+                    let px_max_x = (cached.max_x * scale).ceil() + pad;
+                    let px_max_y = (cached.max_y * scale).ceil() + pad;
+                    let frame_w = ((px_max_x - px_min_x) as u32).max(1);
+                    let frame_h = ((px_max_y - px_min_y) as u32).max(1);
+
+                    // Pick grid layout that keeps the variant's full
+                    // atlas (strip_w × (bands × strip_h + padding))
+                    // inside MAX_ATLAS_DIM². The legacy single-row
+                    // layout (one strip wider than tall) blows past
+                    // 16k pixels for high-frame anims like `die`; a
+                    // ~square layout keeps the bbox under the cap.
+                    let band_present_u32 = present_logical.len() as u32;
+                    let padding_total = if band_present_u32 > 0 {
+                        (band_present_u32 - 1) * BAND_PADDING_PX
+                    } else {
+                        0
+                    };
+                    // Maximum per-band strip height that keeps the
+                    // stacked-bands atlas under MAX_ATLAS_DIM tall.
+                    let max_strip_h = if band_present_u32 > 0 {
+                        (MAX_ATLAS_DIM.saturating_sub(padding_total)) / band_present_u32
+                    } else {
+                        MAX_ATLAS_DIM
+                    };
+                    let max_cols = (MAX_ATLAS_DIM / frame_w).max(1) as usize;
+                    let max_rows = (max_strip_h / frame_h).max(1) as usize;
+                    let chunk_usize = chunk_count as usize;
+                    if max_cols * max_rows < chunk_usize {
+                        console_log!(
+                            "renderSwfClassAtlas: variant {bundle}/{export}/bFix={apply_b_fix}/hat={hat_equipped} \
+                             too many frames ({chunk_usize}) for max grid {max_cols}x{max_rows}; skipping"
+                        );
+                        continue;
+                    }
+                    // Most-square grid that obeys the band-height
+                    // ceiling. Aspect target: `cols * frame_w ≈
+                    // rows * frame_h` so strip_w ≈ strip_h.
+                    let ideal_cols_f = ((chunk_usize as f64)
+                        * (frame_h as f64)
+                        / (frame_w as f64))
+                        .sqrt()
+                        .ceil();
+                    let ideal_cols = (ideal_cols_f as usize).max(1);
+                    let min_cols = (chunk_usize + max_rows - 1) / max_rows;
+                    let grid_cols = ideal_cols.max(min_cols).min(max_cols).min(chunk_usize);
+                    let grid_rows_v = (chunk_usize + grid_cols - 1) / grid_cols;
+                    let strip_w = frame_w * grid_cols as u32;
+                    let strip_h = frame_h * grid_rows_v as u32;
+                    let atlas_w = strip_w;
+                    let atlas_h = strip_h * band_present_u32 + padding_total;
+                    if atlas_w == 0
+                        || atlas_h == 0
+                        || atlas_w > MAX_ATLAS_DIM
+                        || atlas_h > MAX_ATLAS_DIM
+                    {
+                        // Defence-in-depth — the geometric clamps
+                        // above should keep us under MAX_ATLAS_DIM,
+                        // but skip rather than abort if a corner
+                        // case slips through.
+                        console_log!(
+                            "renderSwfClassAtlas: variant {bundle}/{export}/bFix={apply_b_fix}/hat={hat_equipped} \
+                             still over-large {atlas_w}x{atlas_h}; skipping"
+                        );
+                        continue;
+                    }
+
+                    // Cache per-band variant-local atlasY.
+                    let mut band_atlas_ys = Vec::with_capacity(present_logical.len());
+                    for slot_idx in 0..present_logical.len() {
+                        let y = (slot_idx as u32) * (strip_h + BAND_PADDING_PX);
+                        band_atlas_ys.push(y);
+                    }
+
+                    variants.push(VariantLayout {
+                        export_name: export.clone(),
+                        apply_b_fix,
+                        hat_equipped,
+                        total_frame_count: total,
+                        atlas_w,
+                        atlas_h,
+                        strip_w,
+                        strip_h,
+                        frame_w,
+                        frame_h,
+                        grid_cols: grid_cols as u32,
+                        frame_count: chunk_count,
+                        anchor_x: -px_min_x,
+                        anchor_y: -px_min_y,
+                        present_logical,
+                        band_ranges,
+                        band_atlas_ys,
+                        slot_count: slot_count_logical,
+                        chunk_start,
+                        chunk_count,
+                        page_index: 0,
+                        packed_x: 0,
+                        packed_y: 0,
+                    });
+                }
+            }
+        }
+
+        if variants.is_empty() {
+            console_log!("renderSwfClassAtlas: bundle `{bundle}` produced no bakeable variants");
+            return JsValue::NULL;
+        }
+
+        // Step 3: multi-page shelf bin-pack. Each page is ≤
+        // MAX_ATLAS_DIM². When a variant doesn't fit on the current
+        // page, open a new page. This is the planned fallback for
+        // classes whose total variant area exceeds a single page —
+        // documented in `RENDER_CLASS_ATLAS_PLAN.md` "Atlas dim
+        // ceiling" caveat.
+        variants.sort_by(|a, b| b.atlas_h.cmp(&a.atlas_h));
+        let mut pages: Vec<AtlasPage> = vec![AtlasPage {
+            width: MAX_ATLAS_DIM,
+            height: 0,
+            shelf_y: 0,
+            shelf_h: 0,
+            shelf_x: 0,
+        }];
+        for v in variants.iter_mut() {
+            // Try to place on each existing page; spill to a new
+            // page if none accept the variant.
+            let mut placed = false;
+            for (p_idx, page) in pages.iter_mut().enumerate() {
+                // Advance to a new shelf if the current one is full.
+                let (mut try_y, mut try_x, mut try_shelf_h) =
+                    (page.shelf_y, page.shelf_x, page.shelf_h);
+                if try_x + v.atlas_w > page.width {
+                    try_y = try_y.saturating_add(try_shelf_h);
+                    if try_y > 0 {
+                        try_y = try_y.saturating_add(PADDING_PX);
+                    }
+                    try_x = 0;
+                    try_shelf_h = 0;
+                }
+                if try_x + v.atlas_w > page.width {
+                    continue;
+                }
+                if try_y + v.atlas_h > MAX_ATLAS_DIM {
+                    continue;
+                }
+                v.page_index = p_idx as u32;
+                v.packed_x = try_x;
+                v.packed_y = try_y;
+                page.shelf_y = try_y;
+                page.shelf_x = try_x + v.atlas_w + PADDING_PX;
+                page.shelf_h = try_shelf_h.max(v.atlas_h);
+                let new_extent = try_y + page.shelf_h;
+                if new_extent > page.height {
+                    page.height = new_extent.min(MAX_ATLAS_DIM);
+                }
+                placed = true;
+                break;
+            }
+            if !placed {
+                // Open a new page. A freshly-allocated page can
+                // always fit a variant whose dims are ≤
+                // MAX_ATLAS_DIM (already validated above).
+                let new_page_idx = pages.len() as u32;
+                let mut new_page = AtlasPage {
+                    width: MAX_ATLAS_DIM,
+                    height: v.atlas_h,
+                    shelf_y: 0,
+                    shelf_h: v.atlas_h,
+                    shelf_x: v.atlas_w + PADDING_PX,
+                };
+                v.page_index = new_page_idx;
+                v.packed_x = 0;
+                v.packed_y = 0;
+                // Cap page height to MAX_ATLAS_DIM (variant already
+                // validated against this dim).
+                new_page.height = new_page.height.min(MAX_ATLAS_DIM);
+                pages.push(new_page);
+            }
+        }
+        // Finalise page dims — each page's WIDTH and HEIGHT are
+        // shrunk to the tightest rectangle that contains every
+        // packed variant. The packer treats `page.width` as the
+        // hard ceiling during placement, but if all variants on
+        // this page only used the left 2000 px, allocating a
+        // 8192-wide GPU texture wastes ~75 % of the page's memory.
+        // Round up to the next multiple of 64 for nicer alignment.
+        for (p_idx, page) in pages.iter_mut().enumerate() {
+            let mut used_w = 0u32;
+            let mut used_h = 0u32;
+            for v in variants.iter() {
+                if v.page_index as usize != p_idx {
+                    continue;
+                }
+                let right = v.packed_x + v.atlas_w;
+                let bottom = v.packed_y + v.atlas_h;
+                if right > used_w {
+                    used_w = right;
+                }
+                if bottom > used_h {
+                    used_h = bottom;
+                }
+            }
+            let align = 64u32;
+            let aligned_w = ((used_w + align - 1) / align) * align;
+            let aligned_h = ((used_h + align - 1) / align) * align;
+            page.width = aligned_w.max(1).min(MAX_ATLAS_DIM);
+            page.height = aligned_h.max(1).min(MAX_ATLAS_DIM);
+        }
+
+        // Step 4: allocate one combined class atlas texture per page.
+        struct PageTextures {
+            combined: wgpu::Texture,
+            width: u32,
+            height: u32,
+        }
+        let mut page_textures: Vec<PageTextures> = Vec::with_capacity(pages.len());
+        for (p_idx, page) in pages.iter().enumerate() {
+            let combined = self.device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("vello_swf_class_atlas_combined"),
+                size: wgpu::Extent3d {
+                    width: page.width,
+                    height: page.height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | wgpu::TextureUsages::COPY_SRC
+                    | wgpu::TextureUsages::COPY_DST
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            });
+            // No pre-clear needed — `CombineBodyPipeline` runs with
+            // `LoadOp::Clear(TRANSPARENT)` on the destination view,
+            // overwriting every pixel. Skipping the pre-clear cuts
+            // one GPU submission per page.
+            page_textures.push(PageTextures {
+                combined,
+                width: page.width,
+                height: page.height,
+            });
+            let _ = p_idx;
+        }
+
+        // Ensure the lazy pipelines exist.
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines = Some(
+                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
+            );
+        }
+        if self.combine_body_pipeline.is_none() {
+            self.combine_body_pipeline =
+                Some(bitmap_bridge::CombineBodyPipeline::new(&self.device));
+        }
+
+        let player_colors = swf_spike::recolor::PlayerColors::default();
+        let scale = f64::from(resolution) / 20.0;
+        let scale_q = (scale * 1000.0).round() as u32;
+
+        // Ensure the bundle-shared render cache exists once for the
+        // whole class. This caches flattened shape data per-bundle
+        // and is reused across every variant in the loop below.
+        let _ = self.swf_render_caches.entry(bundle.to_string()).or_default();
+        let _ = scale_q; // body_scene_cache key field — referenced only by the legacy per-variant path now.
+
+        // Pre-clear every page once: combine pass below writes only
+        // the variant sub-rect on each variant; pixels outside any
+        // variant stay at the clear value.
+        for page_tex in &page_textures {
+            let dst_view = page_tex
+                .combined
+                .create_view(&wgpu::TextureViewDescriptor::default());
+            let mut encoder = self
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("class-atlas-page-clear"),
+                });
+            {
+                let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("class-atlas-page-clear-pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &dst_view,
+                        depth_slice: None,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                    multiview_mask: None,
+                });
+            }
+            self.queue.submit(std::iter::once(encoder.finish()));
+        }
+
+        // Step 5: render each variant at its own dims via Vello, then
+        // combine to a variant-sized temp, then copy_texture_to_texture
+        // into the variant's page sub-rect.
+        //
+        // Per-variant Vello dispatch is the safe path — the legacy
+        // `feedback_vello_scene_overflow` note documents partial
+        // stroke drops when a single scene exceeds the tile-encoder
+        // budget. With ~30 variants × ~8 frames × ~5 bands × ~200
+        // path fills each = ~240 k fills if merged into one scene
+        // per page, well above the overflow threshold. Splitting
+        // per-variant keeps each scene at ~5-8 k fills.
+        // Instrumentation: track per-class enumeration cost.
+        let enumerate_ms = perf_now() - t_enumerate_start;
+        t_enumerate_start = perf_now(); // reuse var to silence warning
+        let _ = t_enumerate_start;
+
+        for variant in &variants {
+            let t_build_start = perf_now();
+            let colour_scene = self.build_class_variant_scene(
+                bundle,
+                &variant.export_name,
+                swf_spike::render::RenderMode::Colour,
+                variant.chunk_start,
+                variant.chunk_count,
+                variant.strip_h,
+                variant.frame_w,
+                variant.frame_h,
+                variant.grid_cols as usize,
+                -variant.anchor_x,
+                -variant.anchor_y,
+                scale,
+                variant.apply_b_fix,
+                variant.hat_equipped,
+                &variant.band_ranges,
+                player_colors,
+            );
+            let zone_scene = self.build_class_variant_scene(
+                bundle,
+                &variant.export_name,
+                swf_spike::render::RenderMode::ZoneId,
+                variant.chunk_start,
+                variant.chunk_count,
+                variant.strip_h,
+                variant.frame_w,
+                variant.frame_h,
+                variant.grid_cols as usize,
+                -variant.anchor_x,
+                -variant.anchor_y,
+                scale,
+                variant.apply_b_fix,
+                variant.hat_equipped,
+                &variant.band_ranges,
+                player_colors,
+            );
+            let scene_build_ms = perf_now() - t_build_start;
+            total_scene_build_ms += scene_build_ms;
+
+            let v_w = variant.atlas_w;
+            let v_h = variant.atlas_h;
+            let colour_temp = self.device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("vello_swf_class_variant_color"),
+                size: wgpu::Extent3d {
+                    width: v_w,
+                    height: v_h,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::STORAGE_BINDING
+                    | wgpu::TextureUsages::COPY_SRC
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            });
+            let zone_temp = self.device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("vello_swf_class_variant_zone"),
+                size: wgpu::Extent3d {
+                    width: v_w,
+                    height: v_h,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::STORAGE_BINDING
+                    | wgpu::TextureUsages::COPY_SRC
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            });
+            let colour_view = colour_temp.create_view(&wgpu::TextureViewDescriptor::default());
+            let zone_view = zone_temp.create_view(&wgpu::TextureViewDescriptor::default());
+            let params = vello::RenderParams {
+                base_color: Color::TRANSPARENT,
+                width: v_w,
+                height: v_h,
+                antialiasing_method: AaConfig::Area,
+            };
+            let t_render_start = perf_now();
+            if let Err(e) = self.renderer.render_to_texture(
+                &self.device,
+                &self.queue,
+                &colour_scene,
+                &colour_view,
+                &params,
+            ) {
+                console_log!(
+                    "renderSwfClassAtlas[colour {}]: render error: {e}",
+                    variant.export_name
+                );
+                return JsValue::NULL;
+            }
+            if let Err(e) = self.renderer.render_to_texture(
+                &self.device,
+                &self.queue,
+                &zone_scene,
+                &zone_view,
+                &params,
+            ) {
+                console_log!(
+                    "renderSwfClassAtlas[zone {}]: render error: {e}",
+                    variant.export_name
+                );
+                return JsValue::NULL;
+            }
+            let render_submit_ms = perf_now() - t_render_start;
+            total_render_submit_ms += render_submit_ms;
+            let combined_temp = self.device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("vello_swf_class_variant_combined"),
+                size: wgpu::Extent3d {
+                    width: v_w,
+                    height: v_h,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | wgpu::TextureUsages::COPY_SRC
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            });
+            let t_combine_start = perf_now();
+            {
+                let combine = self.combine_body_pipeline.as_ref().unwrap();
+                let combined_view =
+                    combined_temp.create_view(&wgpu::TextureViewDescriptor::default());
+                let dst_page = &page_textures[variant.page_index as usize].combined;
+                let mut encoder =
+                    self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("class-atlas-variant-combine-copy"),
+                    });
+                combine.combine(
+                    &self.device,
+                    &mut encoder,
+                    &colour_view,
+                    &zone_view,
+                    &combined_view,
+                );
+                encoder.copy_texture_to_texture(
+                    wgpu::TexelCopyTextureInfo {
+                        texture: &combined_temp,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d::ZERO,
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    wgpu::TexelCopyTextureInfo {
+                        texture: dst_page,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d {
+                            x: variant.packed_x,
+                            y: variant.packed_y,
+                            z: 0,
+                        },
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    wgpu::Extent3d {
+                        width: v_w,
+                        height: v_h,
+                        depth_or_array_layers: 1,
+                    },
+                );
+                self.queue.submit(std::iter::once(encoder.finish()));
+            }
+            let combine_copy_ms = perf_now() - t_combine_start;
+            total_combine_copy_ms += combine_copy_ms;
+
+            per_variant_log.push((
+                variant.export_name.clone(),
+                variant.apply_b_fix,
+                variant.hat_equipped,
+                v_w,
+                v_h,
+                scene_build_ms,
+                render_submit_ms,
+                combine_copy_ms,
+            ));
+
+            drop(colour_temp);
+            drop(zone_temp);
+            drop(combined_temp);
+        }
+
+        // Step 6: bridge each page's class atlas to one ImageBitmap.
+        // The bridge step (`render_texture_to_bitmap`) is the only
+        // GPU-synchronous step in the bake — it waits for
+        // `transferToImageBitmap` after a surface present, so its
+        // wall time captures all upstream GPU latency (Vello
+        // compute, combine, copies) for everything submitted before.
+        let pages_arr = js_sys::Array::new();
+        let t_bridge_start = perf_now();
+        for page in &page_textures {
+            let Some(bitmap) = self.texture_to_bitmap(
+                &page.combined,
+                page.width,
+                page.height,
+                "renderSwfClassAtlas",
+            ) else {
+                return JsValue::NULL;
+            };
+            let page_obj = js_sys::Object::new();
+            let _ = js_sys::Reflect::set(&page_obj, &"combinedBitmap".into(), &bitmap);
+            let _ = js_sys::Reflect::set(
+                &page_obj,
+                &"atlasWidth".into(),
+                &JsValue::from(page.width),
+            );
+            let _ = js_sys::Reflect::set(
+                &page_obj,
+                &"atlasHeight".into(),
+                &JsValue::from(page.height),
+            );
+            pages_arr.push(&page_obj.into());
+        }
+        total_bridge_ms = perf_now() - t_bridge_start;
+        let page_count = page_textures.len();
+        let mut page_dim_summary = String::new();
+        for (i, p) in page_textures.iter().enumerate() {
+            if i > 0 {
+                page_dim_summary.push(',');
+            }
+            page_dim_summary.push_str(&format!("{}x{}", p.width, p.height));
+        }
+        drop(page_textures);
+
+        // Emit a single structured per-class summary plus a per-
+        // variant breakdown. Format is grep-friendly so the user
+        // can extract numbers across runs:
+        //   classAtlasBake bundle=sprite-10 vars=15 pages=2
+        //     enumerate=3.2 scene=82.1 render=145.6 combineCopy=12.4
+        //     bridge=38.9 total=282.2  pageDims=2048x6080,1024x3072
+        //   variant bundle=sprite-10 walkR bFix=0 hat=0 1800x6008
+        //     scene=8.2 render=14.5 combineCopy=0.8
+        let total_wall_ms = perf_now() - bake_start;
+        console_log!(
+            "classAtlasBake bundle={bundle} vars={} pages={} enumerate={:.2} scene={:.2} \
+             render={:.2} combineCopy={:.2} bridge={:.2} total={:.2} pageDims={}",
+            variants.len(),
+            page_count,
+            enumerate_ms,
+            total_scene_build_ms,
+            total_render_submit_ms,
+            total_combine_copy_ms,
+            total_bridge_ms,
+            total_wall_ms,
+            page_dim_summary
+        );
+        for (name, bfix, hat, vw, vh, sb, rs, cc) in &per_variant_log {
+            console_log!(
+                "  variant bundle={bundle} {} bFix={} hat={} {}x{} scene={:.2} render={:.2} combineCopy={:.2}",
+                name,
+                if *bfix { 1 } else { 0 },
+                if *hat { 1 } else { 0 },
+                vw,
+                vh,
+                sb,
+                rs,
+                cc
+            );
+        }
+
+        // Step 7: build per-variant JS metadata.
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"pages".into(), &pages_arr.into());
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"bFixUsed".into(),
+            &JsValue::from_bool(b_fix_used),
+        );
+        let variants_arr = js_sys::Array::new();
+        for v in &variants {
+            let obj = js_sys::Object::new();
+            let _ = js_sys::Reflect::set(&obj, &"exportName".into(), &JsValue::from_str(&v.export_name));
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"applyBFix".into(),
+                &JsValue::from_bool(v.apply_b_fix),
+            );
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"hatEquipped".into(),
+                &JsValue::from_bool(v.hat_equipped),
+            );
+            let _ = js_sys::Reflect::set(&obj, &"pageIndex".into(), &JsValue::from(v.page_index));
+            let _ = js_sys::Reflect::set(&obj, &"atlasX".into(), &JsValue::from(v.packed_x));
+            let _ = js_sys::Reflect::set(&obj, &"atlasY".into(), &JsValue::from(v.packed_y));
+            let _ = js_sys::Reflect::set(&obj, &"stripWidth".into(), &JsValue::from(v.strip_w));
+            let _ = js_sys::Reflect::set(&obj, &"stripHeight".into(), &JsValue::from(v.strip_h));
+            let _ = js_sys::Reflect::set(&obj, &"frameWidth".into(), &JsValue::from(v.frame_w));
+            let _ = js_sys::Reflect::set(&obj, &"frameHeight".into(), &JsValue::from(v.frame_h));
+            let _ = js_sys::Reflect::set(&obj, &"gridCols".into(), &JsValue::from(v.grid_cols));
+            let _ = js_sys::Reflect::set(&obj, &"frameCount".into(), &JsValue::from(v.frame_count));
+            let _ = js_sys::Reflect::set(&obj, &"totalFrameCount".into(), &JsValue::from(v.total_frame_count));
+            let _ = js_sys::Reflect::set(&obj, &"anchorX".into(), &JsValue::from(v.anchor_x));
+            let _ = js_sys::Reflect::set(&obj, &"anchorY".into(), &JsValue::from(v.anchor_y));
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"bandPadding".into(),
+                &JsValue::from(BAND_PADDING_PX),
+            );
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"bandCount".into(),
+                &JsValue::from(v.present_logical.len() as u32),
+            );
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"slotCount".into(),
+                &JsValue::from(v.slot_count),
+            );
+            let bands_arr = js_sys::Array::new();
+            for (slot_idx, &logical_band_idx) in v.present_logical.iter().enumerate() {
+                let band_obj = js_sys::Object::new();
+                let _ = js_sys::Reflect::set(
+                    &band_obj,
+                    &"bandIndex".into(),
+                    &JsValue::from(logical_band_idx as u32),
+                );
+                // Bands are stored in ABSOLUTE class-atlas
+                // coordinates so the JS-side UV math is identical
+                // to the legacy per-variant path.
+                let abs_x = v.packed_x;
+                let abs_y = v.packed_y + v.band_atlas_ys[slot_idx];
+                let _ = js_sys::Reflect::set(&band_obj, &"atlasX".into(), &JsValue::from(abs_x));
+                let _ = js_sys::Reflect::set(&band_obj, &"atlasY".into(), &JsValue::from(abs_y));
+                bands_arr.push(&band_obj.into());
+            }
+            let _ = js_sys::Reflect::set(&obj, &"bands".into(), &bands_arr.into());
+            variants_arr.push(&obj.into());
+        }
+        let _ = js_sys::Reflect::set(&result, &"variants".into(), &variants_arr.into());
+        result.into()
+    }
+
+    /// Helper: build a single variant's Vello scene for the class
+    /// atlas bake. Mirrors the inline `build_scene` closure from
+    /// `render_swf_body_atlas` but lives at method scope so the
+    /// borrow of `&mut self.renderer` doesn't conflict with the
+    /// scene-cache mutation we need to do around the call.
+    #[allow(clippy::too_many_arguments)]
+    fn build_class_variant_scene(
+        &mut self,
+        bundle: &str,
+        export: &str,
+        mode: swf_spike::render::RenderMode,
+        chunk_start: u32,
+        chunk_count: u32,
+        strip_h: u32,
+        frame_w: u32,
+        frame_h: u32,
+        grid_cols: usize,
+        px_min_x: f64,
+        px_min_y: f64,
+        scale: f64,
+        apply_b_fix: bool,
+        hat_equipped: bool,
+        band_ranges: &[swf_spike::render::BandRange],
+        player_colors: swf_spike::recolor::PlayerColors,
+    ) -> vello::Scene {
+        const BAND_PADDING_PX: u32 = 2;
+        let doc = self
+            .swf_bundles
+            .get(bundle)
+            .expect("bundle vetted by caller");
+        let symbol = doc.lookup_export(export).expect("export vetted by caller");
+        let (effective_sym, effective_xform) =
+            swf_spike::render::find_effective_body_symbol(doc, symbol, 0);
+        let filter_pipelines = self.swf_filter_pipelines.as_ref().expect("init by caller");
+        let cache: &swf_spike::render::cache::RenderCache = self
+            .swf_render_caches
+            .entry(bundle.to_string())
+            .or_default();
+        let mut wctx = swf_spike::render::WgpuCtx {
+            device: &self.device,
+            queue: &self.queue,
+            renderer: &mut self.renderer,
+            filter_pipelines,
+            output_scale: scale,
+        };
+        let mut scene = vello::Scene::new();
+        for (slot_idx, &band) in band_ranges.iter().enumerate() {
+            let band_atlas_y =
+                (slot_idx as f64) * (f64::from(strip_h) + f64::from(BAND_PADDING_PX));
+            for slot in 0..chunk_count {
+                let frame_idx = chunk_start + slot;
+                let col = (slot as usize) % grid_cols;
+                let row = (slot as usize) / grid_cols;
+                let cell_x = (col * frame_w as usize) as f64;
+                let cell_y = band_atlas_y + (row * frame_h as usize) as f64;
+                let xform = vello::kurbo::Affine::scale(scale).then_translate(
+                    vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y + cell_y),
+                );
+                swf_spike::render::render_body_band(
+                    &mut wctx,
+                    doc,
+                    effective_sym,
+                    &mut scene,
+                    xform * effective_xform,
+                    frame_idx as u16,
+                    band,
+                    mode,
+                    player_colors,
+                    cache,
+                    apply_b_fix,
+                    hat_equipped,
+                );
+            }
+        }
+        scene
     }
 
     /// Path B accessory strip rasteriser. Bakes 3 directional sub-

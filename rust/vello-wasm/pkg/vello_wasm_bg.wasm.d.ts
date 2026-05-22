@@ -27,6 +27,7 @@ export const vellorenderer_renderFrameToAtlas: (a: number, b: number, c: number,
 export const vellorenderer_renderSwfAccessoryStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => any;
 export const vellorenderer_renderSwfBodyAtlas: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => any;
 export const vellorenderer_renderSwfBundleBatch: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
+export const vellorenderer_renderSwfClassAtlas: (a: number, b: number, c: number, d: number) => any;
 export const vellorenderer_renderSwfFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
 export const vellorenderer_renderSwfMountTransforms: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
 export const vellorenderer_renderSwfRoot: (a: number, b: number, c: number, d: number, e: number) => any;

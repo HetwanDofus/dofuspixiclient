@@ -29,8 +29,9 @@ interface ProbeCounter {
 const blank = (): ProbeCounter => ({ count: 0, totalMs: 0, maxMs: 0 });
 
 const counters = {
-  /** `renderSwfBodyAtlas` wall time per call. */
-  bodyAtlas: blank(),
+  /** `renderSwfClassAtlas` wall time per call. ONE call per class
+   *  per resolution; covers every variant in a single Rust dispatch. */
+  classAtlas: blank(),
   /** `renderSwfAccessoryStrip` wall time per call. */
   accessoryStrip: blank(),
   /** `renderSwfMountTransforms` wall time per call. */
@@ -57,7 +58,7 @@ export type ProbeSnapshot = Record<ProbeKey, ProbeCounter>;
  *  5 s window so the next window starts fresh. */
 export function readAndResetProbes(): ProbeSnapshot {
   const out: ProbeSnapshot = {
-    bodyAtlas: { ...counters.bodyAtlas },
+    classAtlas: { ...counters.classAtlas },
     accessoryStrip: { ...counters.accessoryStrip },
     mountTransforms: { ...counters.mountTransforms },
     bakeDrain: { ...counters.bakeDrain },

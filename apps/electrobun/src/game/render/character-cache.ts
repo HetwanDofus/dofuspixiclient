@@ -1,29 +1,33 @@
 /**
- * Path B shared cache for body bands + accessory strips + mount
- * transforms. Sits between `PlayerStripRenderer` and `vello-loader` so
- * 400 bots of the same class share one body strip per (band × dir ×
- * anim) instead of 400 unique strips.
+ * Path B shared cache for class atlases + accessory strips + mount
+ * transforms. Sits between `PlayerStripRendererV2` and `vello-loader` so
+ * 400 bots of the same class share ONE GPU texture containing every
+ * animation variant of that class.
  *
  * Cache keys:
- *   body band  → `bundle|export|bandIndex|applyBFix`
- *   accessory  → `accBundle|accExport|slot|animType|dir|side`
- *   mount xfm  → `bundle|export|start|count|applyBFix`
+ *   class atlas → `class|${bundle}|${resolutionQuantised}`
+ *   accessory   → `acc|${accBundle}|${accExport}|${slot}|${animType}|${dir}|${side}|${resolution}`
+ *   mount xfm   → `mnt|${bundle}|${export}|${start}|${count}|${applyBFix}`
  *
- * Cross-bot sharing makes the body strip count grow with (class × dir
- * × anim × band) instead of (bot count). The whole point of Path B.
+ * Variant lookup inside a class atlas is keyed by
+ *   `${exportName}|${applyBFix(0/1)}|${hatEquipped(0/1)}`
+ * with the `applyBFix` / `hatEquipped` dimensions collapsed to `0`
+ * when the body doesn't actually use them — mirrors the legacy
+ * `normalizeBFix` / `normalizeHatEquipped` heuristics. Variant
+ * normalisation happens AT BAKE TIME (Rust enumerates only the
+ * effective variants) and at LOOKUP TIME (JS uses `bFixUsed` /
+ * `hasToggleSprite` from `swfBodyBandInfo` to collapse the query).
  *
- * Refcount semantics: each `PlayerStripRenderer` slot using a strip
- * holds one ref. On anim swap, drop the old ref + acquire the new.
- * When refcount hits 0 the strip stays in the cache (the next swap is
- * usually within ms) but is eligible for LRU eviction when total
- * cache bytes crosses the cap.
+ * Refcount semantics: each `PlayerStripRendererV2` slot using a class
+ * atlas holds one ref. Anim swap to the same class is refcount-stable
+ * (no acquire/release); anim swap to a different class drops the old
+ * ref + acquires the new. Releasing to 0 makes the entry LRU-eligible.
  *
- * Two-tick settle on eviction (mirrors `player-strip-renderer.ts`
- * `scheduleRetire`): the GPU texture is freed via `freeRenderTexture`
- * only after two Pixi ticks so in-flight samplers on the old texture
- * complete first. The patched-wgpu Drop is a no-op
- * (`feedback_pixi_wgpu_texture_lifetime`), so this is the ONLY place
- * GPU memory actually gets released.
+ * Two-tick settle on eviction (mirrors `scheduleRetire` semantics):
+ * the GPU texture is destroyed only after two Pixi ticks so in-flight
+ * samplers on the old texture complete first. The patched-wgpu Drop
+ * is a no-op (`feedback_pixi_wgpu_texture_lifetime`), so this is the
+ * ONLY place GPU memory actually gets released.
  *
  * Bakes are dispatched through `getStripBakeQueue()` for adaptive
  * frame budgeting — cache misses don't stall the rAF callback.
@@ -32,10 +36,7 @@
 import {
   ImageSource,
   Rectangle,
-  RenderTexture,
-  Sprite,
   Texture,
-  type TextureSource,
   Ticker,
 } from "pixi.js";
 
@@ -43,6 +44,7 @@ import {
   getPixiRenderer,
   renderSwfAccessoryStrip,
   renderSwfBodyAtlas,
+  renderSwfClassAtlas,
   renderSwfMountTransforms,
   swfAccessoryCanonicalAnimType,
   swfBodyBandInfo,
@@ -51,6 +53,7 @@ import {
   type VelloSwfAccessoryStripResult,
   type VelloSwfBodyAtlasResult,
   type VelloSwfBodyBandInfo,
+  type VelloSwfClassAtlasResult,
 } from "@/game/render/vello-loader";
 import { getStripBakeQueue } from "@/game/render/strip-bake-queue";
 import { createLogger } from "@/utils/logger";
@@ -64,332 +67,102 @@ export const MAX_SLOT = 5;
 /**
  * Default LRU cap in bytes.
  *
- * Sizing rule post-bridge-migration: cap is now a DIRECT cost on
- * process memory.
+ * Class-atlas migration: each class entry is ONE GPU texture. At
+ * resolution=3 typical class atlases sit at 4096 × N pixels where N
+ * is determined by the bin-packer (roughly 200-1500 px tall per
+ * class). 12 classes × ~6 MB = ~72 MB GPU for the body atlas
+ * working set. The accessory cache still dominates: ~5-8 k unique
+ * (bundle × export × slot × animType × dir) tuples at 200-bot
+ * stress, ~65 KB each → ~330-520 MB.
  *
- * The original 1.5 GB target was rationalized around the patched
- * fork's no-op `Drop for WebTexture`: a small cap caused eviction
- * churn → re-bakes → Vello-internal staging textures leaked forever
- * → total memory climbed even as the cache stayed small. So a big
- * cap minimised total memory.
- *
- * That model no longer applies. Two architectural changes broke it:
- *
- *   1. Selective Drop wiring (STEP_11_BRIDGE_NOTES.md C1 refinement)
- *      now queues every Vello-internal texture into `deferred_destroy`.
- *      `createdTex - destroyedTex ≈ liveTex` confirmed by real
- *      STRESS_JSON: 28 GB created, 28 GB destroyed, 12 MB live. The
- *      leak is gone; cache cap no longer compounds it.
- *
- *   2. Bridge migration uploads every cached source to Pixi's own
- *      GPUTexture. So each cache entry costs ~2× its byte size:
- *      once in our LRU accounting + once in Pixi's GPU memory.
- *      Lower cap → less Pixi GPU. Direct 1:1.
- *
- * Real-data working sets (200-bot stress with random looks),
- * post-color+zone-merge:
- *  - body atlases: ~500 entries × ~1.1 MB = ~550 MB (was ~1.2 GB
- *    pre-merge — 50 % smaller because zone packed into color's
- *    alpha LSBs)
- *  - accessories:  ~3800 × ~65 KB = ~250 MB
- *  - combined working set: ~800 MB
- *
- * Cap sizing trade-off observed in real stress runs at 200 bots:
- *
- *  - 800 MB cap: working set = cap → LRU thrashes on every
- *    accessory growth tick. 2381 evictions / 30 s, fps 60 → 30.
- *  - 1024 MB cap: looked stable for 41 s, then cap hit at t=46 s
- *    once both body (~650 MB) and acc (~376 MB) converged.
- *    Eviction sustained ~24/s afterward → fps degraded from 60
- *    to 36 over the following 15 s. The 10-min-stable target
- *    failed because the cap landed AT the working set ceiling.
- *  - 1500 MB cap: ~200 MB headroom above the observed
- *    equilibrium of ~1.3 GB (body 650 + acc growing toward
- *    520-650 once all unique combinations are sampled). Zero
- *    eviction churn under stress.
- *
- * Why the working set keeps growing past 56 s of stress:
- *   - Body atlases converge at ~569 entries (12 classes × 5
- *     dirs × 3 anims × 2 flipped = 360 nominal; bots' random
- *     looks generate variations).
- *   - Accessory entries grew 1053 → 5780 over 50 s with the
- *     rate still 6-10/s at the cap point — keyed by
- *     (bundle × export × slot × animType × dir). Equilibrium
- *     is closer to 8000-10000 unique combinations across
- *     200 random-look bots.
- *
- * Memory math at 1500 MB cap + color+zone merge:
- *  - LRU cache:        ~1.4 GB at equilibrium (stress)
- *  - Pixi GPU mirror:  ~1.4 GB (same entries, half-size per
- *                       atlas thanks to merge)
- *  - Pixi bitmap pool: ~120 MB (off-screen bots' uploads pending)
- *  - Rust wasm + buffers: ~780 MB
- *  - JS heap + browser overhead: ~1 GB
- *  - Process total:    ~4.5 GB
- *
- * Real gameplay (16-char fights) never approaches the cap —
- * working set sits at ~400 MB. The cap is purely a stress-
- * test ceiling.
- *
- * **2026-05-22 update**: bumped from 1500 MB → 2000 MB. The
- * canonical band-split fix made body atlases ~3× bigger (each
- * band gets its own strip in the atlas). After empty-band-skip
- * + hat-dedup the working set for 200-bot random-look stress
- * settled at ~410 entries × 3.4 MB ≈ 1.4 GB but kept thrashing
- * (`hitPct` plateaued at 65 %, ~260 evicts/sec). Bumping to
- * 2 GB lets ~590 entries fit — comfortably above the working
- * set with headroom for spikes. Memory cost: +500 MB GPU.
+ * The 2 GB cap stays — the new working set is much smaller but the
+ * cap is a stress-test ceiling; real gameplay (16-char fights) sits
+ * at ~200-400 MB so the headroom is irrelevant.
  */
 const DEFAULT_BYTES_CAP = 2000 * 1024 * 1024;
 
 /** GPU pixels are 4 bytes (BGRA8/Rgba8Unorm). */
 const BYTES_PER_PIXEL = 4;
 
-/** Two ticks of settle before `freeRenderTexture` runs. */
+/** Two ticks of settle before destroying the class texture. */
 const RETIRE_TICKS = 2;
 
 /**
- * Sub-rect describing where a single Z-ordered band lives inside the
- * shared colour + zone-id atlas. The mesh shader uses these to clamp
- * its UV range to the band's region — every band of the same body
- * shares the same `frameWidth`, `frameHeight`, anchor, and grid; only
- * `atlasX/atlasY` differs.
+ * Sub-rect describing where a single Z-ordered band lives inside a
+ * variant's region of the class atlas. Absolute coordinates inside
+ * the class atlas — the renderer feeds these directly to
+ * `computeBandFrameUV` along with the class atlas's full dims.
  */
-export interface BodyAtlasBand {
+export interface VariantBand {
   readonly bandIndex: number;
   readonly atlasX: number;
   readonly atlasY: number;
 }
 
 /**
- * One body atlas = one colour texture + one zone-id texture for ALL
- * bands of a single (bundle, export, anim) tuple. Per-bot meshes
- * sample sub-regions of this shared atlas at runtime; the atlas is
- * refcounted across every bot of the same class.
+ * One animation variant inside a class atlas. `(exportName, applyBFix,
+ * hatEquipped)` uniquely identifies a variant; the cache normalises
+ * the latter two so lookups collapse onto the correct entry when the
+ * body doesn't use them.
+ *
+ * `pageIndex` selects which class-atlas page hosts this variant's
+ * pixels — most classes pack into page 0 only; high-frame classes
+ * (e.g. characters with long death anims) spill onto additional
+ * pages. Renderer must use `atlas.pages[variant.pageIndex]` to
+ * bind shader resources and read atlas dims.
  */
-/**
- * Per-class shared atlas page. Holds a 4096² `RenderTexture` into
- * which every variant (anim, dir, flip, hat) of the class blits its
- * baked sub-rect via Pixi's renderer. All `BodyAtlas` entries
- * pointing at this page share `combinedTexture.source.uid`, so the
- * `BodyBandBatch` registry (`composition-atlas.ts`) collapses from
- * ~1 batch per variant (~1156 at 500 random-look bots) to ~1 batch
- * per class × band (~60 max).
- *
- * Pages are allocated lazily on first variant bake completion for a
- * (bundle, resolution) tuple. When all variant entries pointing at
- * a page are evicted, the page is destroyed.
- *
- * The shelf packer fills variants left-to-right, advancing to the
- * next shelf on overflow. Variant sub-rects are never reclaimed
- * (no compaction); when the page is full, a new page is allocated
- * and subsequent variants land there.
- */
-/**
- * 8192² pages — verified safe now that `GuillotinePacker`
- * (replaces the earlier `ShelfPacker`) supports `free`. Stress
- * verification at 4096² showed page count stabilising at 62 (no
- * leak). The previous catastrophic 15 GB leak at 8192² was
- * caused by `ShelfPacker.pack()` not reclaiming evicted
- * sub-rects, not by the page size itself.
- *
- * Memory: 8192² × 4 bytes = 256 MB GPU per page. At ~1-2 pages
- * per class × 12 classes = ~16-25 pages total = ~4-6 GB GPU.
- * Same order as 4096²'s 62 × 64 MB = 4 GB. Trading more page
- * area for fewer pages.
- *
- * Batch consolidation: classes likely fit in 1-2 pages each,
- * dropping `BodyBandBatch` count from ~540 (4096²) to ~120-150
- * (8192²). Compose pass cost scales linearly with batch count
- * so this directly reduces `composeBot.perFrameMs`.
- *
- * WebGPU spec minimum `maxTextureDimension2d = 8192`. M-series
- * Macs commonly report 16384. Should be safe everywhere we ship.
- */
-const CLASS_ATLAS_PAGE_W = 8192;
-const CLASS_ATLAS_PAGE_H = 8192;
-
-/**
- * Free-list-supporting bin packer (guillotine-style splits, no
- * merging on free).
- *
- * Maintains a list of free rectangles. `alloc` finds the smallest
- * fitting rect (best-area-fit heuristic), removes it, places the
- * caller's rect at its top-left, and splits the remainder into 1-2
- * new free rects via a guillotine cut. `free` adds the released
- * rect back to the list.
- *
- * No merge step on free — keeps the implementation small and
- * predictable. In our workload (variants of similar dims per anim
- * type) fragmentation stays bounded because freed slots get reused
- * by same-anim-type variants nearby.
- *
- * Bug history: the earlier `ShelfPacker` had no `free`, so evicted
- * variants couldn't reuse their slots and pages filled
- * irreversibly. At 500-bot random-look stress this leaked 256 MB ×
- * ~60 pages = 15 GB GPU in 30 seconds and caused
- * "bots moving without animation" symptoms from
- * `RenderTexture.create` failing under GPU OOM.
- */
-interface PackedRect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-class GuillotinePacker {
-  private freeRects: PackedRect[];
-
-  constructor(
-    private readonly width: number,
-    private readonly height: number,
-  ) {
-    this.freeRects = [{ x: 0, y: 0, w: width, h: height }];
-  }
-
-  /**
-   * Try to place a w×h rect. Returns the allocated rect (caller's
-   * w/h, plus x/y) or null when no free space fits.
-   *
-   * Best-area-fit: pick the SMALLEST free rect that still fits the
-   * request. Reduces fragmentation more than first-fit because
-   * large free rects stay available for the next big variant.
-   */
-  alloc(w: number, h: number): PackedRect | null {
-    if (w <= 0 || h <= 0) return null;
-    if (w > this.width || h > this.height) return null;
-    let bestIdx = -1;
-    let bestArea = Number.POSITIVE_INFINITY;
-    for (let i = 0; i < this.freeRects.length; i++) {
-      const r = this.freeRects[i];
-      if (r.w >= w && r.h >= h) {
-        const area = r.w * r.h;
-        if (area < bestArea) {
-          bestArea = area;
-          bestIdx = i;
-        }
-      }
-    }
-    if (bestIdx < 0) return null;
-
-    const chosen = this.freeRects[bestIdx];
-    const placed: PackedRect = { x: chosen.x, y: chosen.y, w, h };
-    // Remove the chosen free rect; re-add the unused remainder
-    // as 1-2 new free rects via guillotine cut.
-    this.freeRects.splice(bestIdx, 1);
-    const dw = chosen.w - w;
-    const dh = chosen.h - h;
-    if (dw > 0 && dh > 0) {
-      // Split direction: cut along the LONGER unused axis first so
-      // the bigger remaining piece stays whole and accommodates
-      // future large variants. Matches "guillotine split along the
-      // shorter axis" heuristic for fragmentation control.
-      if (dw > dh) {
-        // Vertical cut: right piece is full-height; bottom piece is
-        // only as wide as the placed rect.
-        this.freeRects.push({ x: chosen.x + w, y: chosen.y, w: dw, h: chosen.h });
-        this.freeRects.push({ x: chosen.x, y: chosen.y + h, w, h: dh });
-      } else {
-        // Horizontal cut.
-        this.freeRects.push({ x: chosen.x, y: chosen.y + h, w: chosen.w, h: dh });
-        this.freeRects.push({ x: chosen.x + w, y: chosen.y, w: dw, h });
-      }
-    } else if (dw > 0) {
-      this.freeRects.push({ x: chosen.x + w, y: chosen.y, w: dw, h: chosen.h });
-    } else if (dh > 0) {
-      this.freeRects.push({ x: chosen.x, y: chosen.y + h, w: chosen.w, h: dh });
-    }
-    return placed;
-  }
-
-  /**
-   * Release an allocated rect back to the free list. No merge with
-   * adjacent free rects — accepts some fragmentation in exchange
-   * for O(1) free. Same-anim-type variants have similar dims, so
-   * a freed walkR slot is happily reused by walkL, etc.
-   */
-  free(rect: PackedRect): void {
-    this.freeRects.push({ x: rect.x, y: rect.y, w: rect.w, h: rect.h });
-  }
-
-  /** Diagnostic: total unallocated area. */
-  totalFreeArea(): number {
-    let area = 0;
-    for (const r of this.freeRects) area += r.w * r.h;
-    return area;
-  }
-}
-
-interface ClassAtlasPage {
-  readonly key: string;            // `${bundle}|${resolutionQuantised}#${pageIdx}`
-  readonly bundle: string;
-  readonly resolution: number;
-  readonly renderTexture: RenderTexture;
-  readonly source: TextureSource;
-  readonly packer: GuillotinePacker;
-  /** Number of live `BodyAtlas` entries pointing at this page.
-   *  Page is destroyed once this hits 0 (after the retire-tick
-   *  settle window). */
-  refcount: number;
-}
-
-export interface BodyAtlas {
-  readonly key: string;
-  /**
-   * Combined-bridge `Texture`: a single Pixi `ImageSource` wrapping
-   * the merged RGBA8 atlas where RGB = body color and the alpha
-   * channel encodes `(body_alpha & 0xFC) | zone_id`.
-   *
-   * The body-band shader binds this texture twice — once with a
-   * LINEAR sampler (for color + AA-smoothed body alpha) and once
-   * with a NEAREST sampler (for pixel-perfect zone-id decode from
-   * the low 2 bits of the alpha byte). One source instead of two
-   * halves the Pixi GPU working set per atlas.
-   */
-  readonly combinedTexture: Texture;
-  /** Atlas pixel dimensions (sub-region origin uses these as denom). */
-  readonly atlasWidth: number;
-  readonly atlasHeight: number;
-  /** Single-band strip dims inside the atlas (every band identical). */
+export interface VariantInfo {
+  readonly exportName: string;
+  readonly applyBFix: boolean;
+  readonly hatEquipped: boolean;
+  readonly pageIndex: number;
   readonly stripWidth: number;
   readonly stripHeight: number;
-  /** Per-anim-frame cell dims inside a band. */
   readonly frameWidth: number;
   readonly frameHeight: number;
-  /** Number of cells per row inside a band. */
   readonly gridCols: number;
-  /** Valid anim frame count (cells per band). */
   readonly frameCount: number;
-  /** SWF (0,0) anchor inside each cell — same for all bands. */
+  readonly totalFrameCount: number;
   readonly anchorX: number;
   readonly anchorY: number;
-  /** Per-band sub-rect metadata. `bands.length === bandCount`. */
-  readonly bands: BodyAtlasBand[];
+  readonly bandPadding: number;
   readonly bandCount: number;
   readonly slotCount: number;
-  readonly bandPadding: number;
-  /** Internal — managed by the cache. */
+  readonly bands: readonly VariantBand[];
+}
+
+/** One page of a class atlas — a single GPU texture + its dims. */
+export interface ClassAtlasPage {
+  readonly combinedTexture: Texture;
+  readonly atlasWidth: number;
+  readonly atlasHeight: number;
+}
+
+/**
+ * Class atlas: one or more GPU textures carrying every animation
+ * variant for a `(bundle, resolution)` tuple. Variants are looked up
+ * via `getVariant(...)`; the class atlas owns the GPU texture refcount.
+ */
+export interface ClassAtlas {
+  readonly key: string;
+  readonly bundle: string;
+  readonly resolution: number;
+  readonly pages: readonly ClassAtlasPage[];
+  /**
+   * Variant map. Keys are `${exportName}|${applyBFix(0/1)}|${hatEquipped(0/1)}`.
+   * `bFixUsed` / `hasToggleSprite` collapses mean a single VariantInfo
+   * is shared across multiple keys (e.g. when bFix is unused, both
+   * `walkR|0|0` and `walkR|1|0` point at the same VariantInfo).
+   */
+  readonly variants: Map<string, VariantInfo>;
+  /** True if the bundle has ANY mount declaring `b_fix=true`. */
+  readonly bFixUsed: boolean;
+  /** True if the bundle has a multi-frame toggle sprite (canonical
+   *  AS2 `mcToHide` pattern — only Iop's R_tete in vanilla 1.29). */
+  readonly hasToggleSprite: boolean;
   refcount: number;
   lastReleasedAt: number;
   readonly bytesEst: number;
-  /**
-   * Internal — set when this BodyAtlas's `combinedTexture` samples
-   * a sub-rect of a shared class atlas page. `undefined` for
-   * legacy per-variant atlases that own their own GPU texture
-   * (fallback path when the class page is exhausted or the variant
-   * is too large to pack).
-   *
-   * When set, `combinedTexture.destroy(false)` on retire only drops
-   * the `Texture` wrapper — the underlying source is owned by the
-   * page and stays alive until every variant on the page retires.
-   * `classPageRect` is the sub-rect we allocated; on retire we
-   * `packer.free(classPageRect)` so subsequent allocations can
-   * reuse the slot. WITHOUT this free, pages fill irreversibly
-   * (the bug that caused 15 GB GPU leak at 500-bot stress).
-   */
-  classPage?: ClassAtlasPage;
-  classPageRect?: PackedRect;
 }
 
 export interface AccessoryStrip {
@@ -420,8 +193,8 @@ export interface MountTransforms {
 }
 
 export interface CharacterCacheStats {
-  bodyEntries: number;
-  bodyBytes: number;
+  classAtlasEntries: number;
+  classAtlasBytes: number;
   accEntries: number;
   accBytes: number;
   mountEntries: number;
@@ -431,16 +204,13 @@ export interface CharacterCacheStats {
   capBytes: number;
 }
 
-interface PendingBodyAtlasBake {
-  /** Bundle + resolution captured at enqueue time so
-   *  `finalizeBodyAtlasBake` can route the result to the right
-   *  class atlas page even though the bake `key` includes the
-   *  applyBFix / hatEquipped dimensions that the page doesn't care
-   *  about. */
-  bundle: string;
-  resolution: number;
+interface PendingClassAtlasBake {
+  /** Enqueue wall-clock time — diff from the onReady invocation gives
+   *  the full bake latency a bot sees (Rust render + bridge + bake-
+   *  queue delay + JS wrap + Pixi upload). */
+  enqueuedAt: number;
   callbacks: Array<{
-    onReady: (atlas: BodyAtlas | null) => void;
+    onReady: (atlas: ClassAtlas | null) => void;
     isWanted: () => boolean;
   }>;
 }
@@ -455,32 +225,12 @@ interface PendingAccessoryBake {
 interface RetireQueueEntry {
   destroyTextures: Texture[];
   /**
-   * Step 11 bridge: ImageBitmaps owned by an evicted body atlas.
+   * Step 11 bridge: ImageBitmaps owned by an evicted class atlas.
    * Closing them releases the canvas drawing buffer's GPU resource
-   * immediately rather than waiting for JS GC. `Texture.destroy(true)`
-   * destroys the wrapping `ImageSource` but doesn't auto-`close` the
-   * bitmap — that's our responsibility.
+   * immediately rather than waiting for JS GC.
    */
   closeBitmaps: ImageBitmap[];
   ticksRemaining: number;
-  /** Class-atlas page retire path: invoked after the settle window
-   *  to drop the variant's `Texture` wrapper (not the shared
-   *  source) and decrement the page's refcount. */
-  onSettled?: () => void;
-}
-
-interface BodyAtlasKeyParts {
-  bundle: string;
-  exportName: string;
-  start: number;
-  count: number;
-  totalFrameCount: number;
-  resolution: number;
-  applyBFix: boolean;
-  /** True if the bot has a hat (slot 1) equipped. Canonical AS2's
-   *  `mcToHide` semantic: hair-toggle sprites pin to the "short
-   *  hair" frame when this is true, "full hair" frame otherwise. */
-  hatEquipped: boolean;
 }
 
 interface AccessoryKeyParts {
@@ -501,13 +251,42 @@ interface MountKeyParts {
   applyBFix: boolean;
 }
 
+function classAtlasKey(bundle: string, resolution: number): string {
+  return `class|${bundle}|${Math.round(resolution * 1000)}`;
+}
+
+function singleVariantAtlasKey(
+  bundle: string,
+  exportName: string,
+  applyBFix: boolean,
+  hatEquipped: boolean,
+  resolution: number,
+): string {
+  return `var|${bundle}|${exportName}|${applyBFix ? 1 : 0}|${hatEquipped ? 1 : 0}|${Math.round(resolution * 1000)}`;
+}
+
 /**
- * Construct cache keys. Keys are intentionally stable strings (not
- * tuples) so the bake-queue dedup hits — the queue's key is the
- * cache key by design.
+ * Common-anim predicate — mirrors the Rust-side
+ * `is_character_anim_name` filter. Class atlas only enumerates
+ * static/walk/run for memory/perf reasons; everything else routes
+ * through the per-variant fallback (`renderSwfBodyAtlas` wrapped as
+ * a 1-page, 1-variant ClassAtlas).
  */
-function bodyAtlasKey(p: BodyAtlasKeyParts): string {
-  return `body|${p.bundle}|${p.exportName}|${p.start}|${p.count}|${p.totalFrameCount}|${p.resolution}|${p.applyBFix ? 1 : 0}|${p.hatEquipped ? 1 : 0}`;
+function isCommonAnim(exportName: string): boolean {
+  return (
+    exportName.startsWith("static") ||
+    exportName.startsWith("walk") ||
+    exportName.startsWith("run")
+  );
+}
+
+/** Key for variant lookup inside a class atlas. */
+export function variantKey(
+  exportName: string,
+  applyBFix: boolean,
+  hatEquipped: boolean,
+): string {
+  return `${exportName}|${applyBFix ? 1 : 0}|${hatEquipped ? 1 : 0}`;
 }
 
 function accessoryKey(p: AccessoryKeyParts): string {
@@ -523,19 +302,17 @@ function estimateBytes(width: number, height: number): number {
 }
 
 class CharacterCache {
-  private bodyAtlasEntries = new Map<string, BodyAtlas>();
+  private classAtlasEntries = new Map<string, ClassAtlas>();
   private accEntries = new Map<string, AccessoryStrip>();
   private mountEntries = new Map<string, MountTransforms>();
-  private bodyAtlasBakes = new Map<string, PendingBodyAtlasBake>();
+  private classAtlasBakes = new Map<string, PendingClassAtlasBake>();
   private accBakes = new Map<string, PendingAccessoryBake>();
   private bandInfoCache = new Map<string, VelloSwfBodyBandInfo>();
   /**
    * Memo of the canonical animType per accessory tuple. See the
    * detailed reasoning in `acquireAccessory`. Without this memo,
    * the per-acquire wasm-boundary crossing dominates frame cost
-   * once the cache is hit-heavy (every cache hit still calls the
-   * Rust helper to normalise animType, even though the answer
-   * never changes for given inputs).
+   * once the cache is hit-heavy.
    */
   private accessoryCanonicalAnimTypeMemo = new Map<string, number>();
   private retireQueue: RetireQueueEntry[] = [];
@@ -545,26 +322,10 @@ class CharacterCache {
   private hits = 0;
   private misses = 0;
   private evicts = 0;
-  private bodyBytes = 0;
+  private classAtlasBytes = 0;
   private accBytes = 0;
   private capBytes = DEFAULT_BYTES_CAP;
 
-  /**
-   * Per-class atlas pages. Key = `${bundle}|${resolution × 1000}`
-   * (resolution quantised so cache hits survive floating-point
-   * resolution values from `setResolutionAndRerender`).
-   *
-   * Each entry is an array because a class may overflow one 4096²
-   * page and roll onto a new one.
-   */
-  private classAtlasPages = new Map<string, ClassAtlasPage[]>();
-
-  /**
-   * Lazy-install the retire-queue drain on Pixi's shared ticker the
-   * first time a strip is acquired. Self-driving means callers don't
-   * have to wire a tick into every scene loop. Cheap — `tick()` is a
-   * no-op when the queue is empty, which is the steady state.
-   */
   private ensureTickerInstalled(): void {
     if (this.tickerInstalled) return;
     this.tickerInstalled = true;
@@ -595,38 +356,69 @@ class CharacterCache {
   }
 
   /**
-   * Acquire a refcount on a body atlas (covering every band of a
-   * single (bundle, export, anim)). Cache hit returns synchronously;
-   * cache miss enqueues a single bake that produces the full atlas
-   * pair (colour + zone) plus per-band sub-rects in one call.
+   * Acquire a refcount on a class atlas covering every animation
+   * variant of `(bundle, resolution)`. Cache hit returns
+   * synchronously; cache miss enqueues a SINGLE bake that produces
+   * the whole class atlas in one Rust call.
    *
    * `isWanted` is honored by the bake queue: if every requester
    * moved on before the bake fires, the bake is skipped and the
    * `onReady` callbacks receive `null`.
    */
-  acquireBodyAtlas(
-    parts: BodyAtlasKeyParts,
-    onReady: (atlas: BodyAtlas | null) => void,
+  /**
+   * Acquire a `ClassAtlas` that contains the variant for `exportName`.
+   *
+   * For common anims (static/walk/run) this routes to the shared
+   * class atlas (one big atlas per bundle, every static/walk/run
+   * variant baked in one Rust call). For rare anims (die/cast/hit/
+   * etc.) this routes to a per-variant fallback: a 1-page, 1-variant
+   * `ClassAtlas` baked via `renderSwfBodyAtlas`. The renderer treats
+   * both shapes identically — it just looks up `getVariant` on the
+   * returned atlas.
+   */
+  acquireVariantAtlas(
+    bundle: string,
+    exportName: string,
+    applyBFix: boolean,
+    hatEquipped: boolean,
+    frameCount: number,
+    resolution: number,
+    onReady: (atlas: ClassAtlas | null) => void,
+    isWanted: () => boolean,
+    priority: "high" | "low" = "high",
+  ): void {
+    if (isCommonAnim(exportName)) {
+      this.acquireClassAtlas(bundle, resolution, onReady, isWanted, priority);
+      return;
+    }
+    this.acquireSingleVariantAtlas(
+      bundle,
+      exportName,
+      applyBFix,
+      hatEquipped,
+      frameCount,
+      resolution,
+      onReady,
+      isWanted,
+      priority,
+    );
+  }
+
+  acquireClassAtlas(
+    bundle: string,
+    resolution: number,
+    onReady: (atlas: ClassAtlas | null) => void,
     isWanted: () => boolean,
     /** `"high"` (default) for live applyAnimation calls — the bot
      *  is on screen waiting to render. `"low"` for background
      *  pre-warm sweeps that just want to populate the cache for
      *  future use; pre-warm bakes drain only after every live
-     *  request has cleared. Cuts spawn-ramp latency from ~3-4 s
-     *  to <100 ms under 200+ bot bursts. */
+     *  request has cleared. */
     priority: "high" | "low" = "high",
   ): void {
     this.ensureTickerInstalled();
-    // A1: when no accessory mount on this character declares bFix,
-    // the Rust sprite walker's bFix path is a no-op — the bake is
-    // pixel-identical regardless of applyBFix. Collapse both variants
-    // to a single cache entry by forcing applyBFix=false in the key.
-    // A2: same trick for hatEquipped — only bodies with toggle
-    // sprites (canonical: just Iop) bake different pixels per hat
-    // state. Other classes dedupe.
-    const normalized = this.normalizeHatEquipped(this.normalizeBFix(parts));
-    const key = bodyAtlasKey(normalized);
-    const existing = this.bodyAtlasEntries.get(key);
+    const key = classAtlasKey(bundle, resolution);
+    const existing = this.classAtlasEntries.get(key);
     if (existing) {
       existing.refcount += 1;
       this.hits += 1;
@@ -634,34 +426,28 @@ class CharacterCache {
       return;
     }
     this.misses += 1;
-    const pending = this.bodyAtlasBakes.get(key);
+    const pending = this.classAtlasBakes.get(key);
     if (pending) {
       pending.callbacks.push({ onReady, isWanted });
     } else {
-      this.bodyAtlasBakes.set(key, {
-        bundle: normalized.bundle,
-        resolution: normalized.resolution,
+      this.classAtlasBakes.set(key, {
+        enqueuedAt: performance.now(),
         callbacks: [{ onReady, isWanted }],
       });
     }
     getStripBakeQueue().enqueue(
       key,
-      () =>
-        renderSwfBodyAtlas(
-          normalized.bundle,
-          normalized.exportName,
-          normalized.start,
-          normalized.count,
-          normalized.totalFrameCount,
-          normalized.resolution,
-          normalized.applyBFix,
-          normalized.hatEquipped,
-        ),
+      () => renderSwfClassAtlas(bundle, resolution),
       (raw) => {
-        this.finalizeBodyAtlasBake(key, raw as VelloSwfBodyAtlasResult | null);
+        this.finalizeClassAtlasBake(
+          key,
+          bundle,
+          resolution,
+          raw as VelloSwfClassAtlasResult | null,
+        );
       },
       () => {
-        const bake = this.bodyAtlasBakes.get(key);
+        const bake = this.classAtlasBakes.get(key);
         if (!bake) return false;
         return bake.callbacks.some((c) => c.isWanted());
       },
@@ -670,48 +456,233 @@ class CharacterCache {
   }
 
   /**
-   * Returns a copy of `parts` with `applyBFix` forced to `false` when
-   * the character has no bFix-active accessory mount — in that case
-   * the Rust bake produces the same pixels either way. Cuts the bake
-   * key dimension in half for cape/shieldless classes.
-   *
-   * Applied to both body-atlas and mount-transform key construction.
+   * Look up a variant inside a class atlas with the normalisation
+   * rules applied. Returns `null` when the variant isn't part of
+   * the class atlas (e.g. an exotic anim name that didn't match
+   * the Rust enumeration pattern).
    */
-  private normalizeBFix<T extends { bundle: string; exportName: string; applyBFix: boolean }>(
-    parts: T,
-  ): T {
-    if (!parts.applyBFix) return parts;
-    const info = this.getBodyBandInfo(parts.bundle, parts.exportName);
-    if (info && info.bFixUsed === false) {
-      return { ...parts, applyBFix: false };
-    }
-    return parts;
+  getVariant(
+    atlas: ClassAtlas,
+    exportName: string,
+    applyBFix: boolean,
+    hatEquipped: boolean,
+  ): VariantInfo | null {
+    const normBFix = applyBFix && atlas.bFixUsed;
+    const normHat = hatEquipped && atlas.hasToggleSprite;
+    const key = variantKey(exportName, normBFix, normHat);
+    return atlas.variants.get(key) ?? null;
   }
 
   /**
-   * Returns a copy of `parts` with `hatEquipped` forced to `false`
-   * when the body has no accessory-toggle sprite. In that case the
-   * Rust bake produces pixel-identical output regardless of hat
-   * state — caching both variants wastes ~50 % of cache footprint.
+   * Per-variant fallback path. Bakes ONE animation variant via the
+   * legacy `renderSwfBodyAtlas` Rust function and wraps it as a
+   * `ClassAtlas` with a single page + single variant. The renderer
+   * uses the result identically to a shared class atlas — same
+   * `pages[]`, `variants` map, refcount semantics.
    *
-   * For canonical Dofus 1.29 only Iop has a toggle sprite, so this
-   * collapses the variant dimension for the other 11 classes.
+   * Cache keyed per-variant; eviction joins the same LRU as the
+   * shared class atlases.
    */
-  private normalizeHatEquipped<
-    T extends { bundle: string; exportName: string; hatEquipped: boolean },
-  >(parts: T): T {
-    if (!parts.hatEquipped) return parts;
-    const info = this.getBodyBandInfo(parts.bundle, parts.exportName);
-    if (info && info.hasToggleSprite === false) {
-      return { ...parts, hatEquipped: false };
+  private acquireSingleVariantAtlas(
+    bundle: string,
+    exportName: string,
+    applyBFix: boolean,
+    hatEquipped: boolean,
+    frameCount: number,
+    resolution: number,
+    onReady: (atlas: ClassAtlas | null) => void,
+    isWanted: () => boolean,
+    priority: "high" | "low",
+  ): void {
+    this.ensureTickerInstalled();
+    // Apply the same JS-side normalisations as the body-info path so
+    // the cache key matches across bots whose bFix/hat dimensions
+    // collapse for this body.
+    const info = this.getBodyBandInfo(bundle, exportName);
+    const normBFix = applyBFix && (info?.bFixUsed ?? true);
+    const normHat = hatEquipped && (info?.hasToggleSprite ?? true);
+    // Static is always 1 frame (canonical wrapper). Match the Rust
+    // clamp so the cache key is stable across the wrapper's recurse-
+    // depth ambiguity.
+    const normalisedFrameCount = exportName.startsWith("static")
+      ? 1
+      : Math.max(1, frameCount);
+    const key = singleVariantAtlasKey(
+      bundle,
+      exportName,
+      normBFix,
+      normHat,
+      resolution,
+    );
+    const existing = this.classAtlasEntries.get(key);
+    if (existing) {
+      existing.refcount += 1;
+      this.hits += 1;
+      onReady(existing);
+      return;
     }
-    return parts;
+    this.misses += 1;
+    const pending = this.classAtlasBakes.get(key);
+    if (pending) {
+      pending.callbacks.push({ onReady, isWanted });
+      return;
+    }
+    this.classAtlasBakes.set(key, {
+      enqueuedAt: performance.now(),
+      callbacks: [{ onReady, isWanted }],
+    });
+    getStripBakeQueue().enqueue(
+      key,
+      () =>
+        renderSwfBodyAtlas(
+          bundle,
+          exportName,
+          0,
+          normalisedFrameCount,
+          normalisedFrameCount,
+          resolution,
+          normBFix,
+          normHat,
+        ),
+      (raw) => {
+        this.finalizeSingleVariantBake(
+          key,
+          bundle,
+          exportName,
+          normBFix,
+          normHat,
+          normalisedFrameCount,
+          resolution,
+          raw as VelloSwfBodyAtlasResult | null,
+        );
+      },
+      () => {
+        const bake = this.classAtlasBakes.get(key);
+        if (!bake) return false;
+        return bake.callbacks.some((c) => c.isWanted());
+      },
+      priority,
+    );
   }
 
-  /** Drop a previously-acquired body atlas. */
-  releaseBodyAtlas(atlas: BodyAtlas): void {
+  private finalizeSingleVariantBake(
+    key: string,
+    bundle: string,
+    exportName: string,
+    applyBFix: boolean,
+    hatEquipped: boolean,
+    frameCount: number,
+    resolution: number,
+    result: VelloSwfBodyAtlasResult | null,
+  ): void {
+    const pending = this.classAtlasBakes.get(key);
+    this.classAtlasBakes.delete(key);
+    if (!pending) return;
+    const liveCbs = pending.callbacks.filter((c) => c.isWanted());
+    if (!result) {
+      for (const cb of pending.callbacks) cb.onReady(null);
+      return;
+    }
+    if (liveCbs.length === 0) {
+      try {
+        result.combinedBitmap.close();
+      } catch {}
+      return;
+    }
+    const wrapStart = performance.now();
+    const atlas = this.wrapSingleVariantAtlas(
+      key,
+      bundle,
+      exportName,
+      applyBFix,
+      hatEquipped,
+      frameCount,
+      resolution,
+      result,
+    );
+    const wrapMs = performance.now() - wrapStart;
+    const totalWallMs = performance.now() - pending.enqueuedAt;
+    log.info(
+      `singleVariantWall bundle=${bundle} ${exportName} bFix=${applyBFix ? 1 : 0} hat=${hatEquipped ? 1 : 0} ` +
+        `wall=${totalWallMs.toFixed(1)} wrap=${wrapMs.toFixed(1)} dims=${result.atlasWidth}x${result.atlasHeight}`,
+    );
+    this.classAtlasEntries.set(key, atlas);
+    this.classAtlasBytes += atlas.bytesEst;
+    for (const cb of liveCbs) {
+      atlas.refcount += 1;
+      cb.onReady(atlas);
+    }
+    for (const cb of pending.callbacks) {
+      if (!liveCbs.includes(cb)) cb.onReady(null);
+    }
+    this.evictIfOverCap();
+  }
+
+  private wrapSingleVariantAtlas(
+    key: string,
+    bundle: string,
+    exportName: string,
+    applyBFix: boolean,
+    hatEquipped: boolean,
+    frameCount: number,
+    resolution: number,
+    r: VelloSwfBodyAtlasResult,
+  ): ClassAtlas {
+    const combinedTexture = this.buildPixiTextureFromBitmap(r.combinedBitmap, key);
+    const pages: ClassAtlasPage[] = [
+      {
+        combinedTexture,
+        atlasWidth: r.atlasWidth,
+        atlasHeight: r.atlasHeight,
+      },
+    ];
+    const variants = new Map<string, VariantInfo>();
+    const info: VariantInfo = {
+      exportName,
+      applyBFix,
+      hatEquipped,
+      pageIndex: 0,
+      stripWidth: r.stripWidth,
+      stripHeight: r.stripHeight,
+      frameWidth: r.frameWidth,
+      frameHeight: r.frameHeight,
+      gridCols: r.gridCols,
+      frameCount: r.frameCount,
+      totalFrameCount: frameCount,
+      anchorX: r.anchorX,
+      anchorY: r.anchorY,
+      bandPadding: r.bandPadding,
+      bandCount: r.bandCount,
+      slotCount: r.slotCount,
+      bands: r.bands.map((b) => ({
+        bandIndex: b.bandIndex,
+        atlasX: b.atlasX,
+        atlasY: b.atlasY,
+      })),
+    };
+    // Single-variant atlas exposes the requested variant under
+    // every plausible (bFix, hat) key so the renderer's normalisation
+    // collapses correctly — bFixUsed/hasToggleSprite flags reflect
+    // what we ACTUALLY baked.
+    variants.set(variantKey(exportName, applyBFix, hatEquipped), info);
+    return {
+      key,
+      bundle,
+      resolution,
+      pages,
+      variants,
+      bFixUsed: applyBFix,
+      hasToggleSprite: hatEquipped,
+      refcount: 0,
+      lastReleasedAt: 0,
+      bytesEst: estimateBytes(r.atlasWidth, r.atlasHeight),
+    };
+  }
+
+  /** Drop a previously-acquired class atlas. */
+  releaseClassAtlas(atlas: ClassAtlas): void {
     if (atlas.refcount <= 0) {
-      log.warn(`releaseBodyAtlas underflow on '${atlas.key}'`);
+      log.warn(`releaseClassAtlas underflow on '${atlas.key}'`);
       return;
     }
     atlas.refcount -= 1;
@@ -729,20 +700,7 @@ class CharacterCache {
     this.ensureTickerInstalled();
     // Normalise animType to its canonical value, MEMOISED on the JS
     // side. The Rust call (`swfAccessoryCanonicalAnimType`) is
-    // deterministic — same inputs always produce the same canonical
-    // value — so we cache the result per unique input tuple. Before
-    // memoisation, this wasm-boundary crossing fired on EVERY
-    // accessory acquire (~10 k crossings/sec at 200-bot stress),
-    // each one allocating UTF-8 strings for `bundle`/`exportName`/
-    // `dir`/`side` and running up to 9 frame-pick walks Rust-side.
-    // Observable cost: ~75 ms/sec of CPU once the cache went hit-
-    // heavy, sufficient to push fps from 60 to ~55 sustained.
-    //
-    // Memoised cost: one wasm crossing + one Map entry per unique
-    // (bundle, export, slot, dir, side, rawAnimType) tuple. With
-    // ~10 k unique tuples observed in stress, memo size is ~1 MB.
-    // Subsequent calls for the same tuple are a Map lookup (~50 ns)
-    // and avoid the wasm crossing entirely.
+    // deterministic so we cache the result per unique input tuple.
     const memoKey = `${rawParts.bundle}|${rawParts.exportName}|${rawParts.slot}|${rawParts.dir}|${rawParts.side}|${rawParts.animType}`;
     let canonicalAnimType =
       this.accessoryCanonicalAnimTypeMemo.get(memoKey);
@@ -814,13 +772,15 @@ class CharacterCache {
   /**
    * Mount transforms are CPU-only, small (~few KB per anim), and
    * stable for the session — no refcount, no LRU. Cached
-   * indefinitely until `clearAll()`.
+   * indefinitely until `clearAll()`. Normalises the bFix dimension
+   * via the band info exactly like the legacy path.
    */
   getMounts(parts: MountKeyParts): MountTransforms | null {
-    // A1: dedup the bFix dimension when the character has no
-    // bFix-active mount — the mount-transform bake produces the same
-    // affine matrices either way.
-    const normalized = this.normalizeBFix(parts);
+    const info = this.getBodyBandInfo(parts.bundle, parts.exportName);
+    const normalized: MountKeyParts =
+      parts.applyBFix && info && info.bFixUsed === false
+        ? { ...parts, applyBFix: false }
+        : parts;
     const key = mountKey(normalized);
     const existing = this.mountEntries.get(key);
     if (existing) return existing;
@@ -845,8 +805,7 @@ class CharacterCache {
   }
 
   /** Whether the body's display list places a mount for `slot` at
-   *  `frameIdx`. JS uses this as the authoritative "render the
-   *  accessory?" signal — see `mount_transforms.rs`. */
+   *  `frameIdx`. */
   isMountPresent(
     mounts: MountTransforms,
     frameIdx: number,
@@ -876,8 +835,8 @@ class CharacterCache {
 
   getStats(): CharacterCacheStats {
     return {
-      bodyEntries: this.bodyAtlasEntries.size,
-      bodyBytes: this.bodyBytes,
+      classAtlasEntries: this.classAtlasEntries.size,
+      classAtlasBytes: this.classAtlasBytes,
       accEntries: this.accEntries.size,
       accBytes: this.accBytes,
       mountEntries: this.mountEntries.size,
@@ -891,13 +850,6 @@ class CharacterCache {
   /**
    * Tick the retire queue + the patched-fork's deferred-destroy
    * queue. Call once per Pixi ticker tick.
-   *
-   * The deferred-destroy tick is what actually releases VRAM from
-   * Vello-internal staging textures/buffers that get dropped during
-   * a Vello render. Without it, those handles leak forever via the
-   * patched fork's no-op Drop. We bound the per-tick destroy work to
-   * 256 to avoid stalling a single rAF when a burst of drops needs
-   * processing.
    */
   tick(): void {
     try {
@@ -915,9 +867,6 @@ class CharacterCache {
       }
       for (const tex of entry.destroyTextures) {
         try {
-          // destroy(true) cascades to the underlying ImageSource +
-          // its uploaded GPU texture. Releases all VRAM owned by
-          // this body atlas / accessory entry.
           tex.destroy(true);
         } catch (e) {
           log.warn("Texture destroy threw", e);
@@ -930,38 +879,33 @@ class CharacterCache {
           log.warn("ImageBitmap close threw", e);
         }
       }
-      if (entry.onSettled) {
-        try {
-          entry.onSettled();
-        } catch (e) {
-          log.warn("retire onSettled threw", e);
-        }
-      }
     }
     this.retireQueue = remaining;
   }
 
   /** Drop everything. Used by hot-reload + test harness. */
   clearAll(): void {
-    for (const entry of this.bodyAtlasEntries.values()) {
-      this.scheduleRetireBodyAtlas(entry);
+    for (const entry of this.classAtlasEntries.values()) {
+      this.scheduleRetireClassAtlas(entry);
     }
     for (const entry of this.accEntries.values()) {
       this.scheduleRetireAccessory(entry);
     }
-    this.bodyAtlasEntries.clear();
+    this.classAtlasEntries.clear();
     this.accEntries.clear();
     this.mountEntries.clear();
-    this.bodyBytes = 0;
+    this.classAtlasBytes = 0;
     this.accBytes = 0;
   }
 
-  private finalizeBodyAtlasBake(
+  private finalizeClassAtlasBake(
     key: string,
-    result: VelloSwfBodyAtlasResult | null,
+    bundle: string,
+    resolution: number,
+    result: VelloSwfClassAtlasResult | null,
   ): void {
-    const pending = this.bodyAtlasBakes.get(key);
-    this.bodyAtlasBakes.delete(key);
+    const pending = this.classAtlasBakes.get(key);
+    this.classAtlasBakes.delete(key);
     if (!pending) return;
     const liveCbs = pending.callbacks.filter((c) => c.isWanted());
     if (!result) {
@@ -969,27 +913,49 @@ class CharacterCache {
       return;
     }
     if (liveCbs.length === 0) {
-      // Stale bake — close the combined bitmap immediately so its
-      // canvas-drawing buffer is released. Rust-side temps already
-      // dropped and are in deferred_destroy.
-      try {
-        result.combinedBitmap.close();
-      } catch {}
+      for (const p of result.pages) {
+        try {
+          p.combinedBitmap.close();
+        } catch {}
+      }
       return;
     }
-    const atlas = this.wrapBodyAtlas(
+    // The Rust path doesn't carry `hasToggleSprite` at the class
+    // level — it's a per-export property. We use it here to know
+    // whether the `hatEquipped` dimension was expanded for any
+    // export. The simplest sound heuristic: read the per-export
+    // info from `swfBodyBandInfo`. We use the FIRST export with a
+    // toggle sprite as the cache-level flag; collisions with
+    // exports that lack the toggle still work because the Rust
+    // enumeration emits the right keys per export.
+    let hasToggleSprite = false;
+    for (const v of result.variants) {
+      const info = this.getBodyBandInfo(bundle, v.exportName);
+      if (info && info.hasToggleSprite) {
+        hasToggleSprite = true;
+        break;
+      }
+    }
+    const wrapStart = performance.now();
+    const atlas = this.wrapClassAtlas(
       key,
-      pending.bundle,
-      pending.resolution,
+      bundle,
+      resolution,
+      hasToggleSprite,
       result,
     );
-    this.bodyAtlasEntries.set(key, atlas);
-    this.bodyBytes += atlas.bytesEst;
+    const wrapMs = performance.now() - wrapStart;
+    const totalWallMs = performance.now() - pending.enqueuedAt;
+    log.info(
+      `classAtlasWall bundle=${bundle} vars=${result.variants.length} pages=${result.pages.length} ` +
+        `wall=${totalWallMs.toFixed(1)} wrap=${wrapMs.toFixed(1)} bytesEst=${(atlas.bytesEst / 1024 / 1024).toFixed(1)}MB`,
+    );
+    this.classAtlasEntries.set(key, atlas);
+    this.classAtlasBytes += atlas.bytesEst;
     for (const cb of liveCbs) {
       atlas.refcount += 1;
       cb.onReady(atlas);
     }
-    // Stale callbacks notified — they shouldn't increment refcount.
     for (const cb of pending.callbacks) {
       if (!liveCbs.includes(cb)) cb.onReady(null);
     }
@@ -1027,263 +993,93 @@ class CharacterCache {
     this.evictIfOverCap();
   }
 
-  private wrapBodyAtlas(
+  private wrapClassAtlas(
     key: string,
     bundle: string,
     resolution: number,
-    r: VelloSwfBodyAtlasResult,
-  ): BodyAtlas {
-    // Try to blit this variant's bitmap into a shared class-atlas
-    // page. All variants of the same class share
-    // `combinedTexture.source.uid` so `BodyBandBatch` consolidates
-    // batches from ~1 per variant to ~1 per class. With
-    // `GuillotinePacker` (replaces the broken `ShelfPacker`),
-    // evicted variants release their sub-rect back to the page so
-    // the next variant of similar size reuses it — no leak.
-    //
-    // Fallback (per-variant texture) on:
-    //   - Variant atlas dims > page dims (8192²).
-    //   - GPU allocation failure (true OOM).
-    //   - Blit failure (renderer not ready, etc.).
-    const classWrap = this.tryWrapIntoClassPage(key, bundle, resolution, r);
-    if (classWrap) return classWrap;
-    return this.wrapBodyAtlasLegacy(key, r);
-  }
-
-  /**
-   * Class-atlas path: bin-pack the variant into a per-class page,
-   * blit its bitmap, return a BodyAtlas sampling the shared page.
-   * Returns `null` to signal "couldn't pack; use legacy fallback".
-   */
-  private tryWrapIntoClassPage(
-    key: string,
-    bundle: string,
-    resolution: number,
-    r: VelloSwfBodyAtlasResult,
-  ): BodyAtlas | null {
-    if (
-      r.atlasWidth <= 0 ||
-      r.atlasHeight <= 0 ||
-      r.atlasWidth > CLASS_ATLAS_PAGE_W ||
-      r.atlasHeight > CLASS_ATLAS_PAGE_H
-    ) {
-      return null;
+    hasToggleSprite: boolean,
+    r: VelloSwfClassAtlasResult,
+  ): ClassAtlas {
+    let pageUploadMs = 0;
+    const pages: ClassAtlasPage[] = r.pages.map((p, idx) => {
+      const upStart = performance.now();
+      const combinedTexture = this.buildPixiTextureFromBitmap(
+        p.combinedBitmap,
+        `${key}#p${idx}`,
+      );
+      pageUploadMs += performance.now() - upStart;
+      return {
+        combinedTexture,
+        atlasWidth: p.atlasWidth,
+        atlasHeight: p.atlasHeight,
+      };
+    });
+    let bytesEst = 0;
+    for (const p of pages) {
+      bytesEst += estimateBytes(p.atlasWidth, p.atlasHeight);
     }
-    const pageAndRect = this.allocOnClassPage(
-      bundle,
-      resolution,
-      r.atlasWidth,
-      r.atlasHeight,
-    );
-    if (!pageAndRect) return null;
-    const { page, rect: pos } = pageAndRect;
-
-    // Upload bitmap as a transient ImageSource with NEAREST sampling
-    // so the zone-id LSBs in the alpha channel are preserved across
-    // the blit (LINEAR would smear adjacent zone IDs and corrupt
-    // the recolor path).
-    let tempSource: ImageSource;
-    try {
-      tempSource = new ImageSource({
-        resource: r.combinedBitmap,
-        width: r.atlasWidth,
-        height: r.atlasHeight,
-        label: `${key}-blit`,
-        alphaMode: "premultiply-alpha-on-upload",
-        scaleMode: "nearest",
-        autoGarbageCollect: false,
-      });
-      uploadAndCloseBitmap(getPixiRenderer(), tempSource, r.combinedBitmap);
-    } catch (e) {
-      log.warn(`tryWrapIntoClassPage: failed to upload bitmap for ${key}`, e);
-      return null;
+    if (pageUploadMs > 0.5) {
+      log.info(
+        `wrapClassAtlas pages=${pages.length} pixiUpload=${pageUploadMs.toFixed(1)}ms`,
+      );
     }
-
-    const renderer = getPixiRenderer();
-    let blitOk = false;
-    if (renderer) {
-      try {
-        const tempTexture = new Texture({ source: tempSource });
-        const sprite = new Sprite({ texture: tempTexture });
-        sprite.position.set(pos.x, pos.y);
-        (renderer as unknown as {
-          render: (o: {
-            container: unknown;
-            target: RenderTexture;
-            clear: boolean;
-          }) => void;
-        }).render({
-          container: sprite,
-          target: page.renderTexture,
-          clear: false,
-        });
-        try {
-          sprite.destroy({ children: false });
-        } catch {}
-        try {
-          tempTexture.destroy(false);
-        } catch {}
-        blitOk = true;
-      } catch (e) {
-        log.warn(`tryWrapIntoClassPage: blit failed for ${key}`, e);
+    const variants = new Map<string, VariantInfo>();
+    for (const v of r.variants) {
+      const info: VariantInfo = {
+        exportName: v.exportName,
+        applyBFix: v.applyBFix,
+        hatEquipped: v.hatEquipped,
+        pageIndex: v.pageIndex,
+        stripWidth: v.stripWidth,
+        stripHeight: v.stripHeight,
+        frameWidth: v.frameWidth,
+        frameHeight: v.frameHeight,
+        gridCols: v.gridCols,
+        frameCount: v.frameCount,
+        totalFrameCount: v.totalFrameCount,
+        anchorX: v.anchorX,
+        anchorY: v.anchorY,
+        bandPadding: v.bandPadding,
+        bandCount: v.bandCount,
+        slotCount: v.slotCount,
+        bands: v.bands.map((b) => ({
+          bandIndex: b.bandIndex,
+          atlasX: b.atlasX,
+          atlasY: b.atlasY,
+        })),
+      };
+      variants.set(
+        variantKey(info.exportName, info.applyBFix, info.hatEquipped),
+        info,
+      );
+      if (!r.bFixUsed && !v.applyBFix) {
+        variants.set(
+          variantKey(info.exportName, true, info.hatEquipped),
+          info,
+        );
+      }
+      if (!hasToggleSprite && !v.hatEquipped) {
+        variants.set(
+          variantKey(info.exportName, info.applyBFix, true),
+          info,
+        );
+      }
+      if (!r.bFixUsed && !hasToggleSprite) {
+        variants.set(variantKey(info.exportName, true, true), info);
       }
     }
-    try {
-      tempSource.unload();
-    } catch {}
-    try {
-      tempSource.destroy();
-    } catch {}
-    if (!blitOk) return null;
-
-    page.refcount += 1;
-    const bytesEst = estimateBytes(r.atlasWidth, r.atlasHeight);
-    const combinedTexture = new Texture({
-      source: page.source,
-      // No `frame` restriction — the body-band shader uses
-      // per-instance `aAtlasUV` derived from `atlasWidth/Height`
-      // (page dims) and the bands' absolute positions. Frame would
-      // be redundant.
-    });
     return {
       key,
-      combinedTexture,
-      atlasWidth: CLASS_ATLAS_PAGE_W,
-      atlasHeight: CLASS_ATLAS_PAGE_H,
-      stripWidth: r.stripWidth,
-      stripHeight: r.stripHeight,
-      frameWidth: r.frameWidth,
-      frameHeight: r.frameHeight,
-      gridCols: r.gridCols,
-      frameCount: r.frameCount,
-      anchorX: r.anchorX,
-      anchorY: r.anchorY,
-      // Translate per-variant band sub-rects into absolute
-      // positions inside the class atlas page.
-      bands: r.bands.map((b) => ({
-        bandIndex: b.bandIndex,
-        atlasX: pos.x + b.atlasX,
-        atlasY: pos.y + b.atlasY,
-      })),
-      bandCount: r.bandCount,
-      slotCount: r.slotCount,
-      bandPadding: r.bandPadding,
-      refcount: 0,
-      lastReleasedAt: 0,
-      bytesEst,
-      classPage: page,
-      // Remember the rect we got back from the guillotine packer
-      // so the retire path can `page.packer.free(rect)` and let
-      // the next variant of similar dims reuse the slot. WITHOUT
-      // freeing, pages fill irreversibly under stress (the bug
-      // that caused 15 GB GPU leak at 500-bot stress).
-      classPageRect: pos,
-    };
-  }
-
-  /**
-   * Legacy per-variant atlas — used as fallback when the class
-   * page can't accommodate the variant. The BodyAtlas owns its
-   * own Pixi texture; `BodyBandBatch` keys on this unique source
-   * uid so it gets its own batch (back to the pre-Phase-C path
-   * for this one variant).
-   */
-  private wrapBodyAtlasLegacy(key: string, r: VelloSwfBodyAtlasResult): BodyAtlas {
-    const combinedTexture = this.buildPixiTextureFromBitmap(
-      r.combinedBitmap,
-      key,
-    );
-    const bytesEst = estimateBytes(r.atlasWidth, r.atlasHeight);
-    return {
-      key,
-      combinedTexture,
-      atlasWidth: r.atlasWidth,
-      atlasHeight: r.atlasHeight,
-      stripWidth: r.stripWidth,
-      stripHeight: r.stripHeight,
-      frameWidth: r.frameWidth,
-      frameHeight: r.frameHeight,
-      gridCols: r.gridCols,
-      frameCount: r.frameCount,
-      anchorX: r.anchorX,
-      anchorY: r.anchorY,
-      bands: r.bands,
-      bandCount: r.bandCount,
-      slotCount: r.slotCount,
-      bandPadding: r.bandPadding,
-      refcount: 0,
-      lastReleasedAt: 0,
-      bytesEst,
-    };
-  }
-
-  /**
-   * Allocate a sub-rect for the variant on a `(bundle, resolution)`
-   * class page. Tries every existing page first via the guillotine
-   * packer's `alloc`; only when ALL existing pages are too
-   * fragmented to fit does it create a new page.
-   *
-   * Returns `{ page, rect }` or `null` on true GPU OOM
-   * (`RenderTexture.create` fails).
-   *
-   * Single-step alloc (no peek-then-commit two-phase) — the
-   * guillotine packer's `alloc` directly returns the placed rect
-   * or null, so we get atomic allocation per call.
-   */
-  private allocOnClassPage(
-    bundle: string,
-    resolution: number,
-    needW: number,
-    needH: number,
-  ): { page: ClassAtlasPage; rect: PackedRect } | null {
-    const key = `${bundle}|${Math.round(resolution * 1000)}`;
-    let pages = this.classAtlasPages.get(key);
-    if (!pages) {
-      pages = [];
-      this.classAtlasPages.set(key, pages);
-    }
-    // Try existing pages. Best-fit is per-page; an outer "try every
-    // page" loop picks the first page with room.
-    for (const p of pages) {
-      const rect = p.packer.alloc(needW, needH);
-      if (rect) return { page: p, rect };
-    }
-    // No existing page fits — allocate a new one.
-    let rt: RenderTexture;
-    try {
-      rt = RenderTexture.create({
-        width: CLASS_ATLAS_PAGE_W,
-        height: CLASS_ATLAS_PAGE_H,
-      });
-    } catch (e) {
-      log.warn(`allocOnClassPage: RT create failed for ${key}`, e);
-      return null;
-    }
-    const pageKey = `${key}#${pages.length}`;
-    rt.label = `class-atlas|${pageKey}`;
-    const source = rt.source;
-    if (source && typeof source === "object") {
-      (source as { label?: string }).label = `class-atlas|${pageKey}`;
-    }
-    const page: ClassAtlasPage = {
-      key: pageKey,
       bundle,
       resolution,
-      renderTexture: rt,
-      source,
-      packer: new GuillotinePacker(CLASS_ATLAS_PAGE_W, CLASS_ATLAS_PAGE_H),
+      pages,
+      variants,
+      bFixUsed: r.bFixUsed,
+      hasToggleSprite,
       refcount: 0,
+      lastReleasedAt: 0,
+      bytesEst,
     };
-    pages.push(page);
-    const rect = page.packer.alloc(needW, needH);
-    if (!rect) {
-      // Should never happen — fresh page can fit any rect ≤ page dims.
-      log.warn(
-        `allocOnClassPage: fresh page rejected ${needW}×${needH} (page ${CLASS_ATLAS_PAGE_W}×${CLASS_ATLAS_PAGE_H})`,
-      );
-      return null;
-    }
-    return { page, rect };
   }
 
   private wrapAccessory(
@@ -1311,16 +1107,8 @@ class CharacterCache {
   /**
    * Wrap a Vello-produced `ImageBitmap` as a Pixi `Texture` via
    * `ImageSource`. Pixi uploads the bitmap to its own GPUTexture
-   * on first sample; we leave `autoGarbageCollect = false` so the
-   * cache LRU controls retire, not Pixi's GC heuristics. We do NOT
-   * close the bitmap immediately — Pixi may keep a reference for
-   * the lifetime of the source; closing happens via the cache's
-   * retire path when the entry is evicted.
-   *
-   * Vello emits straight alpha (fine.wgsl un-premultiplies before
-   * textureStore). The bridge's Bgra8Unorm canvas preserves that
-   * straightness. Pixi's NPM blend mode is the correct composite
-   * formula — set `alphaMode = "premultiply-alpha-on-upload"`.
+   * on first sample; `autoGarbageCollect = false` so the cache LRU
+   * controls retire, not Pixi's GC heuristics.
    */
   private buildPixiTextureFromBitmap(
     bitmap: ImageBitmap,
@@ -1336,12 +1124,7 @@ class CharacterCache {
       autoGarbageCollect: false,
     });
     // Force-upload to Pixi's GPUTexture now and release the
-    // ImageBitmap's CPU/browser backing buffer. Without this every
-    // body atlas + accessory strip keeps its bitmap alive forever
-    // through `source.resource`, doubling the working set
-    // (`pixi.bitmapMB ≈ pixi.gpuMB` per real STRESS_JSON data).
-    // Battlefield renderer: every body atlas / accessory strip
-    // source is sampled by battlefield BodyBandMeshes and Sprites.
+    // ImageBitmap's CPU/browser backing buffer.
     uploadAndCloseBitmap(getPixiRenderer(), source, bitmap);
     return new Texture({ source });
   }
@@ -1369,16 +1152,14 @@ class CharacterCache {
   }
 
   private evictIfOverCap(): void {
-    const total = this.bodyBytes + this.accBytes;
+    const total = this.classAtlasBytes + this.accBytes;
     if (total <= this.capBytes) return;
-    // Collect candidates: refcount==0 entries sorted by lastReleasedAt
-    // ascending (LRU). Then drop until under the cap.
-    type Candidate = { kind: "body" | "acc"; key: string; bytes: number; t: number };
+    type Candidate = { kind: "class" | "acc"; key: string; bytes: number; t: number };
     const candidates: Candidate[] = [];
-    for (const [key, entry] of this.bodyAtlasEntries) {
+    for (const [key, entry] of this.classAtlasEntries) {
       if (entry.refcount === 0) {
         candidates.push({
-          kind: "body",
+          kind: "class",
           key,
           bytes: entry.bytesEst,
           t: entry.lastReleasedAt,
@@ -1399,12 +1180,12 @@ class CharacterCache {
     let used = total;
     for (const c of candidates) {
       if (used <= this.capBytes) break;
-      if (c.kind === "body") {
-        const entry = this.bodyAtlasEntries.get(c.key);
+      if (c.kind === "class") {
+        const entry = this.classAtlasEntries.get(c.key);
         if (!entry) continue;
-        this.bodyAtlasEntries.delete(c.key);
-        this.bodyBytes -= entry.bytesEst;
-        this.scheduleRetireBodyAtlas(entry);
+        this.classAtlasEntries.delete(c.key);
+        this.classAtlasBytes -= entry.bytesEst;
+        this.scheduleRetireClassAtlas(entry);
       } else {
         const entry = this.accEntries.get(c.key);
         if (!entry) continue;
@@ -1417,68 +1198,16 @@ class CharacterCache {
     }
   }
 
-  private scheduleRetireBodyAtlas(entry: BodyAtlas): void {
-    if (entry.classPage) {
-      // Class-atlas-backed path: the `combinedTexture` is a thin
-      // wrapper around the page's shared source. On retire:
-      //   1. Drop the `Texture` wrapper (not the source).
-      //   2. `packer.free(rect)` — releases the sub-rect back to
-      //      the guillotine packer's free-list so a future variant
-      //      of similar dims can reuse the slot. This is the
-      //      CRITICAL fix for the page-fill leak: without freeing,
-      //      pages stay full forever and new variants spill onto
-      //      fresh pages, accumulating GPU memory unboundedly.
-      //   3. Decrement page refcount; when no variants remain
-      //      pointing at the page, destroy its RT.
-      const page = entry.classPage;
-      const rect = entry.classPageRect;
-      this.retireQueue.push({
-        destroyTextures: [],
-        closeBitmaps: [],
-        ticksRemaining: RETIRE_TICKS,
-        onSettled: () => {
-          try {
-            entry.combinedTexture.destroy(false);
-          } catch {}
-          if (rect) {
-            try {
-              page.packer.free(rect);
-            } catch (e) {
-              log.warn("packer.free threw", e);
-            }
-          }
-          page.refcount -= 1;
-          if (page.refcount <= 0) {
-            this.destroyClassAtlasPage(page);
-          }
-        },
-      });
-      return;
-    }
-    // Legacy per-variant path: ONE Pixi `ImageSource` per atlas
-    // (was two — color + zone). `Texture.destroy(true)` cascades
-    // into the ImageSource and frees Pixi's uploaded GPUTexture.
-    // The Rust-side temp textures were dropped at end of the bake
-    // call and queued into `deferred_destroy` for VRAM release.
+  private scheduleRetireClassAtlas(entry: ClassAtlas): void {
+    // `Texture.destroy(true)` cascades into each page's ImageSource
+    // and frees Pixi's uploaded GPUTexture. Rust-side temp textures
+    // were dropped at end of the bake call and queued into the
+    // wgpu deferred_destroy queue for VRAM release.
     this.retireQueue.push({
-      destroyTextures: [entry.combinedTexture],
+      destroyTextures: entry.pages.map((p) => p.combinedTexture),
       closeBitmaps: [],
       ticksRemaining: RETIRE_TICKS,
     });
-  }
-
-  /** Free a class atlas page's GPU texture + remove from the
-   *  registry. Caller must ensure `page.refcount === 0`. */
-  private destroyClassAtlasPage(page: ClassAtlasPage): void {
-    try {
-      page.renderTexture.destroy(true);
-    } catch {}
-    const bucketKey = `${page.bundle}|${Math.round(page.resolution * 1000)}`;
-    const bucket = this.classAtlasPages.get(bucketKey);
-    if (!bucket) return;
-    const idx = bucket.indexOf(page);
-    if (idx >= 0) bucket.splice(idx, 1);
-    if (bucket.length === 0) this.classAtlasPages.delete(bucketKey);
   }
 
   private scheduleRetireAccessory(entry: AccessoryStrip): void {

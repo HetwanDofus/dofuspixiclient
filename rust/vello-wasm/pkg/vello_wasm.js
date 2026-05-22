@@ -498,6 +498,37 @@ export class VelloRenderer {
         return ret;
     }
     /**
+     * Class atlas bake: pack EVERY animation variant of a body
+     * bundle (walkR/L/F/B/S, staticR/L/F/B/S, runR/L/F/B/S, plus any
+     * other `<word><direction-suffix>` named sprite) × `applyBFix ∈
+     * {false, [true]}` × `hatEquipped ∈ {false, [true]}` into ONE
+     * Rgba8Unorm texture bridged to a single ImageBitmap.
+     *
+     * Normalisation: the `applyBFix` and `hatEquipped` dimensions
+     * expand only when the body uses them (any mount with
+     * `b_fix=true` / a multi-frame toggle sprite respectively).
+     * Otherwise we bake one variant per export.
+     *
+     * Per-variant rasterisation reuses the same scene-build /
+     * render_to_texture / `CombineBodyPipeline` path as
+     * `renderSwfBodyAtlas`. Each variant produces a variant-sized
+     * `combined` texture, then `copy_texture_to_texture` writes it
+     * into the class atlas at the packer-assigned origin. No new
+     * Vello scene-size risk (every per-variant scene stays the
+     * size we know works); the win is purely in (a) Pixi-side
+     * texture count → 1 per class instead of N per variant,
+     * (b) per-variant intermediate `ImageSource` upload gone.
+     * @param {string} bundle
+     * @param {number} resolution
+     * @returns {any}
+     */
+    renderSwfClassAtlas(bundle, resolution) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_renderSwfClassAtlas(this.__wbg_ptr, ptr0, len0, resolution);
+        return ret;
+    }
+    /**
      * Render an exported symbol from a loaded SWF bundle to a fresh GPUTexture.
      * `bundle` is the name passed to `loadSwfBundle`. `export` is the SWF
      * export name (e.g. "168" for tile id 168, or "walkR"/"staticR" for the
@@ -1670,6 +1701,10 @@ function __wbg_get_imports() {
             const ret = new Uint32Array(arg0 >>> 0);
             return ret;
         },
+        __wbg_now_81363d44c96dd239: function() {
+            const ret = Date.now();
+            return ret;
+        },
         __wbg_onSubmittedWorkDone_a33e32762de21b3d: function(arg0) {
             const ret = arg0.onSubmittedWorkDone();
             return ret;
@@ -2307,12 +2342,12 @@ function __wbg_get_imports() {
             arg0.writeTexture(arg1, arg2, arg3, arg4);
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 194, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 196, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h095281891b062598);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 259, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 260, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h6910d188bddc1532);
             return ret;
         },

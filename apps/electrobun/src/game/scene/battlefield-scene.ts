@@ -165,6 +165,19 @@ export class Battlefield {
   private mapTransition: MapTransition | null = null;
   private adjacentMapCache: AdjacentMapCache | null = null;
 
+  /** Bound keydown handler (E = fée-cœur firework at cursor). Stored
+   *  as a field so `destroy()` can actually `removeEventListener` —
+   *  inline arrows captured per-init wouldn't match. */
+  private boundOnKeyDown: ((e: KeyboardEvent) => void) | null = null;
+  /** Bound mousemove handler that records the last cursor position
+   *  in client-window coordinates. Used by `boundOnKeyDown` so F
+   *  spawns at the cursor without needing a fresh pointer event. */
+  private boundOnMouseMove: ((e: MouseEvent) => void) | null = null;
+  /** Most recent cursor position in CLIENT coordinates (page-relative,
+   *  matches `MouseEvent.clientX/Y`). -1 until first mousemove. */
+  private lastClientMouseX = -1;
+  private lastClientMouseY = -1;
+
   /** Capability-bucketed actor registry + single ticker entry point. */
   private scene: Scene = new Scene();
   private sceneTickerCallback: (() => void) | null = null;
@@ -642,6 +655,61 @@ export class Battlefield {
         testPlayerCount: () => getTestPlayerCount(),
       });
 
+      // E = throw ONE "Fée d'artifice invocatrice de cœurs" at the
+      // cursor. Ignored while typing in inputs so chat / search fields
+      // don't trigger it. Bound here (not in InteractionHandler)
+      // because it's a global document key, not a canvas-scoped
+      // pointer event — but the cursor position comes from a
+      // mousemove tracker since keydown carries no mouse coords.
+      const { spawnFeeCoeurAt } = await import("@/game/render/fee-coeur");
+      this.boundOnMouseMove = (e: MouseEvent) => {
+        this.lastClientMouseX = e.clientX;
+        this.lastClientMouseY = e.clientY;
+      };
+      document.addEventListener("mousemove", this.boundOnMouseMove);
+      this.boundOnKeyDown = (e: KeyboardEvent) => {
+        if (e.key !== "e" && e.key !== "E") return;
+        const target = e.target as HTMLElement | null;
+        const tag = target?.tagName;
+        if (
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          target?.isContentEditable
+        ) {
+          log.info("[fee-coeur] E pressed but ignored (typing in input)");
+          return;
+        }
+        if (
+          !this.mapContainer ||
+          !this.app ||
+          this.lastClientMouseX < 0
+        ) {
+          log.warn(
+            `[fee-coeur] E pressed but not ready: mapContainer=${!!this.mapContainer} app=${!!this.app} mouseX=${this.lastClientMouseX}`,
+          );
+          return;
+        }
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = this.lastClientMouseX - rect.left;
+        const canvasY = this.lastClientMouseY - rect.top;
+        const zoom = this.mapContainer.scale.x || 1;
+        const worldX = (canvasX - this.mapContainer.x) / zoom;
+        const worldY = (canvasY - this.mapContainer.y) / zoom;
+        log.info(
+          `[fee-coeur] spawning at world=(${worldX.toFixed(1)}, ${worldY.toFixed(1)}) canvas=(${canvasX.toFixed(0)}, ${canvasY.toFixed(0)}) zoom=${zoom.toFixed(2)}`,
+        );
+        void spawnFeeCoeurAt({
+          container: this.mapContainer,
+          app: this.app,
+          x: worldX,
+          y: worldY,
+        }).then((ok) => {
+          log.info(`[fee-coeur] spawn returned ${ok}`);
+        });
+      };
+      document.addEventListener("keydown", this.boundOnKeyDown);
+      log.info("[fee-coeur] keydown listener wired (press E over the map)");
+
       // Memory snapshot probe — call `__memSnapshot()` from DevTools to
       // dump every tracked counter + JS heap. Returns the snapshot
       // object so it can be diff'd against a stored prior snapshot.
@@ -1051,6 +1119,20 @@ export class Battlefield {
   }
 
   destroy(): void {
+    if (this.boundOnKeyDown) {
+      document.removeEventListener("keydown", this.boundOnKeyDown);
+      this.boundOnKeyDown = null;
+    }
+    if (this.boundOnMouseMove) {
+      document.removeEventListener("mousemove", this.boundOnMouseMove);
+      this.boundOnMouseMove = null;
+    }
+    // Drop any in-flight fée-cœur sprites so their Pixi children don't
+    // outlive the scene's mapContainer.
+    void import("@/game/render/fee-coeur").then(({ clearFeeCoeur }) =>
+      clearFeeCoeur()
+    );
+
     // Clean up map transition and adjacent cache
     this.mapTransition?.destroy();
     this.mapTransition = null;

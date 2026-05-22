@@ -849,56 +849,39 @@ export function swfBodyBandInfo(
 
 export interface VelloSwfBodyAtlasBand {
   bandIndex: number;
-  /** Top-left of this band's sub-rect inside the atlas, pixels. */
+  /** Top-left of this band's sub-rect inside the variant atlas. */
   atlasX: number;
   atlasY: number;
 }
 
 export interface VelloSwfBodyAtlasResult {
-  /**
-   * Combined-bridge bitmap: a single Rgba8Unorm output where:
-   *  - RGB encodes the body's tinted colour (LINEAR-sampleable).
-   *  - A encodes `(body_alpha & 0xFC) | zone_id`, zone_id ∈ {0..3}.
-   *
-   * The Rust side runs a fullscreen render pass after the two
-   * Vello renders (colour + zone) to pack them into this single
-   * texture, then bridges ONCE via `bitmap_bridge`. Halves the
-   * Pixi-side working set vs. the previous color+zone two-texture
-   * design.
-   *
-   * Body-band shader binds this texture with two samplers — LINEAR
-   * for color+alpha, NEAREST for zone-id decode from the low 2
-   * bits of the alpha byte.
-   */
+  /** Single combined RGBA8 bitmap for ONE variant of a body export.
+   *  Used as a per-variant fallback when the class atlas doesn't
+   *  cover the requested anim (rare anims like die/cast/hit). */
   combinedBitmap: ImageBitmap;
-  /** Atlas pixel dimensions. */
   atlasWidth: number;
   atlasHeight: number;
-  /** Per-band strip dims inside the atlas (every band is identical). */
   stripWidth: number;
   stripHeight: number;
-  /** Per-cell dims inside a band. */
   frameWidth: number;
   frameHeight: number;
   gridCols: number;
   frameCount: number;
-  /** Anchor for SWF (0,0) inside a single cell (band-local). */
   anchorX: number;
   anchorY: number;
   bandCount: number;
   slotCount: number;
-  /** Sub-rect origin per band (`atlasX`, `atlasY`). */
   bands: VelloSwfBodyAtlasBand[];
-  /** Transparent gutter (px) between bands; account for in UVs. */
   bandPadding: number;
 }
 
 /**
- * Render ALL Z-ordered bands of a body export into a SINGLE atlas
- * pair (colour + zone-id) returned as `ImageBitmap`s. The Vello output
- * textures are blitted to a Bgra8Unorm OffscreenCanvas via
- * `bitmap_bridge.rs` and the canvas is transferred to a bitmap; the
- * source textures are destroyed before this function returns.
+ * Per-variant body atlas bake. Renders ONE animation variant into a
+ * single combined Rgba8Unorm bitmap. Used as the on-demand fallback
+ * for anims not covered by `renderSwfClassAtlas` (which only bakes
+ * static/walk/run). Result shape matches the class atlas per-variant
+ * sub-rect so the renderer treats both paths through the same
+ * `ClassAtlas + VariantInfo` plumbing.
  */
 export function renderSwfBodyAtlas(
   bundle: string,
@@ -911,7 +894,6 @@ export function renderSwfBodyAtlas(
   hatEquipped: boolean,
 ): VelloSwfBodyAtlasResult | null {
   if (!renderer || isHalted()) return null;
-  const t0 = performance.now();
   const result = renderer.renderSwfBodyAtlas(
     bundle,
     exportName,
@@ -922,7 +904,6 @@ export function renderSwfBodyAtlas(
     applyBFix,
     hatEquipped,
   );
-  recordProbe("bodyAtlas", performance.now() - t0);
   const r = (result as Record<string, unknown> | null) ?? null;
   if (!r) return null;
   const rawBands = (r.bands as Array<Record<string, unknown>>) ?? [];
@@ -947,6 +928,133 @@ export function renderSwfBodyAtlas(
     slotCount: Number(r.slotCount),
     bands,
     bandPadding: Number(r.bandPadding),
+  };
+}
+
+export interface VelloSwfClassAtlasBand {
+  bandIndex: number;
+  /** ABSOLUTE coordinates inside the class atlas (variant origin
+   *  plus per-band intra-variant offset). The body-band shader's UV
+   *  math uses these directly with the class atlas's full dims. */
+  atlasX: number;
+  atlasY: number;
+}
+
+export interface VelloSwfClassAtlasVariant {
+  /** SWF export name carrying this variant's animation, e.g. `walkR`. */
+  exportName: string;
+  /** Whether the variant was baked with `applyBFix=true`. Classes
+   *  whose mounts don't carry b_fix carry only the `false` baking;
+   *  caller normalises lookups via the class-level `bFixUsed` flag. */
+  applyBFix: boolean;
+  /** Whether the variant was baked with `hatEquipped=true`. Same
+   *  collapse rule as `applyBFix` — only classes with a toggle
+   *  sprite (canonical 1.29: just Iop) carry the second dimension. */
+  hatEquipped: boolean;
+  /** Class atlas page index this variant lives on. Multi-page
+   *  fallback when total variant area exceeds a single 8192². */
+  pageIndex: number;
+  /** Origin of the variant's sub-rect inside the page atlas. */
+  atlasX: number;
+  atlasY: number;
+  /** Single-band strip dims (every band of this variant has the same
+   *  width × height inside the variant sub-rect). */
+  stripWidth: number;
+  stripHeight: number;
+  /** Per-cell dims inside a band. */
+  frameWidth: number;
+  frameHeight: number;
+  gridCols: number;
+  /** Number of valid anim frames in this variant. */
+  frameCount: number;
+  /** Total animation frame count (matches `swfAnimFrameCount`); JS
+   *  uses this when building cache keys / for stale comparisons. */
+  totalFrameCount: number;
+  /** SWF (0,0) anchor inside each cell. Absolute coordinates inside
+   *  the page atlas — caller's UV math uses the page's dims. */
+  anchorX: number;
+  anchorY: number;
+  bandPadding: number;
+  bandCount: number;
+  slotCount: number;
+  bands: VelloSwfClassAtlasBand[];
+}
+
+export interface VelloSwfClassAtlasPage {
+  /** One bitmap per page. RGB + packed alpha — same encoding the
+   *  body-band shader expects (LINEAR sampler + NEAREST sampler). */
+  combinedBitmap: ImageBitmap;
+  atlasWidth: number;
+  atlasHeight: number;
+}
+
+export interface VelloSwfClassAtlasResult {
+  /** One page per logical chunk of the class atlas. Most classes
+   *  fit in `pages.length === 1`; high-frame classes spill onto
+   *  additional pages. Variant lookups carry `pageIndex` to pick the
+   *  right page texture. */
+  pages: VelloSwfClassAtlasPage[];
+  /** True if the bundle has any mount declaring `b_fix=true`. */
+  bFixUsed: boolean;
+  variants: VelloSwfClassAtlasVariant[];
+}
+
+/**
+ * One-shot class atlas bake: pack EVERY animation variant of a body
+ * bundle into a single Rgba8Unorm texture bridged as one ImageBitmap.
+ * Replaces the per-variant `renderSwfBodyAtlas` plus JS-side blit-
+ * to-class-page composition. See `RENDER_CLASS_ATLAS_PLAN.md`.
+ */
+export function renderSwfClassAtlas(
+  bundle: string,
+  resolution: number,
+): VelloSwfClassAtlasResult | null {
+  if (!renderer || isHalted()) return null;
+  const t0 = performance.now();
+  const r = renderer.renderSwfClassAtlas(bundle, resolution);
+  recordProbe("classAtlas", performance.now() - t0);
+  if (!r || typeof r !== "object") return null;
+  const o = r as Record<string, unknown>;
+  const rawPages = (o.pages as Array<Record<string, unknown>>) ?? [];
+  const pages: VelloSwfClassAtlasPage[] = rawPages.map((p) => ({
+    combinedBitmap: p.combinedBitmap as ImageBitmap,
+    atlasWidth: Number(p.atlasWidth),
+    atlasHeight: Number(p.atlasHeight),
+  }));
+  const rawVariants = (o.variants as Array<Record<string, unknown>>) ?? [];
+  const variants: VelloSwfClassAtlasVariant[] = rawVariants.map((v) => {
+    const rawBands = (v.bands as Array<Record<string, unknown>>) ?? [];
+    const bands: VelloSwfClassAtlasBand[] = rawBands.map((b) => ({
+      bandIndex: Number(b.bandIndex),
+      atlasX: Number(b.atlasX),
+      atlasY: Number(b.atlasY),
+    }));
+    return {
+      exportName: String(v.exportName),
+      applyBFix: Boolean(v.applyBFix),
+      hatEquipped: Boolean(v.hatEquipped),
+      pageIndex: Number(v.pageIndex),
+      atlasX: Number(v.atlasX),
+      atlasY: Number(v.atlasY),
+      stripWidth: Number(v.stripWidth),
+      stripHeight: Number(v.stripHeight),
+      frameWidth: Number(v.frameWidth),
+      frameHeight: Number(v.frameHeight),
+      gridCols: Number(v.gridCols),
+      frameCount: Number(v.frameCount),
+      totalFrameCount: Number(v.totalFrameCount),
+      anchorX: Number(v.anchorX),
+      anchorY: Number(v.anchorY),
+      bandPadding: Number(v.bandPadding),
+      bandCount: Number(v.bandCount),
+      slotCount: Number(v.slotCount),
+      bands,
+    };
+  });
+  return {
+    pages,
+    bFixUsed: Boolean(o.bFixUsed),
+    variants,
   };
 }
 

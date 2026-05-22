@@ -34,15 +34,18 @@
  * architecture rationale.
  */
 
-import { Container, Rectangle, RenderTexture, type TextureSource } from "pixi.js";
+import {
+  Container,
+  Rectangle,
+  RenderTexture,
+  type Texture,
+  type TextureSource,
+} from "pixi.js";
 
 import {
+  type AtlasBand,
   BodyBandBatch,
 } from "@/game/render/body-band-batch";
-import type {
-  BodyAtlas,
-  BodyAtlasBand,
-} from "@/game/render/character-cache";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("SharedCompositionAtlas");
@@ -271,16 +274,16 @@ export class SharedCompositionAtlas {
    */
   getOrCreateBatch(
     slot: CompositionSlot,
-    atlas: BodyAtlas,
-    band: BodyAtlasBand,
+    combinedTexture: Texture,
+    band: AtlasBand,
   ): BodyBandBatch {
     const page = this.pages[slot.pageIndex];
     const sourceUid =
-      (atlas.combinedTexture.source as { uid: number }).uid;
+      (combinedTexture.source as { uid: number }).uid;
     const key = `${sourceUid}|${band.bandIndex}`;
     let batch = page.batches.get(key);
     if (batch) return batch;
-    batch = new BodyBandBatch(atlas, band);
+    batch = new BodyBandBatch(combinedTexture, band);
     batch.mesh.zIndex = band.bandIndex * 2;
     batch.mesh.label =
       `band-batch|p${slot.pageIndex}|src${sourceUid}|b${band.bandIndex}`;
@@ -301,13 +304,13 @@ export class SharedCompositionAtlas {
    */
   releaseBatchIfEmpty(
     pageIndex: number,
-    atlas: BodyAtlas,
-    band: BodyAtlasBand,
+    combinedTexture: Texture,
+    band: AtlasBand,
   ): void {
     const page = this.pages[pageIndex];
     if (!page) return;
     const sourceUid =
-      (atlas.combinedTexture.source as { uid: number }).uid;
+      (combinedTexture.source as { uid: number }).uid;
     const key = `${sourceUid}|${band.bandIndex}`;
     const batch = page.batches.get(key);
     if (!batch || !batch.isEmpty()) return;

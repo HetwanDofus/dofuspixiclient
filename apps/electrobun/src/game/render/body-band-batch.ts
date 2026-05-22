@@ -24,11 +24,23 @@ import {
   GpuProgram,
   Mesh,
   Shader,
+  type Texture,
   type TextureSource,
   TextureStyle,
 } from "pixi.js";
 
-import type { BodyAtlas, BodyAtlasBand } from "@/game/render/character-cache";
+/**
+ * Class-atlas-shape view of the parts the batch needs to compose UVs.
+ * Renderer passes a structural object built from `ClassAtlas +
+ * VariantInfo`. Decoupling from a concrete `ClassAtlas` type keeps
+ * the batch reusable when the renderer wants to feed it a synthetic
+ * view (e.g. tests, future per-bot overrides).
+ */
+export interface AtlasBand {
+  readonly bandIndex: number;
+  readonly atlasX: number;
+  readonly atlasY: number;
+}
 
 /** Bytes per instance row. 5 × vec4<f32> = 5 × 16 = 80. */
 const BYTES_PER_INSTANCE = 80;
@@ -485,8 +497,8 @@ function buildBatchGeometry(initialCapacity: number): {
  */
 export class BodyBandBatch {
   readonly mesh: Mesh<Geometry, Shader>;
-  readonly atlas: BodyAtlas;
-  readonly band: BodyAtlasBand;
+  readonly combinedTexture: Texture;
+  readonly band: AtlasBand;
 
   private geometry: Geometry;
   private instanceBuffer: Buffer;
@@ -504,8 +516,8 @@ export class BodyBandBatch {
    *  frame into a single `update(highWaterMark × stride)` call. */
   private dirty: boolean = false;
 
-  constructor(atlas: BodyAtlas, band: BodyAtlasBand) {
-    this.atlas = atlas;
+  constructor(combinedTexture: Texture, band: AtlasBand) {
+    this.combinedTexture = combinedTexture;
     this.band = band;
 
     const { geometry, instanceBuffer } = buildBatchGeometry(INITIAL_CAPACITY);
@@ -518,9 +530,9 @@ export class BodyBandBatch {
       gpuProgram: getGpuProgram(),
       glProgram: getGlProgram(),
       resources: {
-        uBodyTexLinear: atlas.combinedTexture.source,
-        uBodyLinearSamp: atlas.combinedTexture.source.style,
-        uBodyTexNearest: atlas.combinedTexture.source,
+        uBodyTexLinear: combinedTexture.source,
+        uBodyLinearSamp: combinedTexture.source.style,
+        uBodyTexNearest: combinedTexture.source,
         uBodyNearestSamp: getNearestSamplerStyle(),
       },
     });
@@ -660,7 +672,7 @@ export class BodyBandBatch {
   /** Returns the same `TextureSource` we're sampling. Lets the atlas's
    *  batch registry key off `source.uid`. */
   sourceUid(): number {
-    return (this.atlas.combinedTexture.source as TextureSource & { uid: number })
+    return (this.combinedTexture.source as TextureSource & { uid: number })
       .uid;
   }
 
@@ -740,27 +752,41 @@ export class BodyBandBatch {
 
 // ── Atlas-band UV helper ──────────────────────────────────────────────────
 
+/** Atlas-dim inputs `computeBandFrameUV` consumes from the class atlas. */
+export interface AtlasDims {
+  readonly atlasWidth: number;
+  readonly atlasHeight: number;
+}
+
+/** Per-variant layout inputs `computeBandFrameUV` consumes. */
+export interface VariantFrameLayout {
+  readonly frameWidth: number;
+  readonly frameHeight: number;
+  readonly gridCols: number;
+}
+
 /**
  * Compute the atlas UV sub-rect (u0, v0, u1, v1) for a given band's
- * cell at `frameIndex`. Mirrors the legacy
- * `writeAtlasFrameUvs` math from `body-band-shader.ts`, but returns
- * normalised UVs directly so the batch can pump them into the
- * instance buffer.
+ * cell at `frameIndex`. Class atlas dims drive normalisation; the
+ * variant's per-frame layout (frame size + grid cols) drives the
+ * column/row stepping inside the variant's sub-rect. `band.atlasX/Y`
+ * are absolute pixel positions inside the class atlas.
  */
 export function computeBandFrameUV(
-  atlas: BodyAtlas,
-  band: BodyAtlasBand,
+  atlasDims: AtlasDims,
+  variantLayout: VariantFrameLayout,
+  band: AtlasBand,
   frameIndex: number,
 ): { u0: number; v0: number; u1: number; v1: number } {
-  const cols = Math.max(1, atlas.gridCols);
+  const cols = Math.max(1, variantLayout.gridCols);
   const col = frameIndex % cols;
   const row = Math.floor(frameIndex / cols);
-  const cellPx = band.atlasX + col * atlas.frameWidth;
-  const cellPy = band.atlasY + row * atlas.frameHeight;
+  const cellPx = band.atlasX + col * variantLayout.frameWidth;
+  const cellPy = band.atlasY + row * variantLayout.frameHeight;
   return {
-    u0: cellPx / atlas.atlasWidth,
-    v0: cellPy / atlas.atlasHeight,
-    u1: (cellPx + atlas.frameWidth) / atlas.atlasWidth,
-    v1: (cellPy + atlas.frameHeight) / atlas.atlasHeight,
+    u0: cellPx / atlasDims.atlasWidth,
+    v0: cellPy / atlasDims.atlasHeight,
+    u1: (cellPx + variantLayout.frameWidth) / atlasDims.atlasWidth,
+    v1: (cellPy + variantLayout.frameHeight) / atlasDims.atlasHeight,
   };
 }
