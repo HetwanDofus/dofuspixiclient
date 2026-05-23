@@ -205,6 +205,11 @@ export class BattlefieldPicking {
       id: pickableId,
       sprite: data.sprite,
       parentContainer: data.container,
+      // V2 player renderer ships a multi-band silhouette alphaTest;
+      // V1 / legacy returns undefined and the picker falls back to
+      // single-source alpha extraction on `sprite.texture` (correct
+      // for V1's flattened strip).
+      alphaTest: data.alphaTest,
     });
 
     const isMonsterGroup =

@@ -133,6 +133,25 @@ export interface VariantInfo {
   readonly bandCount: number;
   readonly slotCount: number;
   readonly bands: readonly VariantBand[];
+  /**
+   * Picking silhouette: byte alpha map of `frameWidth × frameHeight`
+   * pixels, value > threshold ⇒ point is on the bot's body.
+   * Computed at bake-time by UNIONing each band's cell-(0,0) alpha
+   * sub-rect from the class atlas page bitmap. Extracted via
+   * `OffscreenCanvas + getImageData` BEFORE the bitmap is uploaded
+   * to Pixi (Pixi closes the bitmap on upload, and Pixi v8 doesn't
+   * expose the post-upload GPUTexture in a way `PickingSystem`'s
+   * extraction can read — its `source.resource` cast returns the
+   * uploaded ImageBitmap, not a `GPUTexture`, so
+   * `copyTextureToBuffer` validation fails silently). Doing it
+   * ourselves at bake time gives pixel-perfect picking without
+   * Pixi-internal hacks.
+   *
+   * `undefined` only between bake-completion and silhouette
+   * extraction (a tight synchronous window inside `wrapClassAtlas`).
+   * In practice always populated by the time any consumer reads it.
+   */
+  silhouette?: Uint8Array;
 }
 
 /** One page of a class atlas — a single GPU texture + its dims. */
@@ -303,6 +322,89 @@ function mountKey(p: MountKeyParts): string {
 
 function estimateBytes(width: number, height: number): number {
   return width * height * BYTES_PER_PIXEL;
+}
+
+/**
+ * Threshold above which a class-atlas-page alpha sample counts as
+ * "on body" for picking purposes. Matches the value used in
+ * `PickingSystem.checkAlpha`. Small enough to ignore feathering /
+ * anti-aliased edges but well below any meaningfully opaque pixel.
+ */
+const SILHOUETTE_ALPHA_THRESHOLD = 10;
+
+/**
+ * Lift the alpha plane out of a class-atlas page bitmap before it's
+ * uploaded to Pixi (which closes the bitmap on upload). Returns a
+ * tightly packed `Uint8Array(width * height)` of the alpha channel,
+ * or `null` if `OffscreenCanvas`/`getImageData` is unavailable in
+ * the host (rare — main thread of every Chromium/Safari we ship
+ * on).
+ *
+ * Doing this once per page (then aggregating per variant) is far
+ * cheaper than a per-pick GPU readback, and avoids `PickingSystem`'s
+ * Pixi-v8-incompatible `copyTextureToBuffer` extraction.
+ */
+function extractPageAlpha(
+  bitmap: ImageBitmap,
+  width: number,
+  height: number,
+): Uint8Array | null {
+  if (typeof OffscreenCanvas === "undefined") return null;
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(bitmap, 0, 0);
+  const img = ctx.getImageData(0, 0, width, height);
+  const rgba = img.data;
+  const out = new Uint8Array(width * height);
+  for (let i = 0, j = 3; i < out.length; i++, j += 4) {
+    out[i] = rgba[j];
+  }
+  return out;
+}
+
+/**
+ * Union all bands of a variant — projected to its cell-(0,0) frame
+ * rect — into one `frameWidth × frameHeight` silhouette. Sampling
+ * uses `>` against {@link SILHOUETTE_ALPHA_THRESHOLD} to ignore
+ * AA fringe; the resulting bytes are 0/255 so the consumer can
+ * fast-path with a single threshold comparison.
+ *
+ * Each variant strip layout: bands are stacked vertically in the
+ * atlas with `bandPadding` margin; cell (0,0) at `(atlasX, atlasY)`
+ * is the canonical first frame for this band. Hit-testing only
+ * needs *any* opaque pixel across bands at the queried frame-local
+ * coord — a transparent gap in band[0] but coverage in band[1] is
+ * still a hit on the visible composite.
+ */
+function buildVariantSilhouette(
+  pageAlpha: Uint8Array,
+  pageW: number,
+  pageH: number,
+  frameW: number,
+  frameH: number,
+  bands: readonly { atlasX: number; atlasY: number }[],
+): Uint8Array {
+  const out = new Uint8Array(frameW * frameH);
+  for (const band of bands) {
+    const baseX = band.atlasX;
+    const baseY = band.atlasY;
+    for (let y = 0; y < frameH; y++) {
+      const py = baseY + y;
+      if (py < 0 || py >= pageH) continue;
+      const pageRow = py * pageW;
+      const outRow = y * frameW;
+      for (let x = 0; x < frameW; x++) {
+        if (out[outRow + x]) continue;
+        const px = baseX + x;
+        if (px < 0 || px >= pageW) continue;
+        if (pageAlpha[pageRow + px] > SILHOUETTE_ALPHA_THRESHOLD) {
+          out[outRow + x] = 255;
+        }
+      }
+    }
+  }
+  return out;
 }
 
 class CharacterCache {
@@ -1048,6 +1150,15 @@ class CharacterCache {
     r: VelloSwfClassAtlasResult,
   ): ClassAtlas {
     let pageUploadMs = 0;
+    // PHASE 1: extract per-page page-wide alpha BEFORE uploading.
+    // Once Pixi consumes the ImageBitmap via copyExternalImageToTexture
+    // it closes the bitmap and the alpha data is no longer reachable.
+    // We need it for pixel-perfect picking (see VariantInfo.silhouette
+    // doc) so we drawImage + getImageData each page first, hold the
+    // raw alpha bytes per page, then upload.
+    const pageAlphas: (Uint8Array | null)[] = r.pages.map((p) =>
+      extractPageAlpha(p.combinedBitmap, p.atlasWidth, p.atlasHeight),
+    );
     const pages: ClassAtlasPage[] = r.pages.map((p, idx) => {
       const upStart = performance.now();
       const combinedTexture = this.buildPixiTextureFromBitmap(
@@ -1072,6 +1183,19 @@ class CharacterCache {
     }
     const variants = new Map<string, VariantInfo>();
     for (const v of r.variants) {
+      const page = r.pages[v.pageIndex];
+      const pageAlpha = pageAlphas[v.pageIndex];
+      const silhouette =
+        pageAlpha && page
+          ? buildVariantSilhouette(
+              pageAlpha,
+              page.atlasWidth,
+              page.atlasHeight,
+              v.frameWidth,
+              v.frameHeight,
+              v.bands,
+            )
+          : undefined;
       const info: VariantInfo = {
         exportName: v.exportName,
         applyBFix: v.applyBFix,
@@ -1094,6 +1218,7 @@ class CharacterCache {
           atlasX: b.atlasX,
           atlasY: b.atlasY,
         })),
+        silhouette,
       };
       variants.set(
         variantKey(info.exportName, info.applyBFix, info.hatEquipped),

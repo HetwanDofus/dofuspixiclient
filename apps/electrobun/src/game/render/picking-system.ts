@@ -153,10 +153,22 @@ export class PickingSystem {
         continue;
       }
 
-      const uvX = adjX / texW;
-      const uvY = adjY / texH;
-
-      if (this.checkAlpha(sprite.texture, uvX, uvY)) {
+      // If the pickable supplies a custom alphaTest, prefer it over
+      // sampling `sprite.texture`'s alpha map. Used by character
+      // pickables whose visible texture is a render-target
+      // (composition atlas) whose underlying GPUTexture isn't
+      // exposed via `source.resource` in Pixi v8 — silhouette
+      // sampling must hit the class atlas page (a real upload)
+      // through multiple band rects.
+      let hit: boolean;
+      if (obj.alphaTest) {
+        hit = obj.alphaTest(adjX, adjY, this.alphaAccessor);
+      } else {
+        const uvX = adjX / texW;
+        const uvY = adjY / texH;
+        hit = this.checkAlpha(sprite.texture, uvX, uvY);
+      }
+      if (hit) {
         bestResult = { object: obj, x: screenX, y: screenY };
         bestZIndex = z;
       }
@@ -164,6 +176,23 @@ export class PickingSystem {
 
     return bestResult;
   }
+
+  /**
+   * Accessor handed to `PickableObject.alphaTest` callbacks. Wraps
+   * the same cache + extraction pipeline `checkAlpha` uses, but
+   * exposes raw `(data, w, h)` so callers can sample arbitrary
+   * positions (e.g. multi-band lookups in a stacked atlas).
+   */
+  private readonly alphaAccessor: import("@/game/types").AlphaMapAccessor = {
+    get: (source) => {
+      const uid = source.uid;
+      if (this.failedSources.has(uid)) return null;
+      const cached = this.alphaMaps.get(uid);
+      if (cached) return cached;
+      this.extractAlphaMapAsync(source);
+      return null;
+    },
+  };
 
   /**
    * Check if the pixel at (uvX, uvY) within the texture frame is non-transparent.

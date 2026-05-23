@@ -502,18 +502,81 @@ export class PlayerStripRendererV2 {
     return { atlasWidth: page.atlasWidth, atlasHeight: page.atlasHeight };
   }
 
-  /** Picking layer adapter — returns the slot's hit-test Sprite. */
+  /** Picking layer adapter — returns the slot's hit-test Sprite.
+   *
+   *  V2 returns the `compositeSprite` (the visible composite that
+   *  samples the bot's composition-atlas slot). It has the correct
+   *  world-space AABB (anchor=SWF origin, scale=1/botScale, root
+   *  scale=1/resolution) AND the bot's fully composited silhouette
+   *  including accessories — so picking matches what's rendered.
+   *
+   *  The previous `hitSprite` shim pointed at the entire class atlas
+   *  PAGE (e.g. 7680×4480) with no `texture.frame` restriction, so
+   *  the picking system's AABB extent was page-sized rather than
+   *  bot-sized — hovering anywhere in a ~7000-px halo around any bot
+   *  returned a false hit, and clicks on empty ground often selected
+   *  distant bots. The class atlas was the wrong surface to begin
+   *  with: a variant is laid out as multiple vertically-stacked
+   *  band strips, so there's no single rect that maps to the bot's
+   *  silhouette — only the composition atlas slot has the bot
+   *  fully assembled. */
   getSlotSprite(
     playerId: number,
     slot: PlayerStripSlot = "main",
   ): Sprite | null {
     const st = this.states.get(playerId)?.get(slot);
     if (!st) return null;
-    // Honor the V1 contract: only return a sprite once a strip has
-    // actually landed. Callers (picking) treat null as "not yet
-    // pickable" and gracefully fall through to ground-clicks.
-    if (!st.atlas || !st.hitSprite.texture) return null;
-    return st.hitSprite;
+    // Only pickable once the body has committed: until then the
+    // composite slot hasn't been rendered to and the bot is invisible.
+    // `compositeSprite.visible === true` is the canonical signal —
+    // it's set in commitBody after the slot is populated, and the
+    // picking system already skips `!sprite.visible` candidates, so
+    // returning the sprite when invisible is safe but pointless.
+    if (!st.atlas || !st.compositeSprite.visible) return null;
+    return st.compositeSprite;
+  }
+
+  /**
+   * Pixel-perfect alphaTest for the given slot, sampling the
+   * pre-extracted variant silhouette baked at class-atlas wrap
+   * time. See `VariantInfo.silhouette` for why we own the
+   * extraction (Pixi v8's `source.resource` can't be read back
+   * via `copyTextureToBuffer`, so `PickingSystem`'s alpha cache
+   * can't populate for our sources).
+   *
+   * The closure ignores its `alphas` accessor argument — kept in
+   * the signature only to satisfy `PickableObject.alphaTest`'s
+   * shape. All sampling goes against `variant.silhouette` which
+   * already encodes the multi-band union at cell (0, 0).
+   */
+  getSlotAlphaTest(
+    playerId: number,
+    slot: PlayerStripSlot = "main",
+  ): ((adjX: number, adjY: number, alphas: import("@/game/types").AlphaMapAccessor) => boolean) | null {
+    const st = this.states.get(playerId)?.get(slot);
+    if (!st) return null;
+    return (adjX, adjY, _alphas) => {
+      const variant = st.variant;
+      if (!st.atlas || !variant || !st.compositionSlot || st.botScale <= 0) {
+        return true; // AABB fallback — bot not yet committed
+      }
+      const silhouette = variant.silhouette;
+      if (!silhouette) return true; // extraction unavailable → AABB fallback
+
+      // Inverse slot-fit transform: bot rendered into the slot at
+      // `botScale` with SWF origin at `(swfOriginInSlotX, ...)`.
+      const fx = (adjX - st.swfOriginInSlotX) / st.botScale + variant.anchorX;
+      const fy = (adjY - st.swfOriginInSlotY) / st.botScale + variant.anchorY;
+      const fxi = Math.floor(fx);
+      const fyi = Math.floor(fy);
+      if (
+        fxi < 0 || fxi >= variant.frameWidth ||
+        fyi < 0 || fyi >= variant.frameHeight
+      ) {
+        return false;
+      }
+      return silhouette[fyi * variant.frameWidth + fxi] !== 0;
+    };
   }
 
   getSlotContainer(
@@ -1226,12 +1289,49 @@ export class PlayerStripRendererV2 {
         });
       }
     }
-    // Picking shim: hit-test reads from the variant's page. AABB
-    // uses the active variant's frame dims + anchor.
-    st.hitSprite.texture = nextPage.combinedTexture;
+    // Picking surface: the visible `compositeSprite` IS the hit
+    // target — it samples the bot's composition-atlas slot which
+    // already holds the fully-composited body + accessories. AABB
+    // extent = slot dims = bot's world bounds (after compositeSprite
+    // scale + root scale). Anchor = SWF origin. This is what
+    // `getSlotSprite()` returns to the picking system below;
+    // `hitSprite` itself is kept around for legacy compat (it's
+    // already in the scene tree, removing it would touch the slot-
+    // state struct) but is no longer the picking source.
+    //
+    // Why not the class atlas page? A variant is rendered as
+    // multiple vertically-stacked band strips with padding (one
+    // strip per Z-band). There's no single "bot silhouette" rect in
+    // the class atlas — the bot is reassembled by composition.
+    // Framing to one band would only cover that band's body part
+    // (e.g. just the torso, miss the head). Framing the multi-band
+    // region would inflate the hit-test ~Nx vertically because the
+    // bands are stacked but they all draw at the SAME world Y.
+    //
+    // Composition atlas alpha map trade-off: the slot's pixels
+    // change every frame (anim cycling), but `PickingSystem`
+    // extracts the alpha once and caches forever — so picks beyond
+    // the first frame use a slightly stale silhouette. In practice
+    // bots' silhouettes are stable across walk/run cycles (legs
+    // swing ~5 world units); the trade-off is acceptable. AABB
+    // still binds the outer bounds correctly even when alpha is
+    // off-by-a-frame, so the worst case is "click on an arm tip
+    // mid-swing misses" — never "click on empty ground selects
+    // bot".
     const fw = nextVariant.frameWidth || 1;
     const fh = nextVariant.frameHeight || 1;
-    st.hitSprite.anchor.set(nextVariant.anchorX / fw, nextVariant.anchorY / fh);
+    void fw; void fh;
+    // Keep hitSprite's texture wired to something safe so any stale
+    // reference doesn't dangle (e.g. external code calls
+    // `getSlotSprite` and reads it). `Texture.EMPTY` is Pixi's
+    // shared sentinel — zero-size, never destroyed.
+    if (st.hitSprite.texture !== Texture.EMPTY) {
+      const oldHit = st.hitSprite.texture;
+      st.hitSprite.texture = Texture.EMPTY;
+      try {
+        oldHit?.destroy(false);
+      } catch {}
+    }
     st.atlas = nextAtlas;
     st.variant = nextVariant;
 
@@ -1712,6 +1812,13 @@ export class PlayerStripRendererV2 {
     // source itself is owned by SharedCompositionAtlas and survives.
     try {
       st.compositeSprite.texture.destroy(false);
+    } catch {}
+    // hitSprite holds a Texture wrapper around the class atlas page
+    // source (frame restricted to one variant cell). Wrapper must be
+    // destroyed; source survives — it's owned by CharacterCache.
+    try {
+      const t = st.hitSprite.texture;
+      if (t && t !== Texture.EMPTY) t.destroy(false);
     } catch {}
     try {
       st.root.parent?.removeChild(st.root);

@@ -492,7 +492,11 @@ export class PlayerRenderer {
    */
   getPlayerPickingData(
     id: number
-  ): { sprite: Sprite; container: Container } | null {
+  ): {
+    sprite: Sprite;
+    container: Container;
+    alphaTest?: import("@/game/types").PickableObject["alphaTest"];
+  } | null {
     const f = this.players.get(id);
     if (!f) {
       return null;
@@ -501,7 +505,23 @@ export class PlayerRenderer {
     if (!sprite) {
       return null;
     }
-    return { sprite, container: f.container };
+    // V2 ships a multi-band alphaTest because its picking surface is
+    // a composition-atlas RenderTexture whose alpha can't be
+    // extracted (Pixi v8 doesn't expose RenderTexture GPUTextures
+    // via `source.resource`). The custom test re-routes the alpha
+    // lookup to the class atlas page (uploaded → extractable) and
+    // unions the N band rects to recover the silhouette.
+    type AlphaTestFactory = {
+      getSlotAlphaTest?: (
+        id: number,
+        slot: "main",
+      ) => import("@/game/types").PickableObject["alphaTest"];
+    };
+    const factory = this.stripRenderer as unknown as AlphaTestFactory;
+    const alphaTest = factory.getSlotAlphaTest
+      ? factory.getSlotAlphaTest(id, "main") ?? undefined
+      : undefined;
+    return { sprite, container: f.container, alphaTest };
   }
 
   get lastUpdateMs(): number {
