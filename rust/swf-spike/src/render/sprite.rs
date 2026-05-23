@@ -11,12 +11,18 @@ use vello::peniko::{BlendMode, Fill};
 
 use crate::swf_doc::{OwnedSprite, Symbol};
 
-use super::bounds::build_frame_state;
 use super::clip::collect_mask_path;
 use super::ctx::RenderCtx;
 
 pub(super) fn render_sprite_into(ctx: &mut RenderCtx<'_>, sprite: &OwnedSprite) {
-    let state = build_frame_state(sprite, ctx.frame);
+    // Cached frame state (Opt-3 + Opt-6): for class atlas bakes,
+    // the same `(sprite, frame)` is requested once per band (5×)
+    // AND once per applyBFix/hatEquipped dim. Cache hit avoids the
+    // `Vec<Op> → BTreeMap<u16, OwnedPlace>` rebuild — which was
+    // ~30% of `render_body_band`'s CPU per the per-class profile.
+    // Cache lives in `RenderCache` (per-bundle), keyed by sprite
+    // pointer identity.
+    let state = ctx.cache.frame_state(sprite, ctx.frame);
 
     // Path B body-band filter. `band_filter` is `Some` only on the
     // entry call — `ctx.child()` clears it so nested sub-clip walks
@@ -32,7 +38,7 @@ pub(super) fn render_sprite_into(ctx: &mut RenderCtx<'_>, sprite: &OwnedSprite) 
     // the current depth exceeds the mask's clip_depth.
     let mut clip_stack: Vec<u16> = Vec::new();
 
-    for (depth, p) in &state {
+    for (depth, p) in state.iter() {
         // Band filter (Path B): top-level body walk only. Drop
         // placements outside the requested depth band.
         if let Some(range) = band_filter

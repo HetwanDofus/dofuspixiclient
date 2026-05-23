@@ -295,19 +295,108 @@ fn has_visible_content(doc: &SwfDoc, cid: u16, visited: &mut HashSet<u16>) -> bo
     }
 }
 
-/// Does any sprite reachable from `body` (recursively) match the
-/// `mcToHide` accessory-toggle pattern? Used to decide whether the
-/// body atlas needs to bake separate `hat_equipped=true/false`
-/// variants. For canonical Dofus 1.29 only Iop's body has a toggle
-/// sprite; for every other class this returns false and the JS
-/// cache layer can collapse the `hatEquipped` dimension, halving
-/// the body atlas cache footprint.
-pub fn body_has_toggle_sprite(doc: &SwfDoc, body: &OwnedSprite) -> bool {
+/// Does this body export actually USE any `b_fix=true` mount?
+///
+/// **Per-export bFix detection (Opt-2)**: the bundle-level
+/// `bFixUsed` flag triggers the `applyBFix` variant dimension for
+/// every export of the class, but many exports' display tree never
+/// places a body part whose mount declares `b_fix=true`. For those
+/// exports the `applyBFix=true` bake is pixel-identical to
+/// `applyBFix=false`. Collapsing the dimension at enumerate time
+/// halves the variant count for those (export, class) pairs.
+///
+/// Walk all reachable placements in the body's display tree (we
+/// don't know which frames could place a bFix mount, so check every
+/// reachable character id) and return true if any declared mount has
+/// `b_fix=true`.
+pub fn export_uses_b_fix(doc: &SwfDoc, body: &OwnedSprite) -> bool {
+    let effective = find_effective_body_inner(doc, body, 0).unwrap_or(body);
     let mut visited = HashSet::new();
-    has_toggle_sprite_recursive(doc, body, &mut visited)
+    export_uses_b_fix_recursive(doc, effective, &mut visited)
 }
 
-fn has_toggle_sprite_recursive(
+fn export_uses_b_fix_recursive(
+    doc: &SwfDoc,
+    sprite: &OwnedSprite,
+    visited: &mut HashSet<u16>,
+) -> bool {
+    for op in &sprite.ops {
+        if let OwnedOp::Place(p) = op {
+            if let Some(cid) = p.character_id {
+                if !visited.insert(cid) {
+                    continue;
+                }
+                if let Some(mounts) = doc.accessory_mounts.get(&cid) {
+                    if mounts.iter().any(|m| m.b_fix) {
+                        return true;
+                    }
+                }
+                if let Some(Symbol::Sprite(child)) = doc.lookup_id(cid) {
+                    if export_uses_b_fix_recursive(doc, child, visited) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Does this body have the canonical Iop `mcToHide` hat-toggle
+/// pattern that makes the bake pixel-differ between
+/// `hat_equipped=true` and `hat_equipped=false`?
+///
+/// **Tightened semantics (Opt-1)**: only the HAT-MOUNT body-part
+/// matters. Specifically: walk the effective body's top-level
+/// placements, find the placement whose child declares a slot=1
+/// (hat) accessory mount, then check whether THAT body-part sprite
+/// (or any sprite in its subtree) matches the `is_accessory_toggle_sprite`
+/// pattern (multi-frame with per-frame child swaps).
+///
+/// The earlier permissive version walked the entire body tree for
+/// any multi-frame mcToHide-shaped sprite. For 11 of 24 canonical
+/// classes that triggered false positives (some unrelated multi-
+/// frame sprite elsewhere in the tree), doubling the variant count
+/// and producing pixel-identical hat=0/hat=1 bakes. Real data showed
+/// ~1.2 GB GPU memory + ~1.3 s of CPU per warmup wasted to those
+/// duplicates.
+///
+/// Iop is the only canonical class with this pattern: its R_tete
+/// hair body-part is a 2-frame sprite where frame 1 has long hair
+/// and frame 2 swaps to short hair. The AS2 runtime drives that
+/// gotoAndStop based on whether the hat slot has an accessory
+/// attached. For every other class the hair body-part is a single-
+/// frame shape — no toggle, no pixel difference.
+pub fn body_has_toggle_sprite(doc: &SwfDoc, body: &OwnedSprite) -> bool {
+    let effective = find_effective_body_inner(doc, body, 0).unwrap_or(body);
+    let state = build_frame_state(effective, 0);
+    for (_depth, place) in &state {
+        let Some(cid) = place.character_id else { continue };
+        let Some(mounts) = doc.accessory_mounts.get(&cid) else { continue };
+        // Only slot=1 (hat) mounts can ever cause a hat-toggle.
+        // A weapon/cape/shield mount on a body part doesn't affect
+        // hair rendering regardless of whether that body part is
+        // multi-frame.
+        if !mounts.iter().any(|m| m.slot == 1) {
+            continue;
+        }
+        let Some(Symbol::Sprite(hat_mount_body_part)) = doc.lookup_id(cid) else {
+            continue;
+        };
+        // Either the hat-mount body part IS a toggle sprite directly,
+        // or it contains one in its subtree (Iop's R_tete pattern).
+        if super::ctx::is_accessory_toggle_sprite(hat_mount_body_part) {
+            return true;
+        }
+        let mut visited = HashSet::new();
+        if has_toggle_in_subtree(doc, hat_mount_body_part, &mut visited) {
+            return true;
+        }
+    }
+    false
+}
+
+fn has_toggle_in_subtree(
     doc: &SwfDoc,
     sprite: &OwnedSprite,
     visited: &mut HashSet<u16>,
@@ -324,7 +413,7 @@ fn has_toggle_sprite_recursive(
                 if super::ctx::is_accessory_toggle_sprite(child) {
                     return true;
                 }
-                if has_toggle_sprite_recursive(doc, child, visited) {
+                if has_toggle_in_subtree(doc, child, visited) {
                     return true;
                 }
             }

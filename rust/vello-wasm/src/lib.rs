@@ -272,6 +272,36 @@ pub struct VelloRenderer {
     /// makes zoom re-render fast: we don't re-walk symbol trees, we
     /// just `scene.append(subscene, matrix)` for each placement.
     tile_subscenes: HashMap<(String, String, u32), vello::Scene>,
+    /// Opt-5: per-bundle precomputed class atlas enumeration.
+    /// Populated lazily on first `renderSwfClassAtlas(bundle)` call.
+    /// Subsequent calls (including re-bakes after eviction) skip the
+    /// per-export `swf_anim_frame_count` + `body_has_toggle_sprite`
+    /// + `export_uses_b_fix` work — ~10 ms per class on the warmup
+    /// hot path becomes a one-time pre-pay.
+    class_enum_cache: HashMap<String, ClassEnumeration>,
+}
+
+/// Precomputed metadata for class atlas baking, populated once per
+/// bundle. Cached on `VelloRenderer.class_enum_cache`.
+struct ClassEnumeration {
+    /// `b_fix_used` at the bundle level (any mount with b_fix=true).
+    bundle_b_fix_used: bool,
+    /// Per-export specs, sorted by name. Each entry already filtered
+    /// to the character-anim pattern + verified Sprite + tested for
+    /// toggle/bFix dimensionality.
+    exports: Vec<ClassEnumerationExport>,
+}
+
+struct ClassEnumerationExport {
+    export_name: String,
+    /// `swf_anim_frame_count` minus the static-clamp.
+    total_frame_count: u32,
+    /// `body_has_toggle_sprite` — whether to expand hat_equipped dim.
+    has_toggle: bool,
+    /// Per-export `export_uses_b_fix` — whether to expand applyBFix dim.
+    /// Already combined with the bundle-level `bundle_b_fix_used` flag.
+    export_b_fix: bool,
+    slot_count_logical: u32,
 }
 
 /// Phase 1b body-scene cache key. Every parameter that can change the
@@ -609,6 +639,7 @@ impl VelloRenderer {
             swf_render_caches: HashMap::new(),
             body_scene_cache: HashMap::new(),
             tile_subscenes: HashMap::new(),
+            class_enum_cache: HashMap::new(),
         };
 
         // Return { renderer, adapter, device, maxTextureSize }
@@ -2372,23 +2403,22 @@ impl VelloRenderer {
             // atlas regardless of its logical band index. JS reads
             // `bandIndex` from the returned `bands` array to recover
             // the logical position for zIndex math.
-            for (slot_idx, &band) in band_ranges_ref.iter().enumerate() {
-                let band_atlas_y =
-                    (slot_idx as f64) * (f64::from(strip_h) + f64::from(BAND_PADDING_PX));
-                for slot in 0..chunk_count {
-                    let frame_idx = start + slot;
-                    let col = (slot as usize) % grid_cols;
-                    let row = (slot as usize) / grid_cols;
-                    let cell_x = (col * frame_w as usize) as f64;
+            // Opt-3 inverted loop order: frame outer, band inner so
+            // all bands of one frame share the cached frame_state.
+            for slot in 0..chunk_count {
+                let frame_idx = start + slot;
+                let col = (slot as usize) % grid_cols;
+                let row = (slot as usize) / grid_cols;
+                let cell_x = (col * frame_w as usize) as f64;
+                for (slot_idx, &band) in band_ranges_ref.iter().enumerate() {
+                    let band_atlas_y =
+                        (slot_idx as f64) * (f64::from(strip_h) + f64::from(BAND_PADDING_PX));
                     let cell_y = band_atlas_y + (row * frame_h as usize) as f64;
                     let xform = vello::kurbo::Affine::scale(scale).then_translate(
                         vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y + cell_y),
                     );
                     // Render the WRAPPER (effective body), with the
                     // wrapper's own placement transform composed in.
-                    // This puts the band filter into the wrapper's
-                    // depth space — where the slot mounts live —
-                    // instead of the body export's empty depth space.
                     swf_spike::render::render_body_band(
                         &mut wctx,
                         doc,
@@ -2780,38 +2810,32 @@ impl VelloRenderer {
         let mut per_variant_log: Vec<(String, bool, bool, u32, u32, f64, f64, f64)> =
             Vec::new();
 
-        // Step 1: enumerate every Sprite export whose name matches
-        // `^[A-Za-z]+[RLFBS]$` — the Dofus convention for character
-        // animations (walkR, staticL, runF, castB, anim2S, ...). Body
-        // parts have underscores (`R_tete`, `H_main`), filter them out.
-        let Some(doc) = self.swf_bundles.get(bundle) else {
+        // Step 1: load the precomputed enumeration for this bundle.
+        // `ensure_class_enumeration` builds the per-export metadata
+        // (frame counts, has_toggle, export_b_fix, slot counts) ONCE
+        // per bundle; subsequent class atlas bakes (e.g. re-bakes,
+        // resolution flips, hot-reload) read the cached table. ~11 ms
+        // per class saved at warmup (Opt-5).
+        if !self.swf_bundles.contains_key(bundle) {
             console_log!("renderSwfClassAtlas: bundle `{bundle}` not loaded");
             return JsValue::NULL;
-        };
-        let mut export_candidates: Vec<String> = Vec::new();
-        for (name, _) in doc.by_name.iter() {
-            if !is_character_anim_name(name) {
-                continue;
-            }
-            if !matches!(doc.lookup_export(name), Some(swf_spike::swf_doc::Symbol::Sprite(_))) {
-                continue;
-            }
-            export_candidates.push(name.clone());
         }
-        if export_candidates.is_empty() {
+        if !self.class_enum_cache.contains_key(bundle) {
+            let enumeration = self.compute_class_enumeration(bundle);
+            self.class_enum_cache
+                .insert(bundle.to_string(), enumeration);
+        }
+        let enumeration = self
+            .class_enum_cache
+            .get(bundle)
+            .expect("just inserted");
+        if enumeration.exports.is_empty() {
             console_log!(
                 "renderSwfClassAtlas: bundle `{bundle}` has no character-anim exports"
             );
             return JsValue::NULL;
         }
-        export_candidates.sort();
-
-        // Bundle-wide `b_fix` use: ANY mount with b_fix=true triggers
-        // the bFix dimension. Same heuristic as `swfBodyBandInfo`.
-        let b_fix_used = doc
-            .accessory_mounts
-            .values()
-            .any(|mounts| mounts.iter().any(|m| m.b_fix));
+        let b_fix_used = enumeration.bundle_b_fix_used;
 
         // Step 2: lay out each variant. We compute every variant's
         // pixel bbox + per-band sub-rect (in variant-local coords)
@@ -2860,47 +2884,37 @@ impl VelloRenderer {
         }
 
         let mut variants: Vec<VariantLayout> = Vec::new();
-        for export in &export_candidates {
-            // Inspect the symbol for toggle-sprite dimensionality.
-            // Need a fresh `&doc` borrow each iteration because the
-            // `cache_strip_bounds` call below mutates `self`.
-            let (has_toggle, slot_count_logical) = {
-                let Some(doc) = self.swf_bundles.get(bundle) else {
-                    return JsValue::NULL;
-                };
-                let Some(symbol) = doc.lookup_export(export) else {
-                    continue;
-                };
-                let swf_spike::swf_doc::Symbol::Sprite(body) = symbol else {
-                    continue;
-                };
-                let slots = swf_spike::render::extract_slot_depths(doc, body, 0);
-                let has_toggle = swf_spike::render::body_has_toggle_sprite(doc, body);
-                (has_toggle, slots.len() as u32)
-            };
+        // Iterate the precomputed enumeration. Per-bundle one-shot
+        // work (frame counts, toggle/bFix detection, slot counts)
+        // already paid; just clone the cheap fields per export.
+        let exports_snapshot: Vec<(String, u32, bool, bool, u32)> = enumeration
+            .exports
+            .iter()
+            .map(|e| {
+                (
+                    e.export_name.clone(),
+                    e.total_frame_count,
+                    e.has_toggle,
+                    e.export_b_fix,
+                    e.slot_count_logical,
+                )
+            })
+            .collect();
+        for (export_name, total, has_toggle, export_b_fix, slot_count_logical) in
+            &exports_snapshot
+        {
+            let export = export_name.as_str();
+            let total = *total;
+            let has_toggle = *has_toggle;
+            let export_b_fix = *export_b_fix;
+            let slot_count_logical = *slot_count_logical;
 
-            // Frame count from the deepest reachable animation. JS-
-            // side `swfAnimFrameCount` matches the legacy walk path.
-            //
-            // Canonical Dofus character `static*` exports are 1-frame
-            // wrappers placing a multi-frame inner rig that drives the
-            // idle breathing animation via AS2 calls we don't run.
-            // Walking the inner rig's full frame count over-iterates;
-            // the renderer needs exactly frame 0 of the wrapper. JS
-            // does the same clamp in `character-sprite.ts:loadAnimation`
-            // — duplicated here so the class atlas's grid sizing
-            // doesn't blow up trying to pack 80 frames of identical
-            // pixels per static variant.
-            let mut total = self.swf_anim_frame_count(bundle, export);
-            if total == 0 {
-                continue;
-            }
-            if export.starts_with("static") {
-                total = 1;
-            }
-
-            // Iterate dimensionality.
-            for &apply_b_fix in if b_fix_used { &[false, true][..] } else { &[false][..] } {
+            // Iterate dimensionality. Per-export bFix collapse (Opt-2):
+            // only expand the dimension if THIS export actually uses
+            // a `b_fix=true` mount. Static poses on classes with a
+            // bFix cape rarely place the cape at frame 0; collapsing
+            // such exports halves their variant count.
+            for &apply_b_fix in if export_b_fix { &[false, true][..] } else { &[false][..] } {
                 for &hat_equipped in if has_toggle { &[false, true][..] } else { &[false][..] } {
                     // Compute variant layout (mirrors the prelude of
                     // `render_swf_body_atlas`).
@@ -3032,7 +3046,7 @@ impl VelloRenderer {
                     }
 
                     variants.push(VariantLayout {
-                        export_name: export.clone(),
+                        export_name: export.to_string(),
                         apply_b_fix,
                         hat_equipped,
                         total_frame_count: total,
@@ -3525,19 +3539,14 @@ impl VelloRenderer {
             total_wall_ms,
             page_dim_summary
         );
-        for (name, bfix, hat, vw, vh, sb, rs, cc) in &per_variant_log {
-            console_log!(
-                "  variant bundle={bundle} {} bFix={} hat={} {}x{} scene={:.2} render={:.2} combineCopy={:.2}",
-                name,
-                if *bfix { 1 } else { 0 },
-                if *hat { 1 } else { 0 },
-                vw,
-                vh,
-                sb,
-                rs,
-                cc
-            );
-        }
+        // Per-variant log lines used to fire here for instrumentation
+        // (~24 lines per class bake × hundreds of bakes during a stress
+        // run = ~6k+ `console_log!` calls). Each call boxes through
+        // wasm-bindgen → DevTools sink and visibly stalls the main
+        // thread. The aggregate `classAtlasBake` summary line above is
+        // sufficient for production diagnosis; re-enable this loop only
+        // when investigating a specific variant.
+        let _ = &per_variant_log;
 
         // Step 7: build per-variant JS metadata.
         let result = js_sys::Object::new();
@@ -3612,6 +3621,67 @@ impl VelloRenderer {
         result.into()
     }
 
+    /// Opt-5: build the per-bundle class atlas enumeration table.
+    /// Walks `doc.by_name` once, applies the character-anim filter,
+    /// runs `swf_anim_frame_count` + `body_has_toggle_sprite` +
+    /// `export_uses_b_fix` per qualifying export. Cached on
+    /// `class_enum_cache`; only paid once per bundle per session.
+    fn compute_class_enumeration(&self, bundle: &str) -> ClassEnumeration {
+        let doc = match self.swf_bundles.get(bundle) {
+            Some(d) => d,
+            None => {
+                return ClassEnumeration {
+                    bundle_b_fix_used: false,
+                    exports: Vec::new(),
+                };
+            }
+        };
+        let bundle_b_fix_used = doc
+            .accessory_mounts
+            .values()
+            .any(|mounts| mounts.iter().any(|m| m.b_fix));
+        let mut candidates: Vec<String> = doc
+            .by_name
+            .keys()
+            .filter(|n| is_character_anim_name(n))
+            .cloned()
+            .collect();
+        candidates.sort();
+        let mut exports: Vec<ClassEnumerationExport> =
+            Vec::with_capacity(candidates.len());
+        for name in candidates {
+            let Some(symbol) = doc.lookup_export(&name) else {
+                continue;
+            };
+            let swf_spike::swf_doc::Symbol::Sprite(body) = symbol else {
+                continue;
+            };
+            let slot_count_logical =
+                swf_spike::render::extract_slot_depths(doc, body, 0).len() as u32;
+            let has_toggle = swf_spike::render::body_has_toggle_sprite(doc, body);
+            let export_b_fix =
+                bundle_b_fix_used && swf_spike::render::export_uses_b_fix(doc, body);
+            let mut total = self.swf_anim_frame_count(bundle, &name);
+            if total == 0 {
+                continue;
+            }
+            if name.starts_with("static") {
+                total = 1;
+            }
+            exports.push(ClassEnumerationExport {
+                export_name: name,
+                total_frame_count: total,
+                has_toggle,
+                export_b_fix,
+                slot_count_logical,
+            });
+        }
+        ClassEnumeration {
+            bundle_b_fix_used,
+            exports,
+        }
+    }
+
     /// Helper: build a single variant's Vello scene for the class
     /// atlas bake. Mirrors the inline `build_scene` closure from
     /// `render_swf_body_atlas` but lives at method scope so the
@@ -3658,14 +3728,21 @@ impl VelloRenderer {
             output_scale: scale,
         };
         let mut scene = vello::Scene::new();
-        for (slot_idx, &band) in band_ranges.iter().enumerate() {
-            let band_atlas_y =
-                (slot_idx as f64) * (f64::from(strip_h) + f64::from(BAND_PADDING_PX));
-            for slot in 0..chunk_count {
-                let frame_idx = chunk_start + slot;
-                let col = (slot as usize) % grid_cols;
-                let row = (slot as usize) / grid_cols;
-                let cell_x = (col * frame_w as usize) as f64;
+        // Opt-3: inverted loop order. The outer loop walks FRAMES,
+        // not bands. Within a single frame, every band reads the
+        // SAME `build_frame_state` from `cache.frame_state` — so the
+        // 5 band calls become 5 cache hits instead of 5 rebuilds.
+        // Frame-state construction was ~30% of `render_body_band`
+        // CPU per the per-class profile; this collapses 4 of every
+        // 5 builds to a cheap Arc clone.
+        for slot in 0..chunk_count {
+            let frame_idx = chunk_start + slot;
+            let col = (slot as usize) % grid_cols;
+            let row = (slot as usize) / grid_cols;
+            let cell_x = (col * frame_w as usize) as f64;
+            for (slot_idx, &band) in band_ranges.iter().enumerate() {
+                let band_atlas_y =
+                    (slot_idx as f64) * (f64::from(strip_h) + f64::from(BAND_PADDING_PX));
                 let cell_y = band_atlas_y + (row * frame_h as usize) as f64;
                 let xform = vello::kurbo::Affine::scale(scale).then_translate(
                     vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y + cell_y),

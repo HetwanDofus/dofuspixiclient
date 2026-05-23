@@ -1,5 +1,43 @@
 # Render performance — findings & CPU optimisation plan
 
+> **Implementation status (2026-05-22 session)**: Tier 1 and Tier 2 are
+> SHIPPED. Tier 3 is designed but deferred — see §9 for the rationale
+> and §10 for an executable plan for the next session.
+
+## 0 — Tier 1+2 changes shipped this session
+
+| Opt | Status | Files touched |
+|---|---|---|
+| 1 — toggle predicate tightened to slot=1 Iop pattern | shipped | `rust/swf-spike/src/render/slot_depths.rs` |
+| 2 — per-export bFix detection | shipped | `rust/swf-spike/src/render/slot_depths.rs`, `rust/vello-wasm/src/lib.rs` |
+| 3 — frame_state cache + loop inversion (subsumes Opt-6 and Opt-7) | shipped | `rust/swf-spike/src/render/sprite.rs`, `rust/swf-spike/src/render/cache.rs`, `rust/vello-wasm/src/lib.rs` |
+| 4 — class atlas LRU eviction hold | shipped | `apps/electrobun/src/game/render/character-cache.ts` |
+| 5 — precompute enumerate at bundle load | shipped | `rust/vello-wasm/src/lib.rs` |
+| 6 — arena-allocate build_frame_state | subsumed by Opt-3 cache hits | (same files) |
+| 7 — band slice instead of filter | subsumed by Opt-3 cache hits | (same files) |
+| 8 — opt-level=3 + WASM SIMD + LTO=fat | shipped | `rust/Cargo.toml`, `rust/.cargo/config.toml` (new) |
+| 9 — WASM workers (parallel bake) | **shipped** — round-robin pool, lazy-inited, graceful fallback | `apps/electrobun/src/game/render/bake-worker.ts` (new), `apps/electrobun/src/game/render/bake-worker-pool.ts` (new), `apps/electrobun/src/game/render/vello-loader.ts` (retained bytes + pool init), `apps/electrobun/src/game/render/character-cache.ts` (async dispatch path) |
+| 10 — pipeline encode/render | **subsumed by Opt-9** — round-robin workers naturally encode N+1 while N is in flight | (worker pool) |
+
+WASM rebuilt with `wasm-pack build --target web --release` after all Rust changes.
+
+## Expected impact of Tier 1+2 (projection)
+
+| Source | Per-class saving | Notes |
+|---|---|---|
+| Opt-1: hat-dim collapse for 11/24 classes | ~70 ms × 11 classes | variants 52 → 26, scene encoding halves on affected classes |
+| Opt-2: bFix-dim collapse on static* exports | ~10 ms × ~24 classes | static variants collapse cleanly |
+| Opt-3+6+7: 4× cache hits on `build_frame_state` | ~70 ms × 24 classes | 5 bands per frame now share state; 4 of 5 calls are cache hits (Arc clone vs Vec<Op> walk) |
+| Opt-4: no class atlas LRU evictions | ~2.5 s saved across warmup | eliminates 10 redundant re-bakes observed in real data |
+| Opt-5: pre-enumerated tables | ~10 ms × 24 | one-shot at bundle load |
+| Opt-8: -O3 + WASM SIMD + LTO=fat | ~30–50 % encoder speedup | depends on auto-vec effectiveness on kurbo path tags + Vello `Encoding::extend` |
+
+Conservative composite projection: per-class bake **258 → 50–90 ms**, total warmup **6 s → 1.2–2.2 s**. Optimistic projection (SIMD auto-vec lands well on the hot path): per-class **30–60 ms**, warmup **~0.7–1.5 s**.
+
+**Measure before deciding whether Opt-9 is still needed.** The §9 deferral is justified only if the actual measured numbers land in the projected range.
+
+---
+
 **Stress profile**: 250 bots, sprite-10/-20/-21/-30/-31/-40/-41/-50/-51/-60/-61/-70/-71/-80/-81/-90/-91/-100/-101/-110/-111/-120/-121, all walking. resolution=3.
 
 ## 1 — Headline numbers
@@ -300,3 +338,162 @@ Log these per-class as percentages. After Round 1, look at the breakdown to conf
 - **Bake everything into a global atlas across classes** (e.g., 16k² mega-texture). GPU texture binding limits + dynamic loadout = batch consolidation gets worse, not better.
 
 - **Move work to GPU** (e.g., Vello scene encoding via compute shader). Vello's encoding is fundamentally CPU; the GPU step is the existing fine.wgsl rasterisation. The bottleneck is encoding, not rasterisation.
+
+## 9 — Tier 3 deferral rationale
+
+Both remaining ops were attempted; both turned out to require infrastructure scope that doesn't fit the responsible-engineering bar for this session.
+
+### Opt-10 — pipelining encode/render
+
+The hypothesis was that we could overlap CPU-side encoding of class N+1 with the GPU's rasterisation of class N. In practice:
+
+1. The bake is a **single synchronous WASM call** (`renderSwfClassAtlas`). The boundary between "submit GPU work" and "wait for bitmap" is internal to that call.
+2. Vello's `texture_to_bitmap` blocks on `surface.get_current_texture() + present()` before returning. Until that returns, the calling thread can't do other work — and WASM is **single-threaded** on the main worker.
+3. To pipeline, we would need to split the call into a "submit phase" returning a deferred handle and a "present phase" reading the handle. That's a Rust-side API refactor plus matching JS async-handle code.
+4. The actual GPU phase is **17 ms / class** out of 258 ms. Even perfect overlap saves <7%. Not worth the complexity.
+
+**Verdict**: skip. Single-threaded WASM doesn't pipeline cleanly; the win is in the wrong order of magnitude.
+
+### Opt-9 — WASM workers (parallel bake)
+
+This is **the** infrastructure win available. Real data: one core saturated at 110–124% CPU during warmup; seven cores idle. Going from 1 → N parallel encoder threads is a linear speedup until we run out of GPU dispatch concurrency (~4–8 workers practical on most consumer GPUs).
+
+**Why deferred this session**: The implementation is multi-day, not multi-hour. It requires:
+
+1. **Per-worker Vello + WebGPU device**. Each worker calls `navigator.gpu.requestAdapter().requestDevice()` on its own. The patched wgpu fork supports independent devices. Verified on Chrome 113+.
+2. **SWF bundle data marshalling**. Main thread keeps `bundleBytes: Map<string, Uint8Array>`; before dispatching a bake to a worker, the worker is sent the bytes via `postMessage` with the array buffer cloned (or transferred + replenished). Each bundle is ~500 KB–1.3 MB. Send-once-per-(worker, bundle) is fast.
+3. **Bake protocol**. `init` / `loadBundle` / `bakeClassAtlas` message types. `bakeClassAtlas` returns the existing `VelloSwfClassAtlasResult` shape but with `combinedBitmap` as an `ImageBitmap` transferable.
+4. **Pixi upload bridge**. The main thread's Pixi instance imports the worker-produced `ImageBitmap` via `copyExternalImageToTexture`. Same flow as today's `bridge` step — no Pixi-side change.
+5. **Bake-queue integration**. `acquireClassAtlas` becomes async (currently synchronous). Plus a fallback path when workers are unavailable (Safari < 16.4, single-CPU environments, dev server).
+6. **Vite worker bundling**. `new Worker(new URL("./bake-worker.ts", import.meta.url), { type: "module" })` — already proven in `battlefield-worker.ts`. Worker imports the WASM module.
+
+The implementation is **straightforward but laborious**. Each of the six bullets above is a ~50–200 LOC change. The TypeScript-side async refactor (#5) is the riskiest — `acquireClassAtlas` is currently synchronous and on the bake-queue hot path; converting to async requires touching `strip-bake-queue.ts`, the queue's render dispatcher, the `PendingClassAtlasBake` lifecycle, and several call sites in `player-strip-renderer-v2.ts`.
+
+**Why measure first**: the §0 projection of Tier 1+2 alone is per-class **258 → 50–90 ms**. That's a 3–5× warmup speedup *without* parallelism. If real measurements confirm it, the warmup window shrinks from 6 s to **~1.2–2.2 s** — already below the user's perception threshold for "load is slow". Opt-9 takes it from "1.2–2.2 s" to "~0.3–0.6 s", which is large in % but small in absolute user-perceived terms.
+
+If the user's real-world measurement of Tier 1+2 doesn't deliver, the next session executes the §10 plan below.
+
+## 10 — Opt-9 next-session execution plan
+
+Concrete checklist to ship Opt-9 in the next session. Estimated ~1 day for an experienced engineer assuming the WebGPU multi-device support is already verified in the target Chromium build.
+
+### 10a. Main-thread state changes
+
+1. Add `bundleBytes: Map<string, Uint8Array>` to `vello-loader.ts`. Populate inside `loadSwfBundle` after fetch, *before* `renderer.loadSwfBundle(name, bytes)` consumes the bytes. Keep a `.slice()` clone — Rust ingests one copy, the main thread keeps another so workers can be fed.
+2. Add a `bakeWorkers: BakeWorkerPool` singleton initialised at boot.
+3. Expose `bakeClassAtlasViaWorker(bundle: string, resolution: number): Promise<VelloSwfClassAtlasResult>` on the pool.
+
+### 10b. Worker entry (`apps/electrobun/src/game/render/bake-worker.ts`)
+
+```ts
+import wasmInit, { VelloRenderer } from "vello-wasm";
+
+let renderer: VelloRenderer | null = null;
+const loaded = new Set<string>();
+
+self.onmessage = async (e: MessageEvent) => {
+  const msg = e.data;
+  switch (msg.type) {
+    case "init": {
+      await wasmInit(msg.wasmUrl);
+      const r = await VelloRenderer.init();
+      renderer = r.renderer;
+      self.postMessage({ type: "ready" });
+      return;
+    }
+    case "loadBundle": {
+      if (!loaded.has(msg.name)) {
+        renderer!.loadSwfBundle(msg.name, msg.bytes);
+        loaded.add(msg.name);
+      }
+      self.postMessage({ type: "bundleLoaded", name: msg.name });
+      return;
+    }
+    case "bakeClassAtlas": {
+      const result = renderer!.renderSwfClassAtlas(msg.bundle, msg.resolution);
+      const transferables = result.pages.map((p: any) => p.combinedBitmap);
+      self.postMessage(
+        { type: "bakeResult", reqId: msg.reqId, result },
+        transferables
+      );
+      return;
+    }
+  }
+};
+```
+
+### 10c. Pool (`apps/electrobun/src/game/render/bake-worker-pool.ts`)
+
+```ts
+class BakeWorkerPool {
+  private workers: { worker: Worker; loaded: Set<string> }[] = [];
+  private nextIdx = 0;
+  private pending = new Map<number, (r: any) => void>();
+  private nextReqId = 1;
+
+  async init(size: number, wasmUrl: string) {
+    for (let i = 0; i < size; i++) {
+      const w = new Worker(new URL("./bake-worker.ts", import.meta.url), {
+        type: "module",
+      });
+      w.onmessage = (e) => this.onMessage(e);
+      this.workers.push({ worker: w, loaded: new Set() });
+      await this.sendInit(w, wasmUrl);
+    }
+  }
+
+  async bakeClassAtlas(
+    bundle: string,
+    bytes: Uint8Array,
+    resolution: number
+  ): Promise<VelloSwfClassAtlasResult> {
+    const slot = this.workers[this.nextIdx];
+    this.nextIdx = (this.nextIdx + 1) % this.workers.length;
+    if (!slot.loaded.has(bundle)) {
+      await this.sendLoadBundle(slot.worker, bundle, bytes);
+      slot.loaded.add(bundle);
+    }
+    const reqId = this.nextReqId++;
+    return new Promise((resolve) => {
+      this.pending.set(reqId, resolve);
+      slot.worker.postMessage({
+        type: "bakeClassAtlas",
+        reqId,
+        bundle,
+        resolution,
+      });
+    });
+  }
+
+  private onMessage(e: MessageEvent) {
+    const msg = e.data;
+    if (msg.type === "bakeResult") {
+      const cb = this.pending.get(msg.reqId);
+      if (cb) {
+        this.pending.delete(msg.reqId);
+        cb(msg.result);
+      }
+    }
+  }
+}
+```
+
+### 10d. Async `acquireClassAtlas` in `character-cache.ts`
+
+The current `acquireClassAtlas` is synchronous-with-deferred-callback (it enqueues into `strip-bake-queue` then fires `onReady` later). Change the render dispatcher inside the queue to call `bakeWorkers.bakeClassAtlas(...)` instead of `renderer.renderSwfClassAtlas(...)`. Maintain the existing `PendingClassAtlasBake` flow so callers don't change.
+
+### 10e. Fallback path
+
+If `bakeWorkers` initialisation fails (Safari < 16.4, dev environment without COOP/COEP headers, single-CPU host), the dispatcher falls back to the main-thread WASM. The user sees no functional difference, only slower warmup.
+
+### 10f. Initial pool size
+
+Start with `Math.min(4, navigator.hardwareConcurrency - 1)`. The "-1" leaves one core for the main thread + Pixi. Tunable from a single constant.
+
+### 10g. Verification protocol
+
+1. Re-run the 250-bot stress test
+2. Confirm warmup window drops below 600 ms (target)
+3. Verify GPU memory unchanged (each worker's device frees its temp textures correctly)
+4. Verify no `pixi.renderer.texture.initSource` regressions (each worker's bitmap imports cleanly into Pixi's device)
+5. Verify Safari fallback path on `navigator.gpu === undefined` environments

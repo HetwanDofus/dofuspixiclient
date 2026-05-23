@@ -765,9 +765,9 @@ export interface InitOutput {
     readonly vellorenderer_tickDeferredDestroys: (a: number, b: number, c: number) => [number, number];
     readonly vellorenderer_tickSwfSpellFrame: (a: number, b: number) => any;
     readonly vellorenderer_wasmHeapBytes: (a: number) => number;
-    readonly wasm_bindgen__convert__closures_____invoke__h095281891b062598: (a: number, b: number, c: any) => [number, number];
-    readonly wasm_bindgen__convert__closures_____invoke__h2db092c6386880bd: (a: number, b: number, c: any, d: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h6910d188bddc1532: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h97a41680667a7bc9: (a: number, b: number, c: any) => [number, number];
+    readonly wasm_bindgen__convert__closures_____invoke__h59f6a18f366ace3f: (a: number, b: number, c: any, d: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__he3b8ad3a01647b28: (a: number, b: number, c: any) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;

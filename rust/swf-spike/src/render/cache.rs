@@ -13,10 +13,15 @@
 //!   byte (≈256 unique values) keeps the cache bounded and is finer
 //!   than the eye can see at 60 fps.
 //!
-//! - `frame_states`: (sprite-id, frame) → resolved
+//! - `frame_states`: (sprite-pointer, frame) → resolved
 //!   `BTreeMap<depth, OwnedPlace>`. Walking ops to build the
 //!   placement snapshot is O(N ops); same (sprite, frame) gets
-//!   asked many times in a steady-state animation loop.
+//!   asked many times during a single class-atlas bake (once per
+//!   band × frame, and the bands all read the same state).
+//!   Pointer identity is safe because `SwfDoc::by_id` is immutable
+//!   for the lifetime of the doc; once parsed, sprite addresses
+//!   are stable. Each bundle has its own `RenderCache`, so cross-
+//!   bundle pointer reuse is impossible.
 //!
 //! Everything is keyed by parser-immutable IDs, so cache invalidation
 //! is "drop the cache when the SwfDoc drops". `RefCell` gives interior
@@ -36,7 +41,11 @@ use super::build_frame_state;
 pub struct RenderCache {
     shape_cmds: RefCell<HashMap<u16, Arc<Vec<DrawCmd>>>>,
     morph_frames: RefCell<HashMap<(u16, u8), Arc<swf::Shape>>>,
-    frame_states: RefCell<HashMap<(u16, u16), Arc<BTreeMap<u16, OwnedPlace>>>>,
+    /// Keyed by `(sprite as *const _ as usize, frame)`. The pointer
+    /// is stable for the doc's lifetime; using it instead of the
+    /// sprite's character_id avoids plumbing the id through every
+    /// recursive renderer call.
+    frame_states: RefCell<HashMap<(usize, u16), Arc<BTreeMap<u16, OwnedPlace>>>>,
 }
 
 impl RenderCache {
@@ -73,16 +82,15 @@ impl RenderCache {
         shape
     }
 
-    /// Cached `build_frame_state`. Sprite is identified by its
-    /// `(parent-pseudo-id, frame)` tuple — callers pass the sprite's
-    /// own `char_id` (or 0 for the root timeline).
+    /// Cached `build_frame_state` keyed by sprite pointer identity.
+    /// Callers do not need to know the sprite's char_id; pointers
+    /// into `SwfDoc::by_id` are stable for the doc's lifetime.
     pub fn frame_state(
         &self,
-        sprite_id: u16,
         sprite: &OwnedSprite,
         frame: u16,
     ) -> Arc<BTreeMap<u16, OwnedPlace>> {
-        let key = (sprite_id, frame);
+        let key = (sprite as *const OwnedSprite as usize, frame);
         if let Some(cached) = self.frame_states.borrow().get(&key) {
             return Arc::clone(cached);
         }

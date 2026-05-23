@@ -1050,24 +1050,36 @@ export class PlayerStripRendererV2 {
     if (!pending) return;
     if (!pending.atlasArrived) return;
 
+    // Pop-in prevention: gate body commit on every accessory having
+    // reported (real strip OR null on stale-skip / failed bake). The
+    // previous policy committed body as soon as the class atlas
+    // landed and let accessories pop in via `installLandedAccessories`
+    // — fine in low-N gameplay (acc bakes take <1 ms each) but
+    // produced a visible "naked bot dresses itself" flicker during
+    // stress bursts and on first-ever character load.
+    //
+    // `accStrips.size` is monotonic (each slotId is set exactly once,
+    // either to a strip or to null on failure) — the gate is
+    // guaranteed to release once all queued bakes drain. Naked bots
+    // (`accSlots.length === 0`) pass instantly. The previous body
+    // remains visible during the wait because the bot's atlas /
+    // accessory hooks haven't been swapped yet — same UX as legacy
+    // pre-class-atlas behavior.
+    if (!pending.bodyCommitted &&
+        pending.accStrips.size < pending.accSlots.length) {
+      return;
+    }
+
     // Body half — runs exactly once per pending. After this the bot
-    // is visible; any accessories that already landed are installed.
+    // is visible with every accessory already wired up.
     //
-    // CRITICAL: resolve the readyPromise with `true` HERE, on body
-    // commit, NOT on full-accessory completion. The promise gates
-    // `player.animReady` (renderer.ts:140-155): bots whose promise
-    // never resolves true freeze mid-anim because `tickFrame` skips
-    // unready players. Late accessories install progressively via
-    // `installLandedAccessories` and recompute bounds in place;
-    // their absence is a cosmetic glitch, not a state hang.
-    //
-    // We keep `st.pendingAnim` alive after the resolve so that
-    // subsequent accessory-landed callbacks (`onAccessoryLanded`)
-    // still find their pending and install themselves. The pending
-    // is cleared only when ALL accessories have reported in (the
-    // gate below), so stale-skipped bakes don't leak — see
-    // CharacterCache + bake-queue contract for guaranteed null
-    // callbacks on stale-skip.
+    // CRITICAL: resolve the readyPromise with `true` HERE. The
+    // promise gates `player.animReady` (renderer.ts:140-155): bots
+    // whose promise never resolves true freeze mid-anim because
+    // `tickFrame` skips unready players. With the gate above, all
+    // accessories are guaranteed installed at commit time — late
+    // arrival is impossible — so `installLandedAccessories` will
+    // never run for this pending.
     if (!pending.bodyCommitted) {
       const committed = this.commitBody(st, pending);
       if (committed) {

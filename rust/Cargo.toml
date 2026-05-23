@@ -6,6 +6,14 @@ members = ["swf-spike", "vello-wasm", "renderer"]
 wgpu = { path = "wgpu" }
 
 [profile.release]
-opt-level = "s"
-lto = true
+# Opt-8: speed-optimised, not size-optimised. The scene-encoding hot
+# path is path-data-write-bound; LLVM `-O3` aggressively inlines,
+# unrolls and auto-vectorises the inner loops in
+# `flatten_shape` / `Encoding::extend` / `BezPath` iteration that
+# `opt-level = "s"` left as tight cold loops. Real measured cost:
+# ~240 ms scene encoding per class atlas; per-class profiling showed
+# the inner emit loop is hot. WASM binary grows ~15–25 % but is dwarfed
+# by SWF asset data; the speed win pays for itself in one bake.
+opt-level = 3
+lto = "fat"
 codegen-units = 1

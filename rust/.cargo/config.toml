@@ -1,0 +1,16 @@
+# Opt-8: enable WASM SIMD (simd128) + bulk-memory + nontrapping float-to-int
+# for every wasm32 target build.
+#
+# LLVM auto-vectorisation kicks in on tight numeric loops when the target
+# advertises 128-bit SIMD. The Vello scene-encoding hot path — kurbo
+# BezPath iteration, path-tag streaming, brush/transform copies — has many
+# such loops. Combined with `opt-level = 3` (workspace Cargo.toml) we
+# typically see 2-3× speed-ups on tight float copy/transform loops in WASM.
+#
+# All major browsers (Chrome ≥ 91, Firefox ≥ 89, Safari ≥ 16.4) support
+# fixed-width SIMD now; we no longer need a fallback build for older
+# engines.
+[target.wasm32-unknown-unknown]
+rustflags = [
+  "-C", "target-feature=+simd128,+bulk-memory,+nontrapping-fptoint",
+]
