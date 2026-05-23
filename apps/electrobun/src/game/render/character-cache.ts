@@ -41,6 +41,10 @@ import {
 } from "pixi.js";
 
 import {
+  bakeClassAtlasViaWorkerPool,
+  isBakeWorkerPoolReady,
+} from "./bake-worker-pool";
+import {
   getPixiRenderer,
   renderSwfAccessoryStrip,
   renderSwfBodyAtlas,
@@ -428,13 +432,56 @@ class CharacterCache {
     this.misses += 1;
     const pending = this.classAtlasBakes.get(key);
     if (pending) {
+      // Already in flight: this caller piggybacks on the existing
+      // bake's eventual `onReady` callback list. CRITICAL: do NOT
+      // dispatch another bake — the worker pool path has no internal
+      // dedup, so a second dispatch would queue a redundant Rust bake.
+      // The strip-queue path also dedups by key, so this `return` is
+      // safe regardless of which path the original bake took.
       pending.callbacks.push({ onReady, isWanted });
-    } else {
-      this.classAtlasBakes.set(key, {
-        enqueuedAt: performance.now(),
-        callbacks: [{ onReady, isWanted }],
-      });
+      return;
     }
+    this.classAtlasBakes.set(key, {
+      enqueuedAt: performance.now(),
+      callbacks: [{ onReady, isWanted }],
+    });
+    // Opt-9: if the bake-worker pool is ready, dispatch the bake to
+    // a worker thread instead of the main thread's WASM. The bake
+    // queue's frame-rate budgeting doesn't matter for worker-bound
+    // bakes — they don't block the main rAF — so we bypass the
+    // queue entirely on this path.
+    if (isBakeWorkerPoolReady()) {
+      bakeClassAtlasViaWorkerPool(bundle, resolution).then(
+        (raw) => {
+          this.finalizeClassAtlasBake(key, bundle, resolution, raw);
+        },
+        (err) => {
+          log.error(`worker bake for '${key}' failed; falling back:`, err);
+          // Fallback: re-enqueue on the main-thread queue so the
+          // caller still gets a result.
+          getStripBakeQueue().enqueue(
+            key,
+            () => renderSwfClassAtlas(bundle, resolution),
+            (raw) => {
+              this.finalizeClassAtlasBake(
+                key,
+                bundle,
+                resolution,
+                raw as VelloSwfClassAtlasResult | null,
+              );
+            },
+            () => {
+              const bake = this.classAtlasBakes.get(key);
+              if (!bake) return false;
+              return bake.callbacks.some((c) => c.isWanted());
+            },
+            priority,
+          );
+        },
+      );
+      return;
+    }
+
     getStripBakeQueue().enqueue(
       key,
       () => renderSwfClassAtlas(bundle, resolution),
@@ -1152,24 +1199,29 @@ class CharacterCache {
   }
 
   private evictIfOverCap(): void {
-    const total = this.classAtlasBytes + this.accBytes;
-    if (total <= this.capBytes) return;
-    type Candidate = { kind: "class" | "acc"; key: string; bytes: number; t: number };
+    // Cap applies to ACCESSORIES ONLY. Combining classAtlasBytes
+    // into the cap check was wrong after Opt-4: class atlases are
+    // pinned (no eviction), so `classAtlasBytes` never shrinks. At
+    // 1000 bots with full-zoom class atlases (~3.3 GB classes),
+    // `total > capBytes` was true on every tick regardless of
+    // accessory size — the eviction loop's `used <= capBytes` exit
+    // condition could never be met, so EVERY refcount=0 accessory
+    // got evicted every tick (21k+ evictions in 15s observed).
+    // That eviction storm destroyed accessory Textures fast enough
+    // that Pixi's internal batch bind-group cache kept stale
+    // refs → `textureSource1=null` crashes resurfaced even with
+    // my Texture.EMPTY rebind on the renderer side.
+    //
+    // The right invariant: class atlas count is self-limiting
+    // (~24-30 unique character classes max) and they're pinned for
+    // a reason (no re-bake cost). Accessories are the high-churn
+    // pool that needs cap pressure. Check only `accBytes`.
+    if (this.accBytes <= this.capBytes) return;
+    type Candidate = { key: string; bytes: number; t: number };
     const candidates: Candidate[] = [];
-    for (const [key, entry] of this.classAtlasEntries) {
-      if (entry.refcount === 0) {
-        candidates.push({
-          kind: "class",
-          key,
-          bytes: entry.bytesEst,
-          t: entry.lastReleasedAt,
-        });
-      }
-    }
     for (const [key, entry] of this.accEntries) {
       if (entry.refcount === 0) {
         candidates.push({
-          kind: "acc",
           key,
           bytes: entry.bytesEst,
           t: entry.lastReleasedAt,
@@ -1177,22 +1229,14 @@ class CharacterCache {
       }
     }
     candidates.sort((a, b) => a.t - b.t);
-    let used = total;
+    let used = this.accBytes;
     for (const c of candidates) {
       if (used <= this.capBytes) break;
-      if (c.kind === "class") {
-        const entry = this.classAtlasEntries.get(c.key);
-        if (!entry) continue;
-        this.classAtlasEntries.delete(c.key);
-        this.classAtlasBytes -= entry.bytesEst;
-        this.scheduleRetireClassAtlas(entry);
-      } else {
-        const entry = this.accEntries.get(c.key);
-        if (!entry) continue;
-        this.accEntries.delete(c.key);
-        this.accBytes -= entry.bytesEst;
-        this.scheduleRetireAccessory(entry);
-      }
+      const entry = this.accEntries.get(c.key);
+      if (!entry) continue;
+      this.accEntries.delete(c.key);
+      this.accBytes -= entry.bytesEst;
+      this.scheduleRetireAccessory(entry);
       this.evicts += 1;
       used -= c.bytes;
     }

@@ -1292,11 +1292,26 @@ export class PlayerStripRendererV2 {
           hook.sprite.visible = true;
           pending.accStrips.set(slotId, null);
         } else {
+          // CRITICAL: also rebind the sprite's texture to Texture.EMPTY.
+          // We just `releaseAccessory(hook.strip)`d at line ~1261, dropping
+          // the strip's refcount; the cache may evict + retire-destroy
+          // the underlying Texture within RETIRE_TICKS. If we leave
+          // `hook.sprite.texture` pointing at the old (destroyed) Texture,
+          // the next renderAll on this page builds a bind group from the
+          // sprite (Pixi v8's batcher inspects children's texture
+          // sources BEFORE per-sprite visibility culling) → `textureSource1`
+          // is null → "Cannot read properties of null (reading
+          // 'textureSource1')" + downstream WebGPU sync warnings on the
+          // page render target. `visible=false` alone is NOT enough.
           hook.strip = null;
+          hook.sprite.texture = Texture.EMPTY;
           hook.sprite.visible = false;
         }
       } else {
+        // Same dangling-texture hazard as above; reset to EMPTY before
+        // hiding so the destroyed Texture can be GC'd cleanly.
         hook.strip = null;
+        hook.sprite.texture = Texture.EMPTY;
         hook.sprite.visible = false;
       }
       newAccessories.set(slotId, hook);

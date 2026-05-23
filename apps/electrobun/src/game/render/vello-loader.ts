@@ -24,6 +24,54 @@ import wasmInit, { VelloRenderer } from "vello-wasm";
 import { recordProbe } from "./render-probes";
 import { getRenderWatchdog } from "./render-watchdog";
 
+/**
+ * Opt-9: kick off bake-worker pool initialisation. Lazy-imports the
+ * pool module to keep the worker chunk out of the main bundle until
+ * we actually need it. Failure is non-fatal — pool stays unready and
+ * `acquireClassAtlas` uses the main-thread fallback.
+ */
+async function initBakeWorkerPool(wasmUrl?: string): Promise<void> {
+  try {
+    const mod = await import("./bake-worker-pool");
+    const hwc = (navigator as Navigator).hardwareConcurrency ?? 4;
+    // Pool size = `hwc - 1`, leaving one core for the main thread
+    // (Pixi GPU dispatch + React + game logic). Capped at 8: on
+    // Apple Silicon, `hardwareConcurrency` flattens P + E cores into
+    // one count, but E-core workers run ~3× slower at WASM encoding
+    // — past the P-core count, marginal workers don't speed up the
+    // slowest-worker-wins critical path AND start contending on the
+    // shared GPU's command queue. Mac Pro / future Ultra chips with
+    // 20+ logical cores cap here too: GPU saturation, not CPU, is
+    // the ceiling.
+    //
+    // Concurrency-budget reasoning (for maps + monsters): workers
+    // are idle 95%+ of the time after the initial warmup — they fire
+    // only on class-atlas cache MISS, which is rare during normal
+    // play. Map loading runs on the MAIN thread's Vello (workers
+    // don't touch it). Monster anim ticks are main-thread Pixi work;
+    // monsters only wake workers if their class wasn't already baked
+    // for the player/bots. So bumping pool size mostly helps the
+    // initial-warmup burst, not steady-state play.
+    const size = Math.max(1, Math.min(8, hwc - 1));
+    // Pass through whatever URL the main thread used (if any). If
+    // `wasmUrl` is undefined, the worker's `wasmInit()` will resolve
+    // the WASM module relative to its own `import.meta.url` — which is
+    // the worker bundle's own URL. Vite emits both the worker chunk
+    // and its companion `*_bg.wasm` next to each other, so the
+    // resolution works without us hardcoding a path. The earlier
+    // hardcoded `/vello_wasm/vello_wasm_bg.wasm` was wrong (returned
+    // a 404 HTML page) and crashed worker init.
+    const ok = await mod.initBakeWorkerPool({ size, wasmUrl });
+    if (!ok) {
+      console.warn(
+        "[vello-loader] bake-worker pool init failed; using main-thread bakes",
+      );
+    }
+  } catch (e) {
+    console.warn("[vello-loader] bake-worker pool unavailable:", e);
+  }
+}
+
 let renderer: VelloRenderer | null = null;
 let maxTextureSize = 8192;
 let pixiRenderer: PixiRenderer | null = null;
@@ -123,6 +171,14 @@ export async function initVello(wasmUrl?: string): Promise<{
   // already-resolved promise (Promise resolution is idempotent).
   velloReadyResolve?.();
   velloReadyResolve = null;
+
+  // Opt-9: spin up the bake-worker pool for parallel class atlas
+  // bakes. Failure (no `navigator.gpu`, dev env without COOP/COEP,
+  // single-CPU host) leaves the pool unready; `acquireClassAtlas`
+  // falls back to the main-thread synchronous bake. Don't await —
+  // pool-ready is opportunistic; the first few class atlas bakes may
+  // still run on the main thread until workers signal ready.
+  void initBakeWorkerPool(wasmUrl);
 
   // Device-loss notification still flows through the watchdog. Vello's
   // `init()` retains the JS GPUDevice on the renderer side; for now we
@@ -283,6 +339,19 @@ export interface VelloSwfFrameResult {
 
 const loadedSwfBundles = new Set<string>();
 /**
+ * Opt-9: retained SWF bundle bytes. Workers (in `bake-worker.ts`) need
+ * their own copy of every SWF bundle to bake class atlases off-thread.
+ * The main thread keeps a `Uint8Array` clone alongside the WASM-owned
+ * bytes; `getRetainedSwfBundleBytes` returns it for posting to a worker.
+ *
+ * Memory cost: ~20–40 MB total across all sprite/accessory bundles for
+ * a Dofus 1.29 character. Acceptable given the parallelism win.
+ */
+const retainedSwfBundleBytes = new Map<string, Uint8Array>();
+export function getRetainedSwfBundleBytes(name: string): Uint8Array | null {
+  return retainedSwfBundleBytes.get(name) ?? null;
+}
+/**
  * In-flight load promises by bundle name. Multiple call sites
  * (character-sprite-loader, accessory-resolver, spell-icon-renderer) can
  * race on the same bundle; without this dedup they'd all fetch + decode
@@ -362,8 +431,15 @@ export async function loadSwfBundle(
       if (!response.ok) return false;
       const bytes = new Uint8Array(await response.arrayBuffer());
       if (isHalted()) return false;
+      // Retain a clone for the bake-worker pool (Opt-9). `bytes` is
+      // moved into WASM (the renderer takes ownership), so we slice
+      // before handing it over.
+      const retained = bytes.slice();
       const ok = renderer!.loadSwfBundle(name, bytes);
-      if (ok) loadedSwfBundles.add(name);
+      if (ok) {
+        loadedSwfBundles.add(name);
+        retainedSwfBundleBytes.set(name, retained);
+      }
       return ok;
     } finally {
       inflightSwfLoads.delete(name);
