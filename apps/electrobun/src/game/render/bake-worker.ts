@@ -87,6 +87,80 @@ function handleLoadBundle(msg: BakeWorkerLoadBundleMsg): void {
   });
 }
 
+/**
+ * Threshold above which an atlas alpha sample counts as "on body"
+ * for pixel-perfect picking. MUST match `character-cache.ts`'s
+ * `SILHOUETTE_ALPHA_THRESHOLD` — both encode the same fringe-
+ * rejection contract.
+ */
+const SILHOUETTE_ALPHA_THRESHOLD = 10;
+
+/**
+ * Lift the alpha plane out of a freshly-baked page bitmap into a
+ * tightly-packed `Uint8Array(width * height)`. Done inside the
+ * worker so the 30-40ms `getImageData(4096×N)` cost and the
+ * ~64MB transient buffer never touch the main thread. Returns null
+ * if `OffscreenCanvas` is missing (every modern Chromium/Safari
+ * worker has it — fallback is the main-thread path in
+ * `character-cache.ts`).
+ */
+function extractPageAlphaInWorker(
+  bitmap: ImageBitmap,
+  width: number,
+  height: number,
+): Uint8Array | null {
+  if (typeof OffscreenCanvas === "undefined") return null;
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(bitmap, 0, 0);
+  const img = ctx.getImageData(0, 0, width, height);
+  const rgba = img.data;
+  const out = new Uint8Array(width * height);
+  for (let i = 0, j = 3; i < out.length; i++, j += 4) {
+    out[i] = rgba[j];
+  }
+  return out;
+}
+
+/**
+ * Union all bands' cell-(0,0) sub-rects from the page alpha into
+ * one `frameWidth × frameHeight` silhouette. Mirrors
+ * `buildVariantSilhouette` in `character-cache.ts` — keep both in
+ * sync. Worker-side computation lets us ship the per-variant
+ * silhouettes alongside the bitmap as transferable buffers,
+ * eliminating ~50ms per landed class atlas of main-thread work.
+ */
+function buildVariantSilhouetteInWorker(
+  pageAlpha: Uint8Array,
+  pageW: number,
+  pageH: number,
+  frameW: number,
+  frameH: number,
+  bands: ReadonlyArray<{ atlasX: number; atlasY: number }>,
+): Uint8Array {
+  const out = new Uint8Array(frameW * frameH);
+  for (const band of bands) {
+    const baseX = band.atlasX;
+    const baseY = band.atlasY;
+    for (let y = 0; y < frameH; y++) {
+      const py = baseY + y;
+      if (py < 0 || py >= pageH) continue;
+      const pageRow = py * pageW;
+      const outRow = y * frameW;
+      for (let x = 0; x < frameW; x++) {
+        if (out[outRow + x]) continue;
+        const px = baseX + x;
+        if (px < 0 || px >= pageW) continue;
+        if (pageAlpha[pageRow + px] > SILHOUETTE_ALPHA_THRESHOLD) {
+          out[outRow + x] = 255;
+        }
+      }
+    }
+  }
+  return out;
+}
+
 function handleBake(msg: BakeWorkerBakeMsg): void {
   if (!renderer) throw new Error("bake-worker: not initialised");
   // `renderSwfClassAtlas` returns a JsValue object; the runtime
@@ -107,12 +181,54 @@ function handleBake(msg: BakeWorkerBakeMsg): void {
     });
     return;
   }
-  // Collect ImageBitmaps to transfer (zero-copy across the worker boundary).
+  // Extract page alpha + per-variant silhouettes BEFORE we transfer
+  // the ImageBitmaps. Once transferred, the worker can no longer
+  // read them, so this is a one-shot window. Attach the silhouette
+  // bytes onto each variant in-place so the main thread sees them
+  // as part of the bake result. The Uint8Array buffers ride along
+  // in the transferables list (zero-copy across the worker
+  // boundary).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pages = (result.pages ?? []) as Array<{ combinedBitmap: ImageBitmap }>;
+  const pages = (result.pages ?? []) as Array<{
+    combinedBitmap: ImageBitmap;
+    atlasWidth: number;
+    atlasHeight: number;
+  }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const variants = (result.variants ?? []) as Array<any>;
+  const pageAlphas: (Uint8Array | null)[] = pages.map((p) =>
+    extractPageAlphaInWorker(p.combinedBitmap, p.atlasWidth, p.atlasHeight),
+  );
+  const silhouetteBuffers: ArrayBufferLike[] = [];
+  for (const v of variants) {
+    const pageAlpha = pageAlphas[v.pageIndex];
+    const page = pages[v.pageIndex];
+    if (!pageAlpha || !page) {
+      v.silhouette = undefined;
+      continue;
+    }
+    const sil = buildVariantSilhouetteInWorker(
+      pageAlpha,
+      page.atlasWidth,
+      page.atlasHeight,
+      v.frameWidth,
+      v.frameHeight,
+      v.bands,
+    );
+    v.silhouette = sil;
+    silhouetteBuffers.push(sil.buffer);
+  }
+  // Collect ImageBitmaps to transfer (zero-copy across the worker boundary).
   const transferables: Transferable[] = pages
     .map((p) => p.combinedBitmap)
     .filter((b): b is ImageBitmap => b instanceof ImageBitmap);
+  // Append silhouette buffers so they ride zero-copy too. Note
+  // `transferables` includes the silhouette `ArrayBuffer`s, which is
+  // safe because each is created here (we own the buffer; nothing
+  // else in the worker references them after this).
+  for (const buf of silhouetteBuffers) {
+    transferables.push(buf as Transferable);
+  }
   workerSelf.postMessage(
     {
       type: "bakeResult",

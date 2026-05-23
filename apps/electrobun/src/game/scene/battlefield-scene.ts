@@ -17,6 +17,7 @@ import type { AtlasLoader } from "@/game/render/atlas-loader";
 import "@/game/render/spike-bitmap-bridge";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
+import type { SideBandCompositor } from "@/game/render/side-band-compositor";
 import type {
   MapTransition,
   TransitionDirection,
@@ -163,6 +164,14 @@ export class Battlefield {
 
   /** Blur-out old map → blur-in new map on map change. */
   private mapTransition: MapTransition | null = null;
+  /**
+   * Widescreen side-band compositor. Owns the `mapWrapper` that
+   * positions `mapContainer` at the canvas's central game area and
+   * fills the lateral bands with a sampled spillover of the game
+   * render texture. Constructed by `initEngineAndVello` and resized
+   * via `handleCanvasResize`.
+   */
+  private sideBandCompositor: SideBandCompositor | null = null;
   private adjacentMapCache: AdjacentMapCache | null = null;
 
   /** Bound keydown handler (E = fée-cœur firework at cursor). Stored
@@ -301,6 +310,12 @@ export class Battlefield {
     if (this.interactionHandler) {
       this.interactionHandler.setBaseZoom(this.engine.getBaseZoom());
     }
+
+    // Reallocate the side-band gameRt + reposition wrapper/bands. The
+    // compositor is idempotent on unchanged dims, so calling on every
+    // continuous-resize tick is cheap; only an actual screen dim
+    // change triggers a real reallocation.
+    this.sideBandCompositor?.resize();
 
     const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
     this.notifyResize(zoom, width, height);
@@ -770,8 +785,15 @@ export class Battlefield {
     // sprite "runs everywhere" after a teleport / zaap.
     this.worldActors.setMapDimensions(mapData.width);
 
-    this.mapContainer.x = 0;
-    this.mapContainer.y = 0;
+    // Reset map position. Pre-widescreen this was just (0, 0); with
+    // the side-band compositor the "rest" position is the centring
+    // offset so the game sits in the canvas's central game area.
+    if (this.sideBandCompositor) {
+      this.sideBandCompositor.recenter();
+    } else {
+      this.mapContainer.x = 0;
+      this.mapContainer.y = 0;
+    }
 
     this.picking.clearTiles();
     // Drop alpha-map cache for sources from the prior map. Each cached
@@ -1138,6 +1160,13 @@ export class Battlefield {
     this.mapTransition = null;
     this.adjacentMapCache?.destroy();
     this.adjacentMapCache = null;
+
+    // SideBandCompositor owns the gameRt RenderTexture + two filter
+    // instances. Tear down BEFORE the engine destroys the Pixi app so
+    // mapContainer is back on the stage when `app.destroy(true, {...})`
+    // walks the scene graph.
+    this.sideBandCompositor?.destroy();
+    this.sideBandCompositor = null;
 
     this.zoom.destroy();
     hideContextMenu();

@@ -1150,15 +1150,46 @@ class CharacterCache {
     r: VelloSwfClassAtlasResult,
   ): ClassAtlas {
     let pageUploadMs = 0;
-    // PHASE 1: extract per-page page-wide alpha BEFORE uploading.
-    // Once Pixi consumes the ImageBitmap via copyExternalImageToTexture
-    // it closes the bitmap and the alpha data is no longer reachable.
-    // We need it for pixel-perfect picking (see VariantInfo.silhouette
-    // doc) so we drawImage + getImageData each page first, hold the
-    // raw alpha bytes per page, then upload.
-    const pageAlphas: (Uint8Array | null)[] = r.pages.map((p) =>
-      extractPageAlpha(p.combinedBitmap, p.atlasWidth, p.atlasHeight),
+    // Silhouette extraction is normally done in the bake worker (see
+    // `bake-worker.ts:handleBake`) — each variant arrives with
+    // `silhouette` already populated as a `Uint8Array`. Skipping the
+    // main-thread `OffscreenCanvas + getImageData` work eliminates
+    // ~30-40ms blocking per page (×N pages × N classes on a zoom
+    // sweep). When the worker path isn't available (sync fallback
+    // through `getStripBakeQueue`) we lazily extract per-page alpha
+    // the first time a variant on that page needs it.
+    const allVariantsHaveSilhouette = (r.variants as Array<{
+      silhouette?: Uint8Array;
+    }>).every((v) => v.silhouette instanceof Uint8Array);
+    const pageAlphaCache: (Uint8Array | null | undefined)[] = new Array(
+      r.pages.length,
     );
+    const getPageAlpha = (pageIndex: number): Uint8Array | null => {
+      if (pageAlphaCache[pageIndex] !== undefined) {
+        return pageAlphaCache[pageIndex] ?? null;
+      }
+      const p = r.pages[pageIndex];
+      if (!p) {
+        pageAlphaCache[pageIndex] = null;
+        return null;
+      }
+      const alpha = extractPageAlpha(
+        p.combinedBitmap,
+        p.atlasWidth,
+        p.atlasHeight,
+      );
+      pageAlphaCache[pageIndex] = alpha;
+      return alpha;
+    };
+    // CRITICAL ordering: any page-alpha extraction MUST happen before
+    // `buildPixiTextureFromBitmap` closes the bitmap. With the worker
+    // pre-extracting silhouettes we can move uploads up; otherwise
+    // we must eagerly extract every page's alpha first.
+    if (!allVariantsHaveSilhouette) {
+      for (let i = 0; i < r.pages.length; i++) {
+        getPageAlpha(i);
+      }
+    }
     const pages: ClassAtlasPage[] = r.pages.map((p, idx) => {
       const upStart = performance.now();
       const combinedTexture = this.buildPixiTextureFromBitmap(
@@ -1178,15 +1209,24 @@ class CharacterCache {
     }
     if (pageUploadMs > 0.5) {
       log.info(
-        `wrapClassAtlas pages=${pages.length} pixiUpload=${pageUploadMs.toFixed(1)}ms`,
+        `wrapClassAtlas pages=${pages.length} pixiUpload=${pageUploadMs.toFixed(1)}ms ` +
+          `silhouettes=${allVariantsHaveSilhouette ? "worker" : "main"}`,
       );
     }
     const variants = new Map<string, VariantInfo>();
     for (const v of r.variants) {
       const page = r.pages[v.pageIndex];
-      const pageAlpha = pageAlphas[v.pageIndex];
-      const silhouette =
-        pageAlpha && page
+      // Prefer the worker-baked silhouette when present (zero
+      // main-thread cost). Fall back to on-demand extraction from
+      // the cached page alpha for legacy / fallback paths.
+      const preBakedSil = (v as unknown as { silhouette?: Uint8Array })
+        .silhouette;
+      let silhouette: Uint8Array | undefined;
+      if (preBakedSil instanceof Uint8Array) {
+        silhouette = preBakedSil;
+      } else if (page) {
+        const pageAlpha = getPageAlpha(v.pageIndex);
+        silhouette = pageAlpha
           ? buildVariantSilhouette(
               pageAlpha,
               page.atlasWidth,
@@ -1196,6 +1236,7 @@ class CharacterCache {
               v.bands,
             )
           : undefined;
+      }
       const info: VariantInfo = {
         exportName: v.exportName,
         applyBFix: v.applyBFix,

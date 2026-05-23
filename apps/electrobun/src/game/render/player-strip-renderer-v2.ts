@@ -266,6 +266,162 @@ const RT_SAFETY_PAD = 2;
  */
 const COMPOSE_ALL_PRIORITY = -10;
 
+/**
+ * One-shot diagnostic captured around a single
+ * `setResolutionAndRerender(res)` call. Emits a structured summary
+ * to the log once every dispatched bot's pending animation has
+ * resolved (committed OR abandoned), giving a per-zoom-step view of
+ * where main-thread time + bake latency + composition work went.
+ *
+ * Not a continuous profiler — it's deliberately scoped to the zoom
+ * re-stage event because that's the only path where dozens-to-
+ * hundreds of bots all stage fresh animations in one burst.
+ * Steady-state per-bot animation changes don't get profiled and
+ * incur zero overhead.
+ *
+ * Lifecycle: created by `setResolutionAndRerender`, garbage-
+ * collected once `finalizeIfDone` flushes and the renderer drops
+ * its `zoomProfile` reference.
+ */
+class ZoomBotProfile {
+  private readonly startedAt: number;
+  private readonly fromRes: number;
+  private readonly toRes: number;
+  /** Cache-counter snapshots at start; delta vs final snapshot tells
+   *  us how many unique class atlases / accessories actually missed
+   *  the cache for this zoom event. */
+  private readonly cacheHitsStart: number;
+  private readonly cacheMissesStart: number;
+  private readonly cacheEvictsStart: number;
+  /** Bots `setResolutionAndRerender` actually re-dispatched
+   *  (excludes detached / slot-less / null-animation states). */
+  private dispatched = 0;
+  /** Sum of wall time spent inside each `applyAnimation` call from
+   *  the re-dispatch loop. The synchronous JS scheduling cost —
+   *  doesn't include async bake or commit time. */
+  private applyMs = 0;
+  /** Bots whose pending has resolved (commit OR abandoned). When
+   *  this reaches `dispatched`, the profile flushes. */
+  private resolved = 0;
+  /** Of the resolved, how many actually installed a new atlas. */
+  private committedOk = 0;
+  /** Bots whose atlas bake landed (even if commit later failed). */
+  private atlasLanded = 0;
+  /** Earliest `onAtlasLanded` timestamp across all bots — the
+   *  worker pool's first finish. */
+  private firstAtlasLandAt = 0;
+  /** Latest `onAtlasLanded` timestamp — the worker pool's last
+   *  finish. The (last-first) span tells us how parallel the
+   *  worker pool actually was. */
+  private lastAtlasLandAt = 0;
+  /** Sum of wall time `commitBody` spent on the main thread. */
+  private commitMs = 0;
+  /** Slowest single `commitBody` call observed. */
+  private maxCommitMs = 0;
+  /** Compose passes that fired between `start` and `finalize` —
+   *  each one is one `pixiRenderer.render` into the shared atlas. */
+  private composePasses = 0;
+  /** Sum of compose-pass wall time. */
+  private composeMs = 0;
+  /** Slowest compose pass observed. */
+  private maxComposeMs = 0;
+
+  constructor(
+    fromRes: number,
+    toRes: number,
+    cacheSnapshot: { hits: number; misses: number; evicts: number },
+  ) {
+    this.startedAt = performance.now();
+    this.fromRes = fromRes;
+    this.toRes = toRes;
+    this.cacheHitsStart = cacheSnapshot.hits;
+    this.cacheMissesStart = cacheSnapshot.misses;
+    this.cacheEvictsStart = cacheSnapshot.evicts;
+  }
+
+  recordDispatch(applyMs: number): void {
+    this.dispatched += 1;
+    this.applyMs += applyMs;
+  }
+
+  /** `null` atlas means stale-skipped or failed bake — still counts
+   *  as a "landing" (worker reported back) so we see how many
+   *  pendings actually got past the queue. */
+  recordAtlasLand(): void {
+    const now = performance.now();
+    if (this.firstAtlasLandAt === 0) this.firstAtlasLandAt = now;
+    this.lastAtlasLandAt = now;
+    this.atlasLanded += 1;
+  }
+
+  recordCommit(durationMs: number, success: boolean): void {
+    this.commitMs += durationMs;
+    if (durationMs > this.maxCommitMs) this.maxCommitMs = durationMs;
+    if (success) this.committedOk += 1;
+  }
+
+  recordResolve(): void {
+    this.resolved += 1;
+  }
+
+  recordCompose(durationMs: number): void {
+    this.composePasses += 1;
+    this.composeMs += durationMs;
+    if (durationMs > this.maxComposeMs) this.maxComposeMs = durationMs;
+  }
+
+  /** True when every dispatched bot has reported in (committed or
+   *  abandoned). Caller flushes + drops the profile. */
+  isDone(): boolean {
+    return this.dispatched > 0 && this.resolved >= this.dispatched;
+  }
+
+  /** Dispatch happened but nothing got dispatched — common when
+   *  `setResolutionAndRerender` is called with no live bots. Caller
+   *  flushes immediately and drops the profile. */
+  isEmpty(): boolean {
+    return this.dispatched === 0;
+  }
+
+  flush(cacheSnapshot: {
+    hits: number;
+    misses: number;
+    evicts: number;
+  }): void {
+    const totalMs = performance.now() - this.startedAt;
+    const bakeSpanMs =
+      this.lastAtlasLandAt > 0
+        ? this.lastAtlasLandAt - this.startedAt
+        : 0;
+    const bakeParallelismMs =
+      this.firstAtlasLandAt > 0
+        ? this.lastAtlasLandAt - this.firstAtlasLandAt
+        : 0;
+    const cacheHitsDelta = cacheSnapshot.hits - this.cacheHitsStart;
+    const cacheMissesDelta = cacheSnapshot.misses - this.cacheMissesStart;
+    const cacheEvictsDelta = cacheSnapshot.evicts - this.cacheEvictsStart;
+    log.info(
+      `zoomProfile from=${this.fromRes} to=${this.toRes} bots=${this.dispatched} ` +
+        `applySum=${this.applyMs.toFixed(1)}ms ` +
+        `cacheHits=${cacheHitsDelta} cacheMiss=${cacheMissesDelta} cacheEvicts=${cacheEvictsDelta} ` +
+        `atlasLanded=${this.atlasLanded} ` +
+        `firstLand=${(this.firstAtlasLandAt > 0
+          ? this.firstAtlasLandAt - this.startedAt
+          : 0
+        ).toFixed(1)}ms ` +
+        `lastLand=${bakeSpanMs.toFixed(1)}ms ` +
+        `landSpread=${bakeParallelismMs.toFixed(1)}ms ` +
+        `committed=${this.committedOk}/${this.resolved} ` +
+        `commitSum=${this.commitMs.toFixed(1)}ms ` +
+        `commitMax=${this.maxCommitMs.toFixed(1)}ms ` +
+        `composes=${this.composePasses} ` +
+        `composeSum=${this.composeMs.toFixed(1)}ms ` +
+        `composeMax=${this.maxComposeMs.toFixed(1)}ms ` +
+        `wall=${totalMs.toFixed(1)}ms`,
+    );
+  }
+}
+
 export class PlayerStripRendererV2 {
   private states = new Map<number, Map<PlayerStripSlot, SlotStateV2>>();
   private resolution: number;
@@ -283,6 +439,14 @@ export class PlayerStripRendererV2 {
   private compositionDirty = false;
   private composeTickerInstalled = false;
   private composeTickerCallback: (() => void) | null = null;
+  /**
+   * Active zoom re-stage profile, or null when no zoom event is
+   * currently in flight. Set by `setResolutionAndRerender`; flushed
+   * + cleared by `maybeFinalizeZoomProfile` once every dispatched
+   * bot's pending has resolved. Steady-state per-bot animation
+   * changes don't touch this.
+   */
+  private zoomProfile: ZoomBotProfile | null = null;
 
   constructor(pixiRenderer: PixiRenderer, resolution = 3) {
     this.pixiRenderer = pixiRenderer;
@@ -336,7 +500,14 @@ export class PlayerStripRendererV2 {
     // and renders into its own RT. Skip empty pages internally.
     const t0 = performance.now();
     this.atlas.renderAll(this.pixiRenderer);
-    recordProbe("composeBot", performance.now() - t0);
+    const dur = performance.now() - t0;
+    recordProbe("composeBot", dur);
+    // Zoom profile: count + time each compose pass that fires
+    // during the zoom re-stage window. A long re-stage typically
+    // produces N passes (one per main frame) as bots commit
+    // staggered across worker landings; the sum tells us how much
+    // GPU compose work the zoom event provoked total.
+    this.zoomProfile?.recordCompose(dur);
     this.compositionDirty = false;
   }
 
@@ -829,12 +1000,28 @@ export class PlayerStripRendererV2 {
   setResolutionAndRerender(res: number): void {
     const clamped = Math.max(1, res);
     if (clamped === this.resolution) return;
+    const fromRes = this.resolution;
     this.resolution = clamped;
+    // If a previous zoom profile is still in flight (user wheeled
+    // again before all bots committed) flush what we have and start
+    // fresh. Without this we'd compound timing across two zoom
+    // events and the report would be unreadable.
+    if (this.zoomProfile) {
+      this.zoomProfile.flush(this.cacheCounterSnapshot());
+      this.zoomProfile = null;
+    }
+    const profile = new ZoomBotProfile(
+      fromRes,
+      clamped,
+      this.cacheCounterSnapshot(),
+    );
+    this.zoomProfile = profile;
     for (const slots of this.states.values()) {
       for (const [slotKey, st] of slots) {
         st.currentAnimKey = "";
         this.applyFlipToSlot(st, st.lastFlipped);
         if (st.lastAnimation && st.player) {
+          const applyStart = performance.now();
           this.applyAnimation(
             st.player,
             slotKey,
@@ -843,8 +1030,52 @@ export class PlayerStripRendererV2 {
             st.lastDir,
             st.lastFlipped,
           );
+          profile.recordDispatch(performance.now() - applyStart);
         }
       }
+    }
+    // Edge case: re-stage triggered but no live bots had pending
+    // animations to dispatch. Flush an empty report immediately so
+    // the user sees the "0 bots" signal rather than a silently-
+    // dropped event.
+    if (profile.isEmpty()) {
+      profile.flush(this.cacheCounterSnapshot());
+      this.zoomProfile = null;
+    }
+  }
+
+  /**
+   * Snapshot the character cache's running hit/miss/evict counters.
+   * The profile takes one snapshot at start and one at flush; the
+   * delta tells us how many bakes the zoom event actually
+   * provoked (vs. cache hits) and whether eviction churn fired
+   * mid-event. Cheap (3 number reads).
+   */
+  private cacheCounterSnapshot(): {
+    hits: number;
+    misses: number;
+    evicts: number;
+  } {
+    const s = this.cache.getStats();
+    return { hits: s.hits, misses: s.misses, evicts: s.evicts };
+  }
+
+  /**
+   * Bump the zoom profile's "resolved" counter for the current
+   * pending and flush if every dispatched bot has reported in.
+   * Called from the two terminal sites: the success path
+   * (`commitBody` returned true) and the abandon path
+   * (`commitBody` returned false / null atlas). Steady-state
+   * (non-zoom) animation changes don't hit the bump because
+   * `zoomProfile` is null outside the zoom window.
+   */
+  private maybeFinalizeZoomProfile(): void {
+    const p = this.zoomProfile;
+    if (!p) return;
+    p.recordResolve();
+    if (p.isDone()) {
+      p.flush(this.cacheCounterSnapshot());
+      this.zoomProfile = null;
     }
   }
 
@@ -1050,6 +1281,12 @@ export class PlayerStripRendererV2 {
     pending: PendingAnim,
     atlas: ClassAtlas | null,
   ): void {
+    // Probe: count every landed bake (including stale-discarded
+    // ones), so the zoom profile sees the full worker-pool finish
+    // pattern. Recording BEFORE the stale check keeps the
+    // bake-spread metric honest — a worker still did the work even
+    // if the result was discarded.
+    this.zoomProfile?.recordAtlasLand();
     // Pending was discarded (another applyAnimation superseded it)
     // — release the atlas here so we don't leak the ref.
     if (st.pendingAnim !== pending) {
@@ -1144,10 +1381,17 @@ export class PlayerStripRendererV2 {
     // arrival is impossible — so `installLandedAccessories` will
     // never run for this pending.
     if (!pending.bodyCommitted) {
+      const commitStart = performance.now();
       const committed = this.commitBody(st, pending);
+      const commitMs = performance.now() - commitStart;
+      this.zoomProfile?.recordCommit(commitMs, committed);
       if (committed) {
         pending.bodyCommitted = true;
         pending.resolve(true);
+        // Profile bookkeeping: this pending has now reached a
+        // terminal state (committed). Tell the profile so it can
+        // flush once every dispatched bot has resolved.
+        this.maybeFinalizeZoomProfile();
       } else {
         // commitBody refused to install a null atlas (stale-skipped
         // or failed bake). Discard the pending so the bot's next
@@ -1157,6 +1401,10 @@ export class PlayerStripRendererV2 {
         // state.
         pending.resolve(false);
         st.pendingAnim = null;
+        // Profile bookkeeping: terminal state (abandoned). Same
+        // contract as the committed branch — bump the resolved
+        // counter so the report can land.
+        this.maybeFinalizeZoomProfile();
         return;
       }
     } else {

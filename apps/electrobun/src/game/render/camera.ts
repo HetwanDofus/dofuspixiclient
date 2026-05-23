@@ -32,6 +32,15 @@ export type CameraListener = (state: CameraState) => void;
 export class Camera {
   private state: CameraState;
   private listeners = new Set<CameraListener>();
+  /**
+   * Heavy-listeners that should ONLY fire when a zoom value has
+   * "settled" (user stopped scrolling the wheel + the rendered map
+   * caught up). Use for work that re-rasterizes / re-bakes — char
+   * class atlases, tile strips, picking caches. Subscribing here
+   * deliberately misses every wheel tick during a zoom drag so the
+   * UI stays at 60fps.
+   */
+  private settledListeners = new Set<CameraListener>();
 
   constructor(initial: CameraState) {
     this.state = { ...initial };
@@ -43,6 +52,20 @@ export class Camera {
     }
     this.state = { ...this.state, zoom };
     this.notify();
+  }
+
+  /**
+   * Notify the "zoom settled" channel only. Does NOT mutate state
+   * (callers already updated via `setZoom`); this is purely the
+   * coalesced re-raster signal `BattlefieldZoom` fires after its
+   * debounce window. Subscribers receive the SAME `CameraState`
+   * snapshot the eager subscribers already saw — they just receive
+   * it later, after the user stopped scrolling.
+   */
+  notifyZoomSettled(): void {
+    for (const fn of this.settledListeners) {
+      fn(this.state);
+    }
   }
 
   setPan(x: number, y: number): void {
@@ -104,6 +127,22 @@ export class Camera {
     fn(this.state);
     return () => {
       this.listeners.delete(fn);
+    };
+  }
+
+  /**
+   * Subscribe to "zoom settled" notifications — fires only AFTER a
+   * zoom debounce window closes (typically via
+   * `BattlefieldZoom.execute`). Use for re-rasterization /
+   * re-bake work that must NOT fire on every wheel tick. Like
+   * `subscribe`, fires immediately with the current state so the
+   * subscriber syncs on register.
+   */
+  subscribeZoomSettled(fn: CameraListener): () => void {
+    this.settledListeners.add(fn);
+    fn(this.state);
+    return () => {
+      this.settledListeners.delete(fn);
     };
   }
 

@@ -1054,6 +1054,16 @@ export interface VelloSwfClassAtlasVariant {
   bandCount: number;
   slotCount: number;
   bands: VelloSwfClassAtlasBand[];
+  /**
+   * Pre-baked silhouette for pixel-perfect picking. Populated by the
+   * bake worker (`bake-worker.ts:handleBake`) so the main thread
+   * doesn't pay the ~30-40ms `OffscreenCanvas + getImageData` cost
+   * per page. The main-thread direct path
+   * (`renderSwfClassAtlas` here) leaves this undefined — wrapping
+   * code (`character-cache.ts:wrapClassAtlas`) lazily extracts on
+   * the main thread for that fallback.
+   */
+  silhouette?: Uint8Array;
 }
 
 export interface VelloSwfClassAtlasPage {

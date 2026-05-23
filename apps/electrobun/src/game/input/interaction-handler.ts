@@ -9,6 +9,7 @@ import type { PickResult } from "@/game/types/picking";
 import {
   DISPLAY_HEIGHT,
   DISPLAY_WIDTH,
+  SIDE_BAND_WIDTH,
   ZOOM_LEVELS,
 } from "@/game/constants/battlefield";
 
@@ -323,8 +324,14 @@ export class InteractionHandler {
   }
 
   private clampCameraToBounds(): void {
-    const viewportWidth = this.canvas.clientWidth;
-    const viewportHeight = this.canvas.clientHeight;
+    // Game area (the central rect inside the wider 1.95-aspect canvas)
+    // — clamps must keep mapContainer.x within this region, NOT within
+    // the full canvas. Without this the clamp at maxX=0 would snap the
+    // map back to canvas-left every pan and the side bands would
+    // obscure the game.
+    const offsetX = SIDE_BAND_WIDTH * this.baseZoom;
+    const gameAreaW = DISPLAY_WIDTH * this.baseZoom;
+    const gameAreaH = DISPLAY_HEIGHT * this.baseZoom;
     const zoom = this.mapContainer.scale.x || 1;
 
     const mapWidth = DISPLAY_WIDTH * zoom;
@@ -333,8 +340,8 @@ export class InteractionHandler {
     let x = this.mapContainer.x;
     let y = this.mapContainer.y;
 
-    const minX = Math.min(0, viewportWidth - mapWidth);
-    const maxX = 0;
+    const maxX = offsetX;
+    const minX = Math.min(maxX, offsetX + gameAreaW - mapWidth);
 
     if (x < minX) {
       x = minX;
@@ -342,8 +349,8 @@ export class InteractionHandler {
       x = maxX;
     }
 
-    const minY = Math.min(0, viewportHeight - mapHeight);
     const maxY = 0;
+    const minY = Math.min(maxY, gameAreaH - mapHeight);
 
     if (y < minY) {
       y = minY;

@@ -11,6 +11,7 @@ import { AtlasLoader } from "@/game/render/atlas-loader";
 import { PickingSystem } from "@/game/render/picking-system";
 import { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import { getRenderWatchdog } from "@/game/render/render-watchdog";
+import { SideBandCompositor } from "@/game/render/side-band-compositor";
 import { MapTransition } from "@/game/scene/map/transition";
 import { DebugOverlay } from "@/game/scene/overlays/debug";
 import { GridOverlay } from "@/game/scene/overlays/grid";
@@ -47,6 +48,13 @@ export interface BattlefieldBootstrapContext {
 
   app: Application | null;
   mapContainer: Container | null;
+  /**
+   * Widescreen side-band compositor. Wraps `mapContainer` in a
+   * masked offset container so the game renders centred in the
+   * 1.95-aspect canvas, and fills the lateral bands with a sampled
+   * mirror+blur of the game render texture. Owned by the Battlefield.
+   */
+  sideBandCompositor: SideBandCompositor | null;
   mapTransition: MapTransition | null;
   /**
    * Map renderer — populated lazily by `Battlefield.loadManifest()`
@@ -113,6 +121,14 @@ export async function initEngineAndVello(
   // Pixi compositor.
   ctx.mapContainer.sortableChildren = true;
   ctx.app.stage.addChild(ctx.mapContainer);
+  // SideBandCompositor positions mapContainer at the centring offset
+  // for the wider 1.95-aspect canvas and stands up two band sprites
+  // beside it that fill the lateral strips with a heavy LOD-based
+  // blur of the rendered game. The offset lives directly on
+  // `mapContainer.position` so existing interaction math (which reads
+  // `mapContainer.x` as the screen anchor) keeps working — see the
+  // compositor file header for the rationale.
+  ctx.sideBandCompositor = new SideBandCompositor(ctx.app, ctx.mapContainer);
   ctx.mapTransition = new MapTransition(ctx.app, ctx.mapContainer);
 
   // Strip-rendered character sprite owner. Pixi adopted Vello's
@@ -329,6 +345,12 @@ export function startSceneTicker(ctx: BattlefieldBootstrapContext): void {
     const dtMs = Ticker.shared.deltaMS;
     ctx.scene.tick(dtMs);
     ctx.interactionHandler?.tick();
+    // After scene + interaction ticks settle this frame's animation
+    // state, capture the wrapper into `gameRt` so the side-band filters
+    // sample the latest map state. Runs before Pixi's internal stage
+    // render fires (Pixi's render callback sits at LOW priority while
+    // this ticker is at NORMAL).
+    ctx.sideBandCompositor?.captureFrame();
   };
 
   Ticker.shared.add(ctx.sceneTickerCallback);

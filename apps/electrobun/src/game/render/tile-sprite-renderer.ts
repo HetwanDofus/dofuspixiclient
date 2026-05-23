@@ -148,6 +148,18 @@ interface CachedTileSource {
 const STRIP_MAX_FRAMES = 150;
 
 /**
+ * Wall-clock budget for tile re-rasterization per frame. Drain
+ * processes at least one tile (guaranteed progress) and then
+ * continues until this many ms have elapsed inside the drain call.
+ * Adapts to hardware: fast machines burst through many tiles per
+ * frame, slow machines stretch the upgrade over more frames — same
+ * code, same constant. 16.6ms is the 60fps frame budget; reserving
+ * ~3ms for tile upgrades leaves the rest for Pixi render +
+ * animation tick + other work.
+ */
+const UPGRADE_BUDGET_MS = 3;
+
+/**
  * Layer-tagged variant of `TilePlacement` — caller marks the
  * destination Pixi layer per tile. MapHandler emits this when
  * building placements: ground tiles → layer 0, object1 tiles → 1.
@@ -252,6 +264,21 @@ export class TileSpriteRenderer {
    * `setTileResolution` for the zoom-driven re-render path.
    */
   private tileResolution = DEFAULT_TILE_RESOLUTION;
+  /**
+   * In-flight density upgrade triggered by `setTileResolution`. The
+   * queue is drained inside `tick()` at `UPGRADE_BUDGET_PER_FRAME`
+   * sprites per frame so a zoom step never freezes the main thread.
+   * Tiles not yet upgraded keep showing their prior (lower-density)
+   * texture — visually they look slightly softer until their turn
+   * comes up, never blank. A second `setTileResolution` call mid-
+   * upgrade replaces the queue with a fresh one targeting the new
+   * density (no compounding, no orphan upgrades).
+   */
+  private pendingUpgrade: {
+    targetRes: number;
+    queue: TileSpriteState[];
+    idx: number;
+  } | null = null;
 
   constructor(
     _pixiRenderer: Renderer,
@@ -490,6 +517,11 @@ export class TileSpriteRenderer {
       state.currentFrame = (state.currentFrame + steps) % state.frameCount;
       this.swapFrame(state);
     }
+    // Drain a budgeted slice of the density-upgrade queue. Keeping
+    // this AFTER animation tick means a tile that swapped frame on
+    // this same tick gets upgraded with its current frame index in
+    // sync — animation continuity preserved across the upgrade.
+    this.drainPendingUpgrade();
   }
 
   destroy(): void {
@@ -525,41 +557,93 @@ export class TileSpriteRenderer {
       return;
     }
     this.tileResolution = clamped;
+    // Queue every non-bg sprite that isn't already at the target
+    // density. The drain happens in `tick()` at
+    // `UPGRADE_BUDGET_PER_FRAME` per frame. Filtering out
+    // already-matching sprites lets a second `setTileResolution`
+    // mid-upgrade (zoom-in-then-out) avoid redundant work for
+    // tiles already upgraded to the new target.
+    const queue: TileSpriteState[] = [];
     for (const state of this.states.values()) {
-      if (state.isBackground) {
-        continue;
-      }
-      const acquired = this.acquireCachedTile(
-        state.bundle,
-        state.exportName,
-        state.currentFrame,
-        state.frameCount,
-        state.isAnimated,
-        clamped
-      );
-      if (!acquired) {
-        // Out-of-budget or render failed — leave the sprite on its
-        // existing (lower-density) texture rather than going blank.
-        continue;
-      }
-      const { cacheKey, entry } = acquired;
-      const oldCacheKey = state.cacheKey;
-      const frameIdx = state.currentFrame % entry.frames.length;
-      state.sprite.anchor.set(entry.anchorFracX, entry.anchorFracY);
-      state.sprite.texture = entry.frames[frameIdx];
-      applyMatrix(
-        state.sprite,
-        state.cellX,
-        state.cellY,
-        state.rotation,
-        state.flip,
-        clamped
-      );
-      state.cacheKey = cacheKey;
-      state.resolution = clamped;
-      state.anchorFracX = entry.anchorFracX;
-      state.anchorFracY = entry.anchorFracY;
-      this.releaseCachedTile(oldCacheKey);
+      if (state.isBackground) continue;
+      if (state.resolution === clamped) continue;
+      queue.push(state);
+    }
+    this.pendingUpgrade = queue.length > 0
+      ? { targetRes: clamped, queue, idx: 0 }
+      : null;
+  }
+
+  /**
+   * Re-rasterize one tile sprite at the given density. Pulled out of
+   * the old sync sweep so it can be invoked from the per-frame
+   * upgrade drain. Returns true on success, false if the bake was
+   * over-budget / failed (sprite then stays on its previous
+   * texture — never blank).
+   */
+  private upgradeSpriteResolution(
+    state: TileSpriteState,
+    target: number,
+  ): boolean {
+    const acquired = this.acquireCachedTile(
+      state.bundle,
+      state.exportName,
+      state.currentFrame,
+      state.frameCount,
+      state.isAnimated,
+      target,
+    );
+    if (!acquired) return false;
+    const { cacheKey, entry } = acquired;
+    const oldCacheKey = state.cacheKey;
+    const frameIdx = state.currentFrame % entry.frames.length;
+    state.sprite.anchor.set(entry.anchorFracX, entry.anchorFracY);
+    state.sprite.texture = entry.frames[frameIdx];
+    applyMatrix(
+      state.sprite,
+      state.cellX,
+      state.cellY,
+      state.rotation,
+      state.flip,
+      target,
+    );
+    state.cacheKey = cacheKey;
+    state.resolution = target;
+    state.anchorFracX = entry.anchorFracX;
+    state.anchorFracY = entry.anchorFracY;
+    this.releaseCachedTile(oldCacheKey);
+    return true;
+  }
+
+  /**
+   * Drain the pending density-upgrade queue under a wall-clock
+   * budget (`UPGRADE_BUDGET_MS`). Always processes at least one
+   * sprite per call to guarantee forward progress; after that,
+   * continues until the budget is exhausted. Skips sprites that no
+   * longer match (e.g. removed by `setPlacements` mid-upgrade) or
+   * that already reached the target (e.g. a second
+   * `setTileResolution` call landed them on the same density via
+   * a different code path).
+   */
+  private drainPendingUpgrade(): void {
+    const u = this.pendingUpgrade;
+    if (!u) return;
+    const start = performance.now();
+    while (u.idx < u.queue.length) {
+      const state = u.queue[u.idx++];
+      if (state.resolution === u.targetRes) continue; // already done elsewhere
+      // Validate sprite still alive (not removed by setPlacements).
+      // `state.sprite.parent` is null after `removeSprite` clears it.
+      if (!state.sprite.parent) continue;
+      this.upgradeSpriteResolution(state, u.targetRes);
+      // Wall-clock budget check is AFTER the upgrade so each call
+      // makes at least one unit of progress, regardless of how
+      // long that one bake took on this hardware. Result: zero
+      // hand-tuning across machines.
+      if (performance.now() - start >= UPGRADE_BUDGET_MS) break;
+    }
+    if (u.idx >= u.queue.length) {
+      this.pendingUpgrade = null;
     }
   }
 

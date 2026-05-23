@@ -13,6 +13,8 @@ import {
   FULL_HEIGHT,
   GAME_HEIGHT,
   GAME_WIDTH,
+  VIEW_HEIGHT,
+  VIEW_WIDTH,
   ZOOM_LEVELS,
 } from "@/game/constants/battlefield";
 import type { Camera } from "@/game/render/camera";
@@ -221,16 +223,21 @@ export class Engine {
   private calculateCanvasSize(): CanvasSize {
     const containerWidth = this.container.clientWidth || GAME_WIDTH;
     const containerHeight = this.container.clientHeight || GAME_HEIGHT;
+    // Widescreen canvas: the renderer fills a VIEW_WIDTH × VIEW_HEIGHT
+    // (≈1.95 aspect) logical area. The game itself still lives in the
+    // central DISPLAY_WIDTH×FULL_HEIGHT region — the lateral padding
+    // (SIDE_BAND_WIDTH each side) is filled by SideBandCompositor's
+    // mirror+blur sampling of the game render texture.
     const rawZoom = Math.min(
-      containerWidth / DISPLAY_WIDTH,
-      containerHeight / FULL_HEIGHT
+      containerWidth / VIEW_WIDTH,
+      containerHeight / VIEW_HEIGHT
     );
     // Use raw zoom so the canvas fills the container with zero gaps.
     const zoom = Math.max(0.02, rawZoom);
 
     return {
-      width: Math.min(Math.round(DISPLAY_WIDTH * zoom), containerWidth),
-      height: Math.min(Math.round(FULL_HEIGHT * zoom), containerHeight),
+      width: Math.min(Math.round(VIEW_WIDTH * zoom), containerWidth),
+      height: Math.min(Math.round(VIEW_HEIGHT * zoom), containerHeight),
       zoom,
     };
   }

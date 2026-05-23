@@ -163,6 +163,15 @@ export class BattlefieldZoom {
         this.pendingZoom = null;
         // Break the call stack to avoid deep recursion.
         setTimeout(() => void this.execute(nextZoom), 0);
+      } else {
+        // Zoom has truly settled — no more pending work. Fan out the
+        // "settled" signal so heavy subscribers (char re-rasterize,
+        // tile re-strip) can do their density-upgrade work AT MOST
+        // ONCE per user-visible zoom change, instead of on every
+        // wheel tick. The eager `camera.setZoom` published in
+        // `request()` already moved cheap transforms (Pixi scale,
+        // CSS wrapper); this signal is only for re-bake work.
+        this.deps.camera?.()?.notifyZoomSettled();
       }
     }
   }

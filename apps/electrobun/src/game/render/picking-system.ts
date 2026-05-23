@@ -1,36 +1,55 @@
-import type { Container, Renderer, Texture, TextureSource } from "pixi.js";
+import type { Container, Renderer } from "pixi.js";
 
-import type { PickableObject, PickResult } from "@/game/types";
+import type {
+  AlphaMapAccessor,
+  PickableObject,
+  PickResult,
+} from "@/game/types";
 
 /**
- * CPU-based pixel-perfect picking system.
+ * Stub accessor handed to `PickableObject.alphaTest` callbacks for
+ * shape compatibility. Always returns null — current `alphaTest`
+ * implementations (e.g. `player-strip-renderer-v2.getSlotAlphaTest`)
+ * read their own pre-baked silhouette and ignore this parameter.
+ * Kept on the interface so a future caller could re-introduce a
+ * working pixel-cache accessor without changing the call shape.
+ */
+const NO_ALPHA_MAP_ACCESSOR: AlphaMapAccessor = {
+  get: () => null,
+};
+
+/**
+ * CPU-based picking system.
  *
- * Instead of rendering a GPU picking texture every frame, this system:
- * 1. AABB-checks all pickable sprites against the query point (O(n), microseconds)
- * 2. For candidates, samples pixel alpha from a cached alpha map of the texture
- * 3. Returns the topmost (highest zIndex) non-transparent hit
+ * Per pick query:
+ * 1. AABB-test every registered pickable's sprite against the query
+ *    point (O(n), microseconds).
+ * 2. For each candidate that passes AABB, if the pickable supplies a
+ *    custom `alphaTest`, call it for pixel-perfect silhouette
+ *    rejection. Without `alphaTest`, the AABB hit is taken as-is.
+ * 3. Return the topmost (highest zIndex) hit.
  *
- * Alpha maps are extracted once per unique TextureSource and cached forever.
- * Total per-pick cost: ~300 AABB comparisons + 0-3 alpha lookups = <0.1ms.
+ * Silhouette extraction strategy: each pickable owns its own
+ * pixel-test. Characters return `getSlotAlphaTest` which reads from
+ * a pre-baked, in-memory `Uint8Array` silhouette (worker-extracted at
+ * class atlas bake time; see `bake-worker.ts:handleBake`). This
+ * keeps picking entirely on the CPU at lookup time — no per-pick
+ * GPU readback, no per-source `OffscreenCanvas` extraction, no
+ * caching of GPU-side alpha textures (the previous
+ * `extractAlphaMapAsync` path tried this and failed: Pixi v8's
+ * `source.resource` exposes the upload-side `ImageBitmap`, not the
+ * GPUTexture, so `copyTextureToBuffer` validation rejected every
+ * call and the retry-on-catch loop produced a 60Hz GPU error storm
+ * every time the cursor sat on a non-character pickable).
  */
 export class PickingSystem {
-  private renderer: Renderer;
   private pickableObjects: Map<number, PickableObject> = new Map();
 
-  /** Cached alpha maps keyed by TextureSource.uid. Extracted once, used forever. */
-  private alphaMaps: Map<
-    number,
-    { data: Uint8Array; width: number; height: number }
-  > = new Map();
-
-  /** Pending alpha extractions to avoid duplicate work */
-  private pendingExtractions: Set<number> = new Set();
-
-  /** Sources that failed extraction — skip them forever (use AABB fallback) */
-  private failedSources: Set<number> = new Set();
-
-  constructor(renderer: Renderer, _minPickInterval = 16) {
-    this.renderer = renderer;
+  constructor(_renderer: Renderer, _minPickInterval = 16) {
+    // Renderer kept in the constructor signature for API stability —
+    // the previous GPU-readback path needed `renderer.gpu.device`,
+    // the silhouette-based path does not. Removed the field to avoid
+    // suggesting future readback work is supported.
   }
 
   initializeTexture(_width: number, _height: number): void {
@@ -57,9 +76,12 @@ export class PickingSystem {
   } {
     return {
       pickable: this.pickableObjects.size,
-      alphaMaps: this.alphaMaps.size,
-      pendingExtractions: this.pendingExtractions.size,
-      failedSources: this.failedSources.size,
+      // alphaMaps / pendingExtractions / failedSources stay in the
+      // stats shape (consumers in the debug HUD read them) but the
+      // GPU-readback alpha cache no longer exists.
+      alphaMaps: 0,
+      pendingExtractions: 0,
+      failedSources: 0,
     };
   }
 
@@ -83,24 +105,15 @@ export class PickingSystem {
   }
 
   /**
-   * Drop the alpha-map cache + failure markers. Call on map transition
-   * so stale TextureSource UIDs from the prior map don't accumulate as
-   * dead entries in the cache (each entry holds a `Uint8Array(w*h)` —
-   * 1-3MB JS heap per character source, dozens per map). The next pick
-   * after this re-extracts on demand for the new map's TextureSources.
-   *
-   * The staging buffers used during extraction are device buffers
-   * scoped to each `extractAlphaMapAsync` call and destroyed in their
-   * own `.then`/`.catch` continuations — they do not need to be
-   * cleaned up here.
+   * No-op kept for API compatibility. Previously this dropped the
+   * GPU-readback alpha cache on map transition. The current
+   * silhouette-based picking holds its alpha bytes inside each
+   * `VariantInfo` (owned by `CharacterCache` and freed via class
+   * atlas eviction), so the picking system itself has nothing to
+   * invalidate on map change.
    */
   clearAlphaCache(): void {
-    this.alphaMaps.clear();
-    this.failedSources.clear();
-    // pendingExtractions: leave alone — those are in-flight async
-    // continuations whose resolution will populate alphaMaps; clearing
-    // would cause double-extracts for the same uid if a pick happens
-    // while resolution is pending.
+    // No state to clear.
   }
 
   markDirty(): void {
@@ -153,21 +166,16 @@ export class PickingSystem {
         continue;
       }
 
-      // If the pickable supplies a custom alphaTest, prefer it over
-      // sampling `sprite.texture`'s alpha map. Used by character
-      // pickables whose visible texture is a render-target
-      // (composition atlas) whose underlying GPUTexture isn't
-      // exposed via `source.resource` in Pixi v8 — silhouette
-      // sampling must hit the class atlas page (a real upload)
-      // through multiple band rects.
-      let hit: boolean;
-      if (obj.alphaTest) {
-        hit = obj.alphaTest(adjX, adjY, this.alphaAccessor);
-      } else {
-        const uvX = adjX / texW;
-        const uvY = adjY / texH;
-        hit = this.checkAlpha(sprite.texture, uvX, uvY);
-      }
+      // Pixel-perfect rejection if the pickable opts in via
+      // `alphaTest` (e.g. characters carry a worker-baked silhouette
+      // they can sample at `(adjX, adjY)`). Without `alphaTest`, the
+      // AABB hit stands — the prior GPU-readback alpha cache
+      // (`extractAlphaMapAsync`) never worked for Pixi v8 sources
+      // and was deleted to stop the 60Hz GPU-error storm it
+      // produced on every hover.
+      const hit = obj.alphaTest
+        ? obj.alphaTest(adjX, adjY, NO_ALPHA_MAP_ACCESSOR)
+        : true;
       if (hit) {
         bestResult = { object: obj, x: screenX, y: screenY };
         bestZIndex = z;
@@ -175,151 +183,6 @@ export class PickingSystem {
     }
 
     return bestResult;
-  }
-
-  /**
-   * Accessor handed to `PickableObject.alphaTest` callbacks. Wraps
-   * the same cache + extraction pipeline `checkAlpha` uses, but
-   * exposes raw `(data, w, h)` so callers can sample arbitrary
-   * positions (e.g. multi-band lookups in a stacked atlas).
-   */
-  private readonly alphaAccessor: import("@/game/types").AlphaMapAccessor = {
-    get: (source) => {
-      const uid = source.uid;
-      if (this.failedSources.has(uid)) return null;
-      const cached = this.alphaMaps.get(uid);
-      if (cached) return cached;
-      this.extractAlphaMapAsync(source);
-      return null;
-    },
-  };
-
-  /**
-   * Check if the pixel at (uvX, uvY) within the texture frame is non-transparent.
-   * Uses a cached alpha map extracted once per TextureSource.
-   */
-  private checkAlpha(texture: Texture, uvX: number, uvY: number): boolean {
-    const source = texture.source;
-    const sourceUid = source.uid;
-
-    // If extraction previously failed for this source, fall back to AABB
-    if (this.failedSources.has(sourceUid)) {
-      return true;
-    }
-
-    const alphaMap = this.alphaMaps.get(sourceUid);
-
-    if (!alphaMap) {
-      // Trigger async extraction (one-time cost per TextureSource).
-      this.extractAlphaMapAsync(source);
-      // While the readback is in flight (2-3 frames), fall back to
-      // AABB. The caller already validated `localPoint` is inside
-      // `[0, texW] × [0, texH]`, so accepting the hit here just
-      // makes the pick rectangle-precise instead of silhouette-
-      // precise during the gap. Returning `false` was the previous
-      // behaviour and left chars temporarily un-hoverable every
-      // animation swap / zoom-step re-render — the canonical
-      // "hover stops working after the sprite moves" symptom.
-      return true;
-    }
-
-    // Map UV to pixel position within the texture frame.
-    // frame.x/y/width/height are in CSS pixels; alpha map is in actual pixels.
-    const res = source.resolution || 1;
-    const frame = texture.frame;
-    const px = Math.floor((frame.x + uvX * frame.width) * res);
-    const py = Math.floor((frame.y + uvY * frame.height) * res);
-
-    if (px < 0 || px >= alphaMap.width || py < 0 || py >= alphaMap.height) {
-      return false;
-    }
-
-    const idx = py * alphaMap.width + px;
-    return alphaMap.data[idx] > 10; // Small threshold to handle anti-aliasing
-  }
-
-  /**
-   * Asynchronously extract and cache the alpha channel from a TextureSource via WebGPU.
-   * Uses copyTextureToBuffer + mapAsync to read pixels from the GPU without blocking.
-   * Done once per source — subsequent picks use the cached alpha map.
-   */
-  private extractAlphaMapAsync(source: TextureSource): void {
-    const sourceUid = source.uid;
-
-    // Already cached, pending, or failed
-    if (
-      this.alphaMaps.has(sourceUid) ||
-      this.pendingExtractions.has(sourceUid) ||
-      this.failedSources.has(sourceUid)
-    ) {
-      return;
-    }
-    this.pendingExtractions.add(sourceUid);
-
-    // Pixi's WebGPU internals aren't in the public types. Narrow via unknown
-    // rather than `any` — still a boundary cast, but the shape is documented.
-    const gpuTexture = (source as unknown as { resource?: GPUTexture })
-      .resource;
-    const device = (
-      this.renderer as unknown as { gpu?: { device?: GPUDevice } }
-    ).gpu?.device;
-
-    if (!gpuTexture || !device || typeof gpuTexture.width !== "number") {
-      this.failedSources.add(sourceUid);
-      this.pendingExtractions.delete(sourceUid);
-      return;
-    }
-
-    try {
-      const w = gpuTexture.width;
-      const h = gpuTexture.height;
-      const bytesPerRow = Math.ceil((w * 4) / 256) * 256;
-      const bufferSize = bytesPerRow * h;
-
-      const stagingBuffer = device.createBuffer({
-        size: bufferSize,
-        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-      });
-
-      const encoder = device.createCommandEncoder();
-      encoder.copyTextureToBuffer(
-        { texture: gpuTexture },
-        { buffer: stagingBuffer, bytesPerRow, rowsPerImage: h },
-        { width: w, height: h }
-      );
-      device.queue.submit([encoder.finish()]);
-
-      stagingBuffer
-        .mapAsync(GPUMapMode.READ)
-        .then(() => {
-          const mapped = new Uint8Array(stagingBuffer.getMappedRange());
-          const alphaData = new Uint8Array(w * h);
-
-          for (let row = 0; row < h; row++) {
-            const rowOffset = row * bytesPerRow;
-
-            for (let col = 0; col < w; col++) {
-              alphaData[row * w + col] = mapped[rowOffset + col * 4 + 3];
-            }
-          }
-
-          stagingBuffer.unmap();
-          stagingBuffer.destroy();
-          this.alphaMaps.set(sourceUid, {
-            data: alphaData,
-            width: w,
-            height: h,
-          });
-          this.pendingExtractions.delete(sourceUid);
-        })
-        .catch(() => {
-          stagingBuffer.destroy();
-          this.pendingExtractions.delete(sourceUid);
-        });
-    } catch {
-      // GPU texture was destroyed (e.g., zoom changed) — skip, will retry with new texture
-      this.pendingExtractions.delete(sourceUid);
-    }
   }
 
   getPickableObjects(): PickableObject[] {
@@ -340,8 +203,5 @@ export class PickingSystem {
 
   destroy(): void {
     this.pickableObjects.clear();
-    this.alphaMaps.clear();
-    this.pendingExtractions.clear();
-    this.failedSources.clear();
   }
 }
