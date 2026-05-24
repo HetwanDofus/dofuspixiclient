@@ -231,6 +231,23 @@ interface SlotStateV2 {
   /** Last frame index baked into the band-instance buffers. -1 =
    *  needs a fresh setBandsFrame on next swap. */
   lastCompositionFrame: number;
+  // ── Diagnostics (anim-watchdog) ───────────────────────────────
+  /** Last `player.frameIndex` observed in swapFrame. */
+  diagLastIdx: number;
+  /** Consecutive swapFrame ticks where `player.frameIndex` was
+   *  unchanged AND `variant.frameCount > 1` AND the anim key is a
+   *  cycling one (not "static*"). Saturates at a large value so
+   *  print can clamp. */
+  diagStuckTicks: number;
+  /** Consecutive swapFrame ticks where `variant === null` while
+   *  `currentAnimKey` is non-empty + non-"<retired>". This signals
+   *  an in-flight anim swap that never landed (bake stale, dedup
+   *  drop, or refcount race). */
+  diagVariantMissingTicks: number;
+  /** Set when we've already emitted the one-shot "stuck" warning
+   *  for the current freeze episode. Reset to false when frameIndex
+   *  moves (i.e., the freeze ends). */
+  diagStuckLogged: boolean;
 }
 
 function makeAnimKey(
@@ -499,9 +516,11 @@ export class PlayerStripRendererV2 {
     // Phase 5 + multi-page atlas: each page flushes its own batches
     // and renders into its own RT. Skip empty pages internally.
     const t0 = performance.now();
-    this.atlas.renderAll(this.pixiRenderer);
+    const timings = this.atlas.renderAll(this.pixiRenderer);
     const dur = performance.now() - t0;
     recordProbe("composeBot", dur);
+    recordProbe("composeFlush", timings.flushMs);
+    recordProbe("composeRender", timings.renderMs);
     // Zoom profile: count + time each compose pass that fires
     // during the zoom re-stage window. A long re-stage typically
     // produces N passes (one per main frame) as bots commit
@@ -509,6 +528,122 @@ export class PlayerStripRendererV2 {
     // GPU compose work the zoom event provoked total.
     this.zoomProfile?.recordCompose(dur);
     this.compositionDirty = false;
+    // Stash latest counts for the stress monitor's log line.
+    this.lastComposeBatches = timings.totalBatches;
+    this.lastComposeDirtyBatches = timings.dirtyBatches;
+    this.lastComposePages = timings.renderedPages;
+  }
+
+  /** Latest renderAll snapshot — read by stress monitor for context. */
+  private lastComposeBatches = 0;
+  private lastComposeDirtyBatches = 0;
+  private lastComposePages = 0;
+  /** Accessors for the stress monitor. */
+  getComposeCounts(): { batches: number; dirty: number; pages: number } {
+    return {
+      batches: this.lastComposeBatches,
+      dirty: this.lastComposeDirtyBatches,
+      pages: this.lastComposePages,
+    };
+  }
+
+  /**
+   * Anim-watchdog diagnostics — scans every live slot for either
+   *  (a) `variant === null` while `currentAnimKey` is set (variant
+   *      never landed: bake stale / dedup drop / refcount race), OR
+   *  (b) `player.frameIndex` not moving while the variant has
+   *      `frameCount > 1` and the anim is a cycling one
+   *      ("walk*"/"run*"/...): tick-side freeze (animation.ts:276
+   *      bails on `textureCount <= 1`; check whether fc was 1 here).
+   *
+   *  Returns aggregate counts + up to `sampleCap` of each failure
+   *  mode so the stress monitor can show specific examples.
+   *
+   *  Cheap: O(slots) iteration; called once per ~5 s snapshot.
+   *  Read-only — does NOT clear the counters; persistent ticks
+   *  accumulate so a freeze that started 30 s ago still shows up. */
+  getAnimDiagnostics(threshold = 30, sampleCap = 5): {
+    totalSlots: number;
+    frameStuckCount: number;
+    variantMissingCount: number;
+    frameStuckSamples: Array<{
+      playerId: number;
+      slotKey: string;
+      animKey: string;
+      stuckTicks: number;
+      fc: number;
+      animReady: boolean;
+      moving: boolean;
+      frameTimer: number;
+      frameIndex: number;
+    }>;
+    variantMissingSamples: Array<{
+      playerId: number;
+      slotKey: string;
+      animKey: string;
+      missingTicks: number;
+    }>;
+  } {
+    let total = 0;
+    let stuckCount = 0;
+    let missingCount = 0;
+    const frameStuckSamples: Array<{
+      playerId: number;
+      slotKey: string;
+      animKey: string;
+      stuckTicks: number;
+      fc: number;
+      animReady: boolean;
+      moving: boolean;
+      frameTimer: number;
+      frameIndex: number;
+    }> = [];
+    const variantMissingSamples: Array<{
+      playerId: number;
+      slotKey: string;
+      animKey: string;
+      missingTicks: number;
+    }> = [];
+    for (const [playerId, slots] of this.states) {
+      for (const [slotKey, st] of slots) {
+        total += 1;
+        if (st.diagStuckTicks >= threshold) {
+          stuckCount += 1;
+          if (frameStuckSamples.length < sampleCap) {
+            const p = st.player;
+            frameStuckSamples.push({
+              playerId,
+              slotKey,
+              animKey: st.currentAnimKey,
+              stuckTicks: st.diagStuckTicks,
+              fc: st.variant?.frameCount ?? 0,
+              animReady: p?.animReady ?? false,
+              moving: p?.moving ?? false,
+              frameTimer: p?.frameTimer ?? 0,
+              frameIndex: p?.frameIndex ?? -1,
+            });
+          }
+        }
+        if (st.diagVariantMissingTicks >= threshold) {
+          missingCount += 1;
+          if (variantMissingSamples.length < sampleCap) {
+            variantMissingSamples.push({
+              playerId,
+              slotKey,
+              animKey: st.currentAnimKey,
+              missingTicks: st.diagVariantMissingTicks,
+            });
+          }
+        }
+      }
+    }
+    return {
+      totalSlots: total,
+      frameStuckCount: stuckCount,
+      variantMissingCount: missingCount,
+      frameStuckSamples,
+      variantMissingSamples,
+    };
   }
 
   /**
@@ -814,35 +949,25 @@ export class PlayerStripRendererV2 {
    * action can fire.
    */
   /**
-   * Fire-and-forget background atlas warm-up. Called once per class
-   * (gfxId) from the sprite controller after the first bot of that
-   * class spawns. Routes through the SAME bake queue as live
-   * acquires, so the adaptive budget throttles them on busy frames.
+   * No-op since per-variant baking became the primary path.
    *
-   * No bot state is touched. The atlas lands in the cache with
-   * refcount=0 (we immediately release after acquire). LRU-eligible
-   * but available for the first actual hit, which is the whole win:
-   * the bot's first `walkR` request becomes a cache HIT instead of
-   * a JS-blocking Vello compute on a mid-frame rAF.
+   * History: prewarmAtlas existed to bake the full 24-variant class
+   * atlas (walk/static/run × R/L/F/B/S × bFix × hat) once per class
+   * so the bot's first acquireVariantAtlas was a cache hit. With
+   * `acquireVariantAtlas` now demand-driven (one variant per bot,
+   * ~5–15 ms warm-cache, sub-frame at 60 fps), pre-baking 24
+   * variants up-front is exactly the over-bake we removed — costs
+   * ~150 MB GPU per class for variants no bot will use.
+   *
+   * Bots bake their actual variant on first applyAnimation. Sub-
+   * frame cost; not worth pre-warming.
    */
   prewarmAtlas(
-    animation: CharacterAnimation,
+    _animation: CharacterAnimation,
     _animName: string,
     _flipped: boolean,
   ): void {
-    // Class-atlas migration: one acquire covers every animation
-    // variant of the class (walk/static/run × R/L/F/B/S × bFix ×
-    // hat). The pre-warm bakes the whole class in a single Rust
-    // call. LOW priority keeps it behind any live bot's HIGH bake.
-    this.cache.acquireClassAtlas(
-      animation.bundle,
-      this.resolution,
-      (atlas) => {
-        if (atlas) this.cache.releaseClassAtlas(atlas);
-      },
-      () => true,
-      "low",
-    );
+    // intentionally empty
   }
 
   applyAnimation(
@@ -966,10 +1091,69 @@ export class PlayerStripRendererV2 {
     const idx = player.frameIndex;
     for (const st of slots.values()) {
       const variant = st.variant;
-      if (!variant) continue;
+      if (!variant) {
+        // Diagnostic: count ticks we keep waiting for a variant
+        // while the bot has an active anim request. High counts here
+        // indicate a bake stale-skip or dedup-drop race.
+        if (
+          st.currentAnimKey !== "" &&
+          st.currentAnimKey !== "<retired>" &&
+          st.diagVariantMissingTicks < 1_000_000
+        ) {
+          st.diagVariantMissingTicks++;
+        }
+        continue;
+      }
+      st.diagVariantMissingTicks = 0;
       const fc = variant.frameCount;
       if (fc === 0) continue;
       const frame = idx % fc;
+      // Diagnostic: count ticks since `player.frameIndex` last moved.
+      // Only meaningful for variants that SHOULD cycle (fc > 1) and
+      // for cycling anim keys (not "static*"). For static frames we
+      // expect no movement and don't flag.
+      const animPrefix = st.currentAnimKey.split("|", 1)[0];
+      const expectCycle = fc > 1 && !animPrefix.startsWith("static");
+      if (expectCycle) {
+        if (idx === st.diagLastIdx) {
+          if (st.diagStuckTicks < 1_000_000) st.diagStuckTicks++;
+          // One-shot warn the moment a freeze episode becomes
+          // user-perceivable (~170 ms at 60 Hz). Captures full state
+          // at the freeze, including the TWO frame-count fields that
+          // can disagree:
+          //   - `variant.frameCount` (from Rust bake) — what
+          //     `swapFrame`'s `idx % fc` uses below.
+          //   - `currentAnimData.frameCount` — what
+          //     `tickFrame` uses as `textureCount`. A 1-here triggers
+          //     the `animation.ts:276` early-exit and freezes the
+          //     bot without animReady/movement involvement.
+          // (one-shot stuck-frame warn kept as regression sentinel: still
+          // triggers if currentAnimData.frameCount goes back to 1 while a
+          // cycling variant is committed — i.e. the deferred-commit fix
+          // regresses)
+          if (st.diagStuckTicks === 10 && !st.diagStuckLogged) {
+            st.diagStuckLogged = true;
+            const animDataFc =
+              player.currentAnimData?.frameCount ?? -1;
+            if (animDataFc === 1) {
+              log.warn(
+                `stuckFrame REGRESSION player=${player.id} anim=${st.currentAnimKey} ` +
+                  `variantFc=${fc} currentAnimDataFc=${animDataFc} ` +
+                  `animReady=${player.animReady} moving=${player.moving} ` +
+                  `frameIdx=${idx} frameTimer=${player.frameTimer.toFixed(3)} ` +
+                  `pendingAnim=${st.pendingAnim ? "yes" : "no"}`,
+              );
+            }
+          }
+        } else {
+          st.diagStuckTicks = 0;
+          st.diagStuckLogged = false;
+        }
+      } else {
+        st.diagStuckTicks = 0;
+        st.diagStuckLogged = false;
+      }
+      st.diagLastIdx = idx;
       if (frame === st.lastCompositionFrame) {
         // No frame change → atlas contents still valid. The shared
         // composition atlas only needs re-rendering when at least
@@ -1185,6 +1369,10 @@ export class PlayerStripRendererV2 {
       swfOriginInSlotX: 0,
       swfOriginInSlotY: 0,
       lastCompositionFrame: -1,
+      diagLastIdx: -1,
+      diagStuckTicks: 0,
+      diagVariantMissingTicks: 0,
+      diagStuckLogged: false,
     };
   }
 
@@ -2107,4 +2295,11 @@ export function getActivePlayerStripRendererStats(): {
   if (!activeStripRenderer) return null;
   const s = activeStripRenderer.getStats();
   return { atlas: s.atlas };
+}
+
+export function getActivePlayerStripRendererAnimDiagnostics(): ReturnType<
+  PlayerStripRendererV2["getAnimDiagnostics"]
+> | null {
+  if (!activeStripRenderer) return null;
+  return activeStripRenderer.getAnimDiagnostics();
 }

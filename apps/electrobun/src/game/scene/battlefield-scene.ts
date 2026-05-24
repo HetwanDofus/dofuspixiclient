@@ -354,6 +354,11 @@ export class Battlefield {
     initPickingAndAtlas(ctx);
     await wireVelloLoaders(ctx);
     await prewarmSwfTileBundles();
+    // No character-class prewarm. With per-variant bake (the new
+    // primary path in `character-cache.ts:acquireVariantAtlas`),
+    // pre-baking whole classes pre-rasterizes 24 variants/class
+    // when bots typically display 1. Bots lazy-bake their actual
+    // variant on first sight (~5–15 ms each at zoom 5, sub-frame).
     initInteraction(ctx);
     initOverlays(ctx);
     startSceneTicker(ctx);

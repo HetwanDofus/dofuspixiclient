@@ -583,6 +583,12 @@ export class BodyBandBatch {
     return this.activeCount() === 0;
   }
 
+  /** True if any setUV/setZones/setTransform/zeroInstance write
+   *  happened since the last `flush()`. Used by instrumentation. */
+  isDirty(): boolean {
+    return this.dirty;
+  }
+
   /** Write atlas UV sub-rect (4 floats). Caller must call `flush()`
    *  before the next render to materialise the change on the GPU. */
   setUV(idx: number, u0: number, v0: number, u1: number, v1: number): void {

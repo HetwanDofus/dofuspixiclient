@@ -123,7 +123,7 @@ export class PlayerRenderer {
     this.sprites = new PlayerSpriteController(
       this.spriteLoader,
       (id) => this.players.has(id),
-      (player, animation, animName, flipped) => {
+      (player, animation, animName, flipped, prevAnimName) => {
         const dir = animNameDir(animName);
         // Sprite-controller drives the `main` slot only; mount slots
         // are dispatched per-tick in `syncPlacement` based on the
@@ -150,15 +150,18 @@ export class PlayerRenderer {
         // are cache hits → the strip renderer commits atomically →
         // bot transitions smoothly with no visible artifact.
         //
-        // Cost: between an applyAnimation request and its commit,
-        // tickFrame keeps cycling `player.frameIndex` against the
-        // requested anim's frameCount/fps while the renderer still
-        // shows the previously-committed atlas. This is a sub-frame
-        // mismatch at worst (commit lands within ~16 ms on cache hit
-        // OR after the bake-queue drain on cache miss — see Phase 1b
-        // scene cache + MAX_BAKES_PER_DRAIN removal in
-        // strip-bake-queue.ts). Pre-warm coverage makes this
-        // mismatch effectively unobservable in steady state.
+        // Deferred-commit (since fix for "bots freeze mid-anim"):
+        // sprite-controller's `apply()` no longer installs
+        // `currentAnimData` immediately. It stays pointing at the
+        // OLD animation through the staging window so `tickFrame`
+        // advances the cursor against the OLD anim's fc/fps —
+        // keeping the visible OLD strip ALIVE until commit. Without
+        // this, walk → static transitions froze the OLD walk strip
+        // on frame 0 because the NEW anim's fc=1 caused `tickFrame`
+        // to early-exit. Cursor reset is also deferred here so
+        // one-shot anims (cast/attack/hit/die) still start at frame
+        // 0, while cycle → static preserves the cursor (irrelevant
+        // post-commit since static's fc=1 → frame=0 anyway).
         const playerId = player.id;
         void this.stripRenderer
           .applyAnimation(player, "main", animation, animName, dir, flipped)
@@ -172,6 +175,37 @@ export class PlayerRenderer {
             if (!live) return;
             if (!committed) return;
             if (live.currentAnimName !== animName) return;
+            // Mounted players have currentAnimData already installed
+            // by `applyMount` (it overwrites with the "_Back" half),
+            // so skip the install here — only flip animReady.
+            if (!live.isMounting) {
+              const prevBase = prevAnimName.replace(/[SRFLB]$/, "");
+              const nextBase = animName.replace(/[SRFLB]$/, "");
+              const sameCycle = prevBase === nextBase && prevBase !== "";
+              const nextFrameCount = animation.frameCount;
+              if (sameCycle) {
+                // Preserve phase across direction flips so chars don't
+                // "hop" mid-cell.
+                live.frameIndex =
+                  live.frameIndex % Math.max(1, nextFrameCount);
+              } else if (nextBase !== "static") {
+                // Cross-cycle (walk → run) or one-shot entry (cast,
+                // attack, hit, die) — fresh start at frame 0.
+                live.frameIndex = 0;
+                live.frameTimer = 0;
+              }
+              // nextBase === "static": don't reset. The cursor was
+              // advancing against the OLD cycling anim's fc during
+              // staging; after this commit, `tickFrame` will see
+              // fc=1 and stop advancing, and `swapFrame` will use
+              // the static variant where frame = idx % 1 = 0
+              // unconditionally, so the cursor's final value is
+              // moot. Resetting it would make the OLD strip's last
+              // visible frame snap to 0 right before the static
+              // commit lands — visible as a tiny "jerk" instead of
+              // a smooth freeze-into-pose.
+              live.currentAnimData = animation;
+            }
             live.animReady = true;
           });
       },

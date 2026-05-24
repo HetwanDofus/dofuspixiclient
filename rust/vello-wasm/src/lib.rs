@@ -264,6 +264,22 @@ pub struct VelloRenderer {
     /// Expected hit cost ~1-1.5 ms (the rasterization floor) vs
     /// ~5 ms on miss.
     body_scene_cache: HashMap<BodySceneCacheKey, vello::Scene>,
+    /// Phase 1c: scale-invariant per-(frame, band) sub-scene cache for
+    /// the class atlas bake. Each entry is a `vello::Scene` produced
+    /// by `render_body_band` with `transform = effective_xform`, so
+    /// path coords are in twip space and `output_scale` is unused
+    /// (the compute filter path is `cfg`-off on wasm32 — see
+    /// `swf-spike/src/render/filter.rs:31-37`). Variant assembly
+    /// composes the atlas via `scene.append(sub, scale.then_translate(target))`,
+    /// which means a zoom change skips the entire scene-build phase
+    /// and only pays the per-call append memcpy.
+    ///
+    /// Why per (frame, band) rather than per variant: per-variant
+    /// caching at twip identity would need an internal twip-grid cell
+    /// layout that doesn't pixel-snap after scaling. Per (frame, band)
+    /// puts each cell at the cached origin and lets the assembly
+    /// translate to a pixel-snapped target.
+    body_subscene_cache: HashMap<BodySubsceneKey, vello::Scene>,
     /// Per-tile sub-scenes encoded at twip-identity. Keyed by
     /// `(bundle, export, frame)`. Built once per unique tile and
     /// re-used across cells (multiple cells share the same tile) AND
@@ -320,6 +336,25 @@ struct BodySceneCacheKey {
     apply_b_fix: bool,
     hat_equipped: bool,
     mode: u8,
+}
+
+/// Phase 1c sub-scene cache key — see `body_subscene_cache`. Crucially
+/// NO `scale_q`: sub-scenes are at twip-identity and are reused across
+/// every zoom level. `band_lo` + `band_hi` are the `BandRange` fields
+/// inlined to participate in `Hash` (the upstream `BandRange` doesn't
+/// derive it). `compute_band_presence` is independent of `apply_b_fix`
+/// and `hat_equipped`, so two variants of the same `(bundle, export)`
+/// share band ranges and thus share cache entries on shared bands.
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct BodySubsceneKey {
+    bundle: String,
+    export: String,
+    apply_b_fix: bool,
+    hat_equipped: bool,
+    mode: u8,
+    frame_idx: u16,
+    band_lo: Option<u16>,
+    band_hi: Option<u16>,
 }
 
 /// Memoised result of the strip pre-pass: bounds union over a frame
@@ -638,6 +673,7 @@ impl VelloRenderer {
             swf_strip_bounds_cache: HashMap::new(),
             swf_render_caches: HashMap::new(),
             body_scene_cache: HashMap::new(),
+            body_subscene_cache: HashMap::new(),
             tile_subscenes: HashMap::new(),
             class_enum_cache: HashMap::new(),
         };
@@ -2290,7 +2326,6 @@ impl VelloRenderer {
             .enumerate()
             .filter_map(|(i, &p)| if p { Some(i) } else { None })
             .collect();
-        let band_total = present_logical.len().max(1);
         let band_ranges: Vec<swf_spike::render::BandRange> = present_logical
             .iter()
             .map(|&i| swf_spike::render::band_range(&slots, i))
@@ -2328,34 +2363,90 @@ impl VelloRenderer {
         let frame_w = ((px_max_x - px_min_x) as u32).max(1);
         let frame_h = ((px_max_y - px_min_y) as u32).max(1);
 
-        let max_cols = (16384u32 / frame_w).max(1) as usize;
-        let chunk_usize = chunk_count as usize;
-        let grid_cols = chunk_usize.min(max_cols);
-        let grid_rows = (chunk_usize + grid_cols - 1) / grid_cols;
-        let strip_w = frame_w * grid_cols as u32;
-        let strip_h = frame_h * grid_rows as u32;
-
         // Atlas layout: bands stacked vertically. Only PRESENT bands
         // (those with visible content) get a strip; trivial bands are
-        // skipped entirely. Width = single-band strip width (already
-        // constrained ≤ 16384). Height = N_present × strip_h +
-        // (N_present-1) × BAND_PADDING_PX.
+        // skipped entirely. Atlas width = strip_w, atlas height =
+        // N_present × strip_h + (N_present-1) × BAND_PADDING_PX.
+        //
+        // Layout policy: prefer a SOFT cap of 8192 (= the JS-side
+        // SharedInputAtlas page edge) so the variant's combined texture
+        // fits a super-atlas slot, which collapses `BodyBandBatch`
+        // keys (`source.uid × bandIndex`) across many variants and
+        // drops compose-render cost. Variants whose total pixel area
+        // exceeds the soft cap fall back to the HARD cap (= wgpu
+        // `maxTextureDimension2d` 16384) — they still bake correctly,
+        // they just take a dedicated per-variant Texture in JS and
+        // don't share a batch.
+        //
+        // Within either cap, the picker mirrors `renderSwfClassAtlas`
+        // (~line 3022): pick a near-square grid that obeys both the
+        // per-band height ceiling and the width ceiling. The greedy
+        // single-row packer this replaces was the cause of 13000+ ×
+        // 1800 atlases at high zoom — same pixel count, but the row
+        // exceeded the super-atlas page so the variant fell back.
+        const SOFT_ATLAS_DIM: u32 = 8192;
+        const HARD_ATLAS_DIM: u32 = 16384;
+        let chunk_usize = chunk_count as usize;
         let band_present_u32 = present_logical.len() as u32;
         let padding_total = if band_present_u32 > 0 {
             (band_present_u32 - 1) * BAND_PADDING_PX
         } else {
             0
         };
+
+        let pick_layout = |target_dim: u32| -> Option<(usize, usize, u32, u32)> {
+            let max_strip_h = if band_present_u32 > 0 {
+                target_dim.saturating_sub(padding_total) / band_present_u32
+            } else {
+                target_dim
+            };
+            let max_cols = (target_dim / frame_w.max(1)).max(1) as usize;
+            let max_rows = (max_strip_h / frame_h.max(1)).max(1) as usize;
+            if max_cols.saturating_mul(max_rows) < chunk_usize {
+                return None;
+            }
+            // Aspect target: cols × frame_w ≈ rows × frame_h
+            // ⇒ cols ≈ sqrt(chunk × frame_h / frame_w)
+            let ideal_cols_f = ((chunk_usize as f64)
+                * (frame_h as f64)
+                / (frame_w.max(1) as f64))
+                .sqrt()
+                .ceil();
+            let ideal_cols = (ideal_cols_f as usize).max(1);
+            let min_cols = (chunk_usize + max_rows - 1) / max_rows;
+            let grid_cols = ideal_cols.max(min_cols).min(max_cols).min(chunk_usize);
+            let grid_rows = (chunk_usize + grid_cols - 1) / grid_cols;
+            let sw = frame_w * grid_cols as u32;
+            let sh = frame_h * grid_rows as u32;
+            Some((grid_cols, grid_rows, sw, sh))
+        };
+
+        let (grid_cols, _grid_rows, strip_w, strip_h) =
+            match pick_layout(SOFT_ATLAS_DIM).or_else(|| pick_layout(HARD_ATLAS_DIM)) {
+                Some(layout) => layout,
+                None => {
+                    console_log!(
+                        "renderSwfBodyAtlas: {bundle}/{export} too large to fit \
+                         {HARD_ATLAS_DIM}² (frame {frame_w}x{frame_h}, chunk={chunk_usize}, \
+                         bands={band_present_u32}); skipping"
+                    );
+                    return JsValue::NULL;
+                }
+            };
+
         let atlas_w = strip_w;
         let atlas_h = strip_h * band_present_u32 + padding_total;
         if atlas_w == 0
             || atlas_h == 0
-            || atlas_w > 16384
-            || atlas_h > 16384
+            || atlas_w > HARD_ATLAS_DIM
+            || atlas_h > HARD_ATLAS_DIM
         {
+            // Defence-in-depth — the picker already enforces both
+            // dims under the chosen target_dim, but skip rather than
+            // abort if a corner case slips through.
             console_log!(
-                "renderSwfBodyAtlas: atlas {atlas_w}x{atlas_h} exceeds GPU limits \
-                 (strip {strip_w}x{strip_h}, bands={band_total})"
+                "renderSwfBodyAtlas: {bundle}/{export} layout overflow \
+                 {atlas_w}x{atlas_h} (strip {strip_w}x{strip_h}, bands={band_present_u32}); skipping"
             );
             return JsValue::NULL;
         }
@@ -3708,59 +3799,121 @@ impl VelloRenderer {
         player_colors: swf_spike::recolor::PlayerColors,
     ) -> vello::Scene {
         const BAND_PADDING_PX: u32 = 2;
-        let doc = self
-            .swf_bundles
-            .get(bundle)
-            .expect("bundle vetted by caller");
-        let symbol = doc.lookup_export(export).expect("export vetted by caller");
-        let (effective_sym, effective_xform) =
-            swf_spike::render::find_effective_body_symbol(doc, symbol, 0);
-        let filter_pipelines = self.swf_filter_pipelines.as_ref().expect("init by caller");
-        let cache: &swf_spike::render::cache::RenderCache = self
-            .swf_render_caches
-            .entry(bundle.to_string())
-            .or_default();
-        let mut wctx = swf_spike::render::WgpuCtx {
-            device: &self.device,
-            queue: &self.queue,
-            renderer: &mut self.renderer,
-            filter_pipelines,
-            output_scale: scale,
+        let mode_u8 = match mode {
+            swf_spike::render::RenderMode::Colour => 0u8,
+            swf_spike::render::RenderMode::ZoneId => 1u8,
         };
-        let mut scene = vello::Scene::new();
-        // Opt-3: inverted loop order. The outer loop walks FRAMES,
-        // not bands. Within a single frame, every band reads the
-        // SAME `build_frame_state` from `cache.frame_state` — so the
-        // 5 band calls become 5 cache hits instead of 5 rebuilds.
-        // Frame-state construction was ~30% of `render_body_band`
-        // CPU per the per-class profile; this collapses 4 of every
-        // 5 builds to a cheap Arc clone.
+
+        // Pass 1 — populate `body_subscene_cache` for every (frame,
+        // band) tuple we'll need. Sub-scenes are built with
+        // `transform = effective_xform`; path coords land in twip
+        // space, no `output_scale` dependency (compute filter path is
+        // `cfg`-off on wasm32). The cache key omits `scale`, so a
+        // zoom change reuses every entry.
+        //
+        // Loop order matches the legacy Opt-3 invariant — frame outer,
+        // band inner — so the per-bundle `RenderCache.frame_state`
+        // memo hits 4 of every 5 band calls on a cold population.
+        // On a warm cache this pass is pure HashMap lookups + skips.
         for slot in 0..chunk_count {
-            let frame_idx = chunk_start + slot;
+            let frame_idx = (chunk_start + slot) as u16;
+            for &band in band_ranges.iter() {
+                let key = BodySubsceneKey {
+                    bundle: bundle.to_string(),
+                    export: export.to_string(),
+                    apply_b_fix,
+                    hat_equipped,
+                    mode: mode_u8,
+                    frame_idx,
+                    band_lo: band.lo_exclusive,
+                    band_hi: band.hi_inclusive,
+                };
+                if self.body_subscene_cache.contains_key(&key) {
+                    continue;
+                }
+                let mut sub_scene = vello::Scene::new();
+                {
+                    let doc = self
+                        .swf_bundles
+                        .get(bundle)
+                        .expect("bundle vetted by caller");
+                    let symbol = doc
+                        .lookup_export(export)
+                        .expect("export vetted by caller");
+                    let (effective_sym, effective_xform) =
+                        swf_spike::render::find_effective_body_symbol(doc, symbol, 0);
+                    let filter_pipelines = self
+                        .swf_filter_pipelines
+                        .as_ref()
+                        .expect("init by caller");
+                    let cache: &swf_spike::render::cache::RenderCache = self
+                        .swf_render_caches
+                        .entry(bundle.to_string())
+                        .or_default();
+                    let mut wctx = swf_spike::render::WgpuCtx {
+                        device: &self.device,
+                        queue: &self.queue,
+                        renderer: &mut self.renderer,
+                        filter_pipelines,
+                        // Unused on wasm32 — the compute filter path
+                        // that reads `output_scale` is `cfg`-off; the
+                        // halo fallback emits pure twip path commands.
+                        output_scale: 1.0,
+                    };
+                    swf_spike::render::render_body_band(
+                        &mut wctx,
+                        doc,
+                        effective_sym,
+                        &mut sub_scene,
+                        effective_xform,
+                        frame_idx,
+                        band,
+                        mode,
+                        player_colors,
+                        cache,
+                        apply_b_fix,
+                        hat_equipped,
+                    );
+                }
+                self.body_subscene_cache.insert(key, sub_scene);
+            }
+        }
+
+        // Pass 2 — assemble the variant atlas scene. `scene.append`
+        // pre-multiplies its `Option<Affine>` over every transform in
+        // the child encoding, so applying `scale.then_translate(target)`
+        // here yields the exact same final transform as the legacy
+        // path (`scale.then_translate(target) * effective_xform`) —
+        // because `effective_xform` is already baked into the cached
+        // sub-scene's commands.
+        let mut scene = vello::Scene::new();
+        for slot in 0..chunk_count {
+            let frame_idx = (chunk_start + slot) as u16;
             let col = (slot as usize) % grid_cols;
             let row = (slot as usize) / grid_cols;
             let cell_x = (col * frame_w as usize) as f64;
-            for (slot_idx, &band) in band_ranges.iter().enumerate() {
+            for (band_idx, &band) in band_ranges.iter().enumerate() {
                 let band_atlas_y =
-                    (slot_idx as f64) * (f64::from(strip_h) + f64::from(BAND_PADDING_PX));
+                    (band_idx as f64) * (f64::from(strip_h) + f64::from(BAND_PADDING_PX));
                 let cell_y = band_atlas_y + (row * frame_h as usize) as f64;
-                let xform = vello::kurbo::Affine::scale(scale).then_translate(
+                let cell_xform = vello::kurbo::Affine::scale(scale).then_translate(
                     vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y + cell_y),
                 );
-                swf_spike::render::render_body_band(
-                    &mut wctx,
-                    doc,
-                    effective_sym,
-                    &mut scene,
-                    xform * effective_xform,
-                    frame_idx as u16,
-                    band,
-                    mode,
-                    player_colors,
-                    cache,
+                let key = BodySubsceneKey {
+                    bundle: bundle.to_string(),
+                    export: export.to_string(),
                     apply_b_fix,
                     hat_equipped,
-                );
+                    mode: mode_u8,
+                    frame_idx,
+                    band_lo: band.lo_exclusive,
+                    band_hi: band.hi_inclusive,
+                };
+                let sub_scene = self
+                    .body_subscene_cache
+                    .get(&key)
+                    .expect("ensured by Pass 1");
+                scene.append(sub_scene, Some(cell_xform));
             }
         }
         scene
@@ -6642,6 +6795,7 @@ impl VelloRenderer {
         let scene_count = self.tile_subscenes.len();
         let bundle_count = self.swf_render_caches.len();
         let body_scene_count = self.body_scene_cache.len();
+        let body_subscene_count = self.body_subscene_cache.len();
         let bytes_est = scene_count * SCENE_BYTES_ESTIMATE;
 
         let result = js_sys::Object::new();
@@ -6669,6 +6823,14 @@ impl VelloRenderer {
             &"bodySceneCacheCount".into(),
             &JsValue::from(body_scene_count as u32),
         );
+        // Phase 1c sub-scene cache size — scale-invariant per (frame,
+        // band, mode) sub-scenes. Steady-state ceiling is bounded by
+        // visible variants × frames × bands × modes, not by zoom level.
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"bodySubsceneCacheCount".into(),
+            &JsValue::from(body_subscene_count as u32),
+        );
         result.into()
     }
 
@@ -6690,5 +6852,6 @@ impl VelloRenderer {
         self.tile_subscenes.clear();
         self.swf_render_caches.clear();
         self.body_scene_cache.clear();
+        self.body_subscene_cache.clear();
     }
 }

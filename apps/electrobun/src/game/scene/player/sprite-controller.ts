@@ -24,7 +24,8 @@ export type OnAnimationApplied = (
   player: ActivePlayer,
   animation: CharacterAnimation,
   animName: string,
-  flipped: boolean
+  flipped: boolean,
+  prevAnimName: string
 ) => void;
 
 /**
@@ -214,8 +215,12 @@ export class PlayerSpriteController {
     // Same anim name (incl. flipped variant) — direction may have
     // changed but the underlying export hasn't. The post-tick walker
     // will pick up the new direction (placement.dirSuffix / bFix) on
-    // the next dispatch; nothing else to do.
-    if (player.currentAnimName === animName && player.currentAnimData) {
+    // the next dispatch; nothing else to do. NOTE: don't gate on
+    // `currentAnimData` — under the deferred-commit model it stays
+    // null until the strip-renderer COMMITS the first staging, so
+    // gating on it would re-trigger apply() spuriously during the
+    // staging window.
+    if (player.currentAnimName === animName) {
       return;
     }
 
@@ -340,23 +345,39 @@ export class PlayerSpriteController {
     animation: CharacterAnimation,
     animName: string
   ): void {
-    if (player.currentAnimName === animName && player.currentAnimData) {
+    if (player.currentAnimName === animName) {
       return;
     }
 
-    const prevBase = player.currentAnimName.replace(/[SRFLB]$/, "");
-    const nextBase = animName.replace(/[SRFLB]$/, "");
-    const sameCycle = prevBase === nextBase && prevBase !== "";
-    const nextFrameCount = animation.frameCount;
-
-    player.currentAnimData = animation;
+    const prevAnimName = player.currentAnimName;
     player.currentAnimName = animName;
-    if (sameCycle) {
-      player.frameIndex = player.frameIndex % Math.max(1, nextFrameCount);
-    } else {
-      player.frameIndex = 0;
-      player.frameTimer = 0;
+
+    if (player.isMounting) {
+      // Mounted path: applyMount overwrites currentAnimData to the
+      // mount's "_Back" half synchronously, so we must reset the cursor
+      // up front here — there's no deferred-commit hook for mounts.
+      const prevBase = prevAnimName.replace(/[SRFLB]$/, "");
+      const nextBase = animName.replace(/[SRFLB]$/, "");
+      const sameCycle = prevBase === nextBase && prevBase !== "";
+      if (sameCycle) {
+        player.frameIndex =
+          player.frameIndex % Math.max(1, animation.frameCount);
+      } else {
+        player.frameIndex = 0;
+        player.frameTimer = 0;
+      }
+      player.currentAnimData = animation;
     }
+    // Unmounted path: defer `currentAnimData` install + cursor reset to
+    // the strip-renderer commit (in renderer.ts's onApplied .then). During
+    // staging, `currentAnimData` keeps pointing at the OLD anim so
+    // `tickFrame` advances the cursor against the OLD anim's fc/fps —
+    // keeping the visible OLD strip ALIVE until the new strip lands.
+    // Without this, a walk → static transition would freeze the OLD strip
+    // on frame 0 because:
+    //   tickFrame: anim=static fc=1 → early-exits (no cursor advance)
+    //   swapFrame: variant=walk (still committed) → shows walk frame 0
+    // until the static strip commits ~50–500 ms later.
 
     if (player.placeholderGraphics) {
       player.container.removeChild(player.placeholderGraphics);
@@ -372,9 +393,16 @@ export class PlayerSpriteController {
 
     // Notify the strip renderer so it can dispatch a fresh Vello strip
     // for this anim and swap the player's Pixi sprite to the new
-    // pre-allocated frame array. Must fire after `currentAnimData` is
-    // set so frame-cursor sharing stays in lockstep.
-    this.onApplied?.(player, animation, animName, isDirectionFlipped(player.direction));
+    // pre-allocated frame array. Passes prevAnimName so the deferred-
+    // commit handler in renderer.ts can derive the transition base
+    // (sameCycle vs. cross-cycle vs. one-shot) for the cursor reset.
+    this.onApplied?.(
+      player,
+      animation,
+      animName,
+      isDirectionFlipped(player.direction),
+      prevAnimName,
+    );
   }
 
   private applyMount(player: ActivePlayer, animName: string): void {

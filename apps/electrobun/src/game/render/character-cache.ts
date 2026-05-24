@@ -59,6 +59,10 @@ import {
   type VelloSwfBodyBandInfo,
   type VelloSwfClassAtlasResult,
 } from "@/game/render/vello-loader";
+import {
+  getSharedInputAtlas,
+  type InputAtlasSlot,
+} from "@/game/render/shared-input-atlas";
 import { getStripBakeQueue } from "@/game/render/strip-bake-queue";
 import { createLogger } from "@/utils/logger";
 
@@ -154,11 +158,19 @@ export interface VariantInfo {
   silhouette?: Uint8Array;
 }
 
-/** One page of a class atlas — a single GPU texture + its dims. */
+/** One page of a class atlas — a single GPU texture + its dims.
+ *
+ *  `inputAtlasSlot` is set when the page's `combinedTexture` is a
+ *  sub-rect of a `SharedInputAtlas` super page (the post-Path-1
+ *  per-variant routing — many variants share the same super page so
+ *  `BodyBandBatch` keys collapse). When set, `combinedTexture` MUST
+ *  NOT be destroyed on retire (it's shared). When unset, the page
+ *  owns its texture and retire destroys it. */
 export interface ClassAtlasPage {
   readonly combinedTexture: Texture;
   readonly atlasWidth: number;
   readonly atlasHeight: number;
+  readonly inputAtlasSlot?: InputAtlasSlot;
 }
 
 /**
@@ -288,20 +300,9 @@ function singleVariantAtlasKey(
   return `var|${bundle}|${exportName}|${applyBFix ? 1 : 0}|${hatEquipped ? 1 : 0}|${Math.round(resolution * 1000)}`;
 }
 
-/**
- * Common-anim predicate — mirrors the Rust-side
- * `is_character_anim_name` filter. Class atlas only enumerates
- * static/walk/run for memory/perf reasons; everything else routes
- * through the per-variant fallback (`renderSwfBodyAtlas` wrapped as
- * a 1-page, 1-variant ClassAtlas).
- */
-function isCommonAnim(exportName: string): boolean {
-  return (
-    exportName.startsWith("static") ||
-    exportName.startsWith("walk") ||
-    exportName.startsWith("run")
-  );
-}
+// `isCommonAnim` removed: previously routed static/walk/run to the
+// shared class atlas (24 variants per call). Per-variant bake is now
+// the primary path for every animation — see `acquireVariantAtlas`.
 
 /** Key for variant lookup inside a class atlas. */
 export function variantKey(
@@ -432,6 +433,29 @@ class CharacterCache {
   private accBytes = 0;
   private capBytes = DEFAULT_BYTES_CAP;
 
+  // ── Acquire-lifecycle diagnostics ──────────────────────────────
+  /** Total entries into `acquireSingleVariantAtlas`. */
+  private diagAcqCalls = 0;
+  /** Calls that hit an already-installed atlas (sync onReady with
+   *  a non-null atlas). */
+  private diagAcqHitDeliver = 0;
+  /** Calls that piggybacked on an in-flight bake (no immediate
+   *  delivery — onReady fires later in `finalizeSingleVariantBake`). */
+  private diagAcqDedup = 0;
+  /** Calls that started a fresh bake (no prior cache hit, no in-flight
+   *  bake to dedup with). */
+  private diagAcqDispatch = 0;
+  /** `finalizeSingleVariantBake` deliveries with a non-null atlas. */
+  private diagAcqFinalDeliver = 0;
+  /** `finalizeSingleVariantBake` deliveries with `null` (bake failed
+   *  OR — the bug we're hunting — bake succeeded but every
+   *  registered callback's `isWanted` returned false at land time). */
+  private diagAcqFinalNullDeliver = 0;
+  /** `finalizeSingleVariantBake` callbacks dropped without invocation
+   *  (the contract violation in the no-live-wants branch). MUST be 0
+   *  once fixed. */
+  private diagAcqDroppedCallbacks = 0;
+
   private ensureTickerInstalled(): void {
     if (this.tickerInstalled) return;
     this.tickerInstalled = true;
@@ -474,13 +498,18 @@ class CharacterCache {
   /**
    * Acquire a `ClassAtlas` that contains the variant for `exportName`.
    *
-   * For common anims (static/walk/run) this routes to the shared
-   * class atlas (one big atlas per bundle, every static/walk/run
-   * variant baked in one Rust call). For rare anims (die/cast/hit/
-   * etc.) this routes to a per-variant fallback: a 1-page, 1-variant
-   * `ClassAtlas` baked via `renderSwfBodyAtlas`. The renderer treats
-   * both shapes identically — it just looks up `getVariant` on the
-   * returned atlas.
+   * Demand-driven: bakes exactly the one variant requested, even for
+   * common anims (static/walk/run). The previous architecture batched
+   * 24 variants per class into one shared atlas to amortize the per-
+   * variant overhead, but that meant every zoom rebuild rasterized
+   * ~30k sub-renders across the roster when bots actually display
+   * 20–50 distinct (class, variant) tuples at any instant. Per-variant
+   * + the existing cache dedup matches GPU work to on-screen demand
+   * 1:1.
+   *
+   * `acquireSingleVariantAtlas` produces a 1-page, 1-variant ClassAtlas
+   * via `renderSwfBodyAtlas`; the renderer is shape-agnostic and looks
+   * up `getVariant` identically on either form.
    */
   acquireVariantAtlas(
     bundle: string,
@@ -493,10 +522,6 @@ class CharacterCache {
     isWanted: () => boolean,
     priority: "high" | "low" = "high",
   ): void {
-    if (isCommonAnim(exportName)) {
-      this.acquireClassAtlas(bundle, resolution, onReady, isWanted, priority);
-      return;
-    }
     this.acquireSingleVariantAtlas(
       bundle,
       exportName,
@@ -663,10 +688,12 @@ class CharacterCache {
       normHat,
       resolution,
     );
+    this.diagAcqCalls += 1;
     const existing = this.classAtlasEntries.get(key);
     if (existing) {
       existing.refcount += 1;
       this.hits += 1;
+      this.diagAcqHitDeliver += 1;
       onReady(existing);
       return;
     }
@@ -674,8 +701,10 @@ class CharacterCache {
     const pending = this.classAtlasBakes.get(key);
     if (pending) {
       pending.callbacks.push({ onReady, isWanted });
+      this.diagAcqDedup += 1;
       return;
     }
+    this.diagAcqDispatch += 1;
     this.classAtlasBakes.set(key, {
       enqueuedAt: performance.now(),
       callbacks: [{ onReady, isWanted }],
@@ -729,10 +758,17 @@ class CharacterCache {
     if (!pending) return;
     const liveCbs = pending.callbacks.filter((c) => c.isWanted());
     if (!result) {
+      this.diagAcqFinalNullDeliver += pending.callbacks.length;
       for (const cb of pending.callbacks) cb.onReady(null);
       return;
     }
     if (liveCbs.length === 0) {
+      // CONTRACT-VIOLATION CANDIDATE (under investigation):
+      // bake succeeded but every callback's isWanted() returned false
+      // at land time. Counting dropped callbacks so we can confirm
+      // this is the root cause of "moving without animations" bots
+      // before patching to fire onReady(null) here.
+      this.diagAcqDroppedCallbacks += pending.callbacks.length;
       try {
         result.combinedBitmap.close();
       } catch {}
@@ -757,6 +793,8 @@ class CharacterCache {
     );
     this.classAtlasEntries.set(key, atlas);
     this.classAtlasBytes += atlas.bytesEst;
+    this.diagAcqFinalDeliver += liveCbs.length;
+    this.diagAcqFinalNullDeliver += pending.callbacks.length - liveCbs.length;
     for (const cb of liveCbs) {
       atlas.refcount += 1;
       cb.onReady(atlas);
@@ -777,12 +815,47 @@ class CharacterCache {
     resolution: number,
     r: VelloSwfBodyAtlasResult,
   ): ClassAtlas {
-    const combinedTexture = this.buildPixiTextureFromBitmap(r.combinedBitmap, key);
+    // Path 1: try to land into the SharedInputAtlas so this variant's
+    // BodyBandBatch shares a source texture with other variants on
+    // the same page. Collapses ~500 batches → ~25.
+    //
+    // Falls back to a dedicated per-variant texture if (a) the
+    // variant is larger than a single super page or (b) we've hit
+    // the page cap. In both cases the legacy retire path will
+    // destroy the texture; in the super-atlas path we free the slot
+    // instead (see `scheduleRetireClassAtlas`).
+    const superAlloc = getSharedInputAtlas().allocSlot(
+      r.atlasWidth,
+      r.atlasHeight,
+    );
+    let combinedTexture: Texture;
+    let pageAtlasWidth: number;
+    let pageAtlasHeight: number;
+    let slotOffsetX = 0;
+    let slotOffsetY = 0;
+    let pageInputSlot: InputAtlasSlot | undefined;
+    if (superAlloc) {
+      getSharedInputAtlas().blitBitmap(superAlloc, r.combinedBitmap);
+      combinedTexture = superAlloc.texture;
+      pageAtlasWidth = superAlloc.pageWidth;
+      pageAtlasHeight = superAlloc.pageHeight;
+      slotOffsetX = superAlloc.slot.x;
+      slotOffsetY = superAlloc.slot.y;
+      pageInputSlot = superAlloc.slot;
+    } else {
+      combinedTexture = this.buildPixiTextureFromBitmap(
+        r.combinedBitmap,
+        key,
+      );
+      pageAtlasWidth = r.atlasWidth;
+      pageAtlasHeight = r.atlasHeight;
+    }
     const pages: ClassAtlasPage[] = [
       {
         combinedTexture,
-        atlasWidth: r.atlasWidth,
-        atlasHeight: r.atlasHeight,
+        atlasWidth: pageAtlasWidth,
+        atlasHeight: pageAtlasHeight,
+        inputAtlasSlot: pageInputSlot,
       },
     ];
     const variants = new Map<string, VariantInfo>();
@@ -803,10 +876,15 @@ class CharacterCache {
       bandPadding: r.bandPadding,
       bandCount: r.bandCount,
       slotCount: r.slotCount,
+      // Pre-offset band coords to super-page coordinate space when
+      // we landed into the shared input atlas. `computeBandFrameUV`
+      // normalises against `atlasDimsForVariant` which returns
+      // `pageAtlasWidth/Height` — the page dims (super-page when
+      // backed, variant-local when not), so this stays consistent.
       bands: r.bands.map((b) => ({
         bandIndex: b.bandIndex,
-        atlasX: b.atlasX,
-        atlasY: b.atlasY,
+        atlasX: b.atlasX + slotOffsetX,
+        atlasY: b.atlasY + slotOffsetY,
       })),
     };
     // Single-variant atlas exposes the requested variant under
@@ -996,6 +1074,38 @@ class CharacterCache {
     };
   }
 
+  /** Acquire-lifecycle counters — surface contract violations
+   *  (`dropped > 0` ⇒ a bake completed but none of its callbacks were
+   *  fired). Also exposes in-flight bake count so we can spot
+   *  pipeline backpressure. */
+  getAcquireStats(): {
+    calls: number;
+    hitDeliver: number;
+    dedup: number;
+    dispatch: number;
+    finalDeliver: number;
+    finalNullDeliver: number;
+    droppedCallbacks: number;
+    inflightBakes: number;
+    inflightCallbacks: number;
+  } {
+    let inflightCallbacks = 0;
+    for (const pending of this.classAtlasBakes.values()) {
+      inflightCallbacks += pending.callbacks.length;
+    }
+    return {
+      calls: this.diagAcqCalls,
+      hitDeliver: this.diagAcqHitDeliver,
+      dedup: this.diagAcqDedup,
+      dispatch: this.diagAcqDispatch,
+      finalDeliver: this.diagAcqFinalDeliver,
+      finalNullDeliver: this.diagAcqFinalNullDeliver,
+      droppedCallbacks: this.diagAcqDroppedCallbacks,
+      inflightBakes: this.classAtlasBakes.size,
+      inflightCallbacks,
+    };
+  }
+
   /**
    * Tick the retire queue + the patched-fork's deferred-destroy
    * queue. Call once per Pixi ticker tick.
@@ -1095,10 +1205,46 @@ class CharacterCache {
     );
     const wrapMs = performance.now() - wrapStart;
     const totalWallMs = performance.now() - pending.enqueuedAt;
-    log.info(
-      `classAtlasWall bundle=${bundle} vars=${result.variants.length} pages=${result.pages.length} ` +
-        `wall=${totalWallMs.toFixed(1)} wrap=${wrapMs.toFixed(1)} bytesEst=${(atlas.bytesEst / 1024 / 1024).toFixed(1)}MB`,
-    );
+    // Path 2 instrumentation: dump per-phase timing so we can
+    // attribute the hidden bake latency. `bake` = Rust render,
+    // `pageAlpha` = OffscreenCanvas getImageData per page (GPU
+    // readback), `silhouette` = per-variant JS iteration, `transit`
+    // = worker→main postMessage incl. ImageBitmap+ArrayBuffer
+    // structured-transfer, `wrap` = main-thread Pixi adoption,
+    // `wall` = enqueue→delivery (includes time spent waiting in
+    // the worker's FIFO queue behind earlier bakes).
+    const wt = (
+      result as unknown as {
+        _workerTimings?: {
+          bakeMs?: number;
+          pageAlphaMs?: number;
+          silhouetteMs?: number;
+          transitMs?: number;
+          variantCount?: number;
+          pageSizes?: Array<{ w: number; h: number }>;
+        };
+      }
+    )._workerTimings;
+    if (wt) {
+      const pageSizes = (wt.pageSizes ?? [])
+        .map((s) => `${s.w}x${s.h}`)
+        .join(",");
+      log.info(
+        `bakeTrace bundle=${bundle} ` +
+          `bake=${(wt.bakeMs ?? 0).toFixed(1)} ` +
+          `pageAlpha=${(wt.pageAlphaMs ?? 0).toFixed(1)} ` +
+          `silhouette=${(wt.silhouetteMs ?? 0).toFixed(1)} ` +
+          `transit=${(wt.transitMs ?? 0).toFixed(1)} ` +
+          `wrap=${wrapMs.toFixed(1)} ` +
+          `wall=${totalWallMs.toFixed(1)} ` +
+          `vars=${wt.variantCount ?? "?"} pages=${pageSizes}`,
+      );
+    } else {
+      log.info(
+        `classAtlasWall bundle=${bundle} vars=${result.variants.length} pages=${result.pages.length} ` +
+          `wall=${totalWallMs.toFixed(1)} wrap=${wrapMs.toFixed(1)} bytesEst=${(atlas.bytesEst / 1024 / 1024).toFixed(1)}MB`,
+      );
+    }
     this.classAtlasEntries.set(key, atlas);
     this.classAtlasBytes += atlas.bytesEst;
     for (const cb of liveCbs) {
@@ -1181,11 +1327,20 @@ class CharacterCache {
       pageAlphaCache[pageIndex] = alpha;
       return alpha;
     };
-    // CRITICAL ordering: any page-alpha extraction MUST happen before
-    // `buildPixiTextureFromBitmap` closes the bitmap. With the worker
-    // pre-extracting silhouettes we can move uploads up; otherwise
-    // we must eagerly extract every page's alpha first.
-    if (!allVariantsHaveSilhouette) {
+    // Path 2: when worker-side silhouettes are disabled (the new
+    // default — see `bake-worker.ts` `EXTRACT_SILHOUETTES`), DO NOT
+    // fall back to main-thread `getPageAlpha` here. The fallback
+    // existed for legacy compatibility but performs the same 256MB
+    // GPU→CPU `getImageData` readback that motivated skipping
+    // silhouettes in the first place; doing it on the main thread
+    // blocks the render loop instead of the worker, which is worse.
+    //
+    // Picking degrades to AABB via `player-strip-renderer-v2.ts:735`
+    // until the hover-poll GPU picker lands. Re-enable this block
+    // (and the worker-side equivalent) once an on-demand
+    // alpha-readback path is wired into `PickingSystem`.
+    const EAGER_SILHOUETTE_FALLBACK = false;
+    if (EAGER_SILHOUETTE_FALLBACK && !allVariantsHaveSilhouette) {
       for (let i = 0; i < r.pages.length; i++) {
         getPageAlpha(i);
       }
@@ -1216,15 +1371,18 @@ class CharacterCache {
     const variants = new Map<string, VariantInfo>();
     for (const v of r.variants) {
       const page = r.pages[v.pageIndex];
-      // Prefer the worker-baked silhouette when present (zero
-      // main-thread cost). Fall back to on-demand extraction from
-      // the cached page alpha for legacy / fallback paths.
+      // Path 2: silhouette is only present if the worker pre-baked it
+      // (worker-side `EXTRACT_SILHOUETTES` flag). The lazy fallback
+      // through `getPageAlpha` is gated by `EAGER_SILHOUETTE_FALLBACK`
+      // above; when off, leave silhouette undefined and let the picker
+      // use AABB. Avoids touching the bitmap on this path so its
+      // Pixi adoption stays cheap.
       const preBakedSil = (v as unknown as { silhouette?: Uint8Array })
         .silhouette;
       let silhouette: Uint8Array | undefined;
       if (preBakedSil instanceof Uint8Array) {
         silhouette = preBakedSil;
-      } else if (page) {
+      } else if (EAGER_SILHOUETTE_FALLBACK && page) {
         const pageAlpha = getPageAlpha(v.pageIndex);
         silhouette = pageAlpha
           ? buildVariantSilhouette(
@@ -1409,12 +1567,31 @@ class CharacterCache {
   }
 
   private scheduleRetireClassAtlas(entry: ClassAtlas): void {
-    // `Texture.destroy(true)` cascades into each page's ImageSource
-    // and frees Pixi's uploaded GPUTexture. Rust-side temp textures
-    // were dropped at end of the bake call and queued into the
-    // wgpu deferred_destroy queue for VRAM release.
+    // Two retire paths depending on whether the page is backed by
+    // the SharedInputAtlas (Path 1 batch-merging).
+    //
+    //  - Super-atlas-backed page: `combinedTexture` is a shared
+    //    super-page RT. We MUST NOT destroy it — other variants on
+    //    the same page would lose their backing. Instead free the
+    //    slot back to the super atlas so its tracker decrements.
+    //
+    //  - Standalone page (fallback when super alloc failed or the
+    //    legacy class-atlas wrap path is used): `combinedTexture` is
+    //    a dedicated per-page texture. Destroy it as before.
+    //
+    // Rust-side temp textures are dropped at end of the bake call and
+    // queued into the wgpu deferred_destroy queue for VRAM release.
+    const superAtlas = getSharedInputAtlas();
+    const destroyTextures: Texture[] = [];
+    for (const page of entry.pages) {
+      if (page.inputAtlasSlot) {
+        superAtlas.freeSlot(page.inputAtlasSlot);
+      } else {
+        destroyTextures.push(page.combinedTexture);
+      }
+    }
     this.retireQueue.push({
-      destroyTextures: entry.pages.map((p) => p.combinedTexture),
+      destroyTextures,
       closeBitmaps: [],
       ticksRemaining: RETIRE_TICKS,
     });

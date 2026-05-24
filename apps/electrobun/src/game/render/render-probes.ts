@@ -40,6 +40,13 @@ const counters = {
   bakeDrain: blank(),
   /** `PlayerStripRendererV2.composeBot` wall time per call. */
   composeBot: blank(),
+  /** Sub-phase of composeBot: JS iterate + per-batch GPU buffer
+   *  upload (`BodyBandBatch.flush`). Scales with batch count. */
+  composeFlush: blank(),
+  /** Sub-phase of composeBot: `pixiRenderer.render` dispatch per
+   *  page. Scales with per-batch instanced draw cost (one draw per
+   *  batch per page) — i.e. with total batch count. */
+  composeRender: blank(),
 };
 
 export type ProbeKey = keyof typeof counters;
@@ -63,6 +70,8 @@ export function readAndResetProbes(): ProbeSnapshot {
     mountTransforms: { ...counters.mountTransforms },
     bakeDrain: { ...counters.bakeDrain },
     composeBot: { ...counters.composeBot },
+    composeFlush: { ...counters.composeFlush },
+    composeRender: { ...counters.composeRender },
   };
   for (const k in counters) {
     const c = counters[k as ProbeKey];

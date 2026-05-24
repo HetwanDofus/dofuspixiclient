@@ -161,8 +161,24 @@ function buildVariantSilhouetteInWorker(
   return out;
 }
 
+/**
+ * Path 2 finding: pageAlpha (OffscreenCanvas getImageData over 8192²+
+ * atlas pages) costs 200–1000ms per bake at high zoom — 5–25× the
+ * actual Vello render. It exists to feed pixel-perfect silhouette
+ * picking, but `player-strip-renderer-v2.ts:735` already falls back
+ * to AABB when `variant.silhouette` is undefined. Stress test &
+ * gameplay-critical interactions all tolerate AABB; we trade pixel-
+ * perfect picking for ~10× faster zoom rebakes.
+ *
+ * Set to `true` to restore pre-Path-2 behavior (slow but pixel-
+ * accurate). The right long-term fix is GPU-side silhouette sampling
+ * at pick time, not full atlas readback at bake time.
+ */
+const EXTRACT_SILHOUETTES = false;
+
 function handleBake(msg: BakeWorkerBakeMsg): void {
   if (!renderer) throw new Error("bake-worker: not initialised");
+  const t0 = performance.now();
   // `renderSwfClassAtlas` returns a JsValue object; the runtime
   // surface is `{ pages: [{ combinedBitmap: ImageBitmap, ... }, ...], variants: [...] }`.
   // We forward it as-is; the main thread types this as
@@ -173,6 +189,7 @@ function handleBake(msg: BakeWorkerBakeMsg): void {
       renderSwfClassAtlas: (b: string, r: number) => unknown;
     }
   ).renderSwfClassAtlas(msg.bundle, msg.resolution);
+  const t1 = performance.now();
   if (!result) {
     workerSelf.postMessage({
       type: "bakeResult",
@@ -196,27 +213,40 @@ function handleBake(msg: BakeWorkerBakeMsg): void {
   }>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const variants = (result.variants ?? []) as Array<any>;
-  const pageAlphas: (Uint8Array | null)[] = pages.map((p) =>
-    extractPageAlphaInWorker(p.combinedBitmap, p.atlasWidth, p.atlasHeight),
-  );
   const silhouetteBuffers: ArrayBufferLike[] = [];
-  for (const v of variants) {
-    const pageAlpha = pageAlphas[v.pageIndex];
-    const page = pages[v.pageIndex];
-    if (!pageAlpha || !page) {
-      v.silhouette = undefined;
-      continue;
-    }
-    const sil = buildVariantSilhouetteInWorker(
-      pageAlpha,
-      page.atlasWidth,
-      page.atlasHeight,
-      v.frameWidth,
-      v.frameHeight,
-      v.bands,
+  let t2 = t1;
+  let t3 = t1;
+  if (EXTRACT_SILHOUETTES) {
+    const pageAlphas: (Uint8Array | null)[] = pages.map((p) =>
+      extractPageAlphaInWorker(p.combinedBitmap, p.atlasWidth, p.atlasHeight),
     );
-    v.silhouette = sil;
-    silhouetteBuffers.push(sil.buffer);
+    t2 = performance.now();
+    for (const v of variants) {
+      const pageAlpha = pageAlphas[v.pageIndex];
+      const page = pages[v.pageIndex];
+      if (!pageAlpha || !page) {
+        v.silhouette = undefined;
+        continue;
+      }
+      const sil = buildVariantSilhouetteInWorker(
+        pageAlpha,
+        page.atlasWidth,
+        page.atlasHeight,
+        v.frameWidth,
+        v.frameHeight,
+        v.bands,
+      );
+      v.silhouette = sil;
+      silhouetteBuffers.push(sil.buffer);
+    }
+    t3 = performance.now();
+  } else {
+    // Explicit assignment so downstream code knows silhouette is
+    // intentionally absent (vs. extraction-failed). `player-strip-
+    // renderer-v2.ts:735` reads this and falls back to AABB.
+    for (const v of variants) {
+      v.silhouette = undefined;
+    }
   }
   // Collect ImageBitmaps to transfer (zero-copy across the worker boundary).
   const transferables: Transferable[] = pages
@@ -229,6 +259,28 @@ function handleBake(msg: BakeWorkerBakeMsg): void {
   for (const buf of silhouetteBuffers) {
     transferables.push(buf as Transferable);
   }
+  // Path 2 instrumentation: attach per-phase timing so the main
+  // thread can attribute the hidden 100ms/bake latency. Page sizes
+  // included so we can correlate cost with atlas dims.
+  //
+  // Use `performance.timeOrigin + performance.now()` to get an
+  // absolute wall-clock timestamp comparable across the worker
+  // and main thread — raw `performance.now()` is monotonic from
+  // each context's own origin, so subtracting cross-context yields
+  // the (constant) origin offset, not the transit time.
+  const pageSizes = pages.map((p) => ({
+    w: p.atlasWidth,
+    h: p.atlasHeight,
+  }));
+  result._workerTimings = {
+    bakeMs: t1 - t0,
+    pageAlphaMs: t2 - t1,
+    silhouetteMs: t3 - t2,
+    bundle: msg.bundle,
+    variantCount: variants.length,
+    pageSizes,
+    postPostedAt: performance.timeOrigin + performance.now(),
+  };
   workerSelf.postMessage(
     {
       type: "bakeResult",

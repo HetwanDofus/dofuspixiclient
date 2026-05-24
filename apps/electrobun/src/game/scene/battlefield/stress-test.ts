@@ -33,7 +33,10 @@ import type { CellData } from "@/game/datacenter/cell";
 import type { PlayerRenderer } from "@/game/scene/player/renderer";
 import { getRenderWatchdog } from "@/game/render/render-watchdog";
 import { getCharacterCache } from "@/game/render/character-cache";
-import { getActivePlayerStripRendererStats } from "@/game/render/player-strip-renderer-v2";
+import {
+  getActivePlayerStripRendererAnimDiagnostics,
+  getActivePlayerStripRendererStats,
+} from "@/game/render/player-strip-renderer-v2";
 import {
   type ProbeKey,
   readAndResetProbes,
@@ -439,7 +442,9 @@ function logMonitorSnapshot(): void {
   })();
   const bakeQueue = getStripBakeQueue().getStats();
   const charCache = getCharacterCache().getStats();
+  const acquireStats = getCharacterCache().getAcquireStats();
   const stripStats = getActivePlayerStripRendererStats();
+  const animDiag = getActivePlayerStripRendererAnimDiagnostics();
   const cacheTotal = charCache.classAtlasBytes + charCache.accBytes;
   const cacheReqs = charCache.hits + charCache.misses;
   const hitRate = cacheReqs > 0 ? (charCache.hits / cacheReqs) * 100 : 0;
@@ -632,6 +637,8 @@ function logMonitorSnapshot(): void {
       mountTransforms: packProbe(probes.mountTransforms),
       bakeDrain: packProbe(probes.bakeDrain),
       composeBot: packProbe(probes.composeBot),
+      composeFlush: packProbe(probes.composeFlush),
+      composeRender: packProbe(probes.composeRender),
     },
     /**
      * Shared composition atlas pressure. After the Phase-5 refactor
@@ -740,8 +747,22 @@ function logMonitorSnapshot(): void {
     // ms-per-frame so they can be compared directly with the 16.67 ms
     // frame budget + `ticker avg`. See `RENDER_BAKE_PLAN.md`.
     `  bakeCost: class=${probes.classAtlas.count}×avg=${fmt(probes.classAtlas.count > 0 ? probes.classAtlas.totalMs / probes.classAtlas.count : 0, 2)}ms max=${fmt(probes.classAtlas.maxMs, 2)}ms  acc=${probes.accessoryStrip.count}×avg=${fmt(probes.accessoryStrip.count > 0 ? probes.accessoryStrip.totalMs / probes.accessoryStrip.count : 0, 2)}ms  mnt=${probes.mountTransforms.count}×avg=${fmt(probes.mountTransforms.count > 0 ? probes.mountTransforms.totalMs / probes.mountTransforms.count : 0, 2)}ms`,
-    `  frameCost: drain ${probes.bakeDrain.count}× ${fmt(frames > 0 ? probes.bakeDrain.totalMs / frames : 0, 2)}ms/f (max=${fmt(probes.bakeDrain.maxMs, 2)}ms)  compose ${probes.composeBot.count}× ${fmt(frames > 0 ? probes.composeBot.totalMs / frames : 0, 2)}ms/f (max=${fmt(probes.composeBot.maxMs, 2)}ms)`,
+    `  frameCost: drain ${probes.bakeDrain.count}× ${fmt(frames > 0 ? probes.bakeDrain.totalMs / frames : 0, 2)}ms/f (max=${fmt(probes.bakeDrain.maxMs, 2)}ms)  compose ${probes.composeBot.count}× ${fmt(frames > 0 ? probes.composeBot.totalMs / frames : 0, 2)}ms/f (max=${fmt(probes.composeBot.maxMs, 2)}ms) [flush ${fmt(frames > 0 ? probes.composeFlush.totalMs / frames : 0, 2)}ms/f / render ${fmt(frames > 0 ? probes.composeRender.totalMs / frames : 0, 2)}ms/f]`,
     `  atlas: ${stripStats ? `${stripStats.atlas.slotsUsed}/${stripStats.atlas.slotsCapacity} slots, ${stripStats.atlas.batchCount} batches, ${stripStats.atlas.pageCount} pages` : "(no renderer)"}`,
+    `  anim: ${animDiag ? `slots=${animDiag.totalSlots} stuck=${animDiag.frameStuckCount} variantMissing=${animDiag.variantMissingCount}` : "(no renderer)"}`,
+    ...(animDiag && animDiag.frameStuckSamples.length > 0
+      ? animDiag.frameStuckSamples.map(
+          (s) =>
+            `    stuck.${s.playerId}.${s.slotKey}: anim=${s.animKey} fc=${s.fc} stuckTicks=${s.stuckTicks} animReady=${s.animReady} moving=${s.moving} frameIdx=${s.frameIndex} frameTimer=${s.frameTimer.toFixed(3)}`,
+        )
+      : []),
+    ...(animDiag && animDiag.variantMissingSamples.length > 0
+      ? animDiag.variantMissingSamples.map(
+          (s) =>
+            `    missVariant.${s.playerId}.${s.slotKey}: anim=${s.animKey} missingTicks=${s.missingTicks}`,
+        )
+      : []),
+    `  acq: calls=${acquireStats.calls} hitDeliver=${acquireStats.hitDeliver} dedup=${acquireStats.dedup} dispatch=${acquireStats.dispatch} finalDeliver=${acquireStats.finalDeliver} finalNull=${acquireStats.finalNullDeliver} DROPPED=${acquireStats.droppedCallbacks} inflight=${acquireStats.inflightBakes}(${acquireStats.inflightCallbacks}cb)`,
     `  char: class=${charCache.classAtlasEntries}(${fmt(charCache.classAtlasBytes / 1024 / 1024, 1)}MB) acc=${charCache.accEntries}(${fmt(charCache.accBytes / 1024 / 1024, 1)}MB) mnt=${charCache.mountEntries} total=${fmt(cacheTotal / 1024 / 1024, 1)}MB hit%=${fmt(hitRate, 1)} (hits=${charCache.hits} miss=${charCache.misses} evict=${charCache.evicts})`,
     `  path: bundleCache=${fmtPc(pc?.bundleCacheCount)} sceneCache=${fmtPc(pc?.sceneCacheCount)} bodyScene=${fmtPc(pc?.bodySceneCacheCount)}/1500 sceneBytes≈${fmtPc(pc?.sceneBytesEstimate ? pc.sceneBytesEstimate / 1024 : null, 0)}KB`,
     `  rust: textures=${rustTexCount}  wasm.heap=${fmt(wasmHeapBytes / 1024 / 1024, 1)}MB  liveTex=${fmt(rustBytes.liveTex / 1024 / 1024, 1)}MB  liveBuf=${fmt(rustBytes.liveBuf / 1024 / 1024, 1)}MB  createdTex=${fmt(rustBytes.createdTex / 1024 / 1024, 1)}MB  destroyedTex=${fmt(rustBytes.destroyedTex / 1024 / 1024, 1)}MB`,
@@ -797,6 +818,8 @@ function buildEmptySnapshot() {
       mountTransforms: { count: 0, totalMs: 0, maxMs: 0, avgMs: 0, perFrameMs: 0 },
       bakeDrain: { count: 0, totalMs: 0, maxMs: 0, avgMs: 0, perFrameMs: 0 },
       composeBot: { count: 0, totalMs: 0, maxMs: 0, avgMs: 0, perFrameMs: 0 },
+      composeFlush: { count: 0, totalMs: 0, maxMs: 0, avgMs: 0, perFrameMs: 0 },
+      composeRender: { count: 0, totalMs: 0, maxMs: 0, avgMs: 0, perFrameMs: 0 },
     },
     atlas: null as {
       slotsUsed: number;

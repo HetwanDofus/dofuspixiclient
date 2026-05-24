@@ -33,26 +33,20 @@ import { getRenderWatchdog } from "./render-watchdog";
 async function initBakeWorkerPool(wasmUrl?: string): Promise<void> {
   try {
     const mod = await import("./bake-worker-pool");
-    const hwc = (navigator as Navigator).hardwareConcurrency ?? 4;
-    // Pool size = `hwc - 1`, leaving one core for the main thread
-    // (Pixi GPU dispatch + React + game logic). Capped at 8: on
-    // Apple Silicon, `hardwareConcurrency` flattens P + E cores into
-    // one count, but E-core workers run ~3× slower at WASM encoding
-    // — past the P-core count, marginal workers don't speed up the
-    // slowest-worker-wins critical path AND start contending on the
-    // shared GPU's command queue. Mac Pro / future Ultra chips with
-    // 20+ logical cores cap here too: GPU saturation, not CPU, is
-    // the ceiling.
+    // Pool size = 1. Each worker owns its own `VelloRenderer` and
+    // thus its own `body_subscene_cache` (vello-wasm/src/lib.rs).
+    // Round-robin dispatch (`bake-worker-pool.ts:92`) means a zoom-
+    // induced rebake lands on a different worker than the original
+    // bake → ~7/8 cache miss rate at pool=8. Capping to 1 keeps the
+    // sub-scene cache effective across resolution changes: every
+    // rebake hits the same worker's warm cache and the scene-build
+    // step (~75 ms) collapses to a memcpy append (~5 ms).
     //
-    // Concurrency-budget reasoning (for maps + monsters): workers
-    // are idle 95%+ of the time after the initial warmup — they fire
-    // only on class-atlas cache MISS, which is rare during normal
-    // play. Map loading runs on the MAIN thread's Vello (workers
-    // don't touch it). Monster anim ticks are main-thread Pixi work;
-    // monsters only wake workers if their class wasn't already baked
-    // for the player/bots. So bumping pool size mostly helps the
-    // initial-warmup burst, not steady-state play.
-    const size = Math.max(1, Math.min(8, hwc - 1));
+    // Trade-off: serial CPU encoding on the cold-spawn path. The
+    // `prewarmCharacterClassAtlases` sweep called from the
+    // battlefield bootstrap pays this cost upfront, behind the
+    // loading screen, so steady-state play never sees it.
+    const size = 1;
     // Pass through whatever URL the main thread used (if any). If
     // `wasmUrl` is undefined, the worker's `wasmInit()` will resolve
     // the WASM module relative to its own `import.meta.url` — which is

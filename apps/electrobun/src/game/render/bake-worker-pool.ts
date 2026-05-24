@@ -114,6 +114,32 @@ class BakeWorkerPool {
             const cb = this.pendingBakes.get(msg.reqId);
             if (cb) {
               this.pendingBakes.delete(msg.reqId);
+              // Path 2 instrumentation: stamp the receive time and
+              // compute transit (worker→main postMessage cost).
+              // The worker stamped `_workerTimings.postPostedAt`
+              // just before postMessage; the diff is the transit
+              // cost which includes ImageBitmap+ArrayBuffer
+              // structured-clone-and-transfer.
+              const r = msg.result as unknown as
+                | { _workerTimings?: { postPostedAt?: number } }
+                | null;
+              if (r && r._workerTimings) {
+                const wt = r._workerTimings as {
+                  postPostedAt?: number;
+                  transitMs?: number;
+                  mainReceivedAt?: number;
+                };
+                // Worker stamps postPostedAt in absolute wall-clock
+                // (timeOrigin + perf.now()); we compare against the
+                // same scale here so the diff is real transit, not
+                // the cross-context perf.now() origin offset.
+                const recv = performance.timeOrigin + performance.now();
+                wt.transitMs =
+                  typeof wt.postPostedAt === "number"
+                    ? recv - wt.postPostedAt
+                    : undefined;
+                wt.mainReceivedAt = recv;
+              }
               cb.resolve(msg.result);
             }
             return;

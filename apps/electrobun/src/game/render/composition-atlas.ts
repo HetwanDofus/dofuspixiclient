@@ -156,6 +156,21 @@ class CompositionSlotAllocator {
 }
 
 /**
+ * Per-phase timings from `SharedCompositionAtlas.renderAll`. Exposed
+ * so the renderer's `composeBot` probe can attribute cost. `flushMs`
+ * is JS-side iteration + per-batch GPU buffer upload; `renderMs` is
+ * the `pixiRenderer.render` dispatch (one per rendered page, with
+ * one instanced draw per batch inside).
+ */
+export interface RenderAllTimings {
+  flushMs: number;
+  renderMs: number;
+  renderedPages: number;
+  totalBatches: number;
+  dirtyBatches: number;
+}
+
+/**
  * One 4096² atlas page. Self-contained: its own GPU surface,
  * detached root container, slot allocator, and batch registry.
  */
@@ -345,22 +360,43 @@ export class SharedCompositionAtlas {
    * Render every non-empty page into its own RT. Flushes per-page
    * batch instance buffers first. ONE render call per used page;
    * pages with zero active bots are skipped entirely.
+   *
+   * Returns per-phase wall-clock timing so the renderer's composeBot
+   * probe can attribute cost between the JS flush-iterate path and
+   * the GPU dispatch. At high bot counts, batchCount grows (per-
+   * (combined_texture, band) batch) and one of the two phases
+   * dominates — needed to pick the right optimization.
    */
-  renderAll(pixiRenderer: import("pixi.js").Renderer): void {
+  renderAll(pixiRenderer: import("pixi.js").Renderer): RenderAllTimings {
+    let flushMs = 0;
+    let renderMs = 0;
+    let renderedPages = 0;
+    let totalBatches = 0;
+    let dirtyBatches = 0;
     for (const page of this.pages) {
       if (page.allocator.used() === 0) continue;
       // Flush only this page's batches before its render.
-      for (const batch of page.batches.values()) batch.flush();
+      const tFlushStart = performance.now();
+      for (const batch of page.batches.values()) {
+        totalBatches += 1;
+        if (batch.isDirty()) dirtyBatches += 1;
+        batch.flush();
+      }
+      flushMs += performance.now() - tFlushStart;
       try {
+        const tRenderStart = performance.now();
         pixiRenderer.render({
           container: page.globalRoot,
           target: page.renderTexture,
           clear: true,
         });
+        renderMs += performance.now() - tRenderStart;
+        renderedPages += 1;
       } catch (e) {
         log.warn(`renderAll page ${page.pageIndex} failed`, e);
       }
     }
+    return { flushMs, renderMs, renderedPages, totalBatches, dirtyBatches };
   }
 
   /** Sub-rect frame for sampling this slot in the main pass. */

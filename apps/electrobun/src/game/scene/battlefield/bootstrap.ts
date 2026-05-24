@@ -195,6 +195,73 @@ export async function prewarmSwfTileBundles(): Promise<void> {
 }
 
 /**
+ * Canonical Dofus 1.29 character class gfxIds. Matches the roster used
+ * by the stress test (`stress-test.ts:114-115`) and the player look
+ * resolver. Each gfxId maps to a `sprite-{gfxId}.swf` bundle.
+ */
+const CHARACTER_CLASS_GFX_IDS = [
+  10, 11, 20, 21, 30, 31, 40, 41, 50, 51, 60, 61,
+  70, 71, 80, 81, 90, 91, 100, 101, 110, 111, 120, 121,
+] as const;
+
+/**
+ * Pre-warm the body sub-scene cache (`body_subscene_cache` in
+ * vello-wasm) for every character class. Issued as low-priority
+ * acquires so they drain behind any live request from a freshly-
+ * spawned bot or actor. Combined with the pool=1 cap in
+ * `vello-loader.ts`, this means subsequent zoom rebakes and bot
+ * spawns hit the warm cache and skip the ~75 ms scene-build phase.
+ *
+ * Fire-and-forget by design: the function returns once the bundle
+ * fetches are kicked off, so battlefield boot doesn't block on the
+ * ~3 s of class atlas bakes. Bots spawning before warmup completes
+ * just queue behind the pre-warm in the same FIFO worker.
+ *
+ * In production with one player class on screen, this still warms
+ * the other 23 classes "for free" during loading-screen idle time.
+ * Cost: ~150 MB body sub-scene cache after full warmup.
+ */
+export async function prewarmCharacterClassAtlases(
+  resolution = 3,
+): Promise<void> {
+  const { loadSwfBundle } = await import("@/game/render/vello-loader");
+  const { getCharacterCache } = await import(
+    "@/game/render/character-cache"
+  );
+  const cache = getCharacterCache();
+  const t0 = performance.now();
+
+  await Promise.all(
+    CHARACTER_CLASS_GFX_IDS.map(async (gfxId) => {
+      const bundle = `sprite-${gfxId}`;
+      const url = `/swf/sprites/${gfxId}.swf`;
+      try {
+        const ok = await loadSwfBundle(bundle, url);
+        if (!ok) {
+          log.warn(`prewarmCharacterClassAtlases: ${bundle} load failed`);
+          return;
+        }
+        cache.acquireClassAtlas(
+          bundle,
+          resolution,
+          (atlas) => {
+            if (atlas) cache.releaseClassAtlas(atlas);
+          },
+          () => true,
+          "low",
+        );
+      } catch (e) {
+        log.warn(`prewarmCharacterClassAtlases: ${bundle} threw:`, e);
+      }
+    }),
+  );
+
+  log.info(
+    `prewarmCharacterClassAtlases: ${CHARACTER_CLASS_GFX_IDS.length} classes enqueued in ${(performance.now() - t0).toFixed(0)}ms (bakes complete in background)`,
+  );
+}
+
+/**
  * Hand the shared Vello renderer to both tile + character sprite loaders and
  * wire up the debug overlay line. No-op if Vello is unavailable.
  */
