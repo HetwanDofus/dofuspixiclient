@@ -238,6 +238,546 @@ export function getVelloRenderer(): VelloRenderer | null {
   return renderer;
 }
 
+// ── TEMP DIAG: window.__benchVello — "Flash model" feasibility ────────
+// Renders N characters' body bands in ONE Vello scene to a target_dim²
+// texture, iters times, and reports build CPU + submit CPU + GPU wall
+// (via onSubmittedWorkDone). Answers: can Vello render many chars/frame
+// at 60fps (vs the cached "30fps per-frame Vello" claim)?
+if (typeof window !== "undefined") {
+  (
+    window as unknown as {
+      __benchVello?: (
+        bundle: string,
+        exportName: string,
+        n?: number,
+        targetDim?: number,
+        iters?: number,
+        resolution?: number,
+      ) => Promise<unknown>;
+    }
+  ).__benchVello = async (
+    bundle,
+    exportName,
+    n = 200,
+    targetDim = 1536,
+    iters = 60,
+    resolution = 3,
+  ) => {
+    const r = renderer as unknown as {
+      benchmarkBatchedChars?: (
+        b: string,
+        e: string,
+        n: number,
+        t: number,
+        i: number,
+        res: number,
+      ) => Record<string, number> | null;
+    } | null;
+    if (!r?.benchmarkBatchedChars) return { error: "no renderer/benchmark" };
+    const dev = velloGpu?.device;
+    // warm + drain
+    r.benchmarkBatchedChars(bundle, exportName, n, targetDim, 1, resolution);
+    if (dev) await dev.queue.onSubmittedWorkDone();
+    const wall0 = performance.now();
+    const res = r.benchmarkBatchedChars(
+      bundle,
+      exportName,
+      n,
+      targetDim,
+      iters,
+      resolution,
+    );
+    if (dev) await dev.queue.onSubmittedWorkDone();
+    const totalWall = performance.now() - wall0;
+    const res2 = (res ?? {}) as Record<string, unknown>;
+    // Display the rendered bitmap so we can SEE Vello drew real bodies.
+    const bmp = res2.bitmap as ImageBitmap | undefined;
+    delete res2.bitmap;
+    if (bmp) {
+      let host = document.getElementById("__benchimg");
+      if (!host) {
+        host = document.createElement("div");
+        host.id = "__benchimg";
+        host.style.cssText =
+          "position:fixed;left:0;top:0;z-index:99999;background:#222;padding:4px;max-width:100vw;";
+        document.body.appendChild(host);
+      }
+      host.innerHTML = "";
+      const cap = document.createElement("div");
+      cap.textContent = `Vello-direct: ${res2.nChars} chars @ ${res2.targetDim}px (${exportName})`;
+      cap.style.cssText = "color:#0f0;font:11px monospace";
+      const c = document.createElement("canvas");
+      c.width = bmp.width;
+      c.height = bmp.height;
+      c.style.cssText = "max-width:1100px;height:auto;border:1px solid #0f0;";
+      host.appendChild(cap);
+      host.appendChild(c);
+      c.getContext("2d")?.drawImage(bmp, 0, 0);
+    }
+    const out = {
+      ...res2,
+      gpuWallPerIterMs: +(totalWall / iters).toFixed(3),
+      totalWallMs: +totalWall.toFixed(1),
+      fpsIfGpuBound: +(1000 / (totalWall / iters)).toFixed(1),
+    };
+    // eslint-disable-next-line no-console
+    console.warn("[benchVello]", JSON.stringify(out));
+    return out;
+  };
+
+  // ── TEMP DIAG: window.__benchCrowd — REALISTIC crowd ──────────────
+  // Varied gfx + per-char random colours + accessories. Enumerates
+  // loaded body + accessory bundles to build real specs.
+  (
+    window as unknown as {
+      __benchCrowd?: (
+        n?: number,
+        accPerChar?: number,
+        targetDim?: number,
+        iters?: number,
+        resolution?: number,
+      ) => Promise<unknown>;
+    }
+  ).__benchCrowd = async (
+    n = 200,
+    accPerChar = 3,
+    targetDim = 1536,
+    iters = 40,
+    resolution = 3,
+  ) => {
+    const r = renderer as unknown as {
+      benchmarkCrowdWithAcc?: (
+        body: string[],
+        acc: string[],
+        n: number,
+        ap: number,
+        t: number,
+        i: number,
+        res: number,
+      ) => Record<string, unknown> | null;
+      swfBundleExports?: (b: string) => string[];
+    } | null;
+    if (!r?.benchmarkCrowdWithAcc) return { error: "no benchmarkCrowdWithAcc" };
+    const dev = velloGpu?.device;
+    // Body specs: all known class gfx (unloaded ones are skipped WASM-side).
+    const KNOWN_GFX = [
+      10, 11, 20, 21, 30, 31, 40, 41, 50, 51, 60, 61, 70, 71, 80, 81, 90, 91,
+      100, 101, 110, 111, 120, 121,
+    ];
+    const bodySpecs: string[] = [];
+    for (const g of KNOWN_GFX) {
+      try {
+        const exps = r.swfBundleExports?.(`sprite-${g}`) ?? [];
+        if (exps.includes("staticR")) bodySpecs.push(`sprite-${g}|staticR`);
+        else if (exps.includes("walkR")) bodySpecs.push(`sprite-${g}|walkR`);
+      } catch {}
+    }
+    // Accessory specs: enumerate loaded acc bundles, take a few of each.
+    const ACC_BUNDLES = [
+      "acc-a1", "acc-a2", "acc-a3", "acc-a4", "acc-a5",
+      "acc-a6", "acc-a7", "acc-a8", "acc-default", "acc-autres",
+    ];
+    const accSpecs: string[] = [];
+    for (const b of ACC_BUNDLES) {
+      try {
+        const exps = r.swfBundleExports?.(b) ?? [];
+        for (const e of exps.slice(0, 6)) accSpecs.push(`${b}|${e}`);
+      } catch {}
+    }
+    if (bodySpecs.length === 0) {
+      return { error: "no loaded body bundles — spawn bots first" };
+    }
+    // warm + drain
+    r.benchmarkCrowdWithAcc(bodySpecs, accSpecs, n, accPerChar, targetDim, 1, resolution);
+    if (dev) await dev.queue.onSubmittedWorkDone();
+    const wall0 = performance.now();
+    const res = r.benchmarkCrowdWithAcc(
+      bodySpecs,
+      accSpecs,
+      n,
+      accPerChar,
+      targetDim,
+      iters,
+      resolution,
+    );
+    if (dev) await dev.queue.onSubmittedWorkDone();
+    const totalWall = performance.now() - wall0;
+    const res2 = (res ?? {}) as Record<string, unknown>;
+    const bmp = res2.bitmap as ImageBitmap | undefined;
+    delete res2.bitmap;
+    if (bmp) {
+      let host = document.getElementById("__benchimg");
+      if (!host) {
+        host = document.createElement("div");
+        host.id = "__benchimg";
+        host.style.cssText =
+          "position:fixed;left:0;top:0;z-index:99999;background:#222;padding:4px;max-width:100vw;";
+        document.body.appendChild(host);
+      }
+      host.innerHTML = "";
+      const cap = document.createElement("div");
+      const preMs0 = (res2.preMsOneTime as number) ?? 0;
+      const framePer = +((totalWall - preMs0) / iters).toFixed(3);
+      cap.textContent = `Vello-direct crowd (append-built): ${res2.nChars} chars, ${res2.uniqueBodies} gfx, ${res2.accPerChar} acc each, random colors @ ${res2.targetDim}px — ${framePer}ms/frame (${(1000 / framePer).toFixed(0)}fps)`;
+      cap.style.cssText = "color:#0f0;font:11px monospace";
+      const c = document.createElement("canvas");
+      c.width = bmp.width;
+      c.height = bmp.height;
+      c.style.cssText = "max-width:1200px;height:auto;border:1px solid #0f0;";
+      host.appendChild(cap);
+      host.appendChild(c);
+      c.getContext("2d")?.drawImage(bmp, 0, 0);
+    }
+    const preMs = (res2.preMsOneTime as number) ?? 0;
+    const out = {
+      nChars: res2.nChars,
+      uniqueBodies: res2.uniqueBodies,
+      accPerChar: res2.accPerChar,
+      targetDim: res2.targetDim,
+      bodySpecsTried: bodySpecs.length,
+      preMsOneTime: +preMs.toFixed(2),
+      buildMsPerIterAppend: res2.buildMsPerIterAppend,
+      submitMsPerIter: res2.submitMsPerIter,
+      framePerIterMs: +((totalWall - preMs) / iters).toFixed(3),
+      fps: +(1000 / ((totalWall - preMs) / iters)).toFixed(1),
+    };
+    // eslint-disable-next-line no-console
+    console.warn("[benchCrowd]", JSON.stringify(out));
+    return out;
+  };
+
+  // ── TEMP DIAG: window.__benchAppend — the 60fps deciding test ──────
+  // Per-frame build via scene.append of cached sub-scenes (vs naive
+  // re-emit). Reports the per-frame build cost that actually gates fps.
+  (
+    window as unknown as {
+      __benchAppend?: (
+        bundle: string,
+        exportName: string,
+        n?: number,
+        targetDim?: number,
+        iters?: number,
+        resolution?: number,
+      ) => Promise<unknown>;
+    }
+  ).__benchAppend = async (
+    bundle,
+    exportName,
+    n = 200,
+    targetDim = 1536,
+    iters = 60,
+    resolution = 3,
+  ) => {
+    const r = renderer as unknown as {
+      benchmarkBatchedAppend?: (
+        b: string,
+        e: string,
+        n: number,
+        t: number,
+        i: number,
+        res: number,
+      ) => Record<string, unknown> | null;
+    } | null;
+    if (!r?.benchmarkBatchedAppend) return { error: "no benchmarkBatchedAppend" };
+    const dev = velloGpu?.device;
+    r.benchmarkBatchedAppend(bundle, exportName, n, targetDim, 1, resolution);
+    if (dev) await dev.queue.onSubmittedWorkDone();
+    const wall0 = performance.now();
+    const res = r.benchmarkBatchedAppend(
+      bundle,
+      exportName,
+      n,
+      targetDim,
+      iters,
+      resolution,
+    );
+    if (dev) await dev.queue.onSubmittedWorkDone();
+    const totalWall = performance.now() - wall0;
+    const res2 = (res ?? {}) as Record<string, unknown>;
+    const bmp = res2.bitmap as ImageBitmap | undefined;
+    delete res2.bitmap;
+    if (bmp) {
+      let host = document.getElementById("__benchimg");
+      if (!host) {
+        host = document.createElement("div");
+        host.id = "__benchimg";
+        host.style.cssText =
+          "position:fixed;left:0;top:0;z-index:99999;background:#222;padding:4px;max-width:100vw;";
+        document.body.appendChild(host);
+      }
+      host.innerHTML = "";
+      const cap = document.createElement("div");
+      cap.textContent = `Vello append: ${res2.nChars} chars, build/frame ${res2.buildMsPerIterAppend}ms`;
+      cap.style.cssText = "color:#0f0;font:11px monospace";
+      const c = document.createElement("canvas");
+      c.width = bmp.width;
+      c.height = bmp.height;
+      c.style.cssText = "max-width:1100px;height:auto;border:1px solid #0f0;";
+      host.appendChild(cap);
+      host.appendChild(c);
+      c.getContext("2d")?.drawImage(bmp, 0, 0);
+    }
+    const out = {
+      ...res2,
+      gpuWallPerIterMs: +(totalWall / iters).toFixed(3),
+      framePerIterMs:
+        +(((res2.buildMsPerIterAppend as number) ?? 0) + totalWall / iters).toFixed(3),
+    };
+    // eslint-disable-next-line no-console
+    console.warn("[benchAppend]", JSON.stringify(out));
+    return out;
+  };
+
+  // ── TEMP DIAG: stable getter for the WASM renderer so console-side
+  // diagnostics can call benchmarkRealCrowd with arbitrary player
+  // arrays (grid layouts, overridden positions) without re-editing TS
+  // (which HMR-resets the spawned bots). Evaluated lazily.
+  (window as unknown as { __getVelloRenderer?: () => unknown }).__getVelloRenderer =
+    () => renderer;
+  (window as unknown as { __getVelloGpuDevice?: () => unknown }).__getVelloGpuDevice =
+    () => velloGpu?.device;
+
+  // ── TEMP DIAG: window.__realCrowd — the FAITHFUL real-crowd test ──
+  // Renders the ACTUAL on-screen players (real gfx, real equipped
+  // accessories at real mount transforms + direction frames, real
+  // per-player colors, real isometric positions) through Vello-direct.
+  // No fixed offsets, no grid. Reads live state via __realCrowdSnapshot.
+  (
+    window as unknown as {
+      __realCrowd?: (
+        targetDimMax?: number,
+        iters?: number,
+        resolution?: number,
+        maxPlayers?: number,
+      ) => Promise<unknown>;
+    }
+  ).__realCrowd = async (
+    targetDimMax = 4096,
+    iters = 60,
+    resolution = 3,
+    maxPlayers = 0,
+  ) => {
+    const snap = (
+      window as unknown as {
+        __realCrowdSnapshot?: () => Array<Record<string, unknown>>;
+      }
+    ).__realCrowdSnapshot;
+    if (!snap) return { error: "no __realCrowdSnapshot (renderer not ready)" };
+    let players = snap();
+    if (maxPlayers > 0) {
+      players = players
+        .filter((p) => ((p.acc as unknown[]) ?? []).length > 0)
+        .slice(0, maxPlayers);
+    }
+    if (!players.length) return { error: "no live players — spawn bots first" };
+    const r = renderer as unknown as {
+      benchmarkRealCrowd?: (
+        players: unknown,
+        targetDimMax: number,
+        iters: number,
+        resolution: number,
+      ) => Record<string, unknown> | null;
+    } | null;
+    if (!r?.benchmarkRealCrowd) return { error: "no benchmarkRealCrowd" };
+    const dev = velloGpu?.device;
+    r.benchmarkRealCrowd(players, targetDimMax, 1, resolution); // warm
+    if (dev) await dev.queue.onSubmittedWorkDone();
+    const wall0 = performance.now();
+    const res = r.benchmarkRealCrowd(players, targetDimMax, iters, resolution);
+    if (dev) await dev.queue.onSubmittedWorkDone();
+    const totalWall = performance.now() - wall0;
+    const res2 = (res ?? {}) as Record<string, unknown>;
+    const bmp = res2.bitmap as ImageBitmap | undefined;
+    delete res2.bitmap;
+    const preMs = (res2.preMsOneTime as number) ?? 0;
+    const framePer = +((totalWall - preMs) / iters).toFixed(3);
+    if (bmp) {
+      let host = document.getElementById("__benchimg");
+      if (!host) {
+        host = document.createElement("div");
+        host.id = "__benchimg";
+        host.style.cssText =
+          "position:fixed;left:0;top:0;z-index:99999;background:#222;padding:4px;max-width:100vw;";
+        document.body.appendChild(host);
+      }
+      host.innerHTML = "";
+      const cap = document.createElement("div");
+      cap.textContent = `REAL crowd (Vello-direct): ${res2.rendered} players, ${res2.accessoriesDrawn} accessories mounted, real positions @ ${res2.texW}×${res2.texH} — ${framePer}ms/frame (${(1000 / framePer).toFixed(0)}fps)`;
+      cap.style.cssText = "color:#0f0;font:11px monospace";
+      const cv = document.createElement("canvas");
+      cv.width = bmp.width;
+      cv.height = bmp.height;
+      cv.style.cssText = "max-width:1200px;height:auto;border:1px solid #0f0;";
+      host.appendChild(cap);
+      host.appendChild(cv);
+      cv.getContext("2d")?.drawImage(bmp, 0, 0);
+    }
+    const out = {
+      playersIn: res2.playersIn,
+      rendered: res2.rendered,
+      accessoriesDrawn: res2.accessoriesDrawn,
+      tex: `${res2.texW}x${res2.texH}`,
+      preMsOneTime: +preMs.toFixed(2),
+      buildMsPerIterAppend: res2.buildMsPerIterAppend,
+      submitMsPerIter: res2.submitMsPerIter,
+      framePerIterMs: framePer,
+      fps: +(1000 / framePer).toFixed(1),
+    };
+    // eslint-disable-next-line no-console
+    console.warn("[realCrowd]", JSON.stringify(out));
+    return out;
+  };
+
+  // ── TEMP DIAG: animated 60s Vello-direct run with clean stats ──────
+  // Bypasses the live render (__renderHalt) so ONLY Vello-direct runs,
+  // animates every character (cycles its anim frames at the authored
+  // fps, re-emitting only frame-changed players each tick), and records
+  // fps / per-tick CPU ms / re-emit count / GPU memory over `durationMs`.
+  // Non-blocking: starts a rAF loop and accumulates into __rcStats; poll
+  // window.__realCrowdStatus(). Resumes the live render when done.
+  const CHAR_GFX = new Set([
+    10, 11, 20, 21, 30, 31, 40, 41, 50, 51, 60, 61, 70, 71, 80, 81, 90, 91, 100,
+    101, 110, 111, 120, 121,
+  ]);
+  const isCharBundle = (b: string): boolean => {
+    const m = /^sprite-(\d+)$/.exec(b || "");
+    return !!m && CHAR_GFX.has(+m[1]);
+  };
+  (
+    window as unknown as {
+      __realCrowdStart?: (
+        durationMs?: number,
+        resolution?: number,
+        targetDimMax?: number,
+        retain?: boolean,
+      ) => unknown;
+      __realCrowdStatus?: () => unknown;
+    }
+  ).__realCrowdStart = (
+    durationMs = 60000,
+    resolution = 3,
+    targetDimMax = 4096,
+    retain = true,
+  ) => {
+    const w = window as unknown as {
+      __renderHalt?: () => void;
+      __renderResume?: () => void;
+      __realCrowdSnapshot?: () => Array<Record<string, unknown>>;
+      __rcStats?: Record<string, unknown>;
+    };
+    const r = renderer as unknown as {
+      realCrowdSetup?: (
+        p: unknown,
+        t: number,
+        res: number,
+        retain: boolean,
+      ) => Record<string, unknown> | null;
+      realCrowdTick?: (timeMs: number) => Record<string, unknown> | null;
+      realCrowdBitmap?: () => ImageBitmap | null;
+      realCrowdFree?: () => void;
+    } | null;
+    if (!r?.realCrowdSetup || !w.__realCrowdSnapshot) {
+      return { error: "renderer/snapshot not ready" };
+    }
+    const players = w.__realCrowdSnapshot().filter((p) =>
+      isCharBundle(p.bundle as string),
+    );
+    if (!players.length) return { error: "no character players — spawn bots first" };
+
+    w.__renderHalt?.();
+    const setup = r.realCrowdSetup(players, targetDimMax, resolution, retain) ?? {};
+    const frameMs: number[] = [];
+    let frames = 0;
+    let reemitTotal = 0;
+    let lastDisplay = 0;
+    const start = performance.now();
+    const stats: Record<string, unknown> = {
+      done: false,
+      players: setup.players,
+      accessoriesMounted: setup.accessoriesDrawn,
+      tex: `${setup.texW}x${setup.texH}`,
+      gpuTexMB: +(((setup.texW as number) * (setup.texH as number) * 4) / 1048576).toFixed(1),
+    };
+    w.__rcStats = stats;
+
+    const drawBitmap = () => {
+      const bmp = r.realCrowdBitmap?.();
+      if (!bmp) return;
+      let host = document.getElementById("__benchimg");
+      if (!host) {
+        host = document.createElement("div");
+        host.id = "__benchimg";
+        host.style.cssText =
+          "position:fixed;left:0;top:0;z-index:99999;background:#222;padding:4px";
+        document.body.appendChild(host);
+      }
+      let cv = host.querySelector("canvas");
+      if (!cv) {
+        host.innerHTML = "";
+        const cap = document.createElement("div");
+        cap.style.cssText = "color:#0f0;font:11px monospace";
+        cap.id = "__benchcap";
+        host.appendChild(cap);
+        cv = document.createElement("canvas");
+        cv.style.cssText = "max-width:1300px;height:auto;border:1px solid #0f0";
+        host.appendChild(cv);
+      }
+      cv.width = bmp.width;
+      cv.height = bmp.height;
+      cv.getContext("2d")?.drawImage(bmp, 0, 0);
+      const cap = document.getElementById("__benchcap");
+      if (cap) {
+        const el = (performance.now() - start) / 1000;
+        cap.textContent = `ANIMATED Vello-direct: ${stats.players} chars, ${stats.accessoriesMounted} acc, t=${el.toFixed(0)}s, fps=${(frames / Math.max(0.001, el)).toFixed(0)}`;
+      }
+    };
+
+    const loop = () => {
+      const now = performance.now();
+      const elapsed = now - start;
+      if (elapsed >= durationMs) {
+        frameMs.sort((a, b) => a - b);
+        const pct = (q: number) =>
+          frameMs.length ? frameMs[Math.min(frameMs.length - 1, Math.floor(frameMs.length * q))] : 0;
+        const avg = frameMs.reduce((a, b) => a + b, 0) / Math.max(1, frameMs.length);
+        const secs = elapsed / 1000;
+        stats.done = true;
+        stats.durationS = +secs.toFixed(1);
+        stats.framesRendered = frames;
+        stats.fps = +(frames / secs).toFixed(1);
+        stats.tickCpuMs = {
+          avg: +avg.toFixed(2),
+          p50: +pct(0.5).toFixed(2),
+          p99: +pct(0.99).toFixed(2),
+          max: +(frameMs[frameMs.length - 1] ?? 0).toFixed(2),
+        };
+        stats.emittedPerFrame = +(reemitTotal / Math.max(1, frames)).toFixed(1);
+        r.realCrowdFree?.();
+        w.__renderResume?.();
+        // eslint-disable-next-line no-console
+        console.warn("[realCrowdRun]", JSON.stringify(stats));
+        return;
+      }
+      const t0 = performance.now();
+      const res = r.realCrowdTick?.(elapsed);
+      frameMs.push(performance.now() - t0);
+      frames++;
+      reemitTotal += (res?.emitted as number) ?? 0;
+      if (now - lastDisplay > 400) {
+        lastDisplay = now;
+        drawBitmap();
+      }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+    return { started: true, ...stats };
+  };
+  (
+    window as unknown as { __realCrowdStatus?: () => unknown }
+  ).__realCrowdStatus = () =>
+    (window as unknown as { __rcStats?: unknown }).__rcStats ?? { error: "not started" };
+}
+
 /**
  * The `{adapter, device}` Vello created — captured at `initVello()`
  * for Pixi to adopt via `Application.init({ gpu: getVelloGpu() })`.

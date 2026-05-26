@@ -37,6 +37,54 @@ export class VelloRenderer {
      * All copies go to the same destination texture (the atlas).
      */
     batchCopy(dst_texture_id: number, copies: Float64Array): boolean;
+    /**
+     * DIAG: the DECIDING test for the 60fps question. Pre-renders each
+     * (frame, band) sub-scene ONCE at twip-identity (scale-invariant,
+     * uncolored — like body_subscene_cache), then builds the N-char
+     * crowd PER ITER by `scene.append`-ing those cached sub-scenes with
+     * per-char world transforms (the real per-frame cost). Measures the
+     * PER-FRAME build (append) cost vs the naive re-emit (19ms). If this
+     * is sub-ms, Vello-direct hits 60fps; recolor is then a separate
+     * post-pass. `preMs` is the one-time sub-scene bake.
+     */
+    benchmarkBatchedAppend(bundle: string, _export: string, n_chars: number, target_dim: number, iters: number, resolution: number): any;
+    /**
+     * DIAG: "Flash model" feasibility test. Build N characters' body
+     * bands (one export, frames varied, positioned in a grid) into ONE
+     * Vello scene and render it to a `target_dim²` texture `iters`
+     * times. Isolates the Vello RENDER cost (the crux of the "per-frame
+     * Vello caps at 30fps" claim) from scene-build cost. JS measures GPU
+     * wall via `onSubmittedWorkDone` after this returns.
+     */
+    benchmarkBatchedChars(bundle: string, _export: string, n_chars: number, target_dim: number, iters: number, resolution: number): any;
+    /**
+     * DIAG: REALISTIC crowd test. Renders N characters into ONE Vello
+     * scene with VARIED gfx (round-robin over `body_specs`), per-char
+     * RANDOM zone colours (real recolor), and `acc_per_char` accessories
+     * each (round-robin over `acc_specs`). Specs are `"bundle|export"`;
+     * unloaded ones are skipped. Renders `iters` times, bridges the
+     * result to a bitmap for display. Answers: cost of a realistic
+     * varied/colored/accessorized crowd via Vello-direct.
+     */
+    benchmarkCrowdWithAcc(body_specs: string[], acc_specs: string[], n_chars: number, acc_per_char: number, target_dim: number, iters: number, resolution: number): any;
+    /**
+     * DIAG: render the ACTUAL on-screen players via Vello-direct using
+     * REAL data — real body gfx + real equipped accessories at their
+     * REAL mount transforms + correct direction frames (driven through
+     * the SAME `render_symbol_with_ctx_tinted_accessorized_bfixed` path
+     * the live renderer bakes with), real per-player colors, and real
+     * isometric screen positions (Y-sorted, flipped per direction). NO
+     * fixed offsets, NO grid stacking. Each look is emitted once into a
+     * sub-scene; the crowd is rebuilt per frame via `scene.append` at
+     * real positions. Measures the real per-frame cost + displays it.
+     *
+     * `players`: JS array of {
+     *   bundle, export, frame, dir (1-char suffix), flipped (bool),
+     *   c1, c2, c3 (packed 0xRRGGBB, 0 = no tint), x, y (map-space px),
+     *   acc: [{ bundle, export, slot, animType }]
+     * }
+     */
+    benchmarkRealCrowd(players: any, target_dim_max: number, iters: number, resolution: number): any;
     bodySceneCacheStats(): any;
     /**
      * Count entries in `body_subscene_cache`, optionally filtered to a
@@ -282,6 +330,55 @@ export class VelloRenderer {
      * Call flushFrames() to render all queued frames in ONE GPU dispatch + copy.
      */
     queueFrame(asset_id: number, animation: string, frame_index: number, resolution: number, colors: Uint32Array | null | undefined, acc_info: Uint32Array | null | undefined, dst_x: number, dst_y: number): any;
+    /**
+     * DIAG: read the animated crowd's current target texture back to an
+     * ImageBitmap for display. Has a GPU readback cost — call it sparsely
+     * (e.g. a few times/sec), NOT inside the measured render loop.
+     */
+    realCrowdBitmap(): any;
+    /**
+     * DIAG: capture `n_frames` of the animated crowd as a flipbook for
+     * visual playback. Renders each anim frame (advancing by `step_ms`)
+     * into its OWN target texture FIRST (no readback between renders —
+     * the blit-readback poisons the next render_to_texture, so we must
+     * finish all renders before reading any back), THEN reads every
+     * target back to an ImageBitmap. Returns a JS array of ImageBitmaps
+     * the caller can flipbook on a canvas (pure 2D, no further GPU).
+     * Retained path (cached encodings + append).
+     */
+    realCrowdCaptureFlipbook(n_frames: number, step_ms: number): any;
+    /**
+     * DIAG: free the animated crowd (drops cached sub-scenes + target).
+     */
+    realCrowdFree(): void;
+    /**
+     * DIAG: BATCHED render — splits the Y-sorted crowd into batches of
+     * `batch_size` actors (each kept under the single-scene shape
+     * ceiling), renders each batch to its own texture (one Vello
+     * dispatch each), then alpha-composites them back-to-front onto the
+     * crowd target. This is the REAL high-count render path. Measures
+     * append + per-batch GPU + composite together (call it in a loop +
+     * await onSubmittedWorkDone in JS for end-to-end timing). Composites
+     * into `crowd.view`, so `realCrowdBitmap` reads the result.
+     */
+    realCrowdRenderBatched(batch_size: number, time_ms: number): any;
+    /**
+     * DIAG: set up the stateful ANIMATED Vello-direct crowd. Parses real
+     * players (body bundle/export, frameCount, fps, colors, flipped,
+     * real x/y, equipped accessories), per-bundle caches, fits a target
+     * texture, and pre-emits each player's frame-0 sub-scene. `realCrowdTick`
+     * then advances each player's animation and re-emits only the ones
+     * whose frame changed. `players`: array of {bundle, export, frameCount,
+     * fps, c1,c2,c3, flipped, x, y, acc:[{bundle,export,slot,animType}]}.
+     */
+    realCrowdSetup(players: any, target_dim_max: number, resolution: number, retain: boolean): any;
+    /**
+     * DIAG: advance the animated crowd to `time_ms`, re-emitting only the
+     * players whose animation frame changed, then render one frame to the
+     * crowd's target texture (NO readback — clean GPU timing). Returns
+     * `{ reemitted, players }`.
+     */
+    realCrowdTick(time_ms: number): any;
     /**
      * Render ALL frames of an animation into a single horizontal strip texture.
      * Returns { texture, textureId, width, height, frameWidth, frameHeight, frameCount }.
@@ -899,6 +996,10 @@ export interface InitOutput {
     readonly __wbg_vellorenderer_free: (a: number, b: number) => void;
     readonly vellorenderer_accessorySubsceneCacheCountFor: (a: number, b: number, c: number) => number;
     readonly vellorenderer_batchCopy: (a: number, b: number, c: number, d: number) => number;
+    readonly vellorenderer_benchmarkBatchedAppend: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
+    readonly vellorenderer_benchmarkBatchedChars: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
+    readonly vellorenderer_benchmarkCrowdWithAcc: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => any;
+    readonly vellorenderer_benchmarkRealCrowd: (a: number, b: any, c: number, d: number, e: number) => any;
     readonly vellorenderer_bodySceneCacheStats: (a: number) => any;
     readonly vellorenderer_bodySubsceneCacheCountFor: (a: number, b: number, c: number) => number;
     readonly vellorenderer_clearBodySceneCache: (a: number) => number;
@@ -928,6 +1029,12 @@ export interface InitOutput {
     readonly vellorenderer_loadTileSubsceneCache: (a: number, b: number, c: number) => number;
     readonly vellorenderer_pathCacheStats: (a: number) => any;
     readonly vellorenderer_queueFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => any;
+    readonly vellorenderer_realCrowdBitmap: (a: number) => any;
+    readonly vellorenderer_realCrowdCaptureFlipbook: (a: number, b: number, c: number) => any;
+    readonly vellorenderer_realCrowdFree: (a: number) => void;
+    readonly vellorenderer_realCrowdRenderBatched: (a: number, b: number, c: number) => any;
+    readonly vellorenderer_realCrowdSetup: (a: number, b: any, c: number, d: number, e: number) => any;
+    readonly vellorenderer_realCrowdTick: (a: number, b: number) => any;
     readonly vellorenderer_renderAnimationStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
     readonly vellorenderer_renderFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => any;
     readonly vellorenderer_renderFrameToAtlas: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => any;

@@ -1104,6 +1104,49 @@ export class PlayerStripRendererV2 {
         }
       };
 
+      // ── TEMP DIAG: window.__realCrowdSnapshot() ──────────────────
+      // Snapshots EVERY live player's REAL render state (body bundle/
+      // export, current frame, direction, flip, zone colors, equipped
+      // accessory refs, and real map-space screen position) so the
+      // Vello-direct real-crowd benchmark can render the actual crowd
+      // with real mounts + real positions (no fakery).
+      (
+        window as unknown as {
+          __realCrowdSnapshot?: () => Array<Record<string, unknown>>;
+        }
+      ).__realCrowdSnapshot = () => {
+        const out: Array<Record<string, unknown>> = [];
+        for (const [, slots] of this.states) {
+          const st = slots.get("main");
+          if (!st) continue;
+          const a = st.lastAnimation;
+          const p = st.player;
+          if (!a || !p) continue;
+          const c = p.container as unknown as { x: number; y: number } | null;
+          out.push({
+            bundle: a.bundle,
+            export: a.exportName,
+            frame: Math.max(0, st.lastCompositionFrame | 0),
+            frameCount: a.frameCount,
+            fps: a.fps,
+            dir: st.lastDir ?? "R",
+            flipped: !!st.lastFlipped,
+            c1: st.zone1 | 0,
+            c2: st.zone2 | 0,
+            c3: st.zone3 | 0,
+            x: c?.x ?? 0,
+            y: c?.y ?? 0,
+            acc: a.accessories.map((ac) => ({
+              bundle: ac.bundle,
+              export: ac.exportName,
+              slot: ac.slot,
+              animType: ac.animType,
+            })),
+          });
+        }
+        return out;
+      };
+
       // ── TEMP DIAG: window.__dumpBot(playerId?) ───────────────────
       // Dumps one bot's full compose state + the REAL per-band GPU
       // instance values (aAtlasUV it samples, aTransform it draws to)

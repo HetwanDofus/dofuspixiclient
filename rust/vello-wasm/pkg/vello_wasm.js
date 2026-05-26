@@ -66,6 +66,105 @@ export class VelloRenderer {
         return ret !== 0;
     }
     /**
+     * DIAG: the DECIDING test for the 60fps question. Pre-renders each
+     * (frame, band) sub-scene ONCE at twip-identity (scale-invariant,
+     * uncolored — like body_subscene_cache), then builds the N-char
+     * crowd PER ITER by `scene.append`-ing those cached sub-scenes with
+     * per-char world transforms (the real per-frame cost). Measures the
+     * PER-FRAME build (append) cost vs the naive re-emit (19ms). If this
+     * is sub-ms, Vello-direct hits 60fps; recolor is then a separate
+     * post-pass. `preMs` is the one-time sub-scene bake.
+     * @param {string} bundle
+     * @param {string} _export
+     * @param {number} n_chars
+     * @param {number} target_dim
+     * @param {number} iters
+     * @param {number} resolution
+     * @returns {any}
+     */
+    benchmarkBatchedAppend(bundle, _export, n_chars, target_dim, iters, resolution) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(_export, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_benchmarkBatchedAppend(this.__wbg_ptr, ptr0, len0, ptr1, len1, n_chars, target_dim, iters, resolution);
+        return ret;
+    }
+    /**
+     * DIAG: "Flash model" feasibility test. Build N characters' body
+     * bands (one export, frames varied, positioned in a grid) into ONE
+     * Vello scene and render it to a `target_dim²` texture `iters`
+     * times. Isolates the Vello RENDER cost (the crux of the "per-frame
+     * Vello caps at 30fps" claim) from scene-build cost. JS measures GPU
+     * wall via `onSubmittedWorkDone` after this returns.
+     * @param {string} bundle
+     * @param {string} _export
+     * @param {number} n_chars
+     * @param {number} target_dim
+     * @param {number} iters
+     * @param {number} resolution
+     * @returns {any}
+     */
+    benchmarkBatchedChars(bundle, _export, n_chars, target_dim, iters, resolution) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(_export, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_benchmarkBatchedChars(this.__wbg_ptr, ptr0, len0, ptr1, len1, n_chars, target_dim, iters, resolution);
+        return ret;
+    }
+    /**
+     * DIAG: REALISTIC crowd test. Renders N characters into ONE Vello
+     * scene with VARIED gfx (round-robin over `body_specs`), per-char
+     * RANDOM zone colours (real recolor), and `acc_per_char` accessories
+     * each (round-robin over `acc_specs`). Specs are `"bundle|export"`;
+     * unloaded ones are skipped. Renders `iters` times, bridges the
+     * result to a bitmap for display. Answers: cost of a realistic
+     * varied/colored/accessorized crowd via Vello-direct.
+     * @param {string[]} body_specs
+     * @param {string[]} acc_specs
+     * @param {number} n_chars
+     * @param {number} acc_per_char
+     * @param {number} target_dim
+     * @param {number} iters
+     * @param {number} resolution
+     * @returns {any}
+     */
+    benchmarkCrowdWithAcc(body_specs, acc_specs, n_chars, acc_per_char, target_dim, iters, resolution) {
+        const ptr0 = passArrayJsValueToWasm0(body_specs, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArrayJsValueToWasm0(acc_specs, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_benchmarkCrowdWithAcc(this.__wbg_ptr, ptr0, len0, ptr1, len1, n_chars, acc_per_char, target_dim, iters, resolution);
+        return ret;
+    }
+    /**
+     * DIAG: render the ACTUAL on-screen players via Vello-direct using
+     * REAL data — real body gfx + real equipped accessories at their
+     * REAL mount transforms + correct direction frames (driven through
+     * the SAME `render_symbol_with_ctx_tinted_accessorized_bfixed` path
+     * the live renderer bakes with), real per-player colors, and real
+     * isometric screen positions (Y-sorted, flipped per direction). NO
+     * fixed offsets, NO grid stacking. Each look is emitted once into a
+     * sub-scene; the crowd is rebuilt per frame via `scene.append` at
+     * real positions. Measures the real per-frame cost + displays it.
+     *
+     * `players`: JS array of {
+     *   bundle, export, frame, dir (1-char suffix), flipped (bool),
+     *   c1, c2, c3 (packed 0xRRGGBB, 0 = no tint), x, y (map-space px),
+     *   acc: [{ bundle, export, slot, animType }]
+     * }
+     * @param {any} players
+     * @param {number} target_dim_max
+     * @param {number} iters
+     * @param {number} resolution
+     * @returns {any}
+     */
+    benchmarkRealCrowd(players, target_dim_max, iters, resolution) {
+        const ret = wasm.vellorenderer_benchmarkRealCrowd(this.__wbg_ptr, players, target_dim_max, iters, resolution);
+        return ret;
+    }
+    /**
      * @returns {any}
      */
     bodySceneCacheStats() {
@@ -493,6 +592,86 @@ export class VelloRenderer {
         var ptr2 = isLikeNone(acc_info) ? 0 : passArray32ToWasm0(acc_info, wasm.__wbindgen_malloc);
         var len2 = WASM_VECTOR_LEN;
         const ret = wasm.vellorenderer_queueFrame(this.__wbg_ptr, asset_id, ptr0, len0, frame_index, resolution, ptr1, len1, ptr2, len2, dst_x, dst_y);
+        return ret;
+    }
+    /**
+     * DIAG: read the animated crowd's current target texture back to an
+     * ImageBitmap for display. Has a GPU readback cost — call it sparsely
+     * (e.g. a few times/sec), NOT inside the measured render loop.
+     * @returns {any}
+     */
+    realCrowdBitmap() {
+        const ret = wasm.vellorenderer_realCrowdBitmap(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * DIAG: capture `n_frames` of the animated crowd as a flipbook for
+     * visual playback. Renders each anim frame (advancing by `step_ms`)
+     * into its OWN target texture FIRST (no readback between renders —
+     * the blit-readback poisons the next render_to_texture, so we must
+     * finish all renders before reading any back), THEN reads every
+     * target back to an ImageBitmap. Returns a JS array of ImageBitmaps
+     * the caller can flipbook on a canvas (pure 2D, no further GPU).
+     * Retained path (cached encodings + append).
+     * @param {number} n_frames
+     * @param {number} step_ms
+     * @returns {any}
+     */
+    realCrowdCaptureFlipbook(n_frames, step_ms) {
+        const ret = wasm.vellorenderer_realCrowdCaptureFlipbook(this.__wbg_ptr, n_frames, step_ms);
+        return ret;
+    }
+    /**
+     * DIAG: free the animated crowd (drops cached sub-scenes + target).
+     */
+    realCrowdFree() {
+        wasm.vellorenderer_realCrowdFree(this.__wbg_ptr);
+    }
+    /**
+     * DIAG: BATCHED render — splits the Y-sorted crowd into batches of
+     * `batch_size` actors (each kept under the single-scene shape
+     * ceiling), renders each batch to its own texture (one Vello
+     * dispatch each), then alpha-composites them back-to-front onto the
+     * crowd target. This is the REAL high-count render path. Measures
+     * append + per-batch GPU + composite together (call it in a loop +
+     * await onSubmittedWorkDone in JS for end-to-end timing). Composites
+     * into `crowd.view`, so `realCrowdBitmap` reads the result.
+     * @param {number} batch_size
+     * @param {number} time_ms
+     * @returns {any}
+     */
+    realCrowdRenderBatched(batch_size, time_ms) {
+        const ret = wasm.vellorenderer_realCrowdRenderBatched(this.__wbg_ptr, batch_size, time_ms);
+        return ret;
+    }
+    /**
+     * DIAG: set up the stateful ANIMATED Vello-direct crowd. Parses real
+     * players (body bundle/export, frameCount, fps, colors, flipped,
+     * real x/y, equipped accessories), per-bundle caches, fits a target
+     * texture, and pre-emits each player's frame-0 sub-scene. `realCrowdTick`
+     * then advances each player's animation and re-emits only the ones
+     * whose frame changed. `players`: array of {bundle, export, frameCount,
+     * fps, c1,c2,c3, flipped, x, y, acc:[{bundle,export,slot,animType}]}.
+     * @param {any} players
+     * @param {number} target_dim_max
+     * @param {number} resolution
+     * @param {boolean} retain
+     * @returns {any}
+     */
+    realCrowdSetup(players, target_dim_max, resolution, retain) {
+        const ret = wasm.vellorenderer_realCrowdSetup(this.__wbg_ptr, players, target_dim_max, resolution, retain);
+        return ret;
+    }
+    /**
+     * DIAG: advance the animated crowd to `time_ms`, re-emitting only the
+     * players whose animation frame changed, then render one frame to the
+     * crowd's target texture (NO readback — clean GPU timing). Returns
+     * `{ reemitted, players }`.
+     * @param {number} time_ms
+     * @returns {any}
+     */
+    realCrowdTick(time_ms) {
+        const ret = wasm.vellorenderer_realCrowdTick(this.__wbg_ptr, time_ms);
         return ret;
     }
     /**
@@ -1651,12 +1830,21 @@ function __wbg_get_imports() {
             const ret = arg0.WorkerGlobalScope;
             return ret;
         },
+        __wbg___wbindgen_boolean_get_2304fb8c853028c8: function(arg0) {
+            const v = arg0;
+            const ret = typeof(v) === 'boolean' ? v : undefined;
+            return isLikeNone(ret) ? 0xFFFFFF : ret ? 1 : 0;
+        },
         __wbg___wbindgen_debug_string_edece8177ad01481: function(arg0, arg1) {
             const ret = debugString(arg1);
             const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
             const len1 = WASM_VECTOR_LEN;
             getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
             getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+        },
+        __wbg___wbindgen_is_falsy_402d3af0d5f09bc6: function(arg0) {
+            const ret = !arg0;
+            return ret;
         },
         __wbg___wbindgen_is_function_5cd60d5cf78b4eef: function(arg0) {
             const ret = typeof(arg0) === 'function';
@@ -1669,6 +1857,12 @@ function __wbg_get_imports() {
         __wbg___wbindgen_is_undefined_35bb9f4c7fd651d5: function(arg0) {
             const ret = arg0 === undefined;
             return ret;
+        },
+        __wbg___wbindgen_number_get_f73a1244370fcc2c: function(arg0, arg1) {
+            const obj = arg1;
+            const ret = typeof(obj) === 'number' ? obj : undefined;
+            getDataViewMemory0().setFloat64(arg0 + 8 * 1, isLikeNone(ret) ? 0 : ret, true);
+            getDataViewMemory0().setInt32(arg0 + 4 * 0, !isLikeNone(ret), true);
         },
         __wbg___wbindgen_string_get_d109740c0d18f4d7: function(arg0, arg1) {
             const obj = arg1;
@@ -1803,12 +1997,24 @@ function __wbg_get_imports() {
             const ret = arg0.finish();
             return ret;
         },
+        __wbg_from_fa561fa561dc8031: function(arg0) {
+            const ret = Array.from(arg0);
+            return ret;
+        },
         __wbg_getContext_47ea64e14d931e3e: function() { return handleError(function (arg0, arg1, arg2) {
             const ret = arg0.getContext(getStringFromWasm0(arg1, arg2));
             return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
         }, arguments); },
         __wbg_getCurrentTexture_66ae9639eac28f8b: function() { return handleError(function (arg0) {
             const ret = arg0.getCurrentTexture();
+            return ret;
+        }, arguments); },
+        __wbg_get_98fdf51d029a75eb: function(arg0, arg1) {
+            const ret = arg0[arg1 >>> 0];
+            return ret;
+        },
+        __wbg_get_dcf82ab8aad1a593: function() { return handleError(function (arg0, arg1) {
+            const ret = Reflect.get(arg0, arg1);
             return ret;
         }, arguments); },
         __wbg_gpu_0d39e2c1a52c373e: function(arg0) {
@@ -1847,6 +2053,10 @@ function __wbg_get_imports() {
             getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
         },
         __wbg_length_13e61aa81636ec86: function(arg0) {
+            const ret = arg0.length;
+            return ret;
+        },
+        __wbg_length_2591a0f4f659a55c: function(arg0) {
             const ret = arg0.length;
             return ret;
         },
@@ -2189,6 +2399,9 @@ function __wbg_get_imports() {
         },
         __wbg_set_color_attachments_88b752139b2e1a01: function(arg0, arg1) {
             arg0.colorAttachments = arg1;
+        },
+        __wbg_set_compare_494fcab2dc5d7792: function(arg0, arg1) {
+            arg0.compare = __wbindgen_enum_GpuCompareFunction[arg1];
         },
         __wbg_set_compare_71e8ea844225b7cb: function(arg0, arg1) {
             arg0.compare = __wbindgen_enum_GpuCompareFunction[arg1];
@@ -2684,12 +2897,12 @@ function __wbg_get_imports() {
             arg0.writeTexture(arg1, arg2, arg3, arg4);
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 140, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 141, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h97a41680667a7bc9);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 204, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 205, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__he3b8ad3a01647b28);
             return ret;
         },

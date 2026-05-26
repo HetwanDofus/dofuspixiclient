@@ -172,6 +172,179 @@ struct QueuedFrame {
     dst_y: u32,
 }
 
+/// One equipped accessory in a player look.
+struct LookAcc {
+    bundle: String,
+    export: String,
+    slot: u8,
+    anim_type: u8,
+}
+
+/// A player in the animated crowd. `sig` is the look signature
+/// (everything but the animation frame) used as the retained-encoding
+/// cache key prefix — two players whose sig + frame match share one
+/// encoded sub-scene.
+struct AnimPlayer {
+    bundle: String,
+    export: String,
+    frame_count: u16,
+    fps: f32,
+    colors: swf_spike::recolor::PlayerColors,
+    flipped: bool,
+    x: f64,
+    y: f64,
+    acc: Vec<LookAcc>,
+    sig: String,
+}
+
+/// Stateful animated Vello-direct crowd. Two render modes:
+///   - `retain = false`: NAIVE — every tick re-emits every player's full
+///     look from scratch into one scene (the pure Flash-redraw model).
+///   - `retain = true`: RETAINED — encode each unique `(sig, frame)` look
+///     ONCE into `look_cache`, then per tick just `scene.append` the cached
+///     encoding at each player's transform (the "Flash display list" model).
+struct RealAnimCrowd {
+    players: Vec<AnimPlayer>,
+    off_x: f64,
+    off_y: f64,
+    tw: u32,
+    th: u32,
+    scale: f64,
+    pos_scale: f64,
+    retain: bool,
+    look_cache: HashMap<String, vello::Scene>,
+    target: wgpu::Texture,
+    view: wgpu::TextureView,
+    /// Batched-render scratch (created on demand by `realCrowdRenderBatched`
+    /// when actor count exceeds the single-scene ceiling). One texture per
+    /// batch of `batch_size` actors + one composite-target view. Reused
+    /// across frames so the render loop doesn't leak GPU textures.
+    batch_size: u32,
+    batch_targets: Vec<wgpu::Texture>,
+    batch_views: Vec<wgpu::TextureView>,
+}
+
+/// Emit one player's complete look into `out`: body bands interleaved
+/// with equipped accessories at their REAL mount transforms + correct
+/// direction frames, in scale-space with the SWF origin at (0,0).
+/// Canonical band-interleave z-order (cape behind, hat in front).
+/// Per-bundle caches are REQUIRED — a cache shared across bundles
+/// collides symbol ids and yields bogus (giant/wrong) geometry.
+/// Returns the number of accessories actually drawn.
+#[allow(clippy::too_many_arguments)]
+fn emit_player_look(
+    ctx: &mut swf_spike::render::WgpuCtx,
+    bundles: &HashMap<String, swf_spike::swf_doc::SwfDoc>,
+    caches: &HashMap<String, swf_spike::render::cache::RenderCache>,
+    bundle: &str,
+    export: &str,
+    frame: u16,
+    flipped: bool,
+    colors: swf_spike::recolor::PlayerColors,
+    acc: &[LookAcc],
+    base: vello::kurbo::Affine,
+    out: &mut vello::Scene,
+) -> u32 {
+    use swf_spike::render::ctx::RenderMode;
+    const MAX_SLOT: u8 = 5;
+    let Some(doc) = bundles.get(bundle) else {
+        return 0;
+    };
+    let Some(symbol) = doc.lookup_export(export) else {
+        return 0;
+    };
+    let Some(body_cache) = caches.get(bundle) else {
+        return 0;
+    };
+    let swf_spike::swf_doc::Symbol::Sprite(body_sprite) = symbol else {
+        return 0;
+    };
+    let mut equipped: HashMap<
+        u8,
+        (
+            &swf_spike::render::cache::RenderCache,
+            &swf_spike::swf_doc::SwfDoc,
+            &swf_spike::swf_doc::Symbol,
+            u8,
+        ),
+    > = HashMap::new();
+    for a in acc {
+        let Some(adoc) = bundles.get(&a.bundle) else {
+            continue;
+        };
+        let Some(asym) = adoc.lookup_export(&a.export) else {
+            continue;
+        };
+        let Some(acache) = caches.get(&a.bundle) else {
+            continue;
+        };
+        equipped.insert(a.slot, (acache, adoc, asym, a.anim_type));
+    }
+    let has_hat = equipped.contains_key(&1);
+    let (effective_sym, effective_xform) =
+        swf_spike::render::find_effective_body_symbol(doc, symbol, frame);
+    let slots = swf_spike::render::extract_slot_depths(doc, body_sprite, frame);
+    let (mount_mats, mount_pres) =
+        swf_spike::render::mount_transforms::extract_mount_transforms(
+            doc, symbol, frame, 1, flipped, MAX_SLOT,
+        );
+    let body_xform = base * effective_xform;
+    let mut acc_drawn = 0u32;
+    let n = slots.len();
+    for i in 0..=n {
+        let band = swf_spike::render::band_range(&slots, i);
+        swf_spike::render::render_body_band(
+            ctx,
+            doc,
+            effective_sym,
+            out,
+            body_xform,
+            frame,
+            band,
+            RenderMode::Colour,
+            colors,
+            body_cache,
+            flipped,
+            has_hat,
+        );
+        if i < n {
+            let sd = &slots[i];
+            let slot_us = sd.slot as usize;
+            if mount_pres.get(slot_us).copied().unwrap_or(0) == 1 {
+                if let Some(&(acache, adoc, asym, at)) = equipped.get(&sd.slot) {
+                    let off = slot_us * 6;
+                    if off + 6 <= mount_mats.len() {
+                        let m = vello::kurbo::Affine::new([
+                            f64::from(mount_mats[off]),
+                            f64::from(mount_mats[off + 1]),
+                            f64::from(mount_mats[off + 2]),
+                            f64::from(mount_mats[off + 3]),
+                            f64::from(mount_mats[off + 4]),
+                            f64::from(mount_mats[off + 5]),
+                        ]);
+                        let side = sd.side.as_deref().unwrap_or("R");
+                        let acc_frame = swf_spike::render::pick_accessory_frame(
+                            adoc, asym, sd.slot, at, side, frame,
+                        );
+                        swf_spike::render::render_symbol_with_shared_cache(
+                            ctx,
+                            adoc,
+                            asym,
+                            out,
+                            base * m,
+                            acc_frame,
+                            swf_spike::recolor::PlayerColors::default(),
+                            acache,
+                        );
+                        acc_drawn += 1;
+                    }
+                }
+            }
+        }
+    }
+    acc_drawn
+}
+
 #[wasm_bindgen]
 pub struct VelloRenderer {
     /// Retained `wgpu::Instance` — required to mint `wgpu::Surface`s
@@ -248,6 +421,14 @@ pub struct VelloRenderer {
     /// across bakes of the same bundle drops subsequent bakes by
     /// ~99 % on the flatten path.
     swf_render_caches: HashMap<String, swf_spike::render::cache::RenderCache>,
+    /// DIAG: stateful animated Vello-direct crowd (real players, real
+    /// mounts, real positions). Holds per-player cached sub-scenes;
+    /// `realCrowdTick` re-emits only frame-changed players. Used to
+    /// measure the real ANIMATED per-frame cost over a long run.
+    real_anim_crowd: Option<RealAnimCrowd>,
+    /// DIAG: lazy straight-alpha compositor for the batched crowd render
+    /// (combines per-batch textures past the single-scene shape ceiling).
+    crowd_composite_pipeline: Option<bitmap_bridge::CompositePipeline>,
     /// Phase 1b: pre-built `vello::Scene` cache for the body atlas
     /// bake. Phase 1's flatten cache lived inside `swf_render_caches`
     /// and ONLY memoised the `flatten_shape` step. On real workloads
@@ -745,6 +926,8 @@ impl VelloRenderer {
             next_texture_id: 0,
             queued_frames: Vec::new(),
             swf_bundles: HashMap::new(),
+            real_anim_crowd: None,
+            crowd_composite_pipeline: None,
             swf_filter_pipelines: None,
             swf_player_colors: swf_spike::recolor::PlayerColors::default(),
             swf_spell_instances: HashMap::new(),
@@ -3082,6 +3265,1698 @@ impl VelloRenderer {
                 .commit();
         }
         result.into()
+    }
+
+    /// DIAG: "Flash model" feasibility test. Build N characters' body
+    /// bands (one export, frames varied, positioned in a grid) into ONE
+    /// Vello scene and render it to a `target_dim²` texture `iters`
+    /// times. Isolates the Vello RENDER cost (the crux of the "per-frame
+    /// Vello caps at 30fps" claim) from scene-build cost. JS measures GPU
+    /// wall via `onSubmittedWorkDone` after this returns.
+    #[wasm_bindgen(js_name = "benchmarkBatchedChars")]
+    pub fn benchmark_batched_chars(
+        &mut self,
+        bundle: &str,
+        export: &str,
+        n_chars: u32,
+        target_dim: u32,
+        iters: u32,
+        resolution: f32,
+    ) -> JsValue {
+        use swf_spike::render::ctx::RenderMode;
+        let Some(doc) = self.swf_bundles.get(bundle) else {
+            return JsValue::NULL;
+        };
+        let Some(symbol) = doc.lookup_export(export) else {
+            return JsValue::NULL;
+        };
+        let swf_spike::swf_doc::Symbol::Sprite(body) = symbol else {
+            return JsValue::NULL;
+        };
+        let (effective_sym, effective_xform) =
+            swf_spike::render::find_effective_body_symbol(doc, symbol, 0);
+        let effective_body = match effective_sym {
+            swf_spike::swf_doc::Symbol::Sprite(s) => s,
+            _ => body,
+        };
+        let slots = swf_spike::render::extract_slot_depths(doc, body, 0);
+        let band_presence =
+            swf_spike::render::compute_band_presence(doc, effective_body, 0, &slots);
+        let band_ranges: Vec<swf_spike::render::BandRange> = {
+            let present: Vec<usize> = band_presence
+                .iter()
+                .enumerate()
+                .filter_map(|(i, &p)| if p { Some(i) } else { None })
+                .collect();
+            if present.is_empty() {
+                vec![swf_spike::render::BandRange::ALL]
+            } else {
+                present
+                    .iter()
+                    .map(|&i| swf_spike::render::band_range(&slots, i))
+                    .collect()
+            }
+        };
+        let bounds = swf_spike::render::symbol_bounds(doc, symbol, 0);
+        let scale = f64::from(resolution) / 20.0;
+        let char_w = (bounds.width() * scale).max(1.0);
+        let char_h = (bounds.height() * scale).max(1.0);
+        let frame_count = u32::from(body.num_frames).max(1);
+        // Anchor offset so each body's bbox top-left lands at its grid
+        // cell (not its SWF origin) — otherwise bodies extend off the top
+        // edge and get clipped, undercounting GPU work.
+        let anchor_x = -bounds.x0 * scale;
+        let anchor_y = -bounds.y0 * scale;
+        // Pack with overlap (×0.5) so N chars fully fit on the target as a
+        // dense crowd — every char ON-canvas so the GPU actually renders
+        // its full coverage (realistic).
+        let step_x = (char_w * 0.5).max(1.0);
+        let step_y = (char_h * 0.5).max(1.0);
+        let cols = (((f64::from(target_dim) - char_w) / step_x).floor() as u32).max(1);
+
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
+        }
+        let target = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("batched-chars-bench"),
+            size: wgpu::Extent3d {
+                width: target_dim,
+                height: target_dim,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = target.create_view(&wgpu::TextureViewDescriptor::default());
+        let params = vello::RenderParams {
+            base_color: Color::TRANSPARENT,
+            width: target_dim,
+            height: target_dim,
+            antialiasing_method: AaConfig::Area,
+        };
+        // Build the N-char scene ONCE (build cost measured separately),
+        // then render it `iters` times to isolate the GPU render cost.
+        // Each char gets RANDOM per-zone colours (real recolor via
+        // render_body_band Colour mode + player_colors) so this reflects
+        // a varied crowd, not 500 identical bodies — and exercises the
+        // recolor build cost (colored fills can't share cache).
+        let t_build = perf_now();
+        let mut scene = vello::Scene::new();
+        {
+            let cache: &swf_spike::render::cache::RenderCache =
+                self.swf_render_caches.entry(bundle.to_string()).or_default();
+            let mut wctx = swf_spike::render::WgpuCtx {
+                device: &self.device,
+                queue: &self.queue,
+                renderer: &mut self.renderer,
+                filter_pipelines: self.swf_filter_pipelines.as_ref().unwrap(),
+                output_scale: scale,
+            };
+            for i in 0..n_chars {
+                let col = i % cols;
+                let row = i / cols;
+                let wx = anchor_x + f64::from(col) * step_x;
+                let wy = anchor_y + f64::from(row) * step_y;
+                let frame = (i % frame_count) as u16;
+                // Deterministic per-char random zone colours.
+                let h = i.wrapping_mul(2_654_435_761).wrapping_add(1);
+                let c1 = h & 0x00FF_FFFF;
+                let c2 = h.wrapping_mul(40_503) & 0x00FF_FFFF;
+                let c3 = h.wrapping_mul(2_246_822_519) & 0x00FF_FFFF;
+                let pc = swf_spike::recolor::PlayerColors([
+                    Some(c1),
+                    Some(c2),
+                    Some(c3),
+                ]);
+                let place = vello::kurbo::Affine::scale(scale)
+                    .then_translate(vello::kurbo::Vec2::new(wx, wy));
+                for &band in &band_ranges {
+                    swf_spike::render::render_body_band(
+                        &mut wctx,
+                        doc,
+                        effective_sym,
+                        &mut scene,
+                        place * effective_xform,
+                        frame,
+                        band,
+                        RenderMode::Colour,
+                        pc,
+                        cache,
+                        false,
+                        false,
+                    );
+                }
+            }
+        }
+        let build_ms = perf_now() - t_build;
+
+        let t_render = perf_now();
+        for _ in 0..iters {
+            let _ = self.renderer.render_to_texture(
+                &self.device,
+                &self.queue,
+                &scene,
+                &view,
+                &params,
+            );
+        }
+        let submit_ms = (perf_now() - t_render) / f64::from(iters.max(1));
+
+        // Bridge the final rendered target to an ImageBitmap so JS can
+        // DISPLAY it — proves Vello actually drew real bodies (not blank).
+        let bitmap =
+            self.texture_to_bitmap(&target, target_dim, target_dim, "benchmarkBatchedChars");
+
+        let result = js_sys::Object::new();
+        let set = |k: &str, v: f64| {
+            let _ = js_sys::Reflect::set(&result, &k.into(), &JsValue::from(v));
+        };
+        set("nChars", f64::from(n_chars));
+        set("iters", f64::from(iters));
+        set("targetDim", f64::from(target_dim));
+        set("cols", f64::from(cols));
+        set("charWpx", char_w);
+        set("charHpx", char_h);
+        set("bands", band_ranges.len() as f64);
+        set("buildMsTotal", build_ms);
+        set("submitMsPerIter", submit_ms);
+        if let Some(bmp) = bitmap {
+            let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bmp);
+        }
+        result.into()
+    }
+
+    /// DIAG: REALISTIC crowd test. Renders N characters into ONE Vello
+    /// scene with VARIED gfx (round-robin over `body_specs`), per-char
+    /// RANDOM zone colours (real recolor), and `acc_per_char` accessories
+    /// each (round-robin over `acc_specs`). Specs are `"bundle|export"`;
+    /// unloaded ones are skipped. Renders `iters` times, bridges the
+    /// result to a bitmap for display. Answers: cost of a realistic
+    /// varied/colored/accessorized crowd via Vello-direct.
+    #[wasm_bindgen(js_name = "benchmarkCrowdWithAcc")]
+    pub fn benchmark_crowd_with_acc(
+        &mut self,
+        body_specs: Vec<String>,
+        acc_specs: Vec<String>,
+        n_chars: u32,
+        acc_per_char: u32,
+        target_dim: u32,
+        iters: u32,
+        resolution: f32,
+    ) -> JsValue {
+        use swf_spike::render::ctx::RenderMode;
+        let scale = f64::from(resolution) / 20.0;
+
+        struct BSetup {
+            bundle: String,
+            export: String,
+            xform: vello::kurbo::Affine,
+            bands: Vec<swf_spike::render::BandRange>,
+            frames: u16,
+            anchor_x: f64,
+            anchor_y: f64,
+            char_w: f64,
+            char_h: f64,
+        }
+        let mut setups: Vec<BSetup> = Vec::new();
+        for spec in &body_specs {
+            let mut it = spec.split('|');
+            let (Some(b), Some(e)) = (it.next(), it.next()) else {
+                continue;
+            };
+            let Some(doc) = self.swf_bundles.get(b) else { continue };
+            let Some(symbol) = doc.lookup_export(e) else { continue };
+            let swf_spike::swf_doc::Symbol::Sprite(body) = symbol else {
+                continue;
+            };
+            let (effective_sym, effective_xform) =
+                swf_spike::render::find_effective_body_symbol(doc, symbol, 0);
+            let effective_body = match effective_sym {
+                swf_spike::swf_doc::Symbol::Sprite(s) => s,
+                _ => body,
+            };
+            let slots = swf_spike::render::extract_slot_depths(doc, body, 0);
+            let presence =
+                swf_spike::render::compute_band_presence(doc, effective_body, 0, &slots);
+            let present: Vec<usize> = presence
+                .iter()
+                .enumerate()
+                .filter_map(|(i, &p)| if p { Some(i) } else { None })
+                .collect();
+            let bands: Vec<swf_spike::render::BandRange> = if present.is_empty() {
+                vec![swf_spike::render::BandRange::ALL]
+            } else {
+                present
+                    .iter()
+                    .map(|&i| swf_spike::render::band_range(&slots, i))
+                    .collect()
+            };
+            let bounds = swf_spike::render::symbol_bounds(doc, symbol, 0);
+            setups.push(BSetup {
+                bundle: b.to_string(),
+                export: e.to_string(),
+                xform: effective_xform,
+                bands,
+                frames: body.num_frames.max(1),
+                anchor_x: -bounds.x0 * scale,
+                anchor_y: -bounds.y0 * scale,
+                char_w: (bounds.width() * scale).max(1.0),
+                char_h: (bounds.height() * scale).max(1.0),
+            });
+        }
+        if setups.is_empty() {
+            return JsValue::NULL;
+        }
+        let acc: Vec<(String, String)> = acc_specs
+            .iter()
+            .filter_map(|s| {
+                let mut it = s.split('|');
+                Some((it.next()?.to_string(), it.next()?.to_string()))
+            })
+            .collect();
+
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
+        }
+        for s in &setups {
+            self.swf_render_caches.entry(s.bundle.clone()).or_default();
+        }
+        for (b, _) in &acc {
+            self.swf_render_caches.entry(b.clone()).or_default();
+        }
+
+        let target = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("crowd-acc-bench"),
+            size: wgpu::Extent3d {
+                width: target_dim,
+                height: target_dim,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = target.create_view(&wgpu::TextureViewDescriptor::default());
+        let params = vello::RenderParams {
+            base_color: Color::TRANSPARENT,
+            width: target_dim,
+            height: target_dim,
+            antialiasing_method: AaConfig::Area,
+        };
+
+        let max_w = setups.iter().map(|s| s.char_w).fold(1.0_f64, f64::max);
+        let max_h = setups.iter().map(|s| s.char_h).fold(1.0_f64, f64::max);
+        let step_x = (max_w * 0.5).max(1.0);
+        let step_y = (max_h * 0.5).max(1.0);
+        let cols = (((f64::from(target_dim) - max_w) / step_x).floor() as u32).max(1);
+
+        // ── ONE-TIME: emit each char (varied gfx + per-char random colors +
+        // accessories) into its OWN sub-scene at scale, anchored to local
+        // origin (NO grid translate). Per-char colours survive because each
+        // char owns a colored sub-scene — no post-pass needed. This is the
+        // realistic colored bake; cached & re-emitted only on frame change.
+        let t_pre = perf_now();
+        let mut char_scenes: Vec<vello::Scene> = Vec::with_capacity(n_chars as usize);
+        {
+            let mut wctx = swf_spike::render::WgpuCtx {
+                device: &self.device,
+                queue: &self.queue,
+                renderer: &mut self.renderer,
+                filter_pipelines: self.swf_filter_pipelines.as_ref().unwrap(),
+                output_scale: scale,
+            };
+            let bundles = &self.swf_bundles;
+            let caches = &self.swf_render_caches;
+            for i in 0..n_chars {
+                let s = &setups[(i as usize) % setups.len()];
+                let frame = (i % u32::from(s.frames)) as u16;
+                let h = i.wrapping_mul(2_654_435_761).wrapping_add(1);
+                let pc = swf_spike::recolor::PlayerColors([
+                    Some(h & 0x00FF_FFFF),
+                    Some(h.wrapping_mul(40_503) & 0x00FF_FFFF),
+                    Some(h.wrapping_mul(2_246_822_519) & 0x00FF_FFFF),
+                ]);
+                // Local-origin placement: scaled, shifted so bbox-min lands at
+                // (0,0). The per-frame grid translate is applied at append.
+                let base = vello::kurbo::Affine::scale(scale)
+                    .then_translate(vello::kurbo::Vec2::new(s.anchor_x, s.anchor_y));
+                let mut cs = vello::Scene::new();
+                if let Some(doc) = bundles.get(&s.bundle) {
+                    if let Some(symbol) = doc.lookup_export(&s.export) {
+                        let (eff, _) =
+                            swf_spike::render::find_effective_body_symbol(doc, symbol, 0);
+                        if let Some(cache) = caches.get(&s.bundle) {
+                            for &band in &s.bands {
+                                swf_spike::render::render_body_band(
+                                    &mut wctx,
+                                    doc,
+                                    eff,
+                                    &mut cs,
+                                    base * s.xform,
+                                    frame,
+                                    band,
+                                    RenderMode::Colour,
+                                    pc,
+                                    cache,
+                                    false,
+                                    false,
+                                );
+                            }
+                        }
+                    }
+                }
+                // accessories (fixed palette — no recolor), local offsets
+                if !acc.is_empty() {
+                    for j in 0..acc_per_char {
+                        let (ab, ae) = &acc[((i * acc_per_char + j) as usize) % acc.len()];
+                        if let Some(adoc) = bundles.get(ab) {
+                            if let Some(asym) = adoc.lookup_export(ae) {
+                                if let Some(acache) = caches.get(ab) {
+                                    let off_y = s.char_h * (0.15 + 0.18 * f64::from(j));
+                                    let aplace = vello::kurbo::Affine::scale(scale)
+                                        .then_translate(vello::kurbo::Vec2::new(
+                                            s.anchor_x + s.char_w * 0.25,
+                                            s.anchor_y + off_y,
+                                        ));
+                                    swf_spike::render::render_body_band(
+                                        &mut wctx,
+                                        adoc,
+                                        asym,
+                                        &mut cs,
+                                        aplace,
+                                        0,
+                                        swf_spike::render::BandRange::ALL,
+                                        RenderMode::Colour,
+                                        swf_spike::recolor::PlayerColors::default(),
+                                        acache,
+                                        false,
+                                        false,
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+                char_scenes.push(cs);
+            }
+        }
+        let pre_ms = perf_now() - t_pre;
+
+        // ── PER-FRAME: rebuild the whole crowd via append of cached colored
+        // char sub-scenes at grid positions, then render. THIS is the real
+        // per-frame cost that gates fps (positions move every frame).
+        let mut build_total = 0.0;
+        let mut submit_total = 0.0;
+        let mut scene = vello::Scene::new();
+        for _ in 0..iters {
+            let t_b = perf_now();
+            scene.reset();
+            for i in 0..n_chars {
+                let col = i % cols;
+                let row = i / cols;
+                let place = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
+                    f64::from(col) * step_x,
+                    f64::from(row) * step_y,
+                ));
+                scene.append(&char_scenes[i as usize], Some(place));
+            }
+            build_total += perf_now() - t_b;
+            let t_s = perf_now();
+            let _ = self.renderer.render_to_texture(
+                &self.device,
+                &self.queue,
+                &scene,
+                &view,
+                &params,
+            );
+            submit_total += perf_now() - t_s;
+        }
+        let build_ms = build_total / f64::from(iters.max(1));
+        let submit_ms = submit_total / f64::from(iters.max(1));
+
+        let bitmap =
+            self.texture_to_bitmap(&target, target_dim, target_dim, "benchmarkCrowdWithAcc");
+
+        let result = js_sys::Object::new();
+        let set = |k: &str, v: f64| {
+            let _ = js_sys::Reflect::set(&result, &k.into(), &JsValue::from(v));
+        };
+        set("nChars", f64::from(n_chars));
+        set("uniqueBodies", setups.len() as f64);
+        set("accExports", acc.len() as f64);
+        set("accPerChar", f64::from(acc_per_char));
+        set("iters", f64::from(iters));
+        set("targetDim", f64::from(target_dim));
+        set("preMsOneTime", pre_ms);
+        set("buildMsPerIterAppend", build_ms);
+        set("submitMsPerIter", submit_ms);
+        if let Some(bmp) = bitmap {
+            let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bmp);
+        }
+        result.into()
+    }
+
+    /// DIAG: the DECIDING test for the 60fps question. Pre-renders each
+    /// (frame, band) sub-scene ONCE at twip-identity (scale-invariant,
+    /// uncolored — like body_subscene_cache), then builds the N-char
+    /// crowd PER ITER by `scene.append`-ing those cached sub-scenes with
+    /// per-char world transforms (the real per-frame cost). Measures the
+    /// PER-FRAME build (append) cost vs the naive re-emit (19ms). If this
+    /// is sub-ms, Vello-direct hits 60fps; recolor is then a separate
+    /// post-pass. `preMs` is the one-time sub-scene bake.
+    #[wasm_bindgen(js_name = "benchmarkBatchedAppend")]
+    pub fn benchmark_batched_append(
+        &mut self,
+        bundle: &str,
+        export: &str,
+        n_chars: u32,
+        target_dim: u32,
+        iters: u32,
+        resolution: f32,
+    ) -> JsValue {
+        use swf_spike::render::ctx::RenderMode;
+        let Some(doc) = self.swf_bundles.get(bundle) else {
+            return JsValue::NULL;
+        };
+        let Some(symbol) = doc.lookup_export(export) else {
+            return JsValue::NULL;
+        };
+        let swf_spike::swf_doc::Symbol::Sprite(body) = symbol else {
+            return JsValue::NULL;
+        };
+        let (effective_sym, effective_xform) =
+            swf_spike::render::find_effective_body_symbol(doc, symbol, 0);
+        let effective_body = match effective_sym {
+            swf_spike::swf_doc::Symbol::Sprite(s) => s,
+            _ => body,
+        };
+        let slots = swf_spike::render::extract_slot_depths(doc, body, 0);
+        let presence =
+            swf_spike::render::compute_band_presence(doc, effective_body, 0, &slots);
+        let band_ranges: Vec<swf_spike::render::BandRange> = {
+            let present: Vec<usize> = presence
+                .iter()
+                .enumerate()
+                .filter_map(|(i, &p)| if p { Some(i) } else { None })
+                .collect();
+            if present.is_empty() {
+                vec![swf_spike::render::BandRange::ALL]
+            } else {
+                present
+                    .iter()
+                    .map(|&i| swf_spike::render::band_range(&slots, i))
+                    .collect()
+            }
+        };
+        let bounds = swf_spike::render::symbol_bounds(doc, symbol, 0);
+        let scale = f64::from(resolution) / 20.0;
+        let frame_count = u32::from(body.num_frames).max(1);
+        let anchor_x = -bounds.x0 * scale;
+        let anchor_y = -bounds.y0 * scale;
+        let char_w = (bounds.width() * scale).max(1.0);
+        let char_h = (bounds.height() * scale).max(1.0);
+
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
+        }
+
+        // ── ONE-TIME: render each (frame, band) sub-scene at twip-identity
+        // (uncolored, scale-invariant). This is what body_subscene_cache
+        // holds; appended per char with a world transform.
+        let t_pre = perf_now();
+        let mut subscenes: Vec<Vec<vello::Scene>> = Vec::new();
+        {
+            let cache: &swf_spike::render::cache::RenderCache =
+                self.swf_render_caches.entry(bundle.to_string()).or_default();
+            let mut wctx = swf_spike::render::WgpuCtx {
+                device: &self.device,
+                queue: &self.queue,
+                renderer: &mut self.renderer,
+                filter_pipelines: self.swf_filter_pipelines.as_ref().unwrap(),
+                output_scale: scale,
+            };
+            for f in 0..frame_count {
+                let mut row = Vec::new();
+                for &band in &band_ranges {
+                    let mut sub = vello::Scene::new();
+                    swf_spike::render::render_body_band(
+                        &mut wctx,
+                        doc,
+                        effective_sym,
+                        &mut sub,
+                        effective_xform,
+                        f as u16,
+                        band,
+                        RenderMode::Colour,
+                        swf_spike::recolor::PlayerColors::default(),
+                        cache,
+                        false,
+                        false,
+                    );
+                    row.push(sub);
+                }
+                subscenes.push(row);
+            }
+        }
+        let pre_ms = perf_now() - t_pre;
+
+        let target = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("append-bench"),
+            size: wgpu::Extent3d {
+                width: target_dim,
+                height: target_dim,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = target.create_view(&wgpu::TextureViewDescriptor::default());
+        let params = vello::RenderParams {
+            base_color: Color::TRANSPARENT,
+            width: target_dim,
+            height: target_dim,
+            antialiasing_method: AaConfig::Area,
+        };
+
+        let step_x = (char_w * 0.5).max(1.0);
+        let step_y = (char_h * 0.5).max(1.0);
+        let cols = (((f64::from(target_dim) - char_w) / step_x).floor() as u32).max(1);
+        let n_bands = band_ranges.len();
+
+        // ── PER-FRAME: rebuild via append + render, measured each iter.
+        let mut build_total = 0.0;
+        let mut submit_total = 0.0;
+        let mut scene = vello::Scene::new();
+        for _ in 0..iters {
+            let t_b = perf_now();
+            scene.reset();
+            for i in 0..n_chars {
+                let f = (i % frame_count) as usize;
+                let col = i % cols;
+                let row = i / cols;
+                let wx = anchor_x + f64::from(col) * step_x;
+                let wy = anchor_y + f64::from(row) * step_y;
+                let place = vello::kurbo::Affine::scale(scale)
+                    .then_translate(vello::kurbo::Vec2::new(wx, wy));
+                for b in 0..n_bands {
+                    scene.append(&subscenes[f][b], Some(place));
+                }
+            }
+            build_total += perf_now() - t_b;
+            let t_s = perf_now();
+            let _ = self.renderer.render_to_texture(
+                &self.device,
+                &self.queue,
+                &scene,
+                &view,
+                &params,
+            );
+            submit_total += perf_now() - t_s;
+        }
+        let build_ms = build_total / f64::from(iters.max(1));
+        let submit_ms = submit_total / f64::from(iters.max(1));
+
+        let bitmap =
+            self.texture_to_bitmap(&target, target_dim, target_dim, "benchmarkBatchedAppend");
+
+        let result = js_sys::Object::new();
+        let set = |k: &str, v: f64| {
+            let _ = js_sys::Reflect::set(&result, &k.into(), &JsValue::from(v));
+        };
+        set("nChars", f64::from(n_chars));
+        set("bands", n_bands as f64);
+        set("frameCount", f64::from(frame_count));
+        set("iters", f64::from(iters));
+        set("preMsOneTime", pre_ms);
+        set("buildMsPerIterAppend", build_ms);
+        set("submitMsPerIter", submit_ms);
+        if let Some(bmp) = bitmap {
+            let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bmp);
+        }
+        result.into()
+    }
+
+    /// DIAG: render the ACTUAL on-screen players via Vello-direct using
+    /// REAL data — real body gfx + real equipped accessories at their
+    /// REAL mount transforms + correct direction frames (driven through
+    /// the SAME `render_symbol_with_ctx_tinted_accessorized_bfixed` path
+    /// the live renderer bakes with), real per-player colors, and real
+    /// isometric screen positions (Y-sorted, flipped per direction). NO
+    /// fixed offsets, NO grid stacking. Each look is emitted once into a
+    /// sub-scene; the crowd is rebuilt per frame via `scene.append` at
+    /// real positions. Measures the real per-frame cost + displays it.
+    ///
+    /// `players`: JS array of {
+    ///   bundle, export, frame, dir (1-char suffix), flipped (bool),
+    ///   c1, c2, c3 (packed 0xRRGGBB, 0 = no tint), x, y (map-space px),
+    ///   acc: [{ bundle, export, slot, animType }]
+    /// }
+    #[wasm_bindgen(js_name = "benchmarkRealCrowd")]
+    pub fn benchmark_real_crowd(
+        &mut self,
+        players: JsValue,
+        target_dim_max: u32,
+        iters: u32,
+        resolution: f32,
+    ) -> JsValue {
+        use swf_spike::render::ctx::RenderMode;
+        const MAX_SLOT: u8 = 5;
+
+        let scale = f64::from(resolution) / 20.0;
+        let pos_scale = f64::from(resolution); // map-space px → screen px
+
+        struct AccSpec {
+            bundle: String,
+            export: String,
+            slot: u8,
+            anim_type: u8,
+        }
+        struct PlayerSpec {
+            bundle: String,
+            export: String,
+            frame: u16,
+            dir: char,
+            flipped: bool,
+            colors: swf_spike::recolor::PlayerColors,
+            x: f64,
+            y: f64,
+            acc: Vec<AccSpec>,
+        }
+        let get_f64 = |o: &JsValue, k: &str| -> f64 {
+            js_sys::Reflect::get(o, &JsValue::from_str(k))
+                .ok()
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0)
+        };
+        let get_str = |o: &JsValue, k: &str| -> String {
+            js_sys::Reflect::get(o, &JsValue::from_str(k))
+                .ok()
+                .and_then(|v| v.as_string())
+                .unwrap_or_default()
+        };
+        let get_bool = |o: &JsValue, k: &str| -> bool {
+            js_sys::Reflect::get(o, &JsValue::from_str(k))
+                .ok()
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+        };
+        let opt_color = |c: f64| -> Option<u32> {
+            let v = c as i64;
+            if v > 0 {
+                Some((v as u32) & 0x00FF_FFFF)
+            } else {
+                None
+            }
+        };
+
+        let arr = js_sys::Array::from(&players);
+        let mut specs: Vec<PlayerSpec> = Vec::with_capacity(arr.length() as usize);
+        for i in 0..arr.length() {
+            let o = arr.get(i);
+            let bundle = get_str(&o, "bundle");
+            let export = get_str(&o, "export");
+            if bundle.is_empty() || export.is_empty() {
+                continue;
+            }
+            let dir = get_str(&o, "dir")
+                .chars()
+                .next()
+                .unwrap_or('R')
+                .to_ascii_uppercase();
+            let acc_val = js_sys::Reflect::get(&o, &JsValue::from_str("acc"))
+                .unwrap_or(JsValue::NULL);
+            let mut acc: Vec<AccSpec> = Vec::new();
+            if acc_val.is_truthy() {
+                let aarr = js_sys::Array::from(&acc_val);
+                for j in 0..aarr.length() {
+                    let a = aarr.get(j);
+                    let ab = get_str(&a, "bundle");
+                    let ae = get_str(&a, "export");
+                    if ab.is_empty() || ae.is_empty() {
+                        continue;
+                    }
+                    acc.push(AccSpec {
+                        bundle: ab,
+                        export: ae,
+                        slot: get_f64(&a, "slot") as u8,
+                        anim_type: get_f64(&a, "animType") as u8,
+                    });
+                }
+            }
+            specs.push(PlayerSpec {
+                bundle,
+                export,
+                frame: get_f64(&o, "frame") as u16,
+                dir,
+                flipped: get_bool(&o, "flipped"),
+                colors: swf_spike::recolor::PlayerColors([
+                    opt_color(get_f64(&o, "c1")),
+                    opt_color(get_f64(&o, "c2")),
+                    opt_color(get_f64(&o, "c3")),
+                ]),
+                x: get_f64(&o, "x"),
+                y: get_f64(&o, "y"),
+                acc,
+            });
+        }
+        if specs.is_empty() {
+            return JsValue::NULL;
+        }
+        // Y-sort so back-to-front overlap is canonical (lower y first).
+        specs.sort_by(|a, b| {
+            a.y.partial_cmp(&b.y).unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
+        }
+
+        // PER-BUNDLE render caches (CRITICAL: a cache shared across bundles
+        // returns the wrong flattened shapes for colliding symbol ids →
+        // huge bogus accessory geometry. Each bundle gets its own.)
+        for s in &specs {
+            self.swf_render_caches.entry(s.bundle.clone()).or_default();
+            for a in &s.acc {
+                self.swf_render_caches.entry(a.bundle.clone()).or_default();
+            }
+        }
+
+        // ── ONE-TIME: emit each player's full look (body + accessories at
+        // real mounts) into its own sub-scene at scale, SWF origin (0,0). ──
+        let mut char_scenes: Vec<vello::Scene> = Vec::with_capacity(specs.len());
+        let mut placed: Vec<(f64, f64, bool)> = Vec::with_capacity(specs.len());
+        let mut min_x = f64::INFINITY;
+        let mut min_y = f64::INFINITY;
+        let mut max_x = f64::NEG_INFINITY;
+        let mut max_y = f64::NEG_INFINITY;
+        let mut rendered = 0u32;
+        let mut acc_drawn = 0u32;
+        let t_pre = perf_now();
+        {
+            let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+            let mut ctx = swf_spike::render::WgpuCtx {
+                device: &self.device,
+                queue: &self.queue,
+                renderer: &mut self.renderer,
+                filter_pipelines,
+                output_scale: scale,
+            };
+            let bundles = &self.swf_bundles;
+            let caches = &self.swf_render_caches;
+            for s in &specs {
+                let Some(doc) = bundles.get(&s.bundle) else {
+                    continue;
+                };
+                let Some(symbol) = doc.lookup_export(&s.export) else {
+                    continue;
+                };
+                let Some(body_cache) = caches.get(&s.bundle) else {
+                    continue;
+                };
+                // Equipped accessories keyed by mount slot (resolve symbols +
+                // each accessory's OWN per-bundle cache).
+                let mut equipped: HashMap<
+                    u8,
+                    (
+                        &swf_spike::render::cache::RenderCache,
+                        &swf_spike::swf_doc::SwfDoc,
+                        &swf_spike::swf_doc::Symbol,
+                        u8,
+                    ),
+                > = HashMap::new();
+                for a in &s.acc {
+                    let Some(adoc) = bundles.get(&a.bundle) else {
+                        continue;
+                    };
+                    let Some(asym) = adoc.lookup_export(&a.export) else {
+                        continue;
+                    };
+                    let Some(acache) = caches.get(&a.bundle) else {
+                        continue;
+                    };
+                    equipped.insert(a.slot, (acache, adoc, asym, a.anim_type));
+                }
+                let has_hat = equipped.contains_key(&1);
+                // Effective body + its wrapper transform (export → body space),
+                // and the body's mount slot-depths (sorted by depth, with side).
+                let (effective_sym, effective_xform) =
+                    swf_spike::render::find_effective_body_symbol(doc, symbol, s.frame);
+                let swf_spike::swf_doc::Symbol::Sprite(body_sprite) = symbol else {
+                    continue;
+                };
+                let slots =
+                    swf_spike::render::extract_slot_depths(doc, body_sprite, s.frame);
+                // Per-frame mount matrices (export space) + presence bitmap.
+                let (mount_mats, mount_pres) =
+                    swf_spike::render::mount_transforms::extract_mount_transforms(
+                        doc, symbol, s.frame, 1, s.flipped, MAX_SLOT,
+                    );
+                let base = vello::kurbo::Affine::scale(scale);
+                let body_xform = base * effective_xform;
+                let mut cs = vello::Scene::new();
+                // CANONICAL Z-INTERLEAVE: band0, accessory@slot0-mount, band1,
+                // accessory@slot1-mount, … — z = append order = body-part depth
+                // (cape behind, hat in front), exactly like the live renderer.
+                let n = slots.len();
+                for i in 0..=n {
+                    let band = swf_spike::render::band_range(&slots, i);
+                    swf_spike::render::render_body_band(
+                        &mut ctx,
+                        doc,
+                        effective_sym,
+                        &mut cs,
+                        body_xform,
+                        s.frame,
+                        band,
+                        RenderMode::Colour,
+                        s.colors,
+                        body_cache,
+                        s.flipped,
+                        has_hat,
+                    );
+                    if i < n {
+                        let sd = &slots[i];
+                        let slot_us = sd.slot as usize;
+                        let present =
+                            mount_pres.get(slot_us).copied().unwrap_or(0) == 1;
+                        if present {
+                            if let Some(&(acache, adoc, asym, at)) =
+                                equipped.get(&sd.slot)
+                            {
+                                let off = slot_us * 6;
+                                if off + 6 <= mount_mats.len() {
+                                    let m = vello::kurbo::Affine::new([
+                                        f64::from(mount_mats[off]),
+                                        f64::from(mount_mats[off + 1]),
+                                        f64::from(mount_mats[off + 2]),
+                                        f64::from(mount_mats[off + 3]),
+                                        f64::from(mount_mats[off + 4]),
+                                        f64::from(mount_mats[off + 5]),
+                                    ]);
+                                    let side = sd.side.as_deref().unwrap_or("R");
+                                    let acc_frame =
+                                        swf_spike::render::pick_accessory_frame(
+                                            adoc, asym, sd.slot, at, side, s.frame,
+                                        );
+                                    swf_spike::render::render_symbol_with_shared_cache(
+                                        &mut ctx,
+                                        adoc,
+                                        asym,
+                                        &mut cs,
+                                        base * m,
+                                        acc_frame,
+                                        swf_spike::recolor::PlayerColors::default(),
+                                        acache,
+                                    );
+                                    acc_drawn += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+                // Content bbox: symmetric X extent covers both flip states.
+                let b = swf_spike::render::symbol_bounds(doc, symbol, s.frame);
+                let wx = s.x * pos_scale;
+                let wy = s.y * pos_scale;
+                let xext = b.x0.abs().max(b.x1.abs());
+                let cx0 = wx - xext * scale;
+                let cx1 = wx + xext * scale;
+                let cy0 = wy + b.y0 * scale;
+                let cy1 = wy + b.y1 * scale;
+                if cx0 < min_x {
+                    min_x = cx0;
+                }
+                if cy0 < min_y {
+                    min_y = cy0;
+                }
+                if cx1 > max_x {
+                    max_x = cx1;
+                }
+                if cy1 > max_y {
+                    max_y = cy1;
+                }
+                char_scenes.push(cs);
+                placed.push((wx, wy, s.flipped));
+                rendered += 1;
+            }
+        }
+        let pre_ms = perf_now() - t_pre;
+        if char_scenes.is_empty() {
+            return JsValue::NULL;
+        }
+
+        if !min_x.is_finite() {
+            min_x = 0.0;
+            min_y = 0.0;
+            max_x = 1.0;
+            max_y = 1.0;
+        }
+        let margin = 64.0_f64;
+        let off_x = margin - min_x;
+        let off_y = margin - min_y;
+        let span_x = (max_x - min_x + 2.0 * margin).max(1.0);
+        let span_y = (max_y - min_y + 2.0 * margin).max(1.0);
+        let cap = target_dim_max.min(8192).max(64);
+        let tw = (span_x.ceil() as u32).min(cap).max(1);
+        let th = (span_y.ceil() as u32).min(cap).max(1);
+
+        let target = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("real-crowd-bench"),
+            size: wgpu::Extent3d {
+                width: tw,
+                height: th,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = target.create_view(&wgpu::TextureViewDescriptor::default());
+        let params = vello::RenderParams {
+            base_color: Color::TRANSPARENT,
+            width: tw,
+            height: th,
+            antialiasing_method: AaConfig::Area,
+        };
+
+        // ── PER-FRAME: append all looks at real fitted positions, render. ──
+        let flip_x = vello::kurbo::Affine::new([-1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
+        let mut build_total = 0.0;
+        let mut submit_total = 0.0;
+        let mut scene = vello::Scene::new();
+        for _ in 0..iters {
+            let t_b = perf_now();
+            scene.reset();
+            for (k, cs) in char_scenes.iter().enumerate() {
+                let (wx, wy, flipped) = placed[k];
+                let base = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
+                    wx + off_x,
+                    wy + off_y,
+                ));
+                let place = if flipped { base * flip_x } else { base };
+                scene.append(cs, Some(place));
+            }
+            build_total += perf_now() - t_b;
+            let t_s = perf_now();
+            let _ = self.renderer.render_to_texture(
+                &self.device,
+                &self.queue,
+                &scene,
+                &view,
+                &params,
+            );
+            submit_total += perf_now() - t_s;
+        }
+        let build_ms = build_total / f64::from(iters.max(1));
+        let submit_ms = submit_total / f64::from(iters.max(1));
+
+        let bitmap = self.texture_to_bitmap(&target, tw, th, "benchmarkRealCrowd");
+
+        let result = js_sys::Object::new();
+        let set = |k: &str, v: f64| {
+            let _ = js_sys::Reflect::set(&result, &k.into(), &JsValue::from(v));
+        };
+        set("playersIn", specs.len() as f64);
+        set("rendered", f64::from(rendered));
+        set("accessoriesDrawn", f64::from(acc_drawn));
+        set("texW", f64::from(tw));
+        set("texH", f64::from(th));
+        set("iters", f64::from(iters));
+        set("preMsOneTime", pre_ms);
+        set("buildMsPerIterAppend", build_ms);
+        set("submitMsPerIter", submit_ms);
+        if let Some(bmp) = bitmap {
+            let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bmp);
+        }
+        result.into()
+    }
+
+    /// DIAG: set up the stateful ANIMATED Vello-direct crowd. Parses real
+    /// players (body bundle/export, frameCount, fps, colors, flipped,
+    /// real x/y, equipped accessories), per-bundle caches, fits a target
+    /// texture, and pre-emits each player's frame-0 sub-scene. `realCrowdTick`
+    /// then advances each player's animation and re-emits only the ones
+    /// whose frame changed. `players`: array of {bundle, export, frameCount,
+    /// fps, c1,c2,c3, flipped, x, y, acc:[{bundle,export,slot,animType}]}.
+    #[wasm_bindgen(js_name = "realCrowdSetup")]
+    pub fn real_crowd_setup(
+        &mut self,
+        players: JsValue,
+        target_dim_max: u32,
+        resolution: f32,
+        retain: bool,
+    ) -> JsValue {
+        let scale = f64::from(resolution) / 20.0;
+        let pos_scale = f64::from(resolution);
+        let get_f64 = |o: &JsValue, k: &str| -> f64 {
+            js_sys::Reflect::get(o, &JsValue::from_str(k))
+                .ok()
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0)
+        };
+        let get_str = |o: &JsValue, k: &str| -> String {
+            js_sys::Reflect::get(o, &JsValue::from_str(k))
+                .ok()
+                .and_then(|v| v.as_string())
+                .unwrap_or_default()
+        };
+        let get_bool = |o: &JsValue, k: &str| -> bool {
+            js_sys::Reflect::get(o, &JsValue::from_str(k))
+                .ok()
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+        };
+        let opt_color = |c: f64| -> Option<u32> {
+            let v = c as i64;
+            if v > 0 {
+                Some((v as u32) & 0x00FF_FFFF)
+            } else {
+                None
+            }
+        };
+
+        let arr = js_sys::Array::from(&players);
+        let mut players_vec: Vec<AnimPlayer> = Vec::with_capacity(arr.length() as usize);
+        for i in 0..arr.length() {
+            let o = arr.get(i);
+            let bundle = get_str(&o, "bundle");
+            let export = get_str(&o, "export");
+            if bundle.is_empty() || export.is_empty() {
+                continue;
+            }
+            let acc_val = js_sys::Reflect::get(&o, &JsValue::from_str("acc"))
+                .unwrap_or(JsValue::NULL);
+            let mut acc: Vec<LookAcc> = Vec::new();
+            if acc_val.is_truthy() {
+                let aarr = js_sys::Array::from(&acc_val);
+                for j in 0..aarr.length() {
+                    let a = aarr.get(j);
+                    let ab = get_str(&a, "bundle");
+                    let ae = get_str(&a, "export");
+                    if ab.is_empty() || ae.is_empty() {
+                        continue;
+                    }
+                    acc.push(LookAcc {
+                        bundle: ab,
+                        export: ae,
+                        slot: get_f64(&a, "slot") as u8,
+                        anim_type: get_f64(&a, "animType") as u8,
+                    });
+                }
+            }
+            let fc = (get_f64(&o, "frameCount") as u16).max(1);
+            let fps = get_f64(&o, "fps") as f32;
+            let flipped = get_bool(&o, "flipped");
+            let colors = swf_spike::recolor::PlayerColors([
+                opt_color(get_f64(&o, "c1")),
+                opt_color(get_f64(&o, "c2")),
+                opt_color(get_f64(&o, "c3")),
+            ]);
+            // Look signature (everything but the anim frame): the retained
+            // cache key prefix. Identical looks share one encoded sub-scene.
+            let mut acc_sig = String::new();
+            for a in &acc {
+                acc_sig.push_str(&a.bundle);
+                acc_sig.push(':');
+                acc_sig.push_str(&a.export);
+                acc_sig.push(':');
+                acc_sig.push_str(&a.slot.to_string());
+                acc_sig.push(',');
+            }
+            let sig = format!(
+                "{bundle}|{export}|{}|{:?}|{acc_sig}",
+                u8::from(flipped),
+                colors.0
+            );
+            players_vec.push(AnimPlayer {
+                bundle,
+                export,
+                frame_count: fc,
+                fps: if fps > 0.0 { fps } else { 12.0 },
+                colors,
+                flipped,
+                x: get_f64(&o, "x"),
+                y: get_f64(&o, "y"),
+                acc,
+                sig,
+            });
+        }
+        if players_vec.is_empty() {
+            return JsValue::NULL;
+        }
+        players_vec.sort_by(|a, b| {
+            a.y.partial_cmp(&b.y).unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        // Per-bundle caches (required to avoid cross-bundle id collisions).
+        for p in &players_vec {
+            self.swf_render_caches.entry(p.bundle.clone()).or_default();
+            for a in &p.acc {
+                self.swf_render_caches.entry(a.bundle.clone()).or_default();
+            }
+        }
+        if self.swf_filter_pipelines.is_none() {
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
+        }
+
+        // Fit the target to content bounds (symbol_bounds — NO emit/bake).
+        let mut min_x = f64::INFINITY;
+        let mut min_y = f64::INFINITY;
+        let mut max_x = f64::NEG_INFINITY;
+        let mut max_y = f64::NEG_INFINITY;
+        let acc_total: u32 = players_vec.iter().map(|p| p.acc.len() as u32).sum();
+        for p in &players_vec {
+            let wx = p.x * pos_scale;
+            let wy = p.y * pos_scale;
+            if let Some(doc) = self.swf_bundles.get(&p.bundle) {
+                if let Some(sym) = doc.lookup_export(&p.export) {
+                    let b = swf_spike::render::symbol_bounds(doc, sym, 0);
+                    let xext = b.x0.abs().max(b.x1.abs());
+                    min_x = min_x.min(wx - xext * scale);
+                    max_x = max_x.max(wx + xext * scale);
+                    min_y = min_y.min(wy + b.y0 * scale);
+                    max_y = max_y.max(wy + b.y1 * scale);
+                }
+            }
+        }
+        if !min_x.is_finite() {
+            min_x = 0.0;
+            min_y = 0.0;
+            max_x = 1.0;
+            max_y = 1.0;
+        }
+        let margin = 64.0_f64;
+        let off_x = margin - min_x;
+        let off_y = margin - min_y;
+        let cap = target_dim_max.min(8192).max(64);
+        let tw = (((max_x - min_x + 2.0 * margin).ceil()) as u32)
+            .min(cap)
+            .max(1);
+        let th = (((max_y - min_y + 2.0 * margin).ceil()) as u32)
+            .min(cap)
+            .max(1);
+
+        let target = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("real-anim-crowd"),
+            size: wgpu::Extent3d {
+                width: tw,
+                height: th,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            // RENDER_ATTACHMENT is required because the batched path's
+            // composite pass writes this texture via a render pass (not
+            // Vello's STORAGE compute write).
+            usage: wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+        let view = target.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let count = players_vec.len() as u32;
+        self.real_anim_crowd = Some(RealAnimCrowd {
+            players: players_vec,
+            off_x,
+            off_y,
+            tw,
+            th,
+            scale,
+            pos_scale,
+            retain,
+            look_cache: HashMap::new(),
+            target,
+            view,
+            batch_size: 0,
+            batch_targets: Vec::new(),
+            batch_views: Vec::new(),
+        });
+
+        let result = js_sys::Object::new();
+        let set = |k: &str, v: f64| {
+            let _ = js_sys::Reflect::set(&result, &k.into(), &JsValue::from(v));
+        };
+        set("players", f64::from(count));
+        set("retain", if retain { 1.0 } else { 0.0 });
+        set("accessoriesDrawn", f64::from(acc_total));
+        set("texW", f64::from(tw));
+        set("texH", f64::from(th));
+        result.into()
+    }
+
+    /// DIAG: advance the animated crowd to `time_ms`, re-emitting only the
+    /// players whose animation frame changed, then render one frame to the
+    /// crowd's target texture (NO readback — clean GPU timing). Returns
+    /// `{ reemitted, players }`.
+    #[wasm_bindgen(js_name = "realCrowdTick")]
+    pub fn real_crowd_tick(&mut self, time_ms: f64) -> JsValue {
+        let Some(mut crowd) = self.real_anim_crowd.take() else {
+            return JsValue::NULL;
+        };
+        let scale = crowd.scale;
+        let pos_scale = crowd.pos_scale;
+        let flip_x = vello::kurbo::Affine::new([-1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
+        let scale_aff = vello::kurbo::Affine::scale(scale);
+        let mut scene = vello::Scene::new();
+        let mut acc_drawn = 0u32;
+        let mut encoded = 0u32; // cache misses this tick (retained mode)
+        {
+            let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+            let mut ctx = swf_spike::render::WgpuCtx {
+                device: &self.device,
+                queue: &self.queue,
+                renderer: &mut self.renderer,
+                filter_pipelines,
+                output_scale: scale,
+            };
+            let bundles = &self.swf_bundles;
+            let caches = &self.swf_render_caches;
+            if crowd.retain {
+                // RETAINED ("Flash display list"): encode each unique
+                // (sig, frame) look ONCE into look_cache, then per player
+                // just `scene.append` the cached encoding at its transform.
+                // Steady state (after one anim cycle) = zero re-encode.
+                let RealAnimCrowd {
+                    ref players,
+                    ref mut look_cache,
+                    off_x,
+                    off_y,
+                    ..
+                } = crowd;
+                for p in players {
+                    let fc = p.frame_count.max(1);
+                    let fps = f64::from(p.fps.max(0.001));
+                    let tf = (((time_ms / 1000.0) * fps) as i64)
+                        .rem_euclid(i64::from(fc)) as u16;
+                    let key = format!("{}|{}", p.sig, tf);
+                    if !look_cache.contains_key(&key) {
+                        let mut sub = vello::Scene::new();
+                        acc_drawn += emit_player_look(
+                            &mut ctx,
+                            bundles,
+                            caches,
+                            &p.bundle,
+                            &p.export,
+                            tf,
+                            p.flipped,
+                            p.colors,
+                            &p.acc,
+                            scale_aff,
+                            &mut sub,
+                        );
+                        look_cache.insert(key.clone(), sub);
+                        encoded += 1;
+                    }
+                    if let Some(sub) = look_cache.get(&key) {
+                        let translate = vello::kurbo::Affine::translate(
+                            vello::kurbo::Vec2::new(
+                                p.x * pos_scale + off_x,
+                                p.y * pos_scale + off_y,
+                            ),
+                        );
+                        let place = if p.flipped { translate * flip_x } else { translate };
+                        scene.append(sub, Some(place));
+                    }
+                }
+            } else {
+                // NAIVE: re-emit EVERY player's full look from scratch
+                // into one scene every tick. No cache, no pre-bake.
+                for p in &crowd.players {
+                    let fc = p.frame_count.max(1);
+                    let fps = f64::from(p.fps.max(0.001));
+                    let tf = (((time_ms / 1000.0) * fps) as i64)
+                        .rem_euclid(i64::from(fc)) as u16;
+                    let translate = vello::kurbo::Affine::translate(
+                        vello::kurbo::Vec2::new(
+                            p.x * pos_scale + crowd.off_x,
+                            p.y * pos_scale + crowd.off_y,
+                        ),
+                    );
+                    let base = if p.flipped {
+                        translate * flip_x * scale_aff
+                    } else {
+                        translate * scale_aff
+                    };
+                    acc_drawn += emit_player_look(
+                        &mut ctx,
+                        bundles,
+                        caches,
+                        &p.bundle,
+                        &p.export,
+                        tf,
+                        p.flipped,
+                        p.colors,
+                        &p.acc,
+                        base,
+                        &mut scene,
+                    );
+                }
+            }
+        }
+        let params = vello::RenderParams {
+            base_color: Color::TRANSPARENT,
+            width: crowd.tw,
+            height: crowd.th,
+            antialiasing_method: AaConfig::Area,
+        };
+        let _ = self.renderer.render_to_texture(
+            &self.device,
+            &self.queue,
+            &scene,
+            &crowd.view,
+            &params,
+        );
+        let n = crowd.players.len() as u32;
+        let cache_size = crowd.look_cache.len() as u32;
+        self.real_anim_crowd = Some(crowd);
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"emitted".into(), &JsValue::from(n));
+        let _ = js_sys::Reflect::set(&result, &"accDrawn".into(), &JsValue::from(acc_drawn));
+        let _ = js_sys::Reflect::set(&result, &"encoded".into(), &JsValue::from(encoded));
+        let _ = js_sys::Reflect::set(&result, &"cacheSize".into(), &JsValue::from(cache_size));
+        result.into()
+    }
+
+    /// DIAG: capture `n_frames` of the animated crowd as a flipbook for
+    /// visual playback. Renders each anim frame (advancing by `step_ms`)
+    /// into its OWN target texture FIRST (no readback between renders —
+    /// the blit-readback poisons the next render_to_texture, so we must
+    /// finish all renders before reading any back), THEN reads every
+    /// target back to an ImageBitmap. Returns a JS array of ImageBitmaps
+    /// the caller can flipbook on a canvas (pure 2D, no further GPU).
+    /// Retained path (cached encodings + append).
+    #[wasm_bindgen(js_name = "realCrowdCaptureFlipbook")]
+    pub fn real_crowd_capture_flipbook(&mut self, n_frames: u32, step_ms: f64) -> JsValue {
+        let Some(mut crowd) = self.real_anim_crowd.take() else {
+            return JsValue::NULL;
+        };
+        let scale = crowd.scale;
+        let pos_scale = crowd.pos_scale;
+        let flip_x = vello::kurbo::Affine::new([-1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
+        let scale_aff = vello::kurbo::Affine::scale(scale);
+        let params = vello::RenderParams {
+            base_color: Color::TRANSPARENT,
+            width: crowd.tw,
+            height: crowd.th,
+            antialiasing_method: AaConfig::Area,
+        };
+        // PASS 1: render every frame to its OWN target (no readback yet).
+        let mut targets: Vec<wgpu::Texture> = Vec::with_capacity(n_frames as usize);
+        for i in 0..n_frames {
+            let time_ms = f64::from(i) * step_ms;
+            let mut scene = vello::Scene::new();
+            {
+                let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+                let mut ctx = swf_spike::render::WgpuCtx {
+                    device: &self.device,
+                    queue: &self.queue,
+                    renderer: &mut self.renderer,
+                    filter_pipelines,
+                    output_scale: scale,
+                };
+                let bundles = &self.swf_bundles;
+                let caches = &self.swf_render_caches;
+                let RealAnimCrowd {
+                    ref players,
+                    ref mut look_cache,
+                    off_x,
+                    off_y,
+                    ..
+                } = crowd;
+                for p in players {
+                    let fc = p.frame_count.max(1);
+                    let fps = f64::from(p.fps.max(0.001));
+                    let tf = (((time_ms / 1000.0) * fps) as i64)
+                        .rem_euclid(i64::from(fc)) as u16;
+                    let key = format!("{}|{}", p.sig, tf);
+                    if !look_cache.contains_key(&key) {
+                        let mut sub = vello::Scene::new();
+                        emit_player_look(
+                            &mut ctx, bundles, caches, &p.bundle, &p.export, tf,
+                            p.flipped, p.colors, &p.acc, scale_aff, &mut sub,
+                        );
+                        look_cache.insert(key.clone(), sub);
+                    }
+                    if let Some(sub) = look_cache.get(&key) {
+                        let translate = vello::kurbo::Affine::translate(
+                            vello::kurbo::Vec2::new(
+                                p.x * pos_scale + off_x,
+                                p.y * pos_scale + off_y,
+                            ),
+                        );
+                        let place = if p.flipped { translate * flip_x } else { translate };
+                        scene.append(sub, Some(place));
+                    }
+                }
+            }
+            let target = self.device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("flipbook-frame"),
+                size: wgpu::Extent3d {
+                    width: crowd.tw,
+                    height: crowd.th,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::STORAGE_BINDING
+                    | wgpu::TextureUsages::COPY_SRC
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            });
+            let view = target.create_view(&wgpu::TextureViewDescriptor::default());
+            let _ = self.renderer.render_to_texture(
+                &self.device,
+                &self.queue,
+                &scene,
+                &view,
+                &params,
+            );
+            targets.push(target);
+        }
+        // PASS 2: read every target back to an ImageBitmap (renders done,
+        // so readback-poison is irrelevant).
+        let arr = js_sys::Array::new();
+        for t in &targets {
+            if let Some(bmp) =
+                self.texture_to_bitmap(t, crowd.tw, crowd.th, "realCrowdCaptureFlipbook")
+            {
+                arr.push(&bmp);
+            }
+        }
+        self.real_anim_crowd = Some(crowd);
+        arr.into()
+    }
+
+    /// DIAG: BATCHED render — splits the Y-sorted crowd into batches of
+    /// `batch_size` actors (each kept under the single-scene shape
+    /// ceiling), renders each batch to its own texture (one Vello
+    /// dispatch each), then alpha-composites them back-to-front onto the
+    /// crowd target. This is the REAL high-count render path. Measures
+    /// append + per-batch GPU + composite together (call it in a loop +
+    /// await onSubmittedWorkDone in JS for end-to-end timing). Composites
+    /// into `crowd.view`, so `realCrowdBitmap` reads the result.
+    #[wasm_bindgen(js_name = "realCrowdRenderBatched")]
+    pub fn real_crowd_render_batched(&mut self, batch_size: u32, time_ms: f64) -> JsValue {
+        if batch_size == 0 {
+            return JsValue::NULL;
+        }
+        if self.crowd_composite_pipeline.is_none() {
+            self.crowd_composite_pipeline = Some(bitmap_bridge::CompositePipeline::new(
+                &self.device,
+                wgpu::TextureFormat::Rgba8Unorm,
+            ));
+        }
+        let Some(mut crowd) = self.real_anim_crowd.take() else {
+            return JsValue::NULL;
+        };
+        let n_players = crowd.players.len() as u32;
+        let n_batches = n_players.div_ceil(batch_size).max(1);
+        let (tw, th) = (crowd.tw, crowd.th);
+        // (Re)create per-batch scratch textures, reused across frames.
+        if crowd.batch_size != batch_size
+            || crowd.batch_targets.len() != n_batches as usize
+        {
+            crowd.batch_targets.clear();
+            crowd.batch_views.clear();
+            for _ in 0..n_batches {
+                let t = self.device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("crowd-batch"),
+                    size: wgpu::Extent3d {
+                        width: tw,
+                        height: th,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    usage: wgpu::TextureUsages::STORAGE_BINDING
+                        | wgpu::TextureUsages::COPY_SRC
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[],
+                });
+                let v = t.create_view(&wgpu::TextureViewDescriptor::default());
+                crowd.batch_targets.push(t);
+                crowd.batch_views.push(v);
+            }
+            crowd.batch_size = batch_size;
+        }
+        let scale = crowd.scale;
+        let pos_scale = crowd.pos_scale;
+        let flip_x = vello::kurbo::Affine::new([-1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
+        let scale_aff = vello::kurbo::Affine::scale(scale);
+        let params = vello::RenderParams {
+            base_color: Color::TRANSPARENT,
+            width: tw,
+            height: th,
+            antialiasing_method: AaConfig::Area,
+        };
+        // PASS 1: build + render each batch (Y-sorted contiguous chunk).
+        {
+            let RealAnimCrowd {
+                ref players,
+                ref mut look_cache,
+                off_x,
+                off_y,
+                ref batch_views,
+                ..
+            } = crowd;
+            let bsz = batch_size as usize;
+            for b in 0..n_batches as usize {
+                let start = b * bsz;
+                let end = ((b + 1) * bsz).min(players.len());
+                if start >= end {
+                    break;
+                }
+                let mut scene = vello::Scene::new();
+                {
+                    let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+                    let mut ctx = swf_spike::render::WgpuCtx {
+                        device: &self.device,
+                        queue: &self.queue,
+                        renderer: &mut self.renderer,
+                        filter_pipelines,
+                        output_scale: scale,
+                    };
+                    let bundles = &self.swf_bundles;
+                    let caches = &self.swf_render_caches;
+                    for p in &players[start..end] {
+                        let fc = p.frame_count.max(1);
+                        let fps = f64::from(p.fps.max(0.001));
+                        let tf = (((time_ms / 1000.0) * fps) as i64)
+                            .rem_euclid(i64::from(fc)) as u16;
+                        let key = format!("{}|{}", p.sig, tf);
+                        if !look_cache.contains_key(&key) {
+                            let mut sub = vello::Scene::new();
+                            emit_player_look(
+                                &mut ctx, bundles, caches, &p.bundle, &p.export, tf,
+                                p.flipped, p.colors, &p.acc, scale_aff, &mut sub,
+                            );
+                            look_cache.insert(key.clone(), sub);
+                        }
+                        if let Some(sub) = look_cache.get(&key) {
+                            let translate = vello::kurbo::Affine::translate(
+                                vello::kurbo::Vec2::new(
+                                    p.x * pos_scale + off_x,
+                                    p.y * pos_scale + off_y,
+                                ),
+                            );
+                            let place =
+                                if p.flipped { translate * flip_x } else { translate };
+                            scene.append(sub, Some(place));
+                        }
+                    }
+                }
+                let _ = self.renderer.render_to_texture(
+                    &self.device,
+                    &self.queue,
+                    &scene,
+                    &batch_views[b],
+                    &params,
+                );
+            }
+        }
+        // PASS 2: composite batches back-to-front onto the crowd target.
+        {
+            let comp = self.crowd_composite_pipeline.as_ref().unwrap();
+            let mut encoder = self
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("crowd-composite-encoder"),
+                });
+            for b in 0..crowd.batch_views.len() {
+                comp.composite(
+                    &self.device,
+                    &mut encoder,
+                    &crowd.batch_views[b],
+                    &crowd.view,
+                    b == 0,
+                );
+            }
+            self.queue.submit(std::iter::once(encoder.finish()));
+        }
+        let cache_size = crowd.look_cache.len() as u32;
+        self.real_anim_crowd = Some(crowd);
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"players".into(), &JsValue::from(n_players));
+        let _ = js_sys::Reflect::set(&result, &"batches".into(), &JsValue::from(n_batches));
+        let _ = js_sys::Reflect::set(&result, &"cacheSize".into(), &JsValue::from(cache_size));
+        result.into()
+    }
+
+    /// DIAG: read the animated crowd's current target texture back to an
+    /// ImageBitmap for display. Has a GPU readback cost — call it sparsely
+    /// (e.g. a few times/sec), NOT inside the measured render loop.
+    #[wasm_bindgen(js_name = "realCrowdBitmap")]
+    pub fn real_crowd_bitmap(&mut self) -> JsValue {
+        let Some(crowd) = self.real_anim_crowd.take() else {
+            return JsValue::NULL;
+        };
+        let bmp = self.texture_to_bitmap(&crowd.target, crowd.tw, crowd.th, "realCrowd");
+        self.real_anim_crowd = Some(crowd);
+        match bmp {
+            Some(b) => b.into(),
+            None => JsValue::NULL,
+        }
+    }
+
+    /// DIAG: free the animated crowd (drops cached sub-scenes + target).
+    #[wasm_bindgen(js_name = "realCrowdFree")]
+    pub fn real_crowd_free(&mut self) {
+        self.real_anim_crowd = None;
     }
 
     /// Class atlas bake: pack EVERY animation variant of a body
