@@ -2504,6 +2504,60 @@ impl VelloRenderer {
         let frame_w = ((px_max_x - px_min_x) as u32).max(1);
         let frame_h = ((px_max_y - px_min_y) as u32).max(1);
 
+        // DIAG (crop measurement): each present band only fills part of
+        // the shared frame_w×frame_h cell. Compute each band's own
+        // content bbox (union across sampled chunk frames) and compare
+        // its area to the full cell, to quantify per-band crop savings
+        // before changing the atlas layout. Logged, not yet applied.
+        {
+            let full_cell = f64::from(frame_w) * f64::from(frame_h);
+            let n_bands = band_ranges.len();
+            let mut sum_band = 0.0_f64;
+            let sample: Vec<u32> = if chunk_count <= 8 {
+                (start..chunk_end).collect()
+            } else {
+                (0..8).map(|k| start + k * (chunk_count / 8)).collect()
+            };
+            for &band in &band_ranges {
+                let mut bx0 = f64::INFINITY;
+                let mut by0 = f64::INFINITY;
+                let mut bx1 = f64::NEG_INFINITY;
+                let mut by1 = f64::NEG_INFINITY;
+                for &f in &sample {
+                    let r = swf_spike::render::band_bounds(
+                        doc,
+                        effective_body,
+                        effective_xform,
+                        f as u16,
+                        band,
+                    );
+                    if r.width() > 0.0 && r.height() > 0.0 {
+                        bx0 = bx0.min(r.x0);
+                        by0 = by0.min(r.y0);
+                        bx1 = bx1.max(r.x1);
+                        by1 = by1.max(r.y1);
+                    }
+                }
+                if bx1 > bx0 && by1 > by0 {
+                    let bw = ((bx1 * scale).ceil() + pad) - ((bx0 * scale).floor() - pad);
+                    let bh = ((by1 * scale).ceil() + pad) - ((by0 * scale).floor() - pad);
+                    sum_band += bw.max(1.0) * bh.max(1.0);
+                }
+            }
+            let full_total = full_cell * (n_bands as f64);
+            if full_total > 0.0 && sum_band > 0.0 {
+                console_log!(
+                    "[crop-measure] {}/{} bands={} full={:.0} cropped={:.0} ratio={:.2}x",
+                    bundle,
+                    export,
+                    n_bands,
+                    full_total,
+                    sum_band,
+                    full_total / sum_band
+                );
+            }
+        }
+
         // Atlas layout: bands stacked vertically. Only PRESENT bands
         // (those with visible content) get a strip; trivial bands are
         // skipped entirely. Atlas width = strip_w, atlas height =

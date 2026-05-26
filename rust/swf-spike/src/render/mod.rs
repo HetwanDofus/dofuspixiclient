@@ -29,7 +29,7 @@ pub mod snapshot;
 pub mod sprite;
 
 pub use band::{render_body_band, render_body_band_dual};
-pub use bounds::{build_frame_state, symbol_bounds};
+pub use bounds::{band_bounds, build_frame_state, symbol_bounds};
 pub use cache::RenderCache;
 pub use clip::collect_mask_path;
 pub use ctx::{RenderCtx, RenderMode};

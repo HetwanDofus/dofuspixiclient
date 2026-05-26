@@ -154,6 +154,58 @@ fn sprite_bounds(doc: &SwfDoc, sprite: &OwnedSprite, frame: u16, parent: Affine)
     acc.unwrap_or(Rect::ZERO)
 }
 
+/// Twip-space bounds of just the display objects whose depth falls
+/// inside `band` at `frame`, in the SAME coordinate space as
+/// `symbol_bounds(body_export)` — i.e. the effective body's
+/// band-filtered child bounds with `effective_xform` (the wrapper
+/// transform from `find_effective_body_symbol`) applied. Used to crop
+/// each Z-band's atlas cell to its actual content instead of the
+/// variant's full union frame, shrinking the input-atlas working set.
+///
+/// Returns `Rect::ZERO` for a band with no in-range content (caller
+/// should treat width/height ≤ 0 as "skip / degenerate").
+pub fn band_bounds(
+    doc: &SwfDoc,
+    effective_body: &OwnedSprite,
+    effective_xform: Affine,
+    frame: u16,
+    band: super::slot_depths::BandRange,
+) -> Rect {
+    let state = build_frame_state(effective_body, frame);
+    let mut acc: Option<Rect> = None;
+    for (&depth, p) in &state {
+        if !band.contains(depth) {
+            continue;
+        }
+        let id = match p.character_id {
+            Some(id) => id,
+            None => continue,
+        };
+        let child = match doc.lookup_id(id) {
+            Some(c) => c,
+            None => continue,
+        };
+        // Match `sprite_bounds`'s child-frame handling: a multi-frame
+        // child advances with the parent frame; a single-frame child
+        // stays at 0.
+        let child_frame = match child {
+            Symbol::Sprite(cs) if cs.num_frames > 1 => frame,
+            _ => 0,
+        };
+        let local = symbol_bounds(doc, child, child_frame);
+        if local.width() <= 0.0 || local.height() <= 0.0 {
+            continue;
+        }
+        let xform = effective_xform * p.matrix.unwrap_or(Affine::IDENTITY);
+        let world = transform_rect(xform, local);
+        acc = Some(match acc {
+            Some(a) => a.union(world),
+            None => world,
+        });
+    }
+    acc.unwrap_or(Rect::ZERO)
+}
+
 pub(super) fn transform_rect(m: Affine, r: Rect) -> Rect {
     let pts = [
         m * Point::new(r.x0, r.y0),

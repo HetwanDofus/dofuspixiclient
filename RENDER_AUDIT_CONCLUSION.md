@@ -32,6 +32,55 @@ optimization + this ONE reuse fix (which cropping enables). (Reminder: long CDP 
 sessions degrade — JS heap climbs to 2.5GB+ → GC stalls give false-low FPS; restart browser
 for clean perf numbers.)
 
+## CONFIRMED ROOT CAUSE (2026-05-26): eviction thrashing
+
+The class-atlas LRU cap (`DEFAULT_CLASS_BYTES_CAP` = 1000MB, `character-cache.ts:108`) is
+**smaller than the moving working set** (250 random-dir moving ≈ 572 variants ≈ 957MB, sitting
+*at* the cap). Result: constant evict → re-bake → re-blit → free → recycle thrash
+(`evict=14897` at 120 moving). **That thrash IS the stalls, the empty-flash-on-turn, AND the
+reuse-race garbage** — when slots churn constantly the race fires and frames hitch.
+
+PROOF: raising the cap to 2.6GB → `evict` 14897→**21**, `stall10s`=**0**, FPS avg **60**,
+smooth + clean — but GPU hit **3.37GB** (full working set resident, over the 3GB budget).
+Disabling reuse (`__noReclaim`) does NOT help — freed slots leak → shared page fills → 995MB
+fallback textures + still thrashing. So reuse must STAY; the fix is to make the working set
+**fit under a budget cap** so it stops thrashing.
+
+Red herrings cleared this session: grow() (correct, pre-sized to 256), seed-5 (valid garish
+Cra gfx 90), reuse-as-primary (it's a *symptom* of thrash). Canonical model (`mc/Sprite.as`
+`setAnim`): dir→5 graphics+flip, atomic `attachMovie` swap (no gap), all dirs in SWF (no bake
+delay) — our async-bake + thrash is the non-canonical part. We already share flips
+(`character-cache.ts:702`).
+
+### Crop: VALIDATED + in progress (2026-05-26)
+- **Savings measured: 2.11× average** (median 2.14×, range 1.13–4.73×, 400 bakes) via
+  `band_bounds` + a `[crop-measure]` log in `renderSwfBodyAtlas`. Working set 957MB → ~450MB →
+  fits the 1GB cap → kills the thrash. Confirmed worth it.
+- **DONE:** `swf-spike/src/render/bounds.rs` `band_bounds()` (added, exported, compiles);
+  `[crop-measure]` diagnostic in `lib.rs renderSwfBodyAtlas` (remove when done).
+- **REMAINING:** steps 2–7 below (per-band layout/emit in the bake → JS UV/mount/silhouette →
+  verify pixel-identity + mount alignment → re-measure). This is the large, alignment-critical
+  part.
+
+### Crop execution plan (the fix — fit working set under cap)
+1. **Rust** `swf-spike/src/render/bounds.rs`: add `band_bounds(doc, sym, frame, BandRange)` —
+   like `sprite_bounds` but unioning only depths inside the band range.
+2. **Rust** `lib.rs renderSwfBodyAtlas` (the band loop ~2656-2683 + layout ~2494-2579):
+   replace the single uniform `frame_w/frame_h` cell with **per-band** `(px_min, w, h)` from
+   `band_bounds`; pack bands with per-band dims; render each band at its own `px_min`.
+3. **Rust**: emit per-band crop offset `(offsetX, offsetY)` (band content origin relative to
+   the variant's SWF (0,0)) in the result.
+4. **JS** `character-cache.ts` (`VariantBand`): carry per-band cell dims + offset.
+5. **JS** `body-band-batch.ts` `computeBandFrameUV` + the compose `aTransform`: use per-band
+   cell dims and add the crop offset so the band draws at the correct slot position.
+6. **JS** picking silhouette extraction: account for per-band crop offsets.
+7. VERIFY with the dump harness: pixel-identical composite + accessory-mount alignment
+   unchanged (mounts are twip-space, orthogonal — should hold, MUST confirm); then re-measure
+   working set + `evict` + stalls (target: fits ≤1GB cap, evict→~0, 0 stalls, GPU < 3GB).
+
+Risk: breaks the uniform-cell invariant (`lib.rs:2494`) that mount alignment relies on — do it
+as a focused pass, verifying each step, not rushed.
+
 ## TL;DR
 
 **The architecture's bones are correct. We do NOT need a big refactor of the
