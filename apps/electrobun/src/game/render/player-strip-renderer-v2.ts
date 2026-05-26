@@ -23,6 +23,7 @@
 import {
   Container,
   Matrix,
+  RenderTexture,
   Sprite,
   Texture,
   Ticker,
@@ -49,6 +50,8 @@ import {
   type CompositionSlot,
   SharedCompositionAtlas,
 } from "@/game/render/composition-atlas";
+import { getSharedInputAtlas } from "@/game/render/shared-input-atlas";
+import { getVelloGpu } from "@/game/render/vello-loader";
 import { recordProbe } from "@/game/render/render-probes";
 import { createLogger } from "@/utils/logger";
 
@@ -472,6 +475,758 @@ export class PlayerStripRendererV2 {
     // Register globally so the stress-test snapshot can read atlas
     // pressure without threading a reference through the scene tree.
     activeStripRenderer = this;
+
+    // ── TEMP DIAG: window.__dumpAtlases() ──────────────────────────
+    // Extracts the input super-atlas pages (what BodyBandBatch samples)
+    // and the composition pages (the per-bot output) to on-screen
+    // canvases, cropping the packed top-left region for detail. Lets us
+    // see whether garbage lives in the Vello render/blit (input) or in
+    // band sampling/transform (composition). Remove once root-caused.
+    if (typeof window !== "undefined") {
+      (
+        window as unknown as {
+          __dumpAtlases?: (opts?: {
+            inputCrop?: number;
+            inputOut?: number;
+            compCrop?: number;
+            compOut?: number;
+          }) => void;
+        }
+      ).__dumpAtlases = (opts) => {
+          try {
+            const inputCrop = opts?.inputCrop ?? 2048;
+            const inputOut = opts?.inputOut ?? 700;
+            const compCrop = opts?.compCrop ?? 4096;
+            const compOut = opts?.compOut ?? 1100;
+            const r = this.pixiRenderer as unknown as {
+              extract: {
+                canvas: (
+                  t: unknown,
+                ) => CanvasImageSource & { width: number; height: number };
+              };
+            };
+            const host =
+              document.getElementById("__atlasdump") ??
+              (() => {
+                const d = document.createElement("div");
+                d.id = "__atlasdump";
+                d.style.cssText =
+                  "position:fixed;left:0;top:0;z-index:99999;background:#222;display:flex;flex-wrap:wrap;gap:4px;padding:4px;max-width:100vw;";
+                document.body.appendChild(d);
+                return d;
+              })();
+            host.innerHTML = "";
+            const addCrop = (
+              label: string,
+              tex: unknown,
+              cropDim: number,
+              outDim: number,
+            ) => {
+              const full = r.extract.canvas(tex);
+              const out = document.createElement("canvas");
+              out.width = outDim;
+              out.height = outDim;
+              const ctx = out.getContext("2d");
+              if (!ctx) return;
+              ctx.fillStyle = "#101010";
+              ctx.fillRect(0, 0, outDim, outDim);
+              ctx.imageSmoothingEnabled = false;
+              ctx.drawImage(full, 0, 0, cropDim, cropDim, 0, 0, outDim, outDim);
+              const wrap = document.createElement("div");
+              const cap = document.createElement("div");
+              cap.textContent = label;
+              cap.style.cssText = "color:#0f0;font:10px monospace";
+              wrap.appendChild(cap);
+              wrap.appendChild(out);
+              host.appendChild(wrap);
+            };
+            const input = getSharedInputAtlas() as unknown as {
+              pages: Array<{ texture: unknown }>;
+            };
+            // Optional precise input rect (atlas px) → magnified view.
+            const ir = (
+              opts as unknown as {
+                inputRect?: {
+                  x: number;
+                  y: number;
+                  w: number;
+                  h: number;
+                  out: number;
+                };
+              }
+            )?.inputRect;
+            if (ir) {
+              const r = (
+                this.pixiRenderer as unknown as {
+                  extract: {
+                    canvas: (
+                      t: unknown,
+                    ) => CanvasImageSource & {
+                      width: number;
+                      height: number;
+                    };
+                  };
+                }
+              ).extract;
+              input.pages.forEach((p, i) => {
+                const full = r.canvas(
+                  (p as { texture: unknown }).texture,
+                );
+                const outW = ir.out;
+                const outH = Math.round((ir.out * ir.h) / ir.w);
+                const out = document.createElement("canvas");
+                out.width = outW;
+                out.height = outH;
+                const cx = out.getContext("2d");
+                if (!cx) return;
+                cx.fillStyle = "#101010";
+                cx.fillRect(0, 0, outW, outH);
+                cx.imageSmoothingEnabled = false;
+                cx.drawImage(
+                  full,
+                  ir.x,
+                  ir.y,
+                  ir.w,
+                  ir.h,
+                  0,
+                  0,
+                  outW,
+                  outH,
+                );
+                const wrap = document.createElement("div");
+                const cap = document.createElement("div");
+                cap.textContent = `input p${i} rect(${ir.x},${ir.y} ${ir.w}x${ir.h})`;
+                cap.style.cssText = "color:#0f0;font:10px monospace";
+                wrap.appendChild(cap);
+                wrap.appendChild(out);
+                host.appendChild(wrap);
+              });
+            } else {
+              input.pages.forEach((p, i) =>
+                addCrop(
+                  `input p${i} (${inputCrop}->${inputOut})`,
+                  p.texture,
+                  inputCrop,
+                  inputOut,
+                ),
+              );
+            }
+            const comp = this.atlas as unknown as {
+              pages: Array<{ renderTexture: unknown }>;
+            };
+            comp.pages.forEach((p, i) =>
+              addCrop(
+                `comp p${i} — all looks (${compCrop}->${compOut})`,
+                p.renderTexture,
+                compCrop,
+                compOut,
+              ),
+            );
+            // eslint-disable-next-line no-console
+            console.warn(
+              `[dumpAtlases] inputPages=${input.pages.length} compPages=${comp.pages.length}`,
+            );
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error("[dumpAtlases] failed", e);
+          }
+        };
+
+      // ── TEMP DIAG: window.__composeBenchmark(iters) ──────────────
+      // Measures the cost of compositing every live bot's full look
+      // into the composition atlas in ONE render pass per page. Drives
+      // SharedCompositionAtlas.renderAll in a tight loop (each call
+      // re-renders every non-empty page — N instanced band draws +
+      // accessory sprites), reporting:
+      //   - CPU submit per compose (JS flush + render() dispatch)
+      //   - wall per compose incl GPU (tight submit loop → GPU-bound)
+      //   - draw count (totalBatches = instanced band draws)
+      // Spawn N static bots first (e.g. __spawnBurst(100,false,1)).
+      (
+        window as unknown as {
+          __composeBenchmark?: (
+            iters?: number,
+            res?: number,
+          ) => Promise<unknown>;
+        }
+      ).__composeBenchmark = async (iters = 120, res) => {
+        try {
+          // Optional: re-bake every live bot at a new strip resolution
+          // (the RENDER_RESOLUTION dial) before measuring. The re-stage
+          // is async through the worker pool; give it time to settle.
+          if (res != null && res !== this.resolution) {
+            this.setResolutionAndRerender(res);
+            await new Promise((r) => setTimeout(r, 12000));
+          }
+          const atlas = this.atlas;
+          const renderer = this.pixiRenderer;
+          const gpu = getVelloGpu();
+          // Warm + drain so the first measured iter isn't cold.
+          atlas.renderAll(renderer);
+          if (gpu) await gpu.device.queue.onSubmittedWorkDone();
+
+          let cpuSum = 0;
+          let flushSum = 0;
+          let renderSum = 0;
+          let pages = 0;
+          let batches = 0;
+          const wall0 = performance.now();
+          for (let i = 0; i < iters; i++) {
+            const t0 = performance.now();
+            const tm = atlas.renderAll(renderer);
+            cpuSum += performance.now() - t0;
+            flushSum += tm.flushMs;
+            renderSum += tm.renderMs;
+            pages = tm.renderedPages;
+            batches = tm.totalBatches;
+          }
+          // Drain the GPU: wall from loop start → all submitted work
+          // done. Under a tight submit loop this is GPU-bound, so
+          // wall/compose ≈ GPU time per compose.
+          if (gpu) await gpu.device.queue.onSubmittedWorkDone();
+          const totalWall = performance.now() - wall0;
+          const stats = atlas.getStats();
+          const inStats = getSharedInputAtlas().stats();
+          const inputLiveSlots = inStats.liveSlots.reduce((a, b) => a + b, 0);
+          const result = {
+            bots: stats.slotsUsed,
+            resolution: this.resolution,
+            inputAtlasPages: inStats.pages,
+            inputLiveSlots,
+            pages,
+            drawsPerCompose: batches,
+            iters,
+            cpuSubmitPerComposeMs: +(cpuSum / iters).toFixed(3),
+            flushPerComposeMs: +(flushSum / iters).toFixed(3),
+            renderDispatchPerComposeMs: +(renderSum / iters).toFixed(3),
+            wallPerComposeMs: +(totalWall / iters).toFixed(3),
+            totalWallMs: +totalWall.toFixed(1),
+          };
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[composeBench] res=${result.resolution} bots=${result.bots} ` +
+              `inputPages=${result.inputAtlasPages} inputSlots=${result.inputLiveSlots} ` +
+              `compPages=${result.pages} draws/compose=${result.drawsPerCompose} iters=${iters}\n` +
+              `  CPU submit/compose = ${result.cpuSubmitPerComposeMs}ms ` +
+              `(flush ${result.flushPerComposeMs} + dispatch ${result.renderDispatchPerComposeMs})\n` +
+              `  wall/compose (GPU-bound) = ${result.wallPerComposeMs}ms ` +
+              `over ${result.totalWallMs}ms total`,
+          );
+          return result;
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error("[composeBench] failed", e);
+          return { error: String(e) };
+        }
+      };
+
+      // ── TEMP DIAG: window.__renderAudit() ────────────────────────
+      // Real data for three questions:
+      //  1) band counts of live variants  → why the input atlas shows
+      //     near-full bodies (a band is a contiguous Z-slice, not a limb)
+      //  2) composition-page utilization  → how much of the 4096² is
+      //     real character pixels vs empty slots + per-slot margin
+      //  3) real GPU breakdown            → isolates clear-cost vs
+      //     draw-cost by timing full / clear-only / draw-only passes
+      //     against queue.onSubmittedWorkDone (wall is GPU-bound).
+      (
+        window as unknown as { __renderAudit?: () => Promise<unknown> }
+      ).__renderAudit = async () => {
+        const out: Record<string, unknown> = {};
+        const gpu = getVelloGpu();
+        const dev = gpu?.device;
+        // 1) device capabilities
+        try {
+          out.device = {
+            features: dev ? [...dev.features] : [],
+            hasTimestampQuery: dev
+              ? [...dev.features].includes("timestamp-query")
+              : false,
+            maxTextureDimension2D: dev?.limits?.maxTextureDimension2D,
+          };
+        } catch (e) {
+          out.device = { error: String(e) };
+        }
+        // 2) variant band-count distribution + dims
+        try {
+          const bandDist: Record<number, number> = {};
+          const dims: Array<Record<string, number>> = [];
+          for (const slots of this.states.values()) {
+            for (const st of slots.values()) {
+              const v = st.variant;
+              if (!v) continue;
+              bandDist[v.bandCount] = (bandDist[v.bandCount] ?? 0) + 1;
+              if (dims.length < 6) {
+                dims.push({
+                  bandCount: v.bandCount,
+                  stripW: v.stripWidth,
+                  stripH: v.stripHeight,
+                  frameW: v.frameWidth,
+                  frameH: v.frameHeight,
+                  gridCols: v.gridCols,
+                  frameCount: v.frameCount,
+                });
+              }
+            }
+          }
+          out.variants = { bandCountDistribution: bandDist, sampleDims: dims };
+        } catch (e) {
+          out.variants = { error: String(e) };
+        }
+        // 3) composition-page utilization
+        try {
+          const SLOT = this.atlas.slotSize;
+          let slotsUsed = 0;
+          let charPixelArea = 0;
+          for (const slots of this.states.values()) {
+            for (const st of slots.values()) {
+              if (!st.compositionSlot || !st.variant) continue;
+              slotsUsed += 1;
+              const b = this.computeBotBounds(st, st.variant);
+              const w = (b.maxX - b.minX) * st.botScale;
+              const h = (b.maxY - b.minY) * st.botScale;
+              charPixelArea += Math.max(0, w) * Math.max(0, h);
+            }
+          }
+          const cs = this.atlas.getStats();
+          const pageArea = 4096 * 4096 * cs.pageCount;
+          const usedSlotArea = slotsUsed * SLOT * SLOT;
+          out.compPage = {
+            slotsUsed,
+            slotSize: SLOT,
+            pages: cs.pageCount,
+            slotsCapacity: cs.slotsCapacity,
+            pageUtilizationPct: +((usedSlotArea / pageArea) * 100).toFixed(1),
+            slotFillPct: +((charPixelArea / usedSlotArea) * 100).toFixed(1),
+            effectiveCharPctOfPage: +(
+              (charPixelArea / pageArea) *
+              100
+            ).toFixed(1),
+          };
+        } catch (e) {
+          out.compPage = { error: String(e) };
+        }
+        // 4) REAL GPU breakdown: full vs clear-only vs draw-only.
+        // Each timed against onSubmittedWorkDone (GPU-bound wall).
+        try {
+          const r = this.pixiRenderer;
+          const page0 = (
+            this.atlas as unknown as {
+              pages: Array<{ globalRoot: unknown; renderTexture: unknown }>;
+            }
+          ).pages[0];
+          const empty = new Container();
+          const iters = 150;
+          const timeGpu = async (fn: () => void): Promise<number> => {
+            fn();
+            if (dev) await dev.queue.onSubmittedWorkDone();
+            const t0 = performance.now();
+            for (let i = 0; i < iters; i++) fn();
+            if (dev) await dev.queue.onSubmittedWorkDone();
+            return +((performance.now() - t0) / iters).toFixed(3);
+          };
+          const full = await timeGpu(() =>
+            r.render({
+              container: page0.globalRoot as Container,
+              target: page0.renderTexture as RenderTexture,
+              clear: true,
+            }),
+          );
+          const clearOnly = await timeGpu(() =>
+            r.render({
+              container: empty,
+              target: page0.renderTexture as RenderTexture,
+              clear: true,
+            }),
+          );
+          const drawOnly = await timeGpu(() =>
+            r.render({
+              container: page0.globalRoot as Container,
+              target: page0.renderTexture as RenderTexture,
+              clear: false,
+            }),
+          );
+          empty.destroy();
+          out.gpuBreakdownMs = {
+            fullCompose: full,
+            clearOnly,
+            drawOnly,
+            note: "per-pass wall via onSubmittedWorkDone (GPU-bound)",
+          };
+        } catch (e) {
+          out.gpuBreakdownMs = { error: String(e) };
+        }
+        // eslint-disable-next-line no-console
+        console.warn("[renderAudit]", JSON.stringify(out, null, 2));
+        return out;
+      };
+
+      // ── TEMP DIAG: window.__gpuTimeCompose(iters) ────────────────
+      // REAL per-pass GPU nanoseconds for the compose, via WebGPU
+      // timestamp-query (needs the rebuilt device with the feature).
+      // Patches beginRenderPass/finish to inject timestampWrites ONLY
+      // around a controlled renderAll, resolves the query set, reads
+      // back the GPU timestamps. Falls back gracefully if unsupported.
+      (
+        window as unknown as {
+          __gpuTimeCompose?: (iters?: number) => Promise<unknown>;
+        }
+      ).__gpuTimeCompose = async (iters = 60) => {
+        const gpu = getVelloGpu();
+        const dev = gpu?.device as GPUDevice | undefined;
+        if (!dev || ![...dev.features].includes("timestamp-query")) {
+          return { error: "timestamp-query not available on device" };
+        }
+        const atlas = this.atlas;
+        const renderer = this.pixiRenderer;
+        const MAX_PASSES = 16;
+        const querySet = dev.createQuerySet({
+          type: "timestamp",
+          count: MAX_PASSES * 2,
+        });
+        const resolveBuf = dev.createBuffer({
+          size: MAX_PASSES * 2 * 8,
+          usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
+        });
+        const readBuf = dev.createBuffer({
+          size: MAX_PASSES * 2 * 8,
+          usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+        });
+        const EncProto = (
+          globalThis as unknown as {
+            GPUCommandEncoder: { prototype: GPUCommandEncoder };
+          }
+        ).GPUCommandEncoder.prototype as unknown as {
+          beginRenderPass: (d: GPURenderPassDescriptor) => GPURenderPassEncoder;
+          finish: (d?: GPUCommandBufferDescriptor) => GPUCommandBuffer;
+        };
+        const origBegin = EncProto.beginRenderPass;
+        const origFinish = EncProto.finish;
+        let capturing = false;
+        let passIdx = 0;
+        const toResolve = new WeakSet<object>();
+        try {
+          EncProto.beginRenderPass = function (
+            this: GPUCommandEncoder,
+            desc: GPURenderPassDescriptor,
+          ) {
+            if (capturing && desc && passIdx < MAX_PASSES) {
+              const patched = {
+                ...desc,
+                timestampWrites: {
+                  querySet,
+                  beginningOfPassWriteIndex: passIdx * 2,
+                  endOfPassWriteIndex: passIdx * 2 + 1,
+                },
+              } as GPURenderPassDescriptor;
+              passIdx++;
+              toResolve.add(this);
+              return origBegin.call(this, patched);
+            }
+            return origBegin.call(this, desc);
+          };
+          EncProto.finish = function (
+            this: GPUCommandEncoder,
+            d?: GPUCommandBufferDescriptor,
+          ) {
+            if (toResolve.has(this) && passIdx > 0) {
+              try {
+                this.resolveQuerySet(querySet, 0, passIdx * 2, resolveBuf, 0);
+              } catch {}
+              toResolve.delete(this);
+            }
+            return origFinish.call(this, d);
+          };
+
+          atlas.renderAll(renderer); // warm
+          await dev.queue.onSubmittedWorkDone();
+
+          const durs: number[] = [];
+          let lastPasses = 0;
+          for (let i = 0; i < iters; i++) {
+            passIdx = 0;
+            capturing = true;
+            atlas.renderAll(renderer);
+            capturing = false;
+            lastPasses = passIdx;
+            await dev.queue.onSubmittedWorkDone();
+            const enc = dev.createCommandEncoder();
+            enc.copyBufferToBuffer(resolveBuf, 0, readBuf, 0, passIdx * 2 * 8);
+            dev.queue.submit([enc.finish()]);
+            await readBuf.mapAsync(GPUMapMode.READ);
+            const ts = new BigInt64Array(
+              readBuf.getMappedRange(0, passIdx * 2 * 8).slice(0),
+            );
+            readBuf.unmap();
+            let total = 0n;
+            for (let p = 0; p < passIdx; p++) {
+              total += ts[p * 2 + 1] - ts[p * 2];
+            }
+            durs.push(Number(total) / 1e6); // ns → ms
+          }
+          durs.sort((a, b) => a - b);
+          const result = {
+            iters,
+            passesPerCompose: lastPasses,
+            gpuMsMedian: +durs[Math.floor(durs.length / 2)].toFixed(4),
+            gpuMsMin: +durs[0].toFixed(4),
+            gpuMsMax: +durs[durs.length - 1].toFixed(4),
+            gpuMsAvg: +(durs.reduce((a, b) => a + b, 0) / durs.length).toFixed(4),
+          };
+          // eslint-disable-next-line no-console
+          console.warn("[gpuTimeCompose]", JSON.stringify(result));
+          return result;
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error("[gpuTimeCompose] failed", e);
+          return { error: String(e) };
+        } finally {
+          EncProto.beginRenderPass = origBegin;
+          EncProto.finish = origFinish;
+          try {
+            querySet.destroy();
+            resolveBuf.destroy();
+            readBuf.destroy();
+          } catch {}
+        }
+      };
+
+      // ── TEMP DIAG: window.__hideBotAcc() / __showBotAcc() ────────
+      // Isolate body vs accessories: hide all accessory sprites and
+      // force a recompose, so the comp slot shows ONLY the body bands.
+      // If the body then renders clean → garbage was the accessories.
+      (window as unknown as { __hideBotAcc?: () => void }).__hideBotAcc =
+        () => {
+          for (const slots of this.states.values()) {
+            for (const st of slots.values()) {
+              for (const acc of st.accessories.values()) {
+                acc.sprite.renderable = false;
+              }
+            }
+          }
+          this.compositionDirty = true;
+          this.composeAll();
+        };
+      (window as unknown as { __showBotAcc?: () => void }).__showBotAcc =
+        () => {
+          for (const slots of this.states.values()) {
+            for (const st of slots.values()) {
+              this.setAccessoriesFrame(st, st.lastCompositionFrame);
+            }
+          }
+          this.compositionDirty = true;
+          this.composeAll();
+        };
+
+      // ── TEMP DIAG: window.__findOverflows() ──────────────────────
+      // Scans every bot for (a) comp-slot COLLISIONS (two bots sharing a
+      // page+slot index) and (b) band OVERFLOW — a band's draw quad
+      // (aTransform x,y,w,h in page px) exceeding its 256² slot bounds,
+      // which spills into the neighbour slot → "multiple players in one
+      // sprite". Reports counts + samples.
+      (
+        window as unknown as { __findOverflows?: () => unknown }
+      ).__findOverflows = () => {
+        try {
+          const slotOwners = new Map<string, number[]>();
+          const overflows: Array<Record<string, unknown>> = [];
+          let bots = 0;
+          for (const [pid, slots] of this.states) {
+            for (const st of slots.values()) {
+              const slot = st.compositionSlot;
+              if (!slot || !st.variant) continue;
+              bots += 1;
+              const key = `${slot.pageIndex}:${slot.index}`;
+              (slotOwners.get(key) ?? slotOwners.set(key, []).get(key)!).push(
+                pid,
+              );
+              const sx0 = slot.x;
+              const sy0 = slot.y;
+              const sx1 = slot.x + slot.w;
+              const sy1 = slot.y + slot.h;
+              for (const [bi, inst] of st.bandInstances) {
+                const batch = inst.batch as unknown as {
+                  instanceData: Float32Array;
+                };
+                const d = batch.instanceData;
+                const o = inst.instanceIdx * 20;
+                const x = d[o + 16];
+                const y = d[o + 17];
+                const w = d[o + 18];
+                const h = d[o + 19];
+                const overL = sx0 - x;
+                const overT = sy0 - y;
+                const overR = x + w - sx1;
+                const overB = y + h - sy1;
+                const maxOver = Math.max(overL, overT, overR, overB);
+                if (maxOver > 0.5 && overflows.length < 12) {
+                  overflows.push({
+                    pid,
+                    band: bi,
+                    slot: [slot.x, slot.y, slot.w, slot.h],
+                    quad: [
+                      +x.toFixed(1),
+                      +y.toFixed(1),
+                      +w.toFixed(1),
+                      +h.toFixed(1),
+                    ],
+                    overflowPx: {
+                      L: +overL.toFixed(1),
+                      T: +overT.toFixed(1),
+                      R: +overR.toFixed(1),
+                      B: +overB.toFixed(1),
+                    },
+                    botScale: +st.botScale.toFixed(3),
+                    variant: st.variant.exportName,
+                    frameWH: [st.variant.frameWidth, st.variant.frameHeight],
+                  });
+                }
+              }
+            }
+          }
+          const collisions = [...slotOwners.entries()].filter(
+            ([, owners]) => owners.length > 1,
+          );
+          const result = {
+            bots,
+            slotCollisions: collisions.length,
+            collisionSamples: collisions.slice(0, 8),
+            overflowBandCount: overflows.length,
+            overflowSamples: overflows,
+          };
+          // eslint-disable-next-line no-console
+          console.warn("[findOverflows]", JSON.stringify(result, null, 2));
+          return result;
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error("[findOverflows] failed", e);
+          return { error: String(e) };
+        }
+      };
+
+      // ── TEMP DIAG: window.__dumpBot(playerId?) ───────────────────
+      // Dumps one bot's full compose state + the REAL per-band GPU
+      // instance values (aAtlasUV it samples, aTransform it draws to)
+      // read straight from the band-batch instance buffer. Lets us see
+      // exactly where the band math goes wrong for a garbage look
+      // (seed-5). With no playerId, picks the first bot whose
+      // exportName/look differs from the real player (a test bot).
+      (
+        window as unknown as {
+          __dumpBot?: (playerId?: number) => unknown;
+        }
+      ).__dumpBot = (playerId) => {
+        try {
+          let pid = -1;
+          let st: SlotStateV2 | undefined;
+          for (const [id, slots] of this.states) {
+            if (playerId != null && id !== playerId) continue;
+            const s = slots.get("main");
+            if (s && s.variant && s.compositionSlot) {
+              pid = id;
+              st = s;
+              if (playerId != null || this.states.size === 1) break;
+              // else: take the last (test bots are added after the player)
+            }
+          }
+          if (!st || !st.variant || !st.atlas) {
+            return { error: "no committed bot found", playerId };
+          }
+          const v = st.variant;
+          const page = st.atlas.pages[v.pageIndex];
+          const bands: unknown[] = [];
+          for (const [bi, inst] of st.bandInstances) {
+            const batch = inst.batch as unknown as {
+              instanceData: Float32Array;
+            };
+            const d = batch.instanceData;
+            const o = inst.instanceIdx * 20;
+            bands.push({
+              bandIndex: bi,
+              instanceIdx: inst.instanceIdx,
+              srcAtlasX: inst.atlasX,
+              srcAtlasY: inst.atlasY,
+              aAtlasUV: [d[o], d[o + 1], d[o + 2], d[o + 3]],
+              aTransform_xywh: [d[o + 16], d[o + 17], d[o + 18], d[o + 19]],
+            });
+          }
+          const accessories: unknown[] = [];
+          for (const [slotId, acc] of st.accessories) {
+            const sp = acc.sprite;
+            accessories.push({
+              slotId,
+              hasStrip: !!acc.strip,
+              stripDims: acc.strip
+                ? {
+                    frameWidth: acc.strip.frameWidth,
+                    frameHeight: acc.strip.frameHeight,
+                    anchorX: acc.strip.anchorX,
+                    anchorY: acc.strip.anchorY,
+                    frameCount: acc.strip.frameCount,
+                  }
+                : null,
+              spriteRenderable: sp.renderable,
+              spriteVisible: sp.visible,
+              spritePos: [sp.x, sp.y],
+              spriteScale: [sp.scale.x, sp.scale.y],
+              spriteRotation: sp.rotation,
+              spriteAnchor: [sp.anchor.x, sp.anchor.y],
+              spriteZ: sp.zIndex,
+              texValid: !!sp.texture && !sp.texture.destroyed,
+              texFrame: sp.texture
+                ? [
+                    sp.texture.frame.x,
+                    sp.texture.frame.y,
+                    sp.texture.frame.width,
+                    sp.texture.frame.height,
+                  ]
+                : null,
+            });
+          }
+          const out = {
+            playerId: pid,
+            botScale: st.botScale,
+            swfOriginInSlot: [st.swfOriginInSlotX, st.swfOriginInSlotY],
+            lastCompositionFrame: st.lastCompositionFrame,
+            compositionSlot: st.compositionSlot,
+            accessories,
+            atlasDims: page
+              ? [page.atlasWidth, page.atlasHeight]
+              : null,
+            variant: {
+              exportName: v.exportName,
+              applyBFix: v.applyBFix,
+              hatEquipped: v.hatEquipped,
+              pageIndex: v.pageIndex,
+              bandCount: v.bandCount,
+              slotCount: v.slotCount,
+              frameWidth: v.frameWidth,
+              frameHeight: v.frameHeight,
+              stripWidth: v.stripWidth,
+              stripHeight: v.stripHeight,
+              gridCols: v.gridCols,
+              frameCount: v.frameCount,
+              anchorX: v.anchorX,
+              anchorY: v.anchorY,
+              bandPadding: v.bandPadding,
+              bands: v.bands.map((b) => ({
+                bandIndex: b.bandIndex,
+                atlasX: b.atlasX,
+                atlasY: b.atlasY,
+              })),
+            },
+            bandInstances: bands,
+          };
+          // eslint-disable-next-line no-console
+          console.warn("[dumpBot]", JSON.stringify(out, null, 2));
+          return out;
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error("[dumpBot] failed", e);
+          return { error: String(e) };
+        }
+      };
+    }
   }
 
   /**
@@ -508,6 +1263,10 @@ export class PlayerStripRendererV2 {
    * (tests, screenshot tools) can drive composition manually.
    */
   composeAll(): void {
+    // Reclaim super-atlas slots whose bots have moved on (runs every
+    // frame, before the dirty early-out, so slots free even when the
+    // composition isn't re-rendering). Ground-truth, drift-free.
+    this.reclaimInputAtlasSlots();
     if (!this.compositionDirty) return;
     if (this.atlas.getStats().slotsUsed === 0) {
       this.compositionDirty = false;
@@ -2182,6 +2941,56 @@ export class PlayerStripRendererV2 {
     acc.sprite.setFromMatrix(M);
   }
 
+  /**
+   * Drift-free super-atlas slot reclaim. Recompute, from GROUND TRUTH
+   * (every live slot-state's current variant), the set of input-atlas
+   * slot ids actually referenced this frame, and hand it to the atlas so
+   * it can recycle any deferred-free slot absent from the set. Because
+   * the set is rebuilt every frame from current state, there is no
+   * incremental ref count to drift — the failure mode of the earlier
+   * bind/unbind attempt. O(live slot-states); called once per frame.
+   */
+  private reclaimDiagFrame = 0;
+  private reclaimInputAtlasSlots(): void {
+    // DIAG: window.__noReclaim disables input-atlas slot reuse entirely
+    // (freed slots never recycle). If the moving-bot garbage clears with
+    // this on, the reuse/eviction race is the cause.
+    if ((globalThis as unknown as { __noReclaim?: boolean }).__noReclaim) {
+      return;
+    }
+    const live = new Set<number>();
+    let divergent = 0;
+    let divergSample = "";
+    for (const slots of this.states.values()) {
+      for (const st of slots.values()) {
+        const variant = st.variant;
+        const atlas = st.atlas;
+        if (!variant || !atlas) continue;
+        const id = atlas.pages[variant.pageIndex]?.inputAtlasSlot?.id;
+        if (id !== undefined) live.add(id);
+        // DIAG: does any band-instance's stored anchor (set at commit)
+        // diverge from the CURRENT variant's band coords? If so, the bi
+        // samples stale super-page coords the liveness check can't cover.
+        for (const bi of st.bandInstances.values()) {
+          const band = variant.bands.find((b) => b.bandIndex === bi.bandIndex);
+          if (band && (band.atlasX !== bi.atlasX || band.atlasY !== bi.atlasY)) {
+            divergent += 1;
+            if (!divergSample) {
+              divergSample = `bi(${bi.atlasX},${bi.atlasY}) vs variant(${band.atlasX},${band.atlasY}) slot=${id}`;
+            }
+          }
+        }
+      }
+    }
+    const superAtlas = getSharedInputAtlas();
+    const recycled = superAtlas.reclaimDeferredSlots(live);
+    if (divergent > 0 || ++this.reclaimDiagFrame % 90 === 0) {
+      log.warn(
+        `[RECLAIM DIAG] liveIds=${live.size} recycled=${recycled} deferred=${superAtlas.deferredCount()} divergent=${divergent} ${divergSample}`,
+      );
+    }
+  }
+
   private retireSlotState(st: SlotStateV2): void {
     st.requestedAnimKey = "<retired>";
     st.currentAnimKey = "<retired>";
@@ -2302,4 +3111,21 @@ export function getActivePlayerStripRendererAnimDiagnostics(): ReturnType<
 > | null {
   if (!activeStripRenderer) return null;
   return activeStripRenderer.getAnimDiagnostics();
+}
+
+/**
+ * Headless-measurement hook: drive the active strip renderer's
+ * resolution rebake directly — the exact heavy path a settled zoom
+ * fires for characters (re-bake every live slot at the new render
+ * resolution through the async bake queue / worker, with atomic
+ * "never frozen" swaps). Returns the live slot count that was
+ * re-dispatched, or null if no active renderer. Used by
+ * `window.__triggerCharRebake` to bracket a real zoom rebake with a
+ * frame-pacing recorder under a spawned bot roster.
+ */
+export function triggerActiveStripRebake(res: number): number | null {
+  if (!activeStripRenderer) return null;
+  const before = activeStripRenderer.getStats().atlas.slotsUsed;
+  activeStripRenderer.setResolutionAndRerender(res);
+  return before;
 }

@@ -36,7 +36,7 @@ import { registerServerMessage } from "./system/server-message";
 import { registerWaypointCreate } from "./waypoints/create";
 import { registerWaypointLeave } from "./waypoints/leave";
 import { registerWaypointUseError } from "./waypoints/use-error";
-import { registerMapData } from "./world/map-data";
+import { registerAdjacentMapsData } from "./world/adjacent-maps-data";
 import { registerMapLoaded } from "./world/map-loaded";
 import { registerMovement } from "./world/movement";
 
@@ -58,7 +58,7 @@ export function registerAllHandlers(client: NetClient): void {
   registerGameEnd(client);
 
   // World / roleplay
-  registerMapData(client);
+  registerAdjacentMapsData(client);
   registerMapLoaded(client);
   registerMovement(client);
 
@@ -90,5 +90,8 @@ export { onPlayerCoords } from "./fight/info-coordinates";
 export { onPositionStart } from "./fight/position-start";
 export { onWaypointOpen } from "./waypoints/create";
 export { onWaypointClose } from "./waypoints/leave";
-export { onMapData } from "./world/map-data";
+export {
+  type AdjacentMapsListener,
+  onAdjacentMapsData,
+} from "./world/adjacent-maps-data";
 export { type MovementListeners, onMovement } from "./world/movement";

@@ -43,6 +43,8 @@ import {
 } from "@/game/render/render-probes";
 import { getStripBakeQueue } from "@/game/render/strip-bake-queue";
 import {
+  type BakeRecord,
+  drainBakeTelemetry,
   getDeferredDestroyStats,
   getLiveRenderTextureCount,
   getLiveRenderTextureIdCount,
@@ -312,12 +314,32 @@ let monitorLastCompletedAt = 0;
 let monitorLastStartedAt = 0;
 const MONITOR_INTERVAL_MS = 5000;
 
+// Deterministic look generation for cross-session cache validation.
+// When `seededRng` is set (via spawnBurst's `seed` opt), every random
+// draw comes from a seeded PRNG so two spawn batches with the same
+// seed produce IDENTICAL rosters — mirroring "revisit the same map,
+// same actors", which is when the persisted cache should fully hit.
+// Cleared at the end of the seeded batch.
+let seededRng: (() => number) | null = null;
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function rnd(): number {
+  return seededRng ? seededRng() : Math.random();
+}
+
 function pick<T>(arr: readonly T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)] as T;
+  return arr[Math.floor(rnd() * arr.length)] as T;
 }
 
 function randomColor(): number {
-  return Math.floor(Math.random() * 0xffffff);
+  return Math.floor(rnd() * 0xffffff);
 }
 
 function buildRandomLook(): string {
@@ -332,17 +354,17 @@ function buildRandomLook(): string {
   // `RENDER_SCALING_PLAN.md` step 10. Each pool comes from the actual
   // loaded accessory bundles, so the picker stays in sync with the
   // asset pack without a hand-curated list.
-  if (pools.weapons.length > 0 && Math.random() < 0.8) {
+  if (pools.weapons.length > 0 && rnd() < 0.8) {
     slots[0] = `6_${pick(pools.weapons)}`;
   }
-  if (pools.hats.length > 0 && Math.random() < 0.8) {
+  if (pools.hats.length > 0 && rnd() < 0.8) {
     slots[1] = `16_${pick(pools.hats)}`;
   }
-  if (pools.capes.length > 0 && Math.random() < 0.8) {
+  if (pools.capes.length > 0 && rnd() < 0.8) {
     slots[2] = `17_${pick(pools.capes)}`;
   }
   // Pet (look[3], type 18) — no body-part mount in player SWFs; skipped.
-  if (pools.shields.length > 0 && Math.random() < 0.8) {
+  if (pools.shields.length > 0 && rnd() < 0.8) {
     slots[4] = `82_${pick(pools.shields)}`;
   }
   return `${gfx}|${c1}|${c2}|${c3}|${slots.join(",")}`;
@@ -400,6 +422,92 @@ function makeBotSleep(cancelled: Promise<void>): (ms: number) => Promise<void> {
  * and stress-test internals (active bots, traversal rate, in-flight
  * walks). Stops itself once the last bot despawns.
  */
+/**
+ * Aggregate per-bake records into per-kind buckets with p50/p95/p99
+ * percentiles. Computed inline because there are at most ~10k records
+ * per drain, and a single sort of total_ms per bucket suffices.
+ *
+ * Why percentiles instead of avg+max: zoom-rebake bursts have a long
+ * tail (the last bakes serve big variants at the new zoom); p99 tells
+ * us that tail explicitly while avg gets dragged toward the median.
+ */
+interface BakeAggBucket {
+  count: number;
+  totalMs: number;
+  /** ms percentiles over `totalMs` field. */
+  p50: number;
+  p95: number;
+  p99: number;
+  max: number;
+  /** Sums over the bucket — divide by `count` for averages. */
+  sumSceneMs: number;
+  sumGpuMs: number;
+  sumBridgeMs: number;
+  sumPixelArea: number;
+  subsceneHits: number;
+  subsceneMisses: number;
+}
+
+interface BakeAggResult {
+  drops: number;
+  byKind: Map<string, BakeAggBucket>;
+}
+
+function percentile(sortedAsc: number[], q: number): number {
+  if (sortedAsc.length === 0) return 0;
+  const idx = Math.min(
+    sortedAsc.length - 1,
+    Math.max(0, Math.floor((sortedAsc.length - 1) * q)),
+  );
+  return sortedAsc[idx];
+}
+
+function aggregateBakeTelemetry(records: BakeRecord[]): BakeAggResult {
+  const byKind = new Map<string, BakeAggBucket>();
+  // Per-kind ms arrays for percentile computation. Built once, sorted
+  // when computing percentiles.
+  const totals = new Map<string, number[]>();
+  for (const r of records) {
+    let bucket = byKind.get(r.kind);
+    if (!bucket) {
+      bucket = {
+        count: 0,
+        totalMs: 0,
+        p50: 0,
+        p95: 0,
+        p99: 0,
+        max: 0,
+        sumSceneMs: 0,
+        sumGpuMs: 0,
+        sumBridgeMs: 0,
+        sumPixelArea: 0,
+        subsceneHits: 0,
+        subsceneMisses: 0,
+      };
+      byKind.set(r.kind, bucket);
+      totals.set(r.kind, []);
+    }
+    bucket.count += 1;
+    bucket.totalMs += r.totalMs;
+    bucket.max = Math.max(bucket.max, r.totalMs);
+    bucket.sumSceneMs += r.sceneBuildMs;
+    bucket.sumGpuMs += r.gpuRenderMs;
+    bucket.sumBridgeMs += r.bridgeMs;
+    bucket.sumPixelArea += r.pixelArea;
+    bucket.subsceneHits += r.subsceneHits;
+    bucket.subsceneMisses += r.subsceneMisses;
+    totals.get(r.kind)!.push(r.totalMs);
+  }
+  for (const [kind, msList] of totals) {
+    msList.sort((a, b) => a - b);
+    const b = byKind.get(kind)!;
+    b.p50 = percentile(msList, 0.5);
+    b.p95 = percentile(msList, 0.95);
+    b.p99 = percentile(msList, 0.99);
+  }
+  return { drops: 0, byKind };
+}
+
 function logMonitorSnapshot(): void {
   const now = performance.now();
   const dt = (now - monitorLastSnapshotAt) / 1000;
@@ -417,6 +525,15 @@ function logMonitorSnapshot(): void {
   // per-composeBot cost) within the same window so all per-frame
   // averages share the same `tickerStats.samples` denominator.
   const probes = readAndResetProbes();
+  // Drain Rust-side bake telemetry within the same snapshot window.
+  // Each record covers one wasm-bindgen bake call (class atlas,
+  // body atlas, accessory strip, tile frame, ...) with per-phase
+  // ms, subscene hit/miss, and pixel area. We aggregate into
+  // per-kind buckets so the monitor can show "where time goes"
+  // without dumping the raw stream.
+  const bakeTelemetry = drainBakeTelemetry();
+  const bakeAgg = aggregateBakeTelemetry(bakeTelemetry.records);
+  bakeAgg.drops = bakeTelemetry.drops;
   const frames = tickerStats.samples;
   /** Pack a counter for emission: ms/call + ms/frame (using the same
    *  frame count as `tickerMsAvg`). `perFrameMs` is what to compare
@@ -641,6 +758,44 @@ function logMonitorSnapshot(): void {
       composeRender: packProbe(probes.composeRender),
     },
     /**
+     * Per-kind WASM bake telemetry digest. Source: bake_telemetry.rs
+     * records drained this snapshot window. Each entry: count of
+     * bakes, sum totalMs, percentile breakdown, per-phase ms sums
+     * (divide by count for averages), subscene hit/miss tally, and
+     * total pixel area baked. Stable schema (each kind reported
+     * unconditionally with zeros when absent) keeps the JSON
+     * grep-friendly across runs.
+     */
+    bakeTelemetry: {
+      drops: bakeAgg.drops,
+      byKind: Object.fromEntries(
+        Array.from(bakeAgg.byKind.entries()).map(([kind, b]) => [
+          kind,
+          {
+            count: b.count,
+            totalMs: b.totalMs,
+            avgMs: b.count > 0 ? b.totalMs / b.count : 0,
+            p50Ms: b.p50,
+            p95Ms: b.p95,
+            p99Ms: b.p99,
+            maxMs: b.max,
+            sceneMsAvg: b.count > 0 ? b.sumSceneMs / b.count : 0,
+            gpuMsAvg: b.count > 0 ? b.sumGpuMs / b.count : 0,
+            bridgeMsAvg: b.count > 0 ? b.sumBridgeMs / b.count : 0,
+            subsceneHits: b.subsceneHits,
+            subsceneMisses: b.subsceneMisses,
+            subsceneHitPct:
+              b.subsceneHits + b.subsceneMisses > 0
+                ? (100 * b.subsceneHits) /
+                  (b.subsceneHits + b.subsceneMisses)
+                : 0,
+            pixelAreaAvg: b.count > 0 ? b.sumPixelArea / b.count : 0,
+            pixelAreaTotal: b.sumPixelArea,
+          },
+        ]),
+      ),
+    },
+    /**
      * Shared composition atlas pressure. After the Phase-5 refactor
      * (RENDER_SHARED_ATLAS_PLAN.md), every active bot occupies one
      * 256² slot in a 4096² shared atlas. `slotsUsed` near
@@ -747,6 +902,29 @@ function logMonitorSnapshot(): void {
     // ms-per-frame so they can be compared directly with the 16.67 ms
     // frame budget + `ticker avg`. See `RENDER_BAKE_PLAN.md`.
     `  bakeCost: class=${probes.classAtlas.count}×avg=${fmt(probes.classAtlas.count > 0 ? probes.classAtlas.totalMs / probes.classAtlas.count : 0, 2)}ms max=${fmt(probes.classAtlas.maxMs, 2)}ms  acc=${probes.accessoryStrip.count}×avg=${fmt(probes.accessoryStrip.count > 0 ? probes.accessoryStrip.totalMs / probes.accessoryStrip.count : 0, 2)}ms  mnt=${probes.mountTransforms.count}×avg=${fmt(probes.mountTransforms.count > 0 ? probes.mountTransforms.totalMs / probes.mountTransforms.count : 0, 2)}ms`,
+    // Per-kind WASM-bindgen bake telemetry digest. Sourced from
+    // bake_telemetry.rs records drained this window. Subscene hit
+    // rate exposes whether the L3 cache is actually paying off.
+    // pxAvg flags GPU-bound bakes (large area → big gpu_render_ms)
+    // vs CPU-bound (small area → big scene_build_ms).
+    ...(bakeAgg.byKind.size === 0
+      ? []
+      : [
+          `  bakeTel${bakeAgg.drops > 0 ? `[drops=${bakeAgg.drops}]` : ""}: ${Array.from(
+            bakeAgg.byKind.entries(),
+          )
+            .sort((a, b) => b[1].totalMs - a[1].totalMs)
+            .map(([kind, b]) => {
+              const hitRate =
+                b.subsceneHits + b.subsceneMisses > 0
+                  ? (100 * b.subsceneHits) /
+                    (b.subsceneHits + b.subsceneMisses)
+                  : 0;
+              const pxAvgK = b.count > 0 ? b.sumPixelArea / b.count / 1024 : 0;
+              return `${kind}=${b.count}×${fmt(b.totalMs / b.count, 1)}ms(p99=${fmt(b.p99, 1)} max=${fmt(b.max, 1)} scene=${fmt(b.sumSceneMs / b.count, 1)} gpu=${fmt(b.sumGpuMs / b.count, 1)} bridge=${fmt(b.sumBridgeMs / b.count, 1)} hit%=${fmt(hitRate, 0)} pxK=${fmt(pxAvgK, 0)})`;
+            })
+            .join(" ")}`,
+        ]),
     `  frameCost: drain ${probes.bakeDrain.count}× ${fmt(frames > 0 ? probes.bakeDrain.totalMs / frames : 0, 2)}ms/f (max=${fmt(probes.bakeDrain.maxMs, 2)}ms)  compose ${probes.composeBot.count}× ${fmt(frames > 0 ? probes.composeBot.totalMs / frames : 0, 2)}ms/f (max=${fmt(probes.composeBot.maxMs, 2)}ms) [flush ${fmt(frames > 0 ? probes.composeFlush.totalMs / frames : 0, 2)}ms/f / render ${fmt(frames > 0 ? probes.composeRender.totalMs / frames : 0, 2)}ms/f]`,
     `  atlas: ${stripStats ? `${stripStats.atlas.slotsUsed}/${stripStats.atlas.slotsCapacity} slots, ${stripStats.atlas.batchCount} batches, ${stripStats.atlas.pageCount} pages` : "(no renderer)"}`,
     `  anim: ${animDiag ? `slots=${animDiag.totalSlots} stuck=${animDiag.frameStuckCount} variantMissing=${animDiag.variantMissingCount}` : "(no renderer)"}`,
@@ -1079,6 +1257,79 @@ export async function spawnTestPlayers(
   }
   // First spawn batch arms the 5s monitor. Re-spawning while bots are
   // still active is idempotent (the monitor is still running).
+  startMonitorIfNeeded();
+  return ids;
+}
+
+/**
+ * Burst-spawn N bots with NO inter-spawn delay — models a map entry
+ * where the server pushes a whole roster in one frame. Unlike
+ * `spawnTestPlayers` (5ms stagger + auto-movement), this is the
+ * faithful "250 actors land at once" measurement primitive: the
+ * caller brackets it with a frame-pacing recorder and polls
+ * `__getStressSnapshot().bake.pending` to find time-to-all-committed.
+ *
+ * `move` defaults to false so the measurement captures pure spawn
+ * cost (Pixi create + atlas acquire + accessory bake + compose)
+ * without steady-state walk churn muddying the numbers. Sequential
+ * await is kept (parallel addPlayer floods the wgpu queue), but with
+ * zero delay it runs as fast as the pipeline allows.
+ */
+export async function spawnBurst(
+  n: number,
+  renderer: PlayerRenderer,
+  cells: CellData[],
+  pathfinding: DofusPathfinding,
+  opts: { move?: boolean; seed?: number } = {},
+): Promise<number[]> {
+  ensureWatchdogWiring(renderer);
+  if (getRenderWatchdog().isHalted()) {
+    log.warn("spawnBurst refused: watchdog halted. __renderResume() then retry.");
+    return [];
+  }
+  // Seeded looks: same seed → identical roster across sessions, so a
+  // persisted cache fully hits (mirrors revisiting the same map).
+  if (typeof opts.seed === "number") {
+    seededRng = mulberry32(opts.seed);
+  }
+  const ids: number[] = [];
+  for (let i = 0; i < n; i++) {
+    if (getRenderWatchdog().isHalted()) {
+      log.warn(`spawnBurst: watchdog halted mid-batch at ${i}/${n}; aborting.`);
+      break;
+    }
+    const cell = pickRandomCell(cells);
+    if (!cell) {
+      log.warn(`spawnBurst: no walkable cell at ${i}/${n}`);
+      break;
+    }
+    const id = TEST_PLAYER_ID_BASE + activePlayers.size + i;
+    ids.push(id);
+    let resolveCancel!: () => void;
+    const cancelled = new Promise<void>((res) => {
+      resolveCancel = res;
+    });
+    activePlayers.set(id, { id, cancel: resolveCancel, cancelled });
+    await renderer.addPlayer({
+      id,
+      name: `Bot${i}`,
+      team: i % 2,
+      cellId: cell.id,
+      direction: Math.floor(rnd() * 8),
+      look: buildRandomLook(),
+      hp: 100,
+      maxHp: 100,
+      isPlayer: false,
+      decorative: true,
+    });
+  }
+  seededRng = null; // restore non-deterministic for any later spawns
+  log.info(`spawnBurst: issued ${ids.length} adds (move=${opts.move ?? false})`);
+  if (opts.move) {
+    for (const id of ids) {
+      void runMovementLoop(id, renderer, cells, pathfinding);
+    }
+  }
   startMonitorIfNeeded();
   return ids;
 }

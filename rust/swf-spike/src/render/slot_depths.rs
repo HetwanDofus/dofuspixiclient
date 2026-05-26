@@ -342,6 +342,68 @@ fn export_uses_b_fix_recursive(
     false
 }
 
+/// Per-PRESENT-band bFix sensitivity. Returns a vec aligned with
+/// `band_ranges` where `true` means "rendering this band with
+/// `apply_b_fix=true` actually flips a placement, so it pixel-differs
+/// from `apply_b_fix=false`".
+///
+/// Why this beats the per-export `export_uses_b_fix` collapse: a mount
+/// declaring `b_fix=true` is frequently an INVISIBLE anchor sprite
+/// (e.g. a cape mount point) whose band is dropped by
+/// `compute_band_presence`. `export_uses_b_fix` still reports `true`
+/// for such an export (the mount is reachable in the tree), so the
+/// `apply_b_fix=true` variant gets baked — but every PRESENT band is
+/// byte-identical to `apply_b_fix=false` because the flip only ever
+/// touches a non-present band. Measured: ~37 % of class-atlas subscene
+/// builds were exactly these zero-flip duplicates. This function lets
+/// the caller share one cached sub-scene across both bFix cells of an
+/// insensitive band.
+///
+/// Matches the renderer's flip predicate exactly (see `sprite.rs`):
+/// the flip fires for a placement (top-level or nested) whose
+/// character id declares a `b_fix=true` mount. A band is sensitive iff
+/// some top-level placement falling in the band's depth range carries
+/// such a mount in itself or its subtree. We scan ALL timeline `Place`
+/// ops (depth is the band selector) so a part that only appears
+/// mid-animation is still caught — conservative: an over-marked band
+/// merely forgoes the dedup, it never produces wrong pixels.
+pub fn compute_bfix_sensitive_bands(
+    doc: &SwfDoc,
+    effective_body: &OwnedSprite,
+    band_ranges: &[BandRange],
+) -> Vec<bool> {
+    let mut out = vec![false; band_ranges.len()];
+    for op in &effective_body.ops {
+        let OwnedOp::Place(p) = op else { continue };
+        let Some(cid) = p.character_id else { continue };
+        let mut visited = HashSet::new();
+        if !id_carries_b_fix(doc, cid, &mut visited) {
+            continue;
+        }
+        for (i, range) in band_ranges.iter().enumerate() {
+            if range.contains(p.depth) {
+                out[i] = true;
+            }
+        }
+    }
+    out
+}
+
+/// `cid` itself declares a `b_fix=true` mount, or its sprite subtree
+/// places a character that does. Reuses the same recursion as
+/// `export_uses_b_fix`.
+fn id_carries_b_fix(doc: &SwfDoc, cid: u16, visited: &mut HashSet<u16>) -> bool {
+    if let Some(mounts) = doc.accessory_mounts.get(&cid) {
+        if mounts.iter().any(|m| m.b_fix) {
+            return true;
+        }
+    }
+    if let Some(Symbol::Sprite(child)) = doc.lookup_id(cid) {
+        return export_uses_b_fix_recursive(doc, child, visited);
+    }
+    false
+}
+
 /// Does this body have the canonical Iop `mcToHide` hat-toggle
 /// pattern that makes the bake pixel-differ between
 /// `hat_equipped=true` and `hat_equipped=false`?

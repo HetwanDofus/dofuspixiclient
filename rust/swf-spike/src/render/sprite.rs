@@ -50,6 +50,9 @@ pub(super) fn render_sprite_into(ctx: &mut RenderCtx<'_>, sprite: &OwnedSprite) 
         while clip_stack.last().map(|&end| *depth > end).unwrap_or(false) {
             clip_stack.pop();
             ctx.scene.pop_layer();
+            if let Some(zs) = ctx.zone_scene.as_deref_mut() {
+                zs.pop_layer();
+            }
         }
 
         let id = match p.character_id {
@@ -82,13 +85,23 @@ pub(super) fn render_sprite_into(ctx: &mut RenderCtx<'_>, sprite: &OwnedSprite) 
                 &mut mask_path,
             );
             if mask_path.elements().len() >= 4 {
+                let xf = ctx.transform;
                 ctx.scene.push_layer(
                     Fill::NonZero,
                     BlendMode::default(),
                     1.0,
-                    ctx.transform,
+                    xf,
                     &mask_path,
                 );
+                if let Some(zs) = ctx.zone_scene.as_deref_mut() {
+                    zs.push_layer(
+                        Fill::NonZero,
+                        BlendMode::default(),
+                        1.0,
+                        xf,
+                        &mask_path,
+                    );
+                }
                 clip_stack.push(clip_depth);
             }
             continue;
@@ -111,6 +124,7 @@ pub(super) fn render_sprite_into(ctx: &mut RenderCtx<'_>, sprite: &OwnedSprite) 
                 .map(|mounts| mounts.iter().any(|m| m.b_fix))
                 .unwrap_or(false);
             if bfix {
+                super::probe::bfix_flip();
                 let mut clone = p.clone();
                 if let Some(m) = clone.matrix.as_mut() {
                     let coeffs = m.as_coeffs();
@@ -170,5 +184,8 @@ pub(super) fn render_sprite_into(ctx: &mut RenderCtx<'_>, sprite: &OwnedSprite) 
     while !clip_stack.is_empty() {
         clip_stack.pop();
         ctx.scene.pop_layer();
+        if let Some(zs) = ctx.zone_scene.as_deref_mut() {
+            zs.pop_layer();
+        }
     }
 }

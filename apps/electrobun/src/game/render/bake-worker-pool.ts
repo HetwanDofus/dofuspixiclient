@@ -47,9 +47,26 @@ type WorkerOutMsg =
   | { type: "bakeResult"; reqId: number; result: VelloSwfClassAtlasResult | null }
   | { type: "error"; message: string };
 
+/** Bundle hash for shard dispatch. Stable per-string FNV-1a 32-bit —
+ *  deterministic across sessions so the same bundle always lands on
+ *  the same worker. Tiny and dependency-free. */
+function fnv1a32(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h >>> 0;
+}
+
 class BakeWorkerPool {
   private slots: PoolSlot[] = [];
   private nextIdx = 0;
+  /** Dispatch policy: when true, route each bundle to the same worker
+   *  every time via `hash(bundle) % slots.length`. Keeps per-worker
+   *  subscene caches warm at pool size > 1 (round-robin would cross-
+   *  thrash). Set via `initBakeWorkerPool({ size, shardByBundle })`. */
+  private shardByBundle = false;
   private pendingBakes = new Map<
     number,
     {
@@ -88,10 +105,29 @@ class BakeWorkerPool {
     if (this.slots.length === 0) {
       throw new Error("bake-worker pool not initialised");
     }
-    const slot = this.slots[this.nextIdx];
-    this.nextIdx = (this.nextIdx + 1) % this.slots.length;
+    let slot: PoolSlot;
+    if (this.shardByBundle) {
+      // Shard: same bundle always lands on the same worker, keeping
+      // that worker's body_subscene_cache warm across rebakes.
+      slot = this.slots[fnv1a32(bundle) % this.slots.length];
+    } else {
+      // Round-robin: balances load but each worker's subscene cache
+      // sees ~7/8 misses at pool=8. Safe only at pool=1.
+      slot = this.slots[this.nextIdx];
+      this.nextIdx = (this.nextIdx + 1) % this.slots.length;
+    }
     await this.ensureBundleLoaded(slot, bundle);
     return this.dispatchBake(slot, bundle, resolution);
+  }
+
+  setShardByBundle(on: boolean): void {
+    this.shardByBundle = on;
+  }
+  isShardByBundle(): boolean {
+    return this.shardByBundle;
+  }
+  size(): number {
+    return this.slots.length;
   }
 
   private bindAndInit(slot: PoolSlot, wasmUrl?: string): Promise<void> {
@@ -213,6 +249,30 @@ class BakeWorkerPool {
 }
 
 let pool: BakeWorkerPool | null = null;
+/** Resolved when `initBakeWorkerPool` either succeeds (pool ready)
+ *  or fails (pool stays null). Always resolves; callers should
+ *  `await` this before issuing the first dispatch so they don't race
+ *  the multi-worker GPU-device init and fall back to a main-thread
+ *  bake that contends with the Pixi ticker's `tickDeferredDestroys`
+ *  (which produces the "recursive use of an object" wasm-bindgen
+ *  panic when both run within the same Rust borrow window). */
+let poolInitDone: Promise<void> | null = null;
+let poolInitResolve: (() => void) | null = null;
+
+function ensurePoolInitPromise(): Promise<void> {
+  if (poolInitDone) return poolInitDone;
+  poolInitDone = new Promise<void>((resolve) => {
+    poolInitResolve = resolve;
+  });
+  return poolInitDone;
+}
+
+/** Wait until pool init has completed (success OR failure). Callers
+ *  that need pool dispatch should `await` this before checking
+ *  `isBakeWorkerPoolReady()`. Always resolves; never rejects. */
+export function whenBakeWorkerPoolInitDone(): Promise<void> {
+  return ensurePoolInitPromise();
+}
 
 /**
  * Initialise the bake-worker pool. Call once at boot AFTER the main
@@ -222,19 +282,62 @@ let pool: BakeWorkerPool | null = null;
  * Failure modes (no `navigator.gpu`, worker boot error, etc.) result
  * in `pool = null` and `bakeClassAtlasViaWorkerPool` returning `null`
  * forever; callers fall back to the main-thread bake path.
+ *
+ * `size` is clamped to `[1, min(navigator.hardwareConcurrency / 2, 4)]`
+ * — beyond that, multiple WebGPU device-create calls compete for the
+ * same physical GPU at boot and at-runtime bake dispatch starts
+ * contending with the main thread's render-loop, producing the
+ * `tickDeferredDestroys` "recursive use" wasm-bindgen panic.
  */
 export async function initBakeWorkerPool(opts: {
   size: number;
   wasmUrl?: string;
+  /** When true (only safe at size > 1), use `hash(bundle) % size` to
+   *  pick the worker per dispatch. Keeps per-worker subscene caches
+   *  warm; required if you bump size above 1. Default false (round-
+   *  robin). See vello-loader.ts for the rationale on pool=1 today. */
+  shardByBundle?: boolean;
 }): Promise<boolean> {
-  if (pool) return true;
+  ensurePoolInitPromise();
+  if (pool) {
+    poolInitResolve?.();
+    poolInitResolve = null;
+    return true;
+  }
+  // Cap pool size against hardware. Each worker spins up its own
+  // WebGPU device against the same physical GPU; the OS-level Metal
+  // driver doesn't pipeline many concurrent device-create calls well,
+  // so we bound the parallelism.
+  let hwc = 4;
+  try {
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.hardwareConcurrency === "number"
+    ) {
+      hwc = navigator.hardwareConcurrency;
+    }
+  } catch {
+    // ignore
+  }
+  const safeMax = Math.max(1, Math.min(4, Math.floor(hwc / 2)));
+  const sizeClamped = Math.max(1, Math.min(opts.size, safeMax));
+  if (sizeClamped !== opts.size) {
+    console.warn(
+      `[bake-worker-pool] requested size=${opts.size} clamped to ${sizeClamped} (hwc=${hwc}/2 = ${safeMax})`,
+    );
+  }
   try {
     const p = new BakeWorkerPool();
-    await p.init(opts.size, opts.wasmUrl);
+    await p.init(sizeClamped, opts.wasmUrl);
+    p.setShardByBundle(opts.shardByBundle ?? false);
     pool = p;
+    poolInitResolve?.();
+    poolInitResolve = null;
     return true;
   } catch {
     pool = null;
+    poolInitResolve?.();
+    poolInitResolve = null;
     return false;
   }
 }
@@ -254,4 +357,19 @@ export async function bakeClassAtlasViaWorkerPool(
 
 export function isBakeWorkerPoolReady(): boolean {
   return pool?.isReady() ?? false;
+}
+
+/** Diagnostic accessor for the sweep report. Returns the configured
+ *  pool size + shard policy so the report can credit measurements to
+ *  the right A/B arm. */
+export function getBakeWorkerPoolConfig(): {
+  size: number;
+  shardByBundle: boolean;
+  ready: boolean;
+} {
+  return {
+    size: pool?.size() ?? 0,
+    shardByBundle: pool?.isShardByBundle() ?? false,
+    ready: pool?.isReady() ?? false,
+  };
 }

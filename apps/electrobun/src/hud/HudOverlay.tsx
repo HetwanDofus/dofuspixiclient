@@ -1,7 +1,11 @@
 import { useSyncExternalStore } from "react";
 
 import type { GameSession as GameClient } from "@/game/session";
-import { DISPLAY_HEIGHT, FULL_HEIGHT } from "@/game/constants/battlefield";
+import {
+  BOTTOM_BAND_HEIGHT,
+  DISPLAY_HEIGHT,
+  VIEW_HEIGHT,
+} from "@/game/constants/battlefield";
 import { characterStore, closeAllPanels, hudStore } from "@/game/stores";
 import { fightActor } from "@/game/stores/fight-store";
 
@@ -48,8 +52,11 @@ export function HudOverlay({
   );
 
   // Use the measured canvas rect for width/height (CSS pixels, accounts for autoDensity).
-  // Banner top is at DISPLAY_HEIGHT/FULL_HEIGHT fraction of the canvas height.
-  const bannerTopPx = canvasRect.h * (DISPLAY_HEIGHT / FULL_HEIGHT);
+  // Banner sits below the game area AND the bottom-neighbour preview
+  // band, so its top fraction is (DISPLAY_HEIGHT + BOTTOM_BAND_HEIGHT) /
+  // VIEW_HEIGHT.
+  const bannerTopPx =
+    canvasRect.h * ((DISPLAY_HEIGHT + BOTTOM_BAND_HEIGHT) / VIEW_HEIGHT);
 
   const panelWrapStyle: React.CSSProperties = {
     position: "absolute",

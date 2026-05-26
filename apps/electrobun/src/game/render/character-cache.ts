@@ -89,6 +89,24 @@ export const MAX_SLOT = 5;
  */
 const DEFAULT_BYTES_CAP = 2000 * 1024 * 1024;
 
+/**
+ * Default LRU cap for class atlas entries (in bytes).
+ *
+ * Under per-variant baking each (bundle, exportName, bFix, hat,
+ * resolution) tuple is its own `classAtlasEntries` entry. With 250
+ * bots cycling through walk/run × R/L/F/B/S + statics across ~24
+ * gfxIds, the cache grew unboundedly (473 entries / 1.6 GB observed
+ * in stress logs, `evicts=0`). The shared input atlas was at 8 pages
+ * × 256 MB = 2 GB GPU just to back the variant atlases.
+ *
+ * Cap: ~1 GB. Each entry ~3-7 MB; ~150-300 entries fit. With
+ * refcount pinning, the active working set always fits; idle
+ * (refcount=0) entries get LRU-evicted to make room. Eviction frees
+ * the input atlas slot via `scheduleRetireClassAtlas`, which lets
+ * the super-atlas reclaim space.
+ */
+const DEFAULT_CLASS_BYTES_CAP = 1000 * 1024 * 1024;
+
 /** GPU pixels are 4 bytes (BGRA8/Rgba8Unorm). */
 const BYTES_PER_PIXEL = 4;
 
@@ -237,6 +255,7 @@ export interface CharacterCacheStats {
   misses: number;
   evicts: number;
   capBytes: number;
+  classCapBytes: number;
 }
 
 interface PendingClassAtlasBake {
@@ -432,6 +451,7 @@ class CharacterCache {
   private classAtlasBytes = 0;
   private accBytes = 0;
   private capBytes = DEFAULT_BYTES_CAP;
+  private classCapBytes = DEFAULT_CLASS_BYTES_CAP;
 
   // ── Acquire-lifecycle diagnostics ──────────────────────────────
   /** Total entries into `acquireSingleVariantAtlas`. */
@@ -465,6 +485,12 @@ class CharacterCache {
 
   setHardCapBytes(n: number): void {
     this.capBytes = Math.max(0, n);
+    this.evictIfOverCap();
+  }
+
+  /** Cap for class/variant atlas bytes (separate from accessory cap). */
+  setClassCapBytes(n: number): void {
+    this.classCapBytes = Math.max(0, n);
     this.evictIfOverCap();
   }
 
@@ -1071,6 +1097,7 @@ class CharacterCache {
       misses: this.misses,
       evicts: this.evicts,
       capBytes: this.capBytes,
+      classCapBytes: this.classCapBytes,
     };
   }
 
@@ -1115,6 +1142,16 @@ class CharacterCache {
       tickDeferredDestroys(2, 256);
     } catch (e) {
       log.warn("tickDeferredDestroys threw", e);
+    }
+    // Advance the SharedInputAtlas free-grace clock and recycle freed
+    // slots back into reusable space. This bounds super-atlas VRAM to
+    // the live working set under churn WITHOUT destroying any page
+    // texture (the destroy/recreate approach flashed missing-texture
+    // magenta). Cheap (≤16 pages).
+    try {
+      getSharedInputAtlas().tick();
+    } catch (e) {
+      log.warn("SharedInputAtlas.tick threw", e);
     }
     if (this.retireQueue.length === 0) return;
     const remaining: RetireQueueEntry[] = [];
@@ -1523,38 +1560,63 @@ class CharacterCache {
   }
 
   private evictIfOverCap(): void {
-    // Cap applies to ACCESSORIES ONLY. Combining classAtlasBytes
-    // into the cap check was wrong after Opt-4: class atlases are
-    // pinned (no eviction), so `classAtlasBytes` never shrinks. At
-    // 1000 bots with full-zoom class atlases (~3.3 GB classes),
-    // `total > capBytes` was true on every tick regardless of
-    // accessory size — the eviction loop's `used <= capBytes` exit
-    // condition could never be met, so EVERY refcount=0 accessory
-    // got evicted every tick (21k+ evictions in 15s observed).
-    // That eviction storm destroyed accessory Textures fast enough
-    // that Pixi's internal batch bind-group cache kept stale
-    // refs → `textureSource1=null` crashes resurfaced even with
-    // my Texture.EMPTY rebind on the renderer side.
+    // TWO separate caps — one for variant/class atlases, one for
+    // accessory strips. Each is checked independently; the old
+    // "combined cap" approach broke when one pool dominated (the
+    // accessory eviction storm of 21 k+ destroys in 15 s under
+    // pinned class atlases).
     //
-    // The right invariant: class atlas count is self-limiting
-    // (~24-30 unique character classes max) and they're pinned for
-    // a reason (no re-bake cost). Accessories are the high-churn
-    // pool that needs cap pressure. Check only `accBytes`.
-    if (this.accBytes <= this.capBytes) return;
+    // Under per-variant baking each (bundle, export, bFix, hat,
+    // resolution) tuple is its own classAtlasEntries entry. With
+    // 250 bots × 18 gfxIds × ~6 anim families × 4 dirs ≈ 1700
+    // possible entries, the cache grew unboundedly (473 entries /
+    // 1.6 GB observed before this fix, `evicts=0`). Cap applies to
+    // refcount=0 entries only — active variants stay pinned.
     type Candidate = { key: string; bytes: number; t: number };
-    const candidates: Candidate[] = [];
+    if (this.classAtlasBytes > this.classCapBytes) {
+      const candidates: Candidate[] = [];
+      for (const [key, entry] of this.classAtlasEntries) {
+        if (entry.refcount === 0) {
+          candidates.push({
+            key,
+            bytes: entry.bytesEst,
+            t: entry.lastReleasedAt,
+          });
+        }
+      }
+      candidates.sort((a, b) => a.t - b.t);
+      let used = this.classAtlasBytes;
+      for (const c of candidates) {
+        if (used <= this.classCapBytes) break;
+        const entry = this.classAtlasEntries.get(c.key);
+        if (!entry) continue;
+        this.classAtlasEntries.delete(c.key);
+        this.classAtlasBytes -= entry.bytesEst;
+        // Frees input atlas slot (super-atlas-backed) or destroys
+        // the dedicated page texture, both via the 2-tick settle
+        // queue — same path as a normal retire.
+        this.scheduleRetireClassAtlas(entry);
+        this.evicts += 1;
+        used -= c.bytes;
+      }
+    }
+
+    // Accessory pool — high-churn (~5-8 k tuples in stress);
+    // separate cap pressure.
+    if (this.accBytes <= this.capBytes) return;
+    const accCandidates: Candidate[] = [];
     for (const [key, entry] of this.accEntries) {
       if (entry.refcount === 0) {
-        candidates.push({
+        accCandidates.push({
           key,
           bytes: entry.bytesEst,
           t: entry.lastReleasedAt,
         });
       }
     }
-    candidates.sort((a, b) => a.t - b.t);
+    accCandidates.sort((a, b) => a.t - b.t);
     let used = this.accBytes;
-    for (const c of candidates) {
+    for (const c of accCandidates) {
       if (used <= this.capBytes) break;
       const entry = this.accEntries.get(c.key);
       if (!entry) continue;

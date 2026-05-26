@@ -41,6 +41,12 @@ export {
   type TcpSocketHandle,
 } from "./transport/tcp-socket";
 export {
+  buildWebSocketUrl,
+  makeWebSocketFactory,
+  openWebSocket,
+  type WebSocketTransportOptions,
+} from "./transport/websocket-socket";
+export {
   buildOutboundFrame,
   Composite,
   F,
@@ -76,7 +82,7 @@ import "./messages/account/restrictions";
 import "./messages/account/queue";
 import "./messages/account/new-queue";
 import "./messages/game/create";
-import "./messages/game/map-data";
+import "./messages/game/adjacent-maps-data";
 import "./messages/game/movement";
 import "./messages/game/map-loaded";
 import "./messages/game/game-end";
@@ -155,7 +161,11 @@ export { GC } from "./messages/game/create";
 export { GIOut } from "./messages/game/extra-info";
 export { GE } from "./messages/game/game-end";
 export { GJ } from "./messages/game/join";
-export { GDM } from "./messages/game/map-data";
+export {
+  GDA,
+  type GDASegments,
+  type NeighborSegment,
+} from "./messages/game/adjacent-maps-data";
 export { GDK } from "./messages/game/map-loaded";
 export {
   GM,

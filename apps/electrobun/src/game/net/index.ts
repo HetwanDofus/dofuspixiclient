@@ -7,9 +7,10 @@ export {
 } from "./bootstrap";
 export { NetClient, type Stage } from "./client";
 export {
+  type AdjacentMapsListener,
   type FightActionEvent,
+  onAdjacentMapsData,
   onFightAction,
-  onMapData,
   onMovement,
   onPlayerCoords,
   onPositionStart,

@@ -46,8 +46,22 @@ export interface AtlasBand {
 const BYTES_PER_INSTANCE = 80;
 /** Floats per instance row. */
 const FLOATS_PER_INSTANCE = 20;
-/** Initial instance capacity. Grows 2× on overflow. */
-const INITIAL_CAPACITY = 32;
+/**
+ * Initial instance capacity. Sized so `grow()` never fires in practice:
+ * a `BodyBandBatch` lives on one composition page and holds at most one
+ * instance per slot on that page (`SharedCompositionAtlas` packs 16×16 =
+ * 256 slots per 4096² page), so 256 is the hard upper bound on instances.
+ *
+ * Why pre-size instead of relying on `grow()`: `grow()` is CORRECT
+ * (verified — resize-in-place via `instanceBuffer.data = newData`
+ * recreates the GPU buffer and the per-pass bind cache picks it up), but
+ * EXPENSIVE — every grow recreates a GPUBuffer + copies data, and firing
+ * it during a spawn burst churns the GPU (measured p99=100ms / 16 stalls
+ * per 10s at capacity 8). Allocating the final size once avoids the churn.
+ * 256 × 80 bytes = 20 KB per batch — negligible. `grow()` is kept as a
+ * correct safety fallback in case the slot grid ever changes.
+ */
+const INITIAL_CAPACITY = 256;
 
 /**
  * Per-instance attribute byte offsets inside the 80-byte row.
@@ -697,34 +711,23 @@ export class BodyBandBatch {
     newData.set(this.instanceData);
     this.instanceData = newData;
 
-    // Re-create the GPU buffer (Buffer doesn't expose a "resize"
-    // primitive). The new buffer takes over the old buffer's slot in
-    // every attribute view, so we have to swap the buffer reference
-    // inside the geometry attributes too.
-    const old = this.instanceBuffer;
-    this.instanceBuffer = new Buffer({
-      data: newData,
-      usage: BufferUsage.VERTEX | BufferUsage.COPY_DST,
-      label: "body-band-batch-instances",
-    });
-    // Rewire each attribute to the new buffer. Pixi v8 stores
-    // attributes by name; we mutate their `buffer` pointer.
-    const attrs = this.geometry.attributes as Record<
-      string,
-      { buffer?: Buffer }
-    >;
-    for (const name of [
-      "aAtlasUV",
-      "aZone1",
-      "aZone2",
-      "aZone3",
-      "aTransform",
-    ]) {
-      if (attrs[name]) attrs[name].buffer = this.instanceBuffer;
-    }
-    try {
-      old.destroy();
-    } catch {}
+    // Resize the EXISTING buffer in place. Assigning `.data` routes
+    // through Pixi's `setDataWithSize`, which (on a length change) bumps
+    // the buffer's resource id and emits "change". The owning `Geometry`
+    // listens to that event and recreates the GPU buffer at the new
+    // size — and crucially keeps the SAME `Buffer` object, so
+    // `geometry.buffers` (built once at construction and what the GPU
+    // actually binds) stays valid.
+    //
+    // The previous approach created a NEW `Buffer` and rewired each
+    // `attribute.buffer` pointer, then destroyed the old buffer. But
+    // `geometry.buffers` still referenced the OLD (now-destroyed) buffer,
+    // so the GPU bound freed memory and the whole batch rendered garbage.
+    // It only surfaced once a batch grew past `INITIAL_CAPACITY` (32) —
+    // which the dense super-atlas pages produced by slot reuse hit, but
+    // the spread-out append-only page layout never did. THIS was the
+    // "reuse → garbage" root cause.
+    this.instanceBuffer.data = newData;
     this.capacity = next;
   }
 

@@ -62,6 +62,7 @@ impl RenderCache {
         if let Some(cached) = self.shape_cmds.borrow().get(&id) {
             return Arc::clone(cached);
         }
+        super::probe::shape_flatten();
         let cmds = Arc::new(flatten_shape(shape, doc));
         self.shape_cmds.borrow_mut().insert(id, Arc::clone(&cmds));
         cmds
@@ -94,6 +95,7 @@ impl RenderCache {
         if let Some(cached) = self.frame_states.borrow().get(&key) {
             return Arc::clone(cached);
         }
+        super::probe::frame_state_miss();
         let state = Arc::new(build_frame_state(sprite, frame));
         self.frame_states
             .borrow_mut()

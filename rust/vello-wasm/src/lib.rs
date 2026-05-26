@@ -6,7 +6,9 @@ use vello::peniko::Color;
 use vello::{wgpu, AaConfig, Renderer, RendererOptions};
 use wasm_bindgen::prelude::*;
 
+mod bake_telemetry;
 mod bitmap_bridge;
+mod scene_cache;
 
 
 #[wasm_bindgen]
@@ -261,9 +263,45 @@ pub struct VelloRenderer {
     /// hat_equipped, mode)` tuple. Cache hit skips the whole
     /// `build_scene` step; the bake then only runs the two
     /// `render_to_texture` rasterizations + combine + bitmap bridge.
-    /// Expected hit cost ~1-1.5 ms (the rasterization floor) vs
-    /// ~5 ms on miss.
+    /// Expected hit cost ~0.5-1 ms (rasterization floor) vs ~3-5 ms
+    /// on miss. Most critical role: makes repeated zoom (e.g.
+    /// 3 → 5 → 3) hit cache on return instead of rebaking from
+    /// scratch — without this cache, the second visit to a prior
+    /// zoom level costs the same as the first visit, and stress
+    /// tests with frequent zoom changes saturate the bake queue.
     body_scene_cache: HashMap<BodySceneCacheKey, vello::Scene>,
+    /// Lifetime counters for `body_scene_cache` (cumulative since
+    /// renderer init). Surfaced via `bodySceneCacheStats()` so the
+    /// architecture decision can verify whether the LRU is actually
+    /// thrashing at 250-bot stress (the v3 "delete it" instinct
+    /// depends on this — see RENDER_STATE.md v4).
+    body_scene_cache_hits: u64,
+    body_scene_cache_misses: u64,
+    body_scene_cache_evictions: u64,
+    /// Profiling accumulators for `build_class_variant_scene`, reset
+    /// per class-atlas bake. `dbg_p1_ms` = Pass 1 (subscene
+    /// build/emit + cache-key churn), `dbg_p2_ms` = Pass 2 (variant
+    /// assembly via `scene.append`). Lets the `classAtlasBake` log
+    /// split the `scene=` phase into emit vs assemble so we know
+    /// whether the cold-bake cost is the SWF re-emit or the append
+    /// copies. Temporary instrumentation.
+    dbg_p1_ms: f64,
+    dbg_p2_ms: f64,
+    /// `renderSwfClassAtlas` bake-mode selector:
+    ///   0 = AUTO (default): per-page when the packed atlas needs
+    ///       ≤ 2 pages, per-variant when ≥ 3 pages. Measured crossover
+    ///       (2026-05-25, headless Chrome, M-series): per-page is
+    ///       1.3-5.2× faster for 1-2 page atlases (wall is ~flat 8-10 ms
+    ///       independent of zoom) but ~2× SLOWER for 3-large-page
+    ///       atlases (it rasterises each full page incl. shelf-pack
+    ///       slack + encodes one huge multi-variant Vello scene per
+    ///       page, whereas per-variant only renders the painted variant
+    ///       rects).
+    ///   1 = force per-variant (A/B + fallback).
+    ///   2 = force per-page (A/B).
+    /// Set via `setClassAtlasBakeMode(mode)`; the legacy
+    /// `setClassAtlasForcePerVariant(bool)` maps true→1, false→2.
+    class_atlas_bake_mode: u8,
     /// Phase 1c: scale-invariant per-(frame, band) sub-scene cache for
     /// the class atlas bake. Each entry is a `vello::Scene` produced
     /// by `render_body_band` with `transform = effective_xform`, so
@@ -288,6 +326,20 @@ pub struct VelloRenderer {
     /// makes zoom re-render fast: we don't re-walk symbol trees, we
     /// just `scene.append(subscene, matrix)` for each placement.
     tile_subscenes: HashMap<(String, String, u32), vello::Scene>,
+    /// Per-accessory sub-scenes encoded at twip-identity. Keyed by
+    /// `(bundle, export, slot, anim_type, side, cycle)`. Built once
+    /// per unique accessory cycle and re-used across zoom levels —
+    /// the per-cycle scale × translate xform is applied at
+    /// composition time. Same architecture as `tile_subscenes`;
+    /// the population path is `render_swf_accessory_strip`.
+    ///
+    /// Before this cache existed, every `renderSwfAccessoryStrip`
+    /// call ran 3 fresh AS2 walks (one per cycle) regardless of
+    /// resolution — a zoom change with 250 bots × ~4 accessories
+    /// each forced ~3000 redundant walks. With the cache, the AS2
+    /// work runs at most once per cycle per accessory regardless
+    /// of zoom changes.
+    acc_subscenes: HashMap<scene_cache::AccessorySubsceneKey, vello::Scene>,
     /// Opt-5: per-bundle precomputed class atlas enumeration.
     /// Populated lazily on first `renderSwfClassAtlas(bundle)` call.
     /// Subsequent calls (including re-bakes after eviction) skip the
@@ -320,12 +372,22 @@ struct ClassEnumerationExport {
     slot_count_logical: u32,
 }
 
-/// Phase 1b body-scene cache key. Every parameter that can change the
-/// produced `vello::Scene` content (or its absolute cell layout) must
-/// be in the key. `scale_q` is `(scale × 1000) as u32` so the float
-/// can participate in the `Hash` impl. The mode byte distinguishes
-/// the two passes (Colour = 0, ZoneId = 1) — they share every other
-/// input but produce different scenes.
+/// Body atlas scene cache key (Phase 1b). Resolution-keyed via
+/// `scale_q` = `(scale × 1000).round() as u32`. Each (bundle, export,
+/// start, count, mode, scale_q, apply_b_fix, hat_equipped) combo
+/// produces one cached `vello::Scene`. Hit skips the entire
+/// `build_scene` step; only `render_to_texture` + combine + bitmap
+/// bridge still run on the hot path.
+///
+/// Why `scale_q` IS in the key: a previous attempt to drop it (cache
+/// at twip identity, wrap with `Affine::scale(scale)` at render time)
+/// produced visible per-cell sub-pixel drift because the wrapped
+/// twip cells didn't land on the pixel atlas grid at all zoom
+/// levels. Per-cell pixel-snapping requires baking `scale` into the
+/// cell xform, which forces scale into the key. The cache is then
+/// resolution-specific but the LRU window (cap 1500) is large enough
+/// that recent zoom levels stay warm — zoom 3 → 5 → 3 hits cache on
+/// the return, which is the dominant user pattern.
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct BodySceneCacheKey {
     bundle: String,
@@ -621,11 +683,28 @@ impl VelloRenderer {
         console_log!("VelloRenderer: maxTexDim2D={} maxBufSize={}",
             required_limits.max_texture_dimension_2d, required_limits.max_buffer_size);
 
+        // DIAG: request TIMESTAMP_QUERY when the adapter advertises it so
+        // JS can do real per-pass GPU profiling (timestampWrites in render
+        // passes). Gated on adapter support so the device request can't
+        // fail on browsers that don't expose it.
+        let mut required_features = wgpu::Features::empty();
+        let ts_supported = adapter
+            .features()
+            .contains(wgpu::Features::TIMESTAMP_QUERY);
+        if ts_supported {
+            required_features |= wgpu::Features::TIMESTAMP_QUERY;
+        }
+        console_log!(
+            "VelloRenderer: timestamp-query adapter-supported={} requested={}",
+            ts_supported,
+            ts_supported
+        );
+
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: Some("vello-pixi-shared"),
-                    required_features: wgpu::Features::empty(),
+                    required_features,
                     required_limits,
                     ..Default::default()
                 },
@@ -673,8 +752,17 @@ impl VelloRenderer {
             swf_strip_bounds_cache: HashMap::new(),
             swf_render_caches: HashMap::new(),
             body_scene_cache: HashMap::new(),
+            body_scene_cache_hits: 0,
+            body_scene_cache_misses: 0,
+            body_scene_cache_evictions: 0,
+            dbg_p1_ms: 0.0,
+            dbg_p2_ms: 0.0,
+            // AUTO: per-page for ≤2-page atlases (the measured win),
+            // per-variant for ≥3-page atlases. See field doc.
+            class_atlas_bake_mode: 0,
             body_subscene_cache: HashMap::new(),
             tile_subscenes: HashMap::new(),
+            acc_subscenes: HashMap::new(),
             class_enum_cache: HashMap::new(),
         };
 
@@ -818,6 +906,8 @@ impl VelloRenderer {
         frame: u32,
         resolution: f32,
     ) -> JsValue {
+        let bake_start = perf_now();
+        bake_telemetry::subscene_reset();
         let Some(doc) = self.swf_bundles.get(bundle) else {
             return JsValue::NULL;
         };
@@ -855,7 +945,6 @@ impl VelloRenderer {
         let xform = vello::kurbo::Affine::scale(scale)
             .then_translate(vello::kurbo::Vec2::new(-px_min_x, -px_min_y));
 
-        let mut scene = vello::Scene::new();
         // Lazily init the filter pipelines (compute shader compilation isn't
         // free — defer until the first SWF render that might need them).
         if self.swf_filter_pipelines.is_none() {
@@ -863,31 +952,52 @@ impl VelloRenderer {
                 swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
             );
         }
-        // Cloning the doc so we can hold &self borrows for ctx borrow_mut.
-        // Actually we can't mutably borrow self.renderer while immutably
-        // holding self.swf_bundles — work around by carving out a context
-        // that only borrows the pieces we need.
-        let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
-        let mut ctx = swf_spike::render::WgpuCtx {
-            device: &self.device,
-            queue: &self.queue,
-            renderer: &mut self.renderer,
-            filter_pipelines,
-            output_scale: scale,
-        };
-        // Use the tinted entry point so player sprites pick up the
-        // `swf_player_colors` set via `setSwfPlayerColors`. When no
-        // colours have been set (default = all None), the tinted path
-        // is a no-op for tiles/spells (they have no zoned sprites).
-        swf_spike::render::render_symbol_with_ctx_tinted(
-            &mut ctx,
-            doc,
-            symbol,
-            &mut scene,
-            xform,
-            frame as u16,
-            self.swf_player_colors,
-        );
+
+        // Twip-identity sub-scene cache: a tile's scene at
+        // `xform = Affine::IDENTITY` is reusable across every zoom
+        // level. The final scene is assembled by appending the cached
+        // sub-scene under `xform = scale.then_translate(-px_min)` —
+        // identical output to building inline because `scene.append`
+        // pre-multiplies its xform over every transform in the child
+        // encoding. This makes a zoom change zero-CPU on the second
+        // tile call (only the cheap GPU rasterize remains).
+        //
+        // Tiles ignore `swf_player_colors` (no zoned sprites), so
+        // the key is just `(bundle, export, frame)`.
+        let sub_key = (bundle.to_string(), export.to_string(), frame);
+        let sub_was_hit = self.tile_subscenes.contains_key(&sub_key);
+        if sub_was_hit {
+            bake_telemetry::subscene_hit();
+        } else {
+            bake_telemetry::subscene_miss();
+            let mut sub_scene = vello::Scene::new();
+            {
+                let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+                let mut ctx = swf_spike::render::WgpuCtx {
+                    device: &self.device,
+                    queue: &self.queue,
+                    renderer: &mut self.renderer,
+                    filter_pipelines,
+                    // Twip-identity render: no `output_scale` because
+                    // the inner filter compute path is `cfg`-off on
+                    // wasm32 (see swf-spike/src/render/filter.rs).
+                    output_scale: 1.0,
+                };
+                swf_spike::render::render_symbol_with_ctx_tinted(
+                    &mut ctx,
+                    doc,
+                    symbol,
+                    &mut sub_scene,
+                    vello::kurbo::Affine::IDENTITY,
+                    frame as u16,
+                    self.swf_player_colors,
+                );
+            }
+            self.tile_subscenes.insert(sub_key.clone(), sub_scene);
+        }
+        let mut scene = vello::Scene::new();
+        let sub_ref = self.tile_subscenes.get(&sub_key).expect("ensured above");
+        scene.append(sub_ref, Some(xform));
 
         // Same texture descriptor as the dofasset path (lines 935, 1112, 1283).
         // CRUCIAL: `view_formats` MUST stay empty. Adding `Rgba8UnormSrgb` as a
@@ -941,6 +1051,15 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(h));
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(anchor_x));
         let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(anchor_y));
+        {
+            let (hits, misses) = bake_telemetry::subscene_take();
+            bake_telemetry::Builder::new(bake_telemetry::BakeKind::TileFrame, bundle)
+                .total(perf_now() - bake_start)
+                .subscene(hits, misses)
+                .pixel_area(u64::from(w) * u64::from(h))
+                .sub_count(1)
+                .commit();
+        }
         result.into()
     }
 
@@ -2266,6 +2385,8 @@ impl VelloRenderer {
         hat_equipped: bool,
     ) -> JsValue {
         const BAND_PADDING_PX: u32 = 2;
+        let bake_start = perf_now();
+        bake_telemetry::subscene_reset();
         if count == 0 || total_frame_count == 0 || start >= total_frame_count {
             return JsValue::NULL;
         }
@@ -2342,6 +2463,26 @@ impl VelloRenderer {
         } else {
             present_logical
         };
+
+        // bFix variant-level dedup (spawn path). A fully bFix-insensitive
+        // export bakes byte-identically for apply_b_fix=false/true — the
+        // flip only ever touches a non-present band (e.g. an invisible
+        // cape mount anchor whose band `compute_band_presence` dropped).
+        // Collapsing the flag lets both flipped/unflipped directions of
+        // such an export share ONE `body_scene_cache` entry and one
+        // `build_both` pass. Exports with a genuinely visible bFix band
+        // (a real cape) report a sensitive band and keep `apply_b_fix`,
+        // so their flipped directions stay pixel-correct. Mirrors the
+        // class-atlas warmup's per-band dedup; here the whole-atlas cache
+        // granularity only permits the all-or-nothing variant collapse.
+        let eff_apply_b_fix = apply_b_fix
+            && swf_spike::render::compute_bfix_sensitive_bands(
+                doc,
+                effective_body,
+                &band_ranges,
+            )
+            .iter()
+            .any(|&s| s);
 
         let end = start.saturating_add(count).min(total_frame_count);
         let chunk_end = end.min(cached.anim_end);
@@ -2475,12 +2616,34 @@ impl VelloRenderer {
         // `band_idx × (strip_h + BAND_PADDING_PX)` so the bands stack
         // with a transparent gutter that LINEAR sampling can't cross.
         let band_ranges_ref = &band_ranges;
-        let build_scene = |mode: swf_spike::render::RenderMode,
-                           device: &wgpu::Device,
-                           queue: &wgpu::Queue,
-                           renderer: &mut Renderer,
-                           filter_pipelines: &swf_spike::wgpu_filters::FilterPipelines|
-         -> vello::Scene {
+        // Pixel-exact cell xforms. The earlier resolution-independent
+        // attempt cached the scene at twip identity and wrapped with
+        // `Affine::scale(scale)` at render time, but cell positions
+        // then drifted by `(twip_w × scale − frame_w)` per column —
+        // the rounding gap between the natural twip extent and the
+        // pixel-rounded `frame_w`. The drift accumulated across cells
+        // and produced visible per-frame jitter in walk animations
+        // ("staggery shifting" reported during stress-test playback).
+        //
+        // Fix: keep cell xforms pixel-exact (`scale.then_translate
+        // (pixel_pos)`) so every cell aligns to the atlas grid
+        // perfectly. The resolution-independence is moved DOWN one
+        // layer — `body_subscene_cache` (per-frame, per-band sub-
+        // scenes at twip identity) survives every zoom change, so
+        // build_scene's Pass 1 cost is ~0 across resolutions; only
+        // the Pass 2 composition (chunk × band scene.append calls,
+        // ~1 ms total) re-runs per bake. `body_scene_cache` is
+        // dropped entirely; see the BodySceneCacheKey doc.
+        // Single-walk dual emit: ONE display-list traversal builds the
+        // Colour scene AND the ZoneId scene (was two full walks). Each
+        // `(frame, band)` cell calls `render_body_band_dual`, which
+        // emits colour fills into `colour` and zone markers into `zone`
+        // simultaneously — byte-identical to the old two-pass build.
+        let build_both = |device: &wgpu::Device,
+                          queue: &wgpu::Queue,
+                          renderer: &mut Renderer,
+                          filter_pipelines: &swf_spike::wgpu_filters::FilterPipelines|
+         -> (vello::Scene, vello::Scene) {
             let mut wctx = swf_spike::render::WgpuCtx {
                 device,
                 queue,
@@ -2488,14 +2651,8 @@ impl VelloRenderer {
                 filter_pipelines,
                 output_scale: scale,
             };
-            let mut scene = vello::Scene::new();
-            // band_ranges only contains PRESENT bands. We render
-            // them in order; each takes the next strip slot in the
-            // atlas regardless of its logical band index. JS reads
-            // `bandIndex` from the returned `bands` array to recover
-            // the logical position for zIndex math.
-            // Opt-3 inverted loop order: frame outer, band inner so
-            // all bands of one frame share the cached frame_state.
+            let mut colour = vello::Scene::new();
+            let mut zone = vello::Scene::new();
             for slot in 0..chunk_count {
                 let frame_idx = start + slot;
                 let col = (slot as usize) % grid_cols;
@@ -2508,38 +2665,45 @@ impl VelloRenderer {
                     let xform = vello::kurbo::Affine::scale(scale).then_translate(
                         vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y + cell_y),
                     );
-                    // Render the WRAPPER (effective body), with the
-                    // wrapper's own placement transform composed in.
-                    swf_spike::render::render_body_band(
+                    swf_spike::render::render_body_band_dual(
                         &mut wctx,
                         doc,
                         effective_sym,
-                        &mut scene,
+                        &mut colour,
+                        &mut zone,
                         xform * effective_xform,
                         frame_idx as u16,
                         band,
-                        mode,
                         player_colors,
                         cache,
-                        apply_b_fix,
+                        eff_apply_b_fix,
                         hat_equipped,
                     );
                 }
             }
-            scene
+            (colour, zone)
         };
 
-        // Phase 1b: scene-level cache. Skip build_scene entirely
-        // when a previous bake with identical (bundle, export, start,
-        // count, scale, apply_b_fix, hat_equipped, mode) parameters
-        // already encoded the Vello scene. We still pay rasterization
-        // (render_to_texture) + combine + bitmap bridge, but the
-        // ~90 k-fill scene encoding is gone.
+        // Composed-atlas cache (Phase 1b). Resolution-keyed on
+        // `scale_q` (= scale × 1000) — at each unique scale the
+        // first bake pays Pass 1 + Pass 2 + GPU, subsequent bakes
+        // at the SAME scale hit the cache and skip straight to
+        // GPU rasterize. CRITICAL on repeated-zoom (e.g.
+        // 3 → 5 → 3): without this cache the 3 → return rebuilds
+        // every variant from scratch (~2-3 ms × 250 bots × 7
+        // variants = several seconds of CPU). With cache the
+        // return is GPU-only at ~0.5 ms per bake.
         //
-        // `scale_q` quantises the f32 scale to integer milli-units so
-        // it can participate in `Hash`. Practical scales used in the
-        // app are powers of integers (resolution=3 ⇒ scale=0.15),
-        // so quantization loss is zero.
+        // The earlier resolution-independent attempt (drop scale_q,
+        // wrap with Affine::scale at render time) caused sub-pixel
+        // cell drift visible as animation stagger. Bringing it back
+        // would require splitting the cache to per-sub-scene
+        // granularity (cf. body_subscene_cache used by the class
+        // atlas path) — left as future work.
+        //
+        // Build-on-miss into temporaries first so we don't hold a
+        // `&mut self.body_scene_cache` borrow across the closure
+        // call (which needs `&mut self.renderer`).
         let scale_q = (scale * 1000.0).round() as u32;
         let colour_key = BodySceneCacheKey {
             bundle: bundle.to_string(),
@@ -2547,7 +2711,7 @@ impl VelloRenderer {
             start,
             count: chunk_count,
             scale_q,
-            apply_b_fix,
+            apply_b_fix: eff_apply_b_fix,
             hat_equipped,
             mode: 0,
         };
@@ -2555,61 +2719,33 @@ impl VelloRenderer {
             mode: 1,
             ..colour_key.clone()
         };
-        // Build-on-miss into temporaries first so we don't hold a
-        // `&mut self.body_scene_cache` borrow across the closure call
-        // (which needs `&mut self.renderer`). Once the temps are in
-        // scope, the closure has returned and `&mut self.renderer`
-        // is no longer alive — we can then mutate `body_scene_cache`.
-        let new_colour: Option<vello::Scene> =
+        // colour_key/zone_key differ only by `mode` and are always
+        // inserted as a pair, so cache presence is symmetric — one
+        // `contains_key` decides. On miss, the single dual walk builds
+        // BOTH scenes in one traversal.
+        let (new_colour, new_zone): (Option<vello::Scene>, Option<vello::Scene>) =
             if self.body_scene_cache.contains_key(&colour_key) {
-                None
+                bake_telemetry::subscene_hit();
+                bake_telemetry::subscene_hit();
+                self.body_scene_cache_hits += 2;
+                (None, None)
             } else {
-                Some(build_scene(
-                    swf_spike::render::RenderMode::Colour,
+                bake_telemetry::subscene_miss();
+                bake_telemetry::subscene_miss();
+                self.body_scene_cache_misses += 2;
+                let (c, z) = build_both(
                     &self.device,
                     &self.queue,
                     &mut self.renderer,
                     filter_pipelines,
-                ))
+                );
+                (Some(c), Some(z))
             };
-        let new_zone: Option<vello::Scene> =
-            if self.body_scene_cache.contains_key(&zone_key) {
-                None
-            } else {
-                Some(build_scene(
-                    swf_spike::render::RenderMode::ZoneId,
-                    &self.device,
-                    &self.queue,
-                    &mut self.renderer,
-                    filter_pipelines,
-                ))
-            };
-        // Soft cap on `body_scene_cache` size. Phase 1b made each
-        // body bake ~5× cheaper but accidentally regressed
-        // `tickerMsAvg` from 12 ms to 26 ms when the cache grew past
-        // ~1100 entries (200-bot stress run, t+15 s). Cause: the
-        // WASM heap grew +500 MB as the cache filled, and physical
-        // memory pressure inflated main-thread frame time even
-        // though CPU-side bake work was lower. At real-game scale
-        // (16-50 bots, ~200 unique scene keys) the cap never trips;
-        // at stress scale (200 random-look bots, ~1500+ unique keys)
-        // eviction kicks in and we accept some scene cache misses
-        // (which fall back to ~5 ms bakes — still no worse than the
-        // pre-Phase-1b baseline).
-        //
-        // Approximate-LRU eviction: when the cache crosses the cap,
-        // drop a single entry per insert. CRITICAL: the eviction
-        // candidate MUST NOT match `colour_key` or `zone_key`. The
-        // initial implementation picked `keys().next()` which is
-        // randomized per Rust's default hasher, so it could pick
-        // either of the keys we're about to `get(&key)` back. When
-        // that happened, the `expect("just inserted")` below trapped
-        // the wasm module, taking down every subsequent Vello call
-        // and producing a "black screen" crash. Excluding the active
-        // keys from the victim search is required for correctness,
-        // not just optimization. Hot entries that get evicted will
-        // re-enter the cache on their next bake; lukewarm entries
-        // cycle out. Steady-state size oscillates around the cap.
+        // Approximate-LRU eviction at 1500 cap. Must skip the two
+        // active keys when picking a victim — see the long comment
+        // on the original implementation (the `find(...)` exclusion
+        // is required for correctness, not just optimisation; the
+        // first attempt evicted an active key and trapped wasm).
         const BODY_SCENE_CACHE_CAP: usize = 1500;
         let mut inserts_pending = 0usize;
         if new_colour.is_some() {
@@ -2625,13 +2761,25 @@ impl VelloRenderer {
                 .find(|k| **k != colour_key && **k != zone_key)
                 .cloned()
             else {
-                // Every remaining entry is one of the two active
-                // keys — can't evict without breaking the bake.
-                // Accept the over-cap state for this iteration; the
-                // next bake will re-evict.
                 break;
             };
+            // Evict the victim AND its colour/zone sibling together. The
+            // cache stores each variant as a (mode:0, mode:1) PAIR and the
+            // hit path below relies on "colour present ⟹ zone present".
+            // Evicting a single key would split a pair, so a later HIT on
+            // the surviving half skips insertion and the `get` on the
+            // missing half used to panic (`just inserted`), which poisons
+            // the whole WASM module. The sibling can never be the active
+            // colour_key/zone_key (victim is already excluded from those,
+            // and a flipped-mode key of a non-active key is also
+            // non-active), so this never drops the keys we're about to use.
+            let sibling = BodySceneCacheKey {
+                mode: if victim.mode == 0 { 1 } else { 0 },
+                ..victim.clone()
+            };
             self.body_scene_cache.remove(&victim);
+            self.body_scene_cache.remove(&sibling);
+            self.body_scene_cache_evictions += 1;
         }
         if let Some(s) = new_colour {
             self.body_scene_cache.insert(colour_key.clone(), s);
@@ -2639,16 +2787,33 @@ impl VelloRenderer {
         if let Some(s) = new_zone {
             self.body_scene_cache.insert(zone_key.clone(), s);
         }
-        // Retrieve as `&Scene` — both `render_to_texture` calls below
-        // only need a shared borrow. Safe to `expect()`: either we
-        // built and inserted the scene above, or it was already in
-        // the cache and the eviction loop above is guaranteed to
-        // skip it (see the `find(...)` exclusion).
-        let colour_scene = self.body_scene_cache.get(&colour_key).expect("just inserted");
-        let zone_scene = self.body_scene_cache.get(&zone_key).expect("just inserted");
+        // Defence-in-depth: never `expect`/panic here — a panic in WASM
+        // aborts and poisons the module (every later call throws "recursive
+        // use of an object" / "unreachable", killing all rendering). If the
+        // pair is somehow incomplete, skip this bake and let the caller
+        // retry next frame.
+        if !self.body_scene_cache.contains_key(&colour_key)
+            || !self.body_scene_cache.contains_key(&zone_key)
+        {
+            console_log!(
+                "renderSwfBodyAtlas: body_scene_cache pair incomplete \
+                 (bundle={bundle} export={export}); skipping bake"
+            );
+            return JsValue::NULL;
+        }
+        let colour_scene = self
+            .body_scene_cache
+            .get(&colour_key)
+            .expect("checked present above");
+        let zone_scene = self
+            .body_scene_cache
+            .get(&zone_key)
+            .expect("checked present above");
 
         // Render both scenes into their respective atlas textures.
         // Atlas dims = (strip_w, band_total * strip_h + padding).
+        // The scene has `scale` baked into every cell xform so
+        // content lands on the pixel atlas grid exactly.
         let render_one = |scene: &vello::Scene,
                           label: &'static str,
                           device: &wgpu::Device,
@@ -2853,6 +3018,15 @@ impl VelloRenderer {
             &"bandPadding".into(),
             &JsValue::from(BAND_PADDING_PX),
         );
+        {
+            let (hits, misses) = bake_telemetry::subscene_take();
+            bake_telemetry::Builder::new(bake_telemetry::BakeKind::BodyAtlas, bundle)
+                .total(perf_now() - bake_start)
+                .subscene(hits, misses)
+                .pixel_area(u64::from(atlas_w) * u64::from(atlas_h))
+                .sub_count(count)
+                .commit();
+        }
         result.into()
     }
 
@@ -2893,10 +3067,21 @@ impl VelloRenderer {
         // Instrumentation accumulators. Cost is one `performance.now()`
         // per phase × N variants — negligible vs the Vello work.
         let bake_start = perf_now();
+        bake_telemetry::subscene_reset();
+        swf_spike::render::probe::reset();
         let mut total_scene_build_ms = 0.0_f64;
         let mut total_render_submit_ms = 0.0_f64;
         let mut total_combine_copy_ms = 0.0_f64;
         let mut total_bridge_ms = 0.0_f64;
+        // Temporary scene-phase profiling accumulators (see classAtlasBake
+        // log). colour/zone = wall of each build_class_variant_scene call;
+        // page_append = the second-level variant→page append copies.
+        // Pass1/Pass2 totals come from self.dbg_p1_ms/dbg_p2_ms.
+        let mut total_colour_build_ms = 0.0_f64;
+        let mut total_zone_build_ms = 0.0_f64;
+        let mut total_page_append_ms = 0.0_f64;
+        self.dbg_p1_ms = 0.0;
+        self.dbg_p2_ms = 0.0;
         let mut t_enumerate_start = perf_now();
         let mut per_variant_log: Vec<(String, bool, bool, u32, u32, f64, f64, f64)> =
             Vec::new();
@@ -2936,6 +3121,11 @@ impl VelloRenderer {
             export_name: String,
             apply_b_fix: bool,
             hat_equipped: bool,
+            // Per-PRESENT-band bFix sensitivity (aligned with
+            // `band_ranges`). `false` → that band is byte-identical for
+            // apply_b_fix=false/true, so its sub-scene is shared across
+            // both bFix cells (the subscene key collapses bFix→false).
+            bfix_sensitive: Vec<bool>,
             // From swf_anim_frame_count for the export.
             total_frame_count: u32,
             // Pixel dims of the variant's full sub-rect.
@@ -3052,6 +3242,22 @@ impl VelloRenderer {
                         (band_ranges, present_logical)
                     };
 
+                    // Per-band bFix sensitivity (Opt): only the band(s)
+                    // actually holding a b_fix-mounted part pixel-differ
+                    // between apply_b_fix=false/true. Insensitive bands
+                    // share one cached sub-scene across both bFix cells.
+                    // Only relevant when this export expands the bFix
+                    // dimension; otherwise apply_b_fix is always false.
+                    let bfix_sensitive = if apply_b_fix {
+                        swf_spike::render::compute_bfix_sensitive_bands(
+                            doc,
+                            effective_body,
+                            &band_ranges,
+                        )
+                    } else {
+                        vec![false; band_ranges.len()]
+                    };
+
                     let chunk_start: u32 = 0;
                     let chunk_end = total.min(cached.anim_end);
                     if chunk_end == 0 {
@@ -3140,6 +3346,7 @@ impl VelloRenderer {
                         export_name: export.to_string(),
                         apply_b_fix,
                         hat_equipped,
+                        bfix_sensitive,
                         total_frame_count: total,
                         atlas_w,
                         atlas_h,
@@ -3320,66 +3527,358 @@ impl VelloRenderer {
 
         let player_colors = swf_spike::recolor::PlayerColors::default();
         let scale = f64::from(resolution) / 20.0;
-        let scale_q = (scale * 1000.0).round() as u32;
 
         // Ensure the bundle-shared render cache exists once for the
         // whole class. This caches flattened shape data per-bundle
         // and is reused across every variant in the loop below.
         let _ = self.swf_render_caches.entry(bundle.to_string()).or_default();
-        let _ = scale_q; // body_scene_cache key field — referenced only by the legacy per-variant path now.
 
-        // Pre-clear every page once: combine pass below writes only
-        // the variant sub-rect on each variant; pixels outside any
-        // variant stay at the clear value.
-        for page_tex in &page_textures {
-            let dst_view = page_tex
-                .combined
-                .create_view(&wgpu::TextureViewDescriptor::default());
-            let mut encoder = self
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("class-atlas-page-clear"),
-                });
-            {
-                let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("class-atlas-page-clear-pass"),
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &dst_view,
-                        depth_slice: None,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                            store: wgpu::StoreOp::Store,
-                        },
-                    })],
-                    depth_stencil_attachment: None,
-                    timestamp_writes: None,
-                    occlusion_query_set: None,
-                    multiview_mask: None,
-                });
-            }
-            self.queue.submit(std::iter::once(encoder.finish()));
-        }
-
-        // Step 5: render each variant at its own dims via Vello, then
-        // combine to a variant-sized temp, then copy_texture_to_texture
-        // into the variant's page sub-rect.
-        //
-        // Per-variant Vello dispatch is the safe path — the legacy
-        // `feedback_vello_scene_overflow` note documents partial
-        // stroke drops when a single scene exceeds the tile-encoder
-        // budget. With ~30 variants × ~8 frames × ~5 bands × ~200
-        // path fills each = ~240 k fills if merged into one scene
-        // per page, well above the overflow threshold. Splitting
-        // per-variant keeps each scene at ~5-8 k fills.
-        // Instrumentation: track per-class enumeration cost.
         let enumerate_ms = perf_now() - t_enumerate_start;
         t_enumerate_start = perf_now(); // reuse var to silence warning
         let _ = t_enumerate_start;
 
-        for variant in &variants {
-            let t_build_start = perf_now();
-            let colour_scene = self.build_class_variant_scene(
+        // Per-page (PerPage) vs per-variant (PerVariant) bake mode.
+        //
+        // PerVariant was the historical path: each variant got its
+        // own colour/zone/combined wgpu::Texture, two render_to_texture
+        // calls, one combine pass, then a copy_texture_to_texture into
+        // the page's sub-rect. That's **3 createTexture + 3 queue.submit
+        // per variant × ~24 variants = ~72 GPU ops per atlas page**.
+        // On WebGPU/Metal each createTexture + submit carries ~0.5-2 ms
+        // fixed driver overhead regardless of workload, so the bake
+        // wall is dominated by *submission* overhead, not by Vello
+        // fragment shading. Measured: sprite-100 zoom 5 (~141 MP)
+        // takes ~120 ms wall, of which Vello's actual shading cost
+        // is ~15-30 ms.
+        //
+        // PerPage composes every variant's sub-scene into ONE Vello
+        // scene per pass, with each sub-scene's xform pre-multiplied
+        // by an `Affine::translate((packed_x, packed_y))` so the
+        // variants land at their packed positions inside a page-sized
+        // target. One render_to_texture per pass + one combine per
+        // page = **3 createTexture + 3 queue.submit per page**, an
+        // ~8-24× reduction in GPU ops.
+        //
+        // The historical concern (`feedback_vello_scene_overflow`)
+        // about the tile encoder dropping strokes when a scene
+        // exceeds ~700 paths is mitigated by (a) Vello's encoder
+        // has since gained better overflow handling, (b) we already
+        // split into multiple pages when the variant set is large
+        // (`MAX_ATLAS_DIM` cap), so the worst-case scene size is
+        // bounded by `page_area / per-cell-area`, not by the raw
+        // variant count. If a per-page scene does corrupt, the JS
+        // caller can toggle back via the flag below.
+        //
+        // Bake-mode selection. AUTO (mode 0) picks per-variant only
+        // for ≥3-page atlases, where per-page's full-page rasterise +
+        // huge-scene encode loses to per-variant's targeted small
+        // renders (measured crossover). Modes 1/2 force a path for
+        // A/B testing via `setClassAtlasBakeMode`.
+        let bake_per_variant = match self.class_atlas_bake_mode {
+            1 => true,
+            2 => false,
+            _ => page_textures.len() > 2,
+        };
+
+        if !bake_per_variant {
+            // ── PER-PAGE path ─────────────────────────────────────
+            // Group variants by page. Already done at pack time —
+            // `variant.page_index` tells us which page each variant
+            // belongs to.
+            let mut variants_by_page: Vec<Vec<usize>> =
+                vec![Vec::new(); page_textures.len()];
+            for (i, v) in variants.iter().enumerate() {
+                variants_by_page[v.page_index as usize].push(i);
+            }
+            for (page_idx, page_variants) in variants_by_page.iter().enumerate() {
+                let page_w = page_textures[page_idx].width;
+                let page_h = page_textures[page_idx].height;
+                if page_variants.is_empty() {
+                    // Empty page (shouldn't happen post-pack, but guard);
+                    // still need to clear the destination to TRANSPARENT.
+                    let dst_view = page_textures[page_idx]
+                        .combined
+                        .create_view(&wgpu::TextureViewDescriptor::default());
+                    let mut enc = self.device.create_command_encoder(
+                        &wgpu::CommandEncoderDescriptor {
+                            label: Some("class-atlas-page-empty-clear"),
+                        },
+                    );
+                    {
+                        let _ = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                            label: Some("class-atlas-page-empty-clear-pass"),
+                            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                                view: &dst_view,
+                                depth_slice: None,
+                                resolve_target: None,
+                                ops: wgpu::Operations {
+                                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                                    store: wgpu::StoreOp::Store,
+                                },
+                            })],
+                            depth_stencil_attachment: None,
+                            timestamp_writes: None,
+                            occlusion_query_set: None,
+                            multiview_mask: None,
+                        });
+                    }
+                    self.queue.submit(std::iter::once(enc.finish()));
+                    continue;
+                }
+
+                // Compose all variants on this page into ONE colour
+                // scene + ONE zone scene, with each variant's content
+                // translated to its packed (x, y).
+                let t_build_start = perf_now();
+                let mut colour_page_scene = vello::Scene::new();
+                let mut zone_page_scene = vello::Scene::new();
+                for &vi in page_variants {
+                    let v = &variants[vi];
+                    let translate = vello::kurbo::Affine::translate(
+                        vello::kurbo::Vec2::new(
+                            f64::from(v.packed_x),
+                            f64::from(v.packed_y),
+                        ),
+                    );
+                    let dbg_c0 = perf_now();
+                    // Q1+Q2: dual-build (one walk) on the Colour call,
+                    // append straight into the page (no variant scene).
+                    self.build_class_variant_scene(
+                        bundle,
+                        &v.export_name,
+                        swf_spike::render::RenderMode::Colour,
+                        v.chunk_start,
+                        v.chunk_count,
+                        v.strip_h,
+                        v.frame_w,
+                        v.frame_h,
+                        v.grid_cols as usize,
+                        -v.anchor_x,
+                        -v.anchor_y,
+                        scale,
+                        v.apply_b_fix,
+                        v.hat_equipped,
+                        &v.band_ranges,
+                        &v.bfix_sensitive,
+                        player_colors,
+                        Some((&mut colour_page_scene, translate)),
+                    );
+                    total_colour_build_ms += perf_now() - dbg_c0;
+                    let dbg_z0 = perf_now();
+                    // ZoneId call: Pass 1 is all cache hits (the dual
+                    // Colour walk already built the zone sub-scenes), so
+                    // this is just the direct page append.
+                    self.build_class_variant_scene(
+                        bundle,
+                        &v.export_name,
+                        swf_spike::render::RenderMode::ZoneId,
+                        v.chunk_start,
+                        v.chunk_count,
+                        v.strip_h,
+                        v.frame_w,
+                        v.frame_h,
+                        v.grid_cols as usize,
+                        -v.anchor_x,
+                        -v.anchor_y,
+                        scale,
+                        v.apply_b_fix,
+                        v.hat_equipped,
+                        &v.band_ranges,
+                        &v.bfix_sensitive,
+                        player_colors,
+                        Some((&mut zone_page_scene, translate)),
+                    );
+                    total_zone_build_ms += perf_now() - dbg_z0;
+                    // Page append now happens inside Pass 2 (Q2) — no
+                    // separate variant→page append step.
+                    let _ = &mut total_page_append_ms;
+                }
+                let scene_build_ms = perf_now() - t_build_start;
+                total_scene_build_ms += scene_build_ms;
+
+                // Allocate page-sized colour + zone temps. The
+                // memory cost is up to ~256 MB per temp × 2 = 512 MB
+                // per page, plus the destination page = ~768 MB peak.
+                // Apple Silicon's unified memory comfortably handles
+                // this. The temps drop at end of scope; the patched
+                // wgpu's Drop-is-no-op behaviour leaves them in
+                // the deferred-destroy queue, which `tickDeferredDestroys`
+                // drains within ~2 Pixi ticks.
+                let colour_temp = self.device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("vello_swf_class_atlas_colour_page"),
+                    size: wgpu::Extent3d {
+                        width: page_w,
+                        height: page_h,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    usage: wgpu::TextureUsages::STORAGE_BINDING
+                        | wgpu::TextureUsages::COPY_SRC
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[],
+                });
+                let zone_temp = self.device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("vello_swf_class_atlas_zone_page"),
+                    size: wgpu::Extent3d {
+                        width: page_w,
+                        height: page_h,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    usage: wgpu::TextureUsages::STORAGE_BINDING
+                        | wgpu::TextureUsages::COPY_SRC
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[],
+                });
+                let colour_view =
+                    colour_temp.create_view(&wgpu::TextureViewDescriptor::default());
+                let zone_view =
+                    zone_temp.create_view(&wgpu::TextureViewDescriptor::default());
+                let params = vello::RenderParams {
+                    base_color: Color::TRANSPARENT,
+                    width: page_w,
+                    height: page_h,
+                    antialiasing_method: AaConfig::Area,
+                };
+
+                let t_render_start = perf_now();
+                if let Err(e) = self.renderer.render_to_texture(
+                    &self.device,
+                    &self.queue,
+                    &colour_page_scene,
+                    &colour_view,
+                    &params,
+                ) {
+                    console_log!(
+                        "renderSwfClassAtlas[per-page colour page{page_idx}]: render error: {e}"
+                    );
+                    return JsValue::NULL;
+                }
+                if let Err(e) = self.renderer.render_to_texture(
+                    &self.device,
+                    &self.queue,
+                    &zone_page_scene,
+                    &zone_view,
+                    &params,
+                ) {
+                    console_log!(
+                        "renderSwfClassAtlas[per-page zone page{page_idx}]: render error: {e}"
+                    );
+                    return JsValue::NULL;
+                }
+                let render_submit_ms = perf_now() - t_render_start;
+                total_render_submit_ms += render_submit_ms;
+
+                // Combine directly into the page's final texture (no
+                // intermediate combined_temp, no copy_texture_to_texture
+                // — the combine pass's RenderPass clears + writes the
+                // entire dst, which is exactly what we want for a
+                // page-sized output).
+                let t_combine_start = perf_now();
+                {
+                    let combine = self.combine_body_pipeline.as_ref().unwrap();
+                    let dst_view = page_textures[page_idx]
+                        .combined
+                        .create_view(&wgpu::TextureViewDescriptor::default());
+                    let mut encoder = self.device.create_command_encoder(
+                        &wgpu::CommandEncoderDescriptor {
+                            label: Some("class-atlas-per-page-combine"),
+                        },
+                    );
+                    combine.combine(
+                        &self.device,
+                        &mut encoder,
+                        &colour_view,
+                        &zone_view,
+                        &dst_view,
+                    );
+                    self.queue.submit(std::iter::once(encoder.finish()));
+                }
+                let combine_copy_ms = perf_now() - t_combine_start;
+                total_combine_copy_ms += combine_copy_ms;
+
+                // Aggregate per-page row into the per_variant_log
+                // ledger as a single "page=N" pseudo-entry so the
+                // log line below still emits sensible content. We
+                // still emit one row per variant separately for
+                // per-variant diagnostics, but with zero ms (the
+                // build cost is shared across the page).
+                for &vi in page_variants {
+                    let v = &variants[vi];
+                    per_variant_log.push((
+                        v.export_name.clone(),
+                        v.apply_b_fix,
+                        v.hat_equipped,
+                        v.atlas_w,
+                        v.atlas_h,
+                        0.0, // scene-build shared across the page
+                        0.0, // render shared across the page
+                        0.0, // combine shared across the page
+                    ));
+                }
+
+                // Explicitly destroy the page-sized temps NOW rather
+                // than relying on `Drop`. The patched wgpu fork's
+                // `Drop for WebTexture` is a no-op (see
+                // `feedback_pixi_wgpu_texture_lifetime`): a plain
+                // `drop()` only queues for deferred destruction, which
+                // `tickDeferredDestroys` drains on Pixi ticks. But a
+                // class-atlas bake is fully synchronous — no ticks fire
+                // mid-bake — so a multi-page zoom-5 atlas would hold
+                // every page's 256 MB colour + 256 MB zone temp live
+                // at once (~1.5 GB for 3 pages), and a back-to-back
+                // sweep across 24 bundles would never let the queue
+                // drain → GPU OOM / WindowServer crash. `destroy()`
+                // forwards to `GPUTexture.destroy()` immediately,
+                // capping peak GPU at ~768 MB (one page's temps).
+                colour_temp.destroy();
+                zone_temp.destroy();
+            }
+        } else {
+            // ── PER-VARIANT path ──────────────────────────────────
+            // Historical / fallback path. Pre-clear every page once
+            // (the combine pass below only writes the variant
+            // sub-rect, so pixels outside any variant stay at the
+            // cleared transparent value).
+            for page_tex in &page_textures {
+                let dst_view = page_tex
+                    .combined
+                    .create_view(&wgpu::TextureViewDescriptor::default());
+                let mut encoder = self
+                    .device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("class-atlas-page-clear"),
+                    });
+                {
+                    let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        label: Some("class-atlas-page-clear-pass"),
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view: &dst_view,
+                            depth_slice: None,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                                store: wgpu::StoreOp::Store,
+                            },
+                        })],
+                        depth_stencil_attachment: None,
+                        timestamp_writes: None,
+                        occlusion_query_set: None,
+                        multiview_mask: None,
+                    });
+                }
+                self.queue.submit(std::iter::once(encoder.finish()));
+            }
+
+            for variant in &variants {
+                let t_build_start = perf_now();
+                let colour_scene = self.build_class_variant_scene(
                 bundle,
                 &variant.export_name,
                 swf_spike::render::RenderMode::Colour,
@@ -3395,7 +3894,11 @@ impl VelloRenderer {
                 variant.apply_b_fix,
                 variant.hat_equipped,
                 &variant.band_ranges,
+                &variant.bfix_sensitive,
                 player_colors,
+                // Per-variant bake path: no page dest — build a
+                // standalone variant scene (rendered to its own texture).
+                None,
             );
             let zone_scene = self.build_class_variant_scene(
                 bundle,
@@ -3413,7 +3916,11 @@ impl VelloRenderer {
                 variant.apply_b_fix,
                 variant.hat_equipped,
                 &variant.band_ranges,
+                &variant.bfix_sensitive,
                 player_colors,
+                // Per-variant bake path: no page dest — build a
+                // standalone variant scene (rendered to its own texture).
+                None,
             );
             let scene_build_ms = perf_now() - t_build_start;
             total_scene_build_ms += scene_build_ms;
@@ -3565,6 +4072,7 @@ impl VelloRenderer {
             drop(zone_temp);
             drop(combined_temp);
         }
+        } // end of `else { /* PER-VARIANT path */ }`
 
         // Step 6: bridge each page's class atlas to one ImageBitmap.
         // The bridge step (`render_texture_to_bitmap`) is the only
@@ -3617,9 +4125,15 @@ impl VelloRenderer {
         //   variant bundle=sprite-10 walkR bFix=0 hat=0 1800x6008
         //     scene=8.2 render=14.5 combineCopy=0.8
         let total_wall_ms = perf_now() - bake_start;
+        let probe = swf_spike::render::probe::take();
+        let bfix_vars = variants.iter().filter(|v| v.apply_b_fix).count();
+        let hat_vars = variants.iter().filter(|v| v.hat_equipped).count();
+        let (sub_hits, sub_misses) = bake_telemetry::peek_subscene();
         console_log!(
             "classAtlasBake bundle={bundle} vars={} pages={} enumerate={:.2} scene={:.2} \
-             render={:.2} combineCopy={:.2} bridge={:.2} total={:.2} pageDims={}",
+             render={:.2} combineCopy={:.2} bridge={:.2} total={:.2} pageDims={} \
+             [scene split: p1emit={:.2} p2append={:.2} colour={:.2} zone={:.2} pageAppend={:.2}] \
+             [probe: subMiss={} subHit={} bfixVars={} hatVars={} bfixZeroFlip={} maskCalls={} maskFlat={} shapeFlat={} fsMiss={}]",
             variants.len(),
             page_count,
             enumerate_ms,
@@ -3628,8 +4142,55 @@ impl VelloRenderer {
             total_combine_copy_ms,
             total_bridge_ms,
             total_wall_ms,
-            page_dim_summary
+            page_dim_summary,
+            self.dbg_p1_ms,
+            self.dbg_p2_ms,
+            total_colour_build_ms,
+            total_zone_build_ms,
+            total_page_append_ms,
+            sub_misses,
+            sub_hits,
+            bfix_vars,
+            hat_vars,
+            probe.bfix_zero_flip_builds,
+            probe.mask_path_calls,
+            probe.mask_path_flattens,
+            probe.shape_flattens,
+            probe.frame_state_misses,
         );
+        // Telemetry: also record this bake in the structured channel.
+        // The console_log above stays for ad-hoc grepping during dev;
+        // the structured record is what drives the per-burst digest.
+        {
+            let (hits, misses) = bake_telemetry::subscene_take();
+            // Sum of all page areas — diagnostic only; tells us if we
+            // were GPU-bound (large area, large gpu_render_ms) vs
+            // CPU-bound (small area, large scene_build_ms).
+            let mut pixel_area: u64 = 0;
+            for p in &page_dim_summary
+                .split(',')
+                .filter_map(|s| {
+                    let mut parts = s.split('x');
+                    let w: u64 = parts.next()?.parse().ok()?;
+                    let h: u64 = parts.next()?.parse().ok()?;
+                    Some(w * h)
+                })
+                .collect::<Vec<u64>>()
+            {
+                pixel_area += *p;
+            }
+            bake_telemetry::Builder::new(bake_telemetry::BakeKind::ClassAtlas, bundle)
+                .enumerate(enumerate_ms)
+                .scene_build(total_scene_build_ms)
+                .gpu_render(total_render_submit_ms)
+                .combine_copy(total_combine_copy_ms)
+                .bridge(total_bridge_ms)
+                .total(total_wall_ms)
+                .subscene(hits, misses)
+                .pixel_area(pixel_area)
+                .sub_count(variants.len() as u32)
+                .commit();
+        }
         // Per-variant log lines used to fire here for instrumentation
         // (~24 lines per class bake × hundreds of bakes during a stress
         // run = ~6k+ `console_log!` calls). Each call boxes through
@@ -3796,7 +4357,21 @@ impl VelloRenderer {
         apply_b_fix: bool,
         hat_equipped: bool,
         band_ranges: &[swf_spike::render::BandRange],
+        // Per-band bFix sensitivity (aligned with `band_ranges`). For an
+        // insensitive band the sub-scene key collapses bFix→false, so
+        // both bFix variants share one cached encoding (the band is
+        // byte-identical for apply_b_fix=false/true). See
+        // `compute_bfix_sensitive_bands`.
+        bfix_sensitive: &[bool],
         player_colors: swf_spike::recolor::PlayerColors,
+        // Q2 — collapse the double append. When `Some((page, translate))`,
+        // Pass 2 appends each sub-scene DIRECTLY into the page scene with
+        // `translate * cell_xform` (Vello pre-multiplies, so this equals
+        // appending into a per-variant scene then appending that into the
+        // page) — eliminating the per-variant intermediate scene + its
+        // extra append. `None` keeps the standalone per-variant build
+        // (the ≥3-page bake path that renders each variant separately).
+        page_dest: Option<(&mut vello::Scene, vello::kurbo::Affine)>,
     ) -> vello::Scene {
         const BAND_PADDING_PX: u32 = 2;
         let mode_u8 = match mode {
@@ -3815,23 +4390,41 @@ impl VelloRenderer {
         // band inner — so the per-bundle `RenderCache.frame_state`
         // memo hits 4 of every 5 band calls on a cold population.
         // On a warm cache this pass is pure HashMap lookups + skips.
+        // Pass 1 — single-walk dual build. For each (frame, band) we
+        // build BOTH the Colour sub-scene and the ZoneId sub-scene in
+        // ONE `render_body_band_dual` traversal and cache both (mode 0
+        // + mode 1). They're always inserted as a pair, so presence of
+        // the Colour key (mode 0) means both exist. The result: the
+        // second build_class_variant_scene call (ZoneId) finds every
+        // sub-scene already cached → Pass 1 is pure HashMap hits, no
+        // second walk. Byte-identical: each sub-scene equals what the
+        // old per-mode `render_body_band` produced.
+        let p1_start = perf_now();
         for slot in 0..chunk_count {
             let frame_idx = (chunk_start + slot) as u16;
-            for &band in band_ranges.iter() {
-                let key = BodySubsceneKey {
+            for (band_idx, &band) in band_ranges.iter().enumerate() {
+                // Collapse bFix→false for bands that can't flip, so this
+                // build is shared with the apply_b_fix=false variant.
+                let eff_b_fix =
+                    apply_b_fix && bfix_sensitive.get(band_idx).copied().unwrap_or(true);
+                let colour_key = BodySubsceneKey {
                     bundle: bundle.to_string(),
                     export: export.to_string(),
-                    apply_b_fix,
+                    apply_b_fix: eff_b_fix,
                     hat_equipped,
-                    mode: mode_u8,
+                    mode: 0,
                     frame_idx,
                     band_lo: band.lo_exclusive,
                     band_hi: band.hi_inclusive,
                 };
-                if self.body_subscene_cache.contains_key(&key) {
+                if self.body_subscene_cache.contains_key(&colour_key) {
+                    bake_telemetry::subscene_hit();
                     continue;
                 }
-                let mut sub_scene = vello::Scene::new();
+                bake_telemetry::subscene_miss();
+                swf_spike::render::probe::bfix_flips_reset();
+                let mut colour_sub = vello::Scene::new();
+                let mut zone_sub = vello::Scene::new();
                 {
                     let doc = self
                         .swf_bundles
@@ -3860,24 +4453,33 @@ impl VelloRenderer {
                         // halo fallback emits pure twip path commands.
                         output_scale: 1.0,
                     };
-                    swf_spike::render::render_body_band(
+                    swf_spike::render::render_body_band_dual(
                         &mut wctx,
                         doc,
                         effective_sym,
-                        &mut sub_scene,
+                        &mut colour_sub,
+                        &mut zone_sub,
                         effective_xform,
                         frame_idx,
                         band,
-                        mode,
                         player_colors,
                         cache,
-                        apply_b_fix,
+                        eff_b_fix,
                         hat_equipped,
                     );
                 }
-                self.body_subscene_cache.insert(key, sub_scene);
+                if eff_b_fix && swf_spike::render::probe::bfix_flips_peek() == 0 {
+                    swf_spike::render::probe::note_bfix_zero_flip_build();
+                }
+                let zone_key = BodySubsceneKey {
+                    mode: 1,
+                    ..colour_key.clone()
+                };
+                self.body_subscene_cache.insert(colour_key, colour_sub);
+                self.body_subscene_cache.insert(zone_key, zone_sub);
             }
         }
+        self.dbg_p1_ms += perf_now() - p1_start;
 
         // Pass 2 — assemble the variant atlas scene. `scene.append`
         // pre-multiplies its `Option<Affine>` over every transform in
@@ -3886,7 +4488,9 @@ impl VelloRenderer {
         // path (`scale.then_translate(target) * effective_xform`) —
         // because `effective_xform` is already baked into the cached
         // sub-scene's commands.
+        let p2_start = perf_now();
         let mut scene = vello::Scene::new();
+        let mut page_dest = page_dest;
         for slot in 0..chunk_count {
             let frame_idx = (chunk_start + slot) as u16;
             let col = (slot as usize) % grid_cols;
@@ -3899,10 +4503,12 @@ impl VelloRenderer {
                 let cell_xform = vello::kurbo::Affine::scale(scale).then_translate(
                     vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y + cell_y),
                 );
+                let eff_b_fix =
+                    apply_b_fix && bfix_sensitive.get(band_idx).copied().unwrap_or(true);
                 let key = BodySubsceneKey {
                     bundle: bundle.to_string(),
                     export: export.to_string(),
-                    apply_b_fix,
+                    apply_b_fix: eff_b_fix,
                     hat_equipped,
                     mode: mode_u8,
                     frame_idx,
@@ -3913,9 +4519,16 @@ impl VelloRenderer {
                     .body_subscene_cache
                     .get(&key)
                     .expect("ensured by Pass 1");
-                scene.append(sub_scene, Some(cell_xform));
+                if let Some((page, translate)) = page_dest.as_mut() {
+                    // Q2: append straight into the page at its packed
+                    // offset — no per-variant intermediate scene.
+                    page.append(sub_scene, Some(*translate * cell_xform));
+                } else {
+                    scene.append(sub_scene, Some(cell_xform));
+                }
             }
         }
+        self.dbg_p2_ms += perf_now() - p2_start;
         scene
     }
 
@@ -3948,6 +4561,8 @@ impl VelloRenderer {
         side: String,
         resolution: f32,
     ) -> JsValue {
+        let bake_start = perf_now();
+        bake_telemetry::subscene_reset();
         let Some(acc_doc) = self.swf_bundles.get(acc_bundle) else {
             console_log!(
                 "renderSwfAccessoryStrip: bundle `{acc_bundle}` not loaded"
@@ -4017,39 +4632,86 @@ impl VelloRenderer {
                 swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
             );
         }
-        // Phase 1: persistent per-bundle cache so accessory bakes for
-        // the same acc_bundle (a hat type, a weapon type) reuse the
-        // shape flatten + frame-state work across calls. Before this
-        // change `render_symbol_with_ctx` created a fresh `RenderCache`
-        // internally, throwing away the work after the 3 cycle calls.
-        let cache: &swf_spike::render::cache::RenderCache = self
-            .swf_render_caches
-            .entry(acc_bundle.to_string())
-            .or_default();
-        let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
-        let mut ctx = swf_spike::render::WgpuCtx {
-            device: &self.device,
-            queue: &self.queue,
-            renderer: &mut self.renderer,
-            filter_pipelines,
-            output_scale: scale,
-        };
 
+        // Twip-identity sub-scene cache. For each of the 3 cycles,
+        // look up `(bundle, export, slot, anim_type, side, cycle)`;
+        // if present, reuse the cached scene. On miss, build it at
+        // `Affine::IDENTITY` and insert. Then compose the final strip
+        // scene by appending each sub-scene under the per-cycle
+        // `scale × translate` xform — `scene.append(sub, Some(M))`
+        // pre-multiplies M over every transform inside the sub-scene
+        // (see vello::Scene::append), so the output is identical to
+        // the legacy inline path.
+        //
+        // Why this matters: a zoom change used to force 3 fresh AS2
+        // walks per accessory bake. With ~4 accessories × 250 bots
+        // that's ~3000 redundant walks per zoom. After this refactor
+        // the AS2 work is amortized across resolutions.
+        let pad_cycles: u32 = grid_cols; // = 3, matches strip layout
+        let mut cycle_keys: Vec<scene_cache::AccessorySubsceneKey> =
+            Vec::with_capacity(pad_cycles as usize);
+        for cycle in 0u32..pad_cycles {
+            cycle_keys.push(scene_cache::AccessorySubsceneKey {
+                bundle: acc_bundle.to_string(),
+                export: acc_export.to_string(),
+                slot: slot_u8,
+                anim_type: anim_type_u8,
+                side: side_str.clone(),
+                cycle: cycle as u8,
+            });
+        }
+
+        // Pass 1 — populate the sub-scene cache for every cycle.
+        // Split into pre-checks so we never hold `&mut self.renderer`
+        // alongside `&mut self.acc_subscenes` (both required by
+        // `render_symbol_with_ctx_cached`).
+        for (cycle_idx, key) in cycle_keys.iter().enumerate() {
+            if self.acc_subscenes.contains_key(key) {
+                bake_telemetry::subscene_hit();
+                continue;
+            }
+            bake_telemetry::subscene_miss();
+            let mut sub_scene = vello::Scene::new();
+            {
+                let cache: &swf_spike::render::cache::RenderCache = self
+                    .swf_render_caches
+                    .entry(acc_bundle.to_string())
+                    .or_default();
+                let filter_pipelines =
+                    self.swf_filter_pipelines.as_ref().unwrap();
+                let mut wctx = swf_spike::render::WgpuCtx {
+                    device: &self.device,
+                    queue: &self.queue,
+                    renderer: &mut self.renderer,
+                    filter_pipelines,
+                    // Twip-identity render — the compute filter path
+                    // that reads `output_scale` is `cfg`-off on
+                    // wasm32, so this argument is unused for tiles/
+                    // accessories. See swf-spike/src/render/filter.rs.
+                    output_scale: 1.0,
+                };
+                swf_spike::render::render_symbol_with_ctx_cached(
+                    &mut wctx,
+                    acc_doc,
+                    acc_sym,
+                    &mut sub_scene,
+                    vello::kurbo::Affine::IDENTITY,
+                    frame_indices[cycle_idx],
+                    cache,
+                );
+            }
+            self.acc_subscenes.insert(key.clone(), sub_scene);
+        }
+
+        // Pass 2 — assemble the strip scene.
         let mut scene = vello::Scene::new();
-        for cycle in 0u32..grid_cols {
-            let cell_x = (cycle * frame_w) as f64;
+        for (cycle_idx, key) in cycle_keys.iter().enumerate() {
+            let cell_x = (cycle_idx as u32 * frame_w) as f64;
             let xform = vello::kurbo::Affine::scale(scale).then_translate(
                 vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y),
             );
-            swf_spike::render::render_symbol_with_ctx_cached(
-                &mut ctx,
-                acc_doc,
-                acc_sym,
-                &mut scene,
-                xform,
-                frame_indices[cycle as usize],
-                cache,
-            );
+            let sub_ref = self.acc_subscenes.get(key).expect("ensured by Pass 1");
+            scene.append(sub_ref, Some(xform));
         }
 
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
@@ -4105,6 +4767,18 @@ impl VelloRenderer {
         );
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
         let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
+        {
+            let (hits, misses) = bake_telemetry::subscene_take();
+            bake_telemetry::Builder::new(
+                bake_telemetry::BakeKind::AccessoryStrip,
+                acc_bundle,
+            )
+            .total(perf_now() - bake_start)
+            .subscene(hits, misses)
+            .pixel_area(u64::from(strip_w) * u64::from(strip_h))
+            .sub_count(grid_cols)
+            .commit();
+        }
         result.into()
     }
 
@@ -5754,6 +6428,223 @@ impl VelloRenderer {
         names
     }
 
+    /// List every loaded SWF bundle by the name passed to
+    /// `loadSwfBundle`. Used by diagnostic sweeps that need to iterate
+    /// the actual loaded set rather than a hand-curated list.
+    #[wasm_bindgen(js_name = "listLoadedSwfBundles")]
+    pub fn list_loaded_swf_bundles(&self) -> Vec<String> {
+        let mut names: Vec<String> = self.swf_bundles.keys().cloned().collect();
+        names.sort();
+        names
+    }
+
+    /// Dump full inventory of a loaded SWF bundle for diagnostic sweeps.
+    /// Returns an array of `{ name, kind, totalFrames, isCharacterAnim }`
+    /// — one row per named export. `kind` is `"Sprite" | "Shape" |
+    /// "MorphShape" | "Bitmap"`. `totalFrames` uses the same recursive
+    /// resolver as `swfAnimFrameCount` (0 for non-Sprite exports).
+    /// `isCharacterAnim` mirrors the `is_character_anim_name` filter
+    /// used by `renderSwfClassAtlas`.
+    ///
+    /// Caller can roll up the result to answer "of the 110+ named
+    /// exports, how many go through the class atlas vs the single-
+    /// variant runtime path?".
+    #[wasm_bindgen(js_name = "dumpSwfBundleInventory")]
+    pub fn dump_swf_bundle_inventory(&self, bundle: &str) -> JsValue {
+        let Some(doc) = self.swf_bundles.get(bundle) else {
+            return JsValue::NULL;
+        };
+        let arr = js_sys::Array::new();
+        let mut names: Vec<&String> = doc.by_name.keys().collect();
+        names.sort();
+        for name in names {
+            let id = match doc.by_name.get(name) {
+                Some(i) => *i,
+                None => continue,
+            };
+            let sym = match doc.by_id.get(&id) {
+                Some(s) => s,
+                None => continue,
+            };
+            let kind: &'static str = match sym {
+                swf_spike::swf_doc::Symbol::Sprite(_) => "Sprite",
+                swf_spike::swf_doc::Symbol::Shape(_) => "Shape",
+                swf_spike::swf_doc::Symbol::MorphShape(_) => "MorphShape",
+                swf_spike::swf_doc::Symbol::Bitmap(_) => "Bitmap",
+            };
+            let total_frames = if matches!(sym, swf_spike::swf_doc::Symbol::Sprite(_)) {
+                self.swf_anim_frame_count(bundle, name)
+            } else {
+                0
+            };
+            let row = js_sys::Object::new();
+            let _ = js_sys::Reflect::set(&row, &"name".into(), &JsValue::from_str(name));
+            let _ = js_sys::Reflect::set(&row, &"kind".into(), &JsValue::from_str(kind));
+            let _ = js_sys::Reflect::set(
+                &row,
+                &"totalFrames".into(),
+                &JsValue::from(total_frames),
+            );
+            let _ = js_sys::Reflect::set(
+                &row,
+                &"isCharacterAnim".into(),
+                &JsValue::from_bool(is_character_anim_name(name)),
+            );
+            arr.push(&row.into());
+        }
+        arr.into()
+    }
+
+    /// Dump the `ClassEnumeration` produced by `compute_class_enumeration`
+    /// for diagnostic sweeps. Returns
+    /// `{ bundleBFixUsed, exports: [{ exportName, totalFrameCount,
+    /// hasToggle, exportBFix, slotCountLogical }] }` or `null` if the
+    /// bundle isn't loaded.
+    ///
+    /// Read-only: builds a fresh enumeration without touching
+    /// `class_enum_cache` (so the diagnostic doesn't accidentally
+    /// short-circuit a subsequent `renderSwfClassAtlas` call).
+    #[wasm_bindgen(js_name = "dumpClassEnumeration")]
+    pub fn dump_class_enumeration(&self, bundle: &str) -> JsValue {
+        if !self.swf_bundles.contains_key(bundle) {
+            return JsValue::NULL;
+        }
+        let enumeration = self.compute_class_enumeration(bundle);
+        let exports_arr = js_sys::Array::new();
+        for e in &enumeration.exports {
+            let row = js_sys::Object::new();
+            let _ = js_sys::Reflect::set(
+                &row,
+                &"exportName".into(),
+                &JsValue::from_str(&e.export_name),
+            );
+            let _ = js_sys::Reflect::set(
+                &row,
+                &"totalFrameCount".into(),
+                &JsValue::from(e.total_frame_count),
+            );
+            let _ = js_sys::Reflect::set(
+                &row,
+                &"hasToggle".into(),
+                &JsValue::from_bool(e.has_toggle),
+            );
+            let _ = js_sys::Reflect::set(
+                &row,
+                &"exportBFix".into(),
+                &JsValue::from_bool(e.export_b_fix),
+            );
+            let _ = js_sys::Reflect::set(
+                &row,
+                &"slotCountLogical".into(),
+                &JsValue::from(e.slot_count_logical),
+            );
+            exports_arr.push(&row.into());
+        }
+        let out = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(
+            &out,
+            &"bundleBFixUsed".into(),
+            &JsValue::from_bool(enumeration.bundle_b_fix_used),
+        );
+        let _ = js_sys::Reflect::set(&out, &"exports".into(), &exports_arr.into());
+        out.into()
+    }
+
+    /// Report `body_scene_cache` health (the composed-atlas LRU at
+    /// 1500 cap used by `render_swf_body_atlas`). v4 architecture
+    /// decision blocks on whether this LRU thrashes at 250-bot stress.
+    /// Returns:
+    ///   - `entries`: current live entry count (≤ 1500)
+    ///   - `cap`: BODY_SCENE_CACHE_CAP constant
+    ///   - `hits`: cumulative hits since renderer init
+    ///   - `misses`: cumulative misses since renderer init
+    ///   - `evictions`: cumulative LRU evictions since renderer init
+    ///   - `hitRate`: hits / (hits + misses); 0.0 if no accesses yet
+    /// Set the class-atlas bake mode: 0 = AUTO (per-page for ≤2 pages,
+    /// per-variant for ≥3), 1 = force per-variant, 2 = force per-page.
+    /// See the `class_atlas_bake_mode` field doc for the measured
+    /// crossover rationale.
+    #[wasm_bindgen(js_name = "setClassAtlasBakeMode")]
+    pub fn set_class_atlas_bake_mode(&mut self, mode: u8) {
+        self.class_atlas_bake_mode = mode;
+    }
+
+    /// Legacy A/B toggle. `true` → force per-variant (mode 1);
+    /// `false` → force per-page (mode 2). Prefer
+    /// `setClassAtlasBakeMode(0)` to restore AUTO.
+    #[wasm_bindgen(js_name = "setClassAtlasForcePerVariant")]
+    pub fn set_class_atlas_force_per_variant(&mut self, force: bool) {
+        self.class_atlas_bake_mode = if force { 1 } else { 2 };
+    }
+
+    #[wasm_bindgen(js_name = "bodySceneCacheStats")]
+    pub fn body_scene_cache_stats(&self) -> JsValue {
+        const BODY_SCENE_CACHE_CAP: u32 = 1500;
+        let accesses = self.body_scene_cache_hits + self.body_scene_cache_misses;
+        let hit_rate = if accesses > 0 {
+            (self.body_scene_cache_hits as f64) / (accesses as f64)
+        } else {
+            0.0
+        };
+        let out = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(
+            &out,
+            &"entries".into(),
+            &JsValue::from(self.body_scene_cache.len() as u32),
+        );
+        let _ = js_sys::Reflect::set(&out, &"cap".into(), &JsValue::from(BODY_SCENE_CACHE_CAP));
+        let _ = js_sys::Reflect::set(
+            &out,
+            &"hits".into(),
+            &JsValue::from(self.body_scene_cache_hits as f64),
+        );
+        let _ = js_sys::Reflect::set(
+            &out,
+            &"misses".into(),
+            &JsValue::from(self.body_scene_cache_misses as f64),
+        );
+        let _ = js_sys::Reflect::set(
+            &out,
+            &"evictions".into(),
+            &JsValue::from(self.body_scene_cache_evictions as f64),
+        );
+        let _ = js_sys::Reflect::set(&out, &"hitRate".into(), &JsValue::from(hit_rate));
+        out.into()
+    }
+
+    /// Report `body_subscene_cache` footprint for one bundle: how many
+    /// cache entries belong to that bundle and how many serialized
+    /// bytes they take in the VSC1/VSC2 IDB wire format. Reads the
+    /// existing `serialize_body_subscene_cache` path so the size is the
+    /// real IDB blob size, not an estimate.
+    ///
+    /// Returns `{ entryCount, serializedBytes }`. Both 0 if the bundle
+    /// isn't loaded or the cache has no entries for it. `serializedBytes`
+    /// is -1 if the encoder failed (returned in console log).
+    #[wasm_bindgen(js_name = "subsceneCacheBytesForBundle")]
+    pub fn subscene_cache_bytes_for_bundle(&self, bundle: &str) -> JsValue {
+        let mut entry_count: u32 = 0;
+        for key in self.body_subscene_cache.keys() {
+            if key.bundle == bundle {
+                entry_count += 1;
+            }
+        }
+        let bytes_len: i64 = match self
+            .serialize_body_subscene_cache(Some(bundle.to_string()))
+        {
+            Some(b) => b.len() as i64,
+            None => -1,
+        };
+        let out = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&out, &"entryCount".into(), &JsValue::from(entry_count));
+        let _ = js_sys::Reflect::set(
+            &out,
+            &"serializedBytes".into(),
+            &JsValue::from(bytes_len as f64),
+        );
+        out.into()
+    }
+
     /// Set the player's three zone colours used by the SWF render path.
     /// Each value is `0xRRGGBB`; pass `0` to leave that zone untinted.
     /// Mirrors what the dofasset path does via `build_color_replacements`
@@ -6853,5 +7744,457 @@ impl VelloRenderer {
         self.swf_render_caches.clear();
         self.body_scene_cache.clear();
         self.body_subscene_cache.clear();
+        self.acc_subscenes.clear();
+    }
+
+    /// Serialize the `body_subscene_cache` to a bytes blob suitable for
+    /// browser-cache persistence. Optionally filter to a single bundle —
+    /// callers persist one blob per bundle so each entry's content hash
+    /// invalidates independently when its SWF changes.
+    ///
+    /// The cache is resolution-independent (twip identity), so the same
+    /// bytes work at any render scale. Format: see `scene_cache.rs`
+    /// (magic "VSC1" + length-prefixed entries).
+    ///
+    /// Returns `null` on serialization error (unsupported scene content
+    /// — Glyph/Image patches don't appear in SWF char bakes, so this
+    /// path should never fail in practice; if it does, the caller
+    /// falls back to a fresh bake and the cache stays empty).
+    ///
+    /// Per-entry skip: character sub-scenes containing `Patch::Image`
+    /// (bitmap-backed shape fills) skip persistence and re-bake on
+    /// cold session. The skip count is logged but not surfaced — the
+    /// returned blob carries the encodable subset.
+    #[wasm_bindgen(js_name = "serializeBodySubsceneCache")]
+    pub fn serialize_body_subscene_cache(
+        &self,
+        bundle_filter: Option<String>,
+    ) -> Option<Vec<u8>> {
+        let entries: Vec<(scene_cache::SubsceneKey, vello::Scene)> = self
+            .body_subscene_cache
+            .iter()
+            .filter(|(k, _)| match &bundle_filter {
+                Some(b) => &k.bundle == b,
+                None => true,
+            })
+            .map(|(k, v)| {
+                (
+                    scene_cache::SubsceneKey {
+                        bundle: k.bundle.clone(),
+                        export: k.export.clone(),
+                        apply_b_fix: k.apply_b_fix,
+                        hat_equipped: k.hat_equipped,
+                        mode: k.mode,
+                        frame_idx: k.frame_idx,
+                        band_lo: k.band_lo,
+                        band_hi: k.band_hi,
+                    },
+                    v.clone(),
+                )
+            })
+            .collect();
+        let total = entries.len();
+        let (bytes, skipped) = scene_cache::encode_body_stream(entries);
+        if skipped > 0 {
+            let bundle_tag = bundle_filter
+                .as_deref()
+                .unwrap_or("(all)");
+            console_log!(
+                "serializeBodySubsceneCache: bundle={bundle_tag} persisted={}/{total} \
+                 skipped={skipped} (bitmap-fill subscenes)",
+                total as u32 - skipped
+            );
+        }
+        if bytes.is_empty() { None } else { Some(bytes) }
+    }
+
+    /// Install entries from a previously-serialized blob into the
+    /// in-memory subscene cache. Returns the count actually loaded
+    /// (0 on parse error). Idempotent: re-installing the same blob is
+    /// a no-op (HashMap insert overwrite).
+    ///
+    /// Existing entries with matching keys are overwritten — this is
+    /// deliberate; the loader presumes the on-disk version is at least
+    /// as fresh as whatever the live cache holds. Callers that want
+    /// preserve-on-collision can clear before loading.
+    #[wasm_bindgen(js_name = "loadBodySubsceneCache")]
+    pub fn load_body_subscene_cache(&mut self, bytes: &[u8]) -> u32 {
+        let parsed = match scene_cache::decode_body_stream(bytes) {
+            Ok(v) => v,
+            Err(e) => {
+                console_log!("loadBodySubsceneCache failed: {e}");
+                return 0;
+            }
+        };
+        let mut count = 0u32;
+        for (k, scene) in parsed {
+            let key = BodySubsceneKey {
+                bundle: k.bundle,
+                export: k.export,
+                apply_b_fix: k.apply_b_fix,
+                hat_equipped: k.hat_equipped,
+                mode: k.mode,
+                frame_idx: k.frame_idx,
+                band_lo: k.band_lo,
+                band_hi: k.band_hi,
+            };
+            self.body_subscene_cache.insert(key, scene);
+            count += 1;
+        }
+        count
+    }
+
+    /// Serialize `body_scene_cache` (the COMPOSED per-variant body
+    /// atlas scenes) to a `VSC2` blob. This is the cache the
+    /// per-variant SPAWN path (`render_swf_body_atlas`) actually reads
+    /// — persisting it is what warms a cold 250-actor map entry
+    /// (`serializeBodySubsceneCache` persists a DIFFERENT cache the
+    /// spawn never touches). Scenes are scale-baked, so the blob is
+    /// per-resolution; the caller keys IDB rows by resolution.
+    #[wasm_bindgen(js_name = "serializeBodySceneCache")]
+    pub fn serialize_body_scene_cache(
+        &self,
+        bundle_filter: Option<String>,
+    ) -> Option<Vec<u8>> {
+        let entries: Vec<(scene_cache::ComposedBodyKey, vello::Scene)> = self
+            .body_scene_cache
+            .iter()
+            .filter(|(k, _)| match &bundle_filter {
+                Some(b) => &k.bundle == b,
+                None => true,
+            })
+            .map(|(k, v)| {
+                (
+                    scene_cache::ComposedBodyKey {
+                        bundle: k.bundle.clone(),
+                        export: k.export.clone(),
+                        start: k.start,
+                        count: k.count,
+                        scale_q: k.scale_q,
+                        apply_b_fix: k.apply_b_fix,
+                        hat_equipped: k.hat_equipped,
+                        mode: k.mode,
+                    },
+                    v.clone(),
+                )
+            })
+            .collect();
+        let total = entries.len();
+        let (bytes, skipped) = scene_cache::encode_composed_body_stream(entries);
+        if skipped > 0 {
+            console_log!(
+                "serializeBodySceneCache: persisted={}/{total} skipped={skipped}",
+                total as u32 - skipped
+            );
+        }
+        if bytes.is_empty() { None } else { Some(bytes) }
+    }
+
+    /// Install entries from a `serializeBodySceneCache` blob into
+    /// `body_scene_cache`. Returns the count loaded (0 on parse
+    /// error). Overwrites matching keys.
+    #[wasm_bindgen(js_name = "loadBodySceneCache")]
+    pub fn load_body_scene_cache(&mut self, bytes: &[u8]) -> u32 {
+        let parsed = match scene_cache::decode_composed_body_stream(bytes) {
+            Ok(v) => v,
+            Err(e) => {
+                console_log!("loadBodySceneCache failed: {e}");
+                return 0;
+            }
+        };
+        let mut count = 0u32;
+        for (k, scene) in parsed {
+            let key = BodySceneCacheKey {
+                bundle: k.bundle,
+                export: k.export,
+                start: k.start,
+                count: k.count,
+                scale_q: k.scale_q,
+                apply_b_fix: k.apply_b_fix,
+                hat_equipped: k.hat_equipped,
+                mode: k.mode,
+            };
+            if count < 6 {
+                console_log!(
+                    "BSC-LOAD {}|{}|s{}|c{}|q{}|b{}|h{}|m{}",
+                    key.bundle, key.export, key.start, key.count, key.scale_q,
+                    key.apply_b_fix as u8, key.hat_equipped as u8, key.mode
+                );
+            }
+            self.body_scene_cache.insert(key, scene);
+            count += 1;
+        }
+        count
+    }
+
+    /// Drop every `body_scene_cache` entry. Test/diagnostic hook for
+    /// validating the persist→clear→load→spawn-warm cycle. Returns the
+    /// number of entries cleared.
+    #[wasm_bindgen(js_name = "clearBodySceneCache")]
+    pub fn clear_body_scene_cache(&mut self) -> u32 {
+        let n = self.body_scene_cache.len() as u32;
+        self.body_scene_cache.clear();
+        n
+    }
+
+    /// Serialize `tile_subscenes` to a `VSC2` blob suitable for IDB
+    /// persistence. Same wire format as the body cache, tagged with
+    /// `CacheId::Tile`.
+    ///
+    /// Tile sub-scenes occasionally contain `Patch::Image` (bitmap
+    /// fills from `DefineBitsLossless` shape fills). The encoder
+    /// fails the WHOLE blob if any entry contains such a patch — we
+    /// don't yet support persisting raster fills. Result: tiles with
+    /// embedded images skip the persistent cache (in-memory cache
+    /// still works for the current session); next session re-bakes
+    /// them from the SWF. Callers see `null` on encode error and
+    /// gracefully fall back to fresh bakes — no correctness issue.
+    #[wasm_bindgen(js_name = "serializeTileSubsceneCache")]
+    pub fn serialize_tile_subscene_cache(
+        &self,
+        bundle_filter: Option<String>,
+    ) -> Option<Vec<u8>> {
+        let entries: Vec<(scene_cache::TileSubsceneKey, vello::Scene)> = self
+            .tile_subscenes
+            .iter()
+            .filter(|((b, _, _), _)| match &bundle_filter {
+                Some(f) => b == f,
+                None => true,
+            })
+            .map(|((bundle, export, frame), scene)| {
+                (
+                    scene_cache::TileSubsceneKey {
+                        bundle: bundle.clone(),
+                        export: export.clone(),
+                        frame: *frame,
+                    },
+                    scene.clone(),
+                )
+            })
+            .collect();
+        // `encode_tile_stream` skips entries with unsupported scene
+        // content (bitmap fills) — returns the bytes for the
+        // encodable subset plus a skip count. Skip count is logged
+        // as info, not an error, because it's expected for tile
+        // bundles with bitmap fills.
+        let (bytes, skipped) = scene_cache::encode_tile_stream(entries);
+        if skipped > 0 {
+            console_log!(
+                "serializeTileSubsceneCache: skipped {skipped} tile(s) with bitmap fills"
+            );
+        }
+        if bytes.is_empty() { None } else { Some(bytes) }
+    }
+
+    /// Install entries from a previously-persisted tile sub-scene
+    /// blob. Returns the count actually inserted.
+    #[wasm_bindgen(js_name = "loadTileSubsceneCache")]
+    pub fn load_tile_subscene_cache(&mut self, bytes: &[u8]) -> u32 {
+        let parsed = match scene_cache::decode_tile_stream(bytes) {
+            Ok(v) => v,
+            Err(e) => {
+                console_log!("loadTileSubsceneCache failed: {e}");
+                return 0;
+            }
+        };
+        let mut count = 0u32;
+        for (k, scene) in parsed {
+            self.tile_subscenes
+                .insert((k.bundle, k.export, k.frame), scene);
+            count += 1;
+        }
+        count
+    }
+
+    /// Count entries in `tile_subscenes`, optionally per-bundle. Same
+    /// usage as the body variant.
+    #[wasm_bindgen(js_name = "tileSubsceneCacheCountFor")]
+    pub fn tile_subscene_cache_count_for(
+        &self,
+        bundle_filter: Option<String>,
+    ) -> u32 {
+        match bundle_filter {
+            Some(b) => self
+                .tile_subscenes
+                .keys()
+                .filter(|(bundle, _, _)| bundle == &b)
+                .count() as u32,
+            None => self.tile_subscenes.len() as u32,
+        }
+    }
+
+    /// Serialize `acc_subscenes` to a `VSC2` blob suitable for IDB
+    /// persistence. Same wire format as the body cache, tagged with
+    /// `CacheId::Accessory`.
+    #[wasm_bindgen(js_name = "serializeAccessorySubsceneCache")]
+    pub fn serialize_accessory_subscene_cache(
+        &self,
+        bundle_filter: Option<String>,
+    ) -> Option<Vec<u8>> {
+        let entries: Vec<(scene_cache::AccessorySubsceneKey, vello::Scene)> = self
+            .acc_subscenes
+            .iter()
+            .filter(|(k, _)| match &bundle_filter {
+                Some(b) => &k.bundle == b,
+                None => true,
+            })
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        let total = entries.len();
+        let (bytes, skipped) = scene_cache::encode_accessory_stream(entries);
+        if skipped > 0 {
+            let bundle_tag = bundle_filter
+                .as_deref()
+                .unwrap_or("(all)");
+            console_log!(
+                "serializeAccessorySubsceneCache: bundle={bundle_tag} persisted={}/{total} \
+                 skipped={skipped} (bitmap-fill subscenes)",
+                total as u32 - skipped
+            );
+        }
+        if bytes.is_empty() { None } else { Some(bytes) }
+    }
+
+    /// Install entries from a previously-persisted accessory
+    /// sub-scene blob.
+    #[wasm_bindgen(js_name = "loadAccessorySubsceneCache")]
+    pub fn load_accessory_subscene_cache(&mut self, bytes: &[u8]) -> u32 {
+        let parsed = match scene_cache::decode_accessory_stream(bytes) {
+            Ok(v) => v,
+            Err(e) => {
+                console_log!("loadAccessorySubsceneCache failed: {e}");
+                return 0;
+            }
+        };
+        let mut count = 0u32;
+        for (k, scene) in parsed {
+            self.acc_subscenes.insert(k, scene);
+            count += 1;
+        }
+        count
+    }
+
+    /// Count entries in `acc_subscenes`, optionally per-bundle.
+    #[wasm_bindgen(js_name = "accessorySubsceneCacheCountFor")]
+    pub fn accessory_subscene_cache_count_for(
+        &self,
+        bundle_filter: Option<String>,
+    ) -> u32 {
+        match bundle_filter {
+            Some(b) => self
+                .acc_subscenes
+                .keys()
+                .filter(|k| k.bundle == b)
+                .count() as u32,
+            None => self.acc_subscenes.len() as u32,
+        }
+    }
+
+    /// Drain accumulated bake telemetry records.
+    ///
+    /// Returns an object `{ drops, records: [{kind, bundle, ms…,
+    /// subsceneHits, subsceneMisses, pixelArea, subCount,
+    /// tsRecorded}, …] }`. The returned records are removed from the
+    /// internal buffer — subsequent calls only see new records.
+    ///
+    /// Why this shape (raw records, not pre-aggregated): the per-burst
+    /// digest (zoom change, full warmup, etc.) needs different bucket
+    /// boundaries depending on what the caller wants to study. Raw
+    /// records let JS aggregate per-window. ~120 bytes per record;
+    /// for a 700-record zoom burst that's ~85 KB round-trip — well
+    /// under what wasm-bindgen handles in a single tick.
+    ///
+    /// `drops` is the count of records that were dropped because the
+    /// internal buffer reached its 10k cap. Non-zero means the
+    /// consumer fell behind — start draining more often.
+    #[wasm_bindgen(js_name = "drainBakeTelemetry")]
+    pub fn drain_bake_telemetry(&self) -> JsValue {
+        let (records, drops) = bake_telemetry::drain();
+        let out = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&out, &"drops".into(), &JsValue::from(drops));
+        let arr = js_sys::Array::new();
+        for rec in records {
+            let obj = js_sys::Object::new();
+            let _ = js_sys::Reflect::set(&obj, &"kind".into(), &JsValue::from_str(rec.kind));
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"bundle".into(),
+                &JsValue::from_str(&rec.bundle),
+            );
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"sceneBuildMs".into(),
+                &JsValue::from(rec.scene_build_ms),
+            );
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"gpuRenderMs".into(),
+                &JsValue::from(rec.gpu_render_ms),
+            );
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"bridgeMs".into(),
+                &JsValue::from(rec.bridge_ms),
+            );
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"enumerateMs".into(),
+                &JsValue::from(rec.enumerate_ms),
+            );
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"combineCopyMs".into(),
+                &JsValue::from(rec.combine_copy_ms),
+            );
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"totalMs".into(),
+                &JsValue::from(rec.total_ms),
+            );
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"subsceneHits".into(),
+                &JsValue::from(rec.subscene_hits),
+            );
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"subsceneMisses".into(),
+                &JsValue::from(rec.subscene_misses),
+            );
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"pixelArea".into(),
+                &JsValue::from(rec.pixel_area as f64),
+            );
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"subCount".into(),
+                &JsValue::from(rec.sub_count),
+            );
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"tsRecorded".into(),
+                &JsValue::from(rec.ts_recorded),
+            );
+            arr.push(&obj.into());
+        }
+        let _ = js_sys::Reflect::set(&out, &"records".into(), &arr.into());
+        out.into()
+    }
+
+    /// Count entries in `body_subscene_cache`, optionally filtered to a
+    /// single bundle. Surfaced for the loader-scene's progress UI so it
+    /// can report "X / Y subscenes ready" without invoking a heavier
+    /// stats call.
+    #[wasm_bindgen(js_name = "bodySubsceneCacheCountFor")]
+    pub fn body_subscene_cache_count_for(&self, bundle_filter: Option<String>) -> u32 {
+        match bundle_filter {
+            Some(b) => self
+                .body_subscene_cache
+                .keys()
+                .filter(|k| k.bundle == b)
+                .count() as u32,
+            None => self.body_subscene_cache.len() as u32,
+        }
     }
 }

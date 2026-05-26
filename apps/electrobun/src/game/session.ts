@@ -13,7 +13,11 @@
 // (`net/handlers/`, drives stores/machines on the running game
 // socket). GameSession just owns the lifecycle.
 
-import type { GMSpriteAdd } from "@dofus/dofus1-net";
+import type {
+  GDASegments,
+  GMSpriteAdd,
+  NeighborSegment,
+} from "@dofus/dofus1-net";
 import {
   type AH,
   GAOut,
@@ -36,28 +40,21 @@ import {
   type BootstrapOptions,
   type FightActionEvent,
   NetClient,
+  onAdjacentMapsData,
   onFightAction,
-  onMapData,
   onMovement,
   onPlayerCoords,
   onPositionStart,
   registerAllHandlers,
 } from "@/game/net";
-import { fightActor } from "@/game/stores/fight-store";
-import { setLocalSpriteId } from "@/game/stores/player-store";
-import { HoverPreview } from "@/hud/fight/hover-preview";
-
-interface MapDataSnapshot {
-  mapId: string;
-  dateTime: string;
-  decryptKey: string;
-}
-
 import {
   compressPath,
   decompressPath,
   expandFullPath,
 } from "@/game/net/path-codec";
+import { fightActor } from "@/game/stores/fight-store";
+import { setLocalSpriteId } from "@/game/stores/player-store";
+import { HoverPreview } from "@/hud/fight/hover-preview";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("GameSession");
@@ -222,9 +219,9 @@ export class GameSession {
       onSpriteReplace: (row) => this.onSpriteAddOrReplace(row, "replace"),
       onSpriteRemove: (row) => this.onSpriteRemove(row.spriteId),
     });
-    onMapData((info) => {
-      this.lastMapData = info;
-      void this.loadMapAsset(info);
+    onAdjacentMapsData((segs) => {
+      this.lastGda = segs;
+      void this.loadMapsAsset(segs);
     });
     onFightAction((e) => this.routeFightAction(e));
     // GIC — server-pushed sprite coordinates (placement swaps, fight
@@ -434,9 +431,9 @@ export class GameSession {
    *  battlefield catches up even if frames arrived during the React
    *  mount window. */
   private sprites = new Map<string, GMSpriteAdd>();
-  /** Most recent map descriptor (GDM). Replayed on battlefield attach
-   *  so the map loader can drive the asset fetch. */
-  private lastMapData: MapDataSnapshot | null = null;
+  /** Most recent GDA (current map + neighbour descriptors). Replayed on
+   *  battlefield attach so the map loader can drive the asset fetch. */
+  private lastGda: GDASegments | null = null;
   /** Tracks the local player's last known cell. */
   private selfCellId: number | null = null;
   /** Last-known map width — only meaningful once a map is loaded. */
@@ -524,11 +521,11 @@ export class GameSession {
 
   setBattlefield(bf: Battlefield): void {
     this.battlefield = bf;
-    // Replay the current map descriptor (if GDM arrived before the
-    // battlefield was attached) so the renderer has terrain before
+    // Replay the latest GDA (if it arrived before the battlefield was
+    // attached) so the renderer has terrain + neighbour previews before
     // we start pushing sprites onto it.
-    if (this.lastMapData) {
-      void this.loadMapAsset(this.lastMapData);
+    if (this.lastGda) {
+      void this.loadMapsAsset(this.lastGda);
     }
     // Replay every sprite we've already heard about so the
     // battlefield catches up to the live world.
@@ -631,28 +628,36 @@ export class GameSession {
     }
   }
 
-  /** The current map descriptor, if known. Consumers (map loader)
-   *  poll this when attaching to drive their initial fetch. */
-  getLastMapData(): MapDataSnapshot | null {
-    return this.lastMapData;
-  }
-
   /**
-   * Fetch + decrypt + decode the map asset described by the latest
-   * GDM, then hand the parsed `MapData` to the active battlefield.
-   * Idempotent across repeated GDMs for the same mapId — the
-   * battlefield's `loadMapFromData` is the only side-effect.
+   * Fetch + decrypt + decode the current map (critical path → render +
+   * pathfinder + GI ack), then load the three GDA neighbour maps in the
+   * background and push each into its widescreen band.
    *
-   * Errors are logged but never rethrown — the server may push the
-   * next GDM before we finish loading, and we want that to overwrite
-   * cleanly.
+   * The current map is awaited so the GI ack only fires once terrain is
+   * up. Neighbours load via `Promise.allSettled` AFTER the ack so they
+   * never delay the player's first interaction; a per-neighbour failure
+   * is logged and treated as "no neighbour" (flat-black band).
+   *
+   * Errors on the current map are logged but never rethrown — the
+   * server may push the next GDA before we finish, and we want that to
+   * overwrite cleanly.
    */
-  private async loadMapAsset(info: MapDataSnapshot): Promise<void> {
+  private async loadMapsAsset(segs: GDASegments): Promise<void> {
+    const cur = segs.current;
+    // Map-leave persist: flush the body_scene + accessory scene caches
+    // for the outgoing map's actors to IDB before they churn further,
+    // so a quick revisit hydrates warm even if the 30 s periodic flush
+    // hasn't fired. Throttled (≥15 s) + fire-and-forget so fast
+    // map-walking neither blocks the load nor storms IDB.
+    void import("@/game/render/vello-loader")
+      .then((m) => m.persistAllSceneCachesThrottled())
+      .catch(() => {});
     try {
-      const mapData = await loadMap(info.mapId, info.dateTime, info.decryptKey);
+      const mapData = await loadMap(cur.mapId, cur.dateTime, cur.decryptKey);
       this.currentMapWidth = mapData.width;
-      if (!this.battlefield) {
-        log.debug(`map ${info.mapId} loaded but no battlefield attached yet`);
+      const bf = this.battlefield;
+      if (!bf) {
+        log.debug(`map ${cur.mapId} loaded but no battlefield attached yet`);
         return;
       }
       // Fresh map — drop the stale sprite roster and self anchor.
@@ -662,8 +667,8 @@ export class GameSession {
       // zaaps/NPC teleports may skip it).
       this.sprites.clear();
       this.selfCellId = null;
-      this.battlefield.clearWorldActors();
-      await this.battlefield.loadMapFromData(mapData);
+      bf.clearWorldActors();
+      await bf.loadMapFromData(mapData);
       // Build the A* pathfinder from the freshly loaded cells so
       // cell-clicks can compute a route. Walkable = `movement > 1`
       // (canonical 1.29 — see Compressor.uncompressCell). Without
@@ -677,9 +682,9 @@ export class GameSession {
         mapData.height,
         walkableIds
       );
-      this.battlefield.setPathfinding(pf);
+      bf.setPathfinding(pf);
       log.info(
-        `map ${info.mapId} rendered (${mapData.cells.length} cells, ${walkableIds.length} walkable)`
+        `map ${cur.mapId} rendered (${mapData.cells.length} cells, ${walkableIds.length} walkable)`
       );
       // Canonical Dofus 1.29: once the client finishes painting the
       // terrain it sends `GI` to ask the server for "extra info"
@@ -688,9 +693,55 @@ export class GameSession {
       // `MapReady` (GDK). Without this ack the server never streams
       // our player sprite.
       this.client.send(GIOut, {});
+
+      // Neighbour previews — non-blocking, after the ack.
+      void this.loadNeighborBands(bf, segs);
     } catch (err) {
-      log.error(`map load failed for ${info.mapId}: ${String(err)}`);
+      log.error(`map load failed for ${cur.mapId}: ${String(err)}`);
     }
+  }
+
+  /**
+   * Load the left/right/bottom neighbour maps (best-effort, parallel)
+   * and push each into its band. Missing segments (server sent `;;`)
+   * resolve immediately to a cleared (flat-black) band.
+   */
+  private async loadNeighborBands(
+    bf: Battlefield,
+    segs: GDASegments
+  ): Promise<void> {
+    const sides: Array<{
+      side: "left" | "right" | "bottom";
+      seg: NeighborSegment | null;
+    }> = [
+      { side: "left", seg: segs.left },
+      { side: "right", seg: segs.right },
+      { side: "bottom", seg: segs.bottom },
+    ];
+    await Promise.allSettled(
+      sides.map(async ({ side, seg }) => {
+        if (!seg) {
+          bf.setNeighborMap(side, null);
+          return;
+        }
+        try {
+          const mapData = await loadMap(
+            seg.mapId,
+            seg.dateTime,
+            seg.decryptKey
+          );
+          // Bail if the battlefield changed underneath us (rapid map
+          // walks) — a newer GDA's loadMapsAsset owns the bands now.
+          if (this.battlefield !== bf) return;
+          bf.setNeighborMap(side, mapData);
+        } catch (err) {
+          log.warn(
+            `neighbour ${side} (map ${seg.mapId}) load failed: ${String(err)}`
+          );
+          if (this.battlefield === bf) bf.setNeighborMap(side, null);
+        }
+      })
+    );
   }
 
   /**
@@ -708,8 +759,8 @@ export class GameSession {
     }
     if (e.type === "change-map") {
       // Clear sprite roster + battlefield actors so the new map starts
-      // empty. The new GDM has typically arrived just before this
-      // signal (server order: leave → changeMap (GDM) → GA;2); the
+      // empty. The new GDA has typically arrived just before this
+      // signal (server order: leave → changeMap (GDA) → GA;2); the
       // fresh GM stream will repopulate sprites in a moment.
       log.info(`change-map (cinematic='${e.cinematic}')`);
       this.sprites.clear();

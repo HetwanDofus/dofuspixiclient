@@ -12,7 +12,10 @@ import {
   type LayeredTilePlacement,
   TileSpriteRenderer,
 } from "@/game/render/tile-sprite-renderer";
-import { frameIndexForTile } from "@/game/scene/tiles/sprite-factory";
+import {
+  buildBaseMapPlacements,
+  pushPlacementByKey,
+} from "@/game/scene/map/placements";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("MapHandler");
@@ -391,92 +394,41 @@ export class MapHandler {
     mapData: MapData,
     prefixOverride: Map<number, TilePrefixOverride> | null
   ): LayeredTilePlacement[] {
-    const out: LayeredTilePlacement[] = [];
+    // Base layers (background + ground/object1/object2) are shared with
+    // the neighbour-map bakes — see `scene/map/placements.ts`. Layer
+    // ordering inside the array is irrelevant; `TileSpriteRenderer`
+    // assigns each sprite a zIndex from its cell position and the layer
+    // routing gives the canonical painter's order.
+    const out = buildBaseMapPlacements(
+      mapData,
+      this.tileResolver,
+      prefixOverride
+    );
 
-    // Layer ordering matters — Pixi sortable-children sorts by zIndex
-    // within each layer container; the layer ROUTING (groundLayer
-    // vs object1Layer) gives us the canonical painter's order
-    // (background z=100 → ground z=200 → object1 z=300).
-    if (mapData.backgroundNum && mapData.backgroundNum > 0) {
-      this.pushPlacementByKey(out, `ground_${mapData.backgroundNum}`, 0, {
-        cellId: 0,
-        cellX: 0,
-        cellY: 0,
-        rotation: 0,
-        flip: false,
-        groundSlope: 1,
-        isBackground: true,
-      });
-    } else if (this.tacticExtras?.bgTileKey) {
-      // Tactic background — `backgroundNum` on tacticMapData is 0
-      // (canonical AS suppresses the normal bg path on enter), so we
-      // emit the tactic bg here. Same shape as the canonical bg slot:
-      // one placement at cell origin (0, 0), background-density
-      // texture pinned by `TileSpriteRenderer.createSprite`. Skipped
-      // entirely when the bg asset isn't available — leaving the
-      // original map background visible behind the tactic grid.
-      this.pushPlacementByKey(out, this.tacticExtras.bgTileKey, 0, {
-        cellId: 0,
-        cellX: 0,
-        cellY: 0,
-        rotation: 0,
-        flip: false,
-        groundSlope: 1,
-        isBackground: true,
-      });
-    }
-
-    // Layer 0: ground.
-    for (const cell of mapData.cells) {
-      if (cell.ground <= 0) continue;
-      const basePos = getCellPosition(cell.id, mapData.width, cell.groundLevel);
-      const groundSlope = cell.groundSlope ?? 1;
-      const tileKey = this.tileKeyFor(cell.id, 0, cell.ground, prefixOverride);
-      let groundRot = cell.layerGroundRot;
-      if (groundSlope !== 1) groundRot = 0;
-      this.pushPlacementByKey(out, tileKey, 0, {
-        cellId: cell.id,
-        cellX: basePos.x,
-        cellY: basePos.y,
-        rotation: groundRot,
-        flip: cell.layerGroundFlip,
-        groundSlope,
-      });
-    }
-
-    // Layer 1: walkable-tile decorations.
-    for (const cell of mapData.cells) {
-      if (cell.layer1 <= 0) continue;
-      const basePos = getCellPosition(cell.id, mapData.width, cell.groundLevel);
-      const groundSlope = cell.groundSlope ?? 1;
-      const tileKey = this.tileKeyFor(cell.id, 1, cell.layer1, prefixOverride);
-      const objRot = groundSlope === 1 ? cell.layerObject1Rot : 0;
-      this.pushPlacementByKey(out, tileKey, 1, {
-        cellId: cell.id,
-        cellX: basePos.x,
-        cellY: basePos.y,
-        rotation: objRot,
-        flip: cell.layerObject1Flip,
-        groundSlope,
-      });
-    }
-
-    // Layer 2: foreground objects (buildings, walls, decor). Mounted
-    // in object2Layer so Pixi `sortableChildren` interleaves them
-    // with char + spell sprites at canonical Object2 sub-offsets.
-    for (const cell of mapData.cells) {
-      if (cell.layer2 <= 0) continue;
-      const basePos = getCellPosition(cell.id, mapData.width, cell.groundLevel);
-      const groundSlope = cell.groundSlope ?? 1;
-      const tileKey = this.tileKeyFor(cell.id, 2, cell.layer2, prefixOverride);
-      this.pushPlacementByKey(out, tileKey, 2, {
-        cellId: cell.id,
-        cellX: basePos.x,
-        cellY: basePos.y,
-        rotation: 0, // canonical AS never rotates layer 2
-        flip: cell.layerObject2Flip,
-        groundSlope,
-      });
+    // Tactic background — `backgroundNum` on tacticMapData is 0
+    // (canonical AS suppresses the normal bg path on enter), so the
+    // base builder pushed nothing; emit the tactic bg here instead.
+    // Skipped entirely when the bg asset isn't available — leaving the
+    // original map background visible behind the tactic grid.
+    if (
+      (!mapData.backgroundNum || mapData.backgroundNum <= 0) &&
+      this.tacticExtras?.bgTileKey
+    ) {
+      pushPlacementByKey(
+        out,
+        this.tileResolver,
+        this.tacticExtras.bgTileKey,
+        0,
+        {
+          cellId: 0,
+          cellX: 0,
+          cellY: 0,
+          rotation: 0,
+          flip: false,
+          groundSlope: 1,
+          isBackground: true,
+        }
+      );
     }
 
     // Tactic decor — same painter's-order layer as object2 so the
@@ -491,7 +443,7 @@ export class MapHandler {
     // exports — that was the previous bug).
     if (this.tacticExtras) {
       for (const d of this.tacticExtras.decor) {
-        this.pushPlacementByKey(out, d.tileKey, 2, {
+        pushPlacementByKey(out, this.tileResolver, d.tileKey, 2, {
           cellId: d.cellId,
           cellX: d.basePos.x,
           cellY: d.basePos.y,
@@ -504,93 +456,6 @@ export class MapHandler {
     }
 
     return out;
-  }
-
-  private pushPlacementByKey(
-    out: LayeredTilePlacement[],
-    tileKey: string,
-    layer: 0 | 1 | 2,
-    cell: {
-      cellId: number;
-      cellX: number;
-      cellY: number;
-      rotation: number;
-      flip: boolean;
-      groundSlope: number;
-      isBackground?: boolean;
-      /**
-       * Explicit frame index override — bypasses `frameIndexForTile`'s
-       * slope/random selection. Used by tactic decor where the caller
-       * round-robins 0/1/2 across LOS cells deterministically rather
-       * than letting the per-cell hash pick.
-       */
-      staticFrameOverride?: number;
-    }
-  ): void {
-    const resolved = this.tileResolver.resolve(tileKey);
-    if (!resolved) return;
-    // `staticFrameOverride` forces a fixed-frame render — required for
-    // tactic decor, where every cell sits on a specific frame of the
-    // multi-frame theme symbol (canonical AS `gotoAndStop(counter % 3)`).
-    // Without this, the resolver classifies multi-frame symbols as
-    // `kind === "animated"` and the ticker auto-cycles them; the
-    // override path below otherwise gets short-circuited to
-    // staticFrame=0 by the `isAnimated` branch.
-    const hasFrameOverride = cell.staticFrameOverride !== undefined;
-    const isAnimated =
-      !hasFrameOverride &&
-      resolved.kind === "animated" &&
-      resolved.frameCount > 1;
-    const behavior = resolved.kind === "" ? "static" : resolved.kind;
-    const staticFrame = isAnimated
-      ? 0
-      : hasFrameOverride
-        ? Math.max(
-            0,
-            Math.min(resolved.frameCount - 1, cell.staticFrameOverride!)
-          )
-        : frameIndexForTile(
-            {
-              frameCount: resolved.frameCount,
-              behavior,
-            } as Parameters<typeof frameIndexForTile>[0],
-            cell.cellId,
-            cell.groundSlope
-          );
-    out.push({
-      tileKey,
-      bundle: resolved.bundle,
-      exportName: resolved.exportName,
-      cellX: cell.cellX,
-      cellY: cell.cellY,
-      rotation: cell.rotation & 3,
-      flip: cell.flip,
-      frameCount: resolved.frameCount,
-      isAnimated,
-      fps: resolved.fps,
-      staticFrame,
-      layer,
-      isBackground: cell.isBackground === true,
-    });
-  }
-
-  private tileKeyFor(
-    cellId: number,
-    layer: 0 | 1 | 2,
-    id: number,
-    prefixOverride: Map<number, TilePrefixOverride> | null
-  ): string {
-    const override = prefixOverride?.get(cellId);
-    const layerOverride =
-      layer === 0
-        ? override?.ground
-        : layer === 1
-          ? override?.layer1
-          : override?.layer2;
-    if (layerOverride) {
-      return `${layerOverride.prefix}_${layerOverride.idOverride ?? id}`;
-    }
-    return `${layer === 0 ? "ground" : "objects"}_${id}`;
   }
 
   async renderMap(

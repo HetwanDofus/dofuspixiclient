@@ -2694,11 +2694,13 @@ dependencies = [
 name = "vello-wasm"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "console_error_panic_hook",
  "dofasset-renderer",
  "js-sys",
  "swf-spike",
  "vello",
+ "vello_encoding",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

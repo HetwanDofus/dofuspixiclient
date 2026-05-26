@@ -28,11 +28,29 @@ export class VelloRenderer {
     free(): void;
     [Symbol.dispose](): void;
     /**
+     * Count entries in `acc_subscenes`, optionally per-bundle.
+     */
+    accessorySubsceneCacheCountFor(bundle_filter?: string | null): number;
+    /**
      * Batch-copy multiple textures into a destination texture. ONE queue.submit for all copies.
      * `copies` is a flat array: [src_id, dst_x, dst_y, src_id, dst_x, dst_y, ...]
      * All copies go to the same destination texture (the atlas).
      */
     batchCopy(dst_texture_id: number, copies: Float64Array): boolean;
+    bodySceneCacheStats(): any;
+    /**
+     * Count entries in `body_subscene_cache`, optionally filtered to a
+     * single bundle. Surfaced for the loader-scene's progress UI so it
+     * can report "X / Y subscenes ready" without invoking a heavier
+     * stats call.
+     */
+    bodySubsceneCacheCountFor(bundle_filter?: string | null): number;
+    /**
+     * Drop every `body_scene_cache` entry. Test/diagnostic hook for
+     * validating the persist→clear→load→spawn-warm cycle. Returns the
+     * number of entries cleared.
+     */
+    clearBodySceneCache(): number;
     /**
      * Phase 3c — Drop both long-lived path caches.
      *
@@ -72,6 +90,52 @@ export class VelloRenderer {
      * typical spell sizes) leak for the renderer's lifetime.
      */
     disposeSwfSpellInstance(instance_id: number): void;
+    /**
+     * Drain accumulated bake telemetry records.
+     *
+     * Returns an object `{ drops, records: [{kind, bundle, ms…,
+     * subsceneHits, subsceneMisses, pixelArea, subCount,
+     * tsRecorded}, …] }`. The returned records are removed from the
+     * internal buffer — subsequent calls only see new records.
+     *
+     * Why this shape (raw records, not pre-aggregated): the per-burst
+     * digest (zoom change, full warmup, etc.) needs different bucket
+     * boundaries depending on what the caller wants to study. Raw
+     * records let JS aggregate per-window. ~120 bytes per record;
+     * for a 700-record zoom burst that's ~85 KB round-trip — well
+     * under what wasm-bindgen handles in a single tick.
+     *
+     * `drops` is the count of records that were dropped because the
+     * internal buffer reached its 10k cap. Non-zero means the
+     * consumer fell behind — start draining more often.
+     */
+    drainBakeTelemetry(): any;
+    /**
+     * Dump the `ClassEnumeration` produced by `compute_class_enumeration`
+     * for diagnostic sweeps. Returns
+     * `{ bundleBFixUsed, exports: [{ exportName, totalFrameCount,
+     * hasToggle, exportBFix, slotCountLogical }] }` or `null` if the
+     * bundle isn't loaded.
+     *
+     * Read-only: builds a fresh enumeration without touching
+     * `class_enum_cache` (so the diagnostic doesn't accidentally
+     * short-circuit a subsequent `renderSwfClassAtlas` call).
+     */
+    dumpClassEnumeration(bundle: string): any;
+    /**
+     * Dump full inventory of a loaded SWF bundle for diagnostic sweeps.
+     * Returns an array of `{ name, kind, totalFrames, isCharacterAnim }`
+     * — one row per named export. `kind` is `"Sprite" | "Shape" |
+     * "MorphShape" | "Bitmap"`. `totalFrames` uses the same recursive
+     * resolver as `swfAnimFrameCount` (0 for non-Sprite exports).
+     * `isCharacterAnim` mirrors the `is_character_anim_name` filter
+     * used by `renderSwfClassAtlas`.
+     *
+     * Caller can roll up the result to answer "of the 110+ named
+     * exports, how many go through the class atlas vs the single-
+     * variant runtime path?".
+     */
+    dumpSwfBundleInventory(bundle: string): any;
     /**
      * Render all queued frames in a composite grid, then batch-copy to atlas.
      * 1 Vello render + 1 batch copy = 2 GPU submits total.
@@ -145,16 +209,50 @@ export class VelloRenderer {
      */
     static init(): Promise<any>;
     /**
+     * List every loaded SWF bundle by the name passed to
+     * `loadSwfBundle`. Used by diagnostic sweeps that need to iterate
+     * the actual loaded set rather than a hand-curated list.
+     */
+    listLoadedSwfBundles(): string[];
+    /**
+     * Install entries from a previously-persisted accessory
+     * sub-scene blob.
+     */
+    loadAccessorySubsceneCache(bytes: Uint8Array): number;
+    /**
      * Load a .dofasset binary. Returns true on success, false if data is invalid.
      * Never panics — invalid data is handled gracefully to avoid poisoning
      * the wasm-bindgen RefCell (which would break ALL subsequent calls).
      */
     loadAsset(id: number, data: Uint8Array): boolean;
     /**
+     * Install entries from a `serializeBodySceneCache` blob into
+     * `body_scene_cache`. Returns the count loaded (0 on parse
+     * error). Overwrites matching keys.
+     */
+    loadBodySceneCache(bytes: Uint8Array): number;
+    /**
+     * Install entries from a previously-serialized blob into the
+     * in-memory subscene cache. Returns the count actually loaded
+     * (0 on parse error). Idempotent: re-installing the same blob is
+     * a no-op (HashMap insert overwrite).
+     *
+     * Existing entries with matching keys are overwritten — this is
+     * deliberate; the loader presumes the on-disk version is at least
+     * as fresh as whatever the live cache holds. Callers that want
+     * preserve-on-collision can clear before loading.
+     */
+    loadBodySubsceneCache(bytes: Uint8Array): number;
+    /**
      * Load a SWF bundle by name (e.g. "g1", "o3", "player10"). Returns true on
      * success.
      */
     loadSwfBundle(name: string, bytes: Uint8Array): boolean;
+    /**
+     * Install entries from a previously-persisted tile sub-scene
+     * blob. Returns the count actually inserted.
+     */
+    loadTileSubsceneCache(bytes: Uint8Array): number;
     /**
      * Path cache observability.
      *
@@ -513,6 +611,81 @@ export class VelloRenderer {
      */
     rustTexturesCount(): number;
     /**
+     * Serialize `acc_subscenes` to a `VSC2` blob suitable for IDB
+     * persistence. Same wire format as the body cache, tagged with
+     * `CacheId::Accessory`.
+     */
+    serializeAccessorySubsceneCache(bundle_filter?: string | null): Uint8Array | undefined;
+    /**
+     * Serialize `body_scene_cache` (the COMPOSED per-variant body
+     * atlas scenes) to a `VSC2` blob. This is the cache the
+     * per-variant SPAWN path (`render_swf_body_atlas`) actually reads
+     * — persisting it is what warms a cold 250-actor map entry
+     * (`serializeBodySubsceneCache` persists a DIFFERENT cache the
+     * spawn never touches). Scenes are scale-baked, so the blob is
+     * per-resolution; the caller keys IDB rows by resolution.
+     */
+    serializeBodySceneCache(bundle_filter?: string | null): Uint8Array | undefined;
+    /**
+     * Serialize the `body_subscene_cache` to a bytes blob suitable for
+     * browser-cache persistence. Optionally filter to a single bundle —
+     * callers persist one blob per bundle so each entry's content hash
+     * invalidates independently when its SWF changes.
+     *
+     * The cache is resolution-independent (twip identity), so the same
+     * bytes work at any render scale. Format: see `scene_cache.rs`
+     * (magic "VSC1" + length-prefixed entries).
+     *
+     * Returns `null` on serialization error (unsupported scene content
+     * — Glyph/Image patches don't appear in SWF char bakes, so this
+     * path should never fail in practice; if it does, the caller
+     * falls back to a fresh bake and the cache stays empty).
+     *
+     * Per-entry skip: character sub-scenes containing `Patch::Image`
+     * (bitmap-backed shape fills) skip persistence and re-bake on
+     * cold session. The skip count is logged but not surfaced — the
+     * returned blob carries the encodable subset.
+     */
+    serializeBodySubsceneCache(bundle_filter?: string | null): Uint8Array | undefined;
+    /**
+     * Serialize `tile_subscenes` to a `VSC2` blob suitable for IDB
+     * persistence. Same wire format as the body cache, tagged with
+     * `CacheId::Tile`.
+     *
+     * Tile sub-scenes occasionally contain `Patch::Image` (bitmap
+     * fills from `DefineBitsLossless` shape fills). The encoder
+     * fails the WHOLE blob if any entry contains such a patch — we
+     * don't yet support persisting raster fills. Result: tiles with
+     * embedded images skip the persistent cache (in-memory cache
+     * still works for the current session); next session re-bakes
+     * them from the SWF. Callers see `null` on encode error and
+     * gracefully fall back to fresh bakes — no correctness issue.
+     */
+    serializeTileSubsceneCache(bundle_filter?: string | null): Uint8Array | undefined;
+    /**
+     * Report `body_scene_cache` health (the composed-atlas LRU at
+     * 1500 cap used by `render_swf_body_atlas`). v4 architecture
+     * decision blocks on whether this LRU thrashes at 250-bot stress.
+     * Returns:
+     *   - `entries`: current live entry count (≤ 1500)
+     *   - `cap`: BODY_SCENE_CACHE_CAP constant
+     *   - `hits`: cumulative hits since renderer init
+     *   - `misses`: cumulative misses since renderer init
+     *   - `evictions`: cumulative LRU evictions since renderer init
+     *   - `hitRate`: hits / (hits + misses); 0.0 if no accesses yet
+     * Set the class-atlas bake mode: 0 = AUTO (per-page for ≤2 pages,
+     * per-variant for ≥3), 1 = force per-variant, 2 = force per-page.
+     * See the `class_atlas_bake_mode` field doc for the measured
+     * crossover rationale.
+     */
+    setClassAtlasBakeMode(mode: number): void;
+    /**
+     * Legacy A/B toggle. `true` → force per-variant (mode 1);
+     * `false` → force per-page (mode 2). Prefer
+     * `setClassAtlasBakeMode(0)` to restore AUTO.
+     */
+    setClassAtlasForcePerVariant(force: boolean): void;
+    /**
      * Set the player's three zone colours used by the SWF render path.
      * Each value is `0xRRGGBB`; pass `0` to leave that zone untinted.
      * Mirrors what the dofasset path does via `build_color_replacements`
@@ -532,6 +705,18 @@ export class VelloRenderer {
      * spell's AVM1 root clip.
      */
     setSwfSpellHostNumber(instance_id: number, name: string, value: number): void;
+    /**
+     * Report `body_subscene_cache` footprint for one bundle: how many
+     * cache entries belong to that bundle and how many serialized
+     * bytes they take in the VSC1/VSC2 IDB wire format. Reads the
+     * existing `serialize_body_subscene_cache` path so the size is the
+     * real IDB blob size, not an estimate.
+     *
+     * Returns `{ entryCount, serializedBytes }`. Both 0 if the bundle
+     * isn't loaded or the cache has no entries for it. `serializedBytes`
+     * is -1 if the encoder failed (returned in console log).
+     */
+    subsceneCacheBytesForBundle(bundle: string): any;
     /**
      * For an accessory (bundle/export at slot+dir+side), return the
      * SMALLEST `animType` value (in 0..=anim_type) whose
@@ -695,6 +880,11 @@ export class VelloRenderer {
      */
     tickSwfSpellFrame(instance_id: number): any;
     /**
+     * Count entries in `tile_subscenes`, optionally per-bundle. Same
+     * usage as the body variant.
+     */
+    tileSubsceneCacheCountFor(bundle_filter?: string | null): number;
+    /**
      * Diagnostics: WASM linear-memory size in bytes. Tracks how
      * much memory the Rust side itself is consuming (excluding GPU
      * resources, which live in the browser GPU process).
@@ -707,11 +897,18 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_vellorenderer_free: (a: number, b: number) => void;
+    readonly vellorenderer_accessorySubsceneCacheCountFor: (a: number, b: number, c: number) => number;
     readonly vellorenderer_batchCopy: (a: number, b: number, c: number, d: number) => number;
+    readonly vellorenderer_bodySceneCacheStats: (a: number) => any;
+    readonly vellorenderer_bodySubsceneCacheCountFor: (a: number, b: number, c: number) => number;
+    readonly vellorenderer_clearBodySceneCache: (a: number) => number;
     readonly vellorenderer_clearPathCache: (a: number) => void;
     readonly vellorenderer_createAtlas: (a: number, b: number, c: number) => any;
     readonly vellorenderer_createSwfSpellInstance: (a: number, b: number, c: number, d: number) => number;
     readonly vellorenderer_disposeSwfSpellInstance: (a: number, b: number) => void;
+    readonly vellorenderer_drainBakeTelemetry: (a: number) => any;
+    readonly vellorenderer_dumpClassEnumeration: (a: number, b: number, c: number) => any;
+    readonly vellorenderer_dumpSwfBundleInventory: (a: number, b: number, c: number) => any;
     readonly vellorenderer_flushFrames: (a: number, b: number) => void;
     readonly vellorenderer_freeAllTextures: (a: number) => void;
     readonly vellorenderer_freeAsset: (a: number, b: number) => void;
@@ -722,8 +919,13 @@ export interface InitOutput {
     readonly vellorenderer_getAnimationNames: (a: number, b: number) => [number, number];
     readonly vellorenderer_getFrameSize: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
     readonly vellorenderer_init: () => any;
+    readonly vellorenderer_listLoadedSwfBundles: (a: number) => [number, number];
+    readonly vellorenderer_loadAccessorySubsceneCache: (a: number, b: number, c: number) => number;
     readonly vellorenderer_loadAsset: (a: number, b: number, c: number, d: number) => number;
+    readonly vellorenderer_loadBodySceneCache: (a: number, b: number, c: number) => number;
+    readonly vellorenderer_loadBodySubsceneCache: (a: number, b: number, c: number) => number;
     readonly vellorenderer_loadSwfBundle: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly vellorenderer_loadTileSubsceneCache: (a: number, b: number, c: number) => number;
     readonly vellorenderer_pathCacheStats: (a: number) => any;
     readonly vellorenderer_queueFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => any;
     readonly vellorenderer_renderAnimationStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
@@ -749,9 +951,16 @@ export interface InitOutput {
     readonly vellorenderer_rustGpuByteStats: (a: number) => [number, number];
     readonly vellorenderer_rustGpuObjectCounts: (a: number) => [number, number];
     readonly vellorenderer_rustTexturesCount: (a: number) => number;
+    readonly vellorenderer_serializeAccessorySubsceneCache: (a: number, b: number, c: number) => [number, number];
+    readonly vellorenderer_serializeBodySceneCache: (a: number, b: number, c: number) => [number, number];
+    readonly vellorenderer_serializeBodySubsceneCache: (a: number, b: number, c: number) => [number, number];
+    readonly vellorenderer_serializeTileSubsceneCache: (a: number, b: number, c: number) => [number, number];
+    readonly vellorenderer_setClassAtlasBakeMode: (a: number, b: number) => void;
+    readonly vellorenderer_setClassAtlasForcePerVariant: (a: number, b: number) => void;
     readonly vellorenderer_setSwfPlayerColors: (a: number, b: number, c: number, d: number) => void;
     readonly vellorenderer_setSwfSpellHostCell: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly vellorenderer_setSwfSpellHostNumber: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly vellorenderer_subsceneCacheBytesForBundle: (a: number, b: number, c: number) => any;
     readonly vellorenderer_swfAccessoryCanonicalAnimType: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => number;
     readonly vellorenderer_swfAnimFrameCount: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly vellorenderer_swfBodyBandInfo: (a: number, b: number, c: number, d: number, e: number) => any;
@@ -764,6 +973,7 @@ export interface InitOutput {
     readonly vellorenderer_swfTileAnimKind: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly vellorenderer_tickDeferredDestroys: (a: number, b: number, c: number) => [number, number];
     readonly vellorenderer_tickSwfSpellFrame: (a: number, b: number) => any;
+    readonly vellorenderer_tileSubsceneCacheCountFor: (a: number, b: number, c: number) => number;
     readonly vellorenderer_wasmHeapBytes: (a: number) => number;
     readonly wasm_bindgen__convert__closures_____invoke__h97a41680667a7bc9: (a: number, b: number, c: any) => [number, number];
     readonly wasm_bindgen__convert__closures_____invoke__h59f6a18f366ace3f: (a: number, b: number, c: any, d: any) => void;

@@ -5,13 +5,12 @@ import type { Engine } from "@/game/render/engine";
 import type { RendererRegistry } from "@/game/render/renderer-registry";
 import type { MapHandler } from "@/game/scene/map/handler";
 import type { Scene } from "@/game/scene/scene";
-import { AdjacentMapCache } from "@/game/assets/adjacent-map-cache";
 import { InteractionHandler } from "@/game/input/interaction-handler";
 import { AtlasLoader } from "@/game/render/atlas-loader";
+import { NeighborBandRenderer } from "@/game/render/neighbor-band-renderer";
 import { PickingSystem } from "@/game/render/picking-system";
 import { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import { getRenderWatchdog } from "@/game/render/render-watchdog";
-import { SideBandCompositor } from "@/game/render/side-band-compositor";
 import { MapTransition } from "@/game/scene/map/transition";
 import { DebugOverlay } from "@/game/scene/overlays/debug";
 import { GridOverlay } from "@/game/scene/overlays/grid";
@@ -49,12 +48,13 @@ export interface BattlefieldBootstrapContext {
   app: Application | null;
   mapContainer: Container | null;
   /**
-   * Widescreen side-band compositor. Wraps `mapContainer` in a
-   * masked offset container so the game renders centred in the
-   * 1.95-aspect canvas, and fills the lateral bands with a sampled
-   * mirror+blur of the game render texture. Owned by the Battlefield.
+   * Widescreen neighbour-band compositor. Positions `mapContainer` at
+   * the centring offset for the 1.95-aspect canvas and fills the
+   * lateral + bottom bands with pre-rendered tile art of the
+   * left/right/bottom neighbour maps (descriptors arrive over GDA).
+   * Owned by the Battlefield.
    */
-  sideBandCompositor: SideBandCompositor | null;
+  neighborBandRenderer: NeighborBandRenderer | null;
   mapTransition: MapTransition | null;
   /**
    * Map renderer — populated lazily by `Battlefield.loadManifest()`
@@ -65,7 +65,6 @@ export interface BattlefieldBootstrapContext {
   mapHandler: MapHandler | null;
   pickingSystem: PickingSystem | null;
   atlasLoader: AtlasLoader | null;
-  adjacentMapCache: AdjacentMapCache | null;
   interactionHandler: InteractionHandler | null;
   debugOverlay: DebugOverlay | null;
   gridOverlay: GridOverlay | null;
@@ -121,14 +120,22 @@ export async function initEngineAndVello(
   // Pixi compositor.
   ctx.mapContainer.sortableChildren = true;
   ctx.app.stage.addChild(ctx.mapContainer);
-  // SideBandCompositor positions mapContainer at the centring offset
-  // for the wider 1.95-aspect canvas and stands up two band sprites
-  // beside it that fill the lateral strips with a heavy LOD-based
-  // blur of the rendered game. The offset lives directly on
-  // `mapContainer.position` so existing interaction math (which reads
-  // `mapContainer.x` as the screen anchor) keeps working — see the
-  // compositor file header for the rationale.
-  ctx.sideBandCompositor = new SideBandCompositor(ctx.app, ctx.mapContainer);
+  // Composition Y: the live map is composited via NeighborBandRenderer's
+  // per-frame capture (`gameRt` + feathered `gameSprite`), not drawn directly.
+  // `renderable = false` skips it in Pixi's stage pass (no wasted double-draw);
+  // the explicit `render({ container: mapContainer })` in `captureFrame` still
+  // renders it — that path only honours `visible`, not `renderable`.
+  ctx.mapContainer.renderable = false;
+  // NeighborBandRenderer positions mapContainer at the centring offset
+  // for the wider 1.95-aspect canvas and stands up the left/right/
+  // bottom band sprites plus a black backdrop around it. The offset
+  // lives directly on `mapContainer.position` so existing interaction
+  // math (which reads `mapContainer.x` as the screen anchor) keeps
+  // working — see the renderer file header for the rationale.
+  ctx.neighborBandRenderer = new NeighborBandRenderer(
+    ctx.app,
+    ctx.mapContainer
+  );
   ctx.mapTransition = new MapTransition(ctx.app, ctx.mapContainer);
 
   // Strip-rendered character sprite owner. Pixi adopted Vello's
@@ -200,8 +207,8 @@ export async function prewarmSwfTileBundles(): Promise<void> {
  * resolver. Each gfxId maps to a `sprite-{gfxId}.swf` bundle.
  */
 const CHARACTER_CLASS_GFX_IDS = [
-  10, 11, 20, 21, 30, 31, 40, 41, 50, 51, 60, 61,
-  70, 71, 80, 81, 90, 91, 100, 101, 110, 111, 120, 121,
+  10, 11, 20, 21, 30, 31, 40, 41, 50, 51, 60, 61, 70, 71, 80, 81, 90, 91, 100,
+  101, 110, 111, 120, 121,
 ] as const;
 
 /**
@@ -222,12 +229,10 @@ const CHARACTER_CLASS_GFX_IDS = [
  * Cost: ~150 MB body sub-scene cache after full warmup.
  */
 export async function prewarmCharacterClassAtlases(
-  resolution = 3,
+  resolution = 3
 ): Promise<void> {
   const { loadSwfBundle } = await import("@/game/render/vello-loader");
-  const { getCharacterCache } = await import(
-    "@/game/render/character-cache"
-  );
+  const { getCharacterCache } = await import("@/game/render/character-cache");
   const cache = getCharacterCache();
   const t0 = performance.now();
 
@@ -248,16 +253,188 @@ export async function prewarmCharacterClassAtlases(
             if (atlas) cache.releaseClassAtlas(atlas);
           },
           () => true,
-          "low",
+          "low"
         );
       } catch (e) {
         log.warn(`prewarmCharacterClassAtlases: ${bundle} threw:`, e);
       }
-    }),
+    })
   );
 
   log.info(
-    `prewarmCharacterClassAtlases: ${CHARACTER_CLASS_GFX_IDS.length} classes enqueued in ${(performance.now() - t0).toFixed(0)}ms (bakes complete in background)`,
+    `prewarmCharacterClassAtlases: ${CHARACTER_CLASS_GFX_IDS.length} classes enqueued in ${(performance.now() - t0).toFixed(0)}ms (bakes complete in background)`
+  );
+}
+
+/**
+ * Hydrate the persistent (IDB) scene cache into Vello's
+ * `body_subscene_cache` for every character class. Runs during the
+ * loader scene so all the CPU-heavy SWF parse + AS2 walk + scene
+ * construction work happens BEHIND the loading UI instead of mid-
+ * gameplay. After this, the only runtime cost of a bake is the
+ * cheap GPU rasterization step (sub-millisecond per variant).
+ *
+ * Flow per bundle:
+ *   1. Load the SWF (fetch + WASM decode) — retains its bytes for
+ *      the bake-worker pool.
+ *   2. Hash the bundle bytes (SHA-256) to derive a content-addressed
+ *      cache key. Bundle content change → different hash → cache miss
+ *      → re-bake → repopulate IDB.
+ *   3. Look up IDB for `${SCENE_FORMAT_VERSION}|${bundle}|${hash}`. If
+ *      hit, hand the bytes to `loadBodySubsceneCache` — Vello's in-
+ *      memory cache is now hot, with zero CPU cost.
+ *   4. Whether hit or miss, trigger `acquireClassAtlas` so the full
+ *      class atlas bake runs. On hit, the bake is fast (just GPU
+ *      rasterize from cached subscenes). On miss, the bake runs full
+ *      (AS2 walk + scene build), populates the subscene cache, and
+ *      we write that back to IDB at the end.
+ *   5. After all bundles have their class atlases committed, dump
+ *      each bundle's now-hot subscene entries to IDB. Idempotent on
+ *      hit (same bytes overwritten), wins big on miss (next session
+ *      skips CPU).
+ *
+ * Reports progress via `getLoadProgress` under the label
+ * `"character-warmup"`. The host UI (MapRenderer) renders this as
+ * percentage of the loading bar.
+ *
+ * Resolution arg drives WHICH atlas dimensions get baked, but the
+ * persisted bytes are resolution-INDEPENDENT — the subscene cache
+ * stores scenes at twip identity. Switching `resolution` later in
+ * the session just re-rasterizes from the same cached scenes; the
+ * IDB blob doesn't change.
+ */
+export async function warmupCharacterSceneCache(resolution = 3): Promise<void> {
+  const {
+    loadSwfBundle,
+    getRetainedSwfBundleBytes,
+    serializeBodySubsceneCache,
+    loadBodySubsceneCache,
+  } = await import("@/game/render/vello-loader");
+  const { getCharacterCache } = await import("@/game/render/character-cache");
+  const { getLoadProgress } = await import("@/game/render/load-progress");
+  const sceneCacheIdb = await import("@/game/render/scene-cache-idb");
+  const cache = getCharacterCache();
+  const progress = getLoadProgress();
+  const total = CHARACTER_CLASS_GFX_IDS.length;
+  const t0 = performance.now();
+  let loaded = 0;
+  let idbHits = 0;
+  let idbMisses = 0;
+  // Track bundles that loaded fresh (no IDB hit) so we can serialize
+  // their subscenes back at the end. Bundles with a hit are
+  // round-tripped from disk; persisting again is wasted work.
+  const bundlesToPersist: Array<{ name: string; hash: string }> = [];
+
+  // First pass: fetch SWFs in parallel up to the existing load
+  // concurrency cap; hydrate IDB blob into Rust cache where present.
+  await Promise.all(
+    CHARACTER_CLASS_GFX_IDS.map(async (gfxId) => {
+      const bundle = `sprite-${gfxId}`;
+      const url = `/swf/sprites/${gfxId}.swf`;
+      try {
+        const ok = await loadSwfBundle(bundle, url);
+        if (!ok) {
+          log.warn(`warmupCharacterSceneCache: ${bundle} load failed`);
+          return;
+        }
+        const swfBytes = getRetainedSwfBundleBytes(bundle);
+        if (!swfBytes) {
+          log.warn(
+            `warmupCharacterSceneCache: ${bundle} retained bytes missing`
+          );
+          return;
+        }
+        const hash = await sceneCacheIdb.hashBytes(swfBytes);
+        const blob = await sceneCacheIdb.getSubsceneBlob(bundle, hash);
+        if (blob) {
+          const count = loadBodySubsceneCache(blob);
+          if (count > 0) {
+            idbHits++;
+          } else {
+            // Blob decoded to zero entries — treat as miss + force
+            // re-bake, and replace the bad row on the way out.
+            idbMisses++;
+            bundlesToPersist.push({ name: bundle, hash });
+          }
+        } else {
+          idbMisses++;
+          bundlesToPersist.push({ name: bundle, hash });
+        }
+      } catch (e) {
+        log.warn(`warmupCharacterSceneCache: ${bundle} threw:`, e);
+      } finally {
+        loaded++;
+        progress.report("character-warmup-hydrate", loaded, total);
+      }
+    })
+  );
+
+  // Second pass: kick off class atlas bakes. On IDB hits these are
+  // fast (subscene cache is hot, only GPU rasterize remaining). On
+  // misses, the full bake populates the subscene cache as a side
+  // effect — we capture those for IDB persistence below.
+  //
+  // Wait for the bake-worker pool to finish initialising BEFORE
+  // dispatching acquires. Without this, a slow pool init (pool size
+  // > 1, multiple WebGPU device-create calls competing on the same
+  // physical GPU) lets the first few acquires fall back to the
+  // main-thread bake path. Main-thread bakes run inside Pixi's rAF
+  // window and overlap with `tickDeferredDestroys`, producing the
+  // wasm-bindgen "recursive use of an object" panic. Awaiting init
+  // here funnels every bake through the worker pool, eliminating
+  // the race.
+  const { whenBakeWorkerPoolInitDone } = await import(
+    "@/game/render/vello-loader"
+  );
+  await whenBakeWorkerPoolInitDone();
+  await new Promise<void>((resolve) => {
+    let baked = 0;
+    if (total === 0) {
+      resolve();
+      return;
+    }
+    for (const gfxId of CHARACTER_CLASS_GFX_IDS) {
+      const bundle = `sprite-${gfxId}`;
+      cache.acquireClassAtlas(
+        bundle,
+        resolution,
+        (atlas) => {
+          if (atlas) cache.releaseClassAtlas(atlas);
+          baked++;
+          progress.report("character-warmup-bake", baked, total);
+          if (baked === total) resolve();
+        },
+        () => true,
+        "low"
+      );
+    }
+  });
+
+  // Third pass: persist the newly-baked bundles' subscenes back to
+  // IDB. Cache hits don't need persisting (the on-disk row already
+  // has the bytes we just hydrated from). Sequential to avoid
+  // hammering the IDB transaction queue.
+  let persisted = 0;
+  const toPersist = bundlesToPersist.length;
+  for (const { name, hash } of bundlesToPersist) {
+    try {
+      const bytes = serializeBodySubsceneCache(name);
+      if (bytes && bytes.length > 0) {
+        await sceneCacheIdb.putSubsceneBlob(name, hash, bytes);
+      }
+    } catch (e) {
+      log.warn(`warmupCharacterSceneCache: persist ${name} failed:`, e);
+    } finally {
+      persisted++;
+      if (toPersist > 0) {
+        progress.report("character-warmup-persist", persisted, toPersist);
+      }
+    }
+  }
+
+  const dt = performance.now() - t0;
+  log.info(
+    `warmupCharacterSceneCache: ${total} bundles | idb hit=${idbHits} miss=${idbMisses} | persisted=${toPersist} | ${dt.toFixed(0)}ms`
   );
 }
 
@@ -277,7 +454,6 @@ export async function wireVelloLoaders(
 
   ctx.atlasLoader.setVelloRenderer(vello);
   ctx.characterSpriteLoader.setVelloRenderer(vello, ctx.app.renderer);
-  ctx.adjacentMapCache = new AdjacentMapCache(ctx.atlasLoader);
 
   // HUD spell-icon renderer composes `/swf/spells/icons/back/<b>.swf` +
   // `/swf/spells/icons/up/<up>.swf` into `<img>`-ready canvases for the
@@ -412,12 +588,11 @@ export function startSceneTicker(ctx: BattlefieldBootstrapContext): void {
     const dtMs = Ticker.shared.deltaMS;
     ctx.scene.tick(dtMs);
     ctx.interactionHandler?.tick();
-    // After scene + interaction ticks settle this frame's animation
-    // state, capture the wrapper into `gameRt` so the side-band filters
-    // sample the latest map state. Runs before Pixi's internal stage
-    // render fires (Pixi's render callback sits at LOW priority while
-    // this ticker is at NORMAL).
-    ctx.sideBandCompositor?.captureFrame();
+    // Composition Y: capture the live map into gameRt (NORMAL priority — runs
+    // before Pixi's LOW-priority stage render) so the feathered gameSprite can
+    // composite the current map's edge objects over the blurred neighbour
+    // bands, letting structures spill across the seam instead of being cut.
+    ctx.neighborBandRenderer?.captureFrame();
   };
 
   Ticker.shared.add(ctx.sceneTickerCallback);

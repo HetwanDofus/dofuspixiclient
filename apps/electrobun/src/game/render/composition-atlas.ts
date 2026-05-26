@@ -227,6 +227,8 @@ export class SharedCompositionAtlas {
   readonly slotSize: number = COMPOSITION_SLOT_SIZE;
   private pages: AtlasPage[] = [];
   private softWarnFired = false;
+  /** Throttle for the defensive renderAll failure warn (ms timestamp). */
+  private _lastRenderWarnAt = 0;
 
   constructor() {
     // Start with one page. New pages are allocated lazily on
@@ -375,6 +377,38 @@ export class SharedCompositionAtlas {
     let dirtyBatches = 0;
     for (const page of this.pages) {
       if (page.allocator.used() === 0) continue;
+      // Prune stale batches whose atlas texture was destroyed by a cache
+      // eviction (LRU retire) since the last frame. A destroyed source
+      // means its refcount hit zero — i.e. no live bot still uses that
+      // variant — so the batch is genuinely orphaned; its bot detached
+      // but the batch lingered. Rendering it would dereference a freed
+      // GPU texture and throw mid-render (`Cannot read properties of
+      // null (reading 'textureSource1')`), failing the ENTIRE page (a
+      // screen-wide flash + per-frame warn storm). Drop it instead.
+      let pruned: string[] | null = null;
+      for (const [bkey, batch] of page.batches) {
+        const tex = (batch as { combinedTexture?: { destroyed?: boolean; source?: { destroyed?: boolean } } })
+          .combinedTexture;
+        if (tex?.destroyed || tex?.source?.destroyed) {
+          (pruned ??= []).push(bkey);
+        }
+      }
+      if (pruned) {
+        for (const bkey of pruned) {
+          const batch = page.batches.get(bkey);
+          if (!batch) continue;
+          page.batches.delete(bkey);
+          try {
+            if (batch.mesh.parent === page.globalRoot) {
+              page.globalRoot.removeChild(batch.mesh);
+            }
+            batch.destroy();
+          } catch {}
+        }
+        log.warn(
+          `renderAll page ${page.pageIndex}: pruned ${pruned.length} stale batch(es) (atlas texture evicted while still referenced)`,
+        );
+      }
       // Flush only this page's batches before its render.
       const tFlushStart = performance.now();
       for (const batch of page.batches.values()) {
@@ -393,7 +427,15 @@ export class SharedCompositionAtlas {
         renderMs += performance.now() - tRenderStart;
         renderedPages += 1;
       } catch (e) {
-        log.warn(`renderAll page ${page.pageIndex} failed`, e);
+        // Defensive: should be rare now that stale batches are pruned
+        // above and Pixi's GC can no longer tear down our cache-managed
+        // sources (see `uploadAndCloseBitmap`). Throttle so a recurring
+        // failure can't flood the console + stall the main thread.
+        const now = performance.now();
+        if (now - this._lastRenderWarnAt > 1000) {
+          this._lastRenderWarnAt = now;
+          log.warn(`renderAll page ${page.pageIndex} failed`, e);
+        }
       }
     }
     return { flushMs, renderMs, renderedPages, totalBatches, dirtyBatches };

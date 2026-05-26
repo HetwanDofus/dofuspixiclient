@@ -316,6 +316,7 @@ fn apply_compute(ctx: &mut RenderCtx<'_>, sym: &Symbol, filters: &[OwnedFilter])
         let mut sub_ctx = RenderCtx {
             doc: ctx.doc,
             scene: &mut sub_scene,
+            zone_scene: None,
             wgpu: None,
             transform: sub_world,
             frame: ctx.frame,

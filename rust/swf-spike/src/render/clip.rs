@@ -23,8 +23,10 @@ pub fn collect_mask_path(
     ratio: u16,
     out: &mut BezPath,
 ) {
+    super::probe::mask_path_call();
     match sym {
         Symbol::Shape(shape) => {
+            super::probe::mask_path_flatten();
             for cmd in flatten_shape(shape, doc) {
                 if matches!(cmd.kind, DrawKind::Fill { .. }) {
                     append_path_transformed(out, &cmd.path, transform);
@@ -53,6 +55,7 @@ pub fn collect_mask_path(
         }
         Symbol::Bitmap(_) => {}
         Symbol::MorphShape(ms) => {
+            super::probe::mask_path_flatten();
             let interp = crate::morph::build_morph_frame(ms, ratio);
             for cmd in flatten_shape(&interp, doc) {
                 if matches!(cmd.kind, DrawKind::Fill { .. }) {

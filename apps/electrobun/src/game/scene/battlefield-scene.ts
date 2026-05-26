@@ -8,16 +8,19 @@ import {
   Ticker,
 } from "pixi.js";
 
-import type { AdjacentMapCache } from "@/game/assets/adjacent-map-cache";
 import type { InteractionHandler } from "@/game/input/interaction-handler";
 import type { AtlasLoader } from "@/game/render/atlas-loader";
 // Side-effect import: registers `window.__spike` for the
 // OffscreenCanvas + ImageBitmap bridge spike. Invoke from devtools
 // inside a loaded battle. Delete with the spike file.
 import "@/game/render/spike-bitmap-bridge";
+
+import type {
+  NeighborBandRenderer,
+  NeighborSide,
+} from "@/game/render/neighbor-band-renderer";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
-import type { SideBandCompositor } from "@/game/render/side-band-compositor";
 import type {
   MapTransition,
   TransitionDirection,
@@ -38,11 +41,12 @@ import {
   diffMemSnapshot,
   formatLeakReport,
   formatMemSnapshot,
-  takeMemSnapshot,
   type MemSnapshot,
   type MemSources,
+  takeMemSnapshot,
 } from "@/game/render/mem-snapshot";
 import { RendererRegistry } from "@/game/render/renderer-registry";
+import { persistAllSceneCaches } from "@/game/render/vello-loader";
 import {
   type BattlefieldBootstrapContext,
   initEngineAndVello,
@@ -51,6 +55,7 @@ import {
   initPickingAndAtlas,
   prewarmSwfTileBundles,
   startSceneTicker,
+  warmupCharacterSceneCache,
   wireVelloLoaders,
 } from "@/game/scene/battlefield/bootstrap";
 import { BattlefieldPicking } from "@/game/scene/battlefield/picking";
@@ -146,6 +151,10 @@ export class Battlefield {
 
   private fightUI: FightUI | null = null;
   private fightActorUnsubscribe: (() => void) | null = null;
+  /** Cleanup hooks accumulated during `init()` — flush interval,
+   *  beforeunload listener, etc. Drained in `destroy()` in reverse
+   *  order. */
+  private disposeFns: Array<() => void> = [];
   private tacticalUnsubscribe: (() => void) | null = null;
   private lastFightMode: string = "none";
   private tacticalMode = false;
@@ -165,27 +174,13 @@ export class Battlefield {
   /** Blur-out old map → blur-in new map on map change. */
   private mapTransition: MapTransition | null = null;
   /**
-   * Widescreen side-band compositor. Owns the `mapWrapper` that
-   * positions `mapContainer` at the canvas's central game area and
-   * fills the lateral bands with a sampled spillover of the game
-   * render texture. Constructed by `initEngineAndVello` and resized
-   * via `handleCanvasResize`.
+   * Widescreen neighbour-band compositor. Positions `mapContainer` at
+   * the canvas's central game area and fills the left/right/bottom
+   * bands with pre-rendered tile art of the neighbour maps (GDA).
+   * Constructed by `initEngineAndVello` and resized via
+   * `handleCanvasResize`.
    */
-  private sideBandCompositor: SideBandCompositor | null = null;
-  private adjacentMapCache: AdjacentMapCache | null = null;
-
-  /** Bound keydown handler (E = fée-cœur firework at cursor). Stored
-   *  as a field so `destroy()` can actually `removeEventListener` —
-   *  inline arrows captured per-init wouldn't match. */
-  private boundOnKeyDown: ((e: KeyboardEvent) => void) | null = null;
-  /** Bound mousemove handler that records the last cursor position
-   *  in client-window coordinates. Used by `boundOnKeyDown` so F
-   *  spawns at the cursor without needing a fresh pointer event. */
-  private boundOnMouseMove: ((e: MouseEvent) => void) | null = null;
-  /** Most recent cursor position in CLIENT coordinates (page-relative,
-   *  matches `MouseEvent.clientX/Y`). -1 until first mousemove. */
-  private lastClientMouseX = -1;
-  private lastClientMouseY = -1;
+  private neighborBandRenderer: NeighborBandRenderer | null = null;
 
   /** Capability-bucketed actor registry + single ticker entry point. */
   private scene: Scene = new Scene();
@@ -275,8 +270,7 @@ export class Battlefield {
       panX: 0,
       panY: 0,
       zoom: 1,
-      dpr:
-        typeof window !== "undefined" ? window.devicePixelRatio : 1,
+      dpr: typeof window !== "undefined" ? window.devicePixelRatio : 1,
     });
 
     this.engine = new Engine({
@@ -315,7 +309,7 @@ export class Battlefield {
     // compositor is idempotent on unchanged dims, so calling on every
     // continuous-resize tick is cheap; only an actual screen dim
     // change triggers a real reallocation.
-    this.sideBandCompositor?.resize();
+    this.neighborBandRenderer?.resize();
 
     const zoom = this.interactionHandler?.getZoom() ?? this.engine.getZoom();
     this.notifyResize(zoom, width, height);
@@ -354,11 +348,76 @@ export class Battlefield {
     initPickingAndAtlas(ctx);
     await wireVelloLoaders(ctx);
     await prewarmSwfTileBundles();
-    // No character-class prewarm. With per-variant bake (the new
-    // primary path in `character-cache.ts:acquireVariantAtlas`),
-    // pre-baking whole classes pre-rasterizes 24 variants/class
-    // when bots typically display 1. Bots lazy-bake their actual
-    // variant on first sight (~5–15 ms each at zoom 5, sub-frame).
+    // Hydrate the persistent (IDB) scene cache into Vello's
+    // `body_subscene_cache`, then trigger character class atlas
+    // bakes for the full roster. On IDB hits the bake is GPU-only
+    // (no CPU walk), so the loader-scene phase absorbs the cost
+    // once per install and bots spawning into the battlefield see
+    // a hot cache for every direction. On IDB misses, this is
+    // where the AS2/scene-build CPU is spent — under the loading
+    // bar, not in the middle of gameplay. Result: 60 fps from the
+    // first bot's first frame, bounded RAM via Phase A eviction.
+    //
+    // Resolution argument matches the strip renderer's default
+    // (`PlayerStripRendererV2` initializes at resolution 3). If
+    // the user later switches resolution, the subscene cache
+    // doesn't need invalidation — twip-identity scenes re-rasterize
+    // at any scale, so only the final raster step re-runs.
+    try {
+      await warmupCharacterSceneCache(3);
+    } catch (warmupErr) {
+      // Non-fatal: cache hydration failure just means bots will
+      // bake on first sight (existing behavior). Loader still
+      // proceeds.
+      console.warn("warmupCharacterSceneCache failed:", warmupErr);
+    }
+    // One-shot diagnostic sweep: when `localStorage.RENDER_MEASUREMENT_SWEEP`
+    // = "1" (or `?measureRender=1` in the URL), iterate every loaded SWF
+    // bundle × every zoom level and dump a copy-pasteable markdown
+    // report of class-atlas + sample fight-anim bake costs. Used to
+    // size the render-architecture redesign on measured numbers
+    // instead of envelope math (see RENDER_STATE.md). Idempotent +
+    // self-disabling: the flag is consumed once and the sweep is
+    // wrapped in try/catch so it can't break boot.
+    try {
+      const { maybeRunMeasurementSweep } = await import(
+        "@/game/scene/battlefield/measurement-sweep"
+      );
+      // Fire-and-forget: the sweep yields to rAF between bakes so it
+      // doesn't lock the main thread for the user, and we don't want
+      // to block the loader on its 10-30 s wall.
+      void maybeRunMeasurementSweep();
+    } catch (sweepErr) {
+      console.warn("measurement sweep import failed:", sweepErr);
+    }
+    // Periodic flush of every loaded bundle's body+tile+acc
+    // sub-scene caches to IDB. 30 s strikes a balance between
+    // capture latency (a session that closes 20 s in saves most
+    // of its bake work) and IDB write pressure. The `unload`
+    // handler below catches the last-15-seconds delta.
+    //
+    // The flush is async and yields between bundles; it doesn't
+    // block the render loop. With ~50 bundles × <5 ms each that's
+    // a ~250 ms background burst once every 30 s.
+    const flushInterval = setInterval(() => {
+      void persistAllSceneCaches().catch((e) =>
+        console.warn("periodic persistAllSceneCaches failed:", e)
+      );
+    }, 30_000);
+    this.disposeFns.push(() => clearInterval(flushInterval));
+    // Final flush on page unload to capture any bakes that happened
+    // since the last interval tick. `beforeunload` runs synchronously
+    // but our flush is async — we can only kick it off and hope for
+    // the best. IDB writes during unload are best-effort in every
+    // browser; if they don't complete, we just lose the last
+    // sub-30-s window of bakes, which the next session will redo.
+    const onBeforeUnload = () => {
+      void persistAllSceneCaches();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    this.disposeFns.push(() =>
+      window.removeEventListener("beforeunload", onBeforeUnload)
+    );
     initInteraction(ctx);
     initOverlays(ctx);
     startSceneTicker(ctx);
@@ -462,7 +521,6 @@ export class Battlefield {
       );
     }
     this.fightUI.enterFightMode(mode);
-
   }
 
   exitFightMode(): void {
@@ -595,7 +653,7 @@ export class Battlefield {
     //   __renderHalt()       — manual emergency stop
     //   __renderResume()     — clear halt
     if (typeof window !== "undefined") {
-      const { spawnTestPlayers, despawnTestPlayers, getTestPlayerCount } =
+      const { spawnTestPlayers, despawnTestPlayers, getTestPlayerCount, spawnBurst } =
         await import("@/game/scene/battlefield/stress-test");
       const { getRenderWatchdog } = await import(
         "@/game/render/render-watchdog"
@@ -608,6 +666,9 @@ export class Battlefield {
         __getTestPlayerCount?: () => number;
         __pathCacheStats?: () => unknown;
         __clearPathCache?: () => void;
+        __forceZoom?: (z: number) => Promise<void>;
+        __currentZoom?: () => number;
+        __spawnBurst?: (n: number, move?: boolean, seed?: number) => Promise<number[]>;
       };
       w.spawnTestPlayers = async (n: number) => {
         const renderer = this.worldActors?.getRenderer() ?? null;
@@ -629,14 +690,33 @@ export class Battlefield {
         if (!renderer) return 0;
         return despawnTestPlayers(renderer);
       };
+      // Burst-spawn N actors with no stagger — the faithful "enter a
+      // map with 250 actors" measurement primitive (see spawnBurst).
+      w.__spawnBurst = async (n: number, move = false, seed?: number) => {
+        const renderer = this.worldActors?.getRenderer() ?? null;
+        const cells = this.currentMapData?.cells ?? [];
+        if (!renderer || !this.pathfinding) {
+          throw new Error("__spawnBurst: no PlayerRenderer/pathfinding (load a map first)");
+        }
+        return spawnBurst(n, renderer, cells, this.pathfinding, { move, seed });
+      };
       w.__renderHalt = () => getRenderWatchdog().emergencyHalt();
       w.__renderResume = () => getRenderWatchdog().resume();
       w.__getTestPlayerCount = () => getTestPlayerCount();
+      // Faithful zoom trigger for headless measurement: drives the
+      // exact same path as a user wheel-zoom settle (tile swap +
+      // onAfterRender → notifyResize → player onResize →
+      // setResolutionAndRerender). Bypasses debounce so the rebake
+      // fires immediately, letting a frame-pacing recorder bracket it.
+      w.__forceZoom = (z: number) => this.zoom.forceRender(z);
+      w.__currentZoom = () =>
+        this.interactionHandler?.getZoom() ?? this.engine.getZoom();
       // Path-cache observability hooks. Console:
       //   __pathCacheStats() → { bundleCacheCount, sceneCacheCount, sceneBytesEstimate }
       //   __clearPathCache() → drop both caches (memory-pressure recovery).
-      const { getPathCacheStats, clearPathCache } =
-        await import("@/game/render/vello-loader");
+      const { getPathCacheStats, clearPathCache } = await import(
+        "@/game/render/vello-loader"
+      );
       w.__pathCacheStats = () => getPathCacheStats();
       w.__clearPathCache = () => clearPathCache();
       // Boot-time safe mode escape hatch. Crash → reboot → run
@@ -674,61 +754,6 @@ export class Battlefield {
       getRenderWatchdog().setStatsProvider({
         testPlayerCount: () => getTestPlayerCount(),
       });
-
-      // E = throw ONE "Fée d'artifice invocatrice de cœurs" at the
-      // cursor. Ignored while typing in inputs so chat / search fields
-      // don't trigger it. Bound here (not in InteractionHandler)
-      // because it's a global document key, not a canvas-scoped
-      // pointer event — but the cursor position comes from a
-      // mousemove tracker since keydown carries no mouse coords.
-      const { spawnFeeCoeurAt } = await import("@/game/render/fee-coeur");
-      this.boundOnMouseMove = (e: MouseEvent) => {
-        this.lastClientMouseX = e.clientX;
-        this.lastClientMouseY = e.clientY;
-      };
-      document.addEventListener("mousemove", this.boundOnMouseMove);
-      this.boundOnKeyDown = (e: KeyboardEvent) => {
-        if (e.key !== "e" && e.key !== "E") return;
-        const target = e.target as HTMLElement | null;
-        const tag = target?.tagName;
-        if (
-          tag === "INPUT" ||
-          tag === "TEXTAREA" ||
-          target?.isContentEditable
-        ) {
-          log.info("[fee-coeur] E pressed but ignored (typing in input)");
-          return;
-        }
-        if (
-          !this.mapContainer ||
-          !this.app ||
-          this.lastClientMouseX < 0
-        ) {
-          log.warn(
-            `[fee-coeur] E pressed but not ready: mapContainer=${!!this.mapContainer} app=${!!this.app} mouseX=${this.lastClientMouseX}`,
-          );
-          return;
-        }
-        const rect = this.canvas.getBoundingClientRect();
-        const canvasX = this.lastClientMouseX - rect.left;
-        const canvasY = this.lastClientMouseY - rect.top;
-        const zoom = this.mapContainer.scale.x || 1;
-        const worldX = (canvasX - this.mapContainer.x) / zoom;
-        const worldY = (canvasY - this.mapContainer.y) / zoom;
-        log.info(
-          `[fee-coeur] spawning at world=(${worldX.toFixed(1)}, ${worldY.toFixed(1)}) canvas=(${canvasX.toFixed(0)}, ${canvasY.toFixed(0)}) zoom=${zoom.toFixed(2)}`,
-        );
-        void spawnFeeCoeurAt({
-          container: this.mapContainer,
-          app: this.app,
-          x: worldX,
-          y: worldY,
-        }).then((ok) => {
-          log.info(`[fee-coeur] spawn returned ${ok}`);
-        });
-      };
-      document.addEventListener("keydown", this.boundOnKeyDown);
-      log.info("[fee-coeur] keydown listener wired (press E over the map)");
 
       // Memory snapshot probe — call `__memSnapshot()` from DevTools to
       // dump every tracked counter + JS heap. Returns the snapshot
@@ -791,10 +816,10 @@ export class Battlefield {
     this.worldActors.setMapDimensions(mapData.width);
 
     // Reset map position. Pre-widescreen this was just (0, 0); with
-    // the side-band compositor the "rest" position is the centring
+    // the neighbour-band compositor the "rest" position is the centring
     // offset so the game sits in the canvas's central game area.
-    if (this.sideBandCompositor) {
-      this.sideBandCompositor.recenter();
+    if (this.neighborBandRenderer) {
+      this.neighborBandRenderer.recenter();
     } else {
       this.mapContainer.x = 0;
       this.mapContainer.y = 0;
@@ -917,19 +942,12 @@ export class Battlefield {
   }
 
   /**
-   * Load adjacent map data into the cache for background prefetching.
+   * Push a baked neighbour map (or `null` to clear) into the
+   * widescreen band on the given side. Called per-side by the session
+   * as each neighbour's GDA-described asset finishes loading.
    */
-  loadAdjacentMaps(
-    maps: Array<{ mapId: number; dx: number; dy: number; mapData: MapData }>
-  ): void {
-    this.adjacentMapCache?.loadAdjacentMaps(maps);
-  }
-
-  /**
-   * Get the transition direction for a target map from the adjacent cache.
-   */
-  getAdjacentDirection(mapId: number): TransitionDirection | null {
-    return this.adjacentMapCache?.getDirection(mapId) ?? null;
+  setNeighborMap(side: NeighborSide, mapData: MapData | null): void {
+    this.neighborBandRenderer?.setNeighbor(side, mapData);
   }
 
   /** Set the player character ID (used for tracking). */
@@ -1146,32 +1164,16 @@ export class Battlefield {
   }
 
   destroy(): void {
-    if (this.boundOnKeyDown) {
-      document.removeEventListener("keydown", this.boundOnKeyDown);
-      this.boundOnKeyDown = null;
-    }
-    if (this.boundOnMouseMove) {
-      document.removeEventListener("mousemove", this.boundOnMouseMove);
-      this.boundOnMouseMove = null;
-    }
-    // Drop any in-flight fée-cœur sprites so their Pixi children don't
-    // outlive the scene's mapContainer.
-    void import("@/game/render/fee-coeur").then(({ clearFeeCoeur }) =>
-      clearFeeCoeur()
-    );
-
-    // Clean up map transition and adjacent cache
+    // Clean up map transition
     this.mapTransition?.destroy();
     this.mapTransition = null;
-    this.adjacentMapCache?.destroy();
-    this.adjacentMapCache = null;
 
-    // SideBandCompositor owns the gameRt RenderTexture + two filter
-    // instances. Tear down BEFORE the engine destroys the Pixi app so
-    // mapContainer is back on the stage when `app.destroy(true, {...})`
-    // walks the scene graph.
-    this.sideBandCompositor?.destroy();
-    this.sideBandCompositor = null;
+    // NeighborBandRenderer owns three RenderTextures + the bake rig.
+    // Tear down BEFORE the engine destroys the Pixi app so mapContainer
+    // is back on the stage when `app.destroy(true, {...})` walks the
+    // scene graph.
+    this.neighborBandRenderer?.destroy();
+    this.neighborBandRenderer = null;
 
     this.zoom.destroy();
     hideContextMenu();
@@ -1187,6 +1189,18 @@ export class Battlefield {
     this.fightActorUnsubscribe = null;
     this.tacticalUnsubscribe?.();
     this.tacticalUnsubscribe = null;
+
+    // Run init-registered cleanup hooks (cache flush interval,
+    // beforeunload listener). Reverse order so dependency teardown
+    // matches setup order.
+    for (let i = this.disposeFns.length - 1; i >= 0; i--) {
+      try {
+        this.disposeFns[i]();
+      } catch (e) {
+        console.warn("battlefield disposeFn threw:", e);
+      }
+    }
+    this.disposeFns = [];
 
     this.fightUI?.destroy();
     this.fightUI = null;

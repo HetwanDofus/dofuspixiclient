@@ -10,7 +10,7 @@ import type { AY } from "../messages/account/select-server-compact";
 import type { Al } from "../messages/account/login";
 import type { AH } from "../messages/account/hosts";
 import type { GC } from "../messages/game/create";
-import type { GDM } from "../messages/game/map-data";
+import type { GDA } from "../messages/game/adjacent-maps-data";
 
 // End-to-end frame compatibility against AraknemuHorizon's actual
 // emitters. Every wire string here is hand-built from the
@@ -142,12 +142,19 @@ describe("AraknemuHorizon handshake compatibility", () => {
     expect(gc.gameType).toBe(1);
   });
 
-  test("GDM: map descriptor — GDM|<mapId>|<date>|<key>", () => {
-    const r = dispatch("GDM|6234|0706131721|3e5f2532357e6844");
-    const gdm = r.payload as GDM;
-    expect(gdm.mapId).toBe("6234");
-    expect(gdm.dateTime).toBe("0706131721");
-    expect(gdm.decryptKey).toBe("3e5f2532357e6844");
+  test("GDA: map descriptor — GDA|<cur>|<left>|<right>|<bottom>", () => {
+    const r = dispatch(
+      "GDA|6234;0706131721;3e5f2532357e6844|;;|6235;0706131722;aabb|;;"
+    );
+    const segs = (r.payload as GDA).segments();
+    expect(segs.current).toEqual({
+      mapId: "6234",
+      dateTime: "0706131721",
+      decryptKey: "3e5f2532357e6844",
+    });
+    expect(segs.left).toBeNull();
+    expect(segs.right?.mapId).toBe("6235");
+    expect(segs.bottom).toBeNull();
   });
 
   test("Server list join: my session merges Ax + AH by id", () => {

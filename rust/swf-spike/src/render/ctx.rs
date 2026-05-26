@@ -82,6 +82,15 @@ pub struct RenderCtx<'a> {
     pub doc: &'a SwfDoc,
     /// Vello scene we're emitting commands into. Mutably borrowed.
     pub scene: &'a mut vello::Scene,
+    /// Optional SECOND output scene for single-walk dual emit. When
+    /// `Some`, the body-band walk emits Colour fills into `scene` AND
+    /// per-zone marker fills into `zone_scene` in ONE traversal —
+    /// eliminating the duplicate Colour/ZoneId walk (and the
+    /// duplicate, uncached `collect_mask_path` per clip). Clip-mask
+    /// layers are pushed/popped on both scenes in lockstep. `None` for
+    /// every other path (tile, snapshot, filter, single-mode body),
+    /// which behave exactly as before.
+    pub zone_scene: Option<&'a mut vello::Scene>,
     /// Optional wgpu context. Required for filter rendering
     /// (drop-shadow / glow / blur compute passes); `None` for
     /// stateless tile rendering.
@@ -182,6 +191,7 @@ impl<'a> RenderCtx<'a> {
         Self {
             doc,
             scene,
+            zone_scene: None,
             wgpu: None,
             transform: Affine::IDENTITY,
             frame: 0,
@@ -227,6 +237,16 @@ impl<'a> RenderCtx<'a> {
     /// Propagates through `child()`.
     pub fn with_output_mode(mut self, mode: RenderMode) -> Self {
         self.output_mode = mode;
+        self
+    }
+
+    /// Attach a second scene for single-walk dual emit. The walk emits
+    /// Colour into `self.scene` and the per-zone markers into
+    /// `zone_scene`, so one traversal produces both atlases. Caller
+    /// keeps `output_mode = Colour`; `render_shape_into` forks at the
+    /// leaf when `zone_scene` is present. See the field doc.
+    pub fn with_zone_scene(mut self, zone_scene: &'a mut vello::Scene) -> Self {
+        self.zone_scene = Some(zone_scene);
         self
     }
 
@@ -360,6 +380,7 @@ impl<'a> RenderCtx<'a> {
         RenderCtx {
             doc: self.doc,
             scene: self.scene,
+            zone_scene: self.zone_scene.as_deref_mut(),
             wgpu: self.wgpu.as_mut().map(|w| WgpuCtx {
                 device: w.device,
                 queue: w.queue,

@@ -42,7 +42,6 @@ import {
   type CharacterEntry,
   type GameServerEntry,
   GC,
-  GDM,
   HC,
   HG,
   Im,
@@ -113,7 +112,6 @@ export interface BootstrapEvents {
   onCharacterSelected?: (char: AS) => void;
   onCharacterStats?: (stats: As) => void;
   onGameCreated?: (gc: GC) => void;
-  onMapData?: (gdm: GDM) => void;
   onServerMessage?: (msg: ServerMessage) => void;
   onInfo?: (msg: Im) => void;
 }
@@ -211,7 +209,7 @@ export class Bootstrap {
     this.client.on(Al, (al) => {
       if (!al.ok) {
         log.warn(
-          `Al rejected '${al.errorChar}' (${al.errorLabel}) code=${al.code ?? "?"}`,
+          `Al rejected '${al.errorChar}' (${al.errorLabel}) code=${al.code ?? "?"}`
         );
         this.events.onLoginRejected?.({
           char: al.errorChar,
@@ -387,11 +385,6 @@ export class Bootstrap {
       log.info(`GC gameType=${gc.gameType}`);
       this.client.setStage("in-game");
       this.events.onGameCreated?.(gc);
-    });
-
-    this.client.on(GDM, (gdm) => {
-      log.info(`GDM mapId=${gdm.mapId}`);
-      this.events.onMapData?.(gdm);
     });
   }
 }

@@ -2,11 +2,18 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export const __wbg_vellorenderer_free: (a: number, b: number) => void;
+export const vellorenderer_accessorySubsceneCacheCountFor: (a: number, b: number, c: number) => number;
 export const vellorenderer_batchCopy: (a: number, b: number, c: number, d: number) => number;
+export const vellorenderer_bodySceneCacheStats: (a: number) => any;
+export const vellorenderer_bodySubsceneCacheCountFor: (a: number, b: number, c: number) => number;
+export const vellorenderer_clearBodySceneCache: (a: number) => number;
 export const vellorenderer_clearPathCache: (a: number) => void;
 export const vellorenderer_createAtlas: (a: number, b: number, c: number) => any;
 export const vellorenderer_createSwfSpellInstance: (a: number, b: number, c: number, d: number) => number;
 export const vellorenderer_disposeSwfSpellInstance: (a: number, b: number) => void;
+export const vellorenderer_drainBakeTelemetry: (a: number) => any;
+export const vellorenderer_dumpClassEnumeration: (a: number, b: number, c: number) => any;
+export const vellorenderer_dumpSwfBundleInventory: (a: number, b: number, c: number) => any;
 export const vellorenderer_flushFrames: (a: number, b: number) => void;
 export const vellorenderer_freeAllTextures: (a: number) => void;
 export const vellorenderer_freeAsset: (a: number, b: number) => void;
@@ -17,8 +24,13 @@ export const vellorenderer_getAnimationMeta: (a: number, b: number, c: number, d
 export const vellorenderer_getAnimationNames: (a: number, b: number) => [number, number];
 export const vellorenderer_getFrameSize: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
 export const vellorenderer_init: () => any;
+export const vellorenderer_listLoadedSwfBundles: (a: number) => [number, number];
+export const vellorenderer_loadAccessorySubsceneCache: (a: number, b: number, c: number) => number;
 export const vellorenderer_loadAsset: (a: number, b: number, c: number, d: number) => number;
+export const vellorenderer_loadBodySceneCache: (a: number, b: number, c: number) => number;
+export const vellorenderer_loadBodySubsceneCache: (a: number, b: number, c: number) => number;
 export const vellorenderer_loadSwfBundle: (a: number, b: number, c: number, d: number, e: number) => number;
+export const vellorenderer_loadTileSubsceneCache: (a: number, b: number, c: number) => number;
 export const vellorenderer_pathCacheStats: (a: number) => any;
 export const vellorenderer_queueFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => any;
 export const vellorenderer_renderAnimationStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
@@ -44,9 +56,16 @@ export const vellorenderer_renderZoneMaskStrip: (a: number, b: number, c: number
 export const vellorenderer_rustGpuByteStats: (a: number) => [number, number];
 export const vellorenderer_rustGpuObjectCounts: (a: number) => [number, number];
 export const vellorenderer_rustTexturesCount: (a: number) => number;
+export const vellorenderer_serializeAccessorySubsceneCache: (a: number, b: number, c: number) => [number, number];
+export const vellorenderer_serializeBodySceneCache: (a: number, b: number, c: number) => [number, number];
+export const vellorenderer_serializeBodySubsceneCache: (a: number, b: number, c: number) => [number, number];
+export const vellorenderer_serializeTileSubsceneCache: (a: number, b: number, c: number) => [number, number];
+export const vellorenderer_setClassAtlasBakeMode: (a: number, b: number) => void;
+export const vellorenderer_setClassAtlasForcePerVariant: (a: number, b: number) => void;
 export const vellorenderer_setSwfPlayerColors: (a: number, b: number, c: number, d: number) => void;
 export const vellorenderer_setSwfSpellHostCell: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
 export const vellorenderer_setSwfSpellHostNumber: (a: number, b: number, c: number, d: number, e: number) => void;
+export const vellorenderer_subsceneCacheBytesForBundle: (a: number, b: number, c: number) => any;
 export const vellorenderer_swfAccessoryCanonicalAnimType: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => number;
 export const vellorenderer_swfAnimFrameCount: (a: number, b: number, c: number, d: number, e: number) => number;
 export const vellorenderer_swfBodyBandInfo: (a: number, b: number, c: number, d: number, e: number) => any;
@@ -59,6 +78,7 @@ export const vellorenderer_swfStripBounds: (a: number, b: number, c: number, d: 
 export const vellorenderer_swfTileAnimKind: (a: number, b: number, c: number, d: number, e: number) => [number, number];
 export const vellorenderer_tickDeferredDestroys: (a: number, b: number, c: number) => [number, number];
 export const vellorenderer_tickSwfSpellFrame: (a: number, b: number) => any;
+export const vellorenderer_tileSubsceneCacheCountFor: (a: number, b: number, c: number) => number;
 export const vellorenderer_wasmHeapBytes: (a: number) => number;
 export const wasm_bindgen__convert__closures_____invoke__h97a41680667a7bc9: (a: number, b: number, c: any) => [number, number];
 export const wasm_bindgen__convert__closures_____invoke__h59f6a18f366ace3f: (a: number, b: number, c: any, d: any) => void;

@@ -41,6 +41,17 @@ export class VelloRenderer {
         wasm.__wbg_vellorenderer_free(ptr, 0);
     }
     /**
+     * Count entries in `acc_subscenes`, optionally per-bundle.
+     * @param {string | null} [bundle_filter]
+     * @returns {number}
+     */
+    accessorySubsceneCacheCountFor(bundle_filter) {
+        var ptr0 = isLikeNone(bundle_filter) ? 0 : passStringToWasm0(bundle_filter, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_accessorySubsceneCacheCountFor(this.__wbg_ptr, ptr0, len0);
+        return ret >>> 0;
+    }
+    /**
      * Batch-copy multiple textures into a destination texture. ONE queue.submit for all copies.
      * `copies` is a flat array: [src_id, dst_x, dst_y, src_id, dst_x, dst_y, ...]
      * All copies go to the same destination texture (the atlas).
@@ -53,6 +64,37 @@ export class VelloRenderer {
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.vellorenderer_batchCopy(this.__wbg_ptr, dst_texture_id, ptr0, len0);
         return ret !== 0;
+    }
+    /**
+     * @returns {any}
+     */
+    bodySceneCacheStats() {
+        const ret = wasm.vellorenderer_bodySceneCacheStats(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Count entries in `body_subscene_cache`, optionally filtered to a
+     * single bundle. Surfaced for the loader-scene's progress UI so it
+     * can report "X / Y subscenes ready" without invoking a heavier
+     * stats call.
+     * @param {string | null} [bundle_filter]
+     * @returns {number}
+     */
+    bodySubsceneCacheCountFor(bundle_filter) {
+        var ptr0 = isLikeNone(bundle_filter) ? 0 : passStringToWasm0(bundle_filter, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_bodySubsceneCacheCountFor(this.__wbg_ptr, ptr0, len0);
+        return ret >>> 0;
+    }
+    /**
+     * Drop every `body_scene_cache` entry. Test/diagnostic hook for
+     * validating the persist→clear→load→spawn-warm cycle. Returns the
+     * number of entries cleared.
+     * @returns {number}
+     */
+    clearBodySceneCache() {
+        const ret = wasm.vellorenderer_clearBodySceneCache(this.__wbg_ptr);
+        return ret >>> 0;
     }
     /**
      * Phase 3c — Drop both long-lived path caches.
@@ -111,6 +153,70 @@ export class VelloRenderer {
      */
     disposeSwfSpellInstance(instance_id) {
         wasm.vellorenderer_disposeSwfSpellInstance(this.__wbg_ptr, instance_id);
+    }
+    /**
+     * Drain accumulated bake telemetry records.
+     *
+     * Returns an object `{ drops, records: [{kind, bundle, ms…,
+     * subsceneHits, subsceneMisses, pixelArea, subCount,
+     * tsRecorded}, …] }`. The returned records are removed from the
+     * internal buffer — subsequent calls only see new records.
+     *
+     * Why this shape (raw records, not pre-aggregated): the per-burst
+     * digest (zoom change, full warmup, etc.) needs different bucket
+     * boundaries depending on what the caller wants to study. Raw
+     * records let JS aggregate per-window. ~120 bytes per record;
+     * for a 700-record zoom burst that's ~85 KB round-trip — well
+     * under what wasm-bindgen handles in a single tick.
+     *
+     * `drops` is the count of records that were dropped because the
+     * internal buffer reached its 10k cap. Non-zero means the
+     * consumer fell behind — start draining more often.
+     * @returns {any}
+     */
+    drainBakeTelemetry() {
+        const ret = wasm.vellorenderer_drainBakeTelemetry(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * Dump the `ClassEnumeration` produced by `compute_class_enumeration`
+     * for diagnostic sweeps. Returns
+     * `{ bundleBFixUsed, exports: [{ exportName, totalFrameCount,
+     * hasToggle, exportBFix, slotCountLogical }] }` or `null` if the
+     * bundle isn't loaded.
+     *
+     * Read-only: builds a fresh enumeration without touching
+     * `class_enum_cache` (so the diagnostic doesn't accidentally
+     * short-circuit a subsequent `renderSwfClassAtlas` call).
+     * @param {string} bundle
+     * @returns {any}
+     */
+    dumpClassEnumeration(bundle) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_dumpClassEnumeration(this.__wbg_ptr, ptr0, len0);
+        return ret;
+    }
+    /**
+     * Dump full inventory of a loaded SWF bundle for diagnostic sweeps.
+     * Returns an array of `{ name, kind, totalFrames, isCharacterAnim }`
+     * — one row per named export. `kind` is `"Sprite" | "Shape" |
+     * "MorphShape" | "Bitmap"`. `totalFrames` uses the same recursive
+     * resolver as `swfAnimFrameCount` (0 for non-Sprite exports).
+     * `isCharacterAnim` mirrors the `is_character_anim_name` filter
+     * used by `renderSwfClassAtlas`.
+     *
+     * Caller can roll up the result to answer "of the 110+ named
+     * exports, how many go through the class atlas vs the single-
+     * variant runtime path?".
+     * @param {string} bundle
+     * @returns {any}
+     */
+    dumpSwfBundleInventory(bundle) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_dumpSwfBundleInventory(this.__wbg_ptr, ptr0, len0);
+        return ret;
     }
     /**
      * Render all queued frames in a composite grid, then batch-copy to atlas.
@@ -242,6 +348,30 @@ export class VelloRenderer {
         return ret;
     }
     /**
+     * List every loaded SWF bundle by the name passed to
+     * `loadSwfBundle`. Used by diagnostic sweeps that need to iterate
+     * the actual loaded set rather than a hand-curated list.
+     * @returns {string[]}
+     */
+    listLoadedSwfBundles() {
+        const ret = wasm.vellorenderer_listLoadedSwfBundles(this.__wbg_ptr);
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
+     * Install entries from a previously-persisted accessory
+     * sub-scene blob.
+     * @param {Uint8Array} bytes
+     * @returns {number}
+     */
+    loadAccessorySubsceneCache(bytes) {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_loadAccessorySubsceneCache(this.__wbg_ptr, ptr0, len0);
+        return ret >>> 0;
+    }
+    /**
      * Load a .dofasset binary. Returns true on success, false if data is invalid.
      * Never panics — invalid data is handled gracefully to avoid poisoning
      * the wasm-bindgen RefCell (which would break ALL subsequent calls).
@@ -254,6 +384,38 @@ export class VelloRenderer {
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.vellorenderer_loadAsset(this.__wbg_ptr, id, ptr0, len0);
         return ret !== 0;
+    }
+    /**
+     * Install entries from a `serializeBodySceneCache` blob into
+     * `body_scene_cache`. Returns the count loaded (0 on parse
+     * error). Overwrites matching keys.
+     * @param {Uint8Array} bytes
+     * @returns {number}
+     */
+    loadBodySceneCache(bytes) {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_loadBodySceneCache(this.__wbg_ptr, ptr0, len0);
+        return ret >>> 0;
+    }
+    /**
+     * Install entries from a previously-serialized blob into the
+     * in-memory subscene cache. Returns the count actually loaded
+     * (0 on parse error). Idempotent: re-installing the same blob is
+     * a no-op (HashMap insert overwrite).
+     *
+     * Existing entries with matching keys are overwritten — this is
+     * deliberate; the loader presumes the on-disk version is at least
+     * as fresh as whatever the live cache holds. Callers that want
+     * preserve-on-collision can clear before loading.
+     * @param {Uint8Array} bytes
+     * @returns {number}
+     */
+    loadBodySubsceneCache(bytes) {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_loadBodySubsceneCache(this.__wbg_ptr, ptr0, len0);
+        return ret >>> 0;
     }
     /**
      * Load a SWF bundle by name (e.g. "g1", "o3", "player10"). Returns true on
@@ -269,6 +431,18 @@ export class VelloRenderer {
         const len1 = WASM_VECTOR_LEN;
         const ret = wasm.vellorenderer_loadSwfBundle(this.__wbg_ptr, ptr0, len0, ptr1, len1);
         return ret !== 0;
+    }
+    /**
+     * Install entries from a previously-persisted tile sub-scene
+     * blob. Returns the count actually inserted.
+     * @param {Uint8Array} bytes
+     * @returns {number}
+     */
+    loadTileSubsceneCache(bytes) {
+        const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_loadTileSubsceneCache(this.__wbg_ptr, ptr0, len0);
+        return ret >>> 0;
     }
     /**
      * Path cache observability.
@@ -969,6 +1143,135 @@ export class VelloRenderer {
         return ret >>> 0;
     }
     /**
+     * Serialize `acc_subscenes` to a `VSC2` blob suitable for IDB
+     * persistence. Same wire format as the body cache, tagged with
+     * `CacheId::Accessory`.
+     * @param {string | null} [bundle_filter]
+     * @returns {Uint8Array | undefined}
+     */
+    serializeAccessorySubsceneCache(bundle_filter) {
+        var ptr0 = isLikeNone(bundle_filter) ? 0 : passStringToWasm0(bundle_filter, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_serializeAccessorySubsceneCache(this.__wbg_ptr, ptr0, len0);
+        let v2;
+        if (ret[0] !== 0) {
+            v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v2;
+    }
+    /**
+     * Serialize `body_scene_cache` (the COMPOSED per-variant body
+     * atlas scenes) to a `VSC2` blob. This is the cache the
+     * per-variant SPAWN path (`render_swf_body_atlas`) actually reads
+     * — persisting it is what warms a cold 250-actor map entry
+     * (`serializeBodySubsceneCache` persists a DIFFERENT cache the
+     * spawn never touches). Scenes are scale-baked, so the blob is
+     * per-resolution; the caller keys IDB rows by resolution.
+     * @param {string | null} [bundle_filter]
+     * @returns {Uint8Array | undefined}
+     */
+    serializeBodySceneCache(bundle_filter) {
+        var ptr0 = isLikeNone(bundle_filter) ? 0 : passStringToWasm0(bundle_filter, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_serializeBodySceneCache(this.__wbg_ptr, ptr0, len0);
+        let v2;
+        if (ret[0] !== 0) {
+            v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v2;
+    }
+    /**
+     * Serialize the `body_subscene_cache` to a bytes blob suitable for
+     * browser-cache persistence. Optionally filter to a single bundle —
+     * callers persist one blob per bundle so each entry's content hash
+     * invalidates independently when its SWF changes.
+     *
+     * The cache is resolution-independent (twip identity), so the same
+     * bytes work at any render scale. Format: see `scene_cache.rs`
+     * (magic "VSC1" + length-prefixed entries).
+     *
+     * Returns `null` on serialization error (unsupported scene content
+     * — Glyph/Image patches don't appear in SWF char bakes, so this
+     * path should never fail in practice; if it does, the caller
+     * falls back to a fresh bake and the cache stays empty).
+     *
+     * Per-entry skip: character sub-scenes containing `Patch::Image`
+     * (bitmap-backed shape fills) skip persistence and re-bake on
+     * cold session. The skip count is logged but not surfaced — the
+     * returned blob carries the encodable subset.
+     * @param {string | null} [bundle_filter]
+     * @returns {Uint8Array | undefined}
+     */
+    serializeBodySubsceneCache(bundle_filter) {
+        var ptr0 = isLikeNone(bundle_filter) ? 0 : passStringToWasm0(bundle_filter, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_serializeBodySubsceneCache(this.__wbg_ptr, ptr0, len0);
+        let v2;
+        if (ret[0] !== 0) {
+            v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v2;
+    }
+    /**
+     * Serialize `tile_subscenes` to a `VSC2` blob suitable for IDB
+     * persistence. Same wire format as the body cache, tagged with
+     * `CacheId::Tile`.
+     *
+     * Tile sub-scenes occasionally contain `Patch::Image` (bitmap
+     * fills from `DefineBitsLossless` shape fills). The encoder
+     * fails the WHOLE blob if any entry contains such a patch — we
+     * don't yet support persisting raster fills. Result: tiles with
+     * embedded images skip the persistent cache (in-memory cache
+     * still works for the current session); next session re-bakes
+     * them from the SWF. Callers see `null` on encode error and
+     * gracefully fall back to fresh bakes — no correctness issue.
+     * @param {string | null} [bundle_filter]
+     * @returns {Uint8Array | undefined}
+     */
+    serializeTileSubsceneCache(bundle_filter) {
+        var ptr0 = isLikeNone(bundle_filter) ? 0 : passStringToWasm0(bundle_filter, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_serializeTileSubsceneCache(this.__wbg_ptr, ptr0, len0);
+        let v2;
+        if (ret[0] !== 0) {
+            v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v2;
+    }
+    /**
+     * Report `body_scene_cache` health (the composed-atlas LRU at
+     * 1500 cap used by `render_swf_body_atlas`). v4 architecture
+     * decision blocks on whether this LRU thrashes at 250-bot stress.
+     * Returns:
+     *   - `entries`: current live entry count (≤ 1500)
+     *   - `cap`: BODY_SCENE_CACHE_CAP constant
+     *   - `hits`: cumulative hits since renderer init
+     *   - `misses`: cumulative misses since renderer init
+     *   - `evictions`: cumulative LRU evictions since renderer init
+     *   - `hitRate`: hits / (hits + misses); 0.0 if no accesses yet
+     * Set the class-atlas bake mode: 0 = AUTO (per-page for ≤2 pages,
+     * per-variant for ≥3), 1 = force per-variant, 2 = force per-page.
+     * See the `class_atlas_bake_mode` field doc for the measured
+     * crossover rationale.
+     * @param {number} mode
+     */
+    setClassAtlasBakeMode(mode) {
+        wasm.vellorenderer_setClassAtlasBakeMode(this.__wbg_ptr, mode);
+    }
+    /**
+     * Legacy A/B toggle. `true` → force per-variant (mode 1);
+     * `false` → force per-page (mode 2). Prefer
+     * `setClassAtlasBakeMode(0)` to restore AUTO.
+     * @param {boolean} force
+     */
+    setClassAtlasForcePerVariant(force) {
+        wasm.vellorenderer_setClassAtlasForcePerVariant(this.__wbg_ptr, force);
+    }
+    /**
      * Set the player's three zone colours used by the SWF render path.
      * Each value is `0xRRGGBB`; pass `0` to leave that zone untinted.
      * Mirrors what the dofasset path does via `build_color_replacements`
@@ -1007,6 +1310,25 @@ export class VelloRenderer {
         const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         wasm.vellorenderer_setSwfSpellHostNumber(this.__wbg_ptr, instance_id, ptr0, len0, value);
+    }
+    /**
+     * Report `body_subscene_cache` footprint for one bundle: how many
+     * cache entries belong to that bundle and how many serialized
+     * bytes they take in the VSC1/VSC2 IDB wire format. Reads the
+     * existing `serialize_body_subscene_cache` path so the size is the
+     * real IDB blob size, not an estimate.
+     *
+     * Returns `{ entryCount, serializedBytes }`. Both 0 if the bundle
+     * isn't loaded or the cache has no entries for it. `serializedBytes`
+     * is -1 if the encoder failed (returned in console log).
+     * @param {string} bundle
+     * @returns {any}
+     */
+    subsceneCacheBytesForBundle(bundle) {
+        const ptr0 = passStringToWasm0(bundle, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_subsceneCacheBytesForBundle(this.__wbg_ptr, ptr0, len0);
+        return ret;
     }
     /**
      * For an accessory (bundle/export at slot+dir+side), return the
@@ -1295,6 +1617,18 @@ export class VelloRenderer {
         return ret;
     }
     /**
+     * Count entries in `tile_subscenes`, optionally per-bundle. Same
+     * usage as the body variant.
+     * @param {string | null} [bundle_filter]
+     * @returns {number}
+     */
+    tileSubsceneCacheCountFor(bundle_filter) {
+        var ptr0 = isLikeNone(bundle_filter) ? 0 : passStringToWasm0(bundle_filter, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len0 = WASM_VECTOR_LEN;
+        const ret = wasm.vellorenderer_tileSubsceneCacheCountFor(this.__wbg_ptr, ptr0, len0);
+        return ret >>> 0;
+    }
+    /**
      * Diagnostics: WASM linear-memory size in bytes. Tracks how
      * much memory the Rust side itself is consuming (excluding GPU
      * resources, which live in the browser GPU process).
@@ -1457,6 +1791,10 @@ function __wbg_get_imports() {
                 wasm.__wbindgen_free(deferred0_0, deferred0_1, 1);
             }
         },
+        __wbg_features_b943826ea0734d5b: function(arg0) {
+            const ret = arg0.features;
+            return ret;
+        },
         __wbg_finish_1f441b2d9fcf60d0: function(arg0, arg1) {
             const ret = arg0.finish(arg1);
             return ret;
@@ -1475,6 +1813,10 @@ function __wbg_get_imports() {
         }, arguments); },
         __wbg_gpu_0d39e2c1a52c373e: function(arg0) {
             const ret = arg0.gpu;
+            return ret;
+        },
+        __wbg_has_bc6cd87d7cf293b7: function(arg0, arg1, arg2) {
+            const ret = arg0.has(getStringFromWasm0(arg1, arg2));
             return ret;
         },
         __wbg_instanceof_GpuAdapter_b2c1300e425af95c: function(arg0) {
@@ -2342,12 +2684,12 @@ function __wbg_get_imports() {
             arg0.writeTexture(arg1, arg2, arg3, arg4);
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 137, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 140, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h97a41680667a7bc9);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 202, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 204, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__he3b8ad3a01647b28);
             return ret;
         },

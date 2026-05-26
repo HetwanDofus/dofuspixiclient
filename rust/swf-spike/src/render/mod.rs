@@ -23,19 +23,20 @@ pub mod emit;
 pub mod filter;
 pub mod mount_transforms;
 pub mod phased;
+pub mod probe;
 pub mod slot_depths;
 pub mod snapshot;
 pub mod sprite;
 
-pub use band::render_body_band;
+pub use band::{render_body_band, render_body_band_dual};
 pub use bounds::{build_frame_state, symbol_bounds};
 pub use cache::RenderCache;
 pub use clip::collect_mask_path;
 pub use ctx::{RenderCtx, RenderMode};
 pub use slot_depths::{
     band_count, band_range, body_has_toggle_sprite, compute_band_presence,
-    export_uses_b_fix, extract_slot_depths, find_effective_body_symbol,
-    BandRange, SlotDepth,
+    compute_bfix_sensitive_bands, export_uses_b_fix, extract_slot_depths,
+    find_effective_body_symbol, BandRange, SlotDepth,
 };
 pub use snapshot::{render_snapshot, PlacedSnapshot, ResolvedPlace};
 
@@ -654,6 +655,29 @@ pub(crate) fn render_shape_into(ctx: &mut RenderCtx<'_>, shape: &swf::Shape) {
             emit::emit_cmd(ctx.scene, &cmd, transform, color_xform);
         } else {
             emit::emit_cmd(ctx.scene, cmd, transform, color_xform);
+        }
+    }
+
+    // Single-walk dual emit (Opt): when a second scene is attached,
+    // also emit the per-zone marker fills into it during THIS walk —
+    // byte-identical to a standalone `RenderMode::ZoneId` pass (same
+    // `zone*60` solid brush, fills only, no ColorTransform), so one
+    // traversal yields both the colour atlas and the zone-id atlas.
+    // No-op unless `zone_scene` is set (body-band dual path only).
+    if let (Some(zs), Some(zone)) = (ctx.zone_scene.as_deref_mut(), ctx.recolor_zone) {
+        let r = zone.saturating_mul(60);
+        let marker = vello::peniko::Brush::Solid(
+            vello::peniko::color::AlphaColor::from_rgba8(r, 0, 0, 255),
+        );
+        for cmd in cmds.iter() {
+            if let crate::shape::DrawKind::Fill {
+                rule,
+                brush_transform,
+                ..
+            } = &cmd.kind
+            {
+                zs.fill(*rule, transform, &marker, *brush_transform, &cmd.path);
+            }
         }
     }
 }

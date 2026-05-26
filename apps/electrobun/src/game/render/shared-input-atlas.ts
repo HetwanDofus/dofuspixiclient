@@ -18,11 +18,13 @@
  *    super page's shared `RenderTexture` (NOT a per-variant texture),
  *    and `bands[].atlasX/Y` are pre-offset to super-page coords so
  *    `computeBandFrameUV` works unchanged.
- *  - On `scheduleRetireClassAtlas`, the slot is freed (not the
- *    texture — that's shared). V1 free is a no-op: pages are
- *    append-only and accept growth up to a cap. The cache-layer LRU
- *    bounds live-variant count; un-freed slots are leaked but never
- *    re-used. Acceptable until a free-rect allocator lands in v2.
+ *  - On `scheduleRetireClassAtlas`, the slot is freed back to the
+ *    page's `RectAllocator` (the page TEXTURE is never destroyed — it's
+ *    shared, and tearing it down mid-frame raced composition sampling
+ *    and flashed missing-texture magenta). Freed rects are recycled
+ *    after a short grace window, so page (VRAM) growth under spawn /
+ *    despawn / zoom churn is bounded to the live working set instead of
+ *    leaking monotonically.
  *
  * Page size: 8192² × RGBA = 256 MB GPU per page. Capped at 16 pages
  * (= 4 GB upper bound). At ~4 MP avg per variant we fit ~16 variants
@@ -48,8 +50,25 @@ const PAGE_DIM = 8192;
  *  caller falls back. 16 pages × 256 MB = 4 GB worst case. */
 const MAX_PAGES = 16;
 
+/**
+ * A freed rect isn't reusable until this many `tick()`s (≈ frames)
+ * after it was freed. A composition `BodyBandBatch` keyed on a slot's
+ * sub-rect may still sample it for a frame or two after the cache
+ * evicts the variant (the batch release lags the refcount drop). The
+ * grace window lets that settle before a new variant's blit overwrites
+ * the pixels — otherwise the lingering batch would briefly show the new
+ * variant's content.
+ */
+const FREE_GRACE_TICKS = 4;
+
 /** A reserved sub-rect on a super-atlas page. */
 export interface InputAtlasSlot {
+  /** Unique per-allocation id. Used by `freeSlot` to reject double /
+   *  stale frees (the cache's refcount accounting has several release
+   *  paths; freeing the same rect twice would hand it out to two
+   *  variants → overlapping blits → garbage). Frees of an id that's no
+   *  longer live are no-ops. */
+  readonly id: number;
   readonly pageIndex: number;
   readonly x: number;
   readonly y: number;
@@ -67,105 +86,133 @@ export interface InputAtlasAllocation {
   readonly pageHeight: number;
 }
 
-/**
- * Bottom-left-fit skyline packer. Append-only — no `free()`. See
- * module header for the lifecycle rationale.
- *
- * The skyline is an ordered, non-overlapping list of horizontal
- * segments covering `[0, PAGE_DIM)` along x. Each segment's `y` is
- * the lowest free y at that x-range; rect placement raises segments
- * under the placed rect to `(rectY + rectH)` and merges adjacent
- * same-`y` segments.
- */
-class SkylinePacker {
-  private segments: { x: number; y: number; w: number }[];
+interface FreeRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
-  constructor(private readonly width: number, private readonly height: number) {
-    this.segments = [{ x: 0, y: 0, w: width }];
+/**
+ * Guillotine free-rect allocator with edge-coalescing and a grace
+ * queue. Unlike the append-only skyline it replaces, it supports
+ * per-rect `free` + reuse, so a page's freed slots get recycled instead
+ * of leaking — which bounds page (VRAM) growth under churn to the live
+ * working set.
+ *
+ * `alloc` uses best-short-side-fit then a single guillotine cut (the
+ * two remainders tile the chosen free rect with the placed rect and
+ * never overlap). `free` queues the rect; `releasePending` moves
+ * grace-expired rects into the live list and coalesces edge-adjacent
+ * free rects so large variants still find room after fragmentation.
+ */
+class RectAllocator {
+  // NB: named `freeList`, not `free` — a field sharing the `free`
+  // method's name would overwrite the method on the instance.
+  private freeList: FreeRect[];
+  private pending: { rect: FreeRect; tick: number }[] = [];
+
+  constructor(width: number, height: number) {
+    this.freeList = [{ x: 0, y: 0, w: width, h: height }];
   }
 
   alloc(w: number, h: number): { x: number; y: number } | null {
-    if (w > this.width || h > this.height) return null;
-    let bestX = -1;
-    let bestY = Number.POSITIVE_INFINITY;
-    for (let i = 0; i < this.segments.length; i++) {
-      const start = this.segments[i].x;
-      if (start + w > this.width) break;
-      const peakY = this.peakY(start, w);
-      if (peakY < 0) continue;
-      if (peakY + h > this.height) continue;
-      if (peakY < bestY) {
-        bestY = peakY;
-        bestX = start;
+    let bestIdx = -1;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < this.freeList.length; i++) {
+      const f = this.freeList[i];
+      if (f.w >= w && f.h >= h) {
+        const score = Math.min(f.w - w, f.h - h);
+        if (score < bestScore) {
+          bestScore = score;
+          bestIdx = i;
+        }
       }
     }
-    if (bestX < 0) return null;
-    this.place(bestX, bestY, w, h);
-    return { x: bestX, y: bestY };
+    if (bestIdx < 0) return null;
+    const node = this.freeList[bestIdx];
+    const x = node.x;
+    const y = node.y;
+    // Remove the chosen node; re-insert the two guillotine remainders.
+    // Right remainder spans the node's full height; bottom remainder is
+    // only `w` wide — together with the placed w×h they tile `node` and
+    // never overlap.
+    this.freeList.splice(bestIdx, 1);
+    const rightW = node.w - w;
+    const bottomH = node.h - h;
+    if (rightW > 0) this.freeList.push({ x: x + w, y, w: rightW, h: node.h });
+    if (bottomH > 0) this.freeList.push({ x, y: y + h, w, h: bottomH });
+    return { x, y };
   }
 
-  /** Highest `y` across segments covering `[startX, startX + w)`.
-   *  Returns -1 if the coverage is broken (shouldn't happen with
-   *  our place-preserving update, but guards correctness). */
-  private peakY(startX: number, w: number): number {
-    const endX = startX + w;
-    let maxY = 0;
-    let covered = startX;
-    for (let i = 0; i < this.segments.length; i++) {
-      const seg = this.segments[i];
-      const segEnd = seg.x + seg.w;
-      if (segEnd <= covered) continue;
-      if (seg.x > covered) return -1;
-      if (seg.y > maxY) maxY = seg.y;
-      covered = segEnd;
-      if (covered >= endX) return maxY;
-    }
-    return -1;
+  /** Queue a rect for reuse once `FREE_GRACE_TICKS` have elapsed. */
+  free(x: number, y: number, w: number, h: number, tick: number): void {
+    this.pending.push({ rect: { x, y, w, h }, tick });
   }
 
-  private place(x: number, y: number, w: number, h: number): void {
-    const newY = y + h;
-    const startX = x;
-    const endX = x + w;
-    const out: { x: number; y: number; w: number }[] = [];
-    let inserted = false;
-    for (const seg of this.segments) {
-      const segEnd = seg.x + seg.w;
-      if (segEnd <= startX) {
-        out.push(seg);
-        continue;
-      }
-      if (seg.x >= endX) {
-        if (!inserted) {
-          out.push({ x: startX, y: newY, w });
-          inserted = true;
-        }
-        out.push(seg);
-        continue;
-      }
-      if (seg.x < startX) {
-        out.push({ x: seg.x, y: seg.y, w: startX - seg.x });
-      }
-      if (segEnd > endX) {
-        if (!inserted) {
-          out.push({ x: startX, y: newY, w });
-          inserted = true;
-        }
-        out.push({ x: endX, y: seg.y, w: segEnd - endX });
-      }
-    }
-    if (!inserted) out.push({ x: startX, y: newY, w });
-    // Coalesce adjacent same-y segments
-    const merged: typeof out = [];
-    for (const s of out) {
-      const last = merged[merged.length - 1];
-      if (last && last.y === s.y && last.x + last.w === s.x) {
-        last.w += s.w;
+  /** Promote grace-expired pending rects into the live free list and
+   *  coalesce. Returns true if anything was released. */
+  releasePending(currentTick: number, graceTicks: number): boolean {
+    if (this.pending.length === 0) return false;
+    let released = false;
+    const stillPending: { rect: FreeRect; tick: number }[] = [];
+    for (const p of this.pending) {
+      if (currentTick - p.tick >= graceTicks) {
+        this.freeList.push(p.rect);
+        released = true;
       } else {
-        merged.push(s);
+        stillPending.push(p);
       }
     }
-    this.segments = merged;
+    this.pending = stillPending;
+    if (released) this.coalesce();
+    return released;
+  }
+
+  /** Merge free rects sharing a full edge. O(n²) but n (free rects per
+   *  page) is small; repeats until stable so the list stays compact. */
+  private coalesce(): void {
+    let merged = true;
+    while (merged) {
+      merged = false;
+      for (let i = 0; i < this.freeList.length && !merged; i++) {
+        for (let j = i + 1; j < this.freeList.length && !merged; j++) {
+          const a = this.freeList[i];
+          const b = this.freeList[j];
+          if (a.x === b.x && a.w === b.w) {
+            // Vertically stacked, same column.
+            if (a.y + a.h === b.y) {
+              a.h += b.h;
+              this.freeList.splice(j, 1);
+              merged = true;
+            } else if (b.y + b.h === a.y) {
+              b.h += a.h;
+              this.freeList.splice(i, 1);
+              merged = true;
+            }
+          } else if (a.y === b.y && a.h === b.h) {
+            // Side by side, same row.
+            if (a.x + a.w === b.x) {
+              a.w += b.w;
+              this.freeList.splice(j, 1);
+              merged = true;
+            } else if (b.x + b.w === a.x) {
+              b.w += a.w;
+              this.freeList.splice(i, 1);
+              merged = true;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  freeRectCount(): number {
+    return this.freeList.length;
+  }
+
+  pendingCount(): number {
+    return this.pending.length;
   }
 }
 
@@ -173,7 +220,7 @@ class InputAtlasPage {
   readonly index: number;
   readonly renderTexture: RenderTexture;
   readonly texture: Texture;
-  readonly packer: SkylinePacker;
+  readonly allocator: RectAllocator;
   liveSlots = 0;
   /** GPUTexture handle for direct `copyExternalImageToTexture` blits.
    *  Pixi v8 WebGPU lazily creates it on first use, so we materialize
@@ -197,7 +244,7 @@ class InputAtlasPage {
     // variants on this page share one `texture.source.uid`. The
     // BodyBandBatch key (in composition-atlas) collapses on that uid.
     this.texture = this.renderTexture;
-    this.packer = new SkylinePacker(PAGE_DIM, PAGE_DIM);
+    this.allocator = new RectAllocator(PAGE_DIM, PAGE_DIM);
   }
 
   /** Reach into Pixi v8's WebGPU source to extract the underlying
@@ -233,6 +280,24 @@ class InputAtlasPage {
 
 export class SharedInputAtlas {
   private readonly pages: InputAtlasPage[] = [];
+  /** Monotonic tick counter (≈ frames) driving the free-grace window. */
+  private tickCount = 0;
+  /** Monotonic allocation id source. */
+  private nextSlotId = 1;
+  /** Live slots by id → rect. Guards `freeSlot` against double / stale
+   *  frees (only a live id frees) and powers the DIAG overlap check. */
+  private readonly liveSlots = new Map<
+    number,
+    { pageIndex: number; x: number; y: number; w: number; h: number }
+  >();
+  /** Slots the cache has freed (`freeSlot`) but not yet returned to the
+   *  allocator — held until `reclaimDeferredSlots` confirms (from a
+   *  ground-truth per-frame liveness recompute) that no live bot still
+   *  references them. id → rect. */
+  private readonly deferredFree = new Map<
+    number,
+    { pageIndex: number; x: number; y: number; w: number; h: number }
+  >();
   /** Set to a function that returns the active Pixi renderer; defers
    *  the lookup so we don't reach into Pixi during the singleton's
    *  construction (which can happen before `getPixiRenderer` is
@@ -247,8 +312,9 @@ export class SharedInputAtlas {
   }
 
   /**
-   * Reserve a `w × h` sub-rect on some page. Returns null if no page
-   * has room AND we've hit `MAX_PAGES`.
+   * Reserve a `w × h` sub-rect on some page. Tries to recycle space on
+   * existing pages first; opens a new page only when none has room.
+   * Returns null if no page has room AND we've hit `MAX_PAGES`.
    */
   allocSlot(w: number, h: number): InputAtlasAllocation | null {
     if (w <= 0 || h <= 0) return null;
@@ -257,21 +323,9 @@ export class SharedInputAtlas {
     if (w > PAGE_DIM || h > PAGE_DIM) return null;
 
     for (const page of this.pages) {
-      const placed = page.packer.alloc(w, h);
+      const placed = page.allocator.alloc(w, h);
       if (placed) {
-        page.liveSlots += 1;
-        return {
-          slot: {
-            pageIndex: page.index,
-            x: placed.x,
-            y: placed.y,
-            w,
-            h,
-          },
-          texture: page.texture,
-          pageWidth: PAGE_DIM,
-          pageHeight: PAGE_DIM,
-        };
+        return this.makeAllocation(page, placed.x, placed.y, w, h);
       }
     }
 
@@ -279,21 +333,44 @@ export class SharedInputAtlas {
 
     const page = new InputAtlasPage(this.pages.length);
     this.pages.push(page);
-    const placed = page.packer.alloc(w, h);
+    const placed = page.allocator.alloc(w, h);
     if (!placed) {
       // A page that can't fit a same-page-sized rect is malformed —
       // shouldn't happen, but bail safely.
       return null;
     }
+    return this.makeAllocation(page, placed.x, placed.y, w, h);
+  }
+
+  private makeAllocation(
+    page: InputAtlasPage,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+  ): InputAtlasAllocation {
     page.liveSlots += 1;
+    const id = this.nextSlotId++;
+    // DIAG (temp): does the freshly-allocated rect overlap any LIVE
+    // slot? If so the allocator handed out occupied space → garbage.
+    for (const [lid, lr] of this.liveSlots) {
+      if (
+        lr.pageIndex === page.index &&
+        x < lr.x + lr.w &&
+        lr.x < x + w &&
+        y < lr.y + lr.h &&
+        lr.y < y + h
+      ) {
+        // eslint-disable-next-line no-console
+        console.error(
+          `[ATLAS OVERLAP] new slot ${id} (${x},${y} ${w}x${h}) overlaps live slot ${lid} (${lr.x},${lr.y} ${lr.w}x${lr.h}) on page ${page.index}`,
+        );
+        break;
+      }
+    }
+    this.liveSlots.set(id, { pageIndex: page.index, x, y, w, h });
     return {
-      slot: {
-        pageIndex: page.index,
-        x: placed.x,
-        y: placed.y,
-        w,
-        h,
-      },
+      slot: { id, pageIndex: page.index, x, y, w, h },
       texture: page.texture,
       pageWidth: PAGE_DIM,
       pageHeight: PAGE_DIM,
@@ -388,20 +465,81 @@ export class SharedInputAtlas {
   }
 
   /**
-   * Free a slot. V1: decrements `liveSlots` for diagnostics but does
-   * not return the rect to the packer — skyline doesn't support free.
-   * See module header.
+   * Free a slot back to its page's allocator. The rect enters a grace
+   * queue (see `FREE_GRACE_TICKS`) and becomes reusable a few ticks
+   * later — never immediately, so a composition batch still sampling
+   * the slot for a frame can't get overwritten under it. The page
+   * texture is NEVER destroyed.
    */
   freeSlot(slot: InputAtlasSlot): void {
+    // Idempotent guard: only a live id is freed once. The cache's
+    // refcount accounting has several release paths; this rejects
+    // double / stale frees that would otherwise corrupt the allocator.
+    if (!this.liveSlots.delete(slot.id)) return;
     const page = this.pages[slot.pageIndex];
     if (!page) return;
     if (page.liveSlots > 0) page.liveSlots -= 1;
+    this.deferredFree.set(slot.id, {
+      pageIndex: slot.pageIndex,
+      x: slot.x,
+      y: slot.y,
+      w: slot.w,
+      h: slot.h,
+    });
   }
 
-  stats(): { pages: number; liveSlots: number[] } {
+  /**
+   * Recycle deferred-free slots that NO live bot references. `liveIds`
+   * is the authoritative set of input-slot ids currently sampled by live
+   * strip bots (recomputed each frame from `states` — no accounting to
+   * drift). A deferred slot absent from it has no live band-instance, so
+   * its rect is safe to return to the allocator (after the flush grace).
+   * Called once per frame from `PlayerStripRendererV2.composeAll`.
+   */
+  reclaimDeferredSlots(liveIds: Set<number>): number {
+    if (this.deferredFree.size === 0) return 0;
+    let recycled = 0;
+    for (const [id, rect] of this.deferredFree) {
+      if (liveIds.has(id)) continue;
+      this.deferredFree.delete(id);
+      const page = this.pages[rect.pageIndex];
+      if (page) {
+        page.allocator.free(rect.x, rect.y, rect.w, rect.h, this.tickCount);
+        recycled += 1;
+      }
+    }
+    return recycled;
+  }
+
+  deferredCount(): number {
+    return this.deferredFree.size;
+  }
+
+  /**
+   * Advance the grace clock and promote grace-expired freed rects into
+   * the reusable free list (covers the 1-frame GPU flush lag between a
+   * bot releasing its instances and the slot being recycled). Called
+   * once per frame from the character cache tick. NEVER destroys a page
+   * texture — only recycles slots within live pages.
+   */
+  tick(): void {
+    this.tickCount += 1;
+    for (const page of this.pages) {
+      page.allocator.releasePending(this.tickCount, FREE_GRACE_TICKS);
+    }
+  }
+
+  stats(): {
+    pages: number;
+    liveSlots: number[];
+    freeRects: number[];
+    pending: number[];
+  } {
     return {
       pages: this.pages.length,
       liveSlots: this.pages.map((p) => p.liveSlots),
+      freeRects: this.pages.map((p) => p.allocator.freeRectCount()),
+      pending: this.pages.map((p) => p.allocator.pendingCount()),
     };
   }
 }

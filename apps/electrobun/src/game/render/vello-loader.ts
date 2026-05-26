@@ -30,6 +30,22 @@ import { getRenderWatchdog } from "./render-watchdog";
  * we actually need it. Failure is non-fatal — pool stays unready and
  * `acquireClassAtlas` uses the main-thread fallback.
  */
+/** Resolves once the bake-worker pool init has succeeded OR failed.
+ *  Re-exported (`bake-worker-pool.whenBakeWorkerPoolInitDone`) for
+ *  callers that should wait for the pool to settle before issuing the
+ *  first class-atlas acquire — otherwise a race during init falls back
+ *  to a main-thread bake that contends with Pixi's tickDeferredDestroys
+ *  and produces a wasm-bindgen reentrancy panic. */
+export async function whenBakeWorkerPoolInitDone(): Promise<void> {
+  try {
+    const mod = await import("./bake-worker-pool");
+    await mod.whenBakeWorkerPoolInitDone();
+  } catch {
+    // ignore — module load failure leaves pool unready, callers fall
+    // back to main-thread bake
+  }
+}
+
 async function initBakeWorkerPool(wasmUrl?: string): Promise<void> {
   try {
     const mod = await import("./bake-worker-pool");
@@ -46,16 +62,48 @@ async function initBakeWorkerPool(wasmUrl?: string): Promise<void> {
     // `prewarmCharacterClassAtlases` sweep called from the
     // battlefield bootstrap pays this cost upfront, behind the
     // loading screen, so steady-state play never sees it.
-    const size = 1;
-    // Pass through whatever URL the main thread used (if any). If
-    // `wasmUrl` is undefined, the worker's `wasmInit()` will resolve
-    // the WASM module relative to its own `import.meta.url` — which is
-    // the worker bundle's own URL. Vite emits both the worker chunk
-    // and its companion `*_bg.wasm` next to each other, so the
-    // resolution works without us hardcoding a path. The earlier
-    // hardcoded `/vello_wasm/vello_wasm_bg.wasm` was wrong (returned
-    // a 404 HTML page) and crashed worker init.
-    const ok = await mod.initBakeWorkerPool({ size, wasmUrl });
+    // A/B knob for the render measurement sweep. Two equivalent
+    // sources (precedence: localStorage > URL query > defaults):
+    //
+    //   localStorage:
+    //     localStorage.setItem("bakePoolSize", "4");   // 1..16
+    //     localStorage.setItem("bakeShard", "1");      // "1" to enable
+    //
+    //   URL query (browser-only; Electrobun loads from file:/// so
+    //   localStorage is the only path that works there):
+    //     ?bakePoolSize=N
+    //     ?bakeShard=1
+    //
+    // Defaults preserve the prior pool=1 round-robin behavior. Setting
+    // size>1 WITHOUT shard=1 is the cross-thrash regime (don't ship it,
+    // useful only for A/B comparison).
+    let size = 1;
+    let shardByBundle = false;
+    try {
+      if (typeof localStorage !== "undefined") {
+        const sizeStored = localStorage.getItem("bakePoolSize");
+        if (sizeStored) {
+          const n = Number(sizeStored);
+          if (Number.isFinite(n) && n >= 1 && n <= 16) size = Math.floor(n);
+        }
+        if (localStorage.getItem("bakeShard") === "1") shardByBundle = true;
+      }
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search ?? "");
+        const sizeParam = params.get("bakePoolSize");
+        if (sizeParam) {
+          const n = Number(sizeParam);
+          if (Number.isFinite(n) && n >= 1 && n <= 16) size = Math.floor(n);
+        }
+        if (params.get("bakeShard") === "1") shardByBundle = true;
+      }
+    } catch {
+      // ignore — sandboxed contexts default to 1/false
+    }
+    console.log(
+      `[vello-loader] bake-worker pool: size=${size} shardByBundle=${shardByBundle}`,
+    );
+    const ok = await mod.initBakeWorkerPool({ size, wasmUrl, shardByBundle });
     if (!ok) {
       console.warn(
         "[vello-loader] bake-worker pool init failed; using main-thread bakes",
@@ -390,6 +438,107 @@ function releaseLoadSlot(): void {
 }
 
 /**
+ * Track which bundles' subscene caches have been hydrated from IDB
+ * to avoid redundant hydration on duplicate load calls. The renderer
+ * doesn't crash on a second hydrate (`loadXSubsceneCache` is
+ * idempotent — it overwrites existing entries) but the IDB roundtrip
+ * is wasted work.
+ */
+const hydratedBundles = new Set<string>();
+
+/**
+ * Fire-and-forget hydration helper called after `loadSwfBundle`
+ * succeeds. Hashes the bundle bytes, fetches body+tile+acc rows
+ * from IDB, calls the wasm `loadXSubsceneCache` for each present.
+ */
+async function hydrateBundleOnLoad(
+  name: string,
+  bytes: Uint8Array,
+): Promise<void> {
+  if (hydratedBundles.has(name)) return;
+  hydratedBundles.add(name);
+  try {
+    // Dynamic import to avoid a hard cycle between vello-loader and
+    // scene-cache-idb (the latter never reaches in here, but bundler
+    // tree-shaking can be touchy with hot exports).
+    const idb = await import("@/game/render/scene-cache-idb");
+    const contentHash = await idb.hashBytes(bytes);
+    await idb.hydrateBundleSubsceneCaches(name, contentHash, {
+      loadBody: (b) => loadBodySubsceneCache(b),
+      loadTile: (b) => loadTileSubsceneCache(b),
+      loadAcc: (b) => loadAccessorySubsceneCache(b),
+      loadBodyScene: (b) => loadBodySceneCache(b),
+    });
+  } catch (e) {
+    // Hydration is best-effort; failure just means the first bake
+    // for this bundle runs cold, which is still correct behavior.
+    // Re-allow retry on the next load (e.g. after a hot reload).
+    hydratedBundles.delete(name);
+  }
+}
+
+/**
+ * Persist all 3 sub-scene caches for a bundle to IDB. Called by the
+ * periodic flush + on page unload. The bundle's content hash is
+ * derived once per call (re-hashing the retained bytes); for a
+ * 1 MB bundle that's <2 ms via SubtleCrypto.
+ */
+export async function persistBundleSceneCaches(name: string): Promise<void> {
+  const bytes = retainedSwfBundleBytes.get(name);
+  if (!bytes) return;
+  try {
+    const idb = await import("@/game/render/scene-cache-idb");
+    const contentHash = await idb.hashBytes(bytes);
+    await idb.persistBundleSubsceneCaches(name, contentHash, {
+      serializeBody: () => serializeBodySubsceneCache(name),
+      serializeTile: () => serializeTileSubsceneCache(name),
+      serializeAcc: () => serializeAccessorySubsceneCache(name),
+      serializeBodyScene: () => serializeBodySceneCache(name),
+    });
+  } catch (e) {
+    // Best-effort; the next flush retries.
+    void e;
+  }
+}
+
+/**
+ * Periodic flush: walk every loaded bundle and persist its non-empty
+ * sub-scene caches to IDB. Suitable for a background interval timer
+ * (every 30 s) and for an `unload` handler to capture last-session
+ * deltas. Returns the count of bundles persisted.
+ */
+export async function persistAllSceneCaches(): Promise<number> {
+  let count = 0;
+  // Snapshot keys so a concurrent load doesn't trip iteration.
+  const names = Array.from(loadedSwfBundles);
+  for (const name of names) {
+    await persistBundleSceneCaches(name);
+    count += 1;
+  }
+  lastFullPersistAt = (typeof performance !== "undefined"
+    ? performance.now()
+    : Date.now());
+  return count;
+}
+
+let lastFullPersistAt = 0;
+/**
+ * Throttled `persistAllSceneCaches` for event-driven triggers (e.g.
+ * map-leave). Skips if a full persist ran within `minIntervalMs`, so
+ * fast map-walking doesn't storm IDB with redundant writes — the
+ * caches are bundle-keyed and accumulate across maps, so the periodic
+ * 30 s flush (or the previous map-leave) already captured them.
+ * Returns the bundles persisted, or -1 if skipped.
+ */
+export async function persistAllSceneCachesThrottled(
+  minIntervalMs = 15000,
+): Promise<number> {
+  const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+  if (now - lastFullPersistAt < minIntervalMs) return -1;
+  return persistAllSceneCaches();
+}
+
+/**
  * Load a SWF bundle by name. Default URL is `/swf/gfx/${name}.swf`; pass
  * `url` for non-gfx bundles (sprites, spells, items). Idempotent +
  * concurrency-capped. Multiple callers asking for the same bundle
@@ -433,6 +582,19 @@ export async function loadSwfBundle(
       if (ok) {
         loadedSwfBundles.add(name);
         retainedSwfBundleBytes.set(name, retained);
+        // Fire-and-forget IDB hydration for body+tile+acc sub-scene
+        // caches. On a returning session this skips the AS2 walk
+        // for every cached entry — the first bake of a tile or
+        // accessory after this hydrate becomes GPU-only. Failures
+        // (missing row, parse error) just leave the in-memory
+        // cache empty and the next bake falls back to fresh.
+        //
+        // Why fire-and-forget: hydration is independent of the
+        // bundle being "loaded" from the caller's perspective.
+        // Awaiting it here would block every SWF load behind an
+        // IDB roundtrip. Bakes will re-check the cache when they
+        // run anyway.
+        void hydrateBundleOnLoad(name, retained);
       }
       return ok;
     } finally {
@@ -459,6 +621,149 @@ export function swfBundleExports(name: string): string[] {
   if (!renderer) return [];
   if (!loadedSwfBundles.has(name)) return [];
   return renderer.swfBundleExports(name);
+}
+
+/**
+ * List every SWF bundle currently loaded in WASM. Surfaces the WASM
+ * truth (vs. JS-side `loadedSwfBundles` set, which is the same
+ * information but doesn't survive a WASM hot-reload).
+ */
+export function listLoadedSwfBundles(): string[] {
+  if (!renderer) return [];
+  return (renderer as unknown as { listLoadedSwfBundles(): string[] })
+    .listLoadedSwfBundles();
+}
+
+export interface SwfBundleInventoryRow {
+  name: string;
+  kind: "Sprite" | "Shape" | "MorphShape" | "Bitmap";
+  totalFrames: number;
+  isCharacterAnim: boolean;
+}
+
+/**
+ * Dump every named export in a loaded SWF bundle with its kind +
+ * total frame count + character-anim filter status. Used by the
+ * render measurement sweep.
+ */
+export function dumpSwfBundleInventory(
+  bundle: string
+): SwfBundleInventoryRow[] {
+  if (!renderer) return [];
+  const result = (
+    renderer as unknown as {
+      dumpSwfBundleInventory(b: string): SwfBundleInventoryRow[] | null;
+    }
+  ).dumpSwfBundleInventory(bundle);
+  return result ?? [];
+}
+
+export interface ClassEnumerationExportRow {
+  exportName: string;
+  totalFrameCount: number;
+  hasToggle: boolean;
+  exportBFix: boolean;
+  slotCountLogical: number;
+}
+
+export interface ClassEnumerationDump {
+  bundleBFixUsed: boolean;
+  exports: ClassEnumerationExportRow[];
+}
+
+/** Dump the `ClassEnumeration` for one bundle without populating the
+ *  cache (so the next class-atlas bake still pays its enumerate phase
+ *  honestly). */
+export function dumpClassEnumeration(
+  bundle: string
+): ClassEnumerationDump | null {
+  if (!renderer) return null;
+  const result = (
+    renderer as unknown as {
+      dumpClassEnumeration(b: string): ClassEnumerationDump | null;
+    }
+  ).dumpClassEnumeration(bundle);
+  return result ?? null;
+}
+
+export interface SubsceneCacheBundleSize {
+  entryCount: number;
+  /** -1 if the encoder failed; otherwise the byte length of the IDB
+   *  blob for this bundle's subscene entries. */
+  serializedBytes: number;
+}
+
+/** Report the IDB blob size + entry count for one bundle's contribution
+ *  to the body_subscene_cache. */
+export function subsceneCacheBytesForBundle(
+  bundle: string
+): SubsceneCacheBundleSize {
+  if (!renderer) return { entryCount: 0, serializedBytes: 0 };
+  return (
+    renderer as unknown as {
+      subsceneCacheBytesForBundle(b: string): SubsceneCacheBundleSize;
+    }
+  ).subsceneCacheBytesForBundle(bundle);
+}
+
+export interface BodySceneCacheStats {
+  /** Current entries in the composed-atlas LRU (≤ cap). */
+  entries: number;
+  /** Hard cap (BODY_SCENE_CACHE_CAP constant in Rust). */
+  cap: number;
+  /** Cumulative cache hits since renderer init. */
+  hits: number;
+  /** Cumulative cache misses since renderer init. */
+  misses: number;
+  /** Cumulative LRU evictions since renderer init. */
+  evictions: number;
+  /** hits / (hits + misses); 0.0 if no accesses. */
+  hitRate: number;
+}
+
+/** Set the class-atlas bake mode: 0 = AUTO (per-page for ≤2 pages,
+ *  per-variant for ≥3), 1 = force per-variant, 2 = force per-page. */
+export function setClassAtlasBakeMode(mode: number): void {
+  if (!renderer) return;
+  (
+    renderer as unknown as {
+      setClassAtlasBakeMode(m: number): void;
+    }
+  ).setClassAtlasBakeMode(mode);
+}
+
+/** Legacy: `true` → force per-variant (mode 1); `false` → force
+ *  per-page (mode 2). Prefer `setClassAtlasBakeMode(0)` for AUTO. */
+export function setClassAtlasForcePerVariant(force: boolean): void {
+  if (!renderer) return;
+  (
+    renderer as unknown as {
+      setClassAtlasForcePerVariant(f: boolean): void;
+    }
+  ).setClassAtlasForcePerVariant(force);
+}
+
+/** Lifetime stats for `body_scene_cache` (the 1500-cap composed-atlas
+ *  LRU consulted by `render_swf_body_atlas`). Used by the render
+ *  measurement sweep to verify whether the LRU is thrashing under
+ *  stress — v3's "delete body_scene_cache" instinct depends on this
+ *  hit rate. */
+export function bodySceneCacheStats(): BodySceneCacheStats {
+  if (!renderer) {
+    return {
+      entries: 0,
+      cap: 0,
+      hits: 0,
+      misses: 0,
+      evictions: 0,
+      hitRate: 0,
+    };
+  }
+  return (
+    renderer as unknown as {
+      bodySceneCacheStats(): BodySceneCacheStats;
+    }
+  ).bodySceneCacheStats();
 }
 
 /**
@@ -1595,6 +1900,26 @@ export function uploadAndCloseBitmap(
   bitmap: ImageBitmap | null | undefined,
 ): void {
   if (!bitmap) return;
+  // CRITICAL: Pixi 8.17's `ImageSource` constructor hardcodes
+  // `this.autoGarbageCollect = true` AFTER `super(options)`, silently
+  // discarding the `autoGarbageCollect: false` every caller passes.
+  // That makes these cache-managed sources eligible for Pixi's
+  // `GCSystem`, which unloads (destroys the GPUTexture for) a source
+  // that hasn't rendered within `gcMaxUnusedTime`. When a bot despawns
+  // or switches variant, its body-atlas source goes idle, the GC tears
+  // down its GPUTexture, and the next draw re-uploads from `resource` —
+  // but we eagerly `.close()` the bitmap below, so the re-upload reads a
+  // DETACHED ImageBitmap and throws `copyExternalImageToTexture ...
+  // External Image has been detached`, which fails the ENTIRE
+  // composition page render (screen-wide flash + per-frame warn storm).
+  // Re-assert the intended flag so the cache LRU — not Pixi's GC — owns
+  // these sources' lifetime; then the closed bitmap is never re-read.
+  try {
+    (source as { autoGarbageCollect?: boolean }).autoGarbageCollect = false;
+  } catch {
+    // Frozen/incompatible source — fall through; close path below still
+    // defers to destroy if the eager upload doesn't take.
+  }
   let uploaded = false;
   if (renderer) {
     try {
@@ -1855,6 +2180,220 @@ export function clearPathCache(): void {
     return;
   }
   (renderer as unknown as { clearPathCache(): void }).clearPathCache();
+}
+
+/**
+ * Serialize `body_subscene_cache` to a binary blob suitable for IDB.
+ * Resolution-independent (twip identity scenes) — same bytes work at
+ * any render scale. Filter to one bundle for atomic per-bundle writes;
+ * pass `null`/undefined to dump the entire cache.
+ *
+ * Returns null on serialization error or unavailable renderer (cache
+ * just won't get persisted for this session — non-fatal).
+ */
+export function serializeBodySubsceneCache(
+  bundleFilter?: string,
+): Uint8Array | null {
+  if (!renderer) {
+    return null;
+  }
+  const bytes = (
+    renderer as unknown as {
+      serializeBodySubsceneCache(b?: string | null): Uint8Array | undefined;
+    }
+  ).serializeBodySubsceneCache(bundleFilter ?? null);
+  return bytes ?? null;
+}
+
+/**
+ * Install entries from a previously-persisted scene blob into the
+ * in-memory subscene cache. Returns the count of entries loaded.
+ * Idempotent: re-installing the same blob overwrites existing entries
+ * (in-memory cache and on-disk version stay in lockstep).
+ *
+ * On parse error (bad magic / version mismatch / unsupported variant),
+ * the Rust side logs and returns 0 — the caller falls back to fresh
+ * bakes and the cache hydrates on-demand.
+ */
+export function loadBodySubsceneCache(bytes: Uint8Array): number {
+  if (!renderer) {
+    return 0;
+  }
+  return (
+    renderer as unknown as {
+      loadBodySubsceneCache(b: Uint8Array): number;
+    }
+  ).loadBodySubsceneCache(bytes);
+}
+
+/**
+ * Serialize `body_scene_cache` — the COMPOSED per-variant body atlas
+ * scenes the spawn path (`render_swf_body_atlas`) actually reads. This
+ * is the cache that warms a cold 250-actor map entry; the subscene
+ * cache above is a different one the spawn never touches. Scenes are
+ * scale-baked, so the blob is per-resolution (key IDB rows by res).
+ */
+export function serializeBodySceneCache(
+  bundleFilter?: string,
+): Uint8Array | null {
+  if (!renderer) return null;
+  const bytes = (
+    renderer as unknown as {
+      serializeBodySceneCache(b?: string | null): Uint8Array | undefined;
+    }
+  ).serializeBodySceneCache(bundleFilter ?? null);
+  return bytes ?? null;
+}
+
+/** Install entries from a `serializeBodySceneCache` blob into
+ *  `body_scene_cache`. Returns count loaded (0 on error). */
+export function loadBodySceneCache(bytes: Uint8Array): number {
+  if (!renderer) return 0;
+  return (
+    renderer as unknown as {
+      loadBodySceneCache(b: Uint8Array): number;
+    }
+  ).loadBodySceneCache(bytes);
+}
+
+/** Drop every `body_scene_cache` entry (test/diagnostic). Returns the
+ *  number cleared. */
+export function clearBodySceneCache(): number {
+  if (!renderer) return 0;
+  return (
+    renderer as unknown as { clearBodySceneCache(): number }
+  ).clearBodySceneCache();
+}
+
+/**
+ * Count entries in `body_subscene_cache`, optionally filtered to one
+ * bundle. Used by the loader-scene progress UI to surface "X/Y warm"
+ * during the warmup phase.
+ */
+export function bodySubsceneCacheCountFor(bundleFilter?: string): number {
+  if (!renderer) {
+    return 0;
+  }
+  return (
+    renderer as unknown as {
+      bodySubsceneCacheCountFor(b?: string | null): number;
+    }
+  ).bodySubsceneCacheCountFor(bundleFilter ?? null);
+}
+
+/** Serialize the tile sub-scene cache to a VSC2 blob suitable for
+ *  IDB persistence. Same wire format as the body cache, tagged with
+ *  `CacheId::Tile`. Returns null on encode error (currently only
+ *  fires when an entry contains `Patch::Image` — bitmap fill tiles
+ *  skip persistent caching). */
+export function serializeTileSubsceneCache(
+  bundleFilter?: string,
+): Uint8Array | null {
+  if (!renderer) return null;
+  const bytes = (
+    renderer as unknown as {
+      serializeTileSubsceneCache(b?: string | null): Uint8Array | undefined;
+    }
+  ).serializeTileSubsceneCache(bundleFilter ?? null);
+  return bytes ?? null;
+}
+
+export function loadTileSubsceneCache(bytes: Uint8Array): number {
+  if (!renderer) return 0;
+  return (
+    renderer as unknown as { loadTileSubsceneCache(b: Uint8Array): number }
+  ).loadTileSubsceneCache(bytes);
+}
+
+export function tileSubsceneCacheCountFor(bundleFilter?: string): number {
+  if (!renderer) return 0;
+  return (
+    renderer as unknown as {
+      tileSubsceneCacheCountFor(b?: string | null): number;
+    }
+  ).tileSubsceneCacheCountFor(bundleFilter ?? null);
+}
+
+/** Same as `serializeTileSubsceneCache` but for the accessory cache.
+ *  Accessory bakes used to redo 3 fresh AS2 walks per
+ *  `renderSwfAccessoryStrip` call regardless of zoom; the cache makes
+ *  that one walk per cycle per accessory across the session. */
+export function serializeAccessorySubsceneCache(
+  bundleFilter?: string,
+): Uint8Array | null {
+  if (!renderer) return null;
+  const bytes = (
+    renderer as unknown as {
+      serializeAccessorySubsceneCache(
+        b?: string | null,
+      ): Uint8Array | undefined;
+    }
+  ).serializeAccessorySubsceneCache(bundleFilter ?? null);
+  return bytes ?? null;
+}
+
+export function loadAccessorySubsceneCache(bytes: Uint8Array): number {
+  if (!renderer) return 0;
+  return (
+    renderer as unknown as {
+      loadAccessorySubsceneCache(b: Uint8Array): number;
+    }
+  ).loadAccessorySubsceneCache(bytes);
+}
+
+export function accessorySubsceneCacheCountFor(
+  bundleFilter?: string,
+): number {
+  if (!renderer) return 0;
+  return (
+    renderer as unknown as {
+      accessorySubsceneCacheCountFor(b?: string | null): number;
+    }
+  ).accessorySubsceneCacheCountFor(bundleFilter ?? null);
+}
+
+export interface BakeRecord {
+  /** Kind classifier from `BakeKind` in `bake_telemetry.rs`. One of
+   *  "ClassAtlas" | "BodyAtlas" | "BodyBandAtlas" | "TileFrame" |
+   *  "AccessoryStrip" | "Strip" | "SpellComposition". */
+  kind: string;
+  bundle: string;
+  sceneBuildMs: number;
+  gpuRenderMs: number;
+  bridgeMs: number;
+  enumerateMs: number;
+  combineCopyMs: number;
+  totalMs: number;
+  subsceneHits: number;
+  subsceneMisses: number;
+  pixelArea: number;
+  subCount: number;
+  /** `Date.now()` snapshot at record commit time. */
+  tsRecorded: number;
+}
+
+export interface BakeTelemetryDrain {
+  /** Records that hit the 10k buffer cap and were dropped silently —
+   *  if non-zero, drain more often or grow the cap. */
+  drops: number;
+  records: BakeRecord[];
+}
+
+/**
+ * Drain accumulated bake telemetry records. Returns raw measurements;
+ * the caller aggregates into per-window histograms.
+ *
+ * The Rust side buffers up to 10k records. Drain every monitor tick
+ * (or more often during stress) to keep `drops` at 0.
+ */
+export function drainBakeTelemetry(): BakeTelemetryDrain {
+  if (!renderer) {
+    return { drops: 0, records: [] };
+  }
+  const raw = (
+    renderer as unknown as { drainBakeTelemetry(): BakeTelemetryDrain }
+  ).drainBakeTelemetry();
+  return raw ?? { drops: 0, records: [] };
 }
 
 

@@ -8,3 +8,9 @@ export {
   type TcpSocketHandle,
   type TcpSocketOptions,
 } from "./tcp-socket";
+export {
+  buildWebSocketUrl,
+  makeWebSocketFactory,
+  openWebSocket,
+  type WebSocketTransportOptions,
+} from "./websocket-socket";

@@ -32,17 +32,26 @@ export const FULL_HEIGHT = DISPLAY_HEIGHT + BANNER_HEIGHT;
 export const GAME_WIDTH = 1049;
 export const GAME_HEIGHT = 786;
 
-// Widescreen canvas — render to a 1950×1000 ≈ 1.95 aspect so the game
-// area (DISPLAY_WIDTH × FULL_HEIGHT = 742×558, native ~1.33 aspect) sits
-// centred with sampled-blur side bands instead of flat black bars.
-// VIEW_HEIGHT pins to FULL_HEIGHT (game keeps its current logical
-// scale per the design contract — UI untouched, no zoom-to-fill that
-// would crop taller maps) and VIEW_WIDTH is derived so the canvas hits
-// the target aspect. SIDE_BAND_WIDTH is the per-side band logical
-// width fed to the compositor.
+// Widescreen canvas — render to a ~1.95 aspect block so the game area
+// (DISPLAY_WIDTH × DISPLAY_HEIGHT = 742×432, native ~1.72 aspect) sits
+// centred with two lateral bands AND a new bottom band between the
+// game area and the React banner. Each band is fed pre-rendered tile
+// art of the corresponding neighbour map (left/right/bottom) by
+// `NeighborBandRenderer`, replacing the old `SideBandCompositor`
+// downsample-blur of the current map.
+//
+// Vertical stack inside the central column (top → bottom):
+//   - game area     (DISPLAY_HEIGHT)
+//   - bottom band   (BOTTOM_BAND_HEIGHT — bottom-neighbour preview)
+//   - banner area   (BANNER_HEIGHT     — React HUD sits on top of this)
+//
+// VIEW_HEIGHT carries all three. VIEW_WIDTH is derived from the target
+// aspect so SIDE_BAND_WIDTH stays a wide-enough lateral strip to show
+// a real piece of the left/right neighbour map (not just a 50 px sliver).
+export const BOTTOM_BAND_HEIGHT = 124;
 export const VIEW_ASPECT = 1950 / 1000;
-export const VIEW_WIDTH = Math.round(FULL_HEIGHT * VIEW_ASPECT);
-export const VIEW_HEIGHT = FULL_HEIGHT;
+export const VIEW_HEIGHT = DISPLAY_HEIGHT + BOTTOM_BAND_HEIGHT + BANNER_HEIGHT;
+export const VIEW_WIDTH = Math.round(VIEW_HEIGHT * VIEW_ASPECT);
 export const SIDE_BAND_WIDTH = Math.round((VIEW_WIDTH - DISPLAY_WIDTH) / 2);
 
 export const DEFAULT_WIDTH = 15;
