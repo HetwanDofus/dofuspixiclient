@@ -236,6 +236,10 @@ struct RealAnimCrowd {
     /// retained state for `realCrowdRenderRetained`.
     retained_look_cache: HashMap<String, RetainedLook>,
     ret_batches: Vec<Option<RetBatch>>,
+    /// Two ping-pong scratch targets for the multi-pass composite when there are
+    /// more than `MAX_COMPOSITE_SRC` batches. Allocated lazily.
+    composite_scratch: Vec<wgpu::Texture>,
+    composite_scratch_views: Vec<wgpu::TextureView>,
 }
 
 /// Cached per-batch state for the retained render path. The packed scene buffer
@@ -4763,6 +4767,8 @@ impl VelloRenderer {
             retained_batches: Vec::new(),
             retained_look_cache: HashMap::new(),
             ret_batches: Vec::new(),
+            composite_scratch: Vec::new(),
+            composite_scratch_views: Vec::new(),
         });
 
         let result = js_sys::Object::new();
@@ -5558,37 +5564,11 @@ impl VelloRenderer {
             return JsValue::NULL;
         };
         let n_players = crowd.players.len() as u32;
-        let n_batches = n_players.div_ceil(batch_size).max(1);
+        if n_players == 0 {
+            self.real_anim_crowd = Some(crowd);
+            return JsValue::NULL;
+        }
         let (tw, th) = (crowd.tw, crowd.th);
-        if crowd.batch_size != batch_size || crowd.batch_targets.len() != n_batches as usize {
-            crowd.batch_targets.clear();
-            crowd.batch_views.clear();
-            crowd.ret_batches.clear();
-            self.renderer.free_all_reused();
-            for _ in 0..n_batches {
-                let t = self.device.create_texture(&wgpu::TextureDescriptor {
-                    label: Some("crowd-batch"),
-                    size: wgpu::Extent3d { width: tw, height: th, depth_or_array_layers: 1 },
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: wgpu::TextureFormat::Rgba8Unorm,
-                    usage: wgpu::TextureUsages::STORAGE_BINDING
-                        | wgpu::TextureUsages::COPY_SRC
-                        | wgpu::TextureUsages::TEXTURE_BINDING,
-                    view_formats: &[],
-                });
-                let v = t.create_view(&wgpu::TextureViewDescriptor::default());
-                crowd.batch_targets.push(t);
-                crowd.batch_views.push(v);
-            }
-            crowd.batch_size = batch_size;
-        }
-        if crowd.ret_batches.len() != n_batches as usize {
-            crowd.ret_batches.clear();
-            crowd.ret_batches.resize_with(n_batches as usize, || None);
-            self.renderer.free_all_reused();
-        }
 
         let scale = crowd.scale;
         let pos_scale = crowd.pos_scale;
@@ -5656,72 +5636,90 @@ impl VelloRenderer {
             }
         }
 
-        let bsz = batch_size as usize;
-        // Per-batch type: retained iff all players' looks are retainable.
-        let mut batch_retained = vec![false; n_batches as usize];
-        for b in 0..n_batches as usize {
-            let s = b * bsz;
-            let e = ((b + 1) * bsz).min(order.len());
-            if s >= e {
-                continue;
-            }
-            batch_retained[b] = order[s..e]
-                .iter()
-                .all(|&i| crowd.retained_look_cache[&crowd.players[i].sig].retainable);
-        }
-
-        // PRE-PASS 2: bake look_cache for dynamic-batch players' current frames.
+        // Geometry-budgeted batches: split the Y-sorted order so each batch's summed
+        // path count stays under MAX_BATCH_PATHS (above ~this, Vello's bump buffers
+        // overflow → silent geometry drop → black). Player count is also capped at
+        // `batch_size`. A single look heavier than the budget still gets its own batch.
+        const MAX_BATCH_PATHS: u32 = 5000;
+        let mut batch_bounds: Vec<(usize, usize)> = Vec::new();
         {
-            let RealAnimCrowd { ref players, ref mut look_cache, .. } = crowd;
-            let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
-            let mut ctx = swf_spike::render::WgpuCtx {
-                device: &self.device,
-                queue: &self.queue,
-                renderer: &mut self.renderer,
-                filter_pipelines,
-                output_scale: scale,
-            };
-            let bundles = &self.swf_bundles;
-            let caches = &self.swf_render_caches;
-            for b in 0..n_batches as usize {
-                if batch_retained[b] {
-                    continue;
+            let mut s = 0usize;
+            let mut acc = 0u32;
+            let mut cnt = 0u32;
+            for idx in 0..order.len() {
+                let w = crowd.retained_look_cache[&crowd.players[order[idx]].sig]
+                    .base_scene
+                    .encoding()
+                    .n_paths;
+                if cnt > 0 && (acc.saturating_add(w) > MAX_BATCH_PATHS || cnt >= batch_size) {
+                    batch_bounds.push((s, idx));
+                    s = idx;
+                    acc = 0;
+                    cnt = 0;
                 }
-                let s = b * bsz;
-                let e = ((b + 1) * bsz).min(order.len());
-                for &i in &order[s..e] {
-                    let p = &players[i];
-                    let tf = frame_of(p);
-                    let key = format!("{}|{}", p.sig, tf);
-                    if !look_cache.contains_key(&key) {
-                        let mut sub = vello::Scene::new();
-                        emit_player_look(
-                            &mut ctx, bundles, caches, &p.bundle, &p.export, tf,
-                            p.flipped, p.colors, &p.acc, scale_aff, &mut sub,
-                        );
-                        look_cache.insert(key, sub);
-                    }
+                acc = acc.saturating_add(w);
+                cnt += 1;
+            }
+            batch_bounds.push((s, order.len()));
+        }
+        let n_batches = batch_bounds.len();
+
+        // (Re)allocate per-batch textures + ret_batches + composite scratch when the
+        // batch count changes. Textures are screen-sized (~3-8MB) so many are cheap.
+        if crowd.batch_targets.len() != n_batches {
+            crowd.batch_targets.clear();
+            crowd.batch_views.clear();
+            crowd.ret_batches.clear();
+            self.renderer.free_all_reused();
+            let mk = |extra: wgpu::TextureUsages| {
+                let t = self.device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("crowd-batch"),
+                    size: wgpu::Extent3d { width: tw, height: th, depth_or_array_layers: 1 },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    usage: wgpu::TextureUsages::STORAGE_BINDING
+                        | wgpu::TextureUsages::COPY_SRC
+                        | wgpu::TextureUsages::TEXTURE_BINDING
+                        | extra,
+                    view_formats: &[],
+                });
+                let v = t.create_view(&wgpu::TextureViewDescriptor::default());
+                (t, v)
+            };
+            for _ in 0..n_batches {
+                let (t, v) = mk(wgpu::TextureUsages::empty());
+                crowd.batch_targets.push(t);
+                crowd.batch_views.push(v);
+            }
+            crowd.ret_batches.resize_with(n_batches, || None);
+            // Ping-pong scratch only needed when batches exceed the single-pass limit.
+            crowd.composite_scratch.clear();
+            crowd.composite_scratch_views.clear();
+            if n_batches > bitmap_bridge::MAX_COMPOSITE_SRC {
+                for _ in 0..2 {
+                    let (t, v) = mk(wgpu::TextureUsages::RENDER_ATTACHMENT);
+                    crowd.composite_scratch.push(t);
+                    crowd.composite_scratch_views.push(v);
                 }
             }
         }
+        crowd.batch_size = batch_size;
 
         let mut build_ms = 0.0f64;
         let mut resolve_ms = 0.0f64;
         let mut run_ms = 0.0f64;
         let mut retained_n = 0u32;
-        let mut dynamic_n = 0u32;
         let mut rebuilds = 0u32;
 
-        for b in 0..n_batches as usize {
-            let s = b * bsz;
-            let e = ((b + 1) * bsz).min(order.len());
+        for (b, &(s, e)) in batch_bounds.iter().enumerate() {
             if s >= e {
-                break;
+                continue;
             }
             let token = vello::ReuseToken(b as u64);
-
-            if batch_retained[b] {
-                retained_n += 1;
+            retained_n += 1;
+            {
                 let struct_sig = {
                     use std::hash::{Hash, Hasher};
                     let mut h = std::collections::hash_map::DefaultHasher::new();
@@ -5820,49 +5818,51 @@ impl VelloRenderer {
                     &crowd.batch_views[b],
                 );
                 run_ms += t_run.elapsed().as_secs_f64() * 1000.0;
-            } else {
-                // DYNAMIC lane (baseline per-frame full upload).
-                dynamic_n += 1;
-                self.renderer.free_reused(token);
-                crowd.ret_batches[b] = None;
-                let t_build = web_time::Instant::now();
-                let mut scene = vello::Scene::new();
-                for &i in &order[s..e] {
-                    let p = &crowd.players[i];
-                    let tf = frame_of(p);
-                    let key = format!("{}|{}", p.sig, tf);
-                    if let Some(sub) = crowd.look_cache.get(&key) {
-                        scene.append(sub, Some(place_of(p)));
-                    }
-                }
-                build_ms += t_build.elapsed().as_secs_f64() * 1000.0;
-                let t_res = web_time::Instant::now();
-                let (recording, target) = self.renderer.resolve_scene(&scene, &params);
-                resolve_ms += t_res.elapsed().as_secs_f64() * 1000.0;
-                let t_run = web_time::Instant::now();
-                let _ = self.renderer.run_resolved(
-                    &self.device,
-                    &self.queue,
-                    &recording,
-                    target,
-                    &crowd.batch_views[b],
-                );
-                run_ms += t_run.elapsed().as_secs_f64() * 1000.0;
             }
         }
 
         // Composite all batches back-to-front (Y order) onto the crowd target.
+        // MultiCompositePipeline folds <=8 sources per pass; for more batches we
+        // ping-pong through two scratch targets (accumulator is the back-most source
+        // of each subsequent pass), final pass writes the crowd target.
         let t_comp = web_time::Instant::now();
         {
             let comp = self.crowd_composite_pipeline.as_ref().unwrap();
-            let mut encoder = self
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("crowd-composite-encoder"),
-                });
-            let src: Vec<&wgpu::TextureView> = crowd.batch_views.iter().collect();
-            comp.composite(&self.device, &self.queue, &mut encoder, &src, &crowd.view);
-            self.queue.submit(std::iter::once(encoder.finish()));
+            let cap = bitmap_bridge::MAX_COMPOSITE_SRC;
+            let views: Vec<&wgpu::TextureView> = crowd.batch_views.iter().collect();
+            if views.len() <= cap {
+                let mut encoder = self.device.create_command_encoder(
+                    &wgpu::CommandEncoderDescriptor { label: Some("crowd-composite") },
+                );
+                comp.composite(&self.device, &self.queue, &mut encoder, &views, &crowd.view);
+                self.queue.submit(std::iter::once(encoder.finish()));
+            } else {
+                let mut written = 0usize;
+                let mut acc: Option<usize> = None; // index into composite_scratch_views
+                while written < views.len() {
+                    let take = if acc.is_some() { cap - 1 } else { cap };
+                    let take = take.min(views.len() - written);
+                    let is_last = written + take == views.len();
+                    let next_scratch = acc.map_or(0, |a| 1 - a);
+                    let mut srcs: Vec<&wgpu::TextureView> = Vec::with_capacity(cap);
+                    if let Some(a) = acc {
+                        srcs.push(&crowd.composite_scratch_views[a]);
+                    }
+                    srcs.extend(views[written..written + take].iter().copied());
+                    let dst: &wgpu::TextureView = if is_last {
+                        &crowd.view
+                    } else {
+                        &crowd.composite_scratch_views[next_scratch]
+                    };
+                    let mut encoder = self.device.create_command_encoder(
+                        &wgpu::CommandEncoderDescriptor { label: Some("crowd-composite-mp") },
+                    );
+                    comp.composite(&self.device, &self.queue, &mut encoder, &srcs, dst);
+                    self.queue.submit(std::iter::once(encoder.finish()));
+                    written += take;
+                    acc = Some(next_scratch);
+                }
+            }
         }
         let composite_ms = t_comp.elapsed().as_secs_f64() * 1000.0;
 
@@ -5870,9 +5870,9 @@ impl VelloRenderer {
         self.real_anim_crowd = Some(crowd);
         let result = js_sys::Object::new();
         let _ = js_sys::Reflect::set(&result, &"players".into(), &JsValue::from(n_players));
-        let _ = js_sys::Reflect::set(&result, &"batches".into(), &JsValue::from(n_batches));
+        let _ = js_sys::Reflect::set(&result, &"batches".into(), &JsValue::from(n_batches as u32));
         let _ = js_sys::Reflect::set(&result, &"retainedBatches".into(), &JsValue::from(retained_n));
-        let _ = js_sys::Reflect::set(&result, &"dynamicBatches".into(), &JsValue::from(dynamic_n));
+        let _ = js_sys::Reflect::set(&result, &"dynamicBatches".into(), &JsValue::from(0u32));
         let _ = js_sys::Reflect::set(&result, &"rebuilds".into(), &JsValue::from(rebuilds));
         let _ = js_sys::Reflect::set(&result, &"bakedLooks".into(), &JsValue::from(look_cache_size));
         let _ = js_sys::Reflect::set(&result, &"buildMs".into(), &JsValue::from(build_ms));

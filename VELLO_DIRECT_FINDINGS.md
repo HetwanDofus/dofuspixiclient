@@ -457,3 +457,53 @@ counts (non-poisoning) for everything else.
 **Vello fork is generic + committable.** swf-spike `depth_path` is additive/inert for
 normal rendering (only read under union capture). The dynamic baseline lane in
 `realCrowdRenderRetained` is now dead (union makes every look retainable).
+
+---
+
+## 2026-05-27 (DEFINITIVE / DECISION) — append model MEETS the production target; union & retained-union are dead ends
+
+Target: **60fps for 500+ MOVING actors at scale 6, random colors + accessories, + animated
+tiles, with a safe gap.**
+
+**Measured — append model (`realCrowdRenderBatched`, re-encode + re-upload current frame),
+500 MOVING (walk/run) actors, diverse + accessories + colors:**
+
+| | wall | fps | build | resolve | run | composite | tex | VRAM |
+|---|---|---|---|---|---|---|---|---|
+| scale 3, cap250 | 10.3ms | 97 | 3.2 | 0.8 | 6.3 | 0.04 | 2048×1497 | 395MB |
+| **scale 6, cap250** | **10.0ms** | **100** | 3.2 | 0.7 | 6.1 | 0.04 | 3967×2866 | 490MB |
+| scale 6, cap500 | 10.0ms | 100 | 3.2 | 0.7 | 6.0 | 0.04 | 3967×2866 | 473MB |
+
+**Three decisive facts:**
+1. **Scale 6 is FREE** — scale 3 and 6 cost the *same* 10ms; `compositeMs` 0.04ms. The cost
+   is 100% geometry **upload/CPU** (build 3.2 + run 6.0), which is **scale-independent**.
+   Fine rasterization is negligible. Texture stays 3967×2866 (under the 8192 wgpu limit).
+2. **500 moving @ scale 6 = 10ms = 100fps** crowd-only, content-validated, 490MB. The
+   *append* model already meets the target with headroom for tiles + Pixi (~3–6ms → ~60–77fps).
+3. The bottleneck is exactly the CPU upload retention attacks — so retention extends this to
+   higher counts, but is **not needed to reach 500@scale6**.
+
+**WHY the union (v3) failed (negative result, kept for the record):** to make appear/disappear
+looks length-stable it bakes the UNION of every frame's shapes and emits all every frame
+(hiding absent ones scale-0). Vello processes ALL union slots in the coarse pipeline (only
+fine raster skips zero-coverage), so a union look is ~7–12× one frame's geometry. That
+overflows dense batches (forcing 25 small batches → 25 submits) and bloats coarse → **151ms /
+7fps @ 800**. Retention only wins when the resident geometry is SMALL (= one frame ≈ static /
+length-stable, i.e. v1/v2). For appear/disappear, **re-encoding the single current frame
+(append) is far cheaper than retaining the bloated union.** No cheap union fix exists (Vello
+has no per-draw frame skip without changing encoding structure).
+
+**ARCHITECTURE DECISION:**
+- **Ship the append model** (`realCrowdRenderBatched`) — proven, simple, meets 500 moving @
+  scale 6 @ 100fps. This is the production render path.
+- **Retained v1/v2** (transforms-only for static/length-stable; +path_data for length-stable
+  morphs) is a validated *optimization* to push past 500 toward 1000 by retaining the
+  length-stable bulk — layer in later for extra headroom.
+- **Union/hide (v3) is abandoned** (measured 20× slower than append for animated looks).
+- Geometry-budgeting + multi-pass composite were built for the union path and are unneeded
+  for append (single-frame looks fit cap250/500, ≤8 batches, single-pass composite).
+
+**Remaining: live cutover** — wire `realCrowdRenderBatched` into the battlefield render path
+(replace the per-player strip/sprite path), composite the crowd texture(s) into the Pixi
+stage, keep position-based picking + mounts + tile z-order. Substantial, careful integration;
+do it behind a flag and validate live with the animated tiles for the true production number.
