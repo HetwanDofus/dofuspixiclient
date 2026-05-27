@@ -119,13 +119,45 @@ WebGPU textures don't transfer across workers):
 
   This alone takes **800 actors over 60fps**. 1500 stays build-bound.
 
-- **(B) Multi-core build (wasm-threads)** — *not implemented*. The build is
-  append-count/overhead-bound (~21µs/actor, content-independent), so it
-  parallelizes cleanly across cores (16 available): split the actor list into
-  per-thread partial scenes, then merge. Estimated to push 1500 well past 60fps.
-  Cost: SharedArrayBuffer + `+atomics`/`+bulk-memory` build + COOP/COEP headers +
-  `wasm-bindgen-rayon` — a significant infra change. **Recommended next step for
-  >800 actors.**
+- **(B) Multi-core build (wasm-threads)** — *BUILT + measured*. `wasm-bindgen-rayon`
+  thread pool (8 threads), `into_par_iter` builds each batch's scene on its own
+  core; render + composite stay single-threaded on the one GPU device. Renders
+  verified correct (non-empty, workers reading the shared cache). **Measured
+  (simd128 + threads, ~8 batches = thread count):**
+
+  | actors | serial build | parallel build | speedup | serial fps | parallel fps |
+  |---|---|---|---|---|---|
+  | 800 | 20.5 ms | **15.6 ms** | 1.31× | 49 | **64** |
+  | 1500 | 39.9 ms | 34 ms | 1.17× | 25 | 29 |
+
+  **Modest, and Amdahl-bound.** Parallelizing the `scene.append` shifts the
+  bottleneck onto the **serial per-frame work that can't be parallelized on a
+  single GPU device**: the N `render_to_texture` submits + the N-pass composite +
+  per-frame bookkeeping. With simd128 the build is already fast, so that serial
+  fraction is relatively larger → lower ratio. Batch count should equal the
+  thread count: fewer batches under-uses cores; more batches (e.g. 14) add serial
+  submit/composite overhead that erases the gain (measured 1.05× at 14 batches).
+  800 crosses 60fps on the parallel build; 1500 needs more (finer parallelism of
+  the submits, or a second GPU-submission strategy).
+
+  **Infra cost (real, now documented):** nightly ≥1.92 + `-Z build-std` +
+  `+atomics,+bulk-memory,+mutable-globals`, **and the linker flag set that took
+  the most iteration:** `--import-memory --shared-memory --max-memory=4294967296`
+  (imported shared memory — wasm-bindgen 0.2.121 asserts `mem.import.is_some()`)
+  **plus** force-exporting the thread-init symbols that recent wasm-ld no longer
+  auto-exports under `--import-memory`: `--export=__heap_base`,
+  `--export=__wasm_init_tls`, `--export=__tls_size`, `--export=__tls_align`,
+  `--export=__tls_base`. Plus COOP/COEP headers (`Cross-Origin-Embedder-Policy:
+  credentialless`) for SharedArrayBuffer, and `await initThreadPool(n)` after
+  wasm init. wasm-opt must be disabled (binaryen mangles atomics without
+  `--enable-threads`). wasm-pack can't forward `-Z build-std`; build with
+  `cargo +nightly build` then `wasm-bindgen` directly.
+
+**Combined:** lever A (pipeline, 1.9× @800) overlaps GPU with the lever-B
+parallel build, so the practical ceiling is ~`1000 / max(parallel_build, GPU)`.
+At 800 that's ~64fps. The single GPU device + serial composite is the structural
+ceiling beyond ~800 — the next real lever is reducing the serial submit/composite
+cost (content-bbox batch textures, fewer/cheaper composite passes), not more cores.
 
 ## 5. Engineering hazards found (must-fix for production)
 
@@ -150,8 +182,11 @@ WebGPU textures don't transfer across workers):
 - **200–250 target: validated.** Retained Vello-direct = ~4.9ms/frame, 60fps+
   with large headroom, canonically correct, tiny RAM (8.7k vector entries +
   small target). The cache/atlas architecture is unnecessary for this range.
-- **800 actors:** 60fps+ with CPU↔GPU pipelining + batched composite.
-- **1500 actors:** ~36fps, build-bound; needs multi-core build (lever B).
+- **800 actors:** 60fps+ with CPU↔GPU pipelining + batched composite (and the
+  multi-core build holds it at 60fps even serialized).
+- **1500 actors:** ~36fps (pipelined) / ~29fps (multi-core build, serialized).
+  Multi-core build was built + measured but only ~1.2× here — the wall past ~800
+  is the **serial GPU-submit + composite on one device**, not core count.
 - The right architecture: **retained encoded-vector cache** (per
   `(gfx,anim,dir,frame,colors,acc)`, shared across identical looks) →
   **`scene.append` per frame** → **batched render + alpha composite** above
@@ -163,7 +198,15 @@ WebGPU textures don't transfer across workers):
 2. Display via Pixi-adopted texture (no readback) + `freeRenderTexture` discipline.
 3. Productionize: replace `PlayerStripRendererV2` with the retained cache +
    batched composite; wire CPU↔GPU pipelining.
-4. (For >800) wasm-threads multi-core build.
+4. (For >800) the lever is **reducing serial submit/composite cost** (content-bbox
+   batch textures, fewer composite passes), NOT more cores — multi-core build is
+   already implemented (`--features threads`, wasm-bindgen-rayon) but Amdahl-bound
+   at ~1.2–1.3× because the per-frame serial work (GPU submits + composite on one
+   device) dominates once the build is parallelized.
+
+Note: the threaded build is a separate artifact (`--features threads` + the
+linker-flag recipe in §4 + COOP/COEP). The normal production build is unaffected —
+build without `--features threads` and it's the standard single-thread + simd128 wasm.
 
 ---
 

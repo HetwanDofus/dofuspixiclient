@@ -19,7 +19,7 @@
  */
 
 import type { Renderer as PixiRenderer } from "pixi.js";
-import wasmInit, { VelloRenderer } from "vello-wasm";
+import wasmInit, { VelloRenderer, initThreadPool } from "vello-wasm";
 
 import { recordProbe } from "./render-probes";
 import { getRenderWatchdog } from "./render-watchdog";
@@ -197,6 +197,30 @@ export async function initVello(wasmUrl?: string): Promise<{
     await wasmInit(wasmUrl);
   } else {
     await wasmInit();
+  }
+
+  // Threaded build: spin up the rayon thread pool for the parallel
+  // scene-build path. Needs cross-origin isolation (COOP/COEP) for
+  // SharedArrayBuffer; falls back silently to single-threaded otherwise.
+  try {
+    if (
+      typeof initThreadPool === "function" &&
+      (globalThis as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated
+    ) {
+      const n = Math.min(8, Math.max(2, (navigator.hardwareConcurrency || 4) - 1));
+      await initThreadPool(n);
+      (globalThis as unknown as { __velloThreads?: number }).__velloThreads = n;
+      // eslint-disable-next-line no-console
+      console.warn(`[vello] rayon thread pool: ${n} threads`);
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[vello] no thread pool (crossOriginIsolated=${(globalThis as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated})`,
+      );
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn("[vello] initThreadPool failed:", e);
   }
 
   const result = await VelloRenderer.init();

@@ -18,4 +18,17 @@ js-sys = "0.3"
 web-sys = { version = "0.3", features = ["console", "HtmlCanvasElement", "OffscreenCanvas", "ImageBitmap"] }
 console_error_panic_hook = "0.1"
 bytemuck = "1"
+# Multi-core scene build (gated; only built for the threaded wasm target,
+# which requires +atomics + SharedArrayBuffer + COOP/COEP).
+rayon = { version = "1", optional = true }
+wasm-bindgen-rayon = { version = "1", optional = true }
+
+[features]
+threads = ["dep:rayon", "dep:wasm-bindgen-rayon"]
+
+# wasm-opt (binaryen) mangles atomics/shared-memory unless run with
+# --enable-threads, which wasm-pack 0.13 doesn't pass — disable it for
+# the threaded build (Rust -O3 + LTO from the profile still apply).
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
 

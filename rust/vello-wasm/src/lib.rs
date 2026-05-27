@@ -10,6 +10,12 @@ mod bake_telemetry;
 mod bitmap_bridge;
 mod scene_cache;
 
+// Multi-core scene build (threaded wasm build only). Re-exports
+// `initThreadPool(n)` to JS — must be awaited after wasm init, before
+// any parallel render call.
+#[cfg(feature = "threads")]
+pub use wasm_bindgen_rayon::init_thread_pool;
+
 
 #[wasm_bindgen]
 extern "C" {
@@ -4934,6 +4940,183 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(&result, &"players".into(), &JsValue::from(n_players));
         let _ = js_sys::Reflect::set(&result, &"batches".into(), &JsValue::from(n_batches));
         let _ = js_sys::Reflect::set(&result, &"cacheSize".into(), &JsValue::from(cache_size));
+        result.into()
+    }
+
+    /// DIAG (threaded build): same as `realCrowdRenderBatched` but the
+    /// per-batch scene BUILD (`scene.append` of cached encodings) runs in
+    /// PARALLEL across the rayon thread pool — the steady-state cost is
+    /// pure read-only cache access, so each batch's scene is built on its
+    /// own core. Render + composite stay single-threaded (one GPU device).
+    /// Requires `initThreadPool(n)` to have been awaited.
+    #[cfg(feature = "threads")]
+    #[wasm_bindgen(js_name = "realCrowdRenderBatchedParallel")]
+    pub fn real_crowd_render_batched_parallel(
+        &mut self,
+        batch_size: u32,
+        time_ms: f64,
+    ) -> JsValue {
+        use rayon::prelude::*;
+        if batch_size == 0 {
+            return JsValue::NULL;
+        }
+        if self.crowd_composite_pipeline.is_none() {
+            self.crowd_composite_pipeline = Some(bitmap_bridge::CompositePipeline::new(
+                &self.device,
+                wgpu::TextureFormat::Rgba8Unorm,
+            ));
+        }
+        let Some(mut crowd) = self.real_anim_crowd.take() else {
+            return JsValue::NULL;
+        };
+        let n_players = crowd.players.len() as u32;
+        let n_batches = n_players.div_ceil(batch_size).max(1);
+        let (tw, th) = (crowd.tw, crowd.th);
+        if crowd.batch_size != batch_size
+            || crowd.batch_targets.len() != n_batches as usize
+        {
+            crowd.batch_targets.clear();
+            crowd.batch_views.clear();
+            for _ in 0..n_batches {
+                let t = self.device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("crowd-batch"),
+                    size: wgpu::Extent3d {
+                        width: tw,
+                        height: th,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    usage: wgpu::TextureUsages::STORAGE_BINDING
+                        | wgpu::TextureUsages::COPY_SRC
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[],
+                });
+                let v = t.create_view(&wgpu::TextureViewDescriptor::default());
+                crowd.batch_targets.push(t);
+                crowd.batch_views.push(v);
+            }
+            crowd.batch_size = batch_size;
+        }
+        let scale = crowd.scale;
+        let pos_scale = crowd.pos_scale;
+        let off_x = crowd.off_x;
+        let off_y = crowd.off_y;
+        let flip_x = vello::kurbo::Affine::new([-1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
+        let scale_aff = vello::kurbo::Affine::scale(scale);
+        let bsz = batch_size as usize;
+        // PASS 0 (sequential): warm any missing (sig,frame) so the parallel
+        // pass below is strictly read-only on the cache.
+        {
+            let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+            let mut ctx = swf_spike::render::WgpuCtx {
+                device: &self.device,
+                queue: &self.queue,
+                renderer: &mut self.renderer,
+                filter_pipelines,
+                output_scale: scale,
+            };
+            let bundles = &self.swf_bundles;
+            let caches = &self.swf_render_caches;
+            let RealAnimCrowd {
+                ref players,
+                ref mut look_cache,
+                ..
+            } = crowd;
+            for p in players {
+                let fc = p.frame_count.max(1);
+                let fps = f64::from(p.fps.max(0.001));
+                let tf = (((time_ms / 1000.0) * fps) as i64)
+                    .rem_euclid(i64::from(fc)) as u16;
+                let key = format!("{}|{}", p.sig, tf);
+                if !look_cache.contains_key(&key) {
+                    let mut sub = vello::Scene::new();
+                    emit_player_look(
+                        &mut ctx, bundles, caches, &p.bundle, &p.export, tf,
+                        p.flipped, p.colors, &p.acc, scale_aff, &mut sub,
+                    );
+                    look_cache.insert(key, sub);
+                }
+            }
+        }
+        // PASS 1 (PARALLEL): build each batch's scene on its own core.
+        let batch_scenes: Vec<vello::Scene> = {
+            let players = &crowd.players;
+            let look_cache = &crowd.look_cache;
+            (0..n_batches as usize)
+                .into_par_iter()
+                .map(|b| {
+                    let start = b * bsz;
+                    let end = ((b + 1) * bsz).min(players.len());
+                    let mut scene = vello::Scene::new();
+                    if start < end {
+                        for p in &players[start..end] {
+                            let fc = p.frame_count.max(1);
+                            let fps = f64::from(p.fps.max(0.001));
+                            let tf = (((time_ms / 1000.0) * fps) as i64)
+                                .rem_euclid(i64::from(fc)) as u16;
+                            let key = format!("{}|{}", p.sig, tf);
+                            if let Some(sub) = look_cache.get(&key) {
+                                let translate = vello::kurbo::Affine::translate(
+                                    vello::kurbo::Vec2::new(
+                                        p.x * pos_scale + off_x,
+                                        p.y * pos_scale + off_y,
+                                    ),
+                                );
+                                let place = if p.flipped {
+                                    translate * flip_x
+                                } else {
+                                    translate
+                                };
+                                scene.append(sub, Some(place));
+                            }
+                        }
+                    }
+                    scene
+                })
+                .collect()
+        };
+        // PASS 2 (sequential): render each batch + composite (one GPU device).
+        let params = vello::RenderParams {
+            base_color: Color::TRANSPARENT,
+            width: tw,
+            height: th,
+            antialiasing_method: AaConfig::Area,
+        };
+        for (b, scene) in batch_scenes.iter().enumerate() {
+            let _ = self.renderer.render_to_texture(
+                &self.device,
+                &self.queue,
+                scene,
+                &crowd.batch_views[b],
+                &params,
+            );
+        }
+        {
+            let comp = self.crowd_composite_pipeline.as_ref().unwrap();
+            let mut encoder = self
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("crowd-composite-encoder"),
+                });
+            for b in 0..crowd.batch_views.len() {
+                comp.composite(
+                    &self.device,
+                    &mut encoder,
+                    &crowd.batch_views[b],
+                    &crowd.view,
+                    b == 0,
+                );
+            }
+            self.queue.submit(std::iter::once(encoder.finish()));
+        }
+        self.real_anim_crowd = Some(crowd);
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"players".into(), &JsValue::from(n_players));
+        let _ = js_sys::Reflect::set(&result, &"batches".into(), &JsValue::from(n_batches));
+        let _ = js_sys::Reflect::set(&result, &"parallel".into(), &JsValue::from(1u32));
         result.into()
     }
 

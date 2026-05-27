@@ -171,6 +171,13 @@ export default defineConfig({
       // Allow serving files from the in-repo vello-wasm pkg directory.
       allow: [resolve(__dirname, "../..")],
     },
+    // Cross-origin isolation → enables SharedArrayBuffer, required by the
+    // multi-threaded (wasm-bindgen-rayon) Vello build. `credentialless`
+    // COEP keeps cross-origin no-cors subresources working without CORP.
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "credentialless",
+    },
   },
   optimizeDeps: {
     exclude: ["brotli-dec-wasm", "vello-wasm"],
