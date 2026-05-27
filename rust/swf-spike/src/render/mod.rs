@@ -27,6 +27,7 @@ pub mod probe;
 pub mod slot_depths;
 pub mod snapshot;
 pub mod sprite;
+pub mod union;
 
 pub use band::{render_body_band, render_body_band_dual};
 pub use bounds::{band_bounds, build_frame_state, symbol_bounds};
@@ -337,6 +338,11 @@ pub(crate) fn render_accessory_at(
         entry.char_frame,
     );
     let cache = parent.cache;
+    // Union-bake identity seed: namespace accessory leaves under the parent's
+    // depth-path + a per-slot sentinel so they never collide with body leaves.
+    let mut acc_seed = parent.depth_path.clone();
+    acc_seed.push(0xACC0);
+    acc_seed.push(u16::from(mount.slot));
     let scene = &mut *parent.scene;
     let transform = parent.transform;
     let inner = parent.wgpu.as_mut().map(|w| WgpuCtx {
@@ -352,6 +358,7 @@ pub(crate) fn render_accessory_at(
     if let Some(w) = inner {
         acc_ctx = acc_ctx.with_wgpu(w);
     }
+    acc_ctx.depth_path = acc_seed;
     render_symbol_into(&mut acc_ctx, symbol);
 }
 
@@ -614,6 +621,30 @@ pub(crate) fn render_shape_into(ctx: &mut RenderCtx<'_>, shape: &swf::Shape) {
     let transform = ctx.transform;
     let color_xform = ctx.color_xform;
     let cmds = ctx.cache.shape_cmds(shape, ctx.doc);
+
+    // RETAINED-VELLO union capture: record this leaf (zone-recolored cmds + world
+    // transform + depth-path identity) and SKIP emission. The union bake re-emits
+    // a constant-structure scene from the captured leaves. Inert when not capturing.
+    if ctx.output_mode != ctx::RenderMode::ZoneId && union::is_capturing() {
+        let recolor_target = ctx.recolor_target;
+        let mut out = Vec::with_capacity(cmds.len());
+        for cmd in cmds.iter() {
+            if let Some(target) = recolor_target {
+                let mut c = cmd.clone();
+                emit::recolor_cmd_in_place(&mut c, target);
+                out.push(c);
+            } else {
+                out.push(cmd.clone());
+            }
+        }
+        union::push(union::CapturedLeaf {
+            depth_path: ctx.depth_path.clone(),
+            transform,
+            color_xform,
+            cmds: out,
+        });
+        return;
+    }
 
     if ctx.output_mode == ctx::RenderMode::ZoneId {
         let Some(zone) = ctx.recolor_zone else {

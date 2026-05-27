@@ -178,6 +178,12 @@ pub struct RenderCtx<'a> {
     /// pin the hair flips every body frame ("alternating hair"
     /// bug). Propagates through `child()`.
     pub hat_equipped: bool,
+
+    /// RETAINED-VELLO union bake: stable per-leaf identity = the chain of
+    /// placement depths from the root sprite to the current node. `child()`
+    /// pushes each placement's `depth`. Only READ by the union capture sink
+    /// (`render::union`); empty + inert for normal rendering.
+    pub depth_path: Vec<u16>,
 }
 
 impl<'a> RenderCtx<'a> {
@@ -207,6 +213,7 @@ impl<'a> RenderCtx<'a> {
             disable_accessories: false,
             output_mode: RenderMode::default(),
             hat_equipped: false,
+            depth_path: Vec::new(),
         }
     }
 
@@ -377,6 +384,9 @@ impl<'a> RenderCtx<'a> {
 
         let ratio = place.ratio.unwrap_or(0);
 
+        let mut depth_path = self.depth_path.clone();
+        depth_path.push(place.depth);
+
         RenderCtx {
             doc: self.doc,
             scene: self.scene,
@@ -406,6 +416,7 @@ impl<'a> RenderCtx<'a> {
             disable_accessories: self.disable_accessories,
             output_mode: self.output_mode,
             hat_equipped: self.hat_equipped,
+            depth_path,
         }
     }
 }

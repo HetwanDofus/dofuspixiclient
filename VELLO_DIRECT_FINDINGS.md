@@ -236,3 +236,224 @@ Conditions: live render path halted (`__renderHalt`) for clean CPU where noted;
 GPU timed via `device.queue.onSubmittedWorkDone()`; every cost cross-checked with
 a non-empty pixel-count probe so empty (overflow / resource-recycled) frames are
 never reported as valid.
+
+---
+
+## 2026-05-27 UPDATE — the "#1 blocker" was a harness artifact; the path is shippable
+
+**Correction to §"Engineering hazards #1".** The "cached scenes go black after ~1s
+sustained" symptom is **NOT a real resource-lifetime bug** — it is **deferred-destroy
+GC starvation in the benchmark harness.**
+
+- Vello rebuilds **one image-atlas texture per `render_to_texture`** (it packs all the
+  scene's `ImageBrush` SWF bitmaps into a fresh atlas — `vello/src/render.rs` ~149).
+- Those atlas textures are *unextracted* (never handed to Pixi), so the patched-wgpu
+  `Drop` queues them in the **deferred-destroy queue**, drained by
+  `renderer.tickDeferredDestroys(2, 256)` which `CharacterCache.tick()` calls **once per
+  Pixi rAF tick** (the production GC).
+- A **tight synchronous bench loop** (or stopping the Pixi ticker) prevents rAF from
+  firing between renders → the per-render atlas textures pile up unfreed → **transient
+  OOM → black renders + WindowServer crash.** It is *not* a permanent leak: measured
+  **53 GB of textures created AND all 53 GB destroyed** once the ticker resumes.
+- With per-render GC, peak live texture memory stays **bounded: 155–372 MB** (800–1500
+  actors, scaling with batch count). **Production renders once per rAF and GCs once per
+  rAF → bounded → the Vello-direct crowd path is viable for sustained rendering.**
+- Verify health via `renderer.rustGpuByteStats()` (live/pending GPU bytes), **not**
+  `texture_to_bitmap` readback — readback is unreliable in WASM (can't block on the GPU)
+  and was the source of the false "readback poison" reading.
+
+**Clean isolated numbers (live path OFF via `__killLiveRender`, per-render GC, 800
+DIVERSE actors — 24 gfx, 200 w/ accessories, tex 4096×2994):**
+
+| config             | batches | avg ms | p50  | fps | peak VRAM |
+|--------------------|---------|--------|------|-----|-----------|
+| serial  cap-250    | 4       | 16.78  | 15.48| 60  | 267 MB    |
+| parallel cap-250   | 4       | 17.26  | 15.78| 58  | 267 MB    |
+| **serial cap-500** | 2       | **16.19** | **14.37** | **62** | **157 MB** |
+| parallel cap-500   | 2       | 17.65  | 16.22| 57  | 157 MB    |
+
+- **Fewer/bigger batches + single-pass composite is the win on realistic diverse loads:**
+  marginally faster *and* ~40% less peak VRAM (peak VRAM scales with batch count — fewer
+  batches = fewer concurrent atlas textures). On a trivial single-look workload it's
+  neutral-to-slightly-negative, which is why earlier light-look runs disagreed.
+- **Threading does NOT help warm.** The per-frame build is cheap cached `scene.append`s,
+  so rayon + merge overhead exceeds the gain. Keep `--features threads` gated, not default.
+- 800 diverse ≈ 60 fps means the real **200–250 target is far under budget.**
+
+**Isolation fix.** `__renderHalt` is BATTLEFIELD-scene only and silently no-ops on a map,
+so the old live render path kept running and contaminated/crashed every isolation test.
+Added cross-scene `window.__killLiveRender()` / `__resumeLiveRender()` (stop/start the
+Pixi `app.ticker`) in `engine.ts`. The watchdog's `emergencyHalt` refuses test-bot spawns
+— click the RenderDebugOverlay **RESUME** button to clear.
+
+**Biggest remaining lever (bigger than submit count):** the image atlas is rebuilt +
+re-uploaded **every** render (~50 MB/render of churn — the 53 GB). Cached looks' bitmaps
+are static, so retaining/reusing the atlas across frames would cut GPU upload bandwidth
+and alloc/free churn substantially. Not yet done.
+
+**New durable artifacts this session:** `bitmap_bridge::MultiCompositePipeline` (single-pass
+N-source composite), vendored+patched `rust/vello_encoding` (2× bump buffers → ~500
+actors/scene), `__killLiveRender`/`__resumeLiveRender` (engine.ts), `__rcBench` harness
+(vello-loader.ts). Threaded wasm is a separate `--features threads` artifact; the normal
+production build is unaffected.
+
+---
+
+## 2026-05-27 (later) — CPU breakdown, the real bottleneck, and the architecture decision
+
+Once isolation was fixed (`__killLiveRender`) and renders were GC'd (`tickDeferredDestroys` every frame — the "black after 1s" was harness GC-starvation, NOT a real bug), the clean per-phase CPU breakdown at 800 diverse actors (vendored Vello split into `resolve_scene` + `run_resolved`, timed with `web_time`):
+
+| phase | 800 | what it is |
+|-------|-----|------------|
+| build | 6.3 ms | append cached looks + per-actor key hashing |
+| resolve | **2.1 ms** | Scene → Recording (the part I'd planned to parallelize — it's tiny) |
+| **run** | **13.5 ms** | `run_recording`: upload the scene encoding + record dispatches + submit |
+| composite | 0.08 ms | single-pass |
+
+We are **CPU-bound ~2:1 over GPU** (GPU-only ≈ 8.7 ms@800 via `onSubmittedWorkDone`). The bottleneck is **`run` = re-uploading the whole scene encoding every frame** — NOT resolve (so the "parallelize resolve across rayon" plan was killed). Threading the *build* made it slower (rayon+merge overhead > the small build), confirming build isn't the wall either.
+
+**Constraints clarified by the user:** 1000 players @ 60fps (250 was a floor, not a target), ≤2.5 GB, MSAA fine (Pixi AA on top if needed), NO bitmap caching, **NO viewport culling** (whole Dofus map always visible), **looks are UNIQUE per player** (so no whole-character instancing/dedup). This rules out culling and instancing-the-character, and rules out immediate-mode Vello (it busts RAM via the per-`(sig,frame)` pose-cache and can't hit 1000@60 on the upload wall).
+
+**Offline SWF feature analysis** (standalone `swf 0.2` tool, all 24 base gfx + 6,707 items): filters **0** in bodies / 4.4% items; blends **0** in bodies / 6.0% items; masks 25% of bodies (2 heavy) / 8.4% items; morphs all bodies (1–8, few) / 0.1% items; bitmap-fills ~1–3/body, 8% items (~99% vector); translucency ~17% bodies / ~20% items. → the hard features (filters/blends) are absent in bodies and a minority in items; masks/morphs bounded.
+
+**DECISION — retained Vello (NOT lyon/tessellation, NOT a custom rasterizer):** Verified `path_data` (local) and `transforms` are separate encoding streams; geometry is frame-invariant, only the pose changes. **Measured: 95.7% of the per-frame encoding is static (23 MB) vs 4.3% transforms (1 MB) at 800 actors.** So persist the static encoding on the GPU once and upload only the transforms stream per frame → cuts the `run` upload **~22×** and eliminates the per-frame geometry re-append, while keeping Vello's analytic AA + every SWF feature (masks/blends/morphs/gradients/color-zones) for free. Lyon was rejected (slow + MSAA + would force reimplementing all SWF semantics). The fork = persist the packed scene GPU buffer, write only the transform byte-range in `run_recording` (layout stable frame-to-frame; full re-upload only on spawn/despawn/anim-shape change). If retained-Vello alone misses 1000@60 (Vello rasterizes all geometry every frame, no instancing), the next lever is a deeper Vello fork adding instancing — still keeping the rasterizer. Full architecture + budget math in memory `project_character_render_architecture`.
+
+**Next:** build the retained-Vello fork (persistent scene buffer + transforms-only upload) and measure the real per-frame drop. Temporary swf-spike feature counters were reverted (superseded by the offline tool); the Vello split methods (`resolve_scene`/`run_resolved`/`shaders`) + vello-wasm encoding-size diag are kept as the fork's foundation.
+
+---
+
+## 2026-05-27 (later still) — retained-Vello BUILT; Phase-2 gate PASSED
+
+The retained-Vello fork is implemented and the persistence MECHANISM is validated
+end-to-end in the browser (threaded wasm, 8 threads, COI on, 800 actors @ 4 batches).
+
+**What was built**
+- `rust/vello` (vendored): `render::SceneSource{Upload,External}` + `render_full_reuse`
+  (External mode skips the scene `Command::Upload` AND the end-of-coarse free, returns
+  `(recording, out_image, scene_buf, layout, packed)`). `Renderer` gained
+  `reused_scene_bufs: HashMap<u64, ReusedScene>` + `ReuseToken` + `ResolvedReuse` and
+  the methods `resolve_scene_reuse` / `run_reuse_full` / `run_reuse_transforms` /
+  `free_reused` / `free_all_reused`. The persistent buffer is bound via the
+  already-wired `ExternalResource::Buffer` variant (un-`expect`-ed). No `WgpuEngine`
+  change beyond that — the resident buffer is owned by `Renderer` (disjoint-field borrow
+  vs `&mut engine.run_recording`).
+- `rust/vello-wasm`: `RealAnimCrowd.retained_batches: Vec<Option<RetainedBatch>>` +
+  `realCrowdRenderRetainedFrozen(batch_size, frozen_frame, frame_idx, move_px)`. First
+  call per batch = SLOW (`resolve_scene_reuse` + `run_reuse_full`); later = FAST
+  (`run_reuse_transforms`: partial transform write + **replay the cached recording**).
+  `realCrowdFree` now calls `free_all_reused`.
+- Harness: `window.__rcBenchRetained` in `vello-loader.ts`.
+
+**Recording replay is SAFE (the #1 risk).** The Vello recording is fully balanced —
+`record_fine` frees every derived buffer, coarse frees the rest — so after each run the
+bind_map returns empty and a cached recording re-materializes cleanly from the pool. The
+external scene buffer (never freed, re-injected each run) is the only thing that persists.
+Confirmed empirically: **6 consecutive replays of one cached recording → pixel-correct.**
+
+**Gate result (clean single readback — readback poisons subsequent renders, so trust only
+the FIRST readback of a session):**
+- content = **0.348, valid** — pixel-identical to baseline (0.35).
+- Fast path, 800 actors / 4 batches: **runMs 0.88 / resolveMs 0 / buildMs 0 /
+  compositeMs 0.015**, vs baseline **runMs 9.89 / resolveMs 2.2 / buildMs 2.87**.
+  → ~**11× drop** on the GPU submit; total GPU work ~0.9 ms for 800 actors → huge 60fps
+  headroom. liveMB ≈ 618 (resident buffers + Vello working set; well under 2.5 GB).
+
+**Measurement hazard (re-learned):** `realCrowdBitmap`/`texture_to_bitmap` poisons every
+subsequent render's readback. A multi-config bench that reads back per config gives false
+`content=0` on configs 2+. Validate content with exactly ONE readback from a fresh page
+(use `rustGpuByteStats`/timing for everything else).
+
+**Caveat / not-yet-confirmed:** the gate proved the FROZEN path (fixed positions, identical
+transforms = the binding + replay). The MOVING path (`move_px>0`, real transform rebuild +
+partial upload of NEW bytes) was exercised for timing but its content was not independently
+confirmed (one-readback budget). Phase 3 (union bake → real per-frame transforms) will
+validate that with its own clean readback.
+
+**Next: Phase 3 — union-geometry bake** (`rust/swf-spike/src/render/union.rs`) so real
+animation keeps per-batch geometry resident: one stable-structure encoding per
+`(sig, anim, dir)`, per-frame transform tables (hide absent slots via scale-0), then
+`realCrowdRenderRetained` consuming it. Plan: `~/.claude/plans/melodic-wobbling-hellman.md`.
+
+---
+
+## 2026-05-27 (Phase 3 prep) — cross-frame geometry stability MEASURED → design pivot
+
+Added `analyzeFrameStability(max_looks)` (vello-wasm): bakes each distinct look across
+EVERY anim frame, hashes `path_data + draw_data`, reports `distinctGeomHashes` /
+`distinctTxCounts` per look. Ran on a 201-player crowd (146 distinct looks), all bots
+actively walking/running (a deliberate WORST case; real map crowds are idle-dominated).
+
+**Result — player-weighted retainable (`distinctGeomHashes==1`): 43%** in this all-moving
+crowd. By anim: **static 100%** (52/52, 1-frame), **walk ~33%** (23 ret / 47 dyn),
+**run ~15%** (12 ret / 67 dyn). Worst dynamic looks change geometry nearly every frame
+(`walkB` 40/42, `walkL` 38/48, `runL` 25/36), `distinctTxCounts` mostly 1.
+
+**The plan's union+hide approach was based on a wrong model.** It assumed cross-frame
+geometry change = shapes appearing/disappearing (solved by hide-matrices). The data shows
+the dominant cause is **morph shape interpolation** — geometry coordinates tween every
+frame — which hide-matrices do NOT solve. So union+hide would not retain morph anims.
+
+**Design pivot → two-lane partition (v1):**
+- **Retained lane:** looks with `distinctGeomHashes==1` (all static + morph-free walk/run).
+  Geometry resident (frame-0), per-frame transforms = `sub_f.encoding().transforms` composed
+  with `place`. Retainable ⟹ stable transform count ⟹ frames align with NO hide-matrices,
+  NO slot reordering — much simpler than the union plan. Morph-free walk/run animate FULLY
+  via transforms-only. This is the gate's proven 0.88ms path generalized to real positions +
+  per-(sig) geometry + per-frame transform tables.
+- **Dynamic lane:** morph looks (`distinctGeomHashes>1`) → existing baseline per-frame full
+  upload. Partition players into retained vs dynamic batches; composite both.
+
+For idle-dominated real crowds the retained lane ≈ everything (huge win). v1 is also the
+strict foundation for a future **v2** (per-shape stable/morph split to retain morph-runners
+too) — gated on a morph BYTE-fraction measurement (`distinctGeomHashes` over-counts: one
+small morph flips the whole-look hash). Building v1 now.
+
+---
+
+## 2026-05-27 (Phase 3 COMPLETE) — v1 + v2 + v3 built & validated
+
+Unified retained render landed (`realCrowdRenderRetained`), driven by per-player
+partial uploads into a GPU-resident packed scene buffer (vello fork: `SceneSource::
+External` + `prepare_reuse`/`reuse_write`/`reuse_replay`). One mechanism, three classes:
+
+- **v1** (non-morph length-stable, incl. static + morph-free walk/run): transforms-only
+  re-upload. **Validated: content 0.268, runMs 0.95 / 600, retainedBatches 3/3.**
+- **v2** (length-stable MORPH, incl. heavy `walkB`): transforms + per-player path_data
+  re-upload only on the frames where a player's geometry index changes (deduped per
+  `(sig, geom)`). **Validated: content 0.373, animating; runMs spikes on morph frames
+  (~5-8ms) vs ~1ms transforms-only — exactly the expected v2 profile.**
+- **v3 union/hide** (length-VARYING / appear-disappear): a new swf-spike capture sink
+  (`RenderCtx::depth_path` identity + `render/union.rs`) records leaves per frame; the
+  union of all leaves is re-emitted EVERY frame in stable sorted-depth-path order
+  (== hierarchical z-order) with absent leaves at a scale-0 HIDE transform → constant
+  byte layout → flows through the v1/v2 path. Routed automatically when
+  `bake_retained_look` classifies a look length-varying. **Validated: it SOLVES the
+  dilution — an all-moving 800 crowd went `retainedBatches 0/4 → 4/4`, runMs ~1.8ms;
+  content 1.0 at a safe batch size.**
+
+**Known remaining issue — Vello bump-buffer OVERFLOW at large batch×big-look.** Some
+looks are large (`sprite-70 runR` = 231 leaves/frame). At batch=250, a batch's combined
+geometry exceeds the (DOFUS-bumped) tile/segment/ptcl buffers → silent geometry drop →
+BLACK. CONFIRMED a sizing issue, not a v3 defect: the SAME crowd at
+**batch=32 → content 1.0, valid, runMs 1.5ms** (`retainedBatches 7/7`).
+
+**CORRECTION (overflow is per-batch GEOMETRY, NOT texture size — tested & disproven).**
+First hypothesis (the 4096×2993 res=3 bench target inflated tile/ptcl pressure) was tested:
+at realistic res=1 the target is **1073×741 = 3MB** (textures are small ~3-8MB screen-sized,
+NOT 49MB — the 49MB was a bench-res-3 artifact), yet **batch=250 is STILL black there**
+(content 0, clean first probe). So 250 union-looks/batch overflows the bump buffers
+INDEPENDENT of texture size; `medRunMs` ~1.6ms either way (the ~500ms spikes are
+intermittent GC pauses from the tight off-ticker bench loop, NOT the blackness — would be
+fine in production with the live ticker draining per rAF). Would hit the baseline path too.
+**Fix (Phase-4): geometry-budgeted batching (cap n_paths/segments per batch so none
+overflows) + multi-pass composite (`MultiCompositePipeline` is ≤8 sources; >8 small batches
+need ping-pong folding). Memory is CHEAP — batch textures are ~3-8MB, so many batches fine.**
+
+**Verification hazard (persists):** `realCrowdBitmap` AND the new buffer-copy
+`realCrowdContentRatio` probe are only reliable on the FIRST readback per page-load
+(GPU-readback poisoning). Use exactly one content probe per session; use runMs / batch
+counts (non-poisoning) for everything else.
+
+**Vello fork is generic + committable.** swf-spike `depth_path` is additive/inert for
+normal rendering (only read under union capture). The dynamic baseline lane in
+`realCrowdRenderRetained` is now dead (union makes every look retainable).

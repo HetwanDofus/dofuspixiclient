@@ -4,6 +4,16 @@ members = ["swf-spike", "vello-wasm", "renderer"]
 
 [patch.crates-io]
 wgpu = { path = "wgpu" }
+# Vendored to split `render_to_texture` into a CPU resolve (`resolve_with`,
+# parallelizable on worker threads — pure Rust, no GPU) + a GPU `run_resolved`
+# (main thread). The expensive per-frame cost is Vello's serial resolve; this
+# lets it run across the rayon pool. See rust/vello/src/lib.rs DOFUS block.
+vello = { path = "vello" }
+# Patched to enlarge Vello's hand-picked fixed bump buffers (config.rs) so a
+# single Scene holds ~2x as many character actors before silent overflow —
+# halves the per-frame crowd batch/submit count. See the DOFUS PATCH note in
+# vello_encoding/src/config.rs.
+vello_encoding = { path = "vello_encoding" }
 
 [profile.release]
 # Opt-8: speed-optimised, not size-optimised. The scene-encoding hot

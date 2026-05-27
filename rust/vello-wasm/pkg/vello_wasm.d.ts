@@ -32,6 +32,17 @@ export class VelloRenderer {
      */
     accessorySubsceneCacheCountFor(bundle_filter?: string | null): number;
     /**
+     * DIAG (Phase-3 design): for each DISTINCT look in the current crowd, bake
+     * its look at every animation frame and report how much GEOMETRY changes
+     * across frames. `distinctGeomHashes == 1` → path_data/draw_data are
+     * frame-invariant (fully retainable: geometry resident, only transforms
+     * re-upload). `> 1` → geometry changes per frame (morph shape interpolation
+     * and/or structural appear/disappear) — those frames can't keep geometry
+     * resident as-is. `distinctTxCounts > 1` → shapes appear/disappear (the
+     * union/hide case). Requires `realCrowdSetup` first.
+     */
+    analyzeFrameStability(max_looks: number): any;
+    /**
      * Batch-copy multiple textures into a destination texture. ONE queue.submit for all copies.
      * `copies` is a flat array: [src_id, dst_x, dst_y, src_id, dst_x, dst_y, ...]
      * All copies go to the same destination texture (the atlas).
@@ -349,7 +360,13 @@ export class VelloRenderer {
     realCrowdCaptureFlipbook(n_frames: number, step_ms: number): any;
     /**
      * DIAG: free the animated crowd (drops cached sub-scenes + target).
+     * Non-poisoning content probe: copies a center region of the crowd target to a
+     * MAP_READ buffer and async-maps it (event-loop-driven, NO surface present, NO
+     * device.poll) to compute the fraction of sampled pixels with alpha>10. Unlike
+     * `realCrowdBitmap` (surface blit) this can be called repeatedly without poisoning
+     * subsequent renders. Returns a Promise<number> (-1 if no crowd). `await` it in JS.
      */
+    realCrowdContentRatio(): Promise<any>;
     realCrowdFree(): void;
     /**
      * DIAG: BATCHED render — splits the Y-sorted crowd into batches of
@@ -371,6 +388,36 @@ export class VelloRenderer {
      * Requires `initThreadPool(n)` to have been awaited.
      */
     realCrowdRenderBatchedParallel(batch_size: number, time_ms: number): any;
+    /**
+     * RETAINED-VELLO v1+v2 real-animation render. Y-sorted batches (z-order
+     * preserved). A batch whose players are ALL length-stable renders via the
+     * retained fast path: geometry resident, per-frame transform writes for every
+     * player + path_data writes for morph players whose geometry frame changed, then
+     * the cached recording is replayed. A batch containing a length-varying
+     * (structural appear/disappear) player renders via the baseline per-frame lane.
+     * Rebuild of a retained batch happens only on player-set change. Composites all
+     * batches back-to-front.
+     */
+    realCrowdRenderRetained(batch_size: number, time_ms: number): any;
+    /**
+     * RETAINED-VELLO validation (Phase 2). Every player is pinned to a single
+     * `frozen_frame`, so each batch's geometry is trivially frame-invariant. The
+     * FIRST call per batch (or after a structure change) takes the SLOW path:
+     * build → `resolve_scene_reuse` → `run_reuse_full` (creates the GPU-resident
+     * scene buffer, caches the replayable recording). Later calls take the FAST
+     * path: only the transform byte-range is re-uploaded and the recording is
+     * replayed (geometry stays resident).
+     *
+     * `move_px == 0.0` → 0a (fixed positions): rewrite the IDENTICAL cached
+     * transforms — pure mechanism floor (no rebuild, no resolve). `move_px != 0.0`
+     * → 0b (moving positions, frozen geometry): rebuild the scene at shifted
+     * positions, extract the new transform stream, partial-upload + replay.
+     *
+     * Drive it from JS with an incrementing `frame_idx`. Returns the same
+     * `buildMs`/`resolveMs`/`runMs`/`compositeMs` diagnostics as the baseline
+     * `realCrowdRenderBatched`, plus `fastBatches`.
+     */
+    realCrowdRenderRetainedFrozen(batch_size: number, frozen_frame: number, frame_idx: number, move_px: number): any;
     /**
      * DIAG: set up the stateful ANIMATED Vello-direct crowd. Parses real
      * players (body bundle/export, frameCount, fps, colors, flipped,
@@ -1016,6 +1063,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly __wbg_vellorenderer_free: (a: number, b: number) => void;
     readonly vellorenderer_accessorySubsceneCacheCountFor: (a: number, b: number, c: number) => number;
+    readonly vellorenderer_analyzeFrameStability: (a: number, b: number) => any;
     readonly vellorenderer_batchCopy: (a: number, b: number, c: number, d: number) => number;
     readonly vellorenderer_benchmarkBatchedAppend: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
     readonly vellorenderer_benchmarkBatchedChars: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
@@ -1052,9 +1100,12 @@ export interface InitOutput {
     readonly vellorenderer_queueFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => any;
     readonly vellorenderer_realCrowdBitmap: (a: number) => any;
     readonly vellorenderer_realCrowdCaptureFlipbook: (a: number, b: number, c: number) => any;
+    readonly vellorenderer_realCrowdContentRatio: (a: number) => any;
     readonly vellorenderer_realCrowdFree: (a: number) => void;
     readonly vellorenderer_realCrowdRenderBatched: (a: number, b: number, c: number) => any;
     readonly vellorenderer_realCrowdRenderBatchedParallel: (a: number, b: number, c: number) => any;
+    readonly vellorenderer_realCrowdRenderRetained: (a: number, b: number, c: number) => any;
+    readonly vellorenderer_realCrowdRenderRetainedFrozen: (a: number, b: number, c: number, d: number, e: number) => any;
     readonly vellorenderer_realCrowdSetup: (a: number, b: any, c: number, d: number, e: number) => any;
     readonly vellorenderer_realCrowdTick: (a: number, b: number) => any;
     readonly vellorenderer_renderAnimationStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;

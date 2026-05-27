@@ -800,6 +800,409 @@ if (typeof window !== "undefined") {
     window as unknown as { __realCrowdStatus?: () => unknown }
   ).__realCrowdStatus = () =>
     (window as unknown as { __rcStats?: unknown }).__rcStats ?? { error: "not started" };
+
+  // ── TEMP DIAG: window.__rcBench(targetN, opts) ─────────────────────
+  // Crash-safe, ISOLATED measurement of the batched Vello-direct crowd path.
+  //   1. __killLiveRender() — stops the Pixi ticker so the OLD render path
+  //      (world/PlayerRenderer, tiles, stage) does ZERO GPU work. Verified
+  //      via __liveRenderRunning(). This is the fix for "old code still
+  //      rendering in the background" — earlier `__renderHalt` was a no-op
+  //      on the map scene.
+  //   2. snapshot diverse looks, then despawnTestPlayers() so the live path
+  //      has nothing left to draw even when resumed mid-measure.
+  //   3. deterministic grid positions over a fixed area → STABLE texture
+  //      size across runs (live bot drift was changing it).
+  //   4. SHORT bursts with a FRESH realCrowdSetup per config: setup resets
+  //      look_cache, so cached scenes hold FRESH transient-GPU-resource refs
+  //      — dodging the #1 recycling→black bug, which only bites after a few
+  //      hundred sustained renders. Each config stays well under that.
+  //   5. non-black pixel check per config: an empty (recycled-resource)
+  //      render is flagged `BLACK` so we never trust a 0-content frame again.
+  // opts: { secondsPer=1, caps=[250,500], areaW=1400, areaH=900, res=3 }
+  (
+    window as unknown as {
+      __rcBench?: (targetN?: number, opts?: Record<string, unknown>) => Promise<unknown>;
+    }
+  ).__rcBench = async (targetN = 800, opts = {}) => {
+    const o = opts as {
+      secondsPer?: number; caps?: number[]; areaW?: number; areaH?: number; res?: number;
+    };
+    const secondsPer = o.secondsPer ?? 1;
+    const caps = o.caps ?? [250, 500];
+    const AREA_W = o.areaW ?? 1400;
+    const AREA_H = o.areaH ?? 900;
+    const res = o.res ?? 3;
+    const w = window as unknown as {
+      __killLiveRender?: () => void;
+      __resumeLiveRender?: () => void;
+      __liveRenderRunning?: () => boolean;
+      __realCrowdSnapshot?: () => Array<Record<string, unknown>>;
+      despawnTestPlayers?: () => number;
+      __getTestPlayerCount?: () => number;
+    };
+    const r = renderer as unknown as {
+      realCrowdSetup?: (p: unknown, t: number, res: number, retain: boolean) => Record<string, unknown> | null;
+      realCrowdRenderBatched?: (cap: number, t: number) => Record<string, unknown> | null;
+      realCrowdRenderBatchedParallel?: (cap: number, t: number) => Record<string, unknown> | null;
+      realCrowdBitmap?: () => ImageBitmap | null;
+      realCrowdFree?: () => void;
+    } | null;
+    if (!r?.realCrowdSetup || !w.__realCrowdSnapshot) {
+      return { error: "renderer/snapshot not ready" };
+    }
+    const base = w.__realCrowdSnapshot().filter((p) => isCharBundle(p.bundle as string));
+    if (!base.length) return { error: "no character players — spawn bots first" };
+    const coi = (globalThis as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated === true;
+    const sleep = (ms: number) => new Promise((rs) => setTimeout(rs, ms));
+
+    // 1+2: isolate — kill the live render, then despawn the live bots.
+    w.__killLiveRender?.();
+    await sleep(50);
+    const liveStopped = w.__liveRenderRunning ? w.__liveRenderRunning() === false : "unknown";
+    const despawned = w.despawnTestPlayers?.() ?? 0;
+    await sleep(50);
+
+    // 3: deterministic grid positions over a fixed area (stable texture).
+    const cols = Math.ceil(Math.sqrt(targetN * (AREA_W / AREA_H)));
+    const rows = Math.ceil(targetN / cols);
+    const players: Array<Record<string, unknown>> = [];
+    for (let i = 0; i < targetN; i++) {
+      const src = base[i % base.length];
+      const cx = i % cols, cy = Math.floor(i / cols);
+      players.push({
+        ...src,
+        x: (cols > 1 ? cx / (cols - 1) - 0.5 : 0) * AREA_W,
+        y: (rows > 1 ? cy / (rows - 1) - 0.5 : 0) * AREA_H,
+      });
+    }
+
+    const nonBlackRatio = (): number => {
+      const bmp = r.realCrowdBitmap?.();
+      if (!bmp) return -1;
+      const S = 200;
+      const cv = document.createElement("canvas");
+      cv.width = S; cv.height = S;
+      const ctx = cv.getContext("2d");
+      if (!ctx) return -1;
+      ctx.drawImage(bmp, 0, 0, S, S);
+      const d = ctx.getImageData(0, 0, S, S).data;
+      let nz = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 10) nz++;
+      return +(nz / (S * S)).toFixed(3);
+    };
+
+    let texDesc = "";
+    const runOne = async (mode: "serial" | "parallel", cap: number) => {
+      // 4: FRESH setup per config → fresh cache → fresh GPU-resource refs.
+      const setup = r.realCrowdSetup!(players, 4096, res, true) ?? {};
+      texDesc = `${setup.texW}x${setup.texH}`;
+      const call = (t: number) =>
+        mode === "parallel" ? r.realCrowdRenderBatchedParallel?.(cap, t) : r.realCrowdRenderBatched?.(cap, t);
+      // short warm (~40 renders) to fill cache for the measured frame window.
+      let meta: Record<string, unknown> | null = null;
+      for (let k = 0; k < 40; k++) { meta = call(2500 + k * 16.67); if (k % 20 === 0) await sleep(0); }
+      await sleep(40);
+      const msArr: number[] = [];
+      const t0 = performance.now();
+      let t = 2500 + 40 * 16.67;
+      // bounded: stop at secondsPer OR 150 renders, whichever first.
+      while (performance.now() - t0 < secondsPer * 1000 && msArr.length < 150) {
+        t += 16.67;
+        const a = performance.now();
+        meta = call(t);
+        msArr.push(performance.now() - a);
+        if (msArr.length % 20 === 0) await sleep(0);
+      }
+      msArr.sort((a, b) => a - b);
+      const pct = (q: number) => msArr[Math.min(msArr.length - 1, Math.floor(msArr.length * q))] ?? 0;
+      const avg = msArr.reduce((a, b) => a + b, 0) / Math.max(1, msArr.length);
+      const content = nonBlackRatio(); // also a readback; next config re-setups so poison is absorbed
+      return {
+        mode, cap,
+        batches: meta?.batches, buildScenes: meta?.buildScenes ?? meta?.batches,
+        frames: msArr.length,
+        avgMs: +avg.toFixed(2), p50: +pct(0.5).toFixed(2), p99: +pct(0.99).toFixed(2),
+        fps: +(1000 / avg).toFixed(0),
+        content, valid: content > 0.001,
+      };
+    };
+
+    const results: unknown[] = [];
+    for (const cap of caps) {
+      // eslint-disable-next-line no-await-in-loop
+      results.push(await runOne("serial", cap));
+      // eslint-disable-next-line no-await-in-loop
+      if (coi) results.push(await runOne("parallel", cap));
+    }
+
+    r.realCrowdFree?.();
+    w.__resumeLiveRender?.();
+    const out = {
+      targetN, crossOriginIsolated: coi,
+      threads: (globalThis as unknown as { __velloThreads?: number }).__velloThreads,
+      isolation: { liveRenderStopped: liveStopped, botsDespawned: despawned, botsLeft: w.__getTestPlayerCount?.() ?? "?" },
+      tex: texDesc, players: targetN, area: `${AREA_W}x${AREA_H}`,
+      results,
+    };
+    // eslint-disable-next-line no-console
+    console.warn("[rcBench]", JSON.stringify(out, null, 2));
+    return out;
+  };
+
+  // ── RETAINED-VELLO GATE: window.__rcBenchRetained(targetN, opts) ───────
+  // Phase-2 measurement. For each cap, A/B three render paths over a FROZEN
+  // crowd (geometry trivially stable so the retained mechanism is isolated):
+  //   • baseline  — realCrowdRenderBatched (full scene upload every frame)
+  //   • retained0a — realCrowdRenderRetainedFrozen(move=0): rewrite IDENTICAL
+  //     transforms + replay recording (pure mechanism floor)
+  //   • retained0b — realCrowdRenderRetainedFrozen(move>0): rebuild transform
+  //     stream at shifted positions + partial upload + replay
+  // GATE: retained runMs must drop materially vs baseline. Reports the wasm
+  // per-phase split (build/resolve/run) + wall ms + content + GPU live bytes.
+  // opts: { secondsPer=0.8, caps=[250], areaW=1400, areaH=900, res=3, move=8 }
+  (
+    window as unknown as {
+      __rcBenchRetained?: (targetN?: number, opts?: Record<string, unknown>) => Promise<unknown>;
+    }
+  ).__rcBenchRetained = async (targetN = 800, opts = {}) => {
+    const o = opts as {
+      secondsPer?: number; caps?: number[]; areaW?: number; areaH?: number; res?: number; move?: number;
+    };
+    const secondsPer = o.secondsPer ?? 0.8;
+    const caps = o.caps ?? [250];
+    const AREA_W = o.areaW ?? 1400;
+    const AREA_H = o.areaH ?? 900;
+    const res = o.res ?? 3;
+    const movePx = o.move ?? 8;
+    const w = window as unknown as {
+      __killLiveRender?: () => void;
+      __resumeLiveRender?: () => void;
+      __liveRenderRunning?: () => boolean;
+      __realCrowdSnapshot?: () => Array<Record<string, unknown>>;
+      despawnTestPlayers?: () => number;
+      __getTestPlayerCount?: () => number;
+    };
+    const r = renderer as unknown as {
+      realCrowdSetup?: (p: unknown, t: number, res: number, retain: boolean) => Record<string, unknown> | null;
+      realCrowdRenderBatched?: (cap: number, t: number) => Record<string, unknown> | null;
+      realCrowdRenderRetainedFrozen?: (cap: number, frozenFrame: number, frameIdx: number, movePx: number) => Record<string, unknown> | null;
+      realCrowdBitmap?: () => ImageBitmap | null;
+      realCrowdFree?: () => void;
+      tickDeferredDestroys?: (min: number, max: number) => Uint32Array;
+      rustGpuByteStats?: () => Float64Array;
+    } | null;
+    if (!r?.realCrowdSetup || !r.realCrowdRenderRetainedFrozen || !w.__realCrowdSnapshot) {
+      return { error: "renderer/snapshot not ready (rebuild wasm?)" };
+    }
+    const base = w.__realCrowdSnapshot().filter((p) => isCharBundle(p.bundle as string));
+    if (!base.length) return { error: "no character players — spawn bots first" };
+    const sleep = (ms: number) => new Promise((rs) => setTimeout(rs, ms));
+
+    w.__killLiveRender?.();
+    await sleep(50);
+    const liveStopped = w.__liveRenderRunning ? w.__liveRenderRunning() === false : "unknown";
+    const despawned = w.despawnTestPlayers?.() ?? 0;
+    await sleep(50);
+
+    const cols = Math.ceil(Math.sqrt(targetN * (AREA_W / AREA_H)));
+    const rows = Math.ceil(targetN / cols);
+    const players: Array<Record<string, unknown>> = [];
+    for (let i = 0; i < targetN; i++) {
+      const src = base[i % base.length];
+      const cx = i % cols, cy = Math.floor(i / cols);
+      players.push({
+        ...src,
+        x: (cols > 1 ? cx / (cols - 1) - 0.5 : 0) * AREA_W,
+        y: (rows > 1 ? cy / (rows - 1) - 0.5 : 0) * AREA_H,
+      });
+    }
+
+    const nonBlackRatio = (): number => {
+      const bmp = r.realCrowdBitmap?.();
+      if (!bmp) return -1;
+      const S = 200;
+      const cv = document.createElement("canvas");
+      cv.width = S; cv.height = S;
+      const ctx = cv.getContext("2d");
+      if (!ctx) return -1;
+      ctx.drawImage(bmp, 0, 0, S, S);
+      const d = ctx.getImageData(0, 0, S, S).data;
+      let nz = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 10) nz++;
+      return +(nz / (S * S)).toFixed(3);
+    };
+    const liveMB = (): number => {
+      const s = r.rustGpuByteStats?.();
+      return s ? +((s[0] + s[1]) / 1048576).toFixed(1) : -1;
+    };
+
+    let texDesc = "";
+    // mode: "baseline" | "retained0a" | "retained0b"
+    const runOne = async (mode: string, cap: number) => {
+      const setup = r.realCrowdSetup!(players, 4096, res, true) ?? {};
+      texDesc = `${setup.texW}x${setup.texH}`;
+      const move = mode === "retained0b" ? movePx : 0;
+      let fi = 0;
+      const call = (): Record<string, unknown> | null | undefined => {
+        if (mode === "baseline") return r.realCrowdRenderBatched?.(cap, 2500);
+        const m = r.realCrowdRenderRetainedFrozen?.(cap, 0, fi, move);
+        fi += 1;
+        return m;
+      };
+      // warm: enough to fill look_cache AND take the slow path once per batch.
+      let meta: Record<string, unknown> | null | undefined = null;
+      for (let k = 0; k < 40; k++) { meta = call(); r.tickDeferredDestroys?.(2, 8192); if (k % 20 === 0) await sleep(0); }
+      await sleep(40);
+      const wall: number[] = []; const build: number[] = []; const resolve: number[] = []; const run: number[] = [];
+      const t0 = performance.now();
+      while (performance.now() - t0 < secondsPer * 1000 && wall.length < 150) {
+        const a = performance.now();
+        meta = call();
+        wall.push(performance.now() - a);
+        if (meta) {
+          build.push((meta.buildMs as number) ?? 0);
+          resolve.push((meta.resolveMs as number) ?? 0);
+          run.push((meta.runMs as number) ?? 0);
+        }
+        r.tickDeferredDestroys?.(2, 8192);
+        if (wall.length % 20 === 0) await sleep(0);
+      }
+      const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / Math.max(1, arr.length);
+      wall.sort((a, b) => a - b);
+      const content = nonBlackRatio();
+      return {
+        mode, cap, frames: wall.length,
+        wallAvg: +avg(wall).toFixed(2),
+        wallP50: +(wall[Math.floor(wall.length * 0.5)] ?? 0).toFixed(2),
+        buildMs: +avg(build).toFixed(2),
+        resolveMs: +avg(resolve).toFixed(2),
+        runMs: +avg(run).toFixed(2),
+        fastBatches: meta?.fastBatches,
+        batches: meta?.batches,
+        liveMB: liveMB(),
+        content, valid: content > 0.001,
+      };
+    };
+
+    const results: unknown[] = [];
+    for (const cap of caps) {
+      for (const mode of ["baseline", "retained0a", "retained0b"]) {
+        // eslint-disable-next-line no-await-in-loop
+        results.push(await runOne(mode, cap));
+      }
+    }
+
+    r.realCrowdFree?.();
+    w.__resumeLiveRender?.();
+    const out = {
+      targetN, gate: "Phase-2 retained mechanism",
+      isolation: { liveRenderStopped: liveStopped, botsDespawned: despawned, botsLeft: w.__getTestPlayerCount?.() ?? "?" },
+      tex: texDesc, area: `${AREA_W}x${AREA_H}`, movePx,
+      note: "GATE PASS if retained run << baseline run AND content>0",
+      results,
+    };
+    // eslint-disable-next-line no-console
+    console.warn("[rcBenchRetained]", JSON.stringify(out, null, 2));
+    return out;
+  };
+
+  // ── RETAINED-VELLO v1+v2 REAL animation: window.__rcRetained(targetN, opts) ──
+  // Drives realCrowdRenderRetained with ADVANCING time (players actually animate),
+  // A/B against baseline realCrowdRenderBatched. Reports the per-phase split +
+  // retained/dynamic batch counts + rebuilds, with exactly ONE content readback at
+  // the very end (readback poisons subsequent renders). opts: { secondsPer, cap,
+  // areaW, areaH, res }.
+  (
+    window as unknown as {
+      __rcRetained?: (targetN?: number, opts?: Record<string, unknown>) => Promise<unknown>;
+    }
+  ).__rcRetained = async (targetN = 800, opts = {}) => {
+    const o = opts as { secondsPer?: number; cap?: number; areaW?: number; areaH?: number; res?: number };
+    const secondsPer = o.secondsPer ?? 1.0;
+    const cap = o.cap ?? 250;
+    const AREA_W = o.areaW ?? 1400, AREA_H = o.areaH ?? 900, res = o.res ?? 3;
+    const w = window as unknown as {
+      __killLiveRender?: () => void; __resumeLiveRender?: () => void;
+      __realCrowdSnapshot?: () => Array<Record<string, unknown>>;
+      despawnTestPlayers?: () => number;
+    };
+    const r = renderer as unknown as {
+      realCrowdSetup?: (p: unknown, t: number, res: number, retain: boolean) => Record<string, unknown> | null;
+      realCrowdRenderBatched?: (cap: number, t: number) => Record<string, unknown> | null;
+      realCrowdRenderRetained?: (cap: number, t: number) => Record<string, unknown> | null;
+      realCrowdBitmap?: () => ImageBitmap | null;
+      realCrowdFree?: () => void;
+      tickDeferredDestroys?: (min: number, max: number) => Uint32Array;
+      rustGpuByteStats?: () => Float64Array;
+    } | null;
+    if (!r?.realCrowdSetup || !r.realCrowdRenderRetained || !w.__realCrowdSnapshot) {
+      return { error: "renderer/snapshot not ready (rebuild wasm?)" };
+    }
+    const base = w.__realCrowdSnapshot().filter((p) => isCharBundle(p.bundle as string));
+    if (!base.length) return { error: "no character players — spawn bots first" };
+    const sleep = (ms: number) => new Promise((rs) => setTimeout(rs, ms));
+    w.__killLiveRender?.();
+    await sleep(50);
+    const despawned = w.despawnTestPlayers?.() ?? 0;
+    await sleep(50);
+    const cols = Math.ceil(Math.sqrt(targetN * (AREA_W / AREA_H)));
+    const rows = Math.ceil(targetN / cols);
+    const players: Array<Record<string, unknown>> = [];
+    for (let i = 0; i < targetN; i++) {
+      const src = base[i % base.length];
+      const cx = i % cols, cy = Math.floor(i / cols);
+      players.push({ ...src, x: (cols > 1 ? cx / (cols - 1) - 0.5 : 0) * AREA_W, y: (rows > 1 ? cy / (rows - 1) - 0.5 : 0) * AREA_H });
+    }
+    const liveMB = () => { const s = r.rustGpuByteStats?.(); return s ? +((s[0] + s[1]) / 1048576).toFixed(1) : -1; };
+    let texDesc = "";
+
+    const runOne = async (mode: "baseline" | "retained") => {
+      const setup = r.realCrowdSetup!(players, 4096, res, true) ?? {};
+      texDesc = `${setup.texW}x${setup.texH}`;
+      const call = (t: number) => mode === "retained" ? r.realCrowdRenderRetained?.(cap, t) : r.realCrowdRenderBatched?.(cap, t);
+      let t = 2500, meta: Record<string, unknown> | null | undefined = null;
+      for (let k = 0; k < 30; k++) { t += 16.67; meta = call(t); r.tickDeferredDestroys?.(2, 8192); if (k % 15 === 0) await sleep(0); }
+      await sleep(30);
+      const wall: number[] = [], build: number[] = [], resolve: number[] = [], run: number[] = [];
+      const t0 = performance.now();
+      while (performance.now() - t0 < secondsPer * 1000 && wall.length < 200) {
+        t += 16.67;
+        const a = performance.now();
+        meta = call(t);
+        wall.push(performance.now() - a);
+        if (meta) { build.push((meta.buildMs as number) ?? 0); resolve.push((meta.resolveMs as number) ?? 0); run.push((meta.runMs as number) ?? 0); }
+        r.tickDeferredDestroys?.(2, 8192);
+        if (wall.length % 20 === 0) await sleep(0);
+      }
+      const avg = (a: number[]) => +(a.reduce((x, y) => x + y, 0) / Math.max(1, a.length)).toFixed(2);
+      wall.sort((a, b) => a - b);
+      return {
+        mode, frames: wall.length, wallAvg: avg(wall),
+        wallP50: +(wall[Math.floor(wall.length * 0.5)] ?? 0).toFixed(2),
+        fps: +(1000 / Math.max(0.01, avg(wall))).toFixed(0),
+        buildMs: avg(build), resolveMs: avg(resolve), runMs: avg(run),
+        retainedBatches: meta?.retainedBatches, dynamicBatches: meta?.dynamicBatches,
+        rebuilds: meta?.rebuilds, bakedLooks: meta?.bakedLooks, liveMB: liveMB(),
+      };
+    };
+
+    // baseline first (its end-readback would poison retained), so do content on retained only.
+    const baseline = await runOne("baseline");
+    const retained = await runOne("retained");
+    // ONE readback — on the retained run, the last thing rendered.
+    let content = -1;
+    const bmp = r.realCrowdBitmap?.();
+    if (bmp) {
+      const S = 240, cv = document.createElement("canvas"); cv.width = S; cv.height = S;
+      const c = cv.getContext("2d"); if (c) { c.drawImage(bmp, 0, 0, S, S); const d = c.getImageData(0, 0, S, S).data; let nz = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 10) nz++; content = +(nz / (S * S)).toFixed(3); }
+    }
+    r.realCrowdFree?.();
+    w.__resumeLiveRender?.();
+    const out = { targetN, cap, tex: texDesc, despawned, area: `${AREA_W}x${AREA_H}`, retainedContent: content, retainedValid: content > 0.001, baseline, retained };
+    // eslint-disable-next-line no-console
+    console.warn("[rcRetained]", JSON.stringify(out, null, 2));
+    return out;
+  };
 }
 
 /**

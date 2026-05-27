@@ -228,6 +228,238 @@ struct RealAnimCrowd {
     batch_size: u32,
     batch_targets: Vec<wgpu::Texture>,
     batch_views: Vec<wgpu::TextureView>,
+    /// RETAINED-VELLO (Phase 2): per-batch cached recording + resident scene
+    /// buffer state. `None` until the batch is first resolved; invalidated when
+    /// the batch grid or structure changes. Index aligns with `batch_views`.
+    retained_batches: Vec<Option<RetainedBatch>>,
+    /// RETAINED-VELLO v1+v2 (Phase 3): baked looks keyed by sig, and per-batch
+    /// retained state for `realCrowdRenderRetained`.
+    retained_look_cache: HashMap<String, RetainedLook>,
+    ret_batches: Vec<Option<RetBatch>>,
+}
+
+/// Cached per-batch state for the retained render path. The packed scene buffer
+/// lives GPU-resident inside the `Renderer` (keyed by the batch's [`vello::ReuseToken`]);
+/// this holds the CPU-side handles needed to REPLAY the recording with only the
+/// transform region re-uploaded.
+struct RetainedBatch {
+    /// Replayable recording (scene buffer bound externally each run).
+    recording: vello::low_level::Recording,
+    /// Scene buffer proxy — its id is bound to the resident GPU buffer.
+    scene_buf: vello::low_level::ResourceProxy,
+    /// Fine-stage output image proxy (bound to the batch target view each run).
+    out_image: vello::low_level::ResourceProxy,
+    /// Transform-region bytes captured at resolve time — for the fixed-position
+    /// fast path (rewrite identical transforms, skipping rebuild + resolve).
+    frozen_transform_bytes: Vec<u8>,
+    /// Hash of the batch's `(sig, frame)` set — mismatch forces a full rebuild.
+    structure_sig: u64,
+}
+
+/// RETAINED-VELLO v1+v2: a fully-baked look ready for the retained render path.
+/// Geometry (path_tags/draw_data/styles + non-morph path_data) is frame-invariant and
+/// kept GPU-resident; per frame we re-upload only transforms (always) and, for morph
+/// looks, the changed path_data. `retainable=false` (path_data length or transform
+/// count varies across frames — structural appear/disappear) falls back to the baseline
+/// per-frame lane.
+struct RetainedLook {
+    /// Frame-0 look — appended to a batch to establish the resident geometry + byte layout.
+    base_scene: vello::Scene,
+    /// Per-frame local transform streams (length constant across frames == base tx count).
+    frames_transforms: Vec<Vec<vello_encoding::Transform>>,
+    /// Distinct path_data geometries across the cycle (1 entry for v1/non-morph).
+    unique_path_data: Vec<Vec<u32>>,
+    /// frame -> index into `unique_path_data`.
+    frame_geom: Vec<u16>,
+    /// `unique_path_data.len() > 1` — needs per-frame path_data re-upload.
+    is_morph: bool,
+    /// false -> path_data length / transform count varies across frames -> baseline lane.
+    retainable: bool,
+}
+
+/// One player inside a retained batch: where its sub-streams live in the resident
+/// packed buffer, so we can partial-write its transforms + (morph) path_data.
+struct RetPlayer {
+    /// Index into `crowd.players`.
+    crowd_idx: usize,
+    /// Word offset of this player's path_data within the batch path_data region.
+    pd_word_start: u32,
+    /// Transform-index offset of this player within the batch transform region.
+    tx_index_start: u32,
+    is_morph: bool,
+    /// Geometry index currently resident for this player (-1 = none yet).
+    resident_geom: i32,
+}
+
+/// Per-batch retained state: the cached recording + resident layout + per-player offsets.
+struct RetBatch {
+    recording: vello::low_level::Recording,
+    scene_buf: vello::low_level::ResourceProxy,
+    out_image: vello::low_level::ResourceProxy,
+    path_data_base_words: u32,
+    transform_base_words: u32,
+    players: Vec<RetPlayer>,
+    /// Hash of the batch's player sigs — mismatch (spawn/despawn/anim/dir) forces rebuild.
+    structure_sig: u64,
+    /// Reused per-frame transform-region scratch.
+    tx_scratch: Vec<u8>,
+}
+
+/// Bake a look across ALL its animation frames into a [`RetainedLook`]: captures
+/// per-frame transform streams, dedups path_data geometries, and classifies the look
+/// as retainable (path_data length + transform count constant across frames) or not.
+#[allow(clippy::too_many_arguments)]
+fn bake_retained_look(
+    ctx: &mut swf_spike::render::WgpuCtx,
+    bundles: &HashMap<String, swf_spike::swf_doc::SwfDoc>,
+    caches: &HashMap<String, swf_spike::render::cache::RenderCache>,
+    bundle: &str,
+    export: &str,
+    frame_count: u16,
+    flipped: bool,
+    colors: swf_spike::recolor::PlayerColors,
+    acc: &[LookAcc],
+    scale_aff: vello::kurbo::Affine,
+) -> RetainedLook {
+    use std::hash::{Hash, Hasher};
+    let fc = frame_count.max(1);
+    let mut frames_transforms: Vec<Vec<vello_encoding::Transform>> = Vec::with_capacity(fc as usize);
+    let mut pd_per_frame: Vec<Vec<u32>> = Vec::with_capacity(fc as usize);
+    let mut base_scene = vello::Scene::new();
+    let mut tx_count0 = 0usize;
+    let mut pd_len0 = 0usize;
+    let mut length_stable = true;
+    for f in 0..fc {
+        let mut sub = vello::Scene::new();
+        emit_player_look(
+            ctx, bundles, caches, bundle, export, f, flipped, colors, acc, scale_aff, &mut sub,
+        );
+        {
+            let enc = sub.encoding();
+            frames_transforms.push(enc.transforms.clone());
+            pd_per_frame.push(enc.path_data.clone());
+            if f == 0 {
+                tx_count0 = enc.transforms.len();
+                pd_len0 = enc.path_data.len();
+            } else if enc.transforms.len() != tx_count0 || enc.path_data.len() != pd_len0 {
+                length_stable = false;
+            }
+        }
+        if f == 0 {
+            base_scene = sub;
+        }
+    }
+    if !length_stable {
+        // Not retainable — drop the heavy per-frame data; the baseline lane handles it.
+        return RetainedLook {
+            base_scene,
+            frames_transforms: Vec::new(),
+            unique_path_data: Vec::new(),
+            frame_geom: Vec::new(),
+            is_morph: false,
+            retainable: false,
+        };
+    }
+    // Dedup path_data geometries (1 entry for non-morph; N for morphs).
+    let mut unique_path_data: Vec<Vec<u32>> = Vec::new();
+    let mut hash_to_idx: HashMap<u64, u16> = HashMap::new();
+    let mut frame_geom: Vec<u16> = Vec::with_capacity(fc as usize);
+    for pd in &pd_per_frame {
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        pd.hash(&mut h);
+        let key = h.finish();
+        let idx = *hash_to_idx.entry(key).or_insert_with(|| {
+            unique_path_data.push(pd.clone());
+            (unique_path_data.len() - 1) as u16
+        });
+        frame_geom.push(idx);
+    }
+    let is_morph = unique_path_data.len() > 1;
+    RetainedLook {
+        base_scene,
+        frames_transforms,
+        unique_path_data,
+        frame_geom,
+        is_morph,
+        retainable: true,
+    }
+}
+
+/// RETAINED-VELLO v3 (union/hide): bake a look that would be length-VARYING
+/// (appear/disappear) into a length-STABLE [`RetainedLook`]. Captures every leaf
+/// per frame (by depth-path identity), takes the union across the cycle, and
+/// re-emits ALL union leaves every frame in stable (sorted depth-path == z-order)
+/// order with absent leaves at a scale-0 HIDE transform. The result has a constant
+/// draw set, so the normal retained render path keeps it GPU-resident. Morph slots'
+/// path_data still varies per frame (handled by the v2 path_data writes).
+#[allow(clippy::too_many_arguments)]
+fn bake_union_look(
+    ctx: &mut swf_spike::render::WgpuCtx,
+    bundles: &HashMap<String, swf_spike::swf_doc::SwfDoc>,
+    caches: &HashMap<String, swf_spike::render::cache::RenderCache>,
+    bundle: &str,
+    export: &str,
+    frame_count: u16,
+    flipped: bool,
+    colors: swf_spike::recolor::PlayerColors,
+    acc: &[LookAcc],
+    scale_aff: vello::kurbo::Affine,
+) -> RetainedLook {
+    use std::hash::{Hash, Hasher};
+    use swf_spike::render::union;
+    let fc = frame_count.max(1);
+
+    // 1. Capture leaves per frame (render_shape_into records + skips emission).
+    let mut per_frame: Vec<Vec<union::CapturedLeaf>> = Vec::with_capacity(fc as usize);
+    for f in 0..fc {
+        union::begin_capture();
+        let mut throwaway = vello::Scene::new();
+        emit_player_look(
+            ctx, bundles, caches, bundle, export, f, flipped, colors, acc, scale_aff, &mut throwaway,
+        );
+        per_frame.push(union::take_capture());
+    }
+    // 2. Build the union (stable slot order).
+    let plan = union::build_union(&per_frame);
+
+    // 3. Re-emit the constant-structure union per frame, extract transforms + path_data.
+    let mut frames_transforms: Vec<Vec<vello_encoding::Transform>> = Vec::with_capacity(fc as usize);
+    let mut pd_per_frame: Vec<Vec<u32>> = Vec::with_capacity(fc as usize);
+    let mut base_scene = vello::Scene::new();
+    for f in 0..fc {
+        let mut s = vello::Scene::new();
+        union::emit_union_frame(&plan, f, &mut s);
+        {
+            let enc = s.encoding();
+            frames_transforms.push(enc.transforms.clone());
+            pd_per_frame.push(enc.path_data.clone());
+        }
+        if f == 0 {
+            base_scene = s;
+        }
+    }
+    let mut unique_path_data: Vec<Vec<u32>> = Vec::new();
+    let mut hash_to_idx: HashMap<u64, u16> = HashMap::new();
+    let mut frame_geom: Vec<u16> = Vec::with_capacity(fc as usize);
+    for pd in &pd_per_frame {
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        pd.hash(&mut h);
+        let key = h.finish();
+        let idx = *hash_to_idx.entry(key).or_insert_with(|| {
+            unique_path_data.push(pd.clone());
+            (unique_path_data.len() - 1) as u16
+        });
+        frame_geom.push(idx);
+    }
+    let is_morph = unique_path_data.len() > 1;
+    RetainedLook {
+        base_scene,
+        frames_transforms,
+        unique_path_data,
+        frame_geom,
+        is_morph,
+        retainable: true,
+    }
 }
 
 /// Emit one player's complete look into `out`: body bands interleaved
@@ -432,9 +664,10 @@ pub struct VelloRenderer {
     /// `realCrowdTick` re-emits only frame-changed players. Used to
     /// measure the real ANIMATED per-frame cost over a long run.
     real_anim_crowd: Option<RealAnimCrowd>,
-    /// DIAG: lazy straight-alpha compositor for the batched crowd render
-    /// (combines per-batch textures past the single-scene shape ceiling).
-    crowd_composite_pipeline: Option<bitmap_bridge::CompositePipeline>,
+    /// DIAG: lazy single-pass compositor for the batched crowd render
+    /// (folds all per-batch textures past the single-scene shape ceiling in
+    /// ONE fullscreen pass instead of N sequential `over` passes).
+    crowd_composite_pipeline: Option<bitmap_bridge::MultiCompositePipeline>,
     /// Phase 1b: pre-built `vello::Scene` cache for the body atlas
     /// bake. Phase 1's flatten cache lived inside `swf_render_caches`
     /// and ONLY memoised the `flatten_shape` step. On real workloads
@@ -4527,6 +4760,9 @@ impl VelloRenderer {
             batch_size: 0,
             batch_targets: Vec::new(),
             batch_views: Vec::new(),
+            retained_batches: Vec::new(),
+            retained_look_cache: HashMap::new(),
+            ret_batches: Vec::new(),
         });
 
         let result = js_sys::Object::new();
@@ -4800,8 +5036,9 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
         if self.crowd_composite_pipeline.is_none() {
-            self.crowd_composite_pipeline = Some(bitmap_bridge::CompositePipeline::new(
+            self.crowd_composite_pipeline = Some(bitmap_bridge::MultiCompositePipeline::new(
                 &self.device,
+                &self.queue,
                 wgpu::TextureFormat::Rgba8Unorm,
             ));
         }
@@ -4851,24 +5088,30 @@ impl VelloRenderer {
             antialiasing_method: AaConfig::Area,
         };
         // PASS 1: build + render each batch (Y-sorted contiguous chunk).
+        // Split into BUILD (append cached looks), RESOLVE (Scene→Recording,
+        // pure CPU — the parallelizable cost) and RUN (GPU submit) so we can
+        // see the per-phase breakdown.
+        let mut build_ms = 0.0f64;
+        let mut resolve_ms = 0.0f64;
+        let mut run_ms = 0.0f64;
+        // Encoding stream byte breakdown — to size the retained-Vello win:
+        // everything except `transforms` is frame-invariant (persistable on the
+        // GPU); only `transforms` (the pose) re-uploads per frame.
+        let mut static_b = 0u64; // path_tags + path_data + draw_tags + draw_data + styles
+        let mut transforms_b = 0u64; // per-frame dynamic
+        let mut n_paths_acc = 0u64;
         {
-            let RealAnimCrowd {
-                ref players,
-                ref mut look_cache,
-                off_x,
-                off_y,
-                ref batch_views,
-                ..
-            } = crowd;
             let bsz = batch_size as usize;
             for b in 0..n_batches as usize {
                 let start = b * bsz;
-                let end = ((b + 1) * bsz).min(players.len());
+                let end = ((b + 1) * bsz).min(crowd.players.len());
                 if start >= end {
                     break;
                 }
+                let t_build = web_time::Instant::now();
                 let mut scene = vello::Scene::new();
                 {
+                    let RealAnimCrowd { ref players, ref mut look_cache, off_x, off_y, .. } = crowd;
                     let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
                     let mut ctx = swf_spike::render::WgpuCtx {
                         device: &self.device,
@@ -4906,16 +5149,34 @@ impl VelloRenderer {
                         }
                     }
                 }
-                let _ = self.renderer.render_to_texture(
+                build_ms += t_build.elapsed().as_secs_f64() * 1000.0;
+                {
+                    let enc = scene.encoding();
+                    static_b += enc.path_tags.len() as u64
+                        + (enc.path_data.len() as u64) * 4
+                        + (enc.draw_tags.len() as u64) * 4
+                        + (enc.draw_data.len() as u64) * 4
+                        + (enc.styles.len() as u64) * 8;
+                    transforms_b += (enc.transforms.len() as u64) * 24;
+                    n_paths_acc += enc.n_paths as u64;
+                }
+                let t_res = web_time::Instant::now();
+                let (recording, target) = self.renderer.resolve_scene(&scene, &params);
+                resolve_ms += t_res.elapsed().as_secs_f64() * 1000.0;
+                let t_run = web_time::Instant::now();
+                let _ = self.renderer.run_resolved(
                     &self.device,
                     &self.queue,
-                    &scene,
-                    &batch_views[b],
-                    &params,
+                    &recording,
+                    target,
+                    &crowd.batch_views[b],
                 );
+                run_ms += t_run.elapsed().as_secs_f64() * 1000.0;
             }
         }
-        // PASS 2: composite batches back-to-front onto the crowd target.
+        // PASS 2: fold all batches back-to-front onto the crowd target in
+        // ONE pass (one submit, one framebuffer write).
+        let t_comp = web_time::Instant::now();
         {
             let comp = self.crowd_composite_pipeline.as_ref().unwrap();
             let mut encoder = self
@@ -4923,24 +5184,714 @@ impl VelloRenderer {
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("crowd-composite-encoder"),
                 });
-            for b in 0..crowd.batch_views.len() {
-                comp.composite(
-                    &self.device,
-                    &mut encoder,
-                    &crowd.batch_views[b],
-                    &crowd.view,
-                    b == 0,
-                );
-            }
+            let src: Vec<&wgpu::TextureView> = crowd.batch_views.iter().collect();
+            comp.composite(&self.device, &self.queue, &mut encoder, &src, &crowd.view);
             self.queue.submit(std::iter::once(encoder.finish()));
         }
+        let composite_ms = t_comp.elapsed().as_secs_f64() * 1000.0;
         let cache_size = crowd.look_cache.len() as u32;
         self.real_anim_crowd = Some(crowd);
         let result = js_sys::Object::new();
         let _ = js_sys::Reflect::set(&result, &"players".into(), &JsValue::from(n_players));
         let _ = js_sys::Reflect::set(&result, &"batches".into(), &JsValue::from(n_batches));
         let _ = js_sys::Reflect::set(&result, &"cacheSize".into(), &JsValue::from(cache_size));
+        let _ = js_sys::Reflect::set(&result, &"buildMs".into(), &JsValue::from(build_ms));
+        let _ = js_sys::Reflect::set(&result, &"resolveMs".into(), &JsValue::from(resolve_ms));
+        let _ = js_sys::Reflect::set(&result, &"runMs".into(), &JsValue::from(run_ms));
+        let _ = js_sys::Reflect::set(&result, &"compositeMs".into(), &JsValue::from(composite_ms));
+        // Retained-Vello sizing: staticKB persists on GPU; only transformsKB
+        // re-uploads per frame. saving = static/(static+transforms).
+        let _ = js_sys::Reflect::set(&result, &"staticKB".into(), &JsValue::from((static_b / 1024) as u32));
+        let _ = js_sys::Reflect::set(&result, &"transformsKB".into(), &JsValue::from((transforms_b / 1024) as u32));
+        let _ = js_sys::Reflect::set(&result, &"nPaths".into(), &JsValue::from(n_paths_acc as u32));
         result.into()
+    }
+
+    /// RETAINED-VELLO validation (Phase 2). Every player is pinned to a single
+    /// `frozen_frame`, so each batch's geometry is trivially frame-invariant. The
+    /// FIRST call per batch (or after a structure change) takes the SLOW path:
+    /// build → `resolve_scene_reuse` → `run_reuse_full` (creates the GPU-resident
+    /// scene buffer, caches the replayable recording). Later calls take the FAST
+    /// path: only the transform byte-range is re-uploaded and the recording is
+    /// replayed (geometry stays resident).
+    ///
+    /// `move_px == 0.0` → 0a (fixed positions): rewrite the IDENTICAL cached
+    /// transforms — pure mechanism floor (no rebuild, no resolve). `move_px != 0.0`
+    /// → 0b (moving positions, frozen geometry): rebuild the scene at shifted
+    /// positions, extract the new transform stream, partial-upload + replay.
+    ///
+    /// Drive it from JS with an incrementing `frame_idx`. Returns the same
+    /// `buildMs`/`resolveMs`/`runMs`/`compositeMs` diagnostics as the baseline
+    /// `realCrowdRenderBatched`, plus `fastBatches`.
+    #[wasm_bindgen(js_name = "realCrowdRenderRetainedFrozen")]
+    pub fn real_crowd_render_retained_frozen(
+        &mut self,
+        batch_size: u32,
+        frozen_frame: u16,
+        frame_idx: u32,
+        move_px: f64,
+    ) -> JsValue {
+        if batch_size == 0 {
+            return JsValue::NULL;
+        }
+        if self.crowd_composite_pipeline.is_none() {
+            self.crowd_composite_pipeline = Some(bitmap_bridge::MultiCompositePipeline::new(
+                &self.device,
+                &self.queue,
+                wgpu::TextureFormat::Rgba8Unorm,
+            ));
+        }
+        let Some(mut crowd) = self.real_anim_crowd.take() else {
+            return JsValue::NULL;
+        };
+        let n_players = crowd.players.len() as u32;
+        let n_batches = n_players.div_ceil(batch_size).max(1);
+        let (tw, th) = (crowd.tw, crowd.th);
+        // (Re)create per-batch scratch textures. A grid change invalidates ALL
+        // retained state (the resident buffers + cached recordings).
+        if crowd.batch_size != batch_size || crowd.batch_targets.len() != n_batches as usize {
+            crowd.batch_targets.clear();
+            crowd.batch_views.clear();
+            crowd.retained_batches.clear();
+            self.renderer.free_all_reused();
+            for _ in 0..n_batches {
+                let t = self.device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("crowd-batch"),
+                    size: wgpu::Extent3d {
+                        width: tw,
+                        height: th,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    usage: wgpu::TextureUsages::STORAGE_BINDING
+                        | wgpu::TextureUsages::COPY_SRC
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[],
+                });
+                let v = t.create_view(&wgpu::TextureViewDescriptor::default());
+                crowd.batch_targets.push(t);
+                crowd.batch_views.push(v);
+            }
+            crowd.batch_size = batch_size;
+        }
+        if crowd.retained_batches.len() != n_batches as usize {
+            crowd.retained_batches.clear();
+            crowd.retained_batches.resize_with(n_batches as usize, || None);
+            self.renderer.free_all_reused();
+        }
+
+        let scale = crowd.scale;
+        let pos_scale = crowd.pos_scale;
+        let flip_x = vello::kurbo::Affine::new([-1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
+        let scale_aff = vello::kurbo::Affine::scale(scale);
+        let params = vello::RenderParams {
+            base_color: Color::TRANSPARENT,
+            width: tw,
+            height: th,
+            antialiasing_method: AaConfig::Area,
+        };
+        // Oscillating horizontal drift keeps moving players on-texture.
+        let move_dx = move_px * ((frame_idx as f64) * 0.3).sin();
+
+        let mut build_ms = 0.0f64;
+        let mut resolve_ms = 0.0f64;
+        let mut run_ms = 0.0f64;
+        let mut fast_batches = 0u32;
+
+        let bsz = batch_size as usize;
+        for b in 0..n_batches as usize {
+            let start = b * bsz;
+            let end = ((b + 1) * bsz).min(crowd.players.len());
+            if start >= end {
+                break;
+            }
+            let token = vello::ReuseToken(b as u64);
+            let struct_sig = Self::frozen_structure_sig(&crowd.players[start..end], frozen_frame);
+            let fast = crowd.retained_batches[b]
+                .as_ref()
+                .is_some_and(|rb| rb.structure_sig == struct_sig);
+
+            if fast {
+                let rb = crowd.retained_batches[b].as_ref().unwrap();
+                // Fast path. 0a: reuse identical transforms; 0b: rebuild only the
+                // transform stream at shifted positions.
+                let t_run = web_time::Instant::now();
+                if move_px == 0.0 {
+                    let _ = self.renderer.run_reuse_transforms(
+                        &self.device,
+                        &self.queue,
+                        token,
+                        &rb.recording,
+                        rb.scene_buf,
+                        rb.out_image,
+                        &crowd.batch_views[b],
+                        &rb.frozen_transform_bytes,
+                    );
+                    run_ms += t_run.elapsed().as_secs_f64() * 1000.0;
+                } else {
+                    // Rebuild the scene at shifted positions purely to extract the
+                    // new transform stream (same structure → same length/order).
+                    let t_build = web_time::Instant::now();
+                    let mut scene = vello::Scene::new();
+                    {
+                        let RealAnimCrowd { ref players, ref look_cache, off_x, off_y, .. } = crowd;
+                        for p in &players[start..end] {
+                            let tf = frozen_frame % p.frame_count.max(1);
+                            let key = format!("{}|{}", p.sig, tf);
+                            if let Some(sub) = look_cache.get(&key) {
+                                let translate = vello::kurbo::Affine::translate(
+                                    vello::kurbo::Vec2::new(
+                                        p.x * pos_scale + off_x + move_dx,
+                                        p.y * pos_scale + off_y,
+                                    ),
+                                );
+                                let place = if p.flipped { translate * flip_x } else { translate };
+                                scene.append(sub, Some(place));
+                            }
+                        }
+                    }
+                    let tx_bytes: &[u8] = bytemuck::cast_slice(scene.encoding().transforms.as_slice());
+                    build_ms += t_build.elapsed().as_secs_f64() * 1000.0;
+                    let t_run2 = web_time::Instant::now();
+                    let _ = self.renderer.run_reuse_transforms(
+                        &self.device,
+                        &self.queue,
+                        token,
+                        &rb.recording,
+                        rb.scene_buf,
+                        rb.out_image,
+                        &crowd.batch_views[b],
+                        tx_bytes,
+                    );
+                    run_ms += t_run2.elapsed().as_secs_f64() * 1000.0;
+                }
+                fast_batches += 1;
+                continue;
+            }
+
+            // SLOW path: build → resolve_scene_reuse → run_reuse_full, cache batch.
+            let t_build = web_time::Instant::now();
+            let mut scene = vello::Scene::new();
+            {
+                let RealAnimCrowd { ref players, ref mut look_cache, off_x, off_y, .. } = crowd;
+                let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+                let mut ctx = swf_spike::render::WgpuCtx {
+                    device: &self.device,
+                    queue: &self.queue,
+                    renderer: &mut self.renderer,
+                    filter_pipelines,
+                    output_scale: scale,
+                };
+                let bundles = &self.swf_bundles;
+                let caches = &self.swf_render_caches;
+                for p in &players[start..end] {
+                    let tf = frozen_frame % p.frame_count.max(1);
+                    let key = format!("{}|{}", p.sig, tf);
+                    if !look_cache.contains_key(&key) {
+                        let mut sub = vello::Scene::new();
+                        emit_player_look(
+                            &mut ctx, bundles, caches, &p.bundle, &p.export, tf,
+                            p.flipped, p.colors, &p.acc, scale_aff, &mut sub,
+                        );
+                        look_cache.insert(key.clone(), sub);
+                    }
+                    if let Some(sub) = look_cache.get(&key) {
+                        let translate = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
+                            p.x * pos_scale + off_x + move_dx,
+                            p.y * pos_scale + off_y,
+                        ));
+                        let place = if p.flipped { translate * flip_x } else { translate };
+                        scene.append(sub, Some(place));
+                    }
+                }
+            }
+            build_ms += t_build.elapsed().as_secs_f64() * 1000.0;
+
+            let t_res = web_time::Instant::now();
+            let resolved = self.renderer.resolve_scene_reuse(&scene, &params);
+            resolve_ms += t_res.elapsed().as_secs_f64() * 1000.0;
+
+            // Capture the transform region bytes for the 0a fast path.
+            let off = resolved.transform_offset() as usize;
+            let len = resolved.transform_len() as usize;
+            let frozen_transform_bytes = resolved.packed[off..off + len].to_vec();
+
+            let t_run = web_time::Instant::now();
+            let _ = self.renderer.run_reuse_full(
+                &self.device,
+                &self.queue,
+                token,
+                &resolved,
+                &crowd.batch_views[b],
+            );
+            run_ms += t_run.elapsed().as_secs_f64() * 1000.0;
+
+            crowd.retained_batches[b] = Some(RetainedBatch {
+                recording: resolved.recording,
+                scene_buf: resolved.scene_buf,
+                out_image: resolved.out_image,
+                frozen_transform_bytes,
+                structure_sig: struct_sig,
+            });
+        }
+
+        // Composite all batches → crowd target (one pass, same as baseline).
+        let t_comp = web_time::Instant::now();
+        {
+            let comp = self.crowd_composite_pipeline.as_ref().unwrap();
+            let mut encoder = self
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("crowd-composite-encoder"),
+                });
+            let src: Vec<&wgpu::TextureView> = crowd.batch_views.iter().collect();
+            comp.composite(&self.device, &self.queue, &mut encoder, &src, &crowd.view);
+            self.queue.submit(std::iter::once(encoder.finish()));
+        }
+        let composite_ms = t_comp.elapsed().as_secs_f64() * 1000.0;
+
+        self.real_anim_crowd = Some(crowd);
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"players".into(), &JsValue::from(n_players));
+        let _ = js_sys::Reflect::set(&result, &"batches".into(), &JsValue::from(n_batches));
+        let _ = js_sys::Reflect::set(&result, &"fastBatches".into(), &JsValue::from(fast_batches));
+        let _ = js_sys::Reflect::set(&result, &"buildMs".into(), &JsValue::from(build_ms));
+        let _ = js_sys::Reflect::set(&result, &"resolveMs".into(), &JsValue::from(resolve_ms));
+        let _ = js_sys::Reflect::set(&result, &"runMs".into(), &JsValue::from(run_ms));
+        let _ = js_sys::Reflect::set(&result, &"compositeMs".into(), &JsValue::from(composite_ms));
+        result.into()
+    }
+
+    /// DIAG (Phase-3 design): for each DISTINCT look in the current crowd, bake
+    /// its look at every animation frame and report how much GEOMETRY changes
+    /// across frames. `distinctGeomHashes == 1` → path_data/draw_data are
+    /// frame-invariant (fully retainable: geometry resident, only transforms
+    /// re-upload). `> 1` → geometry changes per frame (morph shape interpolation
+    /// and/or structural appear/disappear) — those frames can't keep geometry
+    /// resident as-is. `distinctTxCounts > 1` → shapes appear/disappear (the
+    /// union/hide case). Requires `realCrowdSetup` first.
+    #[wasm_bindgen(js_name = "analyzeFrameStability")]
+    pub fn analyze_frame_stability(&mut self, max_looks: u32) -> JsValue {
+        use std::hash::{Hash, Hasher};
+        let Some(crowd) = self.real_anim_crowd.take() else {
+            return JsValue::NULL;
+        };
+        let scale_aff = vello::kurbo::Affine::scale(crowd.scale);
+        let results = js_sys::Array::new();
+        {
+            let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+            let mut ctx = swf_spike::render::WgpuCtx {
+                device: &self.device,
+                queue: &self.queue,
+                renderer: &mut self.renderer,
+                filter_pipelines,
+                output_scale: crowd.scale,
+            };
+            let bundles = &self.swf_bundles;
+            let caches = &self.swf_render_caches;
+            let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+            for p in crowd.players.iter() {
+                if !seen.insert(p.sig.clone()) {
+                    continue;
+                }
+                if seen.len() as u32 > max_looks {
+                    break;
+                }
+                let fc = p.frame_count.max(1);
+                let mut geom_hashes: std::collections::HashSet<u64> = std::collections::HashSet::new();
+                let mut tx_counts: std::collections::HashSet<usize> = std::collections::HashSet::new();
+                let mut pd_words0 = 0usize;
+                for f in 0..fc {
+                    let mut sub = vello::Scene::new();
+                    emit_player_look(
+                        &mut ctx, bundles, caches, &p.bundle, &p.export, f,
+                        p.flipped, p.colors, &p.acc, scale_aff, &mut sub,
+                    );
+                    let enc = sub.encoding();
+                    if f == 0 {
+                        pd_words0 = enc.path_data.len();
+                    }
+                    let mut h = std::collections::hash_map::DefaultHasher::new();
+                    enc.path_data.hash(&mut h);
+                    enc.draw_data.hash(&mut h);
+                    geom_hashes.insert(h.finish());
+                    tx_counts.insert(enc.transforms.len());
+                }
+                let o = js_sys::Object::new();
+                let _ = js_sys::Reflect::set(&o, &"bundle".into(), &p.bundle.clone().into());
+                let _ = js_sys::Reflect::set(&o, &"export".into(), &p.export.clone().into());
+                let _ = js_sys::Reflect::set(&o, &"frames".into(), &JsValue::from(fc));
+                let _ = js_sys::Reflect::set(&o, &"distinctGeomHashes".into(), &JsValue::from(geom_hashes.len() as u32));
+                let _ = js_sys::Reflect::set(&o, &"distinctTxCounts".into(), &JsValue::from(tx_counts.len() as u32));
+                let _ = js_sys::Reflect::set(&o, &"pathDataWords".into(), &JsValue::from(pd_words0 as u32));
+                results.push(&o);
+            }
+        }
+        self.real_anim_crowd = Some(crowd);
+        results.into()
+    }
+
+    /// RETAINED-VELLO v1+v2 real-animation render. Y-sorted batches (z-order
+    /// preserved). A batch whose players are ALL length-stable renders via the
+    /// retained fast path: geometry resident, per-frame transform writes for every
+    /// player + path_data writes for morph players whose geometry frame changed, then
+    /// the cached recording is replayed. A batch containing a length-varying
+    /// (structural appear/disappear) player renders via the baseline per-frame lane.
+    /// Rebuild of a retained batch happens only on player-set change. Composites all
+    /// batches back-to-front.
+    #[wasm_bindgen(js_name = "realCrowdRenderRetained")]
+    pub fn real_crowd_render_retained(&mut self, batch_size: u32, time_ms: f64) -> JsValue {
+        if batch_size == 0 {
+            return JsValue::NULL;
+        }
+        if self.crowd_composite_pipeline.is_none() {
+            self.crowd_composite_pipeline = Some(bitmap_bridge::MultiCompositePipeline::new(
+                &self.device,
+                &self.queue,
+                wgpu::TextureFormat::Rgba8Unorm,
+            ));
+        }
+        let Some(mut crowd) = self.real_anim_crowd.take() else {
+            return JsValue::NULL;
+        };
+        let n_players = crowd.players.len() as u32;
+        let n_batches = n_players.div_ceil(batch_size).max(1);
+        let (tw, th) = (crowd.tw, crowd.th);
+        if crowd.batch_size != batch_size || crowd.batch_targets.len() != n_batches as usize {
+            crowd.batch_targets.clear();
+            crowd.batch_views.clear();
+            crowd.ret_batches.clear();
+            self.renderer.free_all_reused();
+            for _ in 0..n_batches {
+                let t = self.device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("crowd-batch"),
+                    size: wgpu::Extent3d { width: tw, height: th, depth_or_array_layers: 1 },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    usage: wgpu::TextureUsages::STORAGE_BINDING
+                        | wgpu::TextureUsages::COPY_SRC
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[],
+                });
+                let v = t.create_view(&wgpu::TextureViewDescriptor::default());
+                crowd.batch_targets.push(t);
+                crowd.batch_views.push(v);
+            }
+            crowd.batch_size = batch_size;
+        }
+        if crowd.ret_batches.len() != n_batches as usize {
+            crowd.ret_batches.clear();
+            crowd.ret_batches.resize_with(n_batches as usize, || None);
+            self.renderer.free_all_reused();
+        }
+
+        let scale = crowd.scale;
+        let pos_scale = crowd.pos_scale;
+        let off_x = crowd.off_x;
+        let off_y = crowd.off_y;
+        let flip_x = vello::kurbo::Affine::new([-1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
+        let scale_aff = vello::kurbo::Affine::scale(scale);
+        let params = vello::RenderParams {
+            base_color: Color::TRANSPARENT,
+            width: tw,
+            height: th,
+            antialiasing_method: AaConfig::Area,
+        };
+        let place_of = |p: &AnimPlayer| {
+            let tr = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
+                p.x * pos_scale + off_x,
+                p.y * pos_scale + off_y,
+            ));
+            if p.flipped { tr * flip_x } else { tr }
+        };
+        let frame_of = |p: &AnimPlayer| {
+            let fc = p.frame_count.max(1);
+            let fps = f64::from(p.fps.max(0.001));
+            (((time_ms / 1000.0) * fps) as i64).rem_euclid(i64::from(fc)) as u16
+        };
+
+        // Y-sorted render order (z-order: back-to-front).
+        let mut order: Vec<usize> = (0..crowd.players.len()).collect();
+        order.sort_by(|&a, &b| {
+            crowd.players[a]
+                .y
+                .partial_cmp(&crowd.players[b].y)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        // PRE-PASS 1: bake RetainedLook (classify) for every distinct sig.
+        {
+            let RealAnimCrowd { ref players, ref mut retained_look_cache, .. } = crowd;
+            let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+            let mut ctx = swf_spike::render::WgpuCtx {
+                device: &self.device,
+                queue: &self.queue,
+                renderer: &mut self.renderer,
+                filter_pipelines,
+                output_scale: scale,
+            };
+            let bundles = &self.swf_bundles;
+            let caches = &self.swf_render_caches;
+            for p in players.iter() {
+                if !retained_look_cache.contains_key(&p.sig) {
+                    let mut look = bake_retained_look(
+                        &mut ctx, bundles, caches, &p.bundle, &p.export, p.frame_count,
+                        p.flipped, p.colors, &p.acc, scale_aff,
+                    );
+                    // v3: length-varying (appear/disappear) looks aren't retainable
+                    // as-is — re-bake via the union/hide path to force length-stability.
+                    if !look.retainable {
+                        look = bake_union_look(
+                            &mut ctx, bundles, caches, &p.bundle, &p.export, p.frame_count,
+                            p.flipped, p.colors, &p.acc, scale_aff,
+                        );
+                    }
+                    retained_look_cache.insert(p.sig.clone(), look);
+                }
+            }
+        }
+
+        let bsz = batch_size as usize;
+        // Per-batch type: retained iff all players' looks are retainable.
+        let mut batch_retained = vec![false; n_batches as usize];
+        for b in 0..n_batches as usize {
+            let s = b * bsz;
+            let e = ((b + 1) * bsz).min(order.len());
+            if s >= e {
+                continue;
+            }
+            batch_retained[b] = order[s..e]
+                .iter()
+                .all(|&i| crowd.retained_look_cache[&crowd.players[i].sig].retainable);
+        }
+
+        // PRE-PASS 2: bake look_cache for dynamic-batch players' current frames.
+        {
+            let RealAnimCrowd { ref players, ref mut look_cache, .. } = crowd;
+            let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+            let mut ctx = swf_spike::render::WgpuCtx {
+                device: &self.device,
+                queue: &self.queue,
+                renderer: &mut self.renderer,
+                filter_pipelines,
+                output_scale: scale,
+            };
+            let bundles = &self.swf_bundles;
+            let caches = &self.swf_render_caches;
+            for b in 0..n_batches as usize {
+                if batch_retained[b] {
+                    continue;
+                }
+                let s = b * bsz;
+                let e = ((b + 1) * bsz).min(order.len());
+                for &i in &order[s..e] {
+                    let p = &players[i];
+                    let tf = frame_of(p);
+                    let key = format!("{}|{}", p.sig, tf);
+                    if !look_cache.contains_key(&key) {
+                        let mut sub = vello::Scene::new();
+                        emit_player_look(
+                            &mut ctx, bundles, caches, &p.bundle, &p.export, tf,
+                            p.flipped, p.colors, &p.acc, scale_aff, &mut sub,
+                        );
+                        look_cache.insert(key, sub);
+                    }
+                }
+            }
+        }
+
+        let mut build_ms = 0.0f64;
+        let mut resolve_ms = 0.0f64;
+        let mut run_ms = 0.0f64;
+        let mut retained_n = 0u32;
+        let mut dynamic_n = 0u32;
+        let mut rebuilds = 0u32;
+
+        for b in 0..n_batches as usize {
+            let s = b * bsz;
+            let e = ((b + 1) * bsz).min(order.len());
+            if s >= e {
+                break;
+            }
+            let token = vello::ReuseToken(b as u64);
+
+            if batch_retained[b] {
+                retained_n += 1;
+                let struct_sig = {
+                    use std::hash::{Hash, Hasher};
+                    let mut h = std::collections::hash_map::DefaultHasher::new();
+                    for &i in &order[s..e] {
+                        crowd.players[i].sig.hash(&mut h);
+                    }
+                    h.finish()
+                };
+                let need_rebuild = match &crowd.ret_batches[b] {
+                    Some(rb) => rb.structure_sig != struct_sig,
+                    None => true,
+                };
+                if need_rebuild {
+                    rebuilds += 1;
+                    let t_build = web_time::Instant::now();
+                    let mut scene = vello::Scene::new();
+                    let mut rps: Vec<RetPlayer> = Vec::with_capacity(e - s);
+                    for &i in &order[s..e] {
+                        let p = &crowd.players[i];
+                        let look = &crowd.retained_look_cache[&p.sig];
+                        let pd_start = scene.encoding().path_data.len() as u32;
+                        let tx_start = scene.encoding().transforms.len() as u32;
+                        scene.append(&look.base_scene, Some(place_of(p)));
+                        rps.push(RetPlayer {
+                            crowd_idx: i,
+                            pd_word_start: pd_start,
+                            tx_index_start: tx_start,
+                            is_morph: look.is_morph,
+                            resident_geom: -1,
+                        });
+                    }
+                    build_ms += t_build.elapsed().as_secs_f64() * 1000.0;
+                    let t_res = web_time::Instant::now();
+                    let resolved = self.renderer.resolve_scene_reuse(&scene, &params);
+                    resolve_ms += t_res.elapsed().as_secs_f64() * 1000.0;
+                    let pdb = resolved.layout.path_data_base;
+                    let txb = resolved.layout.transform_base;
+                    self.renderer.prepare_reuse(&self.device, &self.queue, token, &resolved);
+                    crowd.ret_batches[b] = Some(RetBatch {
+                        recording: resolved.recording,
+                        scene_buf: resolved.scene_buf,
+                        out_image: resolved.out_image,
+                        path_data_base_words: pdb,
+                        transform_base_words: txb,
+                        players: rps,
+                        structure_sig: struct_sig,
+                        tx_scratch: Vec::new(),
+                    });
+                }
+
+                let t_run = web_time::Instant::now();
+                let rb = crowd.ret_batches[b].as_mut().unwrap();
+                // Transforms: rebuild the whole region (one contiguous write).
+                rb.tx_scratch.clear();
+                for rp in rb.players.iter() {
+                    let p = &crowd.players[rp.crowd_idx];
+                    let look = &crowd.retained_look_cache[&p.sig];
+                    let tf = frame_of(p) as usize;
+                    let pt = vello_encoding::Transform::from_kurbo(&place_of(p));
+                    for t in &look.frames_transforms[tf] {
+                        rb.tx_scratch
+                            .extend_from_slice(bytemuck::bytes_of(&(pt * *t)));
+                    }
+                }
+                self.renderer.reuse_write(
+                    &self.queue,
+                    token,
+                    (rb.transform_base_words as u64) * 4,
+                    &rb.tx_scratch,
+                );
+                // Morph path_data: write only players whose geometry frame changed.
+                let pdb = rb.path_data_base_words;
+                for rp in rb.players.iter_mut() {
+                    if !rp.is_morph {
+                        continue;
+                    }
+                    let p = &crowd.players[rp.crowd_idx];
+                    let look = &crowd.retained_look_cache[&p.sig];
+                    let tf = frame_of(p) as usize;
+                    let g = look.frame_geom[tf] as i32;
+                    if g != rp.resident_geom {
+                        let bytes: &[u8] =
+                            bytemuck::cast_slice(look.unique_path_data[g as usize].as_slice());
+                        let off = ((pdb + rp.pd_word_start) as u64) * 4;
+                        self.renderer.reuse_write(&self.queue, token, off, bytes);
+                        rp.resident_geom = g;
+                    }
+                }
+                let _ = self.renderer.reuse_replay(
+                    &self.device,
+                    &self.queue,
+                    token,
+                    &rb.recording,
+                    rb.scene_buf,
+                    rb.out_image,
+                    &crowd.batch_views[b],
+                );
+                run_ms += t_run.elapsed().as_secs_f64() * 1000.0;
+            } else {
+                // DYNAMIC lane (baseline per-frame full upload).
+                dynamic_n += 1;
+                self.renderer.free_reused(token);
+                crowd.ret_batches[b] = None;
+                let t_build = web_time::Instant::now();
+                let mut scene = vello::Scene::new();
+                for &i in &order[s..e] {
+                    let p = &crowd.players[i];
+                    let tf = frame_of(p);
+                    let key = format!("{}|{}", p.sig, tf);
+                    if let Some(sub) = crowd.look_cache.get(&key) {
+                        scene.append(sub, Some(place_of(p)));
+                    }
+                }
+                build_ms += t_build.elapsed().as_secs_f64() * 1000.0;
+                let t_res = web_time::Instant::now();
+                let (recording, target) = self.renderer.resolve_scene(&scene, &params);
+                resolve_ms += t_res.elapsed().as_secs_f64() * 1000.0;
+                let t_run = web_time::Instant::now();
+                let _ = self.renderer.run_resolved(
+                    &self.device,
+                    &self.queue,
+                    &recording,
+                    target,
+                    &crowd.batch_views[b],
+                );
+                run_ms += t_run.elapsed().as_secs_f64() * 1000.0;
+            }
+        }
+
+        // Composite all batches back-to-front (Y order) onto the crowd target.
+        let t_comp = web_time::Instant::now();
+        {
+            let comp = self.crowd_composite_pipeline.as_ref().unwrap();
+            let mut encoder = self
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("crowd-composite-encoder"),
+                });
+            let src: Vec<&wgpu::TextureView> = crowd.batch_views.iter().collect();
+            comp.composite(&self.device, &self.queue, &mut encoder, &src, &crowd.view);
+            self.queue.submit(std::iter::once(encoder.finish()));
+        }
+        let composite_ms = t_comp.elapsed().as_secs_f64() * 1000.0;
+
+        let look_cache_size = crowd.retained_look_cache.len() as u32;
+        self.real_anim_crowd = Some(crowd);
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"players".into(), &JsValue::from(n_players));
+        let _ = js_sys::Reflect::set(&result, &"batches".into(), &JsValue::from(n_batches));
+        let _ = js_sys::Reflect::set(&result, &"retainedBatches".into(), &JsValue::from(retained_n));
+        let _ = js_sys::Reflect::set(&result, &"dynamicBatches".into(), &JsValue::from(dynamic_n));
+        let _ = js_sys::Reflect::set(&result, &"rebuilds".into(), &JsValue::from(rebuilds));
+        let _ = js_sys::Reflect::set(&result, &"bakedLooks".into(), &JsValue::from(look_cache_size));
+        let _ = js_sys::Reflect::set(&result, &"buildMs".into(), &JsValue::from(build_ms));
+        let _ = js_sys::Reflect::set(&result, &"resolveMs".into(), &JsValue::from(resolve_ms));
+        let _ = js_sys::Reflect::set(&result, &"runMs".into(), &JsValue::from(run_ms));
+        let _ = js_sys::Reflect::set(&result, &"compositeMs".into(), &JsValue::from(composite_ms));
+        result.into()
+    }
+
+    /// Stable hash of a batch's `(sig, frame)` set, in player order.
+    fn frozen_structure_sig(players: &[AnimPlayer], frozen_frame: u16) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        for p in players {
+            p.sig.hash(&mut h);
+            let tf = frozen_frame % p.frame_count.max(1);
+            tf.hash(&mut h);
+        }
+        h.finish()
     }
 
     /// DIAG (threaded build): same as `realCrowdRenderBatched` but the
@@ -4961,8 +5912,9 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
         if self.crowd_composite_pipeline.is_none() {
-            self.crowd_composite_pipeline = Some(bitmap_bridge::CompositePipeline::new(
+            self.crowd_composite_pipeline = Some(bitmap_bridge::MultiCompositePipeline::new(
                 &self.device,
+                &self.queue,
                 wgpu::TextureFormat::Rgba8Unorm,
             ));
         }
@@ -4970,6 +5922,8 @@ impl VelloRenderer {
             return JsValue::NULL;
         };
         let n_players = crowd.players.len() as u32;
+        // `batch_size` is the per-submit render cap (actors per `render_to_texture`).
+        // n_batches = number of render-scenes = number of submits = composite inputs.
         let n_batches = n_players.div_ceil(batch_size).max(1);
         let (tw, th) = (crowd.tw, crowd.th);
         if crowd.batch_size != batch_size
@@ -5041,44 +5995,75 @@ impl VelloRenderer {
                 }
             }
         }
-        // PASS 1 (PARALLEL): build each batch's scene on its own core.
+        // PASS 1 (PARALLEL): decouple BUILD granularity from SUBMIT granularity.
+        //
+        // We want FEW render-scenes (few submits + few composite inputs) but MANY
+        // parallel build tasks (one per core). When n_render < thread_count, a
+        // naive "one task per render-scene" starves the pool, so we sub-divide
+        // each render-scene's player range into `cpr` contiguous slices, build
+        // all (n_render * cpr) slices in parallel, then merge each render-scene's
+        // `cpr` slices back together (also in parallel — render-scenes are
+        // independent). The merge is a transform-free `append`, a cheap concat
+        // of encoded vectors. Contiguous slicing preserves player z-order so the
+        // back-to-front composite stays correct.
+        let n_render = n_batches as usize;
+        let threads = rayon::current_num_threads().max(1);
+        let cpr = threads.div_ceil(n_render).max(1); // slices per render-scene
+        let n_build = n_render * cpr;
+        let build_one = |bi: usize, players: &[AnimPlayer], look_cache: &std::collections::HashMap<String, vello::Scene>| -> vello::Scene {
+            let m = bi / cpr; // which render-scene
+            let c = bi % cpr; // which slice within it
+            let rstart = m * bsz;
+            let rend = ((m + 1) * bsz).min(players.len());
+            let rlen = rend.saturating_sub(rstart);
+            let cstart = rstart + (c * rlen) / cpr;
+            let cend = rstart + ((c + 1) * rlen) / cpr;
+            let mut scene = vello::Scene::new();
+            for p in &players[cstart..cend] {
+                let fc = p.frame_count.max(1);
+                let fps = f64::from(p.fps.max(0.001));
+                let tf = (((time_ms / 1000.0) * fps) as i64).rem_euclid(i64::from(fc)) as u16;
+                let key = format!("{}|{}", p.sig, tf);
+                if let Some(sub) = look_cache.get(&key) {
+                    let translate = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
+                        p.x * pos_scale + off_x,
+                        p.y * pos_scale + off_y,
+                    ));
+                    let place = if p.flipped { translate * flip_x } else { translate };
+                    scene.append(sub, Some(place));
+                }
+            }
+            scene
+        };
         let batch_scenes: Vec<vello::Scene> = {
             let players = &crowd.players;
             let look_cache = &crowd.look_cache;
-            (0..n_batches as usize)
-                .into_par_iter()
-                .map(|b| {
-                    let start = b * bsz;
-                    let end = ((b + 1) * bsz).min(players.len());
-                    let mut scene = vello::Scene::new();
-                    if start < end {
-                        for p in &players[start..end] {
-                            let fc = p.frame_count.max(1);
-                            let fps = f64::from(p.fps.max(0.001));
-                            let tf = (((time_ms / 1000.0) * fps) as i64)
-                                .rem_euclid(i64::from(fc)) as u16;
-                            let key = format!("{}|{}", p.sig, tf);
-                            if let Some(sub) = look_cache.get(&key) {
-                                let translate = vello::kurbo::Affine::translate(
-                                    vello::kurbo::Vec2::new(
-                                        p.x * pos_scale + off_x,
-                                        p.y * pos_scale + off_y,
-                                    ),
-                                );
-                                let place = if p.flipped {
-                                    translate * flip_x
-                                } else {
-                                    translate
-                                };
-                                scene.append(sub, Some(place));
-                            }
+            if cpr == 1 {
+                // n_render >= threads: one parallel task per render-scene, no merge.
+                (0..n_render)
+                    .into_par_iter()
+                    .map(|m| build_one(m, players, look_cache))
+                    .collect()
+            } else {
+                // Build fine slices in parallel...
+                let slices: Vec<vello::Scene> = (0..n_build)
+                    .into_par_iter()
+                    .map(|bi| build_one(bi, players, look_cache))
+                    .collect();
+                // ...then merge each render-scene's `cpr` slices (parallel; concat).
+                (0..n_render)
+                    .into_par_iter()
+                    .map(|m| {
+                        let mut rs = vello::Scene::new();
+                        for c in 0..cpr {
+                            rs.append(&slices[m * cpr + c], None);
                         }
-                    }
-                    scene
-                })
-                .collect()
+                        rs
+                    })
+                    .collect()
+            }
         };
-        // PASS 2 (sequential): render each batch + composite (one GPU device).
+        // PASS 2 (sequential): render each render-scene to its target.
         let params = vello::RenderParams {
             base_color: Color::TRANSPARENT,
             width: tw,
@@ -5094,6 +6079,7 @@ impl VelloRenderer {
                 &params,
             );
         }
+        // Fold all render-scene targets onto the crowd target in ONE pass.
         {
             let comp = self.crowd_composite_pipeline.as_ref().unwrap();
             let mut encoder = self
@@ -5101,21 +6087,15 @@ impl VelloRenderer {
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("crowd-composite-encoder"),
                 });
-            for b in 0..crowd.batch_views.len() {
-                comp.composite(
-                    &self.device,
-                    &mut encoder,
-                    &crowd.batch_views[b],
-                    &crowd.view,
-                    b == 0,
-                );
-            }
+            let src: Vec<&wgpu::TextureView> = crowd.batch_views.iter().collect();
+            comp.composite(&self.device, &self.queue, &mut encoder, &src, &crowd.view);
             self.queue.submit(std::iter::once(encoder.finish()));
         }
         self.real_anim_crowd = Some(crowd);
         let result = js_sys::Object::new();
         let _ = js_sys::Reflect::set(&result, &"players".into(), &JsValue::from(n_players));
         let _ = js_sys::Reflect::set(&result, &"batches".into(), &JsValue::from(n_batches));
+        let _ = js_sys::Reflect::set(&result, &"buildScenes".into(), &JsValue::from(n_build as u32));
         let _ = js_sys::Reflect::set(&result, &"parallel".into(), &JsValue::from(1u32));
         result.into()
     }
@@ -5137,8 +6117,88 @@ impl VelloRenderer {
     }
 
     /// DIAG: free the animated crowd (drops cached sub-scenes + target).
+    /// Non-poisoning content probe: copies a center region of the crowd target to a
+    /// MAP_READ buffer and async-maps it (event-loop-driven, NO surface present, NO
+    /// device.poll) to compute the fraction of sampled pixels with alpha>10. Unlike
+    /// `realCrowdBitmap` (surface blit) this can be called repeatedly without poisoning
+    /// subsequent renders. Returns a Promise<number> (-1 if no crowd). `await` it in JS.
+    #[wasm_bindgen(js_name = "realCrowdContentRatio")]
+    pub fn real_crowd_content_ratio(&self) -> js_sys::Promise {
+        let (tex, tw, th) = match &self.real_anim_crowd {
+            Some(c) => (c.target.clone(), c.tw, c.th),
+            None => return js_sys::Promise::resolve(&JsValue::from(-1.0)),
+        };
+        let device = self.device.clone();
+        let queue = self.queue.clone();
+        wasm_bindgen_futures::future_to_promise(async move {
+            let rw = tw.min(1024);
+            let rh = th.min(1024);
+            let ox = (tw - rw) / 2;
+            let oy = (th - rh) / 2;
+            let bpr = (rw * 4).next_multiple_of(256);
+            let buf = device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("content-probe"),
+                size: (bpr as u64) * (rh as u64),
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                mapped_at_creation: false,
+            });
+            let mut enc = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("content-probe-enc"),
+            });
+            enc.copy_texture_to_buffer(
+                wgpu::TexelCopyTextureInfo {
+                    texture: &tex,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d { x: ox, y: oy, z: 0 },
+                    aspect: wgpu::TextureAspect::All,
+                },
+                wgpu::TexelCopyBufferInfo {
+                    buffer: &buf,
+                    layout: wgpu::TexelCopyBufferLayout {
+                        offset: 0,
+                        bytes_per_row: Some(bpr),
+                        rows_per_image: Some(rh),
+                    },
+                },
+                wgpu::Extent3d { width: rw, height: rh, depth_or_array_layers: 1 },
+            );
+            queue.submit(std::iter::once(enc.finish()));
+            let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
+            buf.slice(..).map_async(wgpu::MapMode::Read, move |r| {
+                let _ = tx.send(r);
+            });
+            let _ = rx.receive().await;
+            let mut nz = 0u32;
+            let mut total = 0u32;
+            {
+                let data = buf.slice(..).get_mapped_range();
+                for row in 0..rh {
+                    let base = (row * bpr) as usize;
+                    let mut x = 0u32;
+                    while x < rw {
+                        let i = base + (x as usize) * 4 + 3;
+                        if i < data.len() {
+                            total += 1;
+                            if data[i] > 10 {
+                                nz += 1;
+                            }
+                        }
+                        x += 4;
+                    }
+                }
+            }
+            buf.unmap();
+            buf.destroy();
+            let ratio = if total > 0 { f64::from(nz) / f64::from(total) } else { -1.0 };
+            Ok(JsValue::from(ratio))
+        })
+    }
+
     #[wasm_bindgen(js_name = "realCrowdFree")]
     pub fn real_crowd_free(&mut self) {
+        // Retire any GPU-resident retained scene buffers before dropping the crowd
+        // (otherwise the patched-wgpu no-op Drop leaks them).
+        self.renderer.free_all_reused();
         self.real_anim_crowd = None;
     }
 

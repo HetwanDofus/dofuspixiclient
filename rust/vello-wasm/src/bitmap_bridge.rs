@@ -371,6 +371,243 @@ impl CompositePipeline {
     }
 }
 
+/// Max source batches a single `MultiCompositePipeline` pass can fold. 8 is
+/// well under WebGPU's default `maxSampledTexturesPerShaderStage` (16) and
+/// covers up to 8 * ~500 = 4000 actors at the patched per-scene ceiling.
+pub const MAX_COMPOSITE_SRC: usize = 8;
+
+/// Single-pass replacement for `CompositePipeline`: instead of N sequential
+/// `over` render-passes (N full-framebuffer load/store cycles + a bind-group
+/// alloc each), bind all N batch textures at once and fold them front-to-back
+/// in ONE fullscreen pass that reads each source once and writes the target
+/// once. Output is premultiplied (matches what `CompositePipeline`'s hardware
+/// SrcAlpha blend used to store), so the Pixi-adopted display path is
+/// unchanged. Unused slots are bound to a 1x1 dummy and skipped via the
+/// uniform `count` (uniform control flow, so the `textureSample`s are legal).
+pub struct MultiCompositePipeline {
+    pipeline: wgpu::RenderPipeline,
+    bind_group_layout: wgpu::BindGroupLayout,
+    sampler: wgpu::Sampler,
+    count_buf: wgpu::Buffer,
+    dummy_view: wgpu::TextureView,
+}
+
+const MULTI_COMPOSITE_WGSL: &str = r#"
+@group(0) @binding(0) var t0: texture_2d<f32>;
+@group(0) @binding(1) var t1: texture_2d<f32>;
+@group(0) @binding(2) var t2: texture_2d<f32>;
+@group(0) @binding(3) var t3: texture_2d<f32>;
+@group(0) @binding(4) var t4: texture_2d<f32>;
+@group(0) @binding(5) var t5: texture_2d<f32>;
+@group(0) @binding(6) var t6: texture_2d<f32>;
+@group(0) @binding(7) var t7: texture_2d<f32>;
+@group(0) @binding(8) var samp: sampler;
+@group(0) @binding(9) var<uniform> u_count: u32;
+
+struct VSOut {
+  @builtin(position) position: vec4<f32>,
+  @location(0) uv: vec2<f32>,
+};
+
+@vertex
+fn vs_main(@builtin(vertex_index) idx: u32) -> VSOut {
+  var out: VSOut;
+  let uv = vec2<f32>(f32((idx << 1u) & 2u), f32(idx & 2u));
+  out.position = vec4<f32>(uv * 2.0 - 1.0, 0.0, 1.0);
+  out.uv = vec2<f32>(uv.x, 1.0 - uv.y);
+  return out;
+}
+
+// `s` is straight (un-premultiplied), `dst` is premultiplied. Premultiply `s`
+// then composite "over" the premultiplied accumulator.
+fn over(dst: vec4<f32>, s: vec4<f32>) -> vec4<f32> {
+  let sp = vec4<f32>(s.rgb * s.a, s.a);
+  return sp + dst * (1.0 - sp.a);
+}
+
+@fragment
+fn fs_main(in: VSOut) -> @location(0) vec4<f32> {
+  let uv = in.uv;
+  // Slot 0 (back-most) is always present (count >= 1).
+  var acc = over(vec4<f32>(0.0), textureSample(t0, samp, uv));
+  if (u_count > 1u) { acc = over(acc, textureSample(t1, samp, uv)); }
+  if (u_count > 2u) { acc = over(acc, textureSample(t2, samp, uv)); }
+  if (u_count > 3u) { acc = over(acc, textureSample(t3, samp, uv)); }
+  if (u_count > 4u) { acc = over(acc, textureSample(t4, samp, uv)); }
+  if (u_count > 5u) { acc = over(acc, textureSample(t5, samp, uv)); }
+  if (u_count > 6u) { acc = over(acc, textureSample(t6, samp, uv)); }
+  if (u_count > 7u) { acc = over(acc, textureSample(t7, samp, uv)); }
+  return acc; // premultiplied
+}
+"#;
+
+impl MultiCompositePipeline {
+    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, dst_format: wgpu::TextureFormat) -> Self {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("crowd-multi-composite"),
+            source: wgpu::ShaderSource::Wgsl(MULTI_COMPOSITE_WGSL.into()),
+        });
+        let mut entries: Vec<wgpu::BindGroupLayoutEntry> = (0..MAX_COMPOSITE_SRC as u32)
+            .map(|i| wgpu::BindGroupLayoutEntry {
+                binding: i,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                count: None,
+            })
+            .collect();
+        entries.push(wgpu::BindGroupLayoutEntry {
+            binding: MAX_COMPOSITE_SRC as u32,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+            count: None,
+        });
+        entries.push(wgpu::BindGroupLayoutEntry {
+            binding: MAX_COMPOSITE_SRC as u32 + 1,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        });
+        let bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("crowd-multi-composite-bgl"),
+            entries: &entries,
+        });
+        let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("crowd-multi-composite-pl"),
+            bind_group_layouts: &[&bgl],
+            immediate_size: 0,
+        });
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("crowd-multi-composite-pipeline"),
+            layout: Some(&layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_main"),
+                buffers: &[],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_main"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: dst_format,
+                    // We fold all sources in the shader and write the final
+                    // premultiplied result directly — no hardware blend.
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState::default(),
+            multiview_mask: None,
+            cache: None,
+        });
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("crowd-multi-composite-sampler"),
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
+            ..Default::default()
+        });
+        // 16-byte uniform buffer (single u32 + padding for alignment).
+        let count_buf = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("crowd-multi-composite-count"),
+            size: 16,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        // 1x1 transparent dummy to fill unused texture slots.
+        let dummy = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("crowd-multi-composite-dummy"),
+            size: wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+        queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &dummy,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            &[0u8, 0, 0, 0],
+            wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(4), rows_per_image: Some(1) },
+            wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
+        );
+        let dummy_view = dummy.create_view(&wgpu::TextureViewDescriptor::default());
+        MultiCompositePipeline { pipeline, bind_group_layout: bgl, sampler, count_buf, dummy_view }
+    }
+
+    /// Fold `src_views` (back-most first) onto `dst_view` in one pass. Clears
+    /// `dst_view` to transparent and writes the composited premultiplied
+    /// result. `src_views.len()` must be in `1..=MAX_COMPOSITE_SRC`.
+    pub fn composite(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+        src_views: &[&wgpu::TextureView],
+        dst_view: &wgpu::TextureView,
+    ) {
+        let count = src_views.len().min(MAX_COMPOSITE_SRC);
+        // queue writes apply before this encoder's submitted commands.
+        queue.write_buffer(&self.count_buf, 0, &(count as u32).to_le_bytes());
+        let mut entries: Vec<wgpu::BindGroupEntry> = Vec::with_capacity(MAX_COMPOSITE_SRC + 2);
+        for i in 0..MAX_COMPOSITE_SRC {
+            let view = if i < count { src_views[i] } else { &self.dummy_view };
+            entries.push(wgpu::BindGroupEntry {
+                binding: i as u32,
+                resource: wgpu::BindingResource::TextureView(view),
+            });
+        }
+        entries.push(wgpu::BindGroupEntry {
+            binding: MAX_COMPOSITE_SRC as u32,
+            resource: wgpu::BindingResource::Sampler(&self.sampler),
+        });
+        entries.push(wgpu::BindGroupEntry {
+            binding: MAX_COMPOSITE_SRC as u32 + 1,
+            resource: self.count_buf.as_entire_binding(),
+        });
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("crowd-multi-composite-bg"),
+            layout: &self.bind_group_layout,
+            entries: &entries,
+        });
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("crowd-multi-composite-pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: dst_view,
+                depth_slice: None,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            multiview_mask: None,
+        });
+        pass.set_pipeline(&self.pipeline);
+        pass.set_bind_group(0, &bind_group, &[]);
+        pass.draw(0..3, 0..1);
+    }
+}
+
 /// Pooled OffscreenCanvas + wgpu Surface. Owns its lifetime alongside
 /// the VelloRenderer. The surface holds a 'static reference to the
 /// canvas because the canvas itself is a JS object that the wgpu side

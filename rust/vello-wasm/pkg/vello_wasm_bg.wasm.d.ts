@@ -2,6 +2,7 @@
 /* eslint-disable */
 export const __wbg_vellorenderer_free: (a: number, b: number) => void;
 export const vellorenderer_accessorySubsceneCacheCountFor: (a: number, b: number, c: number) => number;
+export const vellorenderer_analyzeFrameStability: (a: number, b: number) => any;
 export const vellorenderer_batchCopy: (a: number, b: number, c: number, d: number) => number;
 export const vellorenderer_benchmarkBatchedAppend: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
 export const vellorenderer_benchmarkBatchedChars: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;
@@ -38,9 +39,12 @@ export const vellorenderer_pathCacheStats: (a: number) => any;
 export const vellorenderer_queueFrame: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => any;
 export const vellorenderer_realCrowdBitmap: (a: number) => any;
 export const vellorenderer_realCrowdCaptureFlipbook: (a: number, b: number, c: number) => any;
+export const vellorenderer_realCrowdContentRatio: (a: number) => any;
 export const vellorenderer_realCrowdFree: (a: number) => void;
 export const vellorenderer_realCrowdRenderBatched: (a: number, b: number, c: number) => any;
 export const vellorenderer_realCrowdRenderBatchedParallel: (a: number, b: number, c: number) => any;
+export const vellorenderer_realCrowdRenderRetained: (a: number, b: number, c: number) => any;
+export const vellorenderer_realCrowdRenderRetainedFrozen: (a: number, b: number, c: number, d: number, e: number) => any;
 export const vellorenderer_realCrowdSetup: (a: number, b: any, c: number, d: number, e: number) => any;
 export const vellorenderer_realCrowdTick: (a: number, b: number) => any;
 export const vellorenderer_renderAnimationStrip: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => any;

@@ -2685,8 +2685,6 @@ dependencies = [
 [[package]]
 name = "vello"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7484a935acbced16ca6b2a7e6c8d6aa2b32ca0aff269c1b95f62be9b8f672c41"
 dependencies = [
  "bytemuck",
  "futures-intrusive",
@@ -2708,6 +2706,7 @@ dependencies = [
  "bytemuck",
  "console_error_panic_hook",
  "dofasset-renderer",
+ "futures-intrusive",
  "js-sys",
  "rayon",
  "swf-spike",
@@ -2717,14 +2716,13 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-bindgen-rayon",
  "web-sys",
+ "web-time",
  "wgpu",
 ]
 
 [[package]]
 name = "vello_encoding"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d53d864987821f40431e62608bf0f58342db57f2f2860628c8cfc28e16a1cc39"
 dependencies = [
  "bytemuck",
  "guillotiere",

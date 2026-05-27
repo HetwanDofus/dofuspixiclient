@@ -16,8 +16,14 @@ wasm-bindgen = "0.2.117"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 web-sys = { version = "0.3", features = ["console", "HtmlCanvasElement", "OffscreenCanvas", "ImageBitmap"] }
+# High-resolution monotonic clock (performance.now() under wasm) for the
+# per-phase render breakdown — Date.now()'s 1 ms granularity is too coarse to
+# split resolve vs run vs composite.
+web-time = "1"
 console_error_panic_hook = "0.1"
 bytemuck = "1"
+# oneshot channel to await wgpu map_async on web (event-loop-driven, no device.poll).
+futures-intrusive = "0.5"
 # Multi-core scene build (gated; only built for the threaded wasm target,
 # which requires +atomics + SharedArrayBuffer + COOP/COEP).
 rayon = { version = "1", optional = true }

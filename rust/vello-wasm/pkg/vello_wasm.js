@@ -54,6 +54,22 @@ export class VelloRenderer {
         return ret >>> 0;
     }
     /**
+     * DIAG (Phase-3 design): for each DISTINCT look in the current crowd, bake
+     * its look at every animation frame and report how much GEOMETRY changes
+     * across frames. `distinctGeomHashes == 1` → path_data/draw_data are
+     * frame-invariant (fully retainable: geometry resident, only transforms
+     * re-upload). `> 1` → geometry changes per frame (morph shape interpolation
+     * and/or structural appear/disappear) — those frames can't keep geometry
+     * resident as-is. `distinctTxCounts > 1` → shapes appear/disappear (the
+     * union/hide case). Requires `realCrowdSetup` first.
+     * @param {number} max_looks
+     * @returns {any}
+     */
+    analyzeFrameStability(max_looks) {
+        const ret = wasm.vellorenderer_analyzeFrameStability(this.__wbg_ptr, max_looks);
+        return ret;
+    }
+    /**
      * Batch-copy multiple textures into a destination texture. ONE queue.submit for all copies.
      * `copies` is a flat array: [src_id, dst_x, dst_y, src_id, dst_x, dst_y, ...]
      * All copies go to the same destination texture (the atlas).
@@ -625,7 +641,17 @@ export class VelloRenderer {
     }
     /**
      * DIAG: free the animated crowd (drops cached sub-scenes + target).
+     * Non-poisoning content probe: copies a center region of the crowd target to a
+     * MAP_READ buffer and async-maps it (event-loop-driven, NO surface present, NO
+     * device.poll) to compute the fraction of sampled pixels with alpha>10. Unlike
+     * `realCrowdBitmap` (surface blit) this can be called repeatedly without poisoning
+     * subsequent renders. Returns a Promise<number> (-1 if no crowd). `await` it in JS.
+     * @returns {Promise<any>}
      */
+    realCrowdContentRatio() {
+        const ret = wasm.vellorenderer_realCrowdContentRatio(this.__wbg_ptr);
+        return ret;
+    }
     realCrowdFree() {
         wasm.vellorenderer_realCrowdFree(this.__wbg_ptr);
     }
@@ -659,6 +685,50 @@ export class VelloRenderer {
      */
     realCrowdRenderBatchedParallel(batch_size, time_ms) {
         const ret = wasm.vellorenderer_realCrowdRenderBatchedParallel(this.__wbg_ptr, batch_size, time_ms);
+        return ret;
+    }
+    /**
+     * RETAINED-VELLO v1+v2 real-animation render. Y-sorted batches (z-order
+     * preserved). A batch whose players are ALL length-stable renders via the
+     * retained fast path: geometry resident, per-frame transform writes for every
+     * player + path_data writes for morph players whose geometry frame changed, then
+     * the cached recording is replayed. A batch containing a length-varying
+     * (structural appear/disappear) player renders via the baseline per-frame lane.
+     * Rebuild of a retained batch happens only on player-set change. Composites all
+     * batches back-to-front.
+     * @param {number} batch_size
+     * @param {number} time_ms
+     * @returns {any}
+     */
+    realCrowdRenderRetained(batch_size, time_ms) {
+        const ret = wasm.vellorenderer_realCrowdRenderRetained(this.__wbg_ptr, batch_size, time_ms);
+        return ret;
+    }
+    /**
+     * RETAINED-VELLO validation (Phase 2). Every player is pinned to a single
+     * `frozen_frame`, so each batch's geometry is trivially frame-invariant. The
+     * FIRST call per batch (or after a structure change) takes the SLOW path:
+     * build → `resolve_scene_reuse` → `run_reuse_full` (creates the GPU-resident
+     * scene buffer, caches the replayable recording). Later calls take the FAST
+     * path: only the transform byte-range is re-uploaded and the recording is
+     * replayed (geometry stays resident).
+     *
+     * `move_px == 0.0` → 0a (fixed positions): rewrite the IDENTICAL cached
+     * transforms — pure mechanism floor (no rebuild, no resolve). `move_px != 0.0`
+     * → 0b (moving positions, frozen geometry): rebuild the scene at shifted
+     * positions, extract the new transform stream, partial-upload + replay.
+     *
+     * Drive it from JS with an incrementing `frame_idx`. Returns the same
+     * `buildMs`/`resolveMs`/`runMs`/`compositeMs` diagnostics as the baseline
+     * `realCrowdRenderBatched`, plus `fastBatches`.
+     * @param {number} batch_size
+     * @param {number} frozen_frame
+     * @param {number} frame_idx
+     * @param {number} move_px
+     * @returns {any}
+     */
+    realCrowdRenderRetainedFrozen(batch_size, frozen_frame, frame_idx, move_px) {
+        const ret = wasm.vellorenderer_realCrowdRenderRetainedFrozen(this.__wbg_ptr, batch_size, frozen_frame, frame_idx, move_px);
         return ret;
     }
     /**
@@ -1995,6 +2065,9 @@ function __wbg_get_imports(memory) {
         __wbg_copyBufferToBuffer_5473c4c6a0f798fc: function() { return handleError(function (arg0, arg1, arg2, arg3, arg4, arg5) {
             arg0.copyBufferToBuffer(arg1, arg2, arg3, arg4, arg5);
         }, arguments); },
+        __wbg_copyTextureToBuffer_496aea3084e74e75: function() { return handleError(function (arg0, arg1, arg2, arg3) {
+            arg0.copyTextureToBuffer(arg1, arg2, arg3);
+        }, arguments); },
         __wbg_copyTextureToTexture_c078f6d44429d14d: function() { return handleError(function (arg0, arg1, arg2, arg3) {
             arg0.copyTextureToTexture(arg1, arg2, arg3);
         }, arguments); },
@@ -2100,6 +2173,10 @@ function __wbg_get_imports(memory) {
         }, arguments); },
         __wbg_getCurrentTexture_66ae9639eac28f8b: function() { return handleError(function (arg0) {
             const ret = arg0.getCurrentTexture();
+            return ret;
+        }, arguments); },
+        __wbg_getMappedRange_1197a8c58eb0add9: function() { return handleError(function (arg0, arg1, arg2) {
+            const ret = arg0.getMappedRange(arg1, arg2);
             return ret;
         }, arguments); },
         __wbg_get_98fdf51d029a75eb: function(arg0, arg1) {
@@ -2362,6 +2439,10 @@ function __wbg_get_imports(memory) {
                 state0.a = 0;
             }
         },
+        __wbg_new_with_byte_offset_and_length_a87e79143162d67f: function(arg0, arg1, arg2) {
+            const ret = new Uint8Array(arg0, arg1 >>> 0, arg2 >>> 0);
+            return ret;
+        },
         __wbg_new_with_length_1278c16a5c5b497f: function(arg0) {
             const ret = new Float64Array(arg0 >>> 0);
             return ret;
@@ -2386,6 +2467,10 @@ function __wbg_get_imports(memory) {
             const ret = Date.now();
             return ret;
         },
+        __wbg_now_e7c6795a7f81e10f: function(arg0) {
+            const ret = arg0.now();
+            return ret;
+        },
         __wbg_of_d77919dcf5640358: function(arg0, arg1, arg2) {
             const ret = Array.of(arg0, arg1, arg2);
             return ret;
@@ -2394,9 +2479,16 @@ function __wbg_get_imports(memory) {
             const ret = arg0.onSubmittedWorkDone();
             return ret;
         },
+        __wbg_performance_3fcf6e32a7e1ed0a: function(arg0) {
+            const ret = arg0.performance;
+            return ret;
+        },
         __wbg_postMessage_5e48f2cd6e9c2baa: function() { return handleError(function (arg0, arg1) {
             arg0.postMessage(arg1);
         }, arguments); },
+        __wbg_prototypesetcall_5f9bdc8d75e07276: function(arg0, arg1, arg2) {
+            Uint8Array.prototype.set.call(getArrayU8FromWasm0(arg0, arg1), arg2);
+        },
         __wbg_push_b77c476b01548d0a: function(arg0, arg1) {
             const ret = arg0.push(arg1);
             return ret;
@@ -2438,6 +2530,9 @@ function __wbg_get_imports(memory) {
         },
         __wbg_set_24d0fa9e104112f9: function(arg0, arg1, arg2) {
             arg0.set(getArrayU8FromWasm0(arg1, arg2));
+        },
+        __wbg_set_37221b90dcdc9a98: function(arg0, arg1, arg2) {
+            arg0.set(arg1, arg2 >>> 0);
         },
         __wbg_set_5d860a0c0949a838: function(arg0, arg1, arg2) {
             arg0.set(getArrayF32FromWasm0(arg1, arg2));
@@ -2518,10 +2613,16 @@ function __wbg_get_imports(memory) {
         __wbg_set_buffer_21a336fe62828e11: function(arg0, arg1) {
             arg0.buffer = arg1;
         },
+        __wbg_set_buffer_b8a0d482696c532e: function(arg0, arg1) {
+            arg0.buffer = arg1;
+        },
         __wbg_set_buffers_070770ce2c0d5522: function(arg0, arg1) {
             arg0.buffers = arg1;
         },
         __wbg_set_bytes_per_row_8e39002b1f627e4d: function(arg0, arg1) {
+            arg0.bytesPerRow = arg1 >>> 0;
+        },
+        __wbg_set_bytes_per_row_ea947f8b1955eb75: function(arg0, arg1) {
             arg0.bytesPerRow = arg1 >>> 0;
         },
         __wbg_set_clear_value_4ed990a8b197a59a: function(arg0, arg1) {
@@ -2794,6 +2895,9 @@ function __wbg_get_imports(memory) {
         __wbg_set_offset_3fadbb3d3dadd4ef: function(arg0, arg1) {
             arg0.offset = arg1;
         },
+        __wbg_set_offset_da22b013e44ffcc3: function(arg0, arg1) {
+            arg0.offset = arg1;
+        },
         __wbg_set_offset_fa633343238c309f: function(arg0, arg1) {
             arg0.offset = arg1;
         },
@@ -2832,6 +2936,9 @@ function __wbg_get_imports(memory) {
         },
         __wbg_set_resource_ec6d0e1222a3141f: function(arg0, arg1) {
             arg0.resource = arg1;
+        },
+        __wbg_set_rows_per_image_3350e95ad2a80a89: function(arg0, arg1) {
+            arg0.rowsPerImage = arg1 >>> 0;
         },
         __wbg_set_rows_per_image_e38e907b075d42a7: function(arg0, arg1) {
             arg0.rowsPerImage = arg1 >>> 0;
@@ -3026,10 +3133,17 @@ function __wbg_get_imports(memory) {
             const ret = arg0.then(arg1, arg2);
             return ret;
         },
+        __wbg_timeOrigin_f3d5cb4f4a06c2b7: function(arg0) {
+            const ret = arg0.timeOrigin;
+            return ret;
+        },
         __wbg_transferToImageBitmap_ef78ff480500ad5d: function() { return handleError(function (arg0) {
             const ret = arg0.transferToImageBitmap();
             return ret;
         }, arguments); },
+        __wbg_unmap_c2954ef341a2b85d: function(arg0) {
+            arg0.unmap();
+        },
         __wbg_value_9e2825f14753cda1: function(arg0) {
             const ret = arg0.value;
             return ret;
@@ -3056,12 +3170,12 @@ function __wbg_get_imports(memory) {
             arg0.writeTexture(arg1, arg2, arg3, arg4);
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 13, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 19, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen_27fdaeb5a3f606da___convert__closures_____invoke___wasm_bindgen_27fdaeb5a3f606da___JsValue______true_);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 187, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 199, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen_27fdaeb5a3f606da___convert__closures_____invoke___wasm_bindgen_27fdaeb5a3f606da___JsValue__core_3dddace4975f8c7___result__Result_____wasm_bindgen_27fdaeb5a3f606da___JsError___true_);
             return ret;
         },
@@ -3071,6 +3185,11 @@ function __wbg_get_imports(memory) {
             return ret;
         },
         __wbindgen_cast_0000000000000004: function(arg0, arg1) {
+            // Cast intrinsic for `Ref(Slice(U8)) -> NamedExternref("Uint8Array")`.
+            const ret = getArrayU8FromWasm0(arg0, arg1);
+            return ret;
+        },
+        __wbindgen_cast_0000000000000005: function(arg0, arg1) {
             // Cast intrinsic for `Ref(String) -> Externref`.
             const ret = getStringFromWasm0(arg0, arg1);
             return ret;

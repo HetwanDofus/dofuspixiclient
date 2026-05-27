@@ -336,6 +336,7 @@ fn apply_compute(ctx: &mut RenderCtx<'_>, sym: &Symbol, filters: &[OwnedFilter])
             disable_accessories: ctx.disable_accessories,
             output_mode: ctx.output_mode,
             hat_equipped: ctx.hat_equipped,
+            depth_path: ctx.depth_path.clone(),
         };
         super::render_symbol_into(&mut sub_ctx, sym);
     }

@@ -218,6 +218,21 @@ export class Engine {
       "position:fixed;top:0;left:0;padding:4px 8px;background:rgba(0,0,0,0.7);color:#0f0;font:bold 14px monospace;z-index:999999;pointer-events:none";
     document.body.appendChild(overlay);
     this.fpsOverlay = overlay;
+
+    // DIAG: hard kill switch for the live render loop on ANY scene. Stops the
+    // Pixi ticker so the old render path (world/PlayerRenderer, tiles, stage)
+    // does ZERO GPU work — lets us measure the Vello-direct crowd path in true
+    // isolation, with no GPU contention on the shared device. (The map scene
+    // has no battlefield-style `__renderHalt`, which is why earlier isolation
+    // attempts silently no-oped and the old path kept rendering.)
+    const tickerWin = window as unknown as {
+      __killLiveRender?: () => void;
+      __resumeLiveRender?: () => void;
+      __liveRenderRunning?: () => boolean;
+    };
+    tickerWin.__killLiveRender = () => this.app.ticker.stop();
+    tickerWin.__resumeLiveRender = () => this.app.ticker.start();
+    tickerWin.__liveRenderRunning = () => this.app.ticker.started;
   }
 
   private calculateCanvasSize(): CanvasSize {
