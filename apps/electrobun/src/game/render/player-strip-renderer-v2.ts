@@ -57,6 +57,41 @@ import { createLogger } from "@/utils/logger";
 
 const log = createLogger("PlayerStripRendererV2");
 
+/** One equipped accessory ref in a crowd snapshot row. */
+export interface CrowdAccSnapshot {
+  bundle: string;
+  export: string;
+  slot: number;
+  animType: number;
+}
+
+/**
+ * One player's live render state, captured for the Vello-direct crowd
+ * renderer. Consumed by `crowd-renderer.ts` → `realCrowdSetup`.
+ */
+export interface CrowdPlayerSnapshot {
+  /** Stable player id (drives ordered position updates + picking). */
+  id: number;
+  /** Body has committed (atlas slot rendered + sprite visible). */
+  committed: boolean;
+  /** Player is mounted (has mount sub-slots) — excluded from the crowd
+   *  (mount layers stay on the per-player strip path). */
+  mounted: boolean;
+  bundle: string;
+  export: string;
+  frame: number;
+  frameCount: number;
+  fps: number;
+  dir: DirSuffix;
+  flipped: boolean;
+  c1: number;
+  c2: number;
+  c3: number;
+  x: number;
+  y: number;
+  acc: CrowdAccSnapshot[];
+}
+
 export type DirSuffix = "R" | "L" | "F" | "B" | "S";
 
 export type PlayerStripSlot =
@@ -1310,6 +1345,12 @@ export class PlayerStripRendererV2 {
     // frame, before the dirty early-out, so slots free even when the
     // composition isn't re-rendering). Ground-truth, drift-free.
     this.reclaimInputAtlasSlots();
+    // Crowd cutover: while the Vello-direct crowd draws every body, the
+    // per-bot atlas compose is pure waste — skip the expensive renderAll
+    // (animation STATE still advances on the tick, so the crowd snapshot
+    // stays fresh). NOTE: also suppresses mount-slot compose; mounts are
+    // handled separately in the crowd integration.
+    if (this.composeSuppressed) return;
     if (!this.compositionDirty) return;
     if (this.atlas.getStats().slotsUsed === 0) {
       this.compositionDirty = false;
@@ -1645,6 +1686,56 @@ export class PlayerStripRendererV2 {
   }
 
   /**
+   * LIVE crowd cutover: snapshot EVERY committed player's real render
+   * state for the Vello-direct crowd renderer (`crowd-renderer.ts`).
+   * One row per player keyed by `id`, carrying the body look (bundle/
+   * export/frame/frameCount/fps), direction + flip, the three zone
+   * colors, equipped accessory refs, and the live map-space screen
+   * position read off the player container. Mirrors the throwaway
+   * `window.__realCrowdSnapshot` diagnostic but as a real method with
+   * the player id (needed to drive per-player position updates in a
+   * stable order) and a `committed` flag (uncommitted bots have no
+   * body to render yet and must be skipped by the crowd setup).
+   */
+  crowdSnapshot(): CrowdPlayerSnapshot[] {
+    const out: CrowdPlayerSnapshot[] = [];
+    for (const [id, slots] of this.states) {
+      const st = slots.get("main");
+      if (!st) continue;
+      const a = st.lastAnimation;
+      const p = st.player;
+      if (!a || !p) continue;
+      const committed = !!st.atlas && st.compositeSprite.visible;
+      const mounted = slots.has("mount-rider") || slots.has("mount-back");
+      const c = p.container as unknown as { x: number; y: number } | null;
+      out.push({
+        id,
+        committed,
+        mounted,
+        bundle: a.bundle,
+        export: a.exportName,
+        frame: Math.max(0, st.lastCompositionFrame | 0),
+        frameCount: a.frameCount,
+        fps: a.fps,
+        dir: st.lastDir ?? "R",
+        flipped: !!st.lastFlipped,
+        c1: st.zone1 | 0,
+        c2: st.zone2 | 0,
+        c3: st.zone3 | 0,
+        x: c?.x ?? 0,
+        y: c?.y ?? 0,
+        acc: a.accessories.map((ac) => ({
+          bundle: ac.bundle,
+          export: ac.exportName,
+          slot: ac.slot,
+          animType: ac.animType,
+        })),
+      });
+    }
+    return out;
+  }
+
+  /**
    * Pixel-perfect alphaTest for the given slot, sampling the
    * pre-extracted variant silhouette baked at class-atlas wrap
    * time. See `VariantInfo.silhouette` for why we own the
@@ -1692,6 +1783,21 @@ export class PlayerStripRendererV2 {
     slot: PlayerStripSlot = "main",
   ): Container | null {
     return this.states.get(playerId)?.get(slot)?.root ?? null;
+  }
+
+  /** Current strip bake resolution (RENDER_RESOLUTION dial). The crowd
+   *  renderer matches this so its character scale lines up. */
+  getResolution(): number {
+    return this.resolution;
+  }
+
+  /** Crowd cutover: when true, `composeAll` skips the per-bot atlas
+   *  render (the crowd draws bodies instead). Resuming forces a recompose. */
+  private composeSuppressed = false;
+  setComposeSuppressed(on: boolean): void {
+    if (this.composeSuppressed === on) return;
+    this.composeSuppressed = on;
+    if (!on) this.compositionDirty = true;
   }
 
   attach(player: ActivePlayer): void {

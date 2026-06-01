@@ -143,6 +143,39 @@ export class VelloRenderer {
      */
     createSwfSpellInstance(bundle: string, resolution: number): number;
     /**
+     * LIVE cutover: expose the crowd target as a Pixi-adoptable `{texture: GPUTexture,
+     * width, height}` (no readback — same path as `createAtlas`/strips). Pixi wraps it
+     * ONCE as an `ExternalSource`; each frame `realCrowdRenderBatched` re-renders into
+     * the same texture and the JS side marks the source dirty. The GPUTexture stays
+     * valid while the crowd lives (retired by `realCrowdFree`).
+     */
+    crowdTextureHandle(): any;
+    /**
+     * LIVE cutover: set every player's current animation frame IN PLACE (flat
+     * `[f0,f1,...]`, same order as `realCrowdSetup`). Switches the crowd to the
+     * explicit-frame path so render tracks each player's real frame instead of a
+     * global clock. The hot per-frame call alongside `crowdUpdatePositions`.
+     */
+    crowdUpdateFrames(frames: Uint32Array): void;
+    /**
+     * LIVE cutover: SPARSE per-player look update (anim swap / direction / colour
+     * / accessory change). `updates` is a JS array of `{ i, bundle, export,
+     * frameCount, fps, flipped, c1, c2, c3, acc[] }` for ONLY the players whose
+     * look changed this tick — recomputes that player's cache signature in place
+     * WITHOUT clearing `look_cache` (new `(sig, frame)` combos are baked lazily by
+     * the next `realCrowdRenderBatched`, old entries persist for reuse). Roster
+     * add/remove still requires a fresh `realCrowdSetup`.
+     */
+    crowdUpdateLooks(updates: any): void;
+    /**
+     * LIVE cutover: update player positions IN PLACE (flat `[x0,y0,x1,y1,...]`, same
+     * order as `realCrowdSetup`) WITHOUT re-setup. Re-`setup` clears the look cache, so
+     * per-frame movement must update positions only; the next `realCrowdRenderBatched`
+     * places each player at its new x/y. The roster (player SET) must be unchanged — a
+     * spawn/despawn requires a fresh `realCrowdSetup`.
+     */
+    crowdUpdatePositions(xy: Float64Array): void;
+    /**
      * Free the AVM1 instance + its output GPU texture. JS must call
      * this when the cast completes; otherwise both the AvmRenderer
      * state (typically a few KB) and the texture (a few hundred KB at
@@ -1075,6 +1108,10 @@ export interface InitOutput {
     readonly vellorenderer_clearPathCache: (a: number) => void;
     readonly vellorenderer_createAtlas: (a: number, b: number, c: number) => any;
     readonly vellorenderer_createSwfSpellInstance: (a: number, b: number, c: number, d: number) => number;
+    readonly vellorenderer_crowdTextureHandle: (a: number) => any;
+    readonly vellorenderer_crowdUpdateFrames: (a: number, b: number, c: number) => void;
+    readonly vellorenderer_crowdUpdateLooks: (a: number, b: any) => void;
+    readonly vellorenderer_crowdUpdatePositions: (a: number, b: number, c: number) => void;
     readonly vellorenderer_disposeSwfSpellInstance: (a: number, b: number) => void;
     readonly vellorenderer_drainBakeTelemetry: (a: number) => any;
     readonly vellorenderer_dumpClassEnumeration: (a: number, b: number, c: number) => any;

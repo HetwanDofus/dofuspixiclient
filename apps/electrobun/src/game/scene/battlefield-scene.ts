@@ -55,7 +55,6 @@ import {
   initPickingAndAtlas,
   prewarmSwfTileBundles,
   startSceneTicker,
-  warmupCharacterSceneCache,
   wireVelloLoaders,
 } from "@/game/scene/battlefield/bootstrap";
 import { BattlefieldPicking } from "@/game/scene/battlefield/picking";
@@ -348,29 +347,11 @@ export class Battlefield {
     initPickingAndAtlas(ctx);
     await wireVelloLoaders(ctx);
     await prewarmSwfTileBundles();
-    // Hydrate the persistent (IDB) scene cache into Vello's
-    // `body_subscene_cache`, then trigger character class atlas
-    // bakes for the full roster. On IDB hits the bake is GPU-only
-    // (no CPU walk), so the loader-scene phase absorbs the cost
-    // once per install and bots spawning into the battlefield see
-    // a hot cache for every direction. On IDB misses, this is
-    // where the AS2/scene-build CPU is spent — under the loading
-    // bar, not in the middle of gameplay. Result: 60 fps from the
-    // first bot's first frame, bounded RAM via Phase A eviction.
-    //
-    // Resolution argument matches the strip renderer's default
-    // (`PlayerStripRendererV2` initializes at resolution 3). If
-    // the user later switches resolution, the subscene cache
-    // doesn't need invalidation — twip-identity scenes re-rasterize
-    // at any scale, so only the final raster step re-runs.
-    try {
-      await warmupCharacterSceneCache(3);
-    } catch (warmupErr) {
-      // Non-fatal: cache hydration failure just means bots will
-      // bake on first sight (existing behavior). Loader still
-      // proceeds.
-      console.warn("warmupCharacterSceneCache failed:", warmupErr);
-    }
+    // Character class atlas warmup REMOVED — queueing 24 heavy class-
+    // atlas bakes at world-join overwhelmed the GPU/WindowServer and
+    // reliably crashed the host. On-demand baking on first spawn is
+    // fast and bounded; see `feedback_no_animation_preload`.
+
     // One-shot diagnostic sweep: when `localStorage.RENDER_MEASUREMENT_SWEEP`
     // = "1" (or `?measureRender=1` in the URL), iterate every loaded SWF
     // bundle × every zoom level and dump a copy-pasteable markdown

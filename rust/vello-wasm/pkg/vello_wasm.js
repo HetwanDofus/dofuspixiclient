@@ -262,6 +262,56 @@ export class VelloRenderer {
         return ret >>> 0;
     }
     /**
+     * LIVE cutover: expose the crowd target as a Pixi-adoptable `{texture: GPUTexture,
+     * width, height}` (no readback — same path as `createAtlas`/strips). Pixi wraps it
+     * ONCE as an `ExternalSource`; each frame `realCrowdRenderBatched` re-renders into
+     * the same texture and the JS side marks the source dirty. The GPUTexture stays
+     * valid while the crowd lives (retired by `realCrowdFree`).
+     * @returns {any}
+     */
+    crowdTextureHandle() {
+        const ret = wasm.vellorenderer_crowdTextureHandle(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * LIVE cutover: set every player's current animation frame IN PLACE (flat
+     * `[f0,f1,...]`, same order as `realCrowdSetup`). Switches the crowd to the
+     * explicit-frame path so render tracks each player's real frame instead of a
+     * global clock. The hot per-frame call alongside `crowdUpdatePositions`.
+     * @param {Uint32Array} frames
+     */
+    crowdUpdateFrames(frames) {
+        const ptr0 = passArray32ToWasm0(frames, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.vellorenderer_crowdUpdateFrames(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * LIVE cutover: SPARSE per-player look update (anim swap / direction / colour
+     * / accessory change). `updates` is a JS array of `{ i, bundle, export,
+     * frameCount, fps, flipped, c1, c2, c3, acc[] }` for ONLY the players whose
+     * look changed this tick — recomputes that player's cache signature in place
+     * WITHOUT clearing `look_cache` (new `(sig, frame)` combos are baked lazily by
+     * the next `realCrowdRenderBatched`, old entries persist for reuse). Roster
+     * add/remove still requires a fresh `realCrowdSetup`.
+     * @param {any} updates
+     */
+    crowdUpdateLooks(updates) {
+        wasm.vellorenderer_crowdUpdateLooks(this.__wbg_ptr, updates);
+    }
+    /**
+     * LIVE cutover: update player positions IN PLACE (flat `[x0,y0,x1,y1,...]`, same
+     * order as `realCrowdSetup`) WITHOUT re-setup. Re-`setup` clears the look cache, so
+     * per-frame movement must update positions only; the next `realCrowdRenderBatched`
+     * places each player at its new x/y. The roster (player SET) must be unchanged — a
+     * spawn/despawn requires a fresh `realCrowdSetup`.
+     * @param {Float64Array} xy
+     */
+    crowdUpdatePositions(xy) {
+        const ptr0 = passArrayF64ToWasm0(xy, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.vellorenderer_crowdUpdatePositions(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
      * Free the AVM1 instance + its output GPU texture. JS must call
      * this when the cast completes; otherwise both the AvmRenderer
      * state (typically a few KB) and the texture (a few hundred KB at

@@ -201,6 +201,11 @@ struct AnimPlayer {
     y: f64,
     acc: Vec<LookAcc>,
     sig: String,
+    /// Explicit current frame (LIVE path). Used in place of the global-clock
+    /// derivation when `RealAnimCrowd::explicit_frames` is set (driven by
+    /// `crowdUpdateFrames`). Lets the crowd track each player's real animation
+    /// frame instead of free-running on a shared clock.
+    frame: u16,
 }
 
 /// Stateful animated Vello-direct crowd. Two render modes:
@@ -218,6 +223,9 @@ struct RealAnimCrowd {
     scale: f64,
     pos_scale: f64,
     retain: bool,
+    /// LIVE path: once `crowdUpdateFrames` has been called, render uses each
+    /// player's explicit `frame` rather than deriving it from a global clock.
+    explicit_frames: bool,
     look_cache: HashMap<String, vello::Scene>,
     target: wgpu::Texture,
     view: wgpu::TextureView,
@@ -4668,14 +4676,16 @@ impl VelloRenderer {
                 y: get_f64(&o, "y"),
                 acc,
                 sig,
+                frame: 0,
             });
         }
         if players_vec.is_empty() {
             return JsValue::NULL;
         }
-        players_vec.sort_by(|a, b| {
-            a.y.partial_cmp(&b.y).unwrap_or(std::cmp::Ordering::Equal)
-        });
+        // NOTE: do NOT sort here. The player Vec order is the stable index
+        // contract for `crowdUpdatePositions`/`crowdUpdateFrames`/`crowdUpdateLooks`
+        // (the live path writes by index). Paint order (back-to-front by y) is
+        // re-derived PER FRAME inside `realCrowdRenderBatched`.
 
         // Per-bundle caches (required to avoid cross-bundle id collisions).
         for p in &players_vec {
@@ -4758,6 +4768,7 @@ impl VelloRenderer {
             scale,
             pos_scale,
             retain,
+            explicit_frames: false,
             look_cache: HashMap::new(),
             target,
             view,
@@ -4780,6 +4791,14 @@ impl VelloRenderer {
         set("accessoriesDrawn", f64::from(acc_total));
         set("texW", f64::from(tw));
         set("texH", f64::from(th));
+        // LIVE cutover: the content offset baked into the texture. A player at world
+        // `(wx, wy)` (== p.x*pos_scale, p.y*pos_scale) lands at texture-local
+        // `(wx + offX, wy + offY)`, so mounting the crowd sprite at `(-offX, -offY)`
+        // in the player world container makes texture-local map back to world.
+        set("offX", off_x);
+        set("offY", off_y);
+        set("posScale", pos_scale);
+        set("scale", scale);
         result.into()
     }
 
@@ -5083,6 +5102,17 @@ impl VelloRenderer {
             }
             crowd.batch_size = batch_size;
         }
+        // Paint back-to-front: derive the z-order from CURRENT positions every
+        // frame (players move, so the order baked at setup goes stale). The look
+        // cache is order-independent, so this is just a Vec<usize> sort — batches
+        // then walk contiguous slices of this sorted index.
+        let mut sorted_idx: Vec<usize> = (0..crowd.players.len()).collect();
+        sorted_idx.sort_by(|&a, &b| {
+            crowd.players[a]
+                .y
+                .partial_cmp(&crowd.players[b].y)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         let scale = crowd.scale;
         let pos_scale = crowd.pos_scale;
         let flip_x = vello::kurbo::Affine::new([-1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
@@ -5117,7 +5147,14 @@ impl VelloRenderer {
                 let t_build = web_time::Instant::now();
                 let mut scene = vello::Scene::new();
                 {
-                    let RealAnimCrowd { ref players, ref mut look_cache, off_x, off_y, .. } = crowd;
+                    let RealAnimCrowd {
+                        ref players,
+                        ref mut look_cache,
+                        off_x,
+                        off_y,
+                        explicit_frames,
+                        ..
+                    } = crowd;
                     let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
                     let mut ctx = swf_spike::render::WgpuCtx {
                         device: &self.device,
@@ -5128,11 +5165,18 @@ impl VelloRenderer {
                     };
                     let bundles = &self.swf_bundles;
                     let caches = &self.swf_render_caches;
-                    for p in &players[start..end] {
+                    for &idx in &sorted_idx[start..end] {
+                        let p = &players[idx];
                         let fc = p.frame_count.max(1);
-                        let fps = f64::from(p.fps.max(0.001));
-                        let tf = (((time_ms / 1000.0) * fps) as i64)
-                            .rem_euclid(i64::from(fc)) as u16;
+                        // LIVE path: each player's real frame (set by
+                        // crowdUpdateFrames). Fallback: free-run on the global clock.
+                        let tf = if explicit_frames {
+                            p.frame.min(fc - 1)
+                        } else {
+                            let fps = f64::from(p.fps.max(0.001));
+                            (((time_ms / 1000.0) * fps) as i64)
+                                .rem_euclid(i64::from(fc)) as u16
+                        };
                         let key = format!("{}|{}", p.sig, tf);
                         if !look_cache.contains_key(&key) {
                             let mut sub = vello::Scene::new();
@@ -6194,12 +6238,191 @@ impl VelloRenderer {
         })
     }
 
+    /// LIVE cutover: expose the crowd target as a Pixi-adoptable `{texture: GPUTexture,
+    /// width, height}` (no readback — same path as `createAtlas`/strips). Pixi wraps it
+    /// ONCE as an `ExternalSource`; each frame `realCrowdRenderBatched` re-renders into
+    /// the same texture and the JS side marks the source dirty. The GPUTexture stays
+    /// valid while the crowd lives (retired by `realCrowdFree`).
+    #[wasm_bindgen(js_name = "crowdTextureHandle")]
+    pub fn crowd_texture_handle(&self) -> JsValue {
+        let Some(crowd) = self.real_anim_crowd.as_ref() else {
+            return JsValue::NULL;
+        };
+        let result = js_sys::Object::new();
+        let _ = js_sys::Reflect::set(&result, &"texture".into(), &extract_gpu_texture(&crowd.target));
+        let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(crowd.tw));
+        let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(crowd.th));
+        result.into()
+    }
+
+    /// LIVE cutover: update player positions IN PLACE (flat `[x0,y0,x1,y1,...]`, same
+    /// order as `realCrowdSetup`) WITHOUT re-setup. Re-`setup` clears the look cache, so
+    /// per-frame movement must update positions only; the next `realCrowdRenderBatched`
+    /// places each player at its new x/y. The roster (player SET) must be unchanged — a
+    /// spawn/despawn requires a fresh `realCrowdSetup`.
+    #[wasm_bindgen(js_name = "crowdUpdatePositions")]
+    pub fn crowd_update_positions(&mut self, xy: &[f64]) {
+        let Some(crowd) = self.real_anim_crowd.as_mut() else {
+            return;
+        };
+        let n = (xy.len() / 2).min(crowd.players.len());
+        for i in 0..n {
+            crowd.players[i].x = xy[i * 2];
+            crowd.players[i].y = xy[i * 2 + 1];
+        }
+    }
+
+    /// LIVE cutover: set every player's current animation frame IN PLACE (flat
+    /// `[f0,f1,...]`, same order as `realCrowdSetup`). Switches the crowd to the
+    /// explicit-frame path so render tracks each player's real frame instead of a
+    /// global clock. The hot per-frame call alongside `crowdUpdatePositions`.
+    #[wasm_bindgen(js_name = "crowdUpdateFrames")]
+    pub fn crowd_update_frames(&mut self, frames: &[u32]) {
+        let Some(crowd) = self.real_anim_crowd.as_mut() else {
+            return;
+        };
+        crowd.explicit_frames = true;
+        let n = frames.len().min(crowd.players.len());
+        for i in 0..n {
+            let fc = crowd.players[i].frame_count.max(1);
+            crowd.players[i].frame = (frames[i] as u16).min(fc - 1);
+        }
+    }
+
+    /// LIVE cutover: SPARSE per-player look update (anim swap / direction / colour
+    /// / accessory change). `updates` is a JS array of `{ i, bundle, export,
+    /// frameCount, fps, flipped, c1, c2, c3, acc[] }` for ONLY the players whose
+    /// look changed this tick — recomputes that player's cache signature in place
+    /// WITHOUT clearing `look_cache` (new `(sig, frame)` combos are baked lazily by
+    /// the next `realCrowdRenderBatched`, old entries persist for reuse). Roster
+    /// add/remove still requires a fresh `realCrowdSetup`.
+    #[wasm_bindgen(js_name = "crowdUpdateLooks")]
+    pub fn crowd_update_looks(&mut self, updates: JsValue) {
+        let get_f64 = |o: &JsValue, k: &str| -> f64 {
+            js_sys::Reflect::get(o, &JsValue::from_str(k))
+                .ok()
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0)
+        };
+        let get_str = |o: &JsValue, k: &str| -> String {
+            js_sys::Reflect::get(o, &JsValue::from_str(k))
+                .ok()
+                .and_then(|v| v.as_string())
+                .unwrap_or_default()
+        };
+        let get_bool = |o: &JsValue, k: &str| -> bool {
+            js_sys::Reflect::get(o, &JsValue::from_str(k))
+                .ok()
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+        };
+        let opt_color = |c: f64| -> Option<u32> {
+            let v = c as i64;
+            if v > 0 {
+                Some((v as u32) & 0x00FF_FFFF)
+            } else {
+                None
+            }
+        };
+
+        let arr = js_sys::Array::from(&updates);
+        // Collect into owned data first so we can register caches on &mut self
+        // without holding a borrow of the crowd.
+        let mut new_bundles: Vec<String> = Vec::new();
+        let Some(crowd) = self.real_anim_crowd.as_mut() else {
+            return;
+        };
+        for k in 0..arr.length() {
+            let o = arr.get(k);
+            let i = get_f64(&o, "i") as usize;
+            if i >= crowd.players.len() {
+                continue;
+            }
+            let bundle = get_str(&o, "bundle");
+            let export = get_str(&o, "export");
+            if bundle.is_empty() || export.is_empty() {
+                continue;
+            }
+            let acc_val =
+                js_sys::Reflect::get(&o, &JsValue::from_str("acc")).unwrap_or(JsValue::NULL);
+            let mut acc: Vec<LookAcc> = Vec::new();
+            if acc_val.is_truthy() {
+                let aarr = js_sys::Array::from(&acc_val);
+                for j in 0..aarr.length() {
+                    let a = aarr.get(j);
+                    let ab = get_str(&a, "bundle");
+                    let ae = get_str(&a, "export");
+                    if ab.is_empty() || ae.is_empty() {
+                        continue;
+                    }
+                    new_bundles.push(ab.clone());
+                    acc.push(LookAcc {
+                        bundle: ab,
+                        export: ae,
+                        slot: get_f64(&a, "slot") as u8,
+                        anim_type: get_f64(&a, "animType") as u8,
+                    });
+                }
+            }
+            let flipped = get_bool(&o, "flipped");
+            let colors = swf_spike::recolor::PlayerColors([
+                opt_color(get_f64(&o, "c1")),
+                opt_color(get_f64(&o, "c2")),
+                opt_color(get_f64(&o, "c3")),
+            ]);
+            let mut acc_sig = String::new();
+            for a in &acc {
+                acc_sig.push_str(&a.bundle);
+                acc_sig.push(':');
+                acc_sig.push_str(&a.export);
+                acc_sig.push(':');
+                acc_sig.push_str(&a.slot.to_string());
+                acc_sig.push(',');
+            }
+            let sig = format!(
+                "{bundle}|{export}|{}|{:?}|{acc_sig}",
+                u8::from(flipped),
+                colors.0
+            );
+            let fc = (get_f64(&o, "frameCount") as u16).max(1);
+            let fps = get_f64(&o, "fps") as f32;
+            new_bundles.push(bundle.clone());
+            let p = &mut crowd.players[i];
+            p.bundle = bundle;
+            p.export = export;
+            p.frame_count = fc;
+            p.fps = if fps > 0.0 { fps } else { 12.0 };
+            p.flipped = flipped;
+            p.colors = colors;
+            p.acc = acc;
+            p.sig = sig;
+            if p.frame >= fc {
+                p.frame = fc - 1;
+            }
+        }
+        // Register per-bundle render caches for any newly-referenced bundle/acc
+        // (cross-bundle id collisions otherwise produce the "10× accessory" bug).
+        for b in new_bundles {
+            self.swf_render_caches.entry(b).or_default();
+        }
+    }
+
     #[wasm_bindgen(js_name = "realCrowdFree")]
     pub fn real_crowd_free(&mut self) {
         // Retire any GPU-resident retained scene buffers before dropping the crowd
         // (otherwise the patched-wgpu no-op Drop leaks them).
         self.renderer.free_all_reused();
-        self.real_anim_crowd = None;
+        if let Some(crowd) = self.real_anim_crowd.take() {
+            // Explicitly destroy the crowd target + batch textures (patched-wgpu Drop is
+            // a no-op, so dropping alone would leak them).
+            crowd.target.destroy();
+            for t in &crowd.batch_targets {
+                t.destroy();
+            }
+            for t in &crowd.composite_scratch {
+                t.destroy();
+            }
+        }
     }
 
     /// Class atlas bake: pack EVERY animation variant of a body

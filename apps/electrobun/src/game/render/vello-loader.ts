@@ -58,10 +58,9 @@ async function initBakeWorkerPool(wasmUrl?: string): Promise<void> {
     // rebake hits the same worker's warm cache and the scene-build
     // step (~75 ms) collapses to a memcpy append (~5 ms).
     //
-    // Trade-off: serial CPU encoding on the cold-spawn path. The
-    // `prewarmCharacterClassAtlases` sweep called from the
-    // battlefield bootstrap pays this cost upfront, behind the
-    // loading screen, so steady-state play never sees it.
+    // Trade-off: serial CPU encoding on the cold-spawn path. We pay
+    // it on first spawn instead of at world-join (the loader-side
+    // preload was removed — see `feedback_no_animation_preload`).
     // A/B knob for the render measurement sweep. Two equivalent
     // sources (precedence: localStorage > URL query > defaults):
     //

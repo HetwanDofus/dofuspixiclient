@@ -4,9 +4,12 @@ import { clampFightDirection } from "@dofus/grid";
 import { Container, Graphics, Ticker } from "pixi.js";
 
 import type { CellData } from "@/game/datacenter/cell";
+import type { CrowdPlayerSnapshot } from "@/game/render/player-strip-renderer-v2";
+import { CrowdRenderer } from "@/game/render/crowd-renderer";
 import type { PickingSystem } from "@/game/render/picking-system";
 import type { PlayerStripRenderer } from "@/game/render/player-strip-renderer";
 import type { Scene } from "@/game/scene/scene";
+import { parseLook } from "@/game/assets/look-parser";
 import {
   type CharacterSpriteLoader,
   getCharacterSpriteLoader,
@@ -109,6 +112,32 @@ export class PlayerRenderer {
   private readonly movement: PlayerMovement;
   private readonly perf = new PlayerPerfMonitor();
 
+  /**
+   * EXPERIMENTAL Vello-direct crowd path (see `crowd-renderer.ts`).
+   * Default OFF — the per-player strip path stays the live renderer.
+   * Toggle live via `window.__crowdRenderer.enable()/.disable()`.
+   * When active the per-player main composite sprites are hidden each
+   * tick and the whole crowd renders to one composited GPU texture.
+   */
+  private crowd: CrowdRenderer | null = null;
+  private crowdEnabled = false;
+  /** Player ids whose main composite sprite is currently suppressed
+   *  (`renderable=false`) because the crowd renders them. Visibility +
+   *  bounds stay intact so picking keeps working on these sprites. */
+  private readonly crowdHiddenIds = new Set<number>();
+  /** Defer crowd teardown to the next post-tick so the wasm `realCrowdFree`
+   *  call never overlaps with the in-flight `realCrowdRenderBatched` —
+   *  calling wasm directly from the toggle path triggers wasm-bindgen's
+   *  "recursive use" panic and leaves the renderer permanently stuck. */
+  private pendingCrowdDisable = false;
+  /** Cache of `parseLook(player.look)` per id (look strings change rarely;
+   *  parsing is cheap but doing it 250×/tick adds up). Invalidated when
+   *  the look string changes. */
+  private readonly parsedLookCache = new Map<
+    number,
+    { look: string; c1: number; c2: number; c3: number }
+  >();
+
   constructor(parentContainer: Container, config: PlayerRendererConfig) {
     this.mapWidth = config.mapWidth ?? DEFAULT_MAP_WIDTH;
     this.groundLevel = config.groundLevel ?? DEFAULT_GROUND_LEVEL;
@@ -163,50 +192,21 @@ export class PlayerRenderer {
         // 0, while cycle → static preserves the cursor (irrelevant
         // post-commit since static's fc=1 → frame=0 anyway).
         const playerId = player.id;
+        // Crowd path: when the Vello-direct crowd renders this body, the
+        // strip stays dormant for it — no per-anim atlas bake, no slot
+        // allocation, no swapFrame work. Install the anim data
+        // immediately (crowd reads it from `ActivePlayer` directly via
+        // `crowdSnapshot()`); the strip is bypassed entirely for the
+        // main slot.
+        if (this.isCrowdManaged(player)) {
+          this.installAnimAfterApply(playerId, animation, animName, prevAnimName);
+          return;
+        }
         void this.stripRenderer
           .applyAnimation(player, "main", animation, animName, dir, flipped)
           .then((committed) => {
-            // The applyAnimation Promise may resolve after the
-            // player was despawned or retargeted to a different
-            // anim. Only honour the success path while the player
-            // still exists AND the live anim is the one we just
-            // requested.
-            const live = this.players.get(playerId);
-            if (!live) return;
             if (!committed) return;
-            if (live.currentAnimName !== animName) return;
-            // Mounted players have currentAnimData already installed
-            // by `applyMount` (it overwrites with the "_Back" half),
-            // so skip the install here — only flip animReady.
-            if (!live.isMounting) {
-              const prevBase = prevAnimName.replace(/[SRFLB]$/, "");
-              const nextBase = animName.replace(/[SRFLB]$/, "");
-              const sameCycle = prevBase === nextBase && prevBase !== "";
-              const nextFrameCount = animation.frameCount;
-              if (sameCycle) {
-                // Preserve phase across direction flips so chars don't
-                // "hop" mid-cell.
-                live.frameIndex =
-                  live.frameIndex % Math.max(1, nextFrameCount);
-              } else if (nextBase !== "static") {
-                // Cross-cycle (walk → run) or one-shot entry (cast,
-                // attack, hit, die) — fresh start at frame 0.
-                live.frameIndex = 0;
-                live.frameTimer = 0;
-              }
-              // nextBase === "static": don't reset. The cursor was
-              // advancing against the OLD cycling anim's fc during
-              // staging; after this commit, `tickFrame` will see
-              // fc=1 and stop advancing, and `swapFrame` will use
-              // the static variant where frame = idx % 1 = 0
-              // unconditionally, so the cursor's final value is
-              // moot. Resetting it would make the OLD strip's last
-              // visible frame snap to 0 right before the static
-              // commit lands — visible as a tiny "jerk" instead of
-              // a smooth freeze-into-pose.
-              live.currentAnimData = animation;
-            }
-            live.animReady = true;
+            this.installAnimAfterApply(playerId, animation, animName, prevAnimName);
           });
       },
       // Pre-warm hook: first bot per gfxId triggers a background
@@ -216,6 +216,9 @@ export class PlayerRenderer {
       // frames. By the time the bot walks, every needed atlas is a
       // cache hit instead of a mid-frame Vello compute stall.
       (animation, animName, flipped) => {
+        // Crowd path: no atlas prewarm needed (no body atlas exists for
+        // crowd-managed bots; the crowd builds encoded vectors on demand).
+        if (this.crowdEnabled) return;
         this.stripRenderer.prewarmAtlas(animation, animName, flipped);
       }
     );
@@ -234,6 +237,17 @@ export class PlayerRenderer {
 
     this.unsubPreTick = this.scene.onPreTick(() => this.onPreTick());
     this.unsubPostTick = this.scene.onPostTick(() => this.onPostTick());
+
+    // Live toggle for the experimental Vello-direct crowd renderer.
+    (
+      window as unknown as { __crowdRenderer?: Record<string, unknown> }
+    ).__crowdRenderer = {
+      enable: () => this.setCrowdEnabled(true),
+      disable: () => this.setCrowdEnabled(false),
+      isEnabled: () => this.crowdEnabled,
+      setResolution: (res: number) => this.crowd?.setResolution(res),
+      lastRenderMs: () => this.crowd?.getLastRenderMs() ?? 0,
+    };
   }
 
   // ── Player lifecycle ───────────────────────────────────────────────
@@ -870,8 +884,11 @@ export class PlayerRenderer {
         if (f) {
           this.sprites.tickFrame(f, dt / 1000);
           // Pointer-swap the strip texture to match the freshly
-          // advanced frameIndex. Zero-allocation on the hot path.
-          this.stripRenderer.swapFrame(f);
+          // advanced frameIndex. Skipped for crowd-managed bots — the
+          // crowd reads `f.frameIndex` directly each tick.
+          if (!this.isCrowdManaged(f)) {
+            this.stripRenderer.swapFrame(f);
+          }
           this.checkAnimRevert(f);
           this.movement.advance(f, dt);
         }
@@ -950,6 +967,8 @@ export class PlayerRenderer {
     // their wgpu textures (2-tick settle handled inside `detach`).
     this.stripRenderer.detach(player);
     this.hoveredIds.delete(id);
+    this.crowdHiddenIds.delete(id);
+    this.parsedLookCache.delete(id);
     this.container.removeChild(player.container);
     player.container.destroy({ children: true });
     this.players.delete(id);
@@ -975,9 +994,195 @@ export class PlayerRenderer {
       this.syncPlacement(player);
     }
 
+    if (this.pendingCrowdDisable) {
+      // Deferred cleanup (avoids the wasm-bindgen "recursive use" panic
+      // that fires when disable() calls realCrowdFree from a JS task
+      // that interleaves with the in-flight crowd render).
+      this.crowd?.setEnabled(false);
+      this.stripRenderer.setComposeSuppressed(false);
+      for (const id of this.crowdHiddenIds) this.setMainRenderable(id, true);
+      this.crowdHiddenIds.clear();
+      // The strip was bypassed for every crowd-managed bot — it has NO
+      // body atlas state for them. Force re-apply each player's current
+      // animation so the strip bakes + renders them. Without this,
+      // crowd-disable leaves non-mounted bots invisible until their
+      // next anim change.
+      for (const player of this.players.values()) {
+        if (player.mountLayers) continue;
+        if (!player.currentAnimData || !player.currentAnimName) continue;
+        const dir = animNameDir(player.currentAnimName);
+        const flipped = isDirectionFlipped(player.direction);
+        void this.stripRenderer.applyAnimation(
+          player,
+          "main",
+          player.currentAnimData,
+          player.currentAnimName,
+          dir,
+          flipped
+        );
+      }
+      this.pendingCrowdDisable = false;
+    } else if (this.crowdEnabled) {
+      this.syncCrowd();
+    }
+
     this.flushVisibleNameplates();
 
     this.perf.endFrame(Ticker.shared.deltaMS, this.players.size, null);
+  }
+
+  /**
+   * Drive the Vello-direct crowd directly from `ActivePlayer` state (no
+   * strip dependency). Hides the per-player main composite sprites the
+   * crowd now draws. Mount layers + ground/overhead/picking stay on the
+   * per-player containers. No-op once `crowdEnabled` flips off — the
+   * deferred cleanup in `onPostTick` restores per-player sprites.
+   */
+  private syncCrowd(): void {
+    if (!this.crowd) {
+      this.crowd = new CrowdRenderer(
+        this.container,
+        this.stripRenderer.getResolution(),
+      );
+    }
+    this.crowd.sync(this.crowdSnapshot());
+
+    // Suppress the per-player main composite sprites the crowd now draws
+    // (renderable=false keeps bounds + visibility so picking still works),
+    // and restore any that left the crowd this tick.
+    // While the crowd is drawing bodies, stop the strip's per-bot atlas
+    // compose (pure waste) — the real FPS win of the cutover.
+    this.stripRenderer.setComposeSuppressed(this.crowd.isActive());
+
+    const rendered = new Set(this.crowd.isActive() ? this.crowd.getRenderedIds() : []);
+    for (const id of this.crowdHiddenIds) {
+      if (!rendered.has(id)) {
+        this.setMainRenderable(id, true);
+        this.crowdHiddenIds.delete(id);
+      }
+    }
+    for (const id of rendered) {
+      if (!this.crowdHiddenIds.has(id)) {
+        this.setMainRenderable(id, false);
+        this.crowdHiddenIds.add(id);
+      }
+    }
+  }
+
+  /** Set the player's main composite sprite renderable flag (suppresses
+   *  drawing without dropping bounds/visibility — picking keeps working). */
+  private setMainRenderable(id: number, on: boolean): void {
+    const sprite = this.stripRenderer.getSlotSprite(id, "main");
+    if (sprite) sprite.renderable = on;
+  }
+
+  /**
+   * True when this player's body is being rendered by the Vello-direct
+   * crowd (and therefore the strip's main-slot work for it must be skipped
+   * entirely). Mounted players stay on the strip path.
+   */
+  private isCrowdManaged(player: ActivePlayer): boolean {
+    return this.crowdEnabled && !player.mountLayers;
+  }
+
+  /**
+   * Snapshot the LIVE per-player render state for the crowd renderer —
+   * reads `ActivePlayer` directly, NOT through the strip. The strip is
+   * dormant for crowd-managed bots, so its `crowdSnapshot()` would be
+   * empty; this is the authoritative source.
+   */
+  crowdSnapshot(): CrowdPlayerSnapshot[] {
+    const out: CrowdPlayerSnapshot[] = [];
+    for (const [id, p] of this.players) {
+      if (!p.spriteReady || !p.currentAnimData) continue;
+      const a = p.currentAnimData;
+      // Look colors — cached per look string (rarely changes).
+      let cached = this.parsedLookCache.get(id);
+      if (!cached || cached.look !== p.look) {
+        const parsed = parseLook(p.look);
+        cached = {
+          look: p.look,
+          c1: parsed.color1 > 0 ? parsed.color1 : 0,
+          c2: parsed.color2 > 0 ? parsed.color2 : 0,
+          c3: parsed.color3 > 0 ? parsed.color3 : 0,
+        };
+        this.parsedLookCache.set(id, cached);
+      }
+      out.push({
+        id,
+        committed: true,
+        mounted: !!p.mountLayers,
+        bundle: a.bundle,
+        export: a.exportName,
+        frame: p.frameIndex,
+        frameCount: a.frameCount,
+        fps: a.fps,
+        dir: animNameDir(p.currentAnimName),
+        flipped: isDirectionFlipped(p.direction),
+        c1: cached.c1,
+        c2: cached.c2,
+        c3: cached.c3,
+        x: (p.container as { x: number }).x,
+        y: (p.container as { y: number }).y,
+        acc: a.accessories.map((ac) => ({
+          bundle: ac.bundle,
+          export: ac.exportName,
+          slot: ac.slot,
+          animType: ac.animType,
+        })),
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Install the freshly-applied animation onto `ActivePlayer` — the body
+   * the strip's `applyAnimation().then(...)` used to run, factored out so
+   * the crowd-bypass path can call it immediately (no async strip bake).
+   * Phase-preservation across direction flips + one-shot reset rules are
+   * preserved verbatim from the original inline implementation.
+   */
+  private installAnimAfterApply(
+    playerId: number,
+    animation: NonNullable<ActivePlayer["currentAnimData"]>,
+    animName: string,
+    prevAnimName: string
+  ): void {
+    const live = this.players.get(playerId);
+    if (!live) return;
+    if (live.currentAnimName !== animName) return;
+    // Mounted players have currentAnimData already installed by
+    // `applyMount` (it overwrites with the "_Back" half); skip install,
+    // just flip animReady.
+    if (!live.isMounting) {
+      const prevBase = prevAnimName.replace(/[SRFLB]$/, "");
+      const nextBase = animName.replace(/[SRFLB]$/, "");
+      const sameCycle = prevBase === nextBase && prevBase !== "";
+      const nextFrameCount = animation.frameCount;
+      if (sameCycle) {
+        // Preserve phase across direction flips so chars don't "hop".
+        live.frameIndex = live.frameIndex % Math.max(1, nextFrameCount);
+      } else if (nextBase !== "static") {
+        // Cross-cycle / one-shot entry — fresh start at frame 0.
+        live.frameIndex = 0;
+        live.frameTimer = 0;
+      }
+      live.currentAnimData = animation;
+    }
+    live.animReady = true;
+  }
+
+  /**
+   * Toggle the Vello-direct crowd renderer at runtime. OFF defers the
+   * teardown to the next post-tick (the crowd's wasm `realCrowdFree`
+   * would race the in-flight render otherwise, triggering wasm-bindgen's
+   * "recursive use" panic).
+   */
+  setCrowdEnabled(on: boolean): void {
+    this.crowdEnabled = on;
+    if (!on) {
+      this.pendingCrowdDisable = true;
+    }
   }
 
   /**
@@ -1051,6 +1256,9 @@ export class PlayerRenderer {
       }
     } else {
       // Not mounted — body visible, no mount slots.
+      // Crowd path: skip the strip entirely (it stays dormant for this bot;
+      // the crowd renders the body and there are no mount slots to manage).
+      if (this.crowdEnabled) return;
       this.stripRenderer.setSlotVisible(player, "main", true);
       this.stripRenderer.removeSlot(player, "mount-back");
       this.stripRenderer.removeSlot(player, "mount-rider");
