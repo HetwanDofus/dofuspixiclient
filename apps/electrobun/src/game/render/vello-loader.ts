@@ -204,7 +204,8 @@ export async function initVello(wasmUrl?: string): Promise<{
   try {
     if (
       typeof initThreadPool === "function" &&
-      (globalThis as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated
+      (globalThis as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated &&
+      !localStorage.getItem("VELLO_NO_THREADS") // TEMP DIAG: force serial to surface worker panics
     ) {
       const n = Math.min(8, Math.max(2, (navigator.hardwareConcurrency || 4) - 1));
       await initThreadPool(n);

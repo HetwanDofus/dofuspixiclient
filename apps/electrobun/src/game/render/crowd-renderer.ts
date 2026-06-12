@@ -133,6 +133,11 @@ export class CrowdRenderer {
   private active = false;
   private lastRenderMs = 0;
   private lastStats: Record<string, number> | null = null;
+  /** Slab toggle requested from the console, applied inside the next
+   *  render tick — direct wasm calls from the console throw the
+   *  wasm-bindgen re-entrancy guard while the live render's async
+   *  borrows are in flight; the tick is the proven-safe call window. */
+  private pendingSlabMode: boolean | null = null;
 
   constructor(parent: Container, resolution = 3) {
     this.parent = parent;
@@ -142,16 +147,21 @@ export class CrowdRenderer {
     //   __crowdSlabStats() → last per-frame stats + GPU pass timings
     const g = globalThis as Record<string, unknown>;
     g.__crowdSlab = (enabled: boolean) => {
-      const r = getVelloRenderer() as unknown as CrowdVelloApi | null;
-      r?.realCrowdSetSlab?.(enabled);
-      log.info(`slab mode ${enabled ? "ON" : "OFF"}`);
+      this.pendingSlabMode = enabled;
+      log.info(`slab mode ${enabled ? "ON" : "OFF"} queued for next tick`);
     };
     g.__crowdSlabStats = () => {
-      const r = getVelloRenderer() as unknown as CrowdVelloApi | null;
+      let gpu: unknown = null;
+      try {
+        const r = getVelloRenderer() as unknown as CrowdVelloApi | null;
+        gpu = r?.slabGpuTiming?.() ?? null;
+      } catch {
+        // Re-entrancy guard while the live render holds the borrow.
+      }
       return {
         lastRenderMs: this.lastRenderMs,
         lastStats: this.lastStats,
-        gpu: r?.slabGpuTiming?.() ?? null,
+        gpu,
       };
     };
   }
@@ -347,6 +357,11 @@ export class CrowdRenderer {
     eligible: CrowdPlayerSnapshot[],
   ): void {
     if (!this.setup || !this.sprite) return;
+    if (this.pendingSlabMode !== null) {
+      r.realCrowdSetSlab?.(this.pendingSlabMode);
+      log.info(`slab mode ${this.pendingSlabMode ? "ON" : "OFF"} applied`);
+      this.pendingSlabMode = null;
+    }
     const posScale = this.setup.posScale;
 
     // Index the live snapshot by id; build the flat per-tick uploads in
