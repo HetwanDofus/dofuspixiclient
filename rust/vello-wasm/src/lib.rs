@@ -3,19 +3,19 @@ use std::collections::HashMap;
 use dofasset_renderer::format::{self, DofAsset};
 use dofasset_renderer::scene_builder::{self, AccessoryScene};
 use vello::peniko::Color;
-use vello::{wgpu, AaConfig, Renderer, RendererOptions};
+use vello::{AaConfig, Renderer, RendererOptions, wgpu};
 use wasm_bindgen::prelude::*;
 
 mod bake_telemetry;
 mod bitmap_bridge;
 mod scene_cache;
+mod slab_crowd;
 
 // Multi-core scene build (threaded wasm build only). Re-exports
 // `initThreadPool(n)` to JS — must be awaited after wasm init, before
 // any parallel render call.
 #[cfg(feature = "threads")]
 pub use wasm_bindgen_rayon::init_thread_pool;
-
 
 #[wasm_bindgen]
 extern "C" {
@@ -94,9 +94,7 @@ fn resolve_named_root_layer<'a>(
 /// instance name: pick the single Place op (unique character) on frame 0.
 /// If multiple placements exist, return None — we don't want to pick an
 /// arbitrary one.
-fn resolve_only_root_layer(
-    doc: &swf_spike::swf_doc::SwfDoc,
-) -> Option<ResolvedIconLayer<'_>> {
+fn resolve_only_root_layer(doc: &swf_spike::swf_doc::SwfDoc) -> Option<ResolvedIconLayer<'_>> {
     use swf_spike::swf_doc::OwnedOp;
     let mut found: Option<ResolvedIconLayer<'_>> = None;
     for op in &doc.root.ops {
@@ -335,7 +333,8 @@ fn bake_retained_look(
 ) -> RetainedLook {
     use std::hash::{Hash, Hasher};
     let fc = frame_count.max(1);
-    let mut frames_transforms: Vec<Vec<vello_encoding::Transform>> = Vec::with_capacity(fc as usize);
+    let mut frames_transforms: Vec<Vec<vello_encoding::Transform>> =
+        Vec::with_capacity(fc as usize);
     let mut pd_per_frame: Vec<Vec<u32>> = Vec::with_capacity(fc as usize);
     let mut base_scene = vello::Scene::new();
     let mut tx_count0 = 0usize;
@@ -427,7 +426,17 @@ fn bake_union_look(
         union::begin_capture();
         let mut throwaway = vello::Scene::new();
         emit_player_look(
-            ctx, bundles, caches, bundle, export, f, flipped, colors, acc, scale_aff, &mut throwaway,
+            ctx,
+            bundles,
+            caches,
+            bundle,
+            export,
+            f,
+            flipped,
+            colors,
+            acc,
+            scale_aff,
+            &mut throwaway,
         );
         per_frame.push(union::take_capture());
     }
@@ -435,7 +444,8 @@ fn bake_union_look(
     let plan = union::build_union(&per_frame);
 
     // 3. Re-emit the constant-structure union per frame, extract transforms + path_data.
-    let mut frames_transforms: Vec<Vec<vello_encoding::Transform>> = Vec::with_capacity(fc as usize);
+    let mut frames_transforms: Vec<Vec<vello_encoding::Transform>> =
+        Vec::with_capacity(fc as usize);
     let mut pd_per_frame: Vec<Vec<u32>> = Vec::with_capacity(fc as usize);
     let mut base_scene = vello::Scene::new();
     for f in 0..fc {
@@ -534,10 +544,9 @@ fn emit_player_look(
     let (effective_sym, effective_xform) =
         swf_spike::render::find_effective_body_symbol(doc, symbol, frame);
     let slots = swf_spike::render::extract_slot_depths(doc, body_sprite, frame);
-    let (mount_mats, mount_pres) =
-        swf_spike::render::mount_transforms::extract_mount_transforms(
-            doc, symbol, frame, 1, flipped, MAX_SLOT,
-        );
+    let (mount_mats, mount_pres) = swf_spike::render::mount_transforms::extract_mount_transforms(
+        doc, symbol, frame, 1, flipped, MAX_SLOT,
+    );
     let body_xform = base * effective_xform;
     let mut acc_drawn = 0u32;
     let n = slots.len();
@@ -680,6 +689,11 @@ pub struct VelloRenderer {
     /// (folds all per-batch textures past the single-scene shape ceiling in
     /// ONE fullscreen pass instead of N sequential `over` passes).
     crowd_composite_pipeline: Option<bitmap_bridge::MultiCompositePipeline>,
+    /// Tier-7 slab crowd state (interned-look render path; see `slab_crowd`).
+    slab_crowd: slab_crowd::SlabCrowdState,
+    /// Routes `realCrowdRenderBatched` through the slab path when set via
+    /// `realCrowdSetSlab`. The batch/composite path stays the default.
+    slab_mode: bool,
     /// Phase 1b: pre-built `vello::Scene` cache for the body atlas
     /// bake. Phase 1's flatten cache lived inside `swf_render_caches`
     /// and ONLY memoised the `flatten_shape` step. On real workloads
@@ -932,23 +946,23 @@ fn resolve_accessory_anim(
         // Cape
         2 => match (anim_type, dir_suffix) {
             (0, "R") | (0, "F") | (0, "S") => &["R", "L"],
-            (0, "B") | (0, "L")            => &["L", "R"],
-            (1, "R") | (1, "F")            => &["R", "L"],
+            (0, "B") | (0, "L") => &["L", "R"],
+            (1, "R") | (1, "F") => &["R", "L"],
             (1, "B") | (1, "L") | (1, "S") => &["L", "R"],
-            (2, "R") | (2, "F")            => &["RR", "R", "L"],
-            (2, "B") | (2, "L")            => &["RL", "L", "R"],
-            (2, _)                          => &["L", "R"],
-            _                               => &["R", "L"],
+            (2, "R") | (2, "F") => &["RR", "R", "L"],
+            (2, "B") | (2, "L") => &["RL", "L", "R"],
+            (2, _) => &["L", "R"],
+            _ => &["R", "L"],
         },
         // Shield
         4 => match (anim_type, dir_suffix) {
-            (0, "L")                        => &["L", "R"],
-            (0, _)                          => &["R", "L"],
+            (0, "L") => &["L", "R"],
+            (0, _) => &["R", "L"],
             (1, "F") | (1, "B") | (1, "L") => &["L", "R"],
-            (1, _)                          => &["R", "L"],
-            (2, "F") | (2, "L")            => &["L", "R"],
-            (2, _)                          => &["R", "L"],
-            _                               => &["R", "L"],
+            (1, _) => &["R", "L"],
+            (2, "F") | (2, "L") => &["L", "R"],
+            (2, _) => &["R", "L"],
+            _ => &["R", "L"],
         },
         // Hat, weapon, pet, default: try dir_suffix, then common fallbacks
         _ => match dir_suffix {
@@ -957,7 +971,7 @@ fn resolve_accessory_anim(
             "F" => &["F", "S", "R"],
             "B" => &["B", "S", "L"],
             "S" => &["S", "R", "F"],
-            _   => &["R", "L", "S"],
+            _ => &["R", "L", "S"],
         },
     };
 
@@ -987,20 +1001,28 @@ fn build_accessory_scenes(
     resolution: f32,
     char_asset: &DofAsset,
 ) -> Vec<AccessoryScene> {
-    let Some(info) = acc_info else { return Vec::new() };
-    if info.len() < 2 { return Vec::new(); }
+    let Some(info) = acc_info else {
+        return Vec::new();
+    };
+    if info.len() < 2 {
+        return Vec::new();
+    }
 
     // Extract direction suffix for fallback (e.g., "walkR" → "R")
     let dir_suffix = if animation.len() >= 2 {
-        &animation[animation.len()-1..]
+        &animation[animation.len() - 1..]
     } else {
         "S"
     };
 
     // Classify animation type: static, walk, or run
-    let anim_type = if animation.starts_with("run") { 2u8 }
-        else if animation.starts_with("static") { 0 }
-        else { 1 }; // walk and everything else
+    let anim_type = if animation.starts_with("run") {
+        2u8
+    } else if animation.starts_with("static") {
+        0
+    } else {
+        1
+    }; // walk and everything else
 
     // Per-slot side overrides baked into the character asset at compile time.
     let mut side_overrides: HashMap<u8, &str> = HashMap::new();
@@ -1023,7 +1045,9 @@ fn build_accessory_scenes(
         let acc_asset_id = pair[0];
         let slot_id = pair[1] as u8;
 
-        let Some(acc_asset) = assets.get(&acc_asset_id) else { continue };
+        let Some(acc_asset) = assets.get(&acc_asset_id) else {
+            continue;
+        };
 
         // Resolve the accessory animation name.
         // Priority: SWF-baked side override → exact anim match → direction table.
@@ -1036,32 +1060,40 @@ fn build_accessory_scenes(
         } else {
             resolve_accessory_anim(acc_asset, animation, dir_suffix, anim_type, slot_id)
         };
-        let Some(resolved_anim) = resolved_anim else { continue };
+        let Some(resolved_anim) = resolved_anim else {
+            continue;
+        };
 
         let &anim_idx = acc_asset.animation_map.get(resolved_anim.as_str()).unwrap();
         let anim = &acc_asset.animations[anim_idx];
-        if anim.frame_ids.is_empty() { continue; }
+        if anim.frame_ids.is_empty() {
+            continue;
+        }
 
         let actual_frame = frame_index % anim.frame_ids.len();
         let scene = scene_builder::build_accessory_scene_unscaled(
-            acc_asset, &resolved_anim, actual_frame, resolution,
+            acc_asset,
+            &resolved_anim,
+            actual_frame,
+            resolution,
         );
 
         // Use net offset (where Flash 0,0 actually lands in the rendered scene)
         // instead of SWF metadata offset. Same fix as character positioning —
         // eliminates ~0.5px discrepancy that displaces accessories.
         let global_fid = anim.frame_ids[actual_frame] as usize;
-        let (offset_x, offset_y, acc_w, acc_h) = if let Some(acc_frame) = acc_asset.frames.get(global_fid) {
-            let net = scene_builder::compute_net_offset(acc_frame, &acc_asset.transforms);
-            (
-                -net.0,  // negate: acc_local ADDS this to slot position
-                -net.1,
-                acc_frame.clip_rect[2] as f64,
-                acc_frame.clip_rect[3] as f64,
-            )
-        } else {
-            (anim.offset_x as f64, anim.offset_y as f64, 0.0, 0.0)
-        };
+        let (offset_x, offset_y, acc_w, acc_h) =
+            if let Some(acc_frame) = acc_asset.frames.get(global_fid) {
+                let net = scene_builder::compute_net_offset(acc_frame, &acc_asset.transforms);
+                (
+                    -net.0, // negate: acc_local ADDS this to slot position
+                    -net.1,
+                    acc_frame.clip_rect[2] as f64,
+                    acc_frame.clip_rect[3] as f64,
+                )
+            } else {
+                (anim.offset_x as f64, anim.offset_y as f64, 0.0, 0.0)
+            };
 
         scenes.push(AccessoryScene {
             slot_id,
@@ -1111,18 +1143,20 @@ impl VelloRenderer {
         let mut required_limits = wgpu::Limits::default();
         required_limits.max_texture_dimension_2d = adapter_limits.max_texture_dimension_2d;
         required_limits.max_buffer_size = adapter_limits.max_buffer_size;
-        required_limits.max_storage_buffer_binding_size = adapter_limits.max_storage_buffer_binding_size;
-        console_log!("VelloRenderer: maxTexDim2D={} maxBufSize={}",
-            required_limits.max_texture_dimension_2d, required_limits.max_buffer_size);
+        required_limits.max_storage_buffer_binding_size =
+            adapter_limits.max_storage_buffer_binding_size;
+        console_log!(
+            "VelloRenderer: maxTexDim2D={} maxBufSize={}",
+            required_limits.max_texture_dimension_2d,
+            required_limits.max_buffer_size
+        );
 
         // DIAG: request TIMESTAMP_QUERY when the adapter advertises it so
         // JS can do real per-pass GPU profiling (timestampWrites in render
         // passes). Gated on adapter support so the device request can't
         // fail on browsers that don't expose it.
         let mut required_features = wgpu::Features::empty();
-        let ts_supported = adapter
-            .features()
-            .contains(wgpu::Features::TIMESTAMP_QUERY);
+        let ts_supported = adapter.features().contains(wgpu::Features::TIMESTAMP_QUERY);
         if ts_supported {
             required_features |= wgpu::Features::TIMESTAMP_QUERY;
         }
@@ -1133,14 +1167,12 @@ impl VelloRenderer {
         );
 
         let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    label: Some("vello-pixi-shared"),
-                    required_features,
-                    required_limits,
-                    ..Default::default()
-                },
-            )
+            .request_device(&wgpu::DeviceDescriptor {
+                label: Some("vello-pixi-shared"),
+                required_features,
+                required_limits,
+                ..Default::default()
+            })
             .await
             .map_err(|e| JsValue::from_str(&format!("Device request failed: {e}")))?;
 
@@ -1179,6 +1211,8 @@ impl VelloRenderer {
             swf_bundles: HashMap::new(),
             real_anim_crowd: None,
             crowd_composite_pipeline: None,
+            slab_crowd: slab_crowd::SlabCrowdState::default(),
+            slab_mode: false,
             swf_filter_pipelines: None,
             swf_player_colors: swf_spike::recolor::PlayerColors::default(),
             swf_spell_instances: HashMap::new(),
@@ -1205,7 +1239,11 @@ impl VelloRenderer {
         js_sys::Reflect::set(&result, &"renderer".into(), &vello.into())?;
         js_sys::Reflect::set(&result, &"adapter".into(), &gpu_adapter)?;
         js_sys::Reflect::set(&result, &"device".into(), &gpu_device)?;
-        js_sys::Reflect::set(&result, &"maxTextureSize".into(), &JsValue::from(adapter_limits.max_texture_dimension_2d))?;
+        js_sys::Reflect::set(
+            &result,
+            &"maxTextureSize".into(),
+            &JsValue::from(adapter_limits.max_texture_dimension_2d),
+        )?;
 
         Ok(result.into())
     }
@@ -1256,8 +1294,7 @@ impl VelloRenderer {
                 // Invalidate any cached bounds for this bundle — a reload
                 // (e.g. asset hot-swap) could change the export's
                 // geometry, so the cached values are stale.
-                self.swf_strip_bounds_cache
-                    .retain(|(b, _, _), _| b != name);
+                self.swf_strip_bounds_cache.retain(|(b, _, _), _| b != name);
                 self.swf_bundles.insert(name.to_string(), doc);
                 true
             }
@@ -1296,12 +1333,8 @@ impl VelloRenderer {
             ));
         }
         if self.bridge_canvas_pool.is_none() {
-            match bitmap_bridge::BridgeCanvasPool::new(
-                &self.instance,
-                &self.device,
-                width,
-                height,
-            ) {
+            match bitmap_bridge::BridgeCanvasPool::new(&self.instance, &self.device, width, height)
+            {
                 Ok(p) => self.bridge_canvas_pool = Some(p),
                 Err(e) => {
                     console_log!("{err_label}: bridge pool init error: {e:?}");
@@ -1312,7 +1345,13 @@ impl VelloRenderer {
         let blit = self.blit_bgra_pipeline.as_ref().unwrap();
         let pool = self.bridge_canvas_pool.as_mut().unwrap();
         match bitmap_bridge::render_texture_to_bitmap(
-            pool, &self.device, &self.queue, blit, texture, width, height,
+            pool,
+            &self.device,
+            &self.queue,
+            blit,
+            texture,
+            width,
+            height,
         ) {
             Ok(b) => Some(b),
             Err(e) => {
@@ -1382,9 +1421,8 @@ impl VelloRenderer {
         // Lazily init the filter pipelines (compute shader compilation isn't
         // free — defer until the first SWF render that might need them).
         if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
         }
 
         // Twip-identity sub-scene cache: a tile's scene at
@@ -1514,11 +1552,7 @@ impl VelloRenderer {
     /// is the same size, giving a uniform anchor across the strip — Pixi
     /// can swap textures without per-frame pivot reapplies.
     #[wasm_bindgen(js_name = "renderSwfSpellStrip")]
-    pub fn render_swf_spell_strip(
-        &mut self,
-        bundle: &str,
-        resolution: f32,
-    ) -> JsValue {
+    pub fn render_swf_spell_strip(&mut self, bundle: &str, resolution: f32) -> JsValue {
         let Some(doc) = self.swf_bundles.get(bundle) else {
             return JsValue::NULL;
         };
@@ -1556,9 +1590,7 @@ impl VelloRenderer {
             }
         }
         let Some(bounds) = union else {
-            console_log!(
-                "renderSwfSpellStrip: degenerate bounds across all frames for {bundle}"
-            );
+            console_log!("renderSwfSpellStrip: degenerate bounds across all frames for {bundle}");
             return JsValue::NULL;
         };
 
@@ -1580,9 +1612,7 @@ impl VelloRenderer {
         let strip_w = frame_w * cols as u32;
         let strip_h = frame_h * rows as u32;
         if strip_w > 16384 || strip_h > 16384 {
-            console_log!(
-                "renderSwfSpellStrip: {strip_w}x{strip_h} exceeds GPU limits"
-            );
+            console_log!("renderSwfSpellStrip: {strip_w}x{strip_h} exceeds GPU limits");
             return JsValue::NULL;
         }
 
@@ -1590,9 +1620,8 @@ impl VelloRenderer {
         // will route through `apply_compute` on native, halo on WASM (per
         // the cfg-gate in `swf_spike::render::filter::apply`).
         if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
         }
         let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
 
@@ -1601,12 +1630,10 @@ impl VelloRenderer {
         // the main sprite at depth 1. Capture the SWF header fps here so
         // we can drop the `doc` borrow before the `&mut self`
         // `texture_to_bitmap` call below.
-        let root_sym =
-            swf_spike::swf_doc::Symbol::Sprite(doc.root.clone());
+        let root_sym = swf_spike::swf_doc::Symbol::Sprite(doc.root.clone());
         let doc_frame_rate = doc.frame_rate;
 
-        let mut renderer =
-            swf_spike::render_avm1::AvmRenderer::new(doc.root.num_frames);
+        let mut renderer = swf_spike::render_avm1::AvmRenderer::new(doc.root.num_frames);
         let mut scene = vello::Scene::new();
 
         for i in 0..frame_count as usize {
@@ -1619,9 +1646,10 @@ impl VelloRenderer {
             let row = i / cols;
             let cell_x = (col * frame_w as usize) as f64;
             let cell_y = (row * frame_h as usize) as f64;
-            let xform = vello::kurbo::Affine::scale(scale).then_translate(
-                vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y + cell_y),
-            );
+            let xform = vello::kurbo::Affine::scale(scale).then_translate(vello::kurbo::Vec2::new(
+                -px_min_x + cell_x,
+                -px_min_y + cell_y,
+            ));
 
             let mut ctx = swf_spike::render::WgpuCtx {
                 device: &self.device,
@@ -1667,7 +1695,8 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
 
-        let Some(bitmap) = self.texture_to_bitmap(&texture, strip_w, strip_h, "renderSwfSpellStrip")
+        let Some(bitmap) =
+            self.texture_to_bitmap(&texture, strip_w, strip_h, "renderSwfSpellStrip")
         else {
             return JsValue::NULL;
         };
@@ -1676,15 +1705,9 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(strip_w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
-        let _ =
-            js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
-        let _ =
-            js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"gridCols".into(),
-            &JsValue::from(cols as u32),
-        );
+        let _ = js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
+        let _ = js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
+        let _ = js_sys::Reflect::set(&result, &"gridCols".into(), &JsValue::from(cols as u32));
         let _ = js_sys::Reflect::set(
             &result,
             &"frameCount".into(),
@@ -1693,11 +1716,7 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
         let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
         // SWF header fps so the runtime can advance at the right rate.
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"fps".into(),
-            &JsValue::from(doc_frame_rate),
-        );
+        let _ = js_sys::Reflect::set(&result, &"fps".into(), &JsValue::from(doc_frame_rate));
         result.into()
     }
 
@@ -1725,7 +1744,12 @@ impl VelloRenderer {
         resolution: f32,
     ) -> JsValue {
         let Some((scene, w, h)) = self.prepare_spell_icon_scene(
-            back_bundle, up_bundle, bc_rgb, fc_rgb, pc_rgb, resolution,
+            back_bundle,
+            up_bundle,
+            bc_rgb,
+            fc_rgb,
+            pc_rgb,
+            resolution,
         ) else {
             return JsValue::NULL;
         };
@@ -1782,11 +1806,7 @@ impl VelloRenderer {
     /// Returns NULL on missing bundle, missing required layers, or
     /// degenerate root bounds.
     #[wasm_bindgen(js_name = "swfSpellIconNaturalSize")]
-    pub fn swf_spell_icon_natural_size(
-        &self,
-        back_bundle: &str,
-        up_bundle: &str,
-    ) -> JsValue {
+    pub fn swf_spell_icon_natural_size(&self, back_bundle: &str, up_bundle: &str) -> JsValue {
         let Some(back_doc) = self.swf_bundles.get(back_bundle) else {
             return JsValue::NULL;
         };
@@ -1843,13 +1863,8 @@ impl VelloRenderer {
         let Some(doc) = self.swf_bundles.get(bundle) else {
             return JsValue::NULL;
         };
-        let root_symbol =
-            swf_spike::swf_doc::Symbol::Sprite(doc.root.clone());
-        let bounds = swf_spike::render::symbol_bounds(
-            doc,
-            &root_symbol,
-            frame as u16,
-        );
+        let root_symbol = swf_spike::swf_doc::Symbol::Sprite(doc.root.clone());
+        let bounds = swf_spike::render::symbol_bounds(doc, &root_symbol, frame as u16);
         if bounds.width() <= 0.0 || bounds.height() <= 0.0 {
             return JsValue::NULL;
         }
@@ -1932,13 +1947,28 @@ impl VelloRenderer {
 
         let mut scene = vello::Scene::new();
         swf_spike::render::render_symbol_xformed(
-            back_doc, bg_layer.symbol, &mut scene, bg_xform, 0, flat_fill(bc_rgb),
+            back_doc,
+            bg_layer.symbol,
+            &mut scene,
+            bg_xform,
+            0,
+            flat_fill(bc_rgb),
         );
         swf_spike::render::render_symbol_xformed(
-            back_doc, frame_layer.symbol, &mut scene, frame_xform, 0, flat_fill(fc_rgb),
+            back_doc,
+            frame_layer.symbol,
+            &mut scene,
+            frame_xform,
+            0,
+            flat_fill(fc_rgb),
         );
         swf_spike::render::render_symbol_xformed(
-            up_doc, glyph_layer.symbol, &mut scene, glyph_xform, 0, flat_fill(pc_rgb),
+            up_doc,
+            glyph_layer.symbol,
+            &mut scene,
+            glyph_xform,
+            0,
+            flat_fill(pc_rgb),
         );
         Some((scene, w, h))
     }
@@ -1951,11 +1981,7 @@ impl VelloRenderer {
     /// drive subsequent host-var sets, ticks, and dispose. Returns 0
     /// on failure.
     #[wasm_bindgen(js_name = "createSwfSpellInstance")]
-    pub fn create_swf_spell_instance(
-        &mut self,
-        bundle: &str,
-        resolution: f32,
-    ) -> u32 {
+    pub fn create_swf_spell_instance(&mut self, bundle: &str, resolution: f32) -> u32 {
         let Some(doc) = self.swf_bundles.get(bundle) else {
             return 0;
         };
@@ -2007,9 +2033,7 @@ impl VelloRenderer {
         let w = ((px_max_x - px_min_x) as u32).max(1);
         let h = ((px_max_y - px_min_y) as u32).max(1);
         if w > 16384 || h > 16384 {
-            console_log!(
-                "createSwfSpellInstance: {w}x{h} exceeds GPU limits for {bundle}"
-            );
+            console_log!("createSwfSpellInstance: {w}x{h} exceeds GPU limits for {bundle}");
             return 0;
         }
 
@@ -2036,8 +2060,7 @@ impl VelloRenderer {
         self.next_texture_id += 1;
         self.textures.insert(tex_id, texture);
 
-        let avm =
-            swf_spike::render_avm1::AvmRenderer::new(doc.root.num_frames);
+        let avm = swf_spike::render_avm1::AvmRenderer::new(doc.root.num_frames);
         let instance = SwfSpellInstance {
             avm,
             bundle_name: bundle.to_string(),
@@ -2061,13 +2084,7 @@ impl VelloRenderer {
     /// `tickSwfSpellFrame` for the values to land on `_parent.cellFrom.x`
     /// lookups in AS2.
     #[wasm_bindgen(js_name = "setSwfSpellHostCell")]
-    pub fn set_swf_spell_host_cell(
-        &mut self,
-        instance_id: u32,
-        name: &str,
-        x: f64,
-        y: f64,
-    ) {
+    pub fn set_swf_spell_host_cell(&mut self, instance_id: u32, name: &str, x: f64, y: f64) {
         if let Some(inst) = self.swf_spell_instances.get_mut(&instance_id) {
             inst.avm.set_host_cell(name, x, y);
         }
@@ -2076,12 +2093,7 @@ impl VelloRenderer {
     /// Inject a numeric host-var (typically `level` or `angle`) into the
     /// spell's AVM1 root clip.
     #[wasm_bindgen(js_name = "setSwfSpellHostNumber")]
-    pub fn set_swf_spell_host_number(
-        &mut self,
-        instance_id: u32,
-        name: &str,
-        value: f64,
-    ) {
+    pub fn set_swf_spell_host_number(&mut self, instance_id: u32, name: &str, value: f64) {
         if let Some(inst) = self.swf_spell_instances.get_mut(&instance_id) {
             inst.avm
                 .set_host_var(name, swf_spike::avm1::Value::Number(value));
@@ -2115,17 +2127,15 @@ impl VelloRenderer {
         let Some(doc) = self.swf_bundles.get(&bundle_name) else {
             return JsValue::NULL;
         };
-        let root_sym =
-            swf_spike::swf_doc::Symbol::Sprite(doc.root.clone());
+        let root_sym = swf_spike::swf_doc::Symbol::Sprite(doc.root.clone());
 
         // Lazily init filter pipelines — spell SWFs frequently use
         // DropShadow/Glow/Blur on inner sprites. WASM target falls
         // back to halo automatically per the cfg-gate in
         // `swf_spike::render::filter::apply`.
         if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
         }
         let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
 
@@ -2148,23 +2158,14 @@ impl VelloRenderer {
                 filter_pipelines,
                 output_scale: scale,
             };
-            inst.avm.render(doc, &root_sym, &mut scene, xform, Some(&mut ctx));
+            inst.avm
+                .render(doc, &root_sym, &mut scene, xform, Some(&mut ctx));
         }
 
         // Snapshot post-tick state BEFORE advance so the JS-side report
         // matches the frame we just rendered.
-        let is_playing = inst
-            .avm
-            .engine
-            .clips
-            .get(&1)
-            .map_or(true, |s| s.playing);
-        let is_removed = inst
-            .avm
-            .engine
-            .clips
-            .get(&1)
-            .is_some_and(|s| s.removed);
+        let is_playing = inst.avm.engine.clips.get(&1).map_or(true, |s| s.playing);
+        let is_removed = inst.avm.engine.clips.get(&1).is_some_and(|s| s.removed);
 
         inst.avm.advance(doc, &root_sym);
         inst.frame += 1;
@@ -2183,13 +2184,10 @@ impl VelloRenderer {
             height: h,
             antialiasing_method: AaConfig::Area,
         };
-        if let Err(e) = self.renderer.render_to_texture(
-            &self.device,
-            &self.queue,
-            &scene,
-            &view,
-            &params,
-        ) {
+        if let Err(e) =
+            self.renderer
+                .render_to_texture(&self.device, &self.queue, &scene, &view, &params)
+        {
             console_log!("tickSwfSpellFrame: render error: {e}");
             return JsValue::NULL;
         }
@@ -2233,12 +2231,7 @@ impl VelloRenderer {
     /// stage instead of declaring named exports. Honors `swf_player_colors`
     /// for portraits that carry the canonical `stringCourseColor` zones.
     #[wasm_bindgen(js_name = "renderSwfRoot")]
-    pub fn render_swf_root(
-        &mut self,
-        bundle: &str,
-        frame: u32,
-        resolution: f32,
-    ) -> JsValue {
+    pub fn render_swf_root(&mut self, bundle: &str, frame: u32, resolution: f32) -> JsValue {
         let Some(doc) = self.swf_bundles.get(bundle) else {
             return JsValue::NULL;
         };
@@ -2246,8 +2239,7 @@ impl VelloRenderer {
         // render pipeline (designed around `&Symbol`) can dispatch into it.
         // `OwnedSprite` derives Clone — cheap one-shot clone, fine for the
         // per-portrait render path which isn't a hot loop.
-        let root_symbol =
-            swf_spike::swf_doc::Symbol::Sprite(doc.root.clone());
+        let root_symbol = swf_spike::swf_doc::Symbol::Sprite(doc.root.clone());
 
         let bounds = swf_spike::render::symbol_bounds(doc, &root_symbol, frame as u16);
         if bounds.width() <= 0.0 || bounds.height() <= 0.0 {
@@ -2273,9 +2265,8 @@ impl VelloRenderer {
 
         let mut scene = vello::Scene::new();
         if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
         }
         let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
         let mut ctx = swf_spike::render::WgpuCtx {
@@ -2511,8 +2502,7 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(&result, &"minYTwip".into(), &JsValue::from(c.min_y));
         let _ = js_sys::Reflect::set(&result, &"maxXTwip".into(), &JsValue::from(c.max_x));
         let _ = js_sys::Reflect::set(&result, &"maxYTwip".into(), &JsValue::from(c.max_y));
-        let _ =
-            js_sys::Reflect::set(&result, &"animEnd".into(), &JsValue::from(c.anim_end));
+        let _ = js_sys::Reflect::set(&result, &"animEnd".into(), &JsValue::from(c.anim_end));
         result.into()
     }
 
@@ -2581,9 +2571,8 @@ impl VelloRenderer {
         //    (0,0) lands at the same anchor everywhere — chunks compose
         //    seamlessly.
         if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
         }
         let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
         let mut ctx = swf_spike::render::WgpuCtx {
@@ -2602,9 +2591,10 @@ impl VelloRenderer {
             let cell_x = (col * frame_w as usize) as f64;
             let cell_y = (row * frame_h as usize) as f64;
 
-            let xform = vello::kurbo::Affine::scale(scale).then_translate(
-                vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y + cell_y),
-            );
+            let xform = vello::kurbo::Affine::scale(scale).then_translate(vello::kurbo::Vec2::new(
+                -px_min_x + cell_x,
+                -px_min_y + cell_y,
+            ));
 
             swf_spike::render::render_symbol_with_ctx_tinted(
                 &mut ctx,
@@ -2666,20 +2656,14 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(strip_w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
-        let _ =
-            js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
-        let _ =
-            js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
+        let _ = js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
+        let _ = js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
         let _ = js_sys::Reflect::set(
             &result,
             &"gridCols".into(),
             &JsValue::from(grid_cols as u32),
         );
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"frameCount".into(),
-            &JsValue::from(valid_frames),
-        );
+        let _ = js_sys::Reflect::set(&result, &"frameCount".into(), &JsValue::from(valid_frames));
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(anchor_x));
         let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(anchor_y));
         result.into()
@@ -2720,11 +2704,7 @@ impl VelloRenderer {
             let result = js_sys::Object::new();
             let _ = js_sys::Reflect::set(&result, &"slotCount".into(), &JsValue::from(0u32));
             let _ = js_sys::Reflect::set(&result, &"bandCount".into(), &JsValue::from(1u32));
-            let _ = js_sys::Reflect::set(
-                &result,
-                &"slots".into(),
-                &js_sys::Array::new().into(),
-            );
+            let _ = js_sys::Reflect::set(&result, &"slots".into(), &js_sys::Array::new().into());
             let _ = js_sys::Reflect::set(&result, &"bFixUsed".into(), &JsValue::FALSE);
             return result.into();
         };
@@ -2734,8 +2714,7 @@ impl VelloRenderer {
         for s in &slots {
             let o = js_sys::Object::new();
             let _ = js_sys::Reflect::set(&o, &"slot".into(), &JsValue::from(u32::from(s.slot)));
-            let _ =
-                js_sys::Reflect::set(&o, &"depth".into(), &JsValue::from(u32::from(s.depth)));
+            let _ = js_sys::Reflect::set(&o, &"depth".into(), &JsValue::from(u32::from(s.depth)));
             // Canonical AS2 `applyAccessory(this, slot, side)` argument.
             // JS uses this string verbatim as the `side` when baking
             // the accessory's strip — passing the bot's facing `dir`
@@ -2766,11 +2745,7 @@ impl VelloRenderer {
         );
         let _ = js_sys::Reflect::set(&result, &"bandCount".into(), &JsValue::from(band_count));
         let _ = js_sys::Reflect::set(&result, &"slots".into(), &arr.into());
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"bFixUsed".into(),
-            &JsValue::from_bool(b_fix_used),
-        );
+        let _ = js_sys::Reflect::set(&result, &"bFixUsed".into(), &JsValue::from_bool(b_fix_used));
         // Whether this body's display tree contains a multi-frame
         // sprite with different children per frame — canonical
         // `mcToHide` pattern. Only Iop's R_tete matches in vanilla
@@ -2834,9 +2809,7 @@ impl VelloRenderer {
             return JsValue::NULL;
         };
         let swf_spike::swf_doc::Symbol::Sprite(body) = symbol else {
-            console_log!(
-                "renderSwfBodyAtlas: export `{bundle}/{export}` is not a sprite"
-            );
+            console_log!("renderSwfBodyAtlas: export `{bundle}/{export}` is not a sprite");
             return JsValue::NULL;
         };
 
@@ -2865,12 +2838,8 @@ impl VelloRenderer {
             swf_spike::swf_doc::Symbol::Sprite(s) => s,
             _ => body,
         };
-        let band_presence = swf_spike::render::compute_band_presence(
-            doc,
-            effective_body,
-            0,
-            &slots,
-        );
+        let band_presence =
+            swf_spike::render::compute_band_presence(doc, effective_body, 0, &slots);
         // Logical band indices that actually have content. JS uses
         // these for mesh.zIndex assignment; sparse bandIndex values
         // (e.g. just [0] when bands 1-4 are empty) is fine because
@@ -2910,13 +2879,9 @@ impl VelloRenderer {
         // class-atlas warmup's per-band dedup; here the whole-atlas cache
         // granularity only permits the all-or-nothing variant collapse.
         let eff_apply_b_fix = apply_b_fix
-            && swf_spike::render::compute_bfix_sensitive_bands(
-                doc,
-                effective_body,
-                &band_ranges,
-            )
-            .iter()
-            .any(|&s| s);
+            && swf_spike::render::compute_bfix_sensitive_bands(doc, effective_body, &band_ranges)
+                .iter()
+                .any(|&s| s);
 
         let end = start.saturating_add(count).min(total_frame_count);
         let chunk_end = end.min(cached.anim_end);
@@ -3036,9 +3001,7 @@ impl VelloRenderer {
             }
             // Aspect target: cols × frame_w ≈ rows × frame_h
             // ⇒ cols ≈ sqrt(chunk × frame_h / frame_w)
-            let ideal_cols_f = ((chunk_usize as f64)
-                * (frame_h as f64)
-                / (frame_w.max(1) as f64))
+            let ideal_cols_f = ((chunk_usize as f64) * (frame_h as f64) / (frame_w.max(1) as f64))
                 .sqrt()
                 .ceil();
             let ideal_cols = (ideal_cols_f as usize).max(1);
@@ -3065,11 +3028,7 @@ impl VelloRenderer {
 
         let atlas_w = strip_w;
         let atlas_h = strip_h * band_present_u32 + padding_total;
-        if atlas_w == 0
-            || atlas_h == 0
-            || atlas_w > HARD_ATLAS_DIM
-            || atlas_h > HARD_ATLAS_DIM
-        {
+        if atlas_w == 0 || atlas_h == 0 || atlas_w > HARD_ATLAS_DIM || atlas_h > HARD_ATLAS_DIM {
             // Defence-in-depth — the picker already enforces both
             // dims under the chosen target_dim, but skip rather than
             // abort if a corner case slips through.
@@ -3081,9 +3040,8 @@ impl VelloRenderer {
         }
 
         if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
         }
         let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
         // Phase 1: long-lived per-bundle cache. Shape flatten + frame
@@ -3393,7 +3351,13 @@ impl VelloRenderer {
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("body-atlas-combine-encoder"),
                 });
-            combine.combine(&self.device, &mut encoder, &colour_view, &zone_view, &dst_view);
+            combine.combine(
+                &self.device,
+                &mut encoder,
+                &colour_view,
+                &zone_view,
+                &dst_view,
+            );
             self.queue.submit(std::iter::once(encoder.finish()));
         }
         // The two source temp textures are no longer needed. They
@@ -3416,8 +3380,7 @@ impl VelloRenderer {
         // grid_rows layout exactly like the legacy single-strip path.
         let bands_arr = js_sys::Array::new();
         for (slot_idx, &logical_band_idx) in present_logical.iter().enumerate() {
-            let band_atlas_y =
-                (slot_idx as u32) * (strip_h + BAND_PADDING_PX);
+            let band_atlas_y = (slot_idx as u32) * (strip_h + BAND_PADDING_PX);
             let entry = js_sys::Object::new();
             // `bandIndex` is the LOGICAL band index (0..band_total_logical),
             // not the position in the atlas. JS uses this for
@@ -3428,16 +3391,8 @@ impl VelloRenderer {
                 &"bandIndex".into(),
                 &JsValue::from(logical_band_idx as u32),
             );
-            let _ = js_sys::Reflect::set(
-                &entry,
-                &"atlasX".into(),
-                &JsValue::from(0u32),
-            );
-            let _ = js_sys::Reflect::set(
-                &entry,
-                &"atlasY".into(),
-                &JsValue::from(band_atlas_y),
-            );
+            let _ = js_sys::Reflect::set(&entry, &"atlasX".into(), &JsValue::from(0u32));
+            let _ = js_sys::Reflect::set(&entry, &"atlasY".into(), &JsValue::from(band_atlas_y));
             bands_arr.push(&entry.into());
         }
 
@@ -3448,42 +3403,20 @@ impl VelloRenderer {
         // LINEAR for color/alpha, NEAREST for zone — and decodes
         // zone_id from the low 2 bits of the alpha byte.
         let _ = js_sys::Reflect::set(&result, &"combinedBitmap".into(), &combined_bitmap);
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"atlasWidth".into(),
-            &JsValue::from(atlas_w),
-        );
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"atlasHeight".into(),
-            &JsValue::from(atlas_h),
-        );
+        let _ = js_sys::Reflect::set(&result, &"atlasWidth".into(), &JsValue::from(atlas_w));
+        let _ = js_sys::Reflect::set(&result, &"atlasHeight".into(), &JsValue::from(atlas_h));
         // `stripWidth` / `stripHeight` = ONE band's strip dims inside
         // the atlas. JS uses these + atlasY to compute per-band UV.
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"stripWidth".into(),
-            &JsValue::from(strip_w),
-        );
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"stripHeight".into(),
-            &JsValue::from(strip_h),
-        );
-        let _ =
-            js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
-        let _ =
-            js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
+        let _ = js_sys::Reflect::set(&result, &"stripWidth".into(), &JsValue::from(strip_w));
+        let _ = js_sys::Reflect::set(&result, &"stripHeight".into(), &JsValue::from(strip_h));
+        let _ = js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
+        let _ = js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
         let _ = js_sys::Reflect::set(
             &result,
             &"gridCols".into(),
             &JsValue::from(grid_cols as u32),
         );
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"frameCount".into(),
-            &JsValue::from(chunk_count),
-        );
+        let _ = js_sys::Reflect::set(&result, &"frameCount".into(), &JsValue::from(chunk_count));
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
         let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
         // bandCount = number of PRESENT bands (matches `bands` array
@@ -3621,8 +3554,10 @@ impl VelloRenderer {
         let t_build = perf_now();
         let mut scene = vello::Scene::new();
         {
-            let cache: &swf_spike::render::cache::RenderCache =
-                self.swf_render_caches.entry(bundle.to_string()).or_default();
+            let cache: &swf_spike::render::cache::RenderCache = self
+                .swf_render_caches
+                .entry(bundle.to_string())
+                .or_default();
             let mut wctx = swf_spike::render::WgpuCtx {
                 device: &self.device,
                 queue: &self.queue,
@@ -3641,11 +3576,7 @@ impl VelloRenderer {
                 let c1 = h & 0x00FF_FFFF;
                 let c2 = h.wrapping_mul(40_503) & 0x00FF_FFFF;
                 let c3 = h.wrapping_mul(2_246_822_519) & 0x00FF_FFFF;
-                let pc = swf_spike::recolor::PlayerColors([
-                    Some(c1),
-                    Some(c2),
-                    Some(c3),
-                ]);
+                let pc = swf_spike::recolor::PlayerColors([Some(c1), Some(c2), Some(c3)]);
                 let place = vello::kurbo::Affine::scale(scale)
                     .then_translate(vello::kurbo::Vec2::new(wx, wy));
                 for &band in &band_ranges {
@@ -3670,13 +3601,9 @@ impl VelloRenderer {
 
         let t_render = perf_now();
         for _ in 0..iters {
-            let _ = self.renderer.render_to_texture(
-                &self.device,
-                &self.queue,
-                &scene,
-                &view,
-                &params,
-            );
+            let _ =
+                self.renderer
+                    .render_to_texture(&self.device, &self.queue, &scene, &view, &params);
         }
         let submit_ms = (perf_now() - t_render) / f64::from(iters.max(1));
 
@@ -3742,8 +3669,12 @@ impl VelloRenderer {
             let (Some(b), Some(e)) = (it.next(), it.next()) else {
                 continue;
             };
-            let Some(doc) = self.swf_bundles.get(b) else { continue };
-            let Some(symbol) = doc.lookup_export(e) else { continue };
+            let Some(doc) = self.swf_bundles.get(b) else {
+                continue;
+            };
+            let Some(symbol) = doc.lookup_export(e) else {
+                continue;
+            };
             let swf_spike::swf_doc::Symbol::Sprite(body) = symbol else {
                 continue;
             };
@@ -3754,8 +3685,7 @@ impl VelloRenderer {
                 _ => body,
             };
             let slots = swf_spike::render::extract_slot_depths(doc, body, 0);
-            let presence =
-                swf_spike::render::compute_band_presence(doc, effective_body, 0, &slots);
+            let presence = swf_spike::render::compute_band_presence(doc, effective_body, 0, &slots);
             let present: Vec<usize> = presence
                 .iter()
                 .enumerate()
@@ -3897,11 +3827,12 @@ impl VelloRenderer {
                             if let Some(asym) = adoc.lookup_export(ae) {
                                 if let Some(acache) = caches.get(ab) {
                                     let off_y = s.char_h * (0.15 + 0.18 * f64::from(j));
-                                    let aplace = vello::kurbo::Affine::scale(scale)
-                                        .then_translate(vello::kurbo::Vec2::new(
+                                    let aplace = vello::kurbo::Affine::scale(scale).then_translate(
+                                        vello::kurbo::Vec2::new(
                                             s.anchor_x + s.char_w * 0.25,
                                             s.anchor_y + off_y,
-                                        ));
+                                        ),
+                                    );
                                     swf_spike::render::render_body_band(
                                         &mut wctx,
                                         adoc,
@@ -3946,13 +3877,9 @@ impl VelloRenderer {
             }
             build_total += perf_now() - t_b;
             let t_s = perf_now();
-            let _ = self.renderer.render_to_texture(
-                &self.device,
-                &self.queue,
-                &scene,
-                &view,
-                &params,
-            );
+            let _ =
+                self.renderer
+                    .render_to_texture(&self.device, &self.queue, &scene, &view, &params);
             submit_total += perf_now() - t_s;
         }
         let build_ms = build_total / f64::from(iters.max(1));
@@ -4015,8 +3942,7 @@ impl VelloRenderer {
             _ => body,
         };
         let slots = swf_spike::render::extract_slot_depths(doc, body, 0);
-        let presence =
-            swf_spike::render::compute_band_presence(doc, effective_body, 0, &slots);
+        let presence = swf_spike::render::compute_band_presence(doc, effective_body, 0, &slots);
         let band_ranges: Vec<swf_spike::render::BandRange> = {
             let present: Vec<usize> = presence
                 .iter()
@@ -4051,8 +3977,10 @@ impl VelloRenderer {
         let t_pre = perf_now();
         let mut subscenes: Vec<Vec<vello::Scene>> = Vec::new();
         {
-            let cache: &swf_spike::render::cache::RenderCache =
-                self.swf_render_caches.entry(bundle.to_string()).or_default();
+            let cache: &swf_spike::render::cache::RenderCache = self
+                .swf_render_caches
+                .entry(bundle.to_string())
+                .or_default();
             let mut wctx = swf_spike::render::WgpuCtx {
                 device: &self.device,
                 queue: &self.queue,
@@ -4135,13 +4063,9 @@ impl VelloRenderer {
             }
             build_total += perf_now() - t_b;
             let t_s = perf_now();
-            let _ = self.renderer.render_to_texture(
-                &self.device,
-                &self.queue,
-                &scene,
-                &view,
-                &params,
-            );
+            let _ =
+                self.renderer
+                    .render_to_texture(&self.device, &self.queue, &scene, &view, &params);
             submit_total += perf_now() - t_s;
         }
         let build_ms = build_total / f64::from(iters.max(1));
@@ -4254,8 +4178,8 @@ impl VelloRenderer {
                 .next()
                 .unwrap_or('R')
                 .to_ascii_uppercase();
-            let acc_val = js_sys::Reflect::get(&o, &JsValue::from_str("acc"))
-                .unwrap_or(JsValue::NULL);
+            let acc_val =
+                js_sys::Reflect::get(&o, &JsValue::from_str("acc")).unwrap_or(JsValue::NULL);
             let mut acc: Vec<AccSpec> = Vec::new();
             if acc_val.is_truthy() {
                 let aarr = js_sys::Array::from(&acc_val);
@@ -4294,9 +4218,7 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
         // Y-sort so back-to-front overlap is canonical (lower y first).
-        specs.sort_by(|a, b| {
-            a.y.partial_cmp(&b.y).unwrap_or(std::cmp::Ordering::Equal)
-        });
+        specs.sort_by(|a, b| a.y.partial_cmp(&b.y).unwrap_or(std::cmp::Ordering::Equal));
 
         if self.swf_filter_pipelines.is_none() {
             self.swf_filter_pipelines =
@@ -4376,8 +4298,7 @@ impl VelloRenderer {
                 let swf_spike::swf_doc::Symbol::Sprite(body_sprite) = symbol else {
                     continue;
                 };
-                let slots =
-                    swf_spike::render::extract_slot_depths(doc, body_sprite, s.frame);
+                let slots = swf_spike::render::extract_slot_depths(doc, body_sprite, s.frame);
                 // Per-frame mount matrices (export space) + presence bitmap.
                 let (mount_mats, mount_pres) =
                     swf_spike::render::mount_transforms::extract_mount_transforms(
@@ -4409,12 +4330,9 @@ impl VelloRenderer {
                     if i < n {
                         let sd = &slots[i];
                         let slot_us = sd.slot as usize;
-                        let present =
-                            mount_pres.get(slot_us).copied().unwrap_or(0) == 1;
+                        let present = mount_pres.get(slot_us).copied().unwrap_or(0) == 1;
                         if present {
-                            if let Some(&(acache, adoc, asym, at)) =
-                                equipped.get(&sd.slot)
-                            {
+                            if let Some(&(acache, adoc, asym, at)) = equipped.get(&sd.slot) {
                                 let off = slot_us * 6;
                                 if off + 6 <= mount_mats.len() {
                                     let m = vello::kurbo::Affine::new([
@@ -4426,10 +4344,9 @@ impl VelloRenderer {
                                         f64::from(mount_mats[off + 5]),
                                     ]);
                                     let side = sd.side.as_deref().unwrap_or("R");
-                                    let acc_frame =
-                                        swf_spike::render::pick_accessory_frame(
-                                            adoc, asym, sd.slot, at, side, s.frame,
-                                        );
+                                    let acc_frame = swf_spike::render::pick_accessory_frame(
+                                        adoc, asym, sd.slot, at, side, s.frame,
+                                    );
                                     swf_spike::render::render_symbol_with_shared_cache(
                                         &mut ctx,
                                         adoc,
@@ -4535,13 +4452,9 @@ impl VelloRenderer {
             }
             build_total += perf_now() - t_b;
             let t_s = perf_now();
-            let _ = self.renderer.render_to_texture(
-                &self.device,
-                &self.queue,
-                &scene,
-                &view,
-                &params,
-            );
+            let _ =
+                self.renderer
+                    .render_to_texture(&self.device, &self.queue, &scene, &view, &params);
             submit_total += perf_now() - t_s;
         }
         let build_ms = build_total / f64::from(iters.max(1));
@@ -4583,6 +4496,10 @@ impl VelloRenderer {
         resolution: f32,
         retain: bool,
     ) -> JsValue {
+        // A new crowd invalidates every interned look: the SubLibrary's
+        // pinned ramp/atlas caches are append-only within a crowd
+        // lifetime (wc3 resets these per MapEpoch for the same reason).
+        self.slab_crowd.reset(&mut self.renderer);
         let scale = f64::from(resolution) / 20.0;
         let pos_scale = f64::from(resolution);
         let get_f64 = |o: &JsValue, k: &str| -> f64 {
@@ -4621,8 +4538,8 @@ impl VelloRenderer {
             if bundle.is_empty() || export.is_empty() {
                 continue;
             }
-            let acc_val = js_sys::Reflect::get(&o, &JsValue::from_str("acc"))
-                .unwrap_or(JsValue::NULL);
+            let acc_val =
+                js_sys::Reflect::get(&o, &JsValue::from_str("acc")).unwrap_or(JsValue::NULL);
             let mut acc: Vec<LookAcc> = Vec::new();
             if acc_val.is_truthy() {
                 let aarr = js_sys::Array::from(&acc_val);
@@ -4844,35 +4761,27 @@ impl VelloRenderer {
                 for p in players {
                     let fc = p.frame_count.max(1);
                     let fps = f64::from(p.fps.max(0.001));
-                    let tf = (((time_ms / 1000.0) * fps) as i64)
-                        .rem_euclid(i64::from(fc)) as u16;
+                    let tf = (((time_ms / 1000.0) * fps) as i64).rem_euclid(i64::from(fc)) as u16;
                     let key = format!("{}|{}", p.sig, tf);
                     if !look_cache.contains_key(&key) {
                         let mut sub = vello::Scene::new();
                         acc_drawn += emit_player_look(
-                            &mut ctx,
-                            bundles,
-                            caches,
-                            &p.bundle,
-                            &p.export,
-                            tf,
-                            p.flipped,
-                            p.colors,
-                            &p.acc,
-                            scale_aff,
-                            &mut sub,
+                            &mut ctx, bundles, caches, &p.bundle, &p.export, tf, p.flipped,
+                            p.colors, &p.acc, scale_aff, &mut sub,
                         );
                         look_cache.insert(key.clone(), sub);
                         encoded += 1;
                     }
                     if let Some(sub) = look_cache.get(&key) {
-                        let translate = vello::kurbo::Affine::translate(
-                            vello::kurbo::Vec2::new(
-                                p.x * pos_scale + off_x,
-                                p.y * pos_scale + off_y,
-                            ),
-                        );
-                        let place = if p.flipped { translate * flip_x } else { translate };
+                        let translate = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
+                            p.x * pos_scale + off_x,
+                            p.y * pos_scale + off_y,
+                        ));
+                        let place = if p.flipped {
+                            translate * flip_x
+                        } else {
+                            translate
+                        };
                         scene.append(sub, Some(place));
                     }
                 }
@@ -4882,31 +4791,19 @@ impl VelloRenderer {
                 for p in &crowd.players {
                     let fc = p.frame_count.max(1);
                     let fps = f64::from(p.fps.max(0.001));
-                    let tf = (((time_ms / 1000.0) * fps) as i64)
-                        .rem_euclid(i64::from(fc)) as u16;
-                    let translate = vello::kurbo::Affine::translate(
-                        vello::kurbo::Vec2::new(
-                            p.x * pos_scale + crowd.off_x,
-                            p.y * pos_scale + crowd.off_y,
-                        ),
-                    );
+                    let tf = (((time_ms / 1000.0) * fps) as i64).rem_euclid(i64::from(fc)) as u16;
+                    let translate = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
+                        p.x * pos_scale + crowd.off_x,
+                        p.y * pos_scale + crowd.off_y,
+                    ));
                     let base = if p.flipped {
                         translate * flip_x * scale_aff
                     } else {
                         translate * scale_aff
                     };
                     acc_drawn += emit_player_look(
-                        &mut ctx,
-                        bundles,
-                        caches,
-                        &p.bundle,
-                        &p.export,
-                        tf,
-                        p.flipped,
-                        p.colors,
-                        &p.acc,
-                        base,
-                        &mut scene,
+                        &mut ctx, bundles, caches, &p.bundle, &p.export, tf, p.flipped, p.colors,
+                        &p.acc, base, &mut scene,
                     );
                 }
             }
@@ -4984,25 +4881,26 @@ impl VelloRenderer {
                 for p in players {
                     let fc = p.frame_count.max(1);
                     let fps = f64::from(p.fps.max(0.001));
-                    let tf = (((time_ms / 1000.0) * fps) as i64)
-                        .rem_euclid(i64::from(fc)) as u16;
+                    let tf = (((time_ms / 1000.0) * fps) as i64).rem_euclid(i64::from(fc)) as u16;
                     let key = format!("{}|{}", p.sig, tf);
                     if !look_cache.contains_key(&key) {
                         let mut sub = vello::Scene::new();
                         emit_player_look(
-                            &mut ctx, bundles, caches, &p.bundle, &p.export, tf,
-                            p.flipped, p.colors, &p.acc, scale_aff, &mut sub,
+                            &mut ctx, bundles, caches, &p.bundle, &p.export, tf, p.flipped,
+                            p.colors, &p.acc, scale_aff, &mut sub,
                         );
                         look_cache.insert(key.clone(), sub);
                     }
                     if let Some(sub) = look_cache.get(&key) {
-                        let translate = vello::kurbo::Affine::translate(
-                            vello::kurbo::Vec2::new(
-                                p.x * pos_scale + off_x,
-                                p.y * pos_scale + off_y,
-                            ),
-                        );
-                        let place = if p.flipped { translate * flip_x } else { translate };
+                        let translate = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
+                            p.x * pos_scale + off_x,
+                            p.y * pos_scale + off_y,
+                        ));
+                        let place = if p.flipped {
+                            translate * flip_x
+                        } else {
+                            translate
+                        };
                         scene.append(sub, Some(place));
                     }
                 }
@@ -5024,13 +4922,9 @@ impl VelloRenderer {
                 view_formats: &[],
             });
             let view = target.create_view(&wgpu::TextureViewDescriptor::default());
-            let _ = self.renderer.render_to_texture(
-                &self.device,
-                &self.queue,
-                &scene,
-                &view,
-                &params,
-            );
+            let _ =
+                self.renderer
+                    .render_to_texture(&self.device, &self.queue, &scene, &view, &params);
             targets.push(target);
         }
         // PASS 2: read every target back to an ImageBitmap (renders done,
@@ -5045,6 +4939,46 @@ impl VelloRenderer {
         }
         self.real_anim_crowd = Some(crowd);
         arr.into()
+    }
+
+    /// Routes `realCrowdRenderBatched` through the Tier-7 slab path: every
+    /// unique look interned once into the GPU-resident SubLibrary, the
+    /// whole crowd rendered as ONE slab block straight into the crowd
+    /// target (no batch textures, no composite pass). Toggling either way
+    /// resets the retained slab state.
+    #[wasm_bindgen(js_name = "realCrowdSetSlab")]
+    pub fn real_crowd_set_slab(&mut self, enabled: bool) {
+        if self.slab_mode != enabled {
+            self.slab_crowd.reset(&mut self.renderer);
+        }
+        self.slab_mode = enabled;
+    }
+
+    /// Per-pass GPU timings of the last slab recording (gpu-timing builds
+    /// only; `null` otherwise or until the first readback completes).
+    #[wasm_bindgen(js_name = "slabGpuTiming")]
+    pub fn slab_gpu_timing(&self) -> JsValue {
+        #[cfg(feature = "gpu-timing")]
+        if let Some((prepass_ms, total_ms, breakdown, dispatched, drained)) =
+            self.renderer.slab_prepass_debug()
+        {
+            let result = js_sys::Object::new();
+            let _ = js_sys::Reflect::set(
+                &result,
+                &"prepassMs".into(),
+                &prepass_ms.map(JsValue::from).unwrap_or(JsValue::NULL),
+            );
+            let _ = js_sys::Reflect::set(&result, &"totalMs".into(), &JsValue::from(total_ms));
+            let _ = js_sys::Reflect::set(&result, &"dispatched".into(), &JsValue::from(dispatched));
+            let _ = js_sys::Reflect::set(&result, &"drained".into(), &JsValue::from(drained));
+            let passes = js_sys::Object::new();
+            for (label, ms) in breakdown {
+                let _ = js_sys::Reflect::set(&passes, &label.into(), &JsValue::from(ms));
+            }
+            let _ = js_sys::Reflect::set(&result, &"passes".into(), &passes);
+            return result.into();
+        }
+        JsValue::NULL
     }
 
     /// DIAG: BATCHED render — splits the Y-sorted crowd into batches of
@@ -5073,10 +5007,122 @@ impl VelloRenderer {
         let n_players = crowd.players.len() as u32;
         let n_batches = n_players.div_ceil(batch_size).max(1);
         let (tw, th) = (crowd.tw, crowd.th);
+        if self.slab_mode {
+            // Tier-7 slab path: the whole Y-sorted crowd in one slab
+            // block, rendered straight into `crowd.view` — batch
+            // textures and the composite pass are skipped entirely.
+            let t_build = web_time::Instant::now();
+            let mut sorted_idx: Vec<usize> = (0..crowd.players.len()).collect();
+            sorted_idx.sort_by(|&a, &b| {
+                crowd.players[a]
+                    .y
+                    .partial_cmp(&crowd.players[b].y)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+            let scale = crowd.scale;
+            let pos_scale = crowd.pos_scale;
+            let flip_x = vello::kurbo::Affine::new([-1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
+            let scale_aff = vello::kurbo::Affine::scale(scale);
+            let params = vello::RenderParams {
+                base_color: Color::TRANSPARENT,
+                width: tw,
+                height: th,
+                antialiasing_method: AaConfig::Area,
+            };
+            let mut emits: Vec<slab_crowd::SlabEmit> = Vec::with_capacity(sorted_idx.len());
+            {
+                let RealAnimCrowd {
+                    ref players,
+                    ref mut look_cache,
+                    off_x,
+                    off_y,
+                    explicit_frames,
+                    ..
+                } = crowd;
+                let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
+                let mut ctx = swf_spike::render::WgpuCtx {
+                    device: &self.device,
+                    queue: &self.queue,
+                    renderer: &mut self.renderer,
+                    filter_pipelines,
+                    output_scale: scale,
+                };
+                let bundles = &self.swf_bundles;
+                let caches = &self.swf_render_caches;
+                for &idx in &sorted_idx {
+                    let p = &players[idx];
+                    let fc = p.frame_count.max(1);
+                    let tf = if explicit_frames {
+                        p.frame.min(fc - 1)
+                    } else {
+                        let fps = f64::from(p.fps.max(0.001));
+                        (((time_ms / 1000.0) * fps) as i64).rem_euclid(i64::from(fc)) as u16
+                    };
+                    let key = format!("{}|{}", p.sig, tf);
+                    if !look_cache.contains_key(&key) {
+                        let mut sub = vello::Scene::new();
+                        emit_player_look(
+                            &mut ctx, bundles, caches, &p.bundle, &p.export, tf, p.flipped,
+                            p.colors, &p.acc, scale_aff, &mut sub,
+                        );
+                        look_cache.insert(key.clone(), sub);
+                    }
+                    let Some(sub) = look_cache.get(&key) else {
+                        continue;
+                    };
+                    let translate = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
+                        p.x * pos_scale + off_x,
+                        p.y * pos_scale + off_y,
+                    ));
+                    let place = if p.flipped {
+                        translate * flip_x
+                    } else {
+                        translate
+                    };
+                    emits.push(slab_crowd::SlabEmit {
+                        enc: self.slab_crowd.encoding_for(&key, sub),
+                        world: place,
+                    });
+                }
+            }
+            let (slab_scene, used, overflow) = slab_crowd::build_crowd_slab_scene(
+                &mut self.renderer,
+                &self.queue,
+                &mut self.slab_crowd,
+                &emits,
+            );
+            let build_ms = t_build.elapsed().as_secs_f64() * 1000.0;
+            let render_result = slab_crowd::render_crowd_slab(
+                &mut self.renderer,
+                &mut self.slab_crowd,
+                &self.device,
+                &self.queue,
+                &slab_scene,
+                &params,
+                &crowd.view,
+            );
+            let cache_size = crowd.look_cache.len() as u32;
+            self.real_anim_crowd = Some(crowd);
+            let s = self.slab_crowd.last;
+            let result = js_sys::Object::new();
+            let _ = js_sys::Reflect::set(&result, &"mode".into(), &"slab".into());
+            let _ = js_sys::Reflect::set(&result, &"players".into(), &JsValue::from(n_players));
+            let _ = js_sys::Reflect::set(&result, &"slots".into(), &JsValue::from(used));
+            let _ = js_sys::Reflect::set(&result, &"overflow".into(), &JsValue::from(overflow));
+            let _ = js_sys::Reflect::set(&result, &"fast".into(), &JsValue::from(s.fast));
+            let _ = js_sys::Reflect::set(&result, &"cacheSize".into(), &JsValue::from(cache_size));
+            let _ = js_sys::Reflect::set(&result, &"buildMs".into(), &JsValue::from(build_ms));
+            let _ =
+                js_sys::Reflect::set(&result, &"resolveMs".into(), &JsValue::from(s.resolve_ms));
+            let _ = js_sys::Reflect::set(&result, &"uploadMs".into(), &JsValue::from(s.upload_ms));
+            let _ = js_sys::Reflect::set(&result, &"runMs".into(), &JsValue::from(s.replay_ms));
+            let _ = js_sys::Reflect::set(&result, &"packedKB".into(), &JsValue::from(s.packed_kb));
+            let _ =
+                js_sys::Reflect::set(&result, &"ok".into(), &JsValue::from(render_result.is_ok()));
+            return result.into();
+        }
         // (Re)create per-batch scratch textures, reused across frames.
-        if crowd.batch_size != batch_size
-            || crowd.batch_targets.len() != n_batches as usize
-        {
+        if crowd.batch_size != batch_size || crowd.batch_targets.len() != n_batches as usize {
             crowd.batch_targets.clear();
             crowd.batch_views.clear();
             for _ in 0..n_batches {
@@ -5174,27 +5220,28 @@ impl VelloRenderer {
                             p.frame.min(fc - 1)
                         } else {
                             let fps = f64::from(p.fps.max(0.001));
-                            (((time_ms / 1000.0) * fps) as i64)
-                                .rem_euclid(i64::from(fc)) as u16
+                            (((time_ms / 1000.0) * fps) as i64).rem_euclid(i64::from(fc)) as u16
                         };
                         let key = format!("{}|{}", p.sig, tf);
                         if !look_cache.contains_key(&key) {
                             let mut sub = vello::Scene::new();
                             emit_player_look(
-                                &mut ctx, bundles, caches, &p.bundle, &p.export, tf,
-                                p.flipped, p.colors, &p.acc, scale_aff, &mut sub,
+                                &mut ctx, bundles, caches, &p.bundle, &p.export, tf, p.flipped,
+                                p.colors, &p.acc, scale_aff, &mut sub,
                             );
                             look_cache.insert(key.clone(), sub);
                         }
                         if let Some(sub) = look_cache.get(&key) {
-                            let translate = vello::kurbo::Affine::translate(
-                                vello::kurbo::Vec2::new(
+                            let translate =
+                                vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
                                     p.x * pos_scale + off_x,
                                     p.y * pos_scale + off_y,
-                                ),
-                            );
-                            let place =
-                                if p.flipped { translate * flip_x } else { translate };
+                                ));
+                            let place = if p.flipped {
+                                translate * flip_x
+                            } else {
+                                translate
+                            };
                             scene.append(sub, Some(place));
                         }
                     }
@@ -5253,9 +5300,21 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(&result, &"compositeMs".into(), &JsValue::from(composite_ms));
         // Retained-Vello sizing: staticKB persists on GPU; only transformsKB
         // re-uploads per frame. saving = static/(static+transforms).
-        let _ = js_sys::Reflect::set(&result, &"staticKB".into(), &JsValue::from((static_b / 1024) as u32));
-        let _ = js_sys::Reflect::set(&result, &"transformsKB".into(), &JsValue::from((transforms_b / 1024) as u32));
-        let _ = js_sys::Reflect::set(&result, &"nPaths".into(), &JsValue::from(n_paths_acc as u32));
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"staticKB".into(),
+            &JsValue::from((static_b / 1024) as u32),
+        );
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"transformsKB".into(),
+            &JsValue::from((transforms_b / 1024) as u32),
+        );
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"nPaths".into(),
+            &JsValue::from(n_paths_acc as u32),
+        );
         result.into()
     }
 
@@ -5331,7 +5390,9 @@ impl VelloRenderer {
         }
         if crowd.retained_batches.len() != n_batches as usize {
             crowd.retained_batches.clear();
-            crowd.retained_batches.resize_with(n_batches as usize, || None);
+            crowd
+                .retained_batches
+                .resize_with(n_batches as usize, || None);
             self.renderer.free_all_reused();
         }
 
@@ -5390,23 +5451,33 @@ impl VelloRenderer {
                     let t_build = web_time::Instant::now();
                     let mut scene = vello::Scene::new();
                     {
-                        let RealAnimCrowd { ref players, ref look_cache, off_x, off_y, .. } = crowd;
+                        let RealAnimCrowd {
+                            ref players,
+                            ref look_cache,
+                            off_x,
+                            off_y,
+                            ..
+                        } = crowd;
                         for p in &players[start..end] {
                             let tf = frozen_frame % p.frame_count.max(1);
                             let key = format!("{}|{}", p.sig, tf);
                             if let Some(sub) = look_cache.get(&key) {
-                                let translate = vello::kurbo::Affine::translate(
-                                    vello::kurbo::Vec2::new(
+                                let translate =
+                                    vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
                                         p.x * pos_scale + off_x + move_dx,
                                         p.y * pos_scale + off_y,
-                                    ),
-                                );
-                                let place = if p.flipped { translate * flip_x } else { translate };
+                                    ));
+                                let place = if p.flipped {
+                                    translate * flip_x
+                                } else {
+                                    translate
+                                };
                                 scene.append(sub, Some(place));
                             }
                         }
                     }
-                    let tx_bytes: &[u8] = bytemuck::cast_slice(scene.encoding().transforms.as_slice());
+                    let tx_bytes: &[u8] =
+                        bytemuck::cast_slice(scene.encoding().transforms.as_slice());
                     build_ms += t_build.elapsed().as_secs_f64() * 1000.0;
                     let t_run2 = web_time::Instant::now();
                     let _ = self.renderer.run_reuse_transforms(
@@ -5430,7 +5501,13 @@ impl VelloRenderer {
             let t_build = web_time::Instant::now();
             let mut scene = vello::Scene::new();
             {
-                let RealAnimCrowd { ref players, ref mut look_cache, off_x, off_y, .. } = crowd;
+                let RealAnimCrowd {
+                    ref players,
+                    ref mut look_cache,
+                    off_x,
+                    off_y,
+                    ..
+                } = crowd;
                 let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
                 let mut ctx = swf_spike::render::WgpuCtx {
                     device: &self.device,
@@ -5447,8 +5524,8 @@ impl VelloRenderer {
                     if !look_cache.contains_key(&key) {
                         let mut sub = vello::Scene::new();
                         emit_player_look(
-                            &mut ctx, bundles, caches, &p.bundle, &p.export, tf,
-                            p.flipped, p.colors, &p.acc, scale_aff, &mut sub,
+                            &mut ctx, bundles, caches, &p.bundle, &p.export, tf, p.flipped,
+                            p.colors, &p.acc, scale_aff, &mut sub,
                         );
                         look_cache.insert(key.clone(), sub);
                     }
@@ -5457,7 +5534,11 @@ impl VelloRenderer {
                             p.x * pos_scale + off_x + move_dx,
                             p.y * pos_scale + off_y,
                         ));
-                        let place = if p.flipped { translate * flip_x } else { translate };
+                        let place = if p.flipped {
+                            translate * flip_x
+                        } else {
+                            translate
+                        };
                         scene.append(sub, Some(place));
                     }
                 }
@@ -5555,14 +5636,16 @@ impl VelloRenderer {
                     break;
                 }
                 let fc = p.frame_count.max(1);
-                let mut geom_hashes: std::collections::HashSet<u64> = std::collections::HashSet::new();
-                let mut tx_counts: std::collections::HashSet<usize> = std::collections::HashSet::new();
+                let mut geom_hashes: std::collections::HashSet<u64> =
+                    std::collections::HashSet::new();
+                let mut tx_counts: std::collections::HashSet<usize> =
+                    std::collections::HashSet::new();
                 let mut pd_words0 = 0usize;
                 for f in 0..fc {
                     let mut sub = vello::Scene::new();
                     emit_player_look(
-                        &mut ctx, bundles, caches, &p.bundle, &p.export, f,
-                        p.flipped, p.colors, &p.acc, scale_aff, &mut sub,
+                        &mut ctx, bundles, caches, &p.bundle, &p.export, f, p.flipped, p.colors,
+                        &p.acc, scale_aff, &mut sub,
                     );
                     let enc = sub.encoding();
                     if f == 0 {
@@ -5578,9 +5661,21 @@ impl VelloRenderer {
                 let _ = js_sys::Reflect::set(&o, &"bundle".into(), &p.bundle.clone().into());
                 let _ = js_sys::Reflect::set(&o, &"export".into(), &p.export.clone().into());
                 let _ = js_sys::Reflect::set(&o, &"frames".into(), &JsValue::from(fc));
-                let _ = js_sys::Reflect::set(&o, &"distinctGeomHashes".into(), &JsValue::from(geom_hashes.len() as u32));
-                let _ = js_sys::Reflect::set(&o, &"distinctTxCounts".into(), &JsValue::from(tx_counts.len() as u32));
-                let _ = js_sys::Reflect::set(&o, &"pathDataWords".into(), &JsValue::from(pd_words0 as u32));
+                let _ = js_sys::Reflect::set(
+                    &o,
+                    &"distinctGeomHashes".into(),
+                    &JsValue::from(geom_hashes.len() as u32),
+                );
+                let _ = js_sys::Reflect::set(
+                    &o,
+                    &"distinctTxCounts".into(),
+                    &JsValue::from(tx_counts.len() as u32),
+                );
+                let _ = js_sys::Reflect::set(
+                    &o,
+                    &"pathDataWords".into(),
+                    &JsValue::from(pd_words0 as u32),
+                );
                 results.push(&o);
             }
         }
@@ -5654,7 +5749,11 @@ impl VelloRenderer {
 
         // PRE-PASS 1: bake RetainedLook (classify) for every distinct sig.
         {
-            let RealAnimCrowd { ref players, ref mut retained_look_cache, .. } = crowd;
+            let RealAnimCrowd {
+                ref players,
+                ref mut retained_look_cache,
+                ..
+            } = crowd;
             let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
             let mut ctx = swf_spike::render::WgpuCtx {
                 device: &self.device,
@@ -5668,15 +5767,31 @@ impl VelloRenderer {
             for p in players.iter() {
                 if !retained_look_cache.contains_key(&p.sig) {
                     let mut look = bake_retained_look(
-                        &mut ctx, bundles, caches, &p.bundle, &p.export, p.frame_count,
-                        p.flipped, p.colors, &p.acc, scale_aff,
+                        &mut ctx,
+                        bundles,
+                        caches,
+                        &p.bundle,
+                        &p.export,
+                        p.frame_count,
+                        p.flipped,
+                        p.colors,
+                        &p.acc,
+                        scale_aff,
                     );
                     // v3: length-varying (appear/disappear) looks aren't retainable
                     // as-is — re-bake via the union/hide path to force length-stability.
                     if !look.retainable {
                         look = bake_union_look(
-                            &mut ctx, bundles, caches, &p.bundle, &p.export, p.frame_count,
-                            p.flipped, p.colors, &p.acc, scale_aff,
+                            &mut ctx,
+                            bundles,
+                            caches,
+                            &p.bundle,
+                            &p.export,
+                            p.frame_count,
+                            p.flipped,
+                            p.colors,
+                            &p.acc,
+                            scale_aff,
                         );
                     }
                     retained_look_cache.insert(p.sig.clone(), look);
@@ -5722,7 +5837,11 @@ impl VelloRenderer {
             let mk = |extra: wgpu::TextureUsages| {
                 let t = self.device.create_texture(&wgpu::TextureDescriptor {
                     label: Some("crowd-batch"),
-                    size: wgpu::Extent3d { width: tw, height: th, depth_or_array_layers: 1 },
+                    size: wgpu::Extent3d {
+                        width: tw,
+                        height: th,
+                        depth_or_array_layers: 1,
+                    },
                     mip_level_count: 1,
                     sample_count: 1,
                     dimension: wgpu::TextureDimension::D2,
@@ -5805,7 +5924,8 @@ impl VelloRenderer {
                     resolve_ms += t_res.elapsed().as_secs_f64() * 1000.0;
                     let pdb = resolved.layout.path_data_base;
                     let txb = resolved.layout.transform_base;
-                    self.renderer.prepare_reuse(&self.device, &self.queue, token, &resolved);
+                    self.renderer
+                        .prepare_reuse(&self.device, &self.queue, token, &resolved);
                     crowd.ret_batches[b] = Some(RetBatch {
                         recording: resolved.recording,
                         scene_buf: resolved.scene_buf,
@@ -5881,9 +6001,11 @@ impl VelloRenderer {
             let cap = bitmap_bridge::MAX_COMPOSITE_SRC;
             let views: Vec<&wgpu::TextureView> = crowd.batch_views.iter().collect();
             if views.len() <= cap {
-                let mut encoder = self.device.create_command_encoder(
-                    &wgpu::CommandEncoderDescriptor { label: Some("crowd-composite") },
-                );
+                let mut encoder =
+                    self.device
+                        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                            label: Some("crowd-composite"),
+                        });
                 comp.composite(&self.device, &self.queue, &mut encoder, &views, &crowd.view);
                 self.queue.submit(std::iter::once(encoder.finish()));
             } else {
@@ -5904,9 +6026,11 @@ impl VelloRenderer {
                     } else {
                         &crowd.composite_scratch_views[next_scratch]
                     };
-                    let mut encoder = self.device.create_command_encoder(
-                        &wgpu::CommandEncoderDescriptor { label: Some("crowd-composite-mp") },
-                    );
+                    let mut encoder =
+                        self.device
+                            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                                label: Some("crowd-composite-mp"),
+                            });
                     comp.composite(&self.device, &self.queue, &mut encoder, &srcs, dst);
                     self.queue.submit(std::iter::once(encoder.finish()));
                     written += take;
@@ -5921,10 +6045,18 @@ impl VelloRenderer {
         let result = js_sys::Object::new();
         let _ = js_sys::Reflect::set(&result, &"players".into(), &JsValue::from(n_players));
         let _ = js_sys::Reflect::set(&result, &"batches".into(), &JsValue::from(n_batches as u32));
-        let _ = js_sys::Reflect::set(&result, &"retainedBatches".into(), &JsValue::from(retained_n));
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"retainedBatches".into(),
+            &JsValue::from(retained_n),
+        );
         let _ = js_sys::Reflect::set(&result, &"dynamicBatches".into(), &JsValue::from(0u32));
         let _ = js_sys::Reflect::set(&result, &"rebuilds".into(), &JsValue::from(rebuilds));
-        let _ = js_sys::Reflect::set(&result, &"bakedLooks".into(), &JsValue::from(look_cache_size));
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"bakedLooks".into(),
+            &JsValue::from(look_cache_size),
+        );
         let _ = js_sys::Reflect::set(&result, &"buildMs".into(), &JsValue::from(build_ms));
         let _ = js_sys::Reflect::set(&result, &"resolveMs".into(), &JsValue::from(resolve_ms));
         let _ = js_sys::Reflect::set(&result, &"runMs".into(), &JsValue::from(run_ms));
@@ -5952,11 +6084,7 @@ impl VelloRenderer {
     /// Requires `initThreadPool(n)` to have been awaited.
     #[cfg(feature = "threads")]
     #[wasm_bindgen(js_name = "realCrowdRenderBatchedParallel")]
-    pub fn real_crowd_render_batched_parallel(
-        &mut self,
-        batch_size: u32,
-        time_ms: f64,
-    ) -> JsValue {
+    pub fn real_crowd_render_batched_parallel(&mut self, batch_size: u32, time_ms: f64) -> JsValue {
         use rayon::prelude::*;
         if batch_size == 0 {
             return JsValue::NULL;
@@ -5976,9 +6104,7 @@ impl VelloRenderer {
         // n_batches = number of render-scenes = number of submits = composite inputs.
         let n_batches = n_players.div_ceil(batch_size).max(1);
         let (tw, th) = (crowd.tw, crowd.th);
-        if crowd.batch_size != batch_size
-            || crowd.batch_targets.len() != n_batches as usize
-        {
+        if crowd.batch_size != batch_size || crowd.batch_targets.len() != n_batches as usize {
             crowd.batch_targets.clear();
             crowd.batch_views.clear();
             for _ in 0..n_batches {
@@ -6032,14 +6158,13 @@ impl VelloRenderer {
             for p in players {
                 let fc = p.frame_count.max(1);
                 let fps = f64::from(p.fps.max(0.001));
-                let tf = (((time_ms / 1000.0) * fps) as i64)
-                    .rem_euclid(i64::from(fc)) as u16;
+                let tf = (((time_ms / 1000.0) * fps) as i64).rem_euclid(i64::from(fc)) as u16;
                 let key = format!("{}|{}", p.sig, tf);
                 if !look_cache.contains_key(&key) {
                     let mut sub = vello::Scene::new();
                     emit_player_look(
-                        &mut ctx, bundles, caches, &p.bundle, &p.export, tf,
-                        p.flipped, p.colors, &p.acc, scale_aff, &mut sub,
+                        &mut ctx, bundles, caches, &p.bundle, &p.export, tf, p.flipped, p.colors,
+                        &p.acc, scale_aff, &mut sub,
                     );
                     look_cache.insert(key, sub);
                 }
@@ -6060,7 +6185,10 @@ impl VelloRenderer {
         let threads = rayon::current_num_threads().max(1);
         let cpr = threads.div_ceil(n_render).max(1); // slices per render-scene
         let n_build = n_render * cpr;
-        let build_one = |bi: usize, players: &[AnimPlayer], look_cache: &std::collections::HashMap<String, vello::Scene>| -> vello::Scene {
+        let build_one = |bi: usize,
+                         players: &[AnimPlayer],
+                         look_cache: &std::collections::HashMap<String, vello::Scene>|
+         -> vello::Scene {
             let m = bi / cpr; // which render-scene
             let c = bi % cpr; // which slice within it
             let rstart = m * bsz;
@@ -6079,7 +6207,11 @@ impl VelloRenderer {
                         p.x * pos_scale + off_x,
                         p.y * pos_scale + off_y,
                     ));
-                    let place = if p.flipped { translate * flip_x } else { translate };
+                    let place = if p.flipped {
+                        translate * flip_x
+                    } else {
+                        translate
+                    };
                     scene.append(sub, Some(place));
                 }
             }
@@ -6145,7 +6277,11 @@ impl VelloRenderer {
         let result = js_sys::Object::new();
         let _ = js_sys::Reflect::set(&result, &"players".into(), &JsValue::from(n_players));
         let _ = js_sys::Reflect::set(&result, &"batches".into(), &JsValue::from(n_batches));
-        let _ = js_sys::Reflect::set(&result, &"buildScenes".into(), &JsValue::from(n_build as u32));
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"buildScenes".into(),
+            &JsValue::from(n_build as u32),
+        );
         let _ = js_sys::Reflect::set(&result, &"parallel".into(), &JsValue::from(1u32));
         result.into()
     }
@@ -6210,7 +6346,11 @@ impl VelloRenderer {
                         rows_per_image: Some(rh),
                     },
                 },
-                wgpu::Extent3d { width: rw, height: rh, depth_or_array_layers: 1 },
+                wgpu::Extent3d {
+                    width: rw,
+                    height: rh,
+                    depth_or_array_layers: 1,
+                },
             );
             queue.submit(std::iter::once(enc.finish()));
             let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
@@ -6239,7 +6379,11 @@ impl VelloRenderer {
             }
             buf.unmap();
             buf.destroy();
-            let ratio = if total > 0 { f64::from(nz) / f64::from(total) } else { -1.0 };
+            let ratio = if total > 0 {
+                f64::from(nz) / f64::from(total)
+            } else {
+                -1.0
+            };
             Ok(JsValue::from(ratio))
         })
     }
@@ -6255,7 +6399,11 @@ impl VelloRenderer {
             return JsValue::NULL;
         };
         let result = js_sys::Object::new();
-        let _ = js_sys::Reflect::set(&result, &"texture".into(), &extract_gpu_texture(&crowd.target));
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"texture".into(),
+            &extract_gpu_texture(&crowd.target),
+        );
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(crowd.tw));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(crowd.th));
         result.into()
@@ -6452,11 +6600,7 @@ impl VelloRenderer {
     /// texture count → 1 per class instead of N per variant,
     /// (b) per-variant intermediate `ImageSource` upload gone.
     #[wasm_bindgen(js_name = "renderSwfClassAtlas")]
-    pub fn render_swf_class_atlas(
-        &mut self,
-        bundle: &str,
-        resolution: f32,
-    ) -> JsValue {
+    pub fn render_swf_class_atlas(&mut self, bundle: &str, resolution: f32) -> JsValue {
         const BAND_PADDING_PX: u32 = 2;
         const PADDING_PX: u32 = 2;
         const MAX_ATLAS_DIM: u32 = 8192;
@@ -6484,8 +6628,7 @@ impl VelloRenderer {
         self.dbg_p1_ms = 0.0;
         self.dbg_p2_ms = 0.0;
         let mut t_enumerate_start = perf_now();
-        let mut per_variant_log: Vec<(String, bool, bool, u32, u32, f64, f64, f64)> =
-            Vec::new();
+        let mut per_variant_log: Vec<(String, bool, bool, u32, u32, f64, f64, f64)> = Vec::new();
 
         // Step 1: load the precomputed enumeration for this bundle.
         // `ensure_class_enumeration` builds the per-export metadata
@@ -6502,14 +6645,9 @@ impl VelloRenderer {
             self.class_enum_cache
                 .insert(bundle.to_string(), enumeration);
         }
-        let enumeration = self
-            .class_enum_cache
-            .get(bundle)
-            .expect("just inserted");
+        let enumeration = self.class_enum_cache.get(bundle).expect("just inserted");
         if enumeration.exports.is_empty() {
-            console_log!(
-                "renderSwfClassAtlas: bundle `{bundle}` has no character-anim exports"
-            );
+            console_log!("renderSwfClassAtlas: bundle `{bundle}` has no character-anim exports");
             return JsValue::NULL;
         }
         let b_fix_used = enumeration.bundle_b_fix_used;
@@ -6582,8 +6720,7 @@ impl VelloRenderer {
                 )
             })
             .collect();
-        for (export_name, total, has_toggle, export_b_fix, slot_count_logical) in
-            &exports_snapshot
+        for (export_name, total, has_toggle, export_b_fix, slot_count_logical) in &exports_snapshot
         {
             let export = export_name.as_str();
             let total = *total;
@@ -6596,8 +6733,16 @@ impl VelloRenderer {
             // a `b_fix=true` mount. Static poses on classes with a
             // bFix cape rarely place the cape at frame 0; collapsing
             // such exports halves their variant count.
-            for &apply_b_fix in if export_b_fix { &[false, true][..] } else { &[false][..] } {
-                for &hat_equipped in if has_toggle { &[false, true][..] } else { &[false][..] } {
+            for &apply_b_fix in if export_b_fix {
+                &[false, true][..]
+            } else {
+                &[false][..]
+            } {
+                for &hat_equipped in if has_toggle {
+                    &[false, true][..]
+                } else {
+                    &[false][..]
+                } {
                     // Compute variant layout (mirrors the prelude of
                     // `render_swf_body_atlas`).
                     let Some(cached) = self.cache_strip_bounds(bundle, export, total) else {
@@ -6622,12 +6767,8 @@ impl VelloRenderer {
                         swf_spike::swf_doc::Symbol::Sprite(s) => s,
                         _ => body,
                     };
-                    let band_presence = swf_spike::render::compute_band_presence(
-                        doc,
-                        effective_body,
-                        0,
-                        &slots,
-                    );
+                    let band_presence =
+                        swf_spike::render::compute_band_presence(doc, effective_body, 0, &slots);
                     let present_logical: Vec<usize> = band_presence
                         .iter()
                         .enumerate()
@@ -6707,9 +6848,7 @@ impl VelloRenderer {
                     // Most-square grid that obeys the band-height
                     // ceiling. Aspect target: `cols * frame_w ≈
                     // rows * frame_h` so strip_w ≈ strip_h.
-                    let ideal_cols_f = ((chunk_usize as f64)
-                        * (frame_h as f64)
-                        / (frame_w as f64))
+                    let ideal_cols_f = ((chunk_usize as f64) * (frame_h as f64) / (frame_w as f64))
                         .sqrt()
                         .ceil();
                     let ideal_cols = (ideal_cols_f as usize).max(1);
@@ -6917,9 +7056,8 @@ impl VelloRenderer {
 
         // Ensure the lazy pipelines exist.
         if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
         }
         if self.combine_body_pipeline.is_none() {
             self.combine_body_pipeline =
@@ -6932,7 +7070,10 @@ impl VelloRenderer {
         // Ensure the bundle-shared render cache exists once for the
         // whole class. This caches flattened shape data per-bundle
         // and is reused across every variant in the loop below.
-        let _ = self.swf_render_caches.entry(bundle.to_string()).or_default();
+        let _ = self
+            .swf_render_caches
+            .entry(bundle.to_string())
+            .or_default();
 
         let enumerate_ms = perf_now() - t_enumerate_start;
         t_enumerate_start = perf_now(); // reuse var to silence warning
@@ -6986,8 +7127,7 @@ impl VelloRenderer {
             // Group variants by page. Already done at pack time —
             // `variant.page_index` tells us which page each variant
             // belongs to.
-            let mut variants_by_page: Vec<Vec<usize>> =
-                vec![Vec::new(); page_textures.len()];
+            let mut variants_by_page: Vec<Vec<usize>> = vec![Vec::new(); page_textures.len()];
             for (i, v) in variants.iter().enumerate() {
                 variants_by_page[v.page_index as usize].push(i);
             }
@@ -7000,11 +7140,11 @@ impl VelloRenderer {
                     let dst_view = page_textures[page_idx]
                         .combined
                         .create_view(&wgpu::TextureViewDescriptor::default());
-                    let mut enc = self.device.create_command_encoder(
-                        &wgpu::CommandEncoderDescriptor {
-                            label: Some("class-atlas-page-empty-clear"),
-                        },
-                    );
+                    let mut enc =
+                        self.device
+                            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                                label: Some("class-atlas-page-empty-clear"),
+                            });
                     {
                         let _ = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                             label: Some("class-atlas-page-empty-clear-pass"),
@@ -7035,12 +7175,10 @@ impl VelloRenderer {
                 let mut zone_page_scene = vello::Scene::new();
                 for &vi in page_variants {
                     let v = &variants[vi];
-                    let translate = vello::kurbo::Affine::translate(
-                        vello::kurbo::Vec2::new(
-                            f64::from(v.packed_x),
-                            f64::from(v.packed_y),
-                        ),
-                    );
+                    let translate = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
+                        f64::from(v.packed_x),
+                        f64::from(v.packed_y),
+                    ));
                     let dbg_c0 = perf_now();
                     // Q1+Q2: dual-build (one walk) on the Colour call,
                     // append straight into the page (no variant scene).
@@ -7137,10 +7275,8 @@ impl VelloRenderer {
                         | wgpu::TextureUsages::TEXTURE_BINDING,
                     view_formats: &[],
                 });
-                let colour_view =
-                    colour_temp.create_view(&wgpu::TextureViewDescriptor::default());
-                let zone_view =
-                    zone_temp.create_view(&wgpu::TextureViewDescriptor::default());
+                let colour_view = colour_temp.create_view(&wgpu::TextureViewDescriptor::default());
+                let zone_view = zone_temp.create_view(&wgpu::TextureViewDescriptor::default());
                 let params = vello::RenderParams {
                     base_color: Color::TRANSPARENT,
                     width: page_w,
@@ -7187,11 +7323,11 @@ impl VelloRenderer {
                     let dst_view = page_textures[page_idx]
                         .combined
                         .create_view(&wgpu::TextureViewDescriptor::default());
-                    let mut encoder = self.device.create_command_encoder(
-                        &wgpu::CommandEncoderDescriptor {
-                            label: Some("class-atlas-per-page-combine"),
-                        },
-                    );
+                    let mut encoder =
+                        self.device
+                            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                                label: Some("class-atlas-per-page-combine"),
+                            });
                     combine.combine(
                         &self.device,
                         &mut encoder,
@@ -7251,11 +7387,11 @@ impl VelloRenderer {
                 let dst_view = page_tex
                     .combined
                     .create_view(&wgpu::TextureViewDescriptor::default());
-                let mut encoder = self
-                    .device
-                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                        label: Some("class-atlas-page-clear"),
-                    });
+                let mut encoder =
+                    self.device
+                        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                            label: Some("class-atlas-page-clear"),
+                        });
                 {
                     let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                         label: Some("class-atlas-page-clear-pass"),
@@ -7280,199 +7416,200 @@ impl VelloRenderer {
             for variant in &variants {
                 let t_build_start = perf_now();
                 let colour_scene = self.build_class_variant_scene(
-                bundle,
-                &variant.export_name,
-                swf_spike::render::RenderMode::Colour,
-                variant.chunk_start,
-                variant.chunk_count,
-                variant.strip_h,
-                variant.frame_w,
-                variant.frame_h,
-                variant.grid_cols as usize,
-                -variant.anchor_x,
-                -variant.anchor_y,
-                scale,
-                variant.apply_b_fix,
-                variant.hat_equipped,
-                &variant.band_ranges,
-                &variant.bfix_sensitive,
-                player_colors,
-                // Per-variant bake path: no page dest — build a
-                // standalone variant scene (rendered to its own texture).
-                None,
-            );
-            let zone_scene = self.build_class_variant_scene(
-                bundle,
-                &variant.export_name,
-                swf_spike::render::RenderMode::ZoneId,
-                variant.chunk_start,
-                variant.chunk_count,
-                variant.strip_h,
-                variant.frame_w,
-                variant.frame_h,
-                variant.grid_cols as usize,
-                -variant.anchor_x,
-                -variant.anchor_y,
-                scale,
-                variant.apply_b_fix,
-                variant.hat_equipped,
-                &variant.band_ranges,
-                &variant.bfix_sensitive,
-                player_colors,
-                // Per-variant bake path: no page dest — build a
-                // standalone variant scene (rendered to its own texture).
-                None,
-            );
-            let scene_build_ms = perf_now() - t_build_start;
-            total_scene_build_ms += scene_build_ms;
+                    bundle,
+                    &variant.export_name,
+                    swf_spike::render::RenderMode::Colour,
+                    variant.chunk_start,
+                    variant.chunk_count,
+                    variant.strip_h,
+                    variant.frame_w,
+                    variant.frame_h,
+                    variant.grid_cols as usize,
+                    -variant.anchor_x,
+                    -variant.anchor_y,
+                    scale,
+                    variant.apply_b_fix,
+                    variant.hat_equipped,
+                    &variant.band_ranges,
+                    &variant.bfix_sensitive,
+                    player_colors,
+                    // Per-variant bake path: no page dest — build a
+                    // standalone variant scene (rendered to its own texture).
+                    None,
+                );
+                let zone_scene = self.build_class_variant_scene(
+                    bundle,
+                    &variant.export_name,
+                    swf_spike::render::RenderMode::ZoneId,
+                    variant.chunk_start,
+                    variant.chunk_count,
+                    variant.strip_h,
+                    variant.frame_w,
+                    variant.frame_h,
+                    variant.grid_cols as usize,
+                    -variant.anchor_x,
+                    -variant.anchor_y,
+                    scale,
+                    variant.apply_b_fix,
+                    variant.hat_equipped,
+                    &variant.band_ranges,
+                    &variant.bfix_sensitive,
+                    player_colors,
+                    // Per-variant bake path: no page dest — build a
+                    // standalone variant scene (rendered to its own texture).
+                    None,
+                );
+                let scene_build_ms = perf_now() - t_build_start;
+                total_scene_build_ms += scene_build_ms;
 
-            let v_w = variant.atlas_w;
-            let v_h = variant.atlas_h;
-            let colour_temp = self.device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("vello_swf_class_variant_color"),
-                size: wgpu::Extent3d {
-                    width: v_w,
-                    height: v_h,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8Unorm,
-                usage: wgpu::TextureUsages::STORAGE_BINDING
-                    | wgpu::TextureUsages::COPY_SRC
-                    | wgpu::TextureUsages::TEXTURE_BINDING,
-                view_formats: &[],
-            });
-            let zone_temp = self.device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("vello_swf_class_variant_zone"),
-                size: wgpu::Extent3d {
-                    width: v_w,
-                    height: v_h,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8Unorm,
-                usage: wgpu::TextureUsages::STORAGE_BINDING
-                    | wgpu::TextureUsages::COPY_SRC
-                    | wgpu::TextureUsages::TEXTURE_BINDING,
-                view_formats: &[],
-            });
-            let colour_view = colour_temp.create_view(&wgpu::TextureViewDescriptor::default());
-            let zone_view = zone_temp.create_view(&wgpu::TextureViewDescriptor::default());
-            let params = vello::RenderParams {
-                base_color: Color::TRANSPARENT,
-                width: v_w,
-                height: v_h,
-                antialiasing_method: AaConfig::Area,
-            };
-            let t_render_start = perf_now();
-            if let Err(e) = self.renderer.render_to_texture(
-                &self.device,
-                &self.queue,
-                &colour_scene,
-                &colour_view,
-                &params,
-            ) {
-                console_log!(
-                    "renderSwfClassAtlas[colour {}]: render error: {e}",
-                    variant.export_name
-                );
-                return JsValue::NULL;
-            }
-            if let Err(e) = self.renderer.render_to_texture(
-                &self.device,
-                &self.queue,
-                &zone_scene,
-                &zone_view,
-                &params,
-            ) {
-                console_log!(
-                    "renderSwfClassAtlas[zone {}]: render error: {e}",
-                    variant.export_name
-                );
-                return JsValue::NULL;
-            }
-            let render_submit_ms = perf_now() - t_render_start;
-            total_render_submit_ms += render_submit_ms;
-            let combined_temp = self.device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("vello_swf_class_variant_combined"),
-                size: wgpu::Extent3d {
-                    width: v_w,
-                    height: v_h,
-                    depth_or_array_layers: 1,
-                },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8Unorm,
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                    | wgpu::TextureUsages::COPY_SRC
-                    | wgpu::TextureUsages::TEXTURE_BINDING,
-                view_formats: &[],
-            });
-            let t_combine_start = perf_now();
-            {
-                let combine = self.combine_body_pipeline.as_ref().unwrap();
-                let combined_view =
-                    combined_temp.create_view(&wgpu::TextureViewDescriptor::default());
-                let dst_page = &page_textures[variant.page_index as usize].combined;
-                let mut encoder =
-                    self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                        label: Some("class-atlas-variant-combine-copy"),
-                    });
-                combine.combine(
-                    &self.device,
-                    &mut encoder,
-                    &colour_view,
-                    &zone_view,
-                    &combined_view,
-                );
-                encoder.copy_texture_to_texture(
-                    wgpu::TexelCopyTextureInfo {
-                        texture: &combined_temp,
-                        mip_level: 0,
-                        origin: wgpu::Origin3d::ZERO,
-                        aspect: wgpu::TextureAspect::All,
-                    },
-                    wgpu::TexelCopyTextureInfo {
-                        texture: dst_page,
-                        mip_level: 0,
-                        origin: wgpu::Origin3d {
-                            x: variant.packed_x,
-                            y: variant.packed_y,
-                            z: 0,
-                        },
-                        aspect: wgpu::TextureAspect::All,
-                    },
-                    wgpu::Extent3d {
+                let v_w = variant.atlas_w;
+                let v_h = variant.atlas_h;
+                let colour_temp = self.device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("vello_swf_class_variant_color"),
+                    size: wgpu::Extent3d {
                         width: v_w,
                         height: v_h,
                         depth_or_array_layers: 1,
                     },
-                );
-                self.queue.submit(std::iter::once(encoder.finish()));
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    usage: wgpu::TextureUsages::STORAGE_BINDING
+                        | wgpu::TextureUsages::COPY_SRC
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[],
+                });
+                let zone_temp = self.device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("vello_swf_class_variant_zone"),
+                    size: wgpu::Extent3d {
+                        width: v_w,
+                        height: v_h,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    usage: wgpu::TextureUsages::STORAGE_BINDING
+                        | wgpu::TextureUsages::COPY_SRC
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[],
+                });
+                let colour_view = colour_temp.create_view(&wgpu::TextureViewDescriptor::default());
+                let zone_view = zone_temp.create_view(&wgpu::TextureViewDescriptor::default());
+                let params = vello::RenderParams {
+                    base_color: Color::TRANSPARENT,
+                    width: v_w,
+                    height: v_h,
+                    antialiasing_method: AaConfig::Area,
+                };
+                let t_render_start = perf_now();
+                if let Err(e) = self.renderer.render_to_texture(
+                    &self.device,
+                    &self.queue,
+                    &colour_scene,
+                    &colour_view,
+                    &params,
+                ) {
+                    console_log!(
+                        "renderSwfClassAtlas[colour {}]: render error: {e}",
+                        variant.export_name
+                    );
+                    return JsValue::NULL;
+                }
+                if let Err(e) = self.renderer.render_to_texture(
+                    &self.device,
+                    &self.queue,
+                    &zone_scene,
+                    &zone_view,
+                    &params,
+                ) {
+                    console_log!(
+                        "renderSwfClassAtlas[zone {}]: render error: {e}",
+                        variant.export_name
+                    );
+                    return JsValue::NULL;
+                }
+                let render_submit_ms = perf_now() - t_render_start;
+                total_render_submit_ms += render_submit_ms;
+                let combined_temp = self.device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("vello_swf_class_variant_combined"),
+                    size: wgpu::Extent3d {
+                        width: v_w,
+                        height: v_h,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                        | wgpu::TextureUsages::COPY_SRC
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[],
+                });
+                let t_combine_start = perf_now();
+                {
+                    let combine = self.combine_body_pipeline.as_ref().unwrap();
+                    let combined_view =
+                        combined_temp.create_view(&wgpu::TextureViewDescriptor::default());
+                    let dst_page = &page_textures[variant.page_index as usize].combined;
+                    let mut encoder =
+                        self.device
+                            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                                label: Some("class-atlas-variant-combine-copy"),
+                            });
+                    combine.combine(
+                        &self.device,
+                        &mut encoder,
+                        &colour_view,
+                        &zone_view,
+                        &combined_view,
+                    );
+                    encoder.copy_texture_to_texture(
+                        wgpu::TexelCopyTextureInfo {
+                            texture: &combined_temp,
+                            mip_level: 0,
+                            origin: wgpu::Origin3d::ZERO,
+                            aspect: wgpu::TextureAspect::All,
+                        },
+                        wgpu::TexelCopyTextureInfo {
+                            texture: dst_page,
+                            mip_level: 0,
+                            origin: wgpu::Origin3d {
+                                x: variant.packed_x,
+                                y: variant.packed_y,
+                                z: 0,
+                            },
+                            aspect: wgpu::TextureAspect::All,
+                        },
+                        wgpu::Extent3d {
+                            width: v_w,
+                            height: v_h,
+                            depth_or_array_layers: 1,
+                        },
+                    );
+                    self.queue.submit(std::iter::once(encoder.finish()));
+                }
+                let combine_copy_ms = perf_now() - t_combine_start;
+                total_combine_copy_ms += combine_copy_ms;
+
+                per_variant_log.push((
+                    variant.export_name.clone(),
+                    variant.apply_b_fix,
+                    variant.hat_equipped,
+                    v_w,
+                    v_h,
+                    scene_build_ms,
+                    render_submit_ms,
+                    combine_copy_ms,
+                ));
+
+                drop(colour_temp);
+                drop(zone_temp);
+                drop(combined_temp);
             }
-            let combine_copy_ms = perf_now() - t_combine_start;
-            total_combine_copy_ms += combine_copy_ms;
-
-            per_variant_log.push((
-                variant.export_name.clone(),
-                variant.apply_b_fix,
-                variant.hat_equipped,
-                v_w,
-                v_h,
-                scene_build_ms,
-                render_submit_ms,
-                combine_copy_ms,
-            ));
-
-            drop(colour_temp);
-            drop(zone_temp);
-            drop(combined_temp);
-        }
         } // end of `else { /* PER-VARIANT path */ }`
 
         // Step 6: bridge each page's class atlas to one ImageBitmap.
@@ -7494,11 +7631,8 @@ impl VelloRenderer {
             };
             let page_obj = js_sys::Object::new();
             let _ = js_sys::Reflect::set(&page_obj, &"combinedBitmap".into(), &bitmap);
-            let _ = js_sys::Reflect::set(
-                &page_obj,
-                &"atlasWidth".into(),
-                &JsValue::from(page.width),
-            );
+            let _ =
+                js_sys::Reflect::set(&page_obj, &"atlasWidth".into(), &JsValue::from(page.width));
             let _ = js_sys::Reflect::set(
                 &page_obj,
                 &"atlasHeight".into(),
@@ -7604,15 +7738,15 @@ impl VelloRenderer {
         // Step 7: build per-variant JS metadata.
         let result = js_sys::Object::new();
         let _ = js_sys::Reflect::set(&result, &"pages".into(), &pages_arr.into());
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"bFixUsed".into(),
-            &JsValue::from_bool(b_fix_used),
-        );
+        let _ = js_sys::Reflect::set(&result, &"bFixUsed".into(), &JsValue::from_bool(b_fix_used));
         let variants_arr = js_sys::Array::new();
         for v in &variants {
             let obj = js_sys::Object::new();
-            let _ = js_sys::Reflect::set(&obj, &"exportName".into(), &JsValue::from_str(&v.export_name));
+            let _ = js_sys::Reflect::set(
+                &obj,
+                &"exportName".into(),
+                &JsValue::from_str(&v.export_name),
+            );
             let _ = js_sys::Reflect::set(
                 &obj,
                 &"applyBFix".into(),
@@ -7632,24 +7766,21 @@ impl VelloRenderer {
             let _ = js_sys::Reflect::set(&obj, &"frameHeight".into(), &JsValue::from(v.frame_h));
             let _ = js_sys::Reflect::set(&obj, &"gridCols".into(), &JsValue::from(v.grid_cols));
             let _ = js_sys::Reflect::set(&obj, &"frameCount".into(), &JsValue::from(v.frame_count));
-            let _ = js_sys::Reflect::set(&obj, &"totalFrameCount".into(), &JsValue::from(v.total_frame_count));
-            let _ = js_sys::Reflect::set(&obj, &"anchorX".into(), &JsValue::from(v.anchor_x));
-            let _ = js_sys::Reflect::set(&obj, &"anchorY".into(), &JsValue::from(v.anchor_y));
             let _ = js_sys::Reflect::set(
                 &obj,
-                &"bandPadding".into(),
-                &JsValue::from(BAND_PADDING_PX),
+                &"totalFrameCount".into(),
+                &JsValue::from(v.total_frame_count),
             );
+            let _ = js_sys::Reflect::set(&obj, &"anchorX".into(), &JsValue::from(v.anchor_x));
+            let _ = js_sys::Reflect::set(&obj, &"anchorY".into(), &JsValue::from(v.anchor_y));
+            let _ =
+                js_sys::Reflect::set(&obj, &"bandPadding".into(), &JsValue::from(BAND_PADDING_PX));
             let _ = js_sys::Reflect::set(
                 &obj,
                 &"bandCount".into(),
                 &JsValue::from(v.present_logical.len() as u32),
             );
-            let _ = js_sys::Reflect::set(
-                &obj,
-                &"slotCount".into(),
-                &JsValue::from(v.slot_count),
-            );
+            let _ = js_sys::Reflect::set(&obj, &"slotCount".into(), &JsValue::from(v.slot_count));
             let bands_arr = js_sys::Array::new();
             for (slot_idx, &logical_band_idx) in v.present_logical.iter().enumerate() {
                 let band_obj = js_sys::Object::new();
@@ -7700,8 +7831,7 @@ impl VelloRenderer {
             .cloned()
             .collect();
         candidates.sort();
-        let mut exports: Vec<ClassEnumerationExport> =
-            Vec::with_capacity(candidates.len());
+        let mut exports: Vec<ClassEnumerationExport> = Vec::with_capacity(candidates.len());
         for name in candidates {
             let Some(symbol) = doc.lookup_export(&name) else {
                 continue;
@@ -7712,8 +7842,7 @@ impl VelloRenderer {
             let slot_count_logical =
                 swf_spike::render::extract_slot_depths(doc, body, 0).len() as u32;
             let has_toggle = swf_spike::render::body_has_toggle_sprite(doc, body);
-            let export_b_fix =
-                bundle_b_fix_used && swf_spike::render::export_uses_b_fix(doc, body);
+            let export_b_fix = bundle_b_fix_used && swf_spike::render::export_uses_b_fix(doc, body);
             let mut total = self.swf_anim_frame_count(bundle, &name);
             if total == 0 {
                 continue;
@@ -7831,15 +7960,11 @@ impl VelloRenderer {
                         .swf_bundles
                         .get(bundle)
                         .expect("bundle vetted by caller");
-                    let symbol = doc
-                        .lookup_export(export)
-                        .expect("export vetted by caller");
+                    let symbol = doc.lookup_export(export).expect("export vetted by caller");
                     let (effective_sym, effective_xform) =
                         swf_spike::render::find_effective_body_symbol(doc, symbol, 0);
-                    let filter_pipelines = self
-                        .swf_filter_pipelines
-                        .as_ref()
-                        .expect("init by caller");
+                    let filter_pipelines =
+                        self.swf_filter_pipelines.as_ref().expect("init by caller");
                     let cache: &swf_spike::render::cache::RenderCache = self
                         .swf_render_caches
                         .entry(bundle.to_string())
@@ -7965,21 +8090,21 @@ impl VelloRenderer {
         let bake_start = perf_now();
         bake_telemetry::subscene_reset();
         let Some(acc_doc) = self.swf_bundles.get(acc_bundle) else {
-            console_log!(
-                "renderSwfAccessoryStrip: bundle `{acc_bundle}` not loaded"
-            );
+            console_log!("renderSwfAccessoryStrip: bundle `{acc_bundle}` not loaded");
             return JsValue::NULL;
         };
         let Some(acc_sym) = acc_doc.lookup_export(acc_export) else {
-            console_log!(
-                "renderSwfAccessoryStrip: export `{acc_bundle}/{acc_export}` not found"
-            );
+            console_log!("renderSwfAccessoryStrip: export `{acc_bundle}/{acc_export}` not found");
             return JsValue::NULL;
         };
 
         let dir_char = dir.chars().next().unwrap_or('R').to_ascii_uppercase();
         let dir_str = dir_char.to_string();
-        let side_str = if side.is_empty() { dir_str.clone() } else { side };
+        let side_str = if side.is_empty() {
+            dir_str.clone()
+        } else {
+            side
+        };
         let slot_u8 = slot as u8;
         let anim_type_u8 = anim_type as u8;
 
@@ -7990,7 +8115,12 @@ impl VelloRenderer {
         let mut union: Option<vello::kurbo::Rect> = None;
         for cycle in 0u16..3u16 {
             let f = swf_spike::render::pick_accessory_frame(
-                acc_doc, acc_sym, slot_u8, anim_type_u8, &side_str, cycle,
+                acc_doc,
+                acc_sym,
+                slot_u8,
+                anim_type_u8,
+                &side_str,
+                cycle,
             );
             frame_indices[cycle as usize] = f;
             let b = swf_spike::render::symbol_bounds(acc_doc, acc_sym, f);
@@ -8022,16 +8152,13 @@ impl VelloRenderer {
         let strip_w = frame_w * grid_cols;
         let strip_h = frame_h;
         if strip_w == 0 || strip_h == 0 || strip_w > 16384 || strip_h > 16384 {
-            console_log!(
-                "renderSwfAccessoryStrip: strip {strip_w}x{strip_h} exceeds GPU limits"
-            );
+            console_log!("renderSwfAccessoryStrip: strip {strip_w}x{strip_h} exceeds GPU limits");
             return JsValue::NULL;
         }
 
         if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
         }
 
         // Twip-identity sub-scene cache. For each of the 3 cycles,
@@ -8078,8 +8205,7 @@ impl VelloRenderer {
                     .swf_render_caches
                     .entry(acc_bundle.to_string())
                     .or_default();
-                let filter_pipelines =
-                    self.swf_filter_pipelines.as_ref().unwrap();
+                let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
                 let mut wctx = swf_spike::render::WgpuCtx {
                     device: &self.device,
                     queue: &self.queue,
@@ -8108,9 +8234,8 @@ impl VelloRenderer {
         let mut scene = vello::Scene::new();
         for (cycle_idx, key) in cycle_keys.iter().enumerate() {
             let cell_x = (cycle_idx as u32 * frame_w) as f64;
-            let xform = vello::kurbo::Affine::scale(scale).then_translate(
-                vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y),
-            );
+            let xform = vello::kurbo::Affine::scale(scale)
+                .then_translate(vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y));
             let sub_ref = self.acc_subscenes.get(key).expect("ensured by Pass 1");
             scene.append(sub_ref, Some(xform));
         }
@@ -8156,29 +8281,20 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(strip_w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
-        let _ =
-            js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
-        let _ =
-            js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
+        let _ = js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
+        let _ = js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
         let _ = js_sys::Reflect::set(&result, &"frameCount".into(), &JsValue::from(3u32));
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"gridCols".into(),
-            &JsValue::from(grid_cols),
-        );
+        let _ = js_sys::Reflect::set(&result, &"gridCols".into(), &JsValue::from(grid_cols));
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
         let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
         {
             let (hits, misses) = bake_telemetry::subscene_take();
-            bake_telemetry::Builder::new(
-                bake_telemetry::BakeKind::AccessoryStrip,
-                acc_bundle,
-            )
-            .total(perf_now() - bake_start)
-            .subscene(hits, misses)
-            .pixel_area(u64::from(strip_w) * u64::from(strip_h))
-            .sub_count(grid_cols)
-            .commit();
+            bake_telemetry::Builder::new(bake_telemetry::BakeKind::AccessoryStrip, acc_bundle)
+                .total(perf_now() - bake_start)
+                .subscene(hits, misses)
+                .pixel_area(u64::from(strip_w) * u64::from(strip_h))
+                .sub_count(grid_cols)
+                .commit();
         }
         result.into()
     }
@@ -8225,20 +8341,17 @@ impl VelloRenderer {
             return JsValue::NULL;
         };
         let Some(symbol) = doc.lookup_export(export) else {
-            console_log!(
-                "renderSwfMountTransforms: export `{bundle}/{export}` not found"
-            );
+            console_log!("renderSwfMountTransforms: export `{bundle}/{export}` not found");
             return JsValue::NULL;
         };
-        let (matrices, presence) =
-            swf_spike::render::mount_transforms::extract_mount_transforms(
-                doc,
-                symbol,
-                start as u16,
-                count as u16,
-                apply_b_fix,
-                max_slot as u8,
-            );
+        let (matrices, presence) = swf_spike::render::mount_transforms::extract_mount_transforms(
+            doc,
+            symbol,
+            start as u16,
+            count as u16,
+            apply_b_fix,
+            max_slot as u8,
+        );
         let matrices_arr = js_sys::Float32Array::new_with_length(matrices.len() as u32);
         matrices_arr.copy_from(&matrices);
         let presence_arr = js_sys::Uint8Array::new_with_length(presence.len() as u32);
@@ -8311,13 +8424,9 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
         let n_acc = acc_slots.len();
-        if acc_bundles.len() != n_acc
-            || acc_exports.len() != n_acc
-            || acc_anim_types.len() != n_acc
+        if acc_bundles.len() != n_acc || acc_exports.len() != n_acc || acc_anim_types.len() != n_acc
         {
-            console_log!(
-                "renderSwfStripRangeAccessorized: parallel array length mismatch"
-            );
+            console_log!("renderSwfStripRangeAccessorized: parallel array length mismatch");
             return JsValue::NULL;
         }
 
@@ -8440,9 +8549,8 @@ impl VelloRenderer {
         }
 
         if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
         }
 
         let Some(doc) = self.swf_bundles.get(bundle) else {
@@ -8479,9 +8587,10 @@ impl VelloRenderer {
             let cell_x = (col * frame_w as usize) as f64;
             let cell_y = (row * frame_h as usize) as f64;
 
-            let xform = vello::kurbo::Affine::scale(scale).then_translate(
-                vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y + cell_y),
-            );
+            let xform = vello::kurbo::Affine::scale(scale).then_translate(vello::kurbo::Vec2::new(
+                -px_min_x + cell_x,
+                -px_min_y + cell_y,
+            ));
 
             // Rebuild the accessory dict for THIS character frame.
             // The `char_frame` field on each entry tells the
@@ -8493,8 +8602,7 @@ impl VelloRenderer {
                 .next()
                 .unwrap_or('R')
                 .to_ascii_uppercase();
-            let mut accessories: swf_spike::render::ctx::AccessoryDict =
-                HashMap::new();
+            let mut accessories: swf_spike::render::ctx::AccessoryDict = HashMap::new();
             for r in &resolved {
                 accessories.insert(
                     r.slot,
@@ -8566,20 +8674,14 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(strip_w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
-        let _ =
-            js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
-        let _ =
-            js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
+        let _ = js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
+        let _ = js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
         let _ = js_sys::Reflect::set(
             &result,
             &"gridCols".into(),
             &JsValue::from(grid_cols as u32),
         );
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"frameCount".into(),
-            &JsValue::from(chunk_count),
-        );
+        let _ = js_sys::Reflect::set(&result, &"frameCount".into(), &JsValue::from(chunk_count));
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
         let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
         result.into()
@@ -8622,13 +8724,9 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
         let n_acc = acc_slots.len();
-        if acc_bundles.len() != n_acc
-            || acc_exports.len() != n_acc
-            || acc_anim_types.len() != n_acc
+        if acc_bundles.len() != n_acc || acc_exports.len() != n_acc || acc_anim_types.len() != n_acc
         {
-            console_log!(
-                "renderSwfStripRangeAccessorizedBitmap: parallel array length mismatch"
-            );
+            console_log!("renderSwfStripRangeAccessorizedBitmap: parallel array length mismatch");
             return JsValue::NULL;
         }
 
@@ -8722,9 +8820,8 @@ impl VelloRenderer {
         }
 
         if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
         }
 
         let Some(doc) = self.swf_bundles.get(bundle) else {
@@ -8756,9 +8853,10 @@ impl VelloRenderer {
             let row = (slot as usize) / grid_cols;
             let cell_x = (col * frame_w as usize) as f64;
             let cell_y = (row * frame_h as usize) as f64;
-            let xform = vello::kurbo::Affine::scale(scale).then_translate(
-                vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y + cell_y),
-            );
+            let xform = vello::kurbo::Affine::scale(scale).then_translate(vello::kurbo::Vec2::new(
+                -px_min_x + cell_x,
+                -px_min_y + cell_y,
+            ));
             let dir_char = char_dir_suffix
                 .chars()
                 .next()
@@ -8860,9 +8958,7 @@ impl VelloRenderer {
         ) {
             Ok(b) => b,
             Err(e) => {
-                console_log!(
-                    "renderSwfStripRangeAccessorizedBitmap: bridge error: {e:?}"
-                );
+                console_log!("renderSwfStripRangeAccessorizedBitmap: bridge error: {e:?}");
                 return JsValue::NULL;
             }
         };
@@ -8871,20 +8967,14 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(strip_w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
-        let _ =
-            js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
-        let _ =
-            js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
+        let _ = js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
+        let _ = js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
         let _ = js_sys::Reflect::set(
             &result,
             &"gridCols".into(),
             &JsValue::from(grid_cols as u32),
         );
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"frameCount".into(),
-            &JsValue::from(chunk_count),
-        );
+        let _ = js_sys::Reflect::set(&result, &"frameCount".into(), &JsValue::from(chunk_count));
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
         let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
         result.into()
@@ -9085,9 +9175,10 @@ impl VelloRenderer {
             let row = (slot as usize) / grid_cols;
             let cell_x = (col * frame_w as usize) as f64;
             let cell_y = (row * frame_h as usize) as f64;
-            let xform = vello::kurbo::Affine::scale(scale).then_translate(
-                vello::kurbo::Vec2::new(-px_min_x + cell_x, -px_min_y + cell_y),
-            );
+            let xform = vello::kurbo::Affine::scale(scale).then_translate(vello::kurbo::Vec2::new(
+                -px_min_x + cell_x,
+                -px_min_y + cell_y,
+            ));
             swf_spike::render::phased::render_symbol_phased(
                 doc,
                 symbol,
@@ -9131,12 +9222,9 @@ impl VelloRenderer {
             return JsValue::NULL;
         }
 
-        let Some(bitmap) = self.texture_to_bitmap(
-            &texture,
-            strip_w,
-            strip_h,
-            "renderSwfTileDynamicStripRange",
-        ) else {
+        let Some(bitmap) =
+            self.texture_to_bitmap(&texture, strip_w, strip_h, "renderSwfTileDynamicStripRange")
+        else {
             return JsValue::NULL;
         };
 
@@ -9144,20 +9232,14 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(&result, &"bitmap".into(), &bitmap);
         let _ = js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(strip_w));
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
-        let _ =
-            js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
-        let _ =
-            js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
+        let _ = js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(frame_w));
+        let _ = js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(frame_h));
         let _ = js_sys::Reflect::set(
             &result,
             &"gridCols".into(),
             &JsValue::from(grid_cols as u32),
         );
-        let _ = js_sys::Reflect::set(
-            &result,
-            &"frameCount".into(),
-            &JsValue::from(chunk_count),
-        );
+        let _ = js_sys::Reflect::set(&result, &"frameCount".into(), &JsValue::from(chunk_count));
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(-px_min_x));
         let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(-px_min_y));
         result.into()
@@ -9285,9 +9367,8 @@ impl VelloRenderer {
         // 3. Build composite Vello scene with all valid items at their
         //    packed positions.
         if self.swf_filter_pipelines.is_none() {
-            self.swf_filter_pipelines = Some(
-                swf_spike::wgpu_filters::FilterPipelines::new(&self.device),
-            );
+            self.swf_filter_pipelines =
+                Some(swf_spike::wgpu_filters::FilterPipelines::new(&self.device));
         }
         let filter_pipelines = self.swf_filter_pipelines.as_ref().unwrap();
         let mut ctx = swf_spike::render::WgpuCtx {
@@ -9305,12 +9386,10 @@ impl VelloRenderer {
             }
             let symbol = symbols[item.symbol_idx];
             let (place_x, place_y) = placements[i];
-            let xform = vello::kurbo::Affine::scale(scale).then_translate(
-                vello::kurbo::Vec2::new(
-                    -item.px_min_x + f64::from(place_x),
-                    -item.px_min_y + f64::from(place_y),
-                ),
-            );
+            let xform = vello::kurbo::Affine::scale(scale).then_translate(vello::kurbo::Vec2::new(
+                -item.px_min_x + f64::from(place_x),
+                -item.px_min_y + f64::from(place_y),
+            ));
             swf_spike::render::render_symbol_with_ctx_tinted(
                 &mut ctx,
                 doc,
@@ -9468,10 +9547,7 @@ impl VelloRenderer {
     ) -> Vec<u32> {
         use wgpu::backend::webgpu::deferred_destroy;
         let (tex_destroyed, buf_destroyed) =
-            deferred_destroy::tick_deferred_destroys(
-                min_age_frames,
-                max_destroys_per_tick,
-            );
+            deferred_destroy::tick_deferred_destroys(min_age_frames, max_destroys_per_tick);
         let (tex_pending, buf_pending) = deferred_destroy::pending_counts();
         vec![
             tex_destroyed,
@@ -9498,8 +9574,7 @@ impl VelloRenderer {
         use wgpu::backend::webgpu::deferred_destroy;
         let (lt, lb, ct, cb, dt, db, pt, pb) = deferred_destroy::byte_stats();
         vec![
-            lt as f64, lb as f64, ct as f64, cb as f64, dt as f64, db as f64,
-            pt as f64, pb as f64,
+            lt as f64, lb as f64, ct as f64, cb as f64, dt as f64, db as f64, pt as f64, pb as f64,
         ]
     }
 
@@ -9538,20 +9613,39 @@ impl VelloRenderer {
         };
         let dir_char = dir.chars().next().unwrap_or('R').to_ascii_uppercase();
         let dir_str = dir_char.to_string();
-        let side_str = if side.is_empty() { dir_str.clone() } else { side.to_string() };
+        let side_str = if side.is_empty() {
+            dir_str.clone()
+        } else {
+            side.to_string()
+        };
         let slot_u8 = slot as u8;
         let anim_type_u8 = anim_type as u8;
 
         // Frame sequence at the queried anim_type.
         let target: [u16; 3] = [
             swf_spike::render::pick_accessory_frame(
-                acc_doc, acc_sym, slot_u8, anim_type_u8, &side_str, 0,
+                acc_doc,
+                acc_sym,
+                slot_u8,
+                anim_type_u8,
+                &side_str,
+                0,
             ),
             swf_spike::render::pick_accessory_frame(
-                acc_doc, acc_sym, slot_u8, anim_type_u8, &side_str, 1,
+                acc_doc,
+                acc_sym,
+                slot_u8,
+                anim_type_u8,
+                &side_str,
+                1,
             ),
             swf_spike::render::pick_accessory_frame(
-                acc_doc, acc_sym, slot_u8, anim_type_u8, &side_str, 2,
+                acc_doc,
+                acc_sym,
+                slot_u8,
+                anim_type_u8,
+                &side_str,
+                2,
             ),
         ];
 
@@ -9587,12 +9681,10 @@ impl VelloRenderer {
     #[wasm_bindgen(js_name = "rustGpuObjectCounts")]
     pub fn rust_gpu_object_counts(&self) -> Vec<f64> {
         use wgpu::backend::webgpu::deferred_destroy;
-        let (lbg, cbg, dbg, ltv, ctv, dtv, lsa, csa, dsa) =
-            deferred_destroy::object_counts();
+        let (lbg, cbg, dbg, ltv, ctv, dtv, lsa, csa, dsa) = deferred_destroy::object_counts();
         vec![
-            lbg as f64, cbg as f64, dbg as f64,
-            ltv as f64, ctv as f64, dtv as f64,
-            lsa as f64, csa as f64, dsa as f64,
+            lbg as f64, cbg as f64, dbg as f64, ltv as f64, ctv as f64, dtv as f64, lsa as f64,
+            csa as f64, dsa as f64,
         ]
     }
 
@@ -9609,9 +9701,7 @@ impl VelloRenderer {
         let Some(doc) = self.swf_bundles.get(bundle) else {
             return false;
         };
-        let Some(swf_spike::swf_doc::Symbol::Sprite(top)) =
-            doc.lookup_export(export)
-        else {
+        let Some(swf_spike::swf_doc::Symbol::Sprite(top)) = doc.lookup_export(export) else {
             return false;
         };
         fn recurse(
@@ -9628,9 +9718,7 @@ impl VelloRenderer {
                         return true;
                     }
                     if let Some(id) = p.character_id {
-                        if let Some(swf_spike::swf_doc::Symbol::Sprite(child)) =
-                            doc.lookup_id(id)
-                        {
+                        if let Some(swf_spike::swf_doc::Symbol::Sprite(child)) = doc.lookup_id(id) {
                             if recurse(doc, child, depth - 1) {
                                 return true;
                             }
@@ -9676,9 +9764,7 @@ impl VelloRenderer {
     /// without recursing, we'd label it static and freeze the building.
     #[wasm_bindgen(js_name = "swfTileAnimKind")]
     pub fn swf_tile_anim_kind(&self, bundle: &str, export: &str) -> String {
-        use swf_spike::swf_doc::{
-            avm1_classify_frame1, OwnedOp, Symbol, TileScriptKind,
-        };
+        use swf_spike::swf_doc::{OwnedOp, Symbol, TileScriptKind, avm1_classify_frame1};
         let Some(doc) = self.swf_bundles.get(bundle) else {
             return String::new();
         };
@@ -9754,10 +9840,7 @@ impl VelloRenderer {
                             break;
                         }
                         if let OwnedOp::DoAction(bc) = cop
-                            && matches!(
-                                avm1_classify_frame1(bc),
-                                Some(TileScriptKind::Random)
-                            )
+                            && matches!(avm1_classify_frame1(bc), Some(TileScriptKind::Random))
                         {
                             child_random = true;
                             break 'outer;
@@ -9792,7 +9875,12 @@ impl VelloRenderer {
         let Some(swf_spike::swf_doc::Symbol::Sprite(top)) = doc.lookup_export(export) else {
             return 0;
         };
-        fn recurse(doc: &swf_spike::swf_doc::SwfDoc, sp: &swf_spike::swf_doc::OwnedSprite, depth: u32, best: &mut u16) {
+        fn recurse(
+            doc: &swf_spike::swf_doc::SwfDoc,
+            sp: &swf_spike::swf_doc::OwnedSprite,
+            depth: u32,
+            best: &mut u16,
+        ) {
             if depth == 0 {
                 return;
             }
@@ -9881,11 +9969,7 @@ impl VelloRenderer {
             let row = js_sys::Object::new();
             let _ = js_sys::Reflect::set(&row, &"name".into(), &JsValue::from_str(name));
             let _ = js_sys::Reflect::set(&row, &"kind".into(), &JsValue::from_str(kind));
-            let _ = js_sys::Reflect::set(
-                &row,
-                &"totalFrames".into(),
-                &JsValue::from(total_frames),
-            );
+            let _ = js_sys::Reflect::set(&row, &"totalFrames".into(), &JsValue::from(total_frames));
             let _ = js_sys::Reflect::set(
                 &row,
                 &"isCharacterAnim".into(),
@@ -9924,11 +10008,8 @@ impl VelloRenderer {
                 &"totalFrameCount".into(),
                 &JsValue::from(e.total_frame_count),
             );
-            let _ = js_sys::Reflect::set(
-                &row,
-                &"hasToggle".into(),
-                &JsValue::from_bool(e.has_toggle),
-            );
+            let _ =
+                js_sys::Reflect::set(&row, &"hasToggle".into(), &JsValue::from_bool(e.has_toggle));
             let _ = js_sys::Reflect::set(
                 &row,
                 &"exportBFix".into(),
@@ -10030,9 +10111,7 @@ impl VelloRenderer {
                 entry_count += 1;
             }
         }
-        let bytes_len: i64 = match self
-            .serialize_body_subscene_cache(Some(bundle.to_string()))
-        {
+        let bytes_len: i64 = match self.serialize_body_subscene_cache(Some(bundle.to_string())) {
             Some(b) => b.len() as i64,
             None => -1,
         };
@@ -10098,7 +10177,7 @@ impl VelloRenderer {
             if let Some(frame) = asset.frames.get(fid) {
                 let net = scene_builder::compute_net_offset(frame, &asset.transforms);
                 (
-                    -(net.0 as f32),     // negate: net is position of reg point, offset is frame-to-regpoint
+                    -(net.0 as f32), // negate: net is position of reg point, offset is frame-to-regpoint
                     -(net.1 as f32),
                     frame.offset_x,
                     frame.offset_y,
@@ -10114,15 +10193,27 @@ impl VelloRenderer {
 
         let obj = js_sys::Object::new();
         let _ = js_sys::Reflect::set(&obj, &"fps".into(), &JsValue::from(anim.fps));
-        let _ = js_sys::Reflect::set(&obj, &"frameCount".into(), &JsValue::from(anim.frame_ids.len() as u32));
+        let _ = js_sys::Reflect::set(
+            &obj,
+            &"frameCount".into(),
+            &JsValue::from(anim.frame_ids.len() as u32),
+        );
         let _ = js_sys::Reflect::set(&obj, &"offsetX".into(), &JsValue::from(offset_x));
         let _ = js_sys::Reflect::set(&obj, &"offsetY".into(), &JsValue::from(offset_y));
         let _ = js_sys::Reflect::set(&obj, &"trimX".into(), &JsValue::from(trim_x));
         let _ = js_sys::Reflect::set(&obj, &"trimY".into(), &JsValue::from(trim_y));
         let _ = js_sys::Reflect::set(&obj, &"frameWidth".into(), &JsValue::from(frame_w));
         let _ = js_sys::Reflect::set(&obj, &"frameHeight".into(), &JsValue::from(frame_h));
-        let _ = js_sys::Reflect::set(&obj, &"hasBaseFrame".into(), &JsValue::from(anim.base_frame_id != u32::MAX));
-        let _ = js_sys::Reflect::set(&obj, &"baseZOrder".into(), &JsValue::from(anim.base_z_order));
+        let _ = js_sys::Reflect::set(
+            &obj,
+            &"hasBaseFrame".into(),
+            &JsValue::from(anim.base_frame_id != u32::MAX),
+        );
+        let _ = js_sys::Reflect::set(
+            &obj,
+            &"baseZOrder".into(),
+            &JsValue::from(anim.base_z_order),
+        );
         obj.into()
     }
 
@@ -10142,14 +10233,12 @@ impl VelloRenderer {
             return JsValue::NULL;
         };
 
-        let acc_scenes = build_accessory_scenes(
-            &self.assets, &acc_info, animation, 0, resolution, asset,
-        );
+        let acc_scenes =
+            build_accessory_scenes(&self.assets, &acc_info, animation, 0, resolution, asset);
         let acc_refs: Vec<&AccessoryScene> = acc_scenes.iter().collect();
 
-        let meta = scene_builder::compute_animation_render_meta(
-            asset, animation, resolution, &acc_refs,
-        );
+        let meta =
+            scene_builder::compute_animation_render_meta(asset, animation, resolution, &acc_refs);
 
         let obj = js_sys::Object::new();
         let _ = js_sys::Reflect::set(&obj, &"width".into(), &JsValue::from(meta.canvas_width));
@@ -10176,9 +10265,7 @@ impl VelloRenderer {
             return vec![0, 0];
         };
 
-        let meta = scene_builder::compute_animation_render_meta(
-            asset, animation, resolution, &[],
-        );
+        let meta = scene_builder::compute_animation_render_meta(asset, animation, resolution, &[]);
         vec![meta.canvas_width.max(1), meta.canvas_height.max(1)]
     }
 
@@ -10213,14 +10300,18 @@ impl VelloRenderer {
 
         // Build accessory scenes from .dofasset data
         let acc_scenes = build_accessory_scenes(
-            &self.assets, &acc_info, animation, frame_index as usize, resolution, asset,
+            &self.assets,
+            &acc_info,
+            animation,
+            frame_index as usize,
+            resolution,
+            asset,
         );
         let acc_refs: Vec<&AccessoryScene> = acc_scenes.iter().collect();
 
         // Compute canvas size including accessories
-        let meta = scene_builder::compute_animation_render_meta(
-            asset, animation, resolution, &acc_refs,
-        );
+        let meta =
+            scene_builder::compute_animation_render_meta(asset, animation, resolution, &acc_refs);
         let w = meta.canvas_width.max(1);
         let h = meta.canvas_height.max(1);
 
@@ -10240,12 +10331,18 @@ impl VelloRenderer {
         // TEXTURE_BINDING: Pixi.js may sample it directly (e.g., non-atlas path)
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("vello_frame"),
-            size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,
-            usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::TEXTURE_BINDING,
+            usage: wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
         });
 
@@ -10291,12 +10388,18 @@ impl VelloRenderer {
     pub fn create_atlas(&mut self, width: u32, height: u32) -> JsValue {
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("vello_atlas"),
-            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,
-            usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::TEXTURE_BINDING,
+            usage: wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
         });
 
@@ -10317,39 +10420,54 @@ impl VelloRenderer {
     /// `copies` is a flat array: [src_id, dst_x, dst_y, src_id, dst_x, dst_y, ...]
     /// All copies go to the same destination texture (the atlas).
     #[wasm_bindgen(js_name = "batchCopy")]
-    pub fn batch_copy(
-        &mut self,
-        dst_texture_id: f64,
-        copies: &[f64],
-    ) -> bool {
+    pub fn batch_copy(&mut self, dst_texture_id: f64, copies: &[f64]) -> bool {
         let dst_id = dst_texture_id as u64;
-        if copies.len() < 3 { return false; }
+        if copies.len() < 3 {
+            return false;
+        }
 
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("batch_copy"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("batch_copy"),
+            });
 
         for chunk in copies.chunks(3) {
             let src_id = chunk[0] as u64;
             let dst_x = chunk[1] as u32;
             let dst_y = chunk[2] as u32;
 
-            let Some(src) = self.textures.get(&src_id) else { continue };
+            let Some(src) = self.textures.get(&src_id) else {
+                continue;
+            };
             let src_w = src.width();
             let src_h = src.height();
-            let Some(dst) = self.textures.get(&dst_id) else { return false };
+            let Some(dst) = self.textures.get(&dst_id) else {
+                return false;
+            };
 
             encoder.copy_texture_to_texture(
                 wgpu::TexelCopyTextureInfo {
-                    texture: src, mip_level: 0,
-                    origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All,
-                },
-                wgpu::TexelCopyTextureInfo {
-                    texture: dst, mip_level: 0,
-                    origin: wgpu::Origin3d { x: dst_x, y: dst_y, z: 0 },
+                    texture: src,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
                     aspect: wgpu::TextureAspect::All,
                 },
-                wgpu::Extent3d { width: src_w, height: src_h, depth_or_array_layers: 1 },
+                wgpu::TexelCopyTextureInfo {
+                    texture: dst,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d {
+                        x: dst_x,
+                        y: dst_y,
+                        z: 0,
+                    },
+                    aspect: wgpu::TextureAspect::All,
+                },
+                wgpu::Extent3d {
+                    width: src_w,
+                    height: src_h,
+                    depth_or_array_layers: 1,
+                },
             );
         }
 
@@ -10394,23 +10512,35 @@ impl VelloRenderer {
         };
 
         let player_colors: Option<[u32; 3]> = colors.and_then(|c| {
-            if c.len() >= 3 { Some([c[0], c[1], c[2]]) } else { None }
+            if c.len() >= 3 {
+                Some([c[0], c[1], c[2]])
+            } else {
+                None
+            }
         });
 
         let acc_scenes = build_accessory_scenes(
-            &self.assets, &acc_info, animation, frame_index as usize, resolution, asset,
+            &self.assets,
+            &acc_info,
+            animation,
+            frame_index as usize,
+            resolution,
+            asset,
         );
         let acc_refs: Vec<&AccessoryScene> = acc_scenes.iter().collect();
 
-        let meta = scene_builder::compute_animation_render_meta(
-            asset, animation, resolution, &acc_refs,
-        );
+        let meta =
+            scene_builder::compute_animation_render_meta(asset, animation, resolution, &acc_refs);
         let w = meta.canvas_width.max(1);
         let h = meta.canvas_height.max(1);
 
         let scene = scene_builder::build_frame_scene(
-            asset, animation, frame_index as usize,
-            player_colors.as_ref(), resolution, &acc_refs,
+            asset,
+            animation,
+            frame_index as usize,
+            player_colors.as_ref(),
+            resolution,
+            &acc_refs,
             (meta.bounds_offset_x, meta.bounds_offset_y),
         );
 
@@ -10422,8 +10552,13 @@ impl VelloRenderer {
         let render_h = slot_h.unwrap_or(h).max(h);
         let render_target = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("vello_atlas_rt"),
-            size: wgpu::Extent3d { width: render_w, height: render_h, depth_or_array_layers: 1 },
-            mip_level_count: 1, sample_count: 1,
+            size: wgpu::Extent3d {
+                width: render_w,
+                height: render_h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,
             usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC,
@@ -10432,11 +10567,16 @@ impl VelloRenderer {
         let rt_view = render_target.create_view(&wgpu::TextureViewDescriptor::default());
         let params = vello::RenderParams {
             base_color: Color::TRANSPARENT,
-            width: render_w, height: render_h,
+            width: render_w,
+            height: render_h,
             antialiasing_method: AaConfig::Area,
         };
 
-        if self.renderer.render_to_texture(&self.device, &self.queue, &scene, &rt_view, &params).is_err() {
+        if self
+            .renderer
+            .render_to_texture(&self.device, &self.queue, &scene, &rt_view, &params)
+            .is_err()
+        {
             return JsValue::NULL;
         }
 
@@ -10448,23 +10588,36 @@ impl VelloRenderer {
         }
 
         // Copy rendered frame into atlas slot
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("atlas_copy"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("atlas_copy"),
+            });
 
         // Re-borrow atlas texture for the copy
         let atlas_tex = self.textures.get(&atlas_id).unwrap();
         encoder.copy_texture_to_texture(
             wgpu::TexelCopyTextureInfo {
-                texture: &render_target, mip_level: 0,
-                origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All,
-            },
-            wgpu::TexelCopyTextureInfo {
-                texture: atlas_tex, mip_level: 0,
-                origin: wgpu::Origin3d { x: dst_x, y: dst_y, z: 0 },
+                texture: &render_target,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
             },
-            wgpu::Extent3d { width: copy_w, height: copy_h, depth_or_array_layers: 1 },
+            wgpu::TexelCopyTextureInfo {
+                texture: atlas_tex,
+                mip_level: 0,
+                origin: wgpu::Origin3d {
+                    x: dst_x,
+                    y: dst_y,
+                    z: 0,
+                },
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::Extent3d {
+                width: copy_w,
+                height: copy_h,
+                depth_or_array_layers: 1,
+            },
         );
         self.queue.submit(Some(encoder.finish()));
 
@@ -10494,11 +10647,20 @@ impl VelloRenderer {
         };
 
         let player_colors: Option<[u32; 3]> = colors.and_then(|c| {
-            if c.len() >= 3 { Some([c[0], c[1], c[2]]) } else { None }
+            if c.len() >= 3 {
+                Some([c[0], c[1], c[2]])
+            } else {
+                None
+            }
         });
 
         let acc_scenes = build_accessory_scenes(
-            &self.assets, &acc_info, animation, frame_index as usize, resolution, asset,
+            &self.assets,
+            &acc_info,
+            animation,
+            frame_index as usize,
+            resolution,
+            asset,
         );
         let acc_refs: Vec<&AccessoryScene> = acc_scenes.iter().collect();
 
@@ -10506,20 +10668,26 @@ impl VelloRenderer {
         // Different accessory combinations produce different canvas sizes, causing
         // characters to shift position within variably-sized textures → visible jitter.
         // Accessories extending beyond the character bounds are clipped by flushFrames.
-        let meta = scene_builder::compute_animation_render_meta(
-            asset, animation, resolution, &[],
-        );
+        let meta = scene_builder::compute_animation_render_meta(asset, animation, resolution, &[]);
         let w = meta.canvas_width.max(1);
         let h = meta.canvas_height.max(1);
 
         let scene = scene_builder::build_frame_scene(
-            asset, animation, frame_index as usize,
-            player_colors.as_ref(), resolution, &acc_refs,
+            asset,
+            animation,
+            frame_index as usize,
+            player_colors.as_ref(),
+            resolution,
+            &acc_refs,
             (meta.bounds_offset_x, meta.bounds_offset_y),
         );
 
         self.queued_frames.push(QueuedFrame {
-            scene, width: w, height: h, dst_x, dst_y,
+            scene,
+            width: w,
+            height: h,
+            dst_x,
+            dst_y,
         });
 
         let result = js_sys::Object::new();
@@ -10544,7 +10712,9 @@ impl VelloRenderer {
         // fills uncovered areas within each cell.
         const SLOT_SIZE: u32 = 256;
 
-        let max_dim = self.queued_frames.iter()
+        let max_dim = self
+            .queued_frames
+            .iter()
             .map(|f| f.width.max(f.height))
             .max()
             .unwrap_or(SLOT_SIZE);
@@ -10553,7 +10723,12 @@ impl VelloRenderer {
         let max_rows = MAX_TEX_DIM / cell;
         let batch_size = (cols * max_rows) as usize;
 
-        struct Region { src_x: u32, src_y: u32, dst_x: u32, dst_y: u32 }
+        struct Region {
+            src_x: u32,
+            src_y: u32,
+            dst_x: u32,
+            dst_y: u32,
+        }
 
         let mut offset = 0;
         while offset < self.queued_frames.len() {
@@ -10572,11 +10747,17 @@ impl VelloRenderer {
 
                 // Clip each frame to its cell so content can't bleed into neighbors
                 let clip_rect = vello::kurbo::Rect::new(
-                    cx as f64, cy as f64, (cx + cell) as f64, (cy + cell) as f64,
+                    cx as f64,
+                    cy as f64,
+                    (cx + cell) as f64,
+                    (cy + cell) as f64,
                 );
                 composite.push_layer(
-                    vello::peniko::Fill::default(), vello::peniko::BlendMode::default(), 1.0,
-                    vello::kurbo::Affine::IDENTITY, &clip_rect,
+                    vello::peniko::Fill::default(),
+                    vello::peniko::BlendMode::default(),
+                    1.0,
+                    vello::kurbo::Affine::IDENTITY,
+                    &clip_rect,
                 );
                 composite.append(
                     &frame.scene,
@@ -10584,7 +10765,12 @@ impl VelloRenderer {
                 );
                 composite.pop_layer();
 
-                regions.push(Region { src_x: cx, src_y: cy, dst_x: frame.dst_x, dst_y: frame.dst_y });
+                regions.push(Region {
+                    src_x: cx,
+                    src_y: cy,
+                    dst_x: frame.dst_x,
+                    dst_y: frame.dst_y,
+                });
             }
 
             let num_rows = (batch_len + cols - 1) / cols;
@@ -10599,8 +10785,13 @@ impl VelloRenderer {
 
             let render_target = self.device.create_texture(&wgpu::TextureDescriptor {
                 label: Some("batch_render"),
-                size: wgpu::Extent3d { width: total_width, height: total_height, depth_or_array_layers: 1 },
-                mip_level_count: 1, sample_count: 1,
+                size: wgpu::Extent3d {
+                    width: total_width,
+                    height: total_height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
                 format: wgpu::TextureFormat::Rgba8Unorm,
                 usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC,
@@ -10609,11 +10800,16 @@ impl VelloRenderer {
             let rt_view = render_target.create_view(&wgpu::TextureViewDescriptor::default());
             let params = vello::RenderParams {
                 base_color: Color::TRANSPARENT,
-                width: total_width, height: total_height,
+                width: total_width,
+                height: total_height,
                 antialiasing_method: AaConfig::Area,
             };
 
-            if self.renderer.render_to_texture(&self.device, &self.queue, &composite, &rt_view, &params).is_err() {
+            if self
+                .renderer
+                .render_to_texture(&self.device, &self.queue, &composite, &rt_view, &params)
+                .is_err()
+            {
                 offset = end;
                 continue;
             }
@@ -10621,28 +10817,46 @@ impl VelloRenderer {
             if let Some(atlas_tex) = self.textures.get(&atlas_id) {
                 let atlas_w = atlas_tex.width();
                 let atlas_h = atlas_tex.height();
-                let mut encoder = self.device.create_command_encoder(
-                    &wgpu::CommandEncoderDescriptor { label: Some("batch_copy") },
-                );
+                let mut encoder =
+                    self.device
+                        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                            label: Some("batch_copy"),
+                        });
 
                 // Copy FULL CELL (not just frame size) to clear stale content
                 for r in &regions {
                     let cw = cell.min(atlas_w.saturating_sub(r.dst_x));
                     let ch = cell.min(atlas_h.saturating_sub(r.dst_y));
-                    if cw == 0 || ch == 0 { continue; }
+                    if cw == 0 || ch == 0 {
+                        continue;
+                    }
 
                     encoder.copy_texture_to_texture(
                         wgpu::TexelCopyTextureInfo {
-                            texture: &render_target, mip_level: 0,
-                            origin: wgpu::Origin3d { x: r.src_x, y: r.src_y, z: 0 },
+                            texture: &render_target,
+                            mip_level: 0,
+                            origin: wgpu::Origin3d {
+                                x: r.src_x,
+                                y: r.src_y,
+                                z: 0,
+                            },
                             aspect: wgpu::TextureAspect::All,
                         },
                         wgpu::TexelCopyTextureInfo {
-                            texture: atlas_tex, mip_level: 0,
-                            origin: wgpu::Origin3d { x: r.dst_x, y: r.dst_y, z: 0 },
+                            texture: atlas_tex,
+                            mip_level: 0,
+                            origin: wgpu::Origin3d {
+                                x: r.dst_x,
+                                y: r.dst_y,
+                                z: 0,
+                            },
                             aspect: wgpu::TextureAspect::All,
                         },
-                        wgpu::Extent3d { width: cw, height: ch, depth_or_array_layers: 1 },
+                        wgpu::Extent3d {
+                            width: cw,
+                            height: ch,
+                            depth_or_array_layers: 1,
+                        },
                     );
                 }
 
@@ -10682,7 +10896,11 @@ impl VelloRenderer {
         }
 
         let player_colors: Option<[u32; 3]> = colors.and_then(|c| {
-            if c.len() >= 3 { Some([c[0], c[1], c[2]]) } else { None }
+            if c.len() >= 3 {
+                Some([c[0], c[1], c[2]])
+            } else {
+                None
+            }
         });
 
         // Compute canvas size INCLUDING accessories across ALL frames.
@@ -10693,13 +10911,11 @@ impl VelloRenderer {
         let mut global_max_x = 0.0_f64;
         let mut global_max_y = 0.0_f64;
         for i in 0..frame_count {
-            let acc_scenes_i = build_accessory_scenes(
-                &self.assets, &acc_info, animation, i, resolution, asset,
-            );
+            let acc_scenes_i =
+                build_accessory_scenes(&self.assets, &acc_info, animation, i, resolution, asset);
             let acc_refs_i: Vec<&AccessoryScene> = acc_scenes_i.iter().collect();
-            let (bmin_x, bmin_y, bw, bh) = scene_builder::compute_frame_bounds(
-                asset, animation, i, resolution, &acc_refs_i,
-            );
+            let (bmin_x, bmin_y, bw, bh) =
+                scene_builder::compute_frame_bounds(asset, animation, i, resolution, &acc_refs_i);
             global_min_x = global_min_x.min(bmin_x);
             global_min_y = global_min_y.min(bmin_y);
             global_max_x = global_max_x.max(bmin_x + bw);
@@ -10717,15 +10933,19 @@ impl VelloRenderer {
         let (anchor_x, anchor_y) = if has_base {
             if let Some(base_frame) = asset.frames.get(anim.base_frame_id as usize) {
                 let net = scene_builder::compute_net_offset(base_frame, &asset.transforms);
-                (net.0 * resolution as f64 + bounds_offset.0,
-                 net.1 * resolution as f64 + bounds_offset.1)
+                (
+                    net.0 * resolution as f64 + bounds_offset.0,
+                    net.1 * resolution as f64 + bounds_offset.1,
+                )
             } else {
                 (bounds_offset.0, bounds_offset.1)
             }
         } else if let Some(first_frame) = asset.frames.get(first_fid) {
             let net = scene_builder::compute_net_offset(first_frame, &asset.transforms);
-            (net.0 * resolution as f64 + bounds_offset.0,
-             net.1 * resolution as f64 + bounds_offset.1)
+            (
+                net.0 * resolution as f64 + bounds_offset.0,
+                net.1 * resolution as f64 + bounds_offset.1,
+            )
         } else {
             (bounds_offset.0, bounds_offset.1)
         };
@@ -10749,20 +10969,34 @@ impl VelloRenderer {
             let col = i % grid_cols;
             let row = i / grid_cols;
 
-            let acc_scenes = build_accessory_scenes(
-                &self.assets, &acc_info, animation, i, resolution, asset,
-            );
+            let acc_scenes =
+                build_accessory_scenes(&self.assets, &acc_info, animation, i, resolution, asset);
             let acc_refs: Vec<&AccessoryScene> = acc_scenes.iter().collect();
 
             let frame_scene = scene_builder::build_frame_scene(
-                asset, animation, i, player_colors.as_ref(), resolution, &acc_refs, bounds_offset,
+                asset,
+                animation,
+                i,
+                player_colors.as_ref(),
+                resolution,
+                &acc_refs,
+                bounds_offset,
             );
 
             let cx = (col as u32 * max_w) as f64;
             let cy = (row as u32 * max_h) as f64;
             let clip = vello::kurbo::Rect::new(cx, cy, cx + max_w as f64, cy + max_h as f64);
-            composite.push_layer(vello::peniko::Fill::default(), vello::peniko::BlendMode::default(), 1.0, vello::kurbo::Affine::IDENTITY, &clip);
-            composite.append(&frame_scene, Some(vello::kurbo::Affine::translate((cx, cy))));
+            composite.push_layer(
+                vello::peniko::Fill::default(),
+                vello::peniko::BlendMode::default(),
+                1.0,
+                vello::kurbo::Affine::IDENTITY,
+                &clip,
+            );
+            composite.append(
+                &frame_scene,
+                Some(vello::kurbo::Affine::translate((cx, cy))),
+            );
             composite.pop_layer();
         }
 
@@ -10770,8 +11004,13 @@ impl VelloRenderer {
         // then copy to the final TEXTURE_BINDING texture.
         let render_target = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("vello_strip_rt"),
-            size: wgpu::Extent3d { width: strip_w, height: strip_h, depth_or_array_layers: 1 },
-            mip_level_count: 1, sample_count: 1,
+            size: wgpu::Extent3d {
+                width: strip_w,
+                height: strip_h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,
             usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC,
@@ -10780,37 +11019,59 @@ impl VelloRenderer {
         let rt_view = render_target.create_view(&wgpu::TextureViewDescriptor::default());
         let params = vello::RenderParams {
             base_color: Color::TRANSPARENT,
-            width: strip_w, height: strip_h,
+            width: strip_w,
+            height: strip_h,
             antialiasing_method: AaConfig::Area,
         };
 
-        if self.renderer.render_to_texture(&self.device, &self.queue, &composite, &rt_view, &params).is_err() {
+        if self
+            .renderer
+            .render_to_texture(&self.device, &self.queue, &composite, &rt_view, &params)
+            .is_err()
+        {
             return JsValue::NULL;
         }
 
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("vello_strip"),
-            size: wgpu::Extent3d { width: strip_w, height: strip_h, depth_or_array_layers: 1 },
-            mip_level_count: 1, sample_count: 1,
+            size: wgpu::Extent3d {
+                width: strip_w,
+                height: strip_h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,
-            usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
+            usage: wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
 
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("strip_copy"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("strip_copy"),
+            });
         encoder.copy_texture_to_texture(
             wgpu::TexelCopyTextureInfo {
-                texture: &render_target, mip_level: 0,
-                origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All,
+                texture: &render_target,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
             },
             wgpu::TexelCopyTextureInfo {
-                texture: &texture, mip_level: 0,
-                origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All,
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
             },
-            wgpu::Extent3d { width: strip_w, height: strip_h, depth_or_array_layers: 1 },
+            wgpu::Extent3d {
+                width: strip_w,
+                height: strip_h,
+                depth_or_array_layers: 1,
+            },
         );
         self.queue.submit(Some(encoder.finish()));
         // tmp_textures dropped here — safe, submit already consumed the command buffer
@@ -10827,11 +11088,27 @@ impl VelloRenderer {
         let _ = js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(strip_h));
         let _ = js_sys::Reflect::set(&result, &"frameWidth".into(), &JsValue::from(max_w));
         let _ = js_sys::Reflect::set(&result, &"frameHeight".into(), &JsValue::from(max_h));
-        let _ = js_sys::Reflect::set(&result, &"frameCount".into(), &JsValue::from(frame_count as u32));
-        let _ = js_sys::Reflect::set(&result, &"gridCols".into(), &JsValue::from(grid_cols as u32));
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"frameCount".into(),
+            &JsValue::from(frame_count as u32),
+        );
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"gridCols".into(),
+            &JsValue::from(grid_cols as u32),
+        );
         // bounds_offset: how much the content was shifted to fit negative accessory positions
-        let _ = js_sys::Reflect::set(&result, &"boundsOffsetX".into(), &JsValue::from(bounds_offset.0));
-        let _ = js_sys::Reflect::set(&result, &"boundsOffsetY".into(), &JsValue::from(bounds_offset.1));
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"boundsOffsetX".into(),
+            &JsValue::from(bounds_offset.0),
+        );
+        let _ = js_sys::Reflect::set(
+            &result,
+            &"boundsOffsetY".into(),
+            &JsValue::from(bounds_offset.1),
+        );
         // anchor: registration point within the tight frame (in pixels at render resolution)
         let _ = js_sys::Reflect::set(&result, &"anchorX".into(), &JsValue::from(anchor_x));
         let _ = js_sys::Reflect::set(&result, &"anchorY".into(), &JsValue::from(anchor_y));
@@ -10849,13 +11126,26 @@ impl VelloRenderer {
         resolution: f32,
         acc_info: Option<Vec<u32>>,
     ) -> JsValue {
-        let Some(asset) = self.assets.get(&asset_id) else { return JsValue::NULL };
+        let Some(asset) = self.assets.get(&asset_id) else {
+            return JsValue::NULL;
+        };
 
         let acc_scenes = build_accessory_scenes(
-            &self.assets, &acc_info, animation, frame_index as usize, resolution, asset,
+            &self.assets,
+            &acc_info,
+            animation,
+            frame_index as usize,
+            resolution,
+            asset,
         );
         let acc_refs: Vec<&AccessoryScene> = acc_scenes.iter().collect();
-        let frame_scene = scene_builder::build_zone_mask_scene(asset, animation, frame_index as usize, resolution, &acc_refs);
+        let frame_scene = scene_builder::build_zone_mask_scene(
+            asset,
+            animation,
+            frame_index as usize,
+            resolution,
+            &acc_refs,
+        );
         let dims = self.get_frame_size(asset_id, animation, frame_index, resolution);
         let w = dims[0].max(1);
         let h = dims[1].max(1);
@@ -10864,8 +11154,13 @@ impl VelloRenderer {
         // render target from Pixi.js's sampling texture.
         let render_target = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("vello_zm_rt"),
-            size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
-            mip_level_count: 1, sample_count: 1,
+            size: wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,
             usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC,
@@ -10874,37 +11169,59 @@ impl VelloRenderer {
         let rt_view = render_target.create_view(&wgpu::TextureViewDescriptor::default());
         let params = vello::RenderParams {
             base_color: Color::TRANSPARENT,
-            width: w, height: h,
+            width: w,
+            height: h,
             antialiasing_method: AaConfig::Area,
         };
 
-        if let Err(e) = self.renderer.render_to_texture(&self.device, &self.queue, &frame_scene, &rt_view, &params) {
+        if let Err(e) = self.renderer.render_to_texture(
+            &self.device,
+            &self.queue,
+            &frame_scene,
+            &rt_view,
+            &params,
+        ) {
             console_log!("VelloRenderer: zone mask frame render error: {e}");
             return JsValue::NULL;
         }
 
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("vello_zm_out"),
-            size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
-            mip_level_count: 1, sample_count: 1,
+            size: wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,
             usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
         });
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("zm_copy"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("zm_copy"),
+            });
         encoder.copy_texture_to_texture(
             wgpu::TexelCopyTextureInfo {
-                texture: &render_target, mip_level: 0,
-                origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All,
+                texture: &render_target,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
             },
             wgpu::TexelCopyTextureInfo {
-                texture: &texture, mip_level: 0,
-                origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All,
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
             },
-            wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 },
+            wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
         );
         self.queue.submit(Some(encoder.finish()));
 
@@ -10933,11 +11250,17 @@ impl VelloRenderer {
         resolution: f32,
         acc_info: Option<Vec<u32>>,
     ) -> JsValue {
-        let Some(asset) = self.assets.get(&asset_id) else { return JsValue::NULL };
-        let Some(&anim_idx) = asset.animation_map.get(animation) else { return JsValue::NULL };
+        let Some(asset) = self.assets.get(&asset_id) else {
+            return JsValue::NULL;
+        };
+        let Some(&anim_idx) = asset.animation_map.get(animation) else {
+            return JsValue::NULL;
+        };
         let anim = &asset.animations[anim_idx];
         let frame_count = anim.frame_ids.len();
-        if frame_count == 0 { return JsValue::NULL; }
+        if frame_count == 0 {
+            return JsValue::NULL;
+        }
 
         let mut max_w: u32 = 1;
         let mut max_h: u32 = 1;
@@ -10949,35 +11272,51 @@ impl VelloRenderer {
 
         let strip_w = max_w * frame_count as u32;
         let strip_h = max_h;
-        if strip_w > 8192 { return JsValue::NULL; }
+        if strip_w > 8192 {
+            return JsValue::NULL;
+        }
 
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("vello_zone_mask"),
-            size: wgpu::Extent3d { width: strip_w, height: strip_h, depth_or_array_layers: 1 },
-            mip_level_count: 1, sample_count: 1,
+            size: wgpu::Extent3d {
+                width: strip_w,
+                height: strip_h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,
             usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
         });
 
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("zone_mask_copy"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("zone_mask_copy"),
+            });
         let mut tmp_textures: Vec<wgpu::Texture> = Vec::with_capacity(frame_count);
 
         for i in 0..frame_count {
-            let acc_scenes = build_accessory_scenes(&self.assets, &acc_info, animation, i, resolution, asset);
+            let acc_scenes =
+                build_accessory_scenes(&self.assets, &acc_info, animation, i, resolution, asset);
             let acc_refs: Vec<&AccessoryScene> = acc_scenes.iter().collect();
-            let frame_scene = scene_builder::build_zone_mask_scene(asset, animation, i, resolution, &acc_refs);
+            let frame_scene =
+                scene_builder::build_zone_mask_scene(asset, animation, i, resolution, &acc_refs);
             let dims = self.get_frame_size(asset_id, animation, i as u32, resolution);
             let fw = dims[0].max(1);
             let fh = dims[1].max(1);
 
             let tmp = self.device.create_texture(&wgpu::TextureDescriptor {
                 label: None,
-                size: wgpu::Extent3d { width: fw, height: fh, depth_or_array_layers: 1 },
-                mip_level_count: 1, sample_count: 1,
+                size: wgpu::Extent3d {
+                    width: fw,
+                    height: fh,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
                 format: wgpu::TextureFormat::Rgba8Unorm,
                 usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC,
@@ -10986,11 +11325,16 @@ impl VelloRenderer {
             let tmp_view = tmp.create_view(&wgpu::TextureViewDescriptor::default());
             let params = vello::RenderParams {
                 base_color: Color::TRANSPARENT,
-                width: fw, height: fh,
+                width: fw,
+                height: fh,
                 antialiasing_method: AaConfig::Area,
             };
 
-            if self.renderer.render_to_texture(&self.device, &self.queue, &frame_scene, &tmp_view, &params).is_err() {
+            if self
+                .renderer
+                .render_to_texture(&self.device, &self.queue, &frame_scene, &tmp_view, &params)
+                .is_err()
+            {
                 continue;
             }
 
@@ -10998,15 +11342,26 @@ impl VelloRenderer {
             let copy_h = fh.min(max_h);
             encoder.copy_texture_to_texture(
                 wgpu::TexelCopyTextureInfo {
-                    texture: &tmp, mip_level: 0,
-                    origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All,
-                },
-                wgpu::TexelCopyTextureInfo {
-                    texture: &texture, mip_level: 0,
-                    origin: wgpu::Origin3d { x: i as u32 * max_w, y: 0, z: 0 },
+                    texture: &tmp,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
                     aspect: wgpu::TextureAspect::All,
                 },
-                wgpu::Extent3d { width: copy_w, height: copy_h, depth_or_array_layers: 1 },
+                wgpu::TexelCopyTextureInfo {
+                    texture: &texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d {
+                        x: i as u32 * max_w,
+                        y: 0,
+                        z: 0,
+                    },
+                    aspect: wgpu::TextureAspect::All,
+                },
+                wgpu::Extent3d {
+                    width: copy_w,
+                    height: copy_h,
+                    depth_or_array_layers: 1,
+                },
             );
             tmp_textures.push(tmp);
         }
@@ -11050,7 +11405,6 @@ impl VelloRenderer {
             tex.destroy();
         }
     }
-
 
     /// List animation names for an asset.
     #[wasm_bindgen(js_name = "getAnimationNames")]
@@ -11167,10 +11521,7 @@ impl VelloRenderer {
     /// cold session. The skip count is logged but not surfaced — the
     /// returned blob carries the encodable subset.
     #[wasm_bindgen(js_name = "serializeBodySubsceneCache")]
-    pub fn serialize_body_subscene_cache(
-        &self,
-        bundle_filter: Option<String>,
-    ) -> Option<Vec<u8>> {
+    pub fn serialize_body_subscene_cache(&self, bundle_filter: Option<String>) -> Option<Vec<u8>> {
         let entries: Vec<(scene_cache::SubsceneKey, vello::Scene)> = self
             .body_subscene_cache
             .iter()
@@ -11197,9 +11548,7 @@ impl VelloRenderer {
         let total = entries.len();
         let (bytes, skipped) = scene_cache::encode_body_stream(entries);
         if skipped > 0 {
-            let bundle_tag = bundle_filter
-                .as_deref()
-                .unwrap_or("(all)");
+            let bundle_tag = bundle_filter.as_deref().unwrap_or("(all)");
             console_log!(
                 "serializeBodySubsceneCache: bundle={bundle_tag} persisted={}/{total} \
                  skipped={skipped} (bitmap-fill subscenes)",
@@ -11253,10 +11602,7 @@ impl VelloRenderer {
     /// spawn never touches). Scenes are scale-baked, so the blob is
     /// per-resolution; the caller keys IDB rows by resolution.
     #[wasm_bindgen(js_name = "serializeBodySceneCache")]
-    pub fn serialize_body_scene_cache(
-        &self,
-        bundle_filter: Option<String>,
-    ) -> Option<Vec<u8>> {
+    pub fn serialize_body_scene_cache(&self, bundle_filter: Option<String>) -> Option<Vec<u8>> {
         let entries: Vec<(scene_cache::ComposedBodyKey, vello::Scene)> = self
             .body_scene_cache
             .iter()
@@ -11318,8 +11664,14 @@ impl VelloRenderer {
             if count < 6 {
                 console_log!(
                     "BSC-LOAD {}|{}|s{}|c{}|q{}|b{}|h{}|m{}",
-                    key.bundle, key.export, key.start, key.count, key.scale_q,
-                    key.apply_b_fix as u8, key.hat_equipped as u8, key.mode
+                    key.bundle,
+                    key.export,
+                    key.start,
+                    key.count,
+                    key.scale_q,
+                    key.apply_b_fix as u8,
+                    key.hat_equipped as u8,
+                    key.mode
                 );
             }
             self.body_scene_cache.insert(key, scene);
@@ -11351,10 +11703,7 @@ impl VelloRenderer {
     /// them from the SWF. Callers see `null` on encode error and
     /// gracefully fall back to fresh bakes — no correctness issue.
     #[wasm_bindgen(js_name = "serializeTileSubsceneCache")]
-    pub fn serialize_tile_subscene_cache(
-        &self,
-        bundle_filter: Option<String>,
-    ) -> Option<Vec<u8>> {
+    pub fn serialize_tile_subscene_cache(&self, bundle_filter: Option<String>) -> Option<Vec<u8>> {
         let entries: Vec<(scene_cache::TileSubsceneKey, vello::Scene)> = self
             .tile_subscenes
             .iter()
@@ -11380,9 +11729,7 @@ impl VelloRenderer {
         // bundles with bitmap fills.
         let (bytes, skipped) = scene_cache::encode_tile_stream(entries);
         if skipped > 0 {
-            console_log!(
-                "serializeTileSubsceneCache: skipped {skipped} tile(s) with bitmap fills"
-            );
+            console_log!("serializeTileSubsceneCache: skipped {skipped} tile(s) with bitmap fills");
         }
         if bytes.is_empty() { None } else { Some(bytes) }
     }
@@ -11410,10 +11757,7 @@ impl VelloRenderer {
     /// Count entries in `tile_subscenes`, optionally per-bundle. Same
     /// usage as the body variant.
     #[wasm_bindgen(js_name = "tileSubsceneCacheCountFor")]
-    pub fn tile_subscene_cache_count_for(
-        &self,
-        bundle_filter: Option<String>,
-    ) -> u32 {
+    pub fn tile_subscene_cache_count_for(&self, bundle_filter: Option<String>) -> u32 {
         match bundle_filter {
             Some(b) => self
                 .tile_subscenes
@@ -11444,9 +11788,7 @@ impl VelloRenderer {
         let total = entries.len();
         let (bytes, skipped) = scene_cache::encode_accessory_stream(entries);
         if skipped > 0 {
-            let bundle_tag = bundle_filter
-                .as_deref()
-                .unwrap_or("(all)");
+            let bundle_tag = bundle_filter.as_deref().unwrap_or("(all)");
             console_log!(
                 "serializeAccessorySubsceneCache: bundle={bundle_tag} persisted={}/{total} \
                  skipped={skipped} (bitmap-fill subscenes)",
@@ -11477,16 +11819,9 @@ impl VelloRenderer {
 
     /// Count entries in `acc_subscenes`, optionally per-bundle.
     #[wasm_bindgen(js_name = "accessorySubsceneCacheCountFor")]
-    pub fn accessory_subscene_cache_count_for(
-        &self,
-        bundle_filter: Option<String>,
-    ) -> u32 {
+    pub fn accessory_subscene_cache_count_for(&self, bundle_filter: Option<String>) -> u32 {
         match bundle_filter {
-            Some(b) => self
-                .acc_subscenes
-                .keys()
-                .filter(|k| k.bundle == b)
-                .count() as u32,
+            Some(b) => self.acc_subscenes.keys().filter(|k| k.bundle == b).count() as u32,
             None => self.acc_subscenes.len() as u32,
         }
     }
@@ -11517,11 +11852,7 @@ impl VelloRenderer {
         for rec in records {
             let obj = js_sys::Object::new();
             let _ = js_sys::Reflect::set(&obj, &"kind".into(), &JsValue::from_str(rec.kind));
-            let _ = js_sys::Reflect::set(
-                &obj,
-                &"bundle".into(),
-                &JsValue::from_str(&rec.bundle),
-            );
+            let _ = js_sys::Reflect::set(&obj, &"bundle".into(), &JsValue::from_str(&rec.bundle));
             let _ = js_sys::Reflect::set(
                 &obj,
                 &"sceneBuildMs".into(),
@@ -11532,11 +11863,7 @@ impl VelloRenderer {
                 &"gpuRenderMs".into(),
                 &JsValue::from(rec.gpu_render_ms),
             );
-            let _ = js_sys::Reflect::set(
-                &obj,
-                &"bridgeMs".into(),
-                &JsValue::from(rec.bridge_ms),
-            );
+            let _ = js_sys::Reflect::set(&obj, &"bridgeMs".into(), &JsValue::from(rec.bridge_ms));
             let _ = js_sys::Reflect::set(
                 &obj,
                 &"enumerateMs".into(),
@@ -11547,11 +11874,7 @@ impl VelloRenderer {
                 &"combineCopyMs".into(),
                 &JsValue::from(rec.combine_copy_ms),
             );
-            let _ = js_sys::Reflect::set(
-                &obj,
-                &"totalMs".into(),
-                &JsValue::from(rec.total_ms),
-            );
+            let _ = js_sys::Reflect::set(&obj, &"totalMs".into(), &JsValue::from(rec.total_ms));
             let _ = js_sys::Reflect::set(
                 &obj,
                 &"subsceneHits".into(),
@@ -11567,16 +11890,9 @@ impl VelloRenderer {
                 &"pixelArea".into(),
                 &JsValue::from(rec.pixel_area as f64),
             );
-            let _ = js_sys::Reflect::set(
-                &obj,
-                &"subCount".into(),
-                &JsValue::from(rec.sub_count),
-            );
-            let _ = js_sys::Reflect::set(
-                &obj,
-                &"tsRecorded".into(),
-                &JsValue::from(rec.ts_recorded),
-            );
+            let _ = js_sys::Reflect::set(&obj, &"subCount".into(), &JsValue::from(rec.sub_count));
+            let _ =
+                js_sys::Reflect::set(&obj, &"tsRecorded".into(), &JsValue::from(rec.ts_recorded));
             arr.push(&obj.into());
         }
         let _ = js_sys::Reflect::set(&out, &"records".into(), &arr.into());

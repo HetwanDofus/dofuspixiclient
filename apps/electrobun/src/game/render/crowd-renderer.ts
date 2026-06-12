@@ -77,6 +77,10 @@ interface CrowdVelloApi {
   } | null;
   realCrowdFree(): void;
   tickDeferredDestroys?(a: number, n: number): void;
+  /** Tier-7 slab path toggle (wc3 port). Optional: absent on older wasm builds. */
+  realCrowdSetSlab?(enabled: boolean): void;
+  /** Per-pass GPU timings of the last slab recording (gpu-timing builds only). */
+  slabGpuTiming?(): Record<string, unknown> | null;
 }
 
 interface SetupInfo {
@@ -128,10 +132,28 @@ export class CrowdRenderer {
   private setup: SetupInfo | null = null;
   private active = false;
   private lastRenderMs = 0;
+  private lastStats: Record<string, number> | null = null;
 
   constructor(parent: Container, resolution = 3) {
     this.parent = parent;
     this.resolution = Math.max(1, resolution);
+    // Dev console hooks for the Tier-7 slab path (wc3 port validation):
+    //   __crowdSlab(true)  → route the crowd through the slab renderer
+    //   __crowdSlabStats() → last per-frame stats + GPU pass timings
+    const g = globalThis as Record<string, unknown>;
+    g.__crowdSlab = (enabled: boolean) => {
+      const r = getVelloRenderer() as unknown as CrowdVelloApi | null;
+      r?.realCrowdSetSlab?.(enabled);
+      log.info(`slab mode ${enabled ? "ON" : "OFF"}`);
+    };
+    g.__crowdSlabStats = () => {
+      const r = getVelloRenderer() as unknown as CrowdVelloApi | null;
+      return {
+        lastRenderMs: this.lastRenderMs,
+        lastStats: this.lastStats,
+        gpu: r?.slabGpuTiming?.() ?? null,
+      };
+    };
   }
 
   isActive(): boolean {
@@ -371,7 +393,7 @@ export class CrowdRenderer {
     if (looks.length > 0) r.crowdUpdateLooks(looks);
 
     const t0 = performance.now();
-    r.realCrowdRenderBatched(BATCH_CAP, 0);
+    this.lastStats = r.realCrowdRenderBatched(BATCH_CAP, 0);
     this.lastRenderMs = performance.now() - t0;
 
     // The wgpu target was re-rendered in place: invalidate the Pixi source.

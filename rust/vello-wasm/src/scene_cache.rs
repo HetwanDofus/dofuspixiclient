@@ -185,7 +185,9 @@ impl std::fmt::Display for SceneCacheError {
             Self::UnsupportedPatchVariant(v) => {
                 write!(f, "scene cache: unsupported patch variant '{v}'")
             }
-            Self::GlyphsPresent => write!(f, "scene cache: glyphs/glyph_runs present (unsupported)"),
+            Self::GlyphsPresent => {
+                write!(f, "scene cache: glyphs/glyph_runs present (unsupported)")
+            }
             Self::UnknownColorSpaceTag(t) => {
                 write!(f, "scene cache: unknown ColorSpaceTag discriminant {t}")
             }
@@ -203,7 +205,9 @@ struct Writer {
 
 impl Writer {
     fn with_capacity(n: usize) -> Self {
-        Self { buf: Vec::with_capacity(n) }
+        Self {
+            buf: Vec::with_capacity(n),
+        }
     }
     fn finish(self) -> Vec<u8> {
         self.buf
@@ -377,7 +381,11 @@ fn read_color_stop(r: &mut Reader) -> Result<ColorStop, SceneCacheError> {
 
 fn write_patch(w: &mut Writer, p: &Patch) -> Result<(), SceneCacheError> {
     match p {
-        Patch::Ramp { draw_data_offset, stops, extend } => {
+        Patch::Ramp {
+            draw_data_offset,
+            stops,
+            extend,
+        } => {
             w.write_u8(0);
             w.write_u32(*draw_data_offset as u32);
             w.write_u32(stops.start as u32);
@@ -420,8 +428,7 @@ fn encode_scene(w: &mut Writer, scene: &vello::Scene) -> Result<(), SceneCacheEr
     w.write_u32(enc.n_open_clips);
     w.write_u32(enc.flags);
 
-    let path_tag_bytes: &[u8] =
-        bytemuck::cast_slice::<PathTag, u8>(enc.path_tags.as_slice());
+    let path_tag_bytes: &[u8] = bytemuck::cast_slice::<PathTag, u8>(enc.path_tags.as_slice());
     w.write_u32(path_tag_bytes.len() as u32);
     w.write_bytes(path_tag_bytes);
 
@@ -429,8 +436,7 @@ fn encode_scene(w: &mut Writer, scene: &vello::Scene) -> Result<(), SceneCacheEr
     w.write_u32(path_data_bytes.len() as u32);
     w.write_bytes(path_data_bytes);
 
-    let draw_tag_bytes: &[u8] =
-        bytemuck::cast_slice::<DrawTag, u8>(enc.draw_tags.as_slice());
+    let draw_tag_bytes: &[u8] = bytemuck::cast_slice::<DrawTag, u8>(enc.draw_tags.as_slice());
     w.write_u32(draw_tag_bytes.len() as u32);
     w.write_bytes(draw_tag_bytes);
 
@@ -455,8 +461,7 @@ fn encode_scene(w: &mut Writer, scene: &vello::Scene) -> Result<(), SceneCacheEr
     for p in &res.patches {
         write_patch(w, p)?;
     }
-    if !res.glyphs.is_empty() || !res.glyph_runs.is_empty() || !res.normalized_coords.is_empty()
-    {
+    if !res.glyphs.is_empty() || !res.glyph_runs.is_empty() || !res.normalized_coords.is_empty() {
         return Err(SceneCacheError::GlyphsPresent);
     }
     w.write_u32(0);
@@ -482,13 +487,13 @@ fn encode_scene(w: &mut Writer, scene: &vello::Scene) -> Result<(), SceneCacheEr
 /// bytes into it. `T: bytemuck::Pod` guarantees every bit pattern is
 /// valid for `T`, so the copy is sound regardless of how the bytes
 /// were originally laid out.
-fn unaligned_cast<T: bytemuck::Pod>(
-    bytes: &[u8],
-) -> Result<Vec<T>, SceneCacheError> {
+fn unaligned_cast<T: bytemuck::Pod>(bytes: &[u8]) -> Result<Vec<T>, SceneCacheError> {
     let elem_size = std::mem::size_of::<T>();
     if elem_size == 0 {
         // ZSTs would loop forever in capacity math; reject defensively.
-        return Err(SceneCacheError::Truncated("unaligned_cast: ZST not supported"));
+        return Err(SceneCacheError::Truncated(
+            "unaligned_cast: ZST not supported",
+        ));
     }
     if bytes.len() % elem_size != 0 {
         return Err(SceneCacheError::Truncated(
@@ -508,10 +513,8 @@ fn unaligned_cast<T: bytemuck::Pod>(
     //     can be interpreted as `T` values without further validation.
     unsafe {
         out.set_len(count);
-        let dst: &mut [u8] = std::slice::from_raw_parts_mut(
-            out.as_mut_ptr().cast::<u8>(),
-            bytes.len(),
-        );
+        let dst: &mut [u8] =
+            std::slice::from_raw_parts_mut(out.as_mut_ptr().cast::<u8>(), bytes.len());
         dst.copy_from_slice(bytes);
     }
     Ok(out)

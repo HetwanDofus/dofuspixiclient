@@ -1,0 +1,596 @@
+//! Tier-7 slab crowd render, ported from dofuswebclient3
+//! (`actor_batch/world_compose_slab.rs` + `engine/render/plugin/render.rs`).
+//! Every unique look is interned ONCE into the renderer-owned SubLibrary;
+//! per-frame cost is a descriptor-table rebuild, narrow GPU writes and a
+//! single recording replay into the crowd target — no per-actor re-encode,
+//! no batch textures, no composite pass.
+
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use vello::kurbo::Affine;
+use vello::wgpu;
+use vello::{Renderer, ReuseToken, Scene, SubHandle};
+use vello_encoding::{
+    Encoding, SlabBlockGpu, SlabSlotAux, SlabSlotDesc, SlabStreamTotals, Transform,
+    begin_slab_block, slab_block_set_slot, slab_block_set_stream_totals,
+};
+
+/// Whole-crowd slot capacity. wc3 uses 8192 per band with ~9 emits per
+/// actor (segments + accessories); here each emit is one pre-composed
+/// look, so 500 actors occupy 500 slots. Emits past the cap are dropped
+/// with overflow accounting.
+const CROWD_SLOT_COUNT: u32 = 8192;
+
+/// Token namespace keeping slab tokens disjoint from the batch paths'
+/// small-integer `ReuseToken(b)` mints on the same renderer.
+const SLAB_TOKEN_BASE: u64 = 0x51AB_0000_0000_0000;
+
+/// Frames the live totals must stay below half the pinned reservation
+/// before the high-water decays back to the live values (~10 s @60fps).
+const DECAY_FRAMES: u64 = 600;
+
+/// Minimum over-reservation (u32 words across all streams) worth a
+/// decay; below this the forced `reuse_full` costs more than the
+/// memory/zero-upload it reclaims.
+const DECAY_MIN_WASTE_WORDS: u64 = 64 * 1024;
+
+/// Grow-only envelope over the slab's per-stream word totals and slot
+/// count (port of wc3 `SlabBandHighWater`). Pinning the gap reservations
+/// at the envelope keeps `resolve_slabbed`'s packed length and every
+/// region offset byte-identical while actors animate, so the fast path's
+/// fingerprint compare hits every frame; growth past the envelope changes
+/// `packed.len()` and routes through `reuse_full` naturally.
+///
+/// `draw_info_words` is deliberately NOT pinned: it only feeds
+/// `Layout::bin_data_start`, and the replayed recording is rebuilt fresh
+/// each frame, so the exact per-frame value is both safe and tighter.
+#[derive(Default, Clone, Copy)]
+struct SlabHighWater {
+    totals: SlabStreamTotals,
+    slot_count: u32,
+    below_since: Option<u64>,
+}
+
+impl SlabHighWater {
+    fn observe(
+        &mut self,
+        live: SlabStreamTotals,
+        live_slots: u32,
+        frame: u64,
+    ) -> (SlabStreamTotals, u32) {
+        if self.decay_due(live, live_slots, frame) {
+            self.totals = live;
+            self.slot_count = live_slots;
+            self.below_since = None;
+        } else {
+            self.totals.path_tags_words = self.totals.path_tags_words.max(live.path_tags_words);
+            self.totals.path_data_words = self.totals.path_data_words.max(live.path_data_words);
+            self.totals.draw_tags_words = self.totals.draw_tags_words.max(live.draw_tags_words);
+            self.totals.draw_data_words = self.totals.draw_data_words.max(live.draw_data_words);
+            self.totals.transforms_words = self.totals.transforms_words.max(live.transforms_words);
+            self.totals.styles_words = self.totals.styles_words.max(live.styles_words);
+            self.slot_count = self.slot_count.max(live_slots);
+        }
+        let mut pinned = self.totals;
+        pinned.draw_info_words = live.draw_info_words;
+        (pinned, self.slot_count)
+    }
+
+    fn decay_due(&mut self, live: SlabStreamTotals, live_slots: u32, frame: u64) -> bool {
+        let below = live_slots <= self.slot_count / 2
+            && live.path_tags_words <= self.totals.path_tags_words / 2
+            && live.path_data_words <= self.totals.path_data_words / 2
+            && live.draw_tags_words <= self.totals.draw_tags_words / 2
+            && live.draw_data_words <= self.totals.draw_data_words / 2
+            && live.transforms_words <= self.totals.transforms_words / 2
+            && live.styles_words <= self.totals.styles_words / 2
+            && waste_words(&self.totals, &live) > DECAY_MIN_WASTE_WORDS;
+        if !below {
+            self.below_since = None;
+            return false;
+        }
+        let since = *self.below_since.get_or_insert(frame);
+        frame.wrapping_sub(since) >= DECAY_FRAMES
+    }
+}
+
+fn waste_words(pinned: &SlabStreamTotals, live: &SlabStreamTotals) -> u64 {
+    let sum = |t: &SlabStreamTotals| {
+        u64::from(t.path_tags_words)
+            + u64::from(t.path_data_words)
+            + u64::from(t.draw_tags_words)
+            + u64::from(t.draw_data_words)
+            + u64::from(t.transforms_words)
+            + u64::from(t.styles_words)
+    };
+    sum(pinned).saturating_sub(sum(live))
+}
+
+/// One actor look in paint order: the interned-identity encoding plus
+/// its world placement for this frame.
+pub(crate) struct SlabEmit {
+    pub enc: Arc<Encoding>,
+    pub world: Affine,
+}
+
+#[derive(Default, Clone, Copy)]
+pub(crate) struct SlabFrameStats {
+    pub slots_used: u32,
+    pub overflow: u32,
+    pub fast: bool,
+    pub resolve_ms: f64,
+    /// Full path: `prepare_reuse` upload. Fast path: narrow writes.
+    pub upload_ms: f64,
+    pub replay_ms: f64,
+    pub packed_kb: f64,
+}
+
+/// Fingerprints of the retained GPU-resident scene buffer. A mismatch on
+/// any field means the narrow writes would target stale bytes — fall back
+/// to a full `prepare_reuse`.
+struct RetainedSlab {
+    token: ReuseToken,
+    packed_len: usize,
+    transform_len: u64,
+    descriptor_slab_base: u32,
+    descriptor_slab_size: u32,
+    n_slab_blocks: u32,
+    /// Per-block `(path_tags, draw_tags)` live word totals of the LAST
+    /// rendered frame — the tag-tail zeroing reference.
+    prev_live: Vec<(u32, u32)>,
+}
+
+#[derive(Default)]
+pub(crate) struct SlabCrowdState {
+    enc_by_look: HashMap<String, Arc<Encoding>>,
+    high_water: SlabHighWater,
+    retained: Option<RetainedSlab>,
+    frame: u64,
+    token_seq: u64,
+    pub(crate) last: SlabFrameStats,
+}
+
+impl SlabCrowdState {
+    /// One stable `Arc<Encoding>` per look key — the SubLibrary intern
+    /// cache keys on Arc identity, so a fresh Arc every frame would
+    /// re-intern every frame and grow the library without bound. Keyed by
+    /// the look-cache string key (stable for the cache lifetime) instead
+    /// of wc3's scene-pointer map: `look_cache` stores scenes by value
+    /// here, and the string key dodges the ABA pointer hazard outright.
+    pub(crate) fn encoding_for(&mut self, key: &str, scene: &Scene) -> Arc<Encoding> {
+        if let Some(enc) = self.enc_by_look.get(key) {
+            return enc.clone();
+        }
+        let enc = Arc::new(scene.encoding().clone());
+        self.enc_by_look.insert(key.to_owned(), enc.clone());
+        enc
+    }
+
+    /// Drop all retained slab state: frees the resident scene buffer,
+    /// resets the SubLibrary + pinned ramp/atlas caches, and forgets the
+    /// envelope so the next frame re-pins from live sizes. Call on crowd
+    /// (re)setup and on slab-mode toggle — the pinned caches are
+    /// append-only within a crowd lifetime (wc3 resets per MapEpoch for
+    /// the same reason).
+    pub(crate) fn reset(&mut self, renderer: &mut Renderer) {
+        if let Some(r) = self.retained.take() {
+            renderer.free_reused(r.token);
+        }
+        renderer.reset_slab_interns();
+        self.enc_by_look.clear();
+        self.high_water = SlabHighWater::default();
+        self.frame = 0;
+    }
+}
+
+struct SlotEmit {
+    handle: SubHandle,
+    world: Affine,
+    n_paths: u32,
+    n_path_segments: u32,
+    n_clips: u32,
+}
+
+/// Build the whole-crowd slab scene. `emits` must already be in paint
+/// order (back-to-front Y sort): the GPU expander tight-packs geometry by
+/// slot index, so slot order IS paint order. Returns the scene plus
+/// `(slots_used, overflow)`.
+pub(crate) fn build_crowd_slab_scene(
+    renderer: &mut Renderer,
+    queue: &wgpu::Queue,
+    state: &mut SlabCrowdState,
+    emits: &[SlabEmit],
+) -> (Scene, u32, u32) {
+    state.frame += 1;
+    renderer.sub_library_frame_step();
+    let mut scene = Scene::new();
+    let mut used = 0u32;
+    let mut overflow = 0u32;
+
+    // Pass 1: assign slots in emit order + intern subs. An emit whose
+    // intern fails still occupies its slot as a sentinel so later emits
+    // keep their layering position.
+    let mut slots: Vec<Option<SlotEmit>> = Vec::with_capacity(emits.len());
+    for emit in emits {
+        if slots.len() >= CROWD_SLOT_COUNT as usize {
+            overflow += 1;
+            continue;
+        }
+        let handle = renderer.intern_sub(queue, &emit.enc, &[]);
+        if handle.offset == 0 && (!emit.enc.path_tags.is_empty() || !emit.enc.path_data.is_empty())
+        {
+            overflow += 1;
+            slots.push(None);
+            continue;
+        }
+        slots.push(Some(SlotEmit {
+            handle,
+            world: emit.world,
+            n_paths: emit.enc.n_paths,
+            n_path_segments: emit.enc.n_path_segments,
+            n_clips: emit.enc.n_clips,
+        }));
+    }
+    let live_slot_count = u32::try_from(slots.len())
+        .unwrap_or(0)
+        .clamp(1, CROWD_SLOT_COUNT);
+
+    // Live totals walk over surviving slots only — counting failed
+    // interns would inflate `n_paths`/`n_draw_objects` and make the GPU
+    // read words past the real draw-tag gap as tags.
+    let mut live = SlabStreamTotals::default();
+    let mut n_paths: u32 = 0;
+    let mut n_path_segments: u32 = 0;
+    let mut n_clips: u32 = 0;
+    for slot_emit in slots.iter().filter_map(|s| s.as_ref()) {
+        let h = &slot_emit.handle;
+        live.path_tags_words = live.path_tags_words.saturating_add(h.path_tags_words);
+        live.path_data_words = live.path_data_words.saturating_add(h.path_data_words);
+        live.draw_tags_words = live.draw_tags_words.saturating_add(h.draw_tags_words);
+        live.draw_data_words = live.draw_data_words.saturating_add(h.draw_data_words);
+        live.transforms_words = live.transforms_words.saturating_add(h.transforms_words);
+        live.styles_words = live.styles_words.saturating_add(h.styles_words);
+        live.draw_info_words = live.draw_info_words.saturating_add(h.draw_info_words);
+        n_paths = n_paths.saturating_add(slot_emit.n_paths);
+        n_path_segments = n_path_segments.saturating_add(slot_emit.n_path_segments);
+        n_clips = n_clips.saturating_add(slot_emit.n_clips);
+    }
+    {
+        let enc = scene.encoding_mut();
+        enc.n_paths = enc.n_paths.saturating_add(n_paths);
+        enc.n_path_segments = enc.n_path_segments.saturating_add(n_path_segments);
+        enc.n_clips = enc.n_clips.saturating_add(n_clips);
+    }
+
+    // Reserve the block at the grow-only high-water envelope, not the
+    // live size: a constant slot count + constant per-stream gap keeps
+    // the packed byte layout identical while actors animate.
+    let (pinned_totals, pinned_slot_count) =
+        state.high_water.observe(live, live_slot_count, state.frame);
+    let block_idx = begin_slab_block(scene.encoding_mut(), pinned_slot_count);
+    let transforms_base = scene.encoding().instance_slab_blocks[block_idx].transforms_base;
+
+    // Pass 2: walk live slots in order, compute per-stream prefix sums
+    // for the tight-pack layout, write each slot's descriptor / aux /
+    // world transform. Empty (sentinel) slots contribute nothing.
+    let mut pt_running: u32 = 0;
+    let mut pd_running: u32 = 0;
+    let mut dt_running: u32 = 0;
+    let mut dd_running: u32 = 0;
+    let mut st_running: u32 = 0;
+    let mut xf_running: u32 = 0;
+    for (slot_idx, slot) in slots.iter().enumerate() {
+        let Some(slot_emit) = slot.as_ref() else {
+            continue;
+        };
+        let handle = &slot_emit.handle;
+        let slot = slot_idx as u32;
+        let desc = SlabSlotDesc {
+            sub_offset: handle.offset,
+            transform_idx: transforms_base + slot,
+            // Looks arrive with player colors already baked into the
+            // encoding (wc2 bakes at look-cache fill), so no per-slot
+            // zone overlay is needed yet.
+            color_overlay_idx: u32::MAX,
+            path_tags_words: handle.path_tags_words,
+            path_data_words: handle.path_data_words,
+        };
+        let aux = SlabSlotAux {
+            draw_tags_words: handle.draw_tags_words,
+            draw_data_words: handle.draw_data_words,
+            transforms_words: handle.transforms_words,
+            styles_words: handle.styles_words,
+            zone_patches_offset: handle.zone_patches_offset,
+            zone_patches_count: handle.zone_patches_count,
+            path_tags_dst_words: pt_running,
+            path_data_dst_words: pd_running,
+            draw_tags_dst_words: dt_running,
+            draw_data_dst_words: dd_running,
+            styles_dst_words: st_running,
+            transforms_dst_words: xf_running,
+        };
+        slab_block_set_slot(
+            scene.encoding_mut(),
+            block_idx,
+            slot,
+            desc,
+            aux,
+            Transform::from_kurbo(&slot_emit.world),
+            None,
+        );
+        pt_running = pt_running.saturating_add(handle.path_tags_words);
+        pd_running = pd_running.saturating_add(handle.path_data_words);
+        dt_running = dt_running.saturating_add(handle.draw_tags_words);
+        dd_running = dd_running.saturating_add(handle.draw_data_words);
+        st_running = st_running.saturating_add(handle.styles_words);
+        xf_running = xf_running.saturating_add(handle.transforms_words);
+        used += 1;
+    }
+    slab_block_set_stream_totals(scene.encoding_mut(), block_idx, pinned_totals);
+    {
+        // The expander rewrites `[0, live)` of each gap every frame; the
+        // render side zeroes the pinned gap's `[live, prev_live)` tail
+        // for the two tag streams (stale tags mint phantom paths / draw
+        // objects). Stash the live totals it needs.
+        let block = &mut scene.encoding_mut().instance_slab_blocks[block_idx];
+        block.live_path_tags_words = live.path_tags_words;
+        block.live_draw_tags_words = live.draw_tags_words;
+    }
+    state.last = SlabFrameStats {
+        slots_used: used,
+        overflow,
+        ..Default::default()
+    };
+    (scene, used, overflow)
+}
+
+/// Resolve + render the slab scene with reuse: fast path narrow-writes
+/// only the descriptor/aux/transform/overlay regions and replays the
+/// retained recording; any fingerprint miss re-prepares the resident
+/// buffer in full. Port of wc3 `render_with_reuse` for a single
+/// whole-crowd "band".
+pub(crate) fn render_crowd_slab(
+    renderer: &mut Renderer,
+    state: &mut SlabCrowdState,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    scene: &Scene,
+    params: &vello::RenderParams,
+    texture: &wgpu::TextureView,
+) -> Result<(), vello::Error> {
+    let t_resolve = web_time::Instant::now();
+    let resolved = renderer.resolve_scene_reuse(scene, params);
+    state.last.resolve_ms = t_resolve.elapsed().as_secs_f64() * 1000.0;
+    state.last.packed_kb = resolved.packed.len() as f64 / 1024.0;
+
+    if resolved.layout.n_paths == 0 && resolved.layout.n_slab_blocks == 0 {
+        // Empty crowd: the caller hides the crowd sprite; the stale
+        // texture content is never sampled, so skip the pipeline.
+        if let Some(r) = state.retained.take() {
+            renderer.free_reused(r.token);
+        }
+        return Ok(());
+    }
+
+    if let Some(r) = state.retained.take() {
+        let layout_matches = r.packed_len == resolved.packed.len()
+            && r.transform_len == resolved.transform_len()
+            && r.descriptor_slab_base == resolved.layout.descriptor_slab_base
+            && r.descriptor_slab_size == resolved.layout.descriptor_slab_size
+            && r.n_slab_blocks == resolved.layout.n_slab_blocks
+            && renderer.reuse_structure_matches(r.token, &resolved);
+        if layout_matches {
+            let t_upload = web_time::Instant::now();
+            run_fast_writes(renderer, queue, &resolved, r.token, &r.prev_live, scene);
+            state.last.upload_ms = t_upload.elapsed().as_secs_f64() * 1000.0;
+            let t_replay = web_time::Instant::now();
+            let result = renderer.reuse_replay(
+                device,
+                queue,
+                r.token,
+                &resolved.recording,
+                resolved.scene_buf,
+                resolved.out_image,
+                texture,
+                resolved.sub_library_proxy,
+                resolved.slab_image_proxies,
+            );
+            state.last.replay_ms = t_replay.elapsed().as_secs_f64() * 1000.0;
+            state.last.fast = true;
+            state.retained = Some(RetainedSlab {
+                prev_live: slab_live_words(scene),
+                ..r
+            });
+            return result;
+        }
+        renderer.free_reused(r.token);
+    }
+
+    state.token_seq += 1;
+    let token = ReuseToken(SLAB_TOKEN_BASE | state.token_seq);
+    let t_prepare = web_time::Instant::now();
+    renderer.prepare_reuse(device, queue, token, &resolved);
+    state.last.upload_ms = t_prepare.elapsed().as_secs_f64() * 1000.0;
+    let t_replay = web_time::Instant::now();
+    let result = renderer.reuse_replay(
+        device,
+        queue,
+        token,
+        &resolved.recording,
+        resolved.scene_buf,
+        resolved.out_image,
+        texture,
+        resolved.sub_library_proxy,
+        resolved.slab_image_proxies,
+    );
+    state.last.replay_ms = t_replay.elapsed().as_secs_f64() * 1000.0;
+    state.last.fast = false;
+    if result.is_ok() {
+        state.retained = Some(RetainedSlab {
+            token,
+            packed_len: resolved.packed.len(),
+            transform_len: resolved.transform_len(),
+            descriptor_slab_base: resolved.layout.descriptor_slab_base,
+            descriptor_slab_size: resolved.layout.descriptor_slab_size,
+            n_slab_blocks: resolved.layout.n_slab_blocks,
+            prev_live: slab_live_words(scene),
+        });
+    }
+    result
+}
+
+/// Per-block `(path_tags, draw_tags)` LIVE word totals stamped by the
+/// compose, in block order.
+fn slab_live_words(scene: &Scene) -> Vec<(u32, u32)> {
+    scene
+        .encoding()
+        .instance_slab_blocks
+        .iter()
+        .map(|b| (b.live_path_tags_words, b.live_draw_tags_words))
+        .collect()
+}
+
+/// Fast-path narrow writes: the descriptor slab + aux slab + per-slot
+/// transforms + overlays cover every byte the GPU pre-pass and shaders
+/// read across frames; everything else is resident. Descriptor/aux
+/// bases+sizes are u32 WORDS, xform/overlay bases+sizes are BYTES —
+/// don't confuse the two (a 4x drift silently clobbers neighbors).
+fn run_fast_writes(
+    renderer: &mut Renderer,
+    queue: &wgpu::Queue,
+    resolved: &vello::ResolvedReuse,
+    token: ReuseToken,
+    prev_live: &[(u32, u32)],
+    scene: &Scene,
+) {
+    let layout = &resolved.layout;
+    if layout.n_slab_blocks == 0 {
+        if !resolved.packed.is_empty() {
+            renderer.reuse_write(queue, token, 0, &resolved.packed);
+        }
+        return;
+    }
+    if layout.descriptor_slab_size > 0 {
+        let base = layout.descriptor_slab_base as usize * 4;
+        let size = layout.descriptor_slab_size as usize * 4;
+        renderer.reuse_write(
+            queue,
+            token,
+            base as u64,
+            &resolved.packed[base..base + size],
+        );
+    }
+    if layout.aux_slab_size > 0 {
+        let base = layout.aux_slab_base as usize * 4;
+        let size = layout.aux_slab_size as usize * 4;
+        renderer.reuse_write(
+            queue,
+            token,
+            base as u64,
+            &resolved.packed[base..base + size],
+        );
+    }
+    if layout.instance_xform_size > 0 {
+        let base = layout.instance_xform_base as usize;
+        let size = layout.instance_xform_size as usize;
+        renderer.reuse_write(
+            queue,
+            token,
+            base as u64,
+            &resolved.packed[base..base + size],
+        );
+    }
+    if layout.instance_overlay_size > 0 {
+        let base = layout.instance_overlay_base as usize;
+        let size = layout.instance_overlay_size as usize;
+        renderer.reuse_write(
+            queue,
+            token,
+            base as u64,
+            &resolved.packed[base..base + size],
+        );
+    }
+    // The gap reservations are pinned at the high-water envelope while
+    // the GPU expander only rewrites `[0, live)` of each tag stream's
+    // gap. When a block's live total shrinks, `[live_now, live_prev)`
+    // still holds last frame's tag bytes — zero the delta. Only the two
+    // TAG streams need this: the other streams are reached solely
+    // through tag-derived cursors.
+    let sbb = layout.slab_blocks_base as usize * 4;
+    let sbe = sbb + layout.n_slab_blocks as usize * std::mem::size_of::<SlabBlockGpu>();
+    let blocks_gpu: &[SlabBlockGpu] = bytemuck::cast_slice(&resolved.packed[sbb..sbe]);
+    for (i, block) in scene.encoding().instance_slab_blocks.iter().enumerate() {
+        let (prev_pt, prev_dt) = prev_live.get(i).copied().unwrap_or((0, 0));
+        let Some(gpu) = blocks_gpu.get(i) else {
+            continue;
+        };
+        for (gap_offset, live, prev) in [
+            (
+                gpu.gap_path_tags_offset,
+                block.live_path_tags_words,
+                prev_pt,
+            ),
+            (
+                gpu.gap_draw_tags_offset,
+                block.live_draw_tags_words,
+                prev_dt,
+            ),
+        ] {
+            if live < prev {
+                let zeros = vec![0u8; (prev - live) as usize * 4];
+                renderer.reuse_write(
+                    queue,
+                    token,
+                    (gap_offset as u64 + u64::from(live)) * 4,
+                    &zeros,
+                );
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn totals(scale: u32) -> SlabStreamTotals {
+        SlabStreamTotals {
+            path_tags_words: 10 * scale,
+            path_data_words: 100_000 * scale,
+            draw_tags_words: 20 * scale,
+            draw_data_words: 30 * scale,
+            transforms_words: 60 * scale,
+            styles_words: 4 * scale,
+            draw_info_words: 20 * scale,
+        }
+    }
+
+    #[test]
+    fn envelope_grows_and_pins() {
+        let mut hw = SlabHighWater::default();
+        let (p1, s1) = hw.observe(totals(2), 8, 0);
+        assert_eq!(p1.path_data_words, 200_000);
+        assert_eq!(s1, 8);
+        let (p2, s2) = hw.observe(totals(1), 5, 1);
+        assert_eq!(p2.path_data_words, 200_000);
+        assert_eq!(s2, 8);
+        assert_eq!(p2.draw_info_words, 20);
+        let (p3, s3) = hw.observe(totals(3), 9, 2);
+        assert_eq!(p3.path_data_words, 300_000);
+        assert_eq!(s3, 9);
+    }
+
+    #[test]
+    fn decay_requires_sustained_undershoot() {
+        let mut hw = SlabHighWater::default();
+        let _ = hw.observe(totals(4), 16, 0);
+        for f in 1..=DECAY_FRAMES {
+            let (p, _) = hw.observe(totals(1), 4, f);
+            assert_eq!(p.path_data_words, 400_000);
+        }
+        let (p, s) = hw.observe(totals(1), 4, DECAY_FRAMES + 1);
+        assert_eq!(p.path_data_words, 100_000);
+        assert_eq!(s, 4);
+    }
+}
