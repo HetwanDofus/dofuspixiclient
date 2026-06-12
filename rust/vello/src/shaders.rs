@@ -39,6 +39,26 @@ pub struct FullShaders {
     pub fine_area: Option<ShaderId>,
     pub fine_msaa8: Option<ShaderId>,
     pub fine_msaa16: Option<ShaderId>,
+    /// DOFUS Tier 6: GPU instance expansion pre-pass. Registered but
+    /// not dispatched by default — the existing CPU
+    /// `Encoding::expand_instanced_to_flat` shim still produces the flat
+    /// scene the rest of the pipeline consumes. Dispatching this kernel
+    /// from `render_encoding_coarse` requires (a) packing each unique
+    /// sub-encoding's bytes into a sub-library region of the scene
+    /// buffer with `sub_*_offset` populated in the descriptor table, and
+    /// (b) switching the resolver to leave the per-instance splice
+    /// regions zero-filled so the kernel can write into them. The
+    /// shader source + bindings are in tree so that wiring is a
+    /// pipeline change, not a from-scratch shader write.
+    pub instance_expand: ShaderId,
+    /// DOFUS Tier 7: slabbed GPU instance expansion pre-pass.
+    /// Reads `Layout::slab_blocks_base` + `descriptor_slab_*` +
+    /// `aux_slab_*` and fills the per-stream gaps the slabbed resolve
+    /// path reserves. Bound to the SubLibrary buffer at run time via
+    /// [`crate::Renderer::set_sub_library_buffer`]; the dispatch is
+    /// gated on `layout.n_slab_blocks > 0` in `render.rs` and is
+    /// silently skipped when the renderer has no sub-library bound.
+    pub instance_expand_slab: ShaderId,
     // 2-level dispatch works for CPU pathtag scan even for large
     // inputs, 3-level is not yet implemented.
     pub pathtag_is_cpu: bool,
@@ -99,6 +119,18 @@ pub(crate) fn full_shaders(
         };
     }
 
+    // DOFUS Tier 6: GPU instance expansion pre-pass. Registered ahead
+    // of pathtag_reduce so a future dispatch lands at the right slot
+    // (would run BEFORE the path-tag stream is consumed).
+    let instance_expand = add_shader!(instance_expand, [Uniform, Buffer], CpuShaderType::Missing);
+    // DOFUS Tier 7: slabbed companion. Same scene binding strategy as
+    // `instance_expand` plus a read-only third binding for the GPU
+    // sub-library buffer the slot descriptors `sub_offset` into.
+    let instance_expand_slab = add_shader!(
+        instance_expand_slab,
+        [Uniform, Buffer, BufReadOnly],
+        CpuShaderType::Missing
+    );
     let pathtag_reduce = add_shader!(pathtag_reduce, [Uniform, BufReadOnly, Buffer]);
     let pathtag_reduce2 = add_shader!(
         pathtag_reduce2,
@@ -269,6 +301,8 @@ pub(crate) fn full_shaders(
         fine_area,
         fine_msaa8,
         fine_msaa16,
+        instance_expand,
+        instance_expand_slab,
         pathtag_is_cpu: options.use_cpu,
     })
 }

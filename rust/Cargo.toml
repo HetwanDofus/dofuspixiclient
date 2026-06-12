@@ -14,6 +14,11 @@ vello = { path = "vello" }
 # halves the per-frame crowd batch/submit count. See the DOFUS PATCH note in
 # vello_encoding/src/config.rs.
 vello_encoding = { path = "vello_encoding" }
+# Vendored for the DOFUS Tier-7 slab pre-pass shaders (instance_expand,
+# instance_expand_slab) plus the supporting edits in coarse/draw_leaf/fine/
+# flatten and shared/{config,pathtag}.wgsl. Ported from the wc3 0.7 fork;
+# upstream 0.7→0.8 WGSL churn was zero. See VENDORED_FROM.md.
+vello_shaders = { path = "vello_shaders" }
 
 [profile.release]
 # Opt-8: speed-optimised, not size-optimised. The scene-encoding hot

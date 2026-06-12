@@ -12,6 +12,9 @@ use crate::glyph_cache::GlyphCache;
 use crate::image_cache::{ImageCache, Images};
 use crate::ramp_cache::{RampCache, Ramps};
 
+use crate::resolve_slabbed;
+pub use crate::resolve_slabbed::SlabBlockGpu;
+
 /// Layout of a packed encoding.
 #[derive(Clone, Copy, Debug, Default, Zeroable, Pod)]
 #[repr(C)]
@@ -36,6 +39,68 @@ pub struct Layout {
     pub transform_base: u32,
     /// Start of style stream.
     pub style_base: u32,
+    /// DOFUS Tier 6: start of instance_transforms region in the packed
+    /// scene buffer (in u32 units). Each entry is one `Transform` (6 f32s
+    /// = 6 u32s). Zero when the encoding had no instanced blocks.
+    pub instance_transforms_base: u32,
+    /// Number of `Transform` entries in the instance_transforms region.
+    pub n_instance_transforms: u32,
+    /// Start of instance_color_overlays region (in u32 units). Each entry
+    /// is one packed RGBA8 (1 u32); zones are stored 3 per instance,
+    /// contiguous per block. Zero when no per-instance overlays.
+    pub instance_color_overlays_base: u32,
+    /// Number of u32 entries in the instance_color_overlays region (= 3
+    /// per instance carrying an overlay).
+    pub n_instance_color_overlays: u32,
+    /// Start of the `instance_blocks` GPU descriptor table (in u32
+    /// units). Used by the `instance_expand` GPU pre-pass to look up
+    /// per-block metadata (count, sub byte offsets, splice positions).
+    /// Zero when the encoding had no instanced blocks.
+    pub instance_blocks_base: u32,
+    /// Number of `InstanceBlockGpu` records starting at
+    /// `instance_blocks_base`.
+    pub n_instance_blocks: u32,
+    /// DOFUS Tier 7: descriptor slab region (in u32 units). Holds the
+    /// concatenated `SlabSlotDesc` arrays across every
+    /// `SlabbedInstanceBlock`. `descriptor_slab_size` counts u32 words.
+    /// Zero when the encoding has no slabbed blocks.
+    pub descriptor_slab_base: u32,
+    pub descriptor_slab_size: u32,
+    /// DOFUS Tier 7: aux slab region (parallel to `descriptor_slab_*`).
+    /// Holds concatenated `SlabSlotAux` arrays, one entry per slot per
+    /// block.
+    pub aux_slab_base: u32,
+    pub aux_slab_size: u32,
+    /// DOFUS Tier 7: per-slab-block GPU descriptor table. One
+    /// `SlabBlockGpu` per slabbed block (mirror of the marker-emit
+    /// path's `instance_blocks_base` table). Zero when no slabbed
+    /// blocks.
+    pub slab_blocks_base: u32,
+    pub n_slab_blocks: u32,
+    /// DOFUS Tier 7: narrow-write byte spans the client rewrites every
+    /// frame on the slabbed path. `instance_xform_*` covers the
+    /// transforms region; `instance_overlay_*` covers the overlay
+    /// region. Sizes are in BYTES (not words) so the client can hand
+    /// them straight to `Queue::write_buffer` without conversion. The
+    /// existing word-offset fields above stay authoritative for shader
+    /// reads.
+    pub instance_xform_base: u32,
+    pub instance_xform_size: u32,
+    pub instance_overlay_base: u32,
+    pub instance_overlay_size: u32,
+    /// DOFUS Tier 7: total slot count summed across every slabbed
+    /// block — the host dispatches this many workgroups (1 slot per
+    /// workgroup) for `instance_expand_slab` so the kernel can map
+    /// `workgroup_id.x` straight onto its (block, slot) target without
+    /// re-walking the block table. Zero when no slabbed blocks.
+    pub n_slab_total_slots: u32,
+    /// DOFUS Tier 7: base (u32 words) of the precomputed slot→block LUT in
+    /// the packed scene buffer — two u32 per slot, `[block_idx,
+    /// slot_in_block]`. Lets `instance_expand_slab` map a workgroup's global
+    /// slot to its `(block, slot)` in O(1) instead of the per-workgroup
+    /// O(n_slab_blocks) linear walk that serialized GPU time on unique-look
+    /// crowds (one block per unique item). Zero when no slabbed blocks.
+    pub slab_slot_lut_base: u32,
 }
 
 impl Layout {
@@ -105,6 +170,21 @@ impl Layout {
 /// Panics if the encoding contains any late bound resources (gradients, images
 /// or glyph runs).
 pub fn resolve_solid_paths_only(encoding: &Encoding, packed: &mut Vec<u8>) -> Layout {
+    // DOFUS Tier 6: expand markers on CPU so the byte layout is stable
+    // across frames (reuse_fast depends on `packed.len()` being constant
+    // when only transforms shift). The `instance_transforms` /
+    // `instance_color_overlays` regions are still packed at the end so a
+    // future GPU pre-pass (instance_expand.wgsl) can consume them
+    // directly and bypass this CPU expansion.
+    let expanded = encoding.expand_instanced_to_flat();
+    resolve_solid_paths_only_impl(expanded.as_ref(), encoding, packed)
+}
+
+fn resolve_solid_paths_only_impl(
+    encoding: &Encoding,
+    instances_from: &Encoding,
+    packed: &mut Vec<u8>,
+) -> Layout {
     assert!(
         encoding.resources.patches.is_empty(),
         "this resolve function doesn't support late bound resources"
@@ -116,10 +196,11 @@ pub fn resolve_solid_paths_only(encoding: &Encoding, packed: &mut Vec<u8>) -> La
         n_clips: encoding.n_clips,
         ..Layout::default()
     };
+    let instance_byte_size = instance_regions_byte_size(instances_from);
     let SceneBufferSizes {
         buffer_size,
         path_tag_padded,
-    } = SceneBufferSizes::new(encoding, &StreamOffsets::default());
+    } = SceneBufferSizes::new(encoding, &StreamOffsets::default(), instance_byte_size);
     data.reserve(buffer_size);
     // Path tag stream
     layout.path_tag_base = size_to_words(data.len());
@@ -148,12 +229,44 @@ pub fn resolve_solid_paths_only(encoding: &Encoding, packed: &mut Vec<u8>) -> La
     // Style stream
     layout.style_base = size_to_words(data.len());
     data.extend_from_slice(bytemuck::cast_slice(&encoding.styles));
+    // DOFUS Tier 6: instance regions packed after styles. Shader-side
+    // instance expansion (future) reads these via `config.instance_*_base`
+    // offsets. Current pipeline ignores them — CPU expansion already
+    // produced the flat path_tags/data/etc above.
+    layout.instance_transforms_base = size_to_words(data.len());
+    layout.n_instance_transforms = instances_from.instance_transforms.len() as u32;
+    data.extend_from_slice(bytemuck::cast_slice(&instances_from.instance_transforms));
+    layout.instance_color_overlays_base = size_to_words(data.len());
+    layout.n_instance_color_overlays = instances_from.instance_color_overlays.len() as u32;
+    data.extend_from_slice(bytemuck::cast_slice(
+        &instances_from.instance_color_overlays,
+    ));
+    // Pack the deduplicated sub library BEFORE the descriptors so the
+    // descriptors can reference it via the sub_*_offset fields.
+    let sub_lib = pack_sub_library(instances_from, data);
+    let descriptors = build_instance_block_descriptors(instances_from, &sub_lib);
+    layout.instance_blocks_base = size_to_words(data.len());
+    layout.n_instance_blocks = descriptors.len() as u32;
+    data.extend_from_slice(bytemuck::cast_slice(&descriptors));
     layout.n_draw_objects = layout.n_paths;
     assert_eq!(buffer_size, data.len());
     layout
 }
 
 /// Resolver for late bound resources.
+/// Per-resolve image-atlas working-set stats (DOFUS diagnostics). Every
+/// `resolve` of a scene with image fills re-packs (and the GPU re-uploads)
+/// these bytes into the atlas, so `total_bytes` is the per-band-render
+/// upload volume — the cost that scales 4× with HiDPI-upscaled bitmaps.
+#[derive(Default, Clone, Copy, Debug)]
+pub struct ImageResolveStats {
+    pub n_images: u32,
+    pub total_bytes: u64,
+    pub n_dropped: u32,
+    pub max_image_px: u32,
+    pub atlas_px: u32,
+}
+
 #[derive(Default)]
 pub struct Resolver {
     glyph_cache: GlyphCache,
@@ -162,12 +275,27 @@ pub struct Resolver {
     image_cache: ImageCache,
     pending_images: Vec<PendingImage>,
     patches: Vec<ResolvedPatch>,
+    last_image_stats: ImageResolveStats,
 }
 
 impl Resolver {
     /// Creates a new resource cache.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Mutable access to the ramp cache. Used by `vello::Renderer::intern_sub`
+    /// to register pinned ramps for sub-encodings baked into the SubLibrary —
+    /// the resolved `ramp_id` must stay valid across frames so the SubLibrary's
+    /// stored bytes can embed it permanently.
+    pub fn ramp_cache_mut(&mut self) -> &mut RampCache {
+        &mut self.ramp_cache
+    }
+
+    /// Mutable access to the image cache; same lifetime contract as
+    /// `ramp_cache_mut`.
+    pub fn image_cache_mut(&mut self) -> &mut ImageCache {
+        &mut self.image_cache
     }
 
     /// Resolves late bound resources and packs an encoding. Returns the packed
@@ -177,9 +305,41 @@ impl Resolver {
         encoding: &Encoding,
         packed: &mut Vec<u8>,
     ) -> (Layout, Ramps<'a>, Images<'a>) {
+        // DOFUS Tier 7: slabbed encodings take a dedicated path that
+        // reserves per-stream gaps at each `INSTANCED_SLAB_BEGIN` marker
+        // so the packed-buffer byte layout stays constant across frames
+        // — vello's `reuse_fast` fires from the second frame onward.
+        // Slabbed encodings carry no late-bound patches of their own
+        // (asserted inside `resolve_slabbed`) — but the SubLibrary subs
+        // the GPU expander materializes were resolved at intern time
+        // against this resolver's PINNED ramp/image caches, so their
+        // draw data references pinned atlas (x, y) and ramp rows. Those
+        // pixels live in the renderer's PERSISTENT slab textures
+        // (uploaded once at pin time and bound as external resources at
+        // replay) — returning the caches here would put a full pinned
+        // atlas + ramp re-upload in every slab band's recording, every
+        // frame (~13 MB/band, halved the frame rate when tried).
+        if !encoding.instance_slab_blocks.is_empty()
+            && encoding.resources.patches.is_empty()
+            && encoding.instance_blocks.is_empty()
+        {
+            let layout = resolve_slabbed::resolve_slabbed(encoding, packed);
+            return (layout, Ramps::default(), Images::default());
+        }
+        // DOFUS Tier 6: keep a reference to the original encoding so the
+        // instance arrays can be packed after styles. Then expand markers
+        // into a flat encoding for the existing walks. The expansion is
+        // `Cow::Borrowed` (zero-cost) when no instanced blocks present.
+        // DOFUS Tier 6: CPU expand for byte-layout stability + still pack
+        // instance arrays at the end so a future GPU pre-pass can consume
+        // them. `original` keeps the instance arrays accessible after the
+        // shadowing of `encoding` by the flat expansion.
+        let original = encoding;
+        let expanded = encoding.expand_instanced_to_flat();
+        let encoding = expanded.as_ref();
         let resources = &encoding.resources;
         if resources.patches.is_empty() {
-            let layout = resolve_solid_paths_only(encoding, packed);
+            let layout = resolve_solid_paths_only_impl(encoding, original, packed);
             return (layout, Ramps::default(), Images::default());
         }
         let patch_sizes = self.resolve_patches(encoding);
@@ -191,10 +351,11 @@ impl Resolver {
             n_clips: encoding.n_clips,
             ..Layout::default()
         };
+        let instance_byte_size = instance_regions_byte_size(original);
         let SceneBufferSizes {
             buffer_size,
             path_tag_padded,
-        } = SceneBufferSizes::new(encoding, &patch_sizes);
+        } = SceneBufferSizes::new(encoding, &patch_sizes, instance_byte_size);
         data.reserve(buffer_size);
         // Path tag stream
         layout.path_tag_base = size_to_words(data.len());
@@ -380,6 +541,18 @@ impl Resolver {
                 data.extend_from_slice(bytemuck::cast_slice(&stream[pos..]));
             }
         }
+        // DOFUS Tier 6: instance regions packed after styles.
+        layout.instance_transforms_base = size_to_words(data.len());
+        layout.n_instance_transforms = original.instance_transforms.len() as u32;
+        data.extend_from_slice(bytemuck::cast_slice(&original.instance_transforms));
+        layout.instance_color_overlays_base = size_to_words(data.len());
+        layout.n_instance_color_overlays = original.instance_color_overlays.len() as u32;
+        data.extend_from_slice(bytemuck::cast_slice(&original.instance_color_overlays));
+        let sub_lib = pack_sub_library(original, data);
+        let descriptors = build_instance_block_descriptors(original, &sub_lib);
+        layout.instance_blocks_base = size_to_words(data.len());
+        layout.n_instance_blocks = descriptors.len() as u32;
+        data.extend_from_slice(bytemuck::cast_slice(&descriptors));
         self.glyphs.clear();
         layout.n_draw_objects = layout.n_paths;
         assert_eq!(buffer_size, data.len());
@@ -510,6 +683,32 @@ impl Resolver {
             // the maximum atlas size.
             break;
         }
+        // DOFUS diagnostics: record the working set re-packed (and GPU
+        // re-uploaded) this resolve.
+        let mut total_bytes = 0u64;
+        let mut n_dropped = 0u32;
+        let mut max_image_px = 0u32;
+        for p in &self.pending_images {
+            let px = (p.image.width as u64) * (p.image.height as u64);
+            total_bytes += px * 4;
+            max_image_px = max_image_px.max((p.image.width).max(p.image.height));
+            if p.xy.is_none() {
+                n_dropped += 1;
+            }
+        }
+        self.last_image_stats = ImageResolveStats {
+            n_images: self.pending_images.len() as u32,
+            total_bytes,
+            n_dropped,
+            max_image_px,
+            atlas_px: self.image_cache.images().width,
+        };
+    }
+
+    /// Image-atlas working-set stats from the most recent `resolve` (DOFUS
+    /// diagnostics).
+    pub fn last_image_stats(&self) -> ImageResolveStats {
+        self.last_image_stats
     }
 }
 
@@ -588,8 +787,10 @@ struct SceneBufferSizes {
 
 impl SceneBufferSizes {
     /// Computes common scene buffer sizes for the given encoding and patch
-    /// stream sizes.
-    fn new(encoding: &Encoding, patch_sizes: &StreamOffsets) -> Self {
+    /// stream sizes. `instance_byte_size` accounts for the DOFUS Tier 6
+    /// instance_transforms + instance_color_overlays regions packed at the
+    /// end of the buffer (zero for non-instanced encodings).
+    fn new(encoding: &Encoding, patch_sizes: &StreamOffsets, instance_byte_size: usize) -> Self {
         let n_path_tags =
             encoding.path_tags.len() + patch_sizes.path_tags + encoding.n_open_clips as usize;
         let path_tag_padded = align_up(n_path_tags, 4 * crate::config::PATH_REDUCE_WG);
@@ -601,7 +802,8 @@ impl SceneBufferSizes {
             )
             + slice_size_in_bytes(&encoding.draw_data, patch_sizes.draw_data)
             + slice_size_in_bytes(&encoding.transforms, patch_sizes.transforms)
-            + slice_size_in_bytes(&encoding.styles, patch_sizes.styles);
+            + slice_size_in_bytes(&encoding.styles, patch_sizes.styles)
+            + instance_byte_size;
         Self {
             buffer_size,
             path_tag_padded,
@@ -609,14 +811,215 @@ impl SceneBufferSizes {
     }
 }
 
+/// DOFUS Tier 6: byte size of the instance_transforms +
+/// instance_color_overlays + instance_blocks regions for `encoding`.
+/// Caller passes this to [`SceneBufferSizes::new`] so the packed scene
+/// buffer is sized to fit all three regions appended after styles.
+fn instance_regions_byte_size(encoding: &Encoding) -> usize {
+    let t_words = encoding.instance_transforms.len() * (size_of::<Transform>() / size_of::<u32>());
+    let o_words = encoding.instance_color_overlays.len();
+    let b_words =
+        encoding.instance_blocks.len() * (size_of::<InstanceBlockGpu>() / size_of::<u32>());
+    let sub_lib_bytes = sub_library_byte_size(encoding);
+    (t_words + o_words + b_words) * size_of::<u32>() + sub_lib_bytes
+}
+
+/// DOFUS Tier 6: GPU-side instance block descriptor.
+///
+/// Field layout MUST match the `InstanceBlockGpu` struct declared in
+/// `vello_shaders/shader/instance_expand.wgsl`. 24 u32 / 96 bytes per
+/// entry (21 fields + 3 padding for the alignment the shader assumes
+/// via `INSTANCE_BLOCK_WORDS = 24u`).
+///
+/// The GPU pre-pass shader reads these descriptors to materialise the
+/// flat scene representation that downstream stages (pathtag_reduce →
+/// pathtag_scan → flatten → ...) consume. Until that pre-pass is wired
+/// the descriptors are packed but unread; the existing CPU
+/// `Encoding::expand_instanced_to_flat` shim still produces the flat
+/// form the resolver hands to the GPU.
+#[derive(Copy, Clone, Debug, Default, Zeroable, Pod)]
+#[repr(C)]
+pub struct InstanceBlockGpu {
+    pub count: u32,
+    pub transforms_base: u32,
+    pub overlays_base: u32,
+    pub sub_path_tags_offset: u32,
+    pub sub_path_tags_count: u32,
+    pub sub_path_data_offset: u32,
+    pub sub_path_data_count: u32,
+    pub sub_draw_tags_offset: u32,
+    pub sub_draw_tags_count: u32,
+    pub sub_draw_data_offset: u32,
+    pub sub_draw_data_count: u32,
+    pub sub_transforms_offset: u32,
+    pub sub_transforms_count: u32,
+    pub sub_styles_offset: u32,
+    pub sub_styles_count: u32,
+    pub splice_path_tags: u32,
+    pub splice_path_data: u32,
+    pub splice_draw_tags: u32,
+    pub splice_draw_data: u32,
+    pub splice_transforms: u32,
+    pub splice_styles: u32,
+    pub _pad0: u32,
+    pub _pad1: u32,
+    pub _pad2: u32,
+}
+
+/// DOFUS Tier 6: per-unique-sub offsets into the packed sub library.
+///
+/// Each unique `Arc<Encoding>` referenced by an instance block is packed
+/// once into the scene buffer. These offsets (in u32 words) point at
+/// the start of each of the sub's 6 streams within that library
+/// region.
+#[derive(Copy, Clone, Default)]
+struct SubLibraryOffsets {
+    path_tags_offset: u32,
+    path_data_offset: u32,
+    draw_tags_offset: u32,
+    draw_data_offset: u32,
+    transforms_offset: u32,
+    styles_offset: u32,
+}
+
+/// DOFUS Tier 6: pack the sub library into `data` and return a map from
+/// `Arc::as_ptr` identity (as `usize`) to the offsets where each sub's
+/// streams were placed. Deduplicates: multiple instance blocks
+/// referencing the same `Arc<Encoding>` get the same offsets.
+///
+/// The function appends to `data` in stream-major order (all subs'
+/// path_tags first, then all path_data, etc.) so each cross-sub-stream
+/// region is contiguous — which would let downstream stages bind a
+/// single sub-stream range if useful. The shader pre-pass currently
+/// reads one sub at a time so the interleaving doesn't matter, but
+/// keeping streams grouped preserves the option.
+fn pack_sub_library(
+    encoding: &Encoding,
+    data: &mut Vec<u8>,
+) -> std::collections::HashMap<usize, SubLibraryOffsets> {
+    use std::collections::HashMap;
+    let mut unique: Vec<&Arc<Encoding>> = Vec::new();
+    let mut seen: HashMap<usize, usize> = HashMap::new();
+    for block in &encoding.instance_blocks {
+        let key = Arc::as_ptr(&block.sub) as usize;
+        if !seen.contains_key(&key) {
+            seen.insert(key, unique.len());
+            unique.push(&block.sub);
+        }
+    }
+    let mut offsets: Vec<SubLibraryOffsets> = vec![SubLibraryOffsets::default(); unique.len()];
+    // path_tags (byte stream, may need u32 padding)
+    for (i, sub) in unique.iter().enumerate() {
+        offsets[i].path_tags_offset = size_to_words(data.len());
+        data.extend_from_slice(bytemuck::cast_slice(&sub.path_tags));
+        let pad = (4 - (data.len() % 4)) % 4;
+        for _ in 0..pad {
+            data.push(0);
+        }
+    }
+    // path_data (u32)
+    for (i, sub) in unique.iter().enumerate() {
+        offsets[i].path_data_offset = size_to_words(data.len());
+        data.extend_from_slice(bytemuck::cast_slice(&sub.path_data));
+    }
+    // draw_tags (u32 DrawTag)
+    for (i, sub) in unique.iter().enumerate() {
+        offsets[i].draw_tags_offset = size_to_words(data.len());
+        data.extend_from_slice(bytemuck::cast_slice(&sub.draw_tags));
+    }
+    // draw_data (u32)
+    for (i, sub) in unique.iter().enumerate() {
+        offsets[i].draw_data_offset = size_to_words(data.len());
+        data.extend_from_slice(bytemuck::cast_slice(&sub.draw_data));
+    }
+    // transforms (6 u32 each)
+    for (i, sub) in unique.iter().enumerate() {
+        offsets[i].transforms_offset = size_to_words(data.len());
+        data.extend_from_slice(bytemuck::cast_slice(&sub.transforms));
+    }
+    // styles
+    for (i, sub) in unique.iter().enumerate() {
+        offsets[i].styles_offset = size_to_words(data.len());
+        data.extend_from_slice(bytemuck::cast_slice(&sub.styles));
+    }
+    seen.into_iter()
+        .map(|(arc_ptr, unique_idx)| (arc_ptr, offsets[unique_idx]))
+        .collect()
+}
+
+/// DOFUS Tier 6: byte size of the sub-library region for `encoding`.
+fn sub_library_byte_size(encoding: &Encoding) -> usize {
+    use std::collections::HashSet;
+    let mut seen: HashSet<usize> = HashSet::new();
+    let mut total = 0usize;
+    for block in &encoding.instance_blocks {
+        let key = Arc::as_ptr(&block.sub) as usize;
+        if seen.insert(key) {
+            let sub = &block.sub;
+            // path_tags as bytes, padded to u32
+            let pt_bytes = sub.path_tags.len();
+            total += pt_bytes + ((4 - (pt_bytes % 4)) % 4);
+            total += sub.path_data.len() * size_of::<u32>();
+            total += sub.draw_tags.len() * size_of::<DrawTag>();
+            total += sub.draw_data.len() * size_of::<u32>();
+            total += sub.transforms.len() * size_of::<Transform>();
+            total += sub.styles.len() * size_of::<crate::Style>();
+        }
+    }
+    total
+}
+
+/// DOFUS Tier 6: build the GPU descriptor table for a marker-emit
+/// `Encoding`, populating `sub_*_offset` from the sub library map
+/// produced by [`pack_sub_library`].
+fn build_instance_block_descriptors(
+    encoding: &Encoding,
+    sub_lib: &std::collections::HashMap<usize, SubLibraryOffsets>,
+) -> Vec<InstanceBlockGpu> {
+    encoding
+        .instance_blocks
+        .iter()
+        .map(|b| {
+            let key = Arc::as_ptr(&b.sub) as usize;
+            let off = sub_lib.get(&key).copied().unwrap_or_default();
+            InstanceBlockGpu {
+                count: b.count,
+                transforms_base: b.transforms_base,
+                overlays_base: b.overlays_base,
+                sub_path_tags_offset: off.path_tags_offset,
+                sub_path_tags_count: b.sub.path_tags.len() as u32,
+                sub_path_data_offset: off.path_data_offset,
+                sub_path_data_count: b.sub.path_data.len() as u32,
+                sub_draw_tags_offset: off.draw_tags_offset,
+                sub_draw_tags_count: b.sub.draw_tags.len() as u32,
+                sub_draw_data_offset: off.draw_data_offset,
+                sub_draw_data_count: b.sub.draw_data.len() as u32,
+                sub_transforms_offset: off.transforms_offset,
+                sub_transforms_count: b.sub.transforms.len() as u32,
+                sub_styles_offset: off.styles_offset,
+                sub_styles_count: b.sub.styles.len() as u32,
+                splice_path_tags: b.splice_path_tags,
+                splice_path_data: b.splice_path_data,
+                splice_draw_tags: b.splice_draw_tags,
+                splice_draw_data: b.splice_draw_data,
+                splice_transforms: b.splice_transforms,
+                splice_styles: b.splice_styles,
+                _pad0: 0,
+                _pad1: 0,
+                _pad2: 0,
+            }
+        })
+        .collect()
+}
+
 fn slice_size_in_bytes<T: Sized>(slice: &[T], extra: usize) -> usize {
     (slice.len() + extra) * size_of::<T>()
 }
 
-fn size_to_words(byte_size: usize) -> u32 {
+pub(crate) fn size_to_words(byte_size: usize) -> u32 {
     (byte_size / size_of::<u32>()) as u32
 }
 
-fn align_up(len: usize, alignment: u32) -> usize {
+pub(crate) fn align_up(len: usize, alignment: u32) -> usize {
     len + (len.wrapping_neg() & (alignment as usize - 1))
 }

@@ -26,6 +26,25 @@ pub enum SceneSource {
     External,
 }
 
+/// DOFUS Tier 7 Step 0 diagnostic: `true` when `DOFUS_WG_DIAG` is set in
+/// the environment (read once and cached). Gates the per-kernel dispatch
+/// count report in `render_encoding_coarse`.
+fn wg_diag_enabled() -> bool {
+    use std::sync::OnceLock;
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("DOFUS_WG_DIAG").is_some())
+}
+
+/// Returns `true` for the first 16 calls, then `false` — caps the diag
+/// print to a handful of frames so it doesn't flood the bench output.
+fn wg_diag_take() -> bool {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    static REMAINING: AtomicU32 = AtomicU32::new(16);
+    REMAINING
+        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_sub(1))
+        .is_ok()
+}
+
 /// State for a render in progress.
 pub struct Render {
     fine_wg_count: Option<WorkgroupSize>,
@@ -36,6 +55,23 @@ pub struct Render {
     /// `(layout, scene_buf proxy, packed bytes)` handed back to the caller so it
     /// can size the resident buffer and write only the transform sub-range.
     reuse_out: Option<(Layout, ResourceProxy, Vec<u8>)>,
+
+    /// DOFUS Tier 7: when the encoding carried slabbed instance blocks
+    /// the coarse pass dispatches `instance_expand_slab` and references
+    /// the GPU sub-library buffer via a synthetic proxy. The
+    /// `Renderer` binds the real buffer to this proxy through
+    /// [`ExternalResource::Buffer`] before running the recording.
+    /// `None` when the encoding has no slabbed blocks.
+    sub_library_proxy: Option<BufferProxy>,
+
+    /// DOFUS Tier 7: `(gradient, atlas)` proxies for slabbed encodings.
+    /// Slab subs reference PINNED ramp rows / atlas coordinates whose
+    /// pixels live in the renderer's persistent textures (uploaded at
+    /// intern time) — the recording records NO texture writes, and the
+    /// caller binds the persistent views to these proxies via
+    /// [`ExternalResource::Image`]. `None` for non-slab encodings,
+    /// which keep the per-render upload path.
+    slab_image_proxies: Option<(ImageProxy, ImageProxy)>,
 
     #[cfg(feature = "debug_layers")]
     captured_buffers: Option<CapturedBuffers>,
@@ -98,8 +134,9 @@ pub(crate) fn render_full(
     resolver: &mut Resolver,
     shaders: &FullShaders,
     params: &RenderParams,
-) -> (Recording, ResourceProxy) {
-    render_encoding_full(scene.encoding(), resolver, shaders, params)
+    atlas: &mut Option<ImageProxy>,
+) -> (Recording, ResourceProxy, Option<BufferProxy>) {
+    render_encoding_full(scene.encoding(), resolver, shaders, params, atlas)
 }
 
 /// DOFUS: like [`render_full`], but in [`SceneSource::External`] mode — the packed
@@ -114,17 +151,43 @@ pub(crate) fn render_full_reuse(
     resolver: &mut Resolver,
     shaders: &FullShaders,
     params: &RenderParams,
-) -> (Recording, ResourceProxy, ResourceProxy, Layout, Vec<u8>) {
+    atlas: &mut Option<ImageProxy>,
+) -> (
+    Recording,
+    ResourceProxy,
+    ResourceProxy,
+    Layout,
+    Vec<u8>,
+    Option<BufferProxy>,
+    Option<(ImageProxy, ImageProxy)>,
+) {
     let mut render = Render::new();
-    let mut recording =
-        render.render_encoding_coarse(scene.encoding(), resolver, shaders, params, false, SceneSource::External);
+    let mut recording = render.render_encoding_coarse(
+        scene.encoding(),
+        resolver,
+        shaders,
+        params,
+        false,
+        SceneSource::External,
+        atlas,
+    );
     let out_image = render.out_image();
     render.record_fine(shaders, &mut recording);
+    let sub_library_proxy = render.sub_library_proxy();
+    let slab_image_proxies = render.slab_image_proxies();
     let (layout, scene_buf, packed) = render
         .reuse_out
         .take()
         .expect("SceneSource::External must populate reuse_out");
-    (recording, out_image.into(), scene_buf, layout, packed)
+    (
+        recording,
+        out_image.into(),
+        scene_buf,
+        layout,
+        packed,
+        sub_library_proxy,
+        slab_image_proxies,
+    )
 }
 
 #[cfg(feature = "wgpu")]
@@ -137,13 +200,22 @@ pub(crate) fn render_encoding_full(
     resolver: &mut Resolver,
     shaders: &FullShaders,
     params: &RenderParams,
-) -> (Recording, ResourceProxy) {
+    atlas: &mut Option<ImageProxy>,
+) -> (Recording, ResourceProxy, Option<BufferProxy>) {
     let mut render = Render::new();
-    let mut recording =
-        render.render_encoding_coarse(encoding, resolver, shaders, params, false, SceneSource::Upload);
+    let mut recording = render.render_encoding_coarse(
+        encoding,
+        resolver,
+        shaders,
+        params,
+        false,
+        SceneSource::Upload,
+        atlas,
+    );
     let out_image = render.out_image();
     render.record_fine(shaders, &mut recording);
-    (recording, out_image.into())
+    let sub_library_proxy = render.sub_library_proxy();
+    (recording, out_image.into(), sub_library_proxy)
 }
 
 impl Default for Render {
@@ -159,9 +231,27 @@ impl Render {
             fine_resources: None,
             mask_buf: None,
             reuse_out: None,
+            sub_library_proxy: None,
+            slab_image_proxies: None,
             #[cfg(feature = "debug_layers")]
             captured_buffers: None,
         }
+    }
+
+    /// DOFUS Tier 7: synthetic proxy referenced by the slab-expand
+    /// dispatch. The caller must bind the real sub-library buffer to
+    /// this proxy via [`ExternalResource::Buffer`] before running the
+    /// recording — bound to the renderer's owned SubLibrary buffer.
+    /// `None` when the encoding had no slabbed blocks.
+    pub fn sub_library_proxy(&self) -> Option<BufferProxy> {
+        self.sub_library_proxy
+    }
+
+    /// DOFUS Tier 7: `(gradient, atlas)` proxies to bind the renderer's
+    /// persistent pinned textures to, via [`ExternalResource::Image`].
+    /// `None` when the encoding had no slabbed blocks.
+    pub fn slab_image_proxies(&self) -> Option<(ImageProxy, ImageProxy)> {
+        self.slab_image_proxies
     }
 
     /// Prepare a recording for the coarse rasterization phase.
@@ -176,31 +266,57 @@ impl Render {
         params: &RenderParams,
         robust: bool,
         scene_source: SceneSource,
+        atlas: &mut Option<ImageProxy>,
     ) -> Recording {
         use vello_encoding::RenderConfig;
         let mut recording = Recording::default();
         let mut packed = vec![];
 
+        let slabbed = !encoding.instance_slab_blocks.is_empty()
+            && encoding.resources.patches.is_empty()
+            && encoding.instance_blocks.is_empty();
         let (layout, ramps, images) = resolver.resolve(encoding, &mut packed);
-        let gradient_image = if ramps.height == 0 {
-            ResourceProxy::new_image(1, 1, ImageFormat::Rgba8)
+        // DOFUS Tier 7: slabbed encodings sample the renderer's
+        // PERSISTENT pinned textures (uploaded at intern time) — the
+        // recording carries no texture writes; the caller binds the
+        // persistent views to these proxies via `ExternalResource::Image`.
+        // Recording the pinned atlas + ramps into every slab band
+        // recording re-uploaded ~13 MB per band per frame.
+        let (gradient_image, image_atlas) = if slabbed {
+            let gradient = ImageProxy::new(1, 1, ImageFormat::Rgba8);
+            let atlas_proxy = ImageProxy::new(1, 1, ImageFormat::Rgba8);
+            self.slab_image_proxies = Some((gradient, atlas_proxy));
+            (ResourceProxy::Image(gradient), atlas_proxy)
         } else {
-            let data: &[u8] = bytemuck::cast_slice(ramps.data);
-            ResourceProxy::Image(recording.upload_image(
-                ramps.width,
-                ramps.height,
-                ImageFormat::Rgba8,
-                data,
-            ))
+            let gradient_image = if ramps.height == 0 {
+                ResourceProxy::new_image(1, 1, ImageFormat::Rgba8)
+            } else {
+                let data: &[u8] = bytemuck::cast_slice(ramps.data);
+                ResourceProxy::Image(recording.upload_image(
+                    ramps.width,
+                    ramps.height,
+                    ImageFormat::Rgba8,
+                    data,
+                ))
+            };
+            // Per-render image atlas: created fresh here and freed in
+            // `record_fine`. The persistent-shared-atlas optimisation was
+            // reverted — it corrupted the band reuse path (a retained band
+            // sampled atlas slots another band's resolve had overwritten →
+            // tile repetition / wrong bitmaps / distortion). With right-sized
+            // assets the atlas is small (≤1024², a few MB) so per-render
+            // create+free is cheap.
+            let image_atlas = if images.images.is_empty() {
+                ImageProxy::new(1, 1, ImageFormat::Rgba8)
+            } else {
+                ImageProxy::new(images.width, images.height, ImageFormat::Rgba8)
+            };
+            *atlas = Some(image_atlas);
+            for image in images.images {
+                recording.write_image(image_atlas, image.1, image.2, image.0.clone());
+            }
+            (gradient_image, image_atlas)
         };
-        let image_atlas = if images.images.is_empty() {
-            ImageProxy::new(1, 1, ImageFormat::Rgba8)
-        } else {
-            ImageProxy::new(images.width, images.height, ImageFormat::Rgba8)
-        };
-        for image in images.images {
-            recording.write_image(image_atlas, image.1, image.2, image.0.clone());
-        }
         let cpu_config =
             RenderConfig::new(&layout, params.width, params.height, &params.base_color);
         // HACK: The coarse workgroup counts is the number of active bins.
@@ -219,6 +335,36 @@ impl Render {
         let buffer_sizes = &cpu_config.buffer_sizes;
         let wg_counts = &cpu_config.workgroup_counts;
 
+        // DOFUS Tier 7 slab diagnostic (Step 0): when `DOFUS_WG_DIAG` is
+        // set, report the per-kernel 1-D dispatch counts whenever any
+        // standard kernel approaches the 65535 per-dimension limit, so we
+        // can confirm tight-packing dropped them and identify any kernel
+        // still needing the X×Y split. Print-capped to avoid per-frame
+        // spam. Inert (no env read past the once-cached flag) otherwise.
+        if wg_diag_enabled() {
+            let counts = [
+                ("path_reduce", wg_counts.path_reduce.0),
+                ("path_scan", wg_counts.path_scan.0),
+                ("flatten", wg_counts.flatten.0),
+                ("bbox_clear", wg_counts.bbox_clear.0),
+                ("draw_reduce", wg_counts.draw_reduce.0),
+                ("binning", wg_counts.binning.0),
+                ("tile_alloc", wg_counts.tile_alloc.0),
+                ("backdrop", wg_counts.backdrop.0),
+            ];
+            let peak = counts.iter().map(|(_, c)| *c).max().unwrap_or(0);
+            if peak > 60_000 && wg_diag_take() {
+                let over: Vec<_> = counts.iter().filter(|(_, c)| *c > 60_000).collect();
+                eprintln!(
+                    "[DOFUS_WG_DIAG] path_tags_size={} n_paths={} n_slab_slots={} OVER60k={:?}",
+                    layout.path_tags_size(),
+                    layout.n_paths,
+                    layout.n_slab_total_slots,
+                    over,
+                );
+            }
+        }
+
         if packed.is_empty() {
             // HACK: wgpu doesn't allow empty buffers, so we make sure that the scene buffer we upload
             // can contain at least one array item.
@@ -232,7 +378,8 @@ impl Render {
                 // DOFUS retained path: do NOT upload the scene into the recording.
                 // Mint a bare proxy (the caller binds the resident buffer to its id via
                 // `ExternalResource::Buffer`) and hand `(layout, proxy, packed)` back.
-                let proxy = ResourceProxy::Buffer(BufferProxy::new(packed.len() as u64, "vello.scene"));
+                let proxy =
+                    ResourceProxy::Buffer(BufferProxy::new(packed.len() as u64, "vello.scene"));
                 self.reuse_out = Some((layout, proxy, std::mem::take(&mut packed)));
                 proxy
             }
@@ -256,6 +403,40 @@ impl Render {
             buffer_sizes.path_reduced.size_in_bytes().into(),
             "vello.reduced_buf",
         );
+        // DOFUS Tier 6: GPU instance expansion pre-pass.
+        // **DISABLED**: with the CPU `expand_instanced_to_flat` shim
+        // active in the resolver, the descriptor `splice_*` positions
+        // are in the original marker-emit coordinate space — but the
+        // scene buffer the GPU sees is the CPU-expanded form with a
+        // different layout. Dispatching the kernel writes sub bytes
+        // into wrong offsets and corrupts the path_data region. To re-
+        // enable, the resolver must EITHER skip CPU expansion OR
+        // re-translate the descriptor splice positions to post-expand
+        // offsets before packing. Until that's wired the kernel stays
+        // registered (the source + bindings are in tree) but never
+        // fires.
+        let _ = shaders.instance_expand;
+        let _ = wg_counts.instance_expand;
+
+        // DOFUS Tier 7: slabbed instance expansion pre-pass.
+        // The slabbed resolver reserves zero-filled per-stream gaps in
+        // the scene buffer; this kernel populates them by copying sub
+        // bytes from the GPU sub-library. Must run BEFORE pathtag_reduce
+        // so the downstream pipeline sees a fully-materialised stream.
+        // The sub-library is bound at run time via the external-resource
+        // pattern — bound to the renderer's owned SubLibrary buffer.
+        // Size 1 sentinel: the real wgpu buffer is supplied via
+        // `ExternalResource::Buffer`; only its proxy id matters here.
+        if layout.n_slab_blocks > 0 && wg_counts.instance_expand_slab.0 > 0 {
+            let proxy = BufferProxy::new(1, "vello.sub_library");
+            self.sub_library_proxy = Some(proxy);
+            recording.dispatch(
+                shaders.instance_expand_slab,
+                wg_counts.instance_expand_slab,
+                [config_buf, scene_buf, ResourceProxy::Buffer(proxy)],
+            );
+        }
+
         // TODO: really only need pathtag_wgs - 1
         recording.dispatch(
             shaders.pathtag_reduce,

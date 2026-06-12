@@ -5211,7 +5211,8 @@ impl VelloRenderer {
                     n_paths_acc += enc.n_paths as u64;
                 }
                 let t_res = web_time::Instant::now();
-                let (recording, target) = self.renderer.resolve_scene(&scene, &params);
+                let (recording, target, sub_lib_proxy) =
+                    self.renderer.resolve_scene(&scene, &params);
                 resolve_ms += t_res.elapsed().as_secs_f64() * 1000.0;
                 let t_run = web_time::Instant::now();
                 let _ = self.renderer.run_resolved(
@@ -5220,6 +5221,7 @@ impl VelloRenderer {
                     &recording,
                     target,
                     &crowd.batch_views[b],
+                    sub_lib_proxy,
                 );
                 run_ms += t_run.elapsed().as_secs_f64() * 1000.0;
             }
@@ -5379,6 +5381,7 @@ impl VelloRenderer {
                         rb.out_image,
                         &crowd.batch_views[b],
                         &rb.frozen_transform_bytes,
+                        None,
                     );
                     run_ms += t_run.elapsed().as_secs_f64() * 1000.0;
                 } else {
@@ -5415,6 +5418,7 @@ impl VelloRenderer {
                         rb.out_image,
                         &crowd.batch_views[b],
                         tx_bytes,
+                        None,
                     );
                     run_ms += t_run2.elapsed().as_secs_f64() * 1000.0;
                 }
@@ -5860,6 +5864,8 @@ impl VelloRenderer {
                     rb.scene_buf,
                     rb.out_image,
                     &crowd.batch_views[b],
+                    None,
+                    None,
                 );
                 run_ms += t_run.elapsed().as_secs_f64() * 1000.0;
             }

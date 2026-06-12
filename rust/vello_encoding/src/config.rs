@@ -203,6 +203,15 @@ pub type WorkgroupSize = (u32, u32, u32);
 #[derive(Copy, Clone, Debug, Default)]
 pub struct WorkgroupCounts {
     pub use_large_path_scan: bool,
+    /// DOFUS Tier 6: GPU instance-expansion pre-pass dispatch size.
+    /// One workgroup per (block, instance) pair = total instance count
+    /// = `n_instance_transforms`. Zero when the encoding has no
+    /// instanced blocks (kernel skipped at dispatch time).
+    pub instance_expand: WorkgroupSize,
+    /// DOFUS Tier 7: slabbed expansion pre-pass dispatch size.
+    /// One workgroup per slot — total slots = `n_slab_total_slots`.
+    /// Zero when the encoding has no slabbed blocks.
+    pub instance_expand_slab: WorkgroupSize,
     pub path_reduce: WorkgroupSize,
     pub path_reduce2: WorkgroupSize,
     pub path_scan1: WorkgroupSize,
@@ -250,8 +259,20 @@ impl WorkgroupCounts {
         let path_wgs = n_paths.div_ceil(PATH_BBOX_WG);
         let width_in_bins = width_in_tiles.div_ceil(16);
         let height_in_bins = height_in_tiles.div_ceil(16);
+        let instance_expand_wgs = layout.n_instance_transforms;
+        // One workgroup per slab slot. A large crowd has > 65535 slots
+        // (each actor segment + accessory + tile is a slot), which blows
+        // the per-dimension dispatch limit (Metal/wgpu cap 65535) and
+        // panics the command encoder. Split into an X×Y grid; the
+        // `instance_expand_slab` shader reconstructs the linear slot as
+        // `wg.x + wg.y * num_workgroups.x`.
+        let slab_slots = layout.n_slab_total_slots;
+        let slab_x = slab_slots.min(65535);
+        let slab_y = slab_slots.div_ceil(slab_x.max(1));
         Self {
             use_large_path_scan,
+            instance_expand: (instance_expand_wgs, 1, 1),
+            instance_expand_slab: (slab_x, slab_y, 1),
             path_reduce: (path_tag_wgs, 1, 1),
             path_reduce2: (PATH_REDUCE_WG, 1, 1),
             path_scan1: (reduced_size / PATH_REDUCE_WG, 1, 1),

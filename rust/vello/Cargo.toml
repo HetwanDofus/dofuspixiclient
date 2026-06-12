@@ -42,6 +42,10 @@ targets = []
 [features]
 bump_estimate = ["vello_encoding/bump_estimate"]
 debug_layers = []
+# DOFUS: pass-boundary GPU timestamps around every compute pass in slab
+# recordings (vello.prepare_ms / replay_ms instrumentation). Requires the
+# device to be created with Features::TIMESTAMP_QUERY.
+gpu-timing = []
 default = [
     "wgpu",
     "wgpu_default",

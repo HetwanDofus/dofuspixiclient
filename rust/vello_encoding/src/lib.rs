@@ -38,13 +38,15 @@ mod encoding;
 mod estimate;
 mod glyph;
 mod glyph_cache;
-mod image_cache;
+pub mod image_cache;
 mod mask;
 pub mod math;
 mod monoid;
 mod path;
-mod ramp_cache;
+pub mod ramp_cache;
 mod resolve;
+mod resolve_slabbed;
+mod slabbed;
 
 pub use binning::BinHeader;
 pub use clip::{Clip, ClipBbox, ClipBic, ClipElement};
@@ -56,8 +58,9 @@ pub use draw::{
     DRAW_INFO_FLAGS_FILL_RULE_BIT, DrawBbox, DrawBeginClip, DrawBlurRoundedRect, DrawColor,
     DrawImage, DrawLinearGradient, DrawMonoid, DrawRadialGradient, DrawSweepGradient, DrawTag,
 };
-pub use encoding::{Encoding, Resources, StreamOffsets};
+pub use encoding::{Encoding, InstanceBlock, InstanceParams, Resources, StreamOffsets};
 pub use glyph::{Glyph, GlyphRun};
+pub use image_cache::{ImageCache, Images};
 pub use mask::{make_mask_lut, make_mask_lut_16};
 pub use math::Transform;
 pub use monoid::Monoid;
@@ -65,8 +68,14 @@ pub use path::{
     Cubic, LineSoup, Path, PathBbox, PathEncoder, PathMonoid, PathSegment, PathSegmentType,
     PathTag, SegmentCount, Style, Tile,
 };
-pub use ramp_cache::Ramps;
-pub use resolve::{Layout, Patch, Resolver, resolve_solid_paths_only};
+pub use ramp_cache::{RampCache, Ramps};
+pub use resolve::{
+    ImageResolveStats, Layout, Patch, Resolver, SlabBlockGpu, resolve_solid_paths_only,
+};
+pub use slabbed::{
+    SlabSlotAux, SlabSlotDesc, SlabStreamTotals, SlabbedInstanceBlock, begin_slab_block,
+    slab_block_set_slot, slab_block_set_stream_totals,
+};
 
 #[cfg(feature = "bump_estimate")]
 pub use estimate::BumpEstimator;

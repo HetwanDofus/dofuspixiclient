@@ -31,6 +31,10 @@ wasm-bindgen-rayon = { version = "1", optional = true }
 
 [features]
 threads = ["dep:rayon", "dep:wasm-bindgen-rayon"]
+# DOFUS: per-pass GPU timestamps in slab recordings (Phase-0 instrumentation
+# of the wc3 slab migration — see docs/wc3-slab-migration-plan.md). The
+# device must be requested with Features::TIMESTAMP_QUERY for readouts.
+gpu-timing = ["vello/gpu-timing"]
 
 # wasm-opt (binaryen) mangles atomics/shared-memory unless run with
 # --enable-threads, which wasm-pack 0.13 doesn't pass — disable it for

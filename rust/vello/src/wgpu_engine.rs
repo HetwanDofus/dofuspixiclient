@@ -41,6 +41,120 @@ pub(crate) struct WgpuEngine {
     /// The `Texture` should have the same size as the `Image`.
     pub(crate) image_overrides: HashMap<u64, wgpu::TexelCopyTextureInfoBase<Texture>>,
     pipeline_cache: Option<PipelineCache>,
+    #[cfg(feature = "gpu-timing")]
+    slab_timing: Option<SlabTiming>,
+}
+
+/// Up to this many compute passes are timed per slab recording (2 query
+/// slots each). Vello's coarse pipeline is ~14 passes; 32 leaves headroom.
+#[cfg(feature = "gpu-timing")]
+const SLAB_MAX_PASSES: u32 = 32;
+
+/// DOFUS measurement: pass-boundary GPU timestamps around EVERY compute
+/// pass in the slab recording (the pre-pass plus the whole main vello
+/// pipeline), attributed by shader label. Readback is non-blocking
+/// (`map_async`) so values lag ~1 frame; the device must have been created
+/// with `Features::TIMESTAMP_QUERY` (gated behind `gpu-timing`).
+#[cfg(feature = "gpu-timing")]
+struct SlabTiming {
+    query_set: wgpu::QuerySet,
+    resolve_buf: wgpu::Buffer,
+    readback_buf: wgpu::Buffer,
+    period_ns: f32,
+    map_ready: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    map_in_flight: bool,
+    /// Labels of the passes whose timestamps are in the pending readback.
+    pending_labels: Vec<&'static str>,
+    /// Most recent per-pass GPU times (ms), summed across repeated labels.
+    last_breakdown: Vec<(&'static str, f64)>,
+    dispatch_count: u64,
+    drain_count: u64,
+}
+
+/// Debug view of the slab-timing readback pipeline so the client can see
+/// which stage stalls (dispatch detected? readback ever completed?).
+#[cfg(feature = "gpu-timing")]
+pub(crate) struct SlabTimingDebug {
+    pub prepass_ms: Option<f64>,
+    pub total_ms: f64,
+    pub breakdown: Vec<(&'static str, f64)>,
+    pub dispatched: u64,
+    pub drained: u64,
+}
+
+#[cfg(feature = "gpu-timing")]
+impl SlabTiming {
+    fn new(device: &Device, queue: &Queue) -> Self {
+        let count = 2 * SLAB_MAX_PASSES;
+        let bytes = u64::from(count) * 8;
+        let query_set = device.create_query_set(&wgpu::QuerySetDescriptor {
+            label: Some("slab_pass_ts"),
+            ty: wgpu::QueryType::Timestamp,
+            count,
+        });
+        let resolve_buf = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("slab_ts_resolve"),
+            size: bytes,
+            usage: wgpu::BufferUsages::QUERY_RESOLVE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+        let readback_buf = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("slab_ts_readback"),
+            size: bytes,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        Self {
+            query_set,
+            resolve_buf,
+            readback_buf,
+            period_ns: queue.get_timestamp_period(),
+            map_ready: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            map_in_flight: false,
+            pending_labels: Vec::new(),
+            last_breakdown: Vec::new(),
+            dispatch_count: 0,
+            drain_count: 0,
+        }
+    }
+
+    /// Drain a completed readback (if the map callback fired) into
+    /// `last_breakdown` and release the buffer for the next frame.
+    fn drain(&mut self) {
+        use std::sync::atomic::Ordering;
+        if self.map_ready.swap(false, Ordering::Acquire) {
+            {
+                let view = self.readback_buf.slice(..).get_mapped_range();
+                let mut acc: Vec<(&'static str, f64)> = Vec::new();
+                for (i, &label) in self.pending_labels.iter().enumerate() {
+                    let off = i * 16;
+                    let begin = u64::from_le_bytes(view[off..off + 8].try_into().unwrap());
+                    let end = u64::from_le_bytes(view[off + 8..off + 16].try_into().unwrap());
+                    let ms = end.saturating_sub(begin) as f64 * self.period_ns as f64 / 1_000_000.0;
+                    if let Some(e) = acc.iter_mut().find(|(l, _)| *l == label) {
+                        e.1 += ms;
+                    } else {
+                        acc.push((label, ms));
+                    }
+                }
+                self.last_breakdown = acc;
+            }
+            self.readback_buf.unmap();
+            self.map_in_flight = false;
+            self.drain_count += 1;
+        }
+    }
+
+    fn prepass_ms(&self) -> Option<f64> {
+        self.last_breakdown
+            .iter()
+            .find(|(l, _)| *l == "vello.instance_expand_slab")
+            .map(|(_, ms)| *ms)
+    }
+
+    fn total_ms(&self) -> f64 {
+        self.last_breakdown.iter().map(|(_, ms)| *ms).sum()
+    }
 }
 
 enum PipelineState {
@@ -378,6 +492,19 @@ impl WgpuEngine {
         ShaderId(id)
     }
 
+    /// Last measured `instance_expand_slab` GPU pre-pass time in ms (lags
+    /// ~1 frame; `None` until the first readback completes).
+    #[cfg(feature = "gpu-timing")]
+    pub(crate) fn slab_timing_debug(&self) -> Option<SlabTimingDebug> {
+        self.slab_timing.as_ref().map(|t| SlabTimingDebug {
+            prepass_ms: t.prepass_ms(),
+            total_ms: t.total_ms(),
+            breakdown: t.last_breakdown.clone(),
+            dispatched: t.dispatch_count,
+            drained: t.drain_count,
+        })
+    }
+
     pub fn run_recording(
         &mut self,
         device: &Device,
@@ -390,6 +517,30 @@ impl WgpuEngine {
         let mut free_bufs: HashSet<ResourceId> = HashSet::default();
         let mut free_images: HashSet<ResourceId> = HashSet::default();
         let mut transient_map = TransientBindMap::new(external_resources);
+
+        // DOFUS gpu-timing: own the SlabTiming for this recording. Drain a
+        // prior frame's completed readback, then lazily create the query set
+        // only when this recording actually contains the slab dispatch.
+        #[cfg(feature = "gpu-timing")]
+        let timing_active = recording.commands.iter().any(|c| {
+            matches!(c, Command::Dispatch(sid, _, _)
+                if self.shaders[sid.0].label == "vello.instance_expand_slab")
+        });
+        #[cfg(feature = "gpu-timing")]
+        let mut slab_timing = {
+            let mut t = self.slab_timing.take();
+            if let Some(t) = t.as_mut() {
+                t.drain();
+            }
+            if timing_active && t.is_none() {
+                t = Some(SlabTiming::new(device, queue));
+            }
+            t
+        };
+        // Labels of the compute passes timed this recording, in dispatch
+        // order — index i owns timestamp query slots 2i / 2i+1.
+        #[cfg(feature = "gpu-timing")]
+        let mut frame_labels: Vec<&'static str> = Vec::new();
 
         let mut encoder =
             device.create_command_encoder(&CommandEncoderDescriptor { label: Some(label) });
@@ -566,6 +717,24 @@ impl WgpuEngine {
                                 &wgpu_shader.bind_group_layout,
                                 bindings,
                             );
+                            #[cfg(feature = "gpu-timing")]
+                            let mut cpass = if let Some(t) = slab_timing.as_ref().filter(|_| {
+                                timing_active && (frame_labels.len() as u32) < SLAB_MAX_PASSES
+                            }) {
+                                let idx = frame_labels.len() as u32;
+                                frame_labels.push(shader.label);
+                                encoder.begin_compute_pass(&ComputePassDescriptor {
+                                    label: None,
+                                    timestamp_writes: Some(wgpu::ComputePassTimestampWrites {
+                                        query_set: &t.query_set,
+                                        beginning_of_pass_write_index: Some(2 * idx),
+                                        end_of_pass_write_index: Some(2 * idx + 1),
+                                    }),
+                                })
+                            } else {
+                                encoder.begin_compute_pass(&ComputePassDescriptor::default())
+                            };
+                            #[cfg(not(feature = "gpu-timing"))]
                             let mut cpass =
                                 encoder.begin_compute_pass(&ComputePassDescriptor::default());
                             #[cfg(feature = "wgpu-profiler")]
@@ -624,6 +793,24 @@ impl WgpuEngine {
                                 queue,
                                 proxy,
                             );
+                            #[cfg(feature = "gpu-timing")]
+                            let mut cpass = if let Some(t) = slab_timing.as_ref().filter(|_| {
+                                timing_active && (frame_labels.len() as u32) < SLAB_MAX_PASSES
+                            }) {
+                                let idx = frame_labels.len() as u32;
+                                frame_labels.push(shader.label);
+                                encoder.begin_compute_pass(&ComputePassDescriptor {
+                                    label: None,
+                                    timestamp_writes: Some(wgpu::ComputePassTimestampWrites {
+                                        query_set: &t.query_set,
+                                        beginning_of_pass_write_index: Some(2 * idx),
+                                        end_of_pass_write_index: Some(2 * idx + 1),
+                                    }),
+                                })
+                            } else {
+                                encoder.begin_compute_pass(&ComputePassDescriptor::default())
+                            };
+                            #[cfg(not(feature = "gpu-timing"))]
                             let mut cpass =
                                 encoder.begin_compute_pass(&ComputePassDescriptor::default());
                             #[cfg(feature = "wgpu-profiler")]
@@ -755,7 +942,43 @@ impl WgpuEngine {
         // TODO: This only actually needs to happen once per frame, but run_recording happens two or three times
         #[cfg(feature = "wgpu-profiler")]
         profiler.resolve_queries(&mut encoder);
+        // Resolve this frame's per-pass timestamps — but ONLY when no prior
+        // readback is still mapped (copying into a mapped buffer is illegal).
+        #[cfg(feature = "gpu-timing")]
+        let resolve_n: u32 = if !frame_labels.is_empty()
+            && let Some(t) = slab_timing.as_mut()
+            && !t.map_in_flight
+        {
+            t.dispatch_count += 1;
+            let n = frame_labels.len() as u32;
+            encoder.resolve_query_set(&t.query_set, 0..(2 * n), &t.resolve_buf, 0);
+            encoder.copy_buffer_to_buffer(&t.resolve_buf, 0, &t.readback_buf, 0, u64::from(n) * 16);
+            n
+        } else {
+            0
+        };
         queue.submit(Some(encoder.finish()));
+        // Kick a non-blocking readback; `drain()` collects it a frame later.
+        #[cfg(feature = "gpu-timing")]
+        if resolve_n > 0
+            && let Some(t) = slab_timing.as_mut()
+        {
+            t.map_in_flight = true;
+            t.pending_labels = frame_labels.clone();
+            let ready = t.map_ready.clone();
+            ready.store(false, std::sync::atomic::Ordering::Release);
+            t.readback_buf
+                .slice(..)
+                .map_async(wgpu::MapMode::Read, move |res| {
+                    if res.is_ok() {
+                        ready.store(true, std::sync::atomic::Ordering::Release);
+                    }
+                });
+        }
+        #[cfg(feature = "gpu-timing")]
+        {
+            self.slab_timing = slab_timing;
+        }
         for id in free_bufs {
             if let Some(buf) = self.bind_map.buf_map.remove(&id)
                 && let MaterializedBuffer::Gpu(gpu_buf) = buf.buffer

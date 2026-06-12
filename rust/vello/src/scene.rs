@@ -1,7 +1,6 @@
 // Copyright 2022 the Vello Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::io::Cursor;
 use std::sync::Arc;
 
 use peniko::{
@@ -22,7 +21,9 @@ use skrifa::{
 };
 #[cfg(feature = "bump_estimate")]
 use vello_encoding::BumpAllocatorMemory;
-use vello_encoding::{DrawBeginClip, Encoding, Glyph, GlyphRun, NormalizedCoord, Patch, Transform};
+use vello_encoding::{
+    DrawBeginClip, Encoding, Glyph, GlyphRun, InstanceParams, NormalizedCoord, Patch, Transform,
+};
 
 // TODO - Document invariants and edge cases (#470)
 // - What happens when we pass a transform matrix with NaN values to the Scene?
@@ -78,6 +79,71 @@ impl Scene {
     /// This can be used to more easily create invalid scenes, and so should be used with care.
     pub fn encoding_mut(&mut self) -> &mut Encoding {
         &mut self.encoding
+    }
+
+    /// DOFUS Tier 6: append `sub` once with N per-instance transforms.
+    ///
+    /// Short-circuits the singleton-hint case BEFORE the Arc clone — every
+    /// per-actor accessory emit in `world_compose_deferred` lands here with
+    /// `instances.len() == 1` + `singleton_threshold_hint: true`, so doing
+    /// an `Arc::new(sub.encoding.clone())` (a deep copy of every
+    /// path/draw/transform/style/resource Vec on the accessory scene) per
+    /// call was burning ~6ms per frame on a 200-actor stress workload.
+    /// Phase 4's slot-table path uses
+    /// [`append_instanced_encoding`](Self::append_instanced_encoding) so it
+    /// can hand the same `Arc<Encoding>` to every block without re-cloning.
+    pub fn append_instanced(&mut self, sub: &Self, instances: &[InstanceParams]) {
+        if instances.len() == 1 && instances[0].singleton_threshold_hint {
+            let t = Transform::from_kurbo(&instances[0].affine);
+            self.encoding.append(&sub.encoding, &Some(t));
+            return;
+        }
+        let sub_arc = Arc::new(sub.encoding.clone());
+        self.encoding.append_instanced(sub_arc, instances);
+    }
+
+    /// DOFUS Tier 6: lower-level instanced append. The slot-table caches
+    /// `Arc<Encoding>` per look so it can hand the same Arc to every block
+    /// without re-cloning bytes.
+    pub fn append_instanced_encoding(&mut self, sub: Arc<Encoding>, instances: &[InstanceParams]) {
+        self.encoding.append_instanced(sub, instances);
+    }
+
+    /// DOFUS Tier 6 Phase 4b: append `sub` composed with the per-actor
+    /// world transform stored at `instance_transforms[instance_idx]`.
+    ///
+    /// The earlier sentinel-only variant of this helper rewrote every
+    /// appended `Transform` with a single NaN sentinel pointing at the
+    /// actor's slot. That was correct ONLY when `sub` carried a single
+    /// IDENTITY transform — typical for accessories, but not bodies.
+    /// Body subs encode one fresh `TRANSFORM` tag per `scene.fill` /
+    /// `scene.stroke` (see `prebake::emit_op_with_brush`), and those
+    /// local matrices position sub-shapes relative to the body's root.
+    /// Wiping all of them with the same actor-world sentinel collapsed
+    /// every sub-shape onto the actor's pivot — visible as "packed
+    /// characters / missing body parts".
+    ///
+    /// The shader-side sentinel-redirect path stays in place for the
+    /// accessory marker-emit pipeline (`Encoding::append_instanced` →
+    /// `expand_instanced_to_flat`), which DOES guarantee one IDENTITY
+    /// transform per inlined sub copy. Bodies revert to plain CPU
+    /// composition: `transforms` for each body emit become
+    /// `world * sub_local`, varying per actor. The packed `transforms`
+    /// region is then unconditionally re-written by the band's
+    /// `reuse_fast` write each frame (see `render::render_with_reuse`),
+    /// so per-actor variation in this region doesn't defeat retention —
+    /// the band's structure fingerprint (path-tag layout, n_paths,
+    /// path_data hash) stays stable when the actor set is stable.
+    ///
+    /// `instance_idx` indexes into `instance_transforms` where the
+    /// caller previously pushed the actor's world affine. We read it
+    /// back here so the call site stays compatible with the Phase 4b
+    /// sequencing (one `instance_transforms` push per actor before any
+    /// segment emit), and so the instance arrays still describe a
+    /// coherent scene for the accessory-side shader logic.
+    pub fn append_with_instance_transform(&mut self, sub: &Self, instance_idx: u32) {
+        let world = self.encoding.instance_transforms[instance_idx as usize];
+        self.encoding.append(&sub.encoding, &Some(world));
     }
 
     /// Pushes a new layer clipped by the specified shape and composed with
@@ -720,7 +786,7 @@ impl<'a> DrawGlyphs<'a> {
                             }
                         }
                         bitmap::BitmapData::Png(data) => {
-                            let mut decoder = png::Decoder::new(Cursor::new(data));
+                            let mut decoder = png::Decoder::new(std::io::Cursor::new(data));
                             decoder.set_transformations(
                                 Transformations::ALPHA | Transformations::STRIP_16,
                             );
@@ -733,8 +799,7 @@ impl<'a> DrawGlyphs<'a> {
                                 log::error!("Unsupported `output_color_type`");
                                 continue;
                             }
-                            let mut buf = vec![0; reader.output_buffer_size().unwrap_or_default()]
-                                .into_boxed_slice();
+                            let mut buf = vec![0; reader.output_buffer_size().unwrap_or_default()].into_boxed_slice();
 
                             let info = reader.next_frame(&mut buf).unwrap();
                             if info.width != bitmap.width || info.height != bitmap.height {
@@ -1230,5 +1295,82 @@ impl ColorStopsSource for ColorStopsConverter<'_> {
                 offset: item.offset,
             });
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use peniko::Color;
+    use peniko::kurbo::{Affine, Rect};
+
+    use super::*;
+
+    fn make_filled_sub_scene() -> Scene {
+        // A single small accessory-style shape (one rect, one fill,
+        // one color) — large enough that an `Arc::new(encoding.clone())`
+        // per call would dominate the loop, small enough that the
+        // singleton-short-circuit path stays near-zero overhead.
+        let mut s = Scene::new();
+        s.fill(
+            peniko::Fill::NonZero,
+            Affine::IDENTITY,
+            Color::WHITE,
+            None,
+            &Rect::new(0.0, 0.0, 10.0, 10.0),
+        );
+        s
+    }
+
+    /// Tier 6 Phase 6 regression guard: the `Scene::append_instanced`
+    /// singleton-hint short-circuit must NOT pay the Arc-clone cost of
+    /// the multi-instance path. The 2026-05-29 measurement showed the
+    /// missing short-circuit cost ~6 ms/frame on the 200-actor
+    /// workload (compose.parallel_build_ms jumped 1.0 → 7.0). This
+    /// asserts 10k singleton `append_instanced` calls run within 3×
+    /// the cost of 10k plain `append` calls — a deliberately generous
+    /// margin so optimisation-level / OS-noise variability does not
+    /// flake the test. A regression of the magnitude originally seen
+    /// (≥10×) would still trip.
+    #[test]
+    fn append_instanced_singleton_does_not_clone_encoding() {
+        let sub = make_filled_sub_scene();
+        const N: usize = 10_000;
+
+        let mut t_append = std::time::Duration::MAX;
+        let mut t_instanced = std::time::Duration::MAX;
+        for _ in 0..5 {
+            let mut reference = Scene::new();
+            let start = std::time::Instant::now();
+            for i in 0..N {
+                let a = Affine::translate((i as f64, 0.0));
+                reference.append(&sub, Some(a));
+            }
+            t_append = t_append.min(start.elapsed());
+
+            let mut tested = Scene::new();
+            let start = std::time::Instant::now();
+            for i in 0..N {
+                let a = Affine::translate((i as f64, 0.0));
+                tested.append_instanced(
+                    &sub,
+                    &[InstanceParams {
+                        affine: a,
+                        color_overlay: None,
+                        singleton_threshold_hint: true,
+                    }],
+                );
+            }
+            t_instanced = t_instanced.min(start.elapsed());
+        }
+
+        let ratio = t_instanced.as_secs_f64() / t_append.as_secs_f64();
+        assert!(
+            ratio < 3.0,
+            "Scene::append_instanced singleton path is {ratio:.2}× slower than \
+             plain append (instanced={:?}, append={:?}); the \
+             singleton_threshold_hint short-circuit likely regressed",
+            t_instanced,
+            t_append,
+        );
     }
 }

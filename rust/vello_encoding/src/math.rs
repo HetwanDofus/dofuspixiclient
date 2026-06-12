@@ -146,7 +146,77 @@ pub fn f16_to_f32(bits: u16) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{f16_to_f32, f32_to_f16};
+    use super::{Transform, f16_to_f32, f32_to_f16};
+
+    /// Rust mirror of the column-major Transform composition done by
+    /// `instance_expand_slab.wgsl`. Validates the shader's formulas
+    /// against `vello_encoding::Transform::Mul` (the canonical source
+    /// of truth used everywhere else in the codebase). If this test
+    /// fails, the WGSL composition is wrong and bodies will render
+    /// with subtly bad geometry.
+    fn shader_compose(world: Transform, local: Transform) -> Transform {
+        let r_m0 = world.matrix[0] * local.matrix[0] + world.matrix[2] * local.matrix[1];
+        let r_m1 = world.matrix[1] * local.matrix[0] + world.matrix[3] * local.matrix[1];
+        let r_m2 = world.matrix[0] * local.matrix[2] + world.matrix[2] * local.matrix[3];
+        let r_m3 = world.matrix[1] * local.matrix[2] + world.matrix[3] * local.matrix[3];
+        let r_t0 = world.matrix[0] * local.translation[0]
+            + world.matrix[2] * local.translation[1]
+            + world.translation[0];
+        let r_t1 = world.matrix[1] * local.translation[0]
+            + world.matrix[3] * local.translation[1]
+            + world.translation[1];
+        Transform {
+            matrix: [r_m0, r_m1, r_m2, r_m3],
+            translation: [r_t0, r_t1],
+        }
+    }
+
+    #[test]
+    fn shader_compose_matches_transform_mul() {
+        let a = Transform {
+            matrix: [1.5, 0.25, -0.5, 2.0],
+            translation: [10.0, 20.0],
+        };
+        let b = Transform {
+            matrix: [0.8, -0.1, 0.3, 1.2],
+            translation: [-5.0, 7.0],
+        };
+        let expected = a * b;
+        let actual = shader_compose(a, b);
+        for k in 0..4 {
+            assert!(
+                (expected.matrix[k] - actual.matrix[k]).abs() < 1e-6,
+                "matrix[{}] mismatch: expected {}, got {}",
+                k,
+                expected.matrix[k],
+                actual.matrix[k],
+            );
+        }
+        for k in 0..2 {
+            assert!(
+                (expected.translation[k] - actual.translation[k]).abs() < 1e-6,
+                "translation[{}] mismatch: expected {}, got {}",
+                k,
+                expected.translation[k],
+                actual.translation[k],
+            );
+        }
+    }
+
+    #[test]
+    fn shader_compose_identity_preserves_local() {
+        let id = Transform {
+            matrix: [1.0, 0.0, 0.0, 1.0],
+            translation: [0.0, 0.0],
+        };
+        let local = Transform {
+            matrix: [0.7, 0.1, -0.2, 0.9],
+            translation: [3.0, 4.0],
+        };
+        let composed = shader_compose(id, local);
+        assert_eq!(composed.matrix, local.matrix);
+        assert_eq!(composed.translation, local.translation);
+    }
 
     #[test]
     fn test_f32_to_f16_simple() {

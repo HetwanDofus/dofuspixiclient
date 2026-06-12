@@ -279,6 +279,31 @@ impl PathTag {
     /// Style setting.
     pub const STYLE: Self = Self(0x40);
 
+    /// DOFUS Tier 6: marks the position in `path_tags` of an instanced sub-
+    /// encoding block. Each `INSTANCED_BEGIN` corresponds to one entry in
+    /// `Encoding::instance_blocks` (k-th opcode → k-th block). The block
+    /// carries the sub-encoding, its instance count, and base offsets into
+    /// `instance_transforms` / `instance_color_overlays`. No paired "end"
+    /// opcode — the block is atomic. Lower 3 bits are zero, so this tag
+    /// returns `false` from every segment / path / transform / style check
+    /// in the existing `PathMonoid` accumulator — i.e. it is inert for
+    /// callers that haven't been taught about it (Phase 1 shim flattens
+    /// these before submission; Phase 2 teaches the shaders).
+    pub const INSTANCED_BEGIN: Self = Self(0x80);
+
+    /// DOFUS Tier 7: marks the position in `path_tags` of a slabbed
+    /// instanced block. Each marker corresponds to one entry in
+    /// `Encoding::instance_slab_blocks`. The byte value is
+    /// `INSTANCED_BEGIN | 0x04` — both high-bit-set (so the existing
+    /// `(tag & 0x80) != 0` fast path on the shader side detects either
+    /// kind of marker) AND distinct from the unslabbed marker. Bit
+    /// `0x04` is the `SUBPATH_END_BIT`, but that bit is only consulted
+    /// inside path-segment context, never on a marker tag. Bits
+    /// `0x01/0x02/0x10/0x20/0x40` remain zero so the monoid records
+    /// zero for this byte (mirroring `INSTANCED_BEGIN`'s inert
+    /// contract).
+    pub const INSTANCED_SLAB_BEGIN: Self = Self(0x84);
+
     /// Bit that marks a segment that is the end of a subpath.
     pub const SUBPATH_END_BIT: u8 = 0x4;
 
