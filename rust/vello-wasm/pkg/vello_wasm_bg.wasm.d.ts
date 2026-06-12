@@ -1,6 +1,5 @@
 /* tslint:disable */
 /* eslint-disable */
-export const memory: WebAssembly.Memory;
 export const __wbg_vellorenderer_free: (a: number, b: number) => void;
 export const vellorenderer_accessorySubsceneCacheCountFor: (a: number, b: number, c: number) => number;
 export const vellorenderer_analyzeFrameStability: (a: number, b: number) => any;
@@ -47,6 +46,7 @@ export const vellorenderer_realCrowdCaptureFlipbook: (a: number, b: number, c: n
 export const vellorenderer_realCrowdContentRatio: (a: number) => any;
 export const vellorenderer_realCrowdFree: (a: number) => void;
 export const vellorenderer_realCrowdRenderBatched: (a: number, b: number, c: number) => any;
+export const vellorenderer_realCrowdRenderBatchedParallel: (a: number, b: number, c: number) => any;
 export const vellorenderer_realCrowdRenderRetained: (a: number, b: number, c: number) => any;
 export const vellorenderer_realCrowdRenderRetainedFrozen: (a: number, b: number, c: number, d: number, e: number) => any;
 export const vellorenderer_realCrowdSetSlab: (a: number, b: number) => void;
@@ -100,9 +100,16 @@ export const vellorenderer_tickDeferredDestroys: (a: number, b: number, c: numbe
 export const vellorenderer_tickSwfSpellFrame: (a: number, b: number) => any;
 export const vellorenderer_tileSubsceneCacheCountFor: (a: number, b: number, c: number) => number;
 export const vellorenderer_wasmHeapBytes: (a: number) => number;
-export const wasm_bindgen__convert__closures_____invoke__h97a41680667a7bc9: (a: number, b: number, c: any) => [number, number];
-export const wasm_bindgen__convert__closures_____invoke__h59f6a18f366ace3f: (a: number, b: number, c: any, d: any) => void;
-export const wasm_bindgen__convert__closures_____invoke__he3b8ad3a01647b28: (a: number, b: number, c: any) => void;
+export const __wbg_wbg_rayon_poolbuilder_free: (a: number, b: number) => void;
+export const initThreadPool: (a: number) => any;
+export const wbg_rayon_poolbuilder_build: (a: number) => void;
+export const wbg_rayon_poolbuilder_numThreads: (a: number) => number;
+export const wbg_rayon_poolbuilder_receiver: (a: number) => number;
+export const wbg_rayon_start_worker: (a: number) => void;
+export const wasm_bindgen_27fdaeb5a3f606da___convert__closures_____invoke___wasm_bindgen_27fdaeb5a3f606da___JsValue__core_3dddace4975f8c7___result__Result_____wasm_bindgen_27fdaeb5a3f606da___JsError___true_: (a: number, b: number, c: any) => [number, number];
+export const wasm_bindgen_27fdaeb5a3f606da___convert__closures_____invoke___js_sys_11f9f67016ace355___Function_fn_wasm_bindgen_27fdaeb5a3f606da___JsValue_____wasm_bindgen_27fdaeb5a3f606da___sys__Undefined___js_sys_11f9f67016ace355___Function_fn_wasm_bindgen_27fdaeb5a3f606da___JsValue_____wasm_bindgen_27fdaeb5a3f606da___sys__Undefined_______true_: (a: number, b: number, c: any, d: any) => void;
+export const wasm_bindgen_27fdaeb5a3f606da___convert__closures_____invoke___wasm_bindgen_27fdaeb5a3f606da___JsValue______true_: (a: number, b: number, c: any) => void;
+export const memory: WebAssembly.Memory;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
 export const __wbindgen_exn_store: (a: number) => void;
@@ -112,4 +119,5 @@ export const __wbindgen_free: (a: number, b: number, c: number) => void;
 export const __wbindgen_destroy_closure: (a: number, b: number) => void;
 export const __externref_drop_slice: (a: number, b: number) => void;
 export const __externref_table_dealloc: (a: number) => void;
-export const __wbindgen_start: () => void;
+export const __wbindgen_thread_destroy: (a?: number, b?: number, c?: number) => void;
+export const __wbindgen_start: (a: number) => void;
