@@ -274,6 +274,16 @@ const LOOK_CACHE_CAP: usize = 12_000;
 /// a steady frame rate when a burst of new looks appears. Zero cost once
 /// the working set is warm.
 const SLAB_BAKE_BUDGET_MS: f64 = 4.0;
+
+/// When the SubLibrary's packed bytes pass this, drop ALL interns + the
+/// handle cache and let the live frame re-intern its active set. A crowd
+/// of fully-unique actors cycling every direction/frame has an unbounded
+/// cumulative look set (it can exceed the 1 GiB SubLibrary cap, after
+/// which new looks intern as sentinels and their actors vanish). The
+/// per-frame bake budget + per-signature fallback keep the crowd visible
+/// across the refill. Kept well under the 1 GiB hard cap; for ordinary
+/// play (bounded look set) it never trips.
+const SLAB_SUBLIB_RESET_BYTES: u64 = 384 * 1024 * 1024;
 /// Keep any look used within this many render frames regardless of cap
 /// (~4 s at 60 fps — two walk cycles). Older entries are the first
 /// evicted when over `LOOK_CACHE_CAP`.
@@ -5100,6 +5110,17 @@ impl VelloRenderer {
                 height: th,
                 antialiasing_method: AaConfig::Area,
             };
+            // Bound the cumulative interned set: if it has grown near the
+            // SubLibrary cap, drop it and re-intern the active set this
+            // frame (fallback covers the brief refill). Prevents the
+            // overflow-to-sentinel state where past-cap looks render blank.
+            let sublib_over = self
+                .renderer
+                .sub_library_stats()
+                .is_some_and(|l| l.used_bytes() > SLAB_SUBLIB_RESET_BYTES);
+            if sublib_over {
+                self.slab_crowd.reset(&mut self.renderer);
+            }
             let mut emits: Vec<slab_crowd::SlabEmit> = Vec::with_capacity(sorted_idx.len());
             let mut baked_this_frame: u32 = 0;
             {
