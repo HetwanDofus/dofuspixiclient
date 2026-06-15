@@ -272,21 +272,34 @@ impl SubLibrary {
             .collect()
     }
 
-    fn intern_inner(
+    /// DOFUS: pack a resolved encoding's bytes into the GPU buffer + CPU
+    /// mirror and return its handle, WITHOUT recording any `by_ptr`
+    /// ownership. Used by the crowd's compact path, which dedups looks by
+    /// its own string key and never re-interns — so pinning an
+    /// `Arc<Encoding>` per sub (the ABA guard the pooled tile path needs)
+    /// would just leak ~30 KB/look. The shared body of `intern_inner`.
+    pub fn intern_transient(
         &mut self,
-        queue: Option<&wgpu::Queue>,
-        sub: &Arc<Encoding>,
-        resolved: Option<&Encoding>,
+        queue: &wgpu::Queue,
+        enc: &Encoding,
         zone_patches: &[ZonePatchGpu],
     ) -> SubHandle {
-        let input: &Encoding = resolved.unwrap_or(sub.as_ref());
+        self.intern_count += 1;
+        self.pack_bytes(Some(queue), enc, zone_patches)
+    }
+
+    fn pack_bytes(
+        &mut self,
+        queue: Option<&wgpu::Queue>,
+        to_pack: &Encoding,
+        zone_patches: &[ZonePatchGpu],
+    ) -> SubHandle {
         // No transform padding: each sub keeps its ACTUAL transform tags
         // and records. The slab gap tight-packs transforms per slot at a
         // prefix-sum offset (`SlabSlotAux::transforms_dst_words`), exactly
         // like path_data — so there is no per-sub transform-count limit
         // and complex tiles (e.g. the map-35 windmill, ~175 transforms)
         // are no longer truncated.
-        let to_pack: &Encoding = input;
         let stream_bytes = pack_sub_bytes(to_pack);
         let patches_bytes = bytemuck::cast_slice::<ZonePatchGpu, u8>(zone_patches);
         let pack_size = (stream_bytes.len() + patches_bytes.len()) as u64;
@@ -325,6 +338,22 @@ impl SubLibrary {
         let mut handle = sub_handle_for(stream_off_words, to_pack);
         handle.zone_patches_offset = (patches_off_bytes / 4) as u32;
         handle.zone_patches_count = zone_patches.len() as u32;
+        handle
+    }
+
+    fn intern_inner(
+        &mut self,
+        queue: Option<&wgpu::Queue>,
+        sub: &Arc<Encoding>,
+        resolved: Option<&Encoding>,
+        zone_patches: &[ZonePatchGpu],
+    ) -> SubHandle {
+        let to_pack: &Encoding = resolved.unwrap_or(sub.as_ref());
+        let handle = self.pack_bytes(queue, to_pack, zone_patches);
+        // ABA guard for the pooled tile/strip path: pin the Arc so its
+        // heap address can't be reused by a different sub while this
+        // handle is cached. (The crowd path bypasses this via
+        // `intern_transient` — it owns dedup and never recycles.)
         let key = (Arc::as_ptr(sub) as usize, hash_zone_patches(zone_patches));
         self.by_ptr.insert(key, (handle, Arc::clone(sub)));
         handle

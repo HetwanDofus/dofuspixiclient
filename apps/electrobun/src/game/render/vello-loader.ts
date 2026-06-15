@@ -19,7 +19,14 @@
  */
 
 import type { Renderer as PixiRenderer } from "pixi.js";
-import wasmInit, { VelloRenderer, initThreadPool } from "vello-wasm";
+import wasmInit, { VelloRenderer } from "vello-wasm";
+// Namespace import so a non-threaded pkg (which omits `initThreadPool`)
+// still loads — a static named import of a missing export is a hard
+// ESM error. Resolved optionally at call time.
+import * as velloWasmNs from "vello-wasm";
+const initThreadPool: ((n: number) => Promise<void>) | undefined = (
+  velloWasmNs as unknown as { initThreadPool?: (n: number) => Promise<void> }
+).initThreadPool;
 
 import { recordProbe } from "./render-probes";
 import { getRenderWatchdog } from "./render-watchdog";
@@ -83,7 +90,14 @@ async function initBakeWorkerPool(wasmUrl?: string): Promise<void> {
         const sizeStored = localStorage.getItem("bakePoolSize");
         if (sizeStored) {
           const n = Number(sizeStored);
-          if (Number.isFinite(n) && n >= 1 && n <= 16) size = Math.floor(n);
+          // 0 = no worker pool (synchronous main-thread bakes). Bake
+          // workers each own a wasm instance over the shared atomics
+          // memory, so an unhandled panic in a worker (whose thread has
+          // no panic hook) aborts as a bare `unreachable` and corrupts
+          // the shared renderer — fatal and undiagnosable. Setting 0
+          // keeps all baking on the main thread (hook installed,
+          // deterministic) for measurement runs.
+          if (Number.isFinite(n) && n >= 0 && n <= 16) size = Math.floor(n);
         }
         if (localStorage.getItem("bakeShard") === "1") shardByBundle = true;
       }
@@ -92,7 +106,7 @@ async function initBakeWorkerPool(wasmUrl?: string): Promise<void> {
         const sizeParam = params.get("bakePoolSize");
         if (sizeParam) {
           const n = Number(sizeParam);
-          if (Number.isFinite(n) && n >= 1 && n <= 16) size = Math.floor(n);
+          if (Number.isFinite(n) && n >= 0 && n <= 16) size = Math.floor(n);
         }
         if (params.get("bakeShard") === "1") shardByBundle = true;
       }
@@ -102,6 +116,12 @@ async function initBakeWorkerPool(wasmUrl?: string): Promise<void> {
     console.log(
       `[vello-loader] bake-worker pool: size=${size} shardByBundle=${shardByBundle}`,
     );
+    if (size === 0) {
+      console.warn(
+        "[vello-loader] bake-worker pool DISABLED (size=0); synchronous main-thread bakes",
+      );
+      return;
+    }
     const ok = await mod.initBakeWorkerPool({ size, wasmUrl, shardByBundle });
     if (!ok) {
       console.warn(
@@ -204,8 +224,7 @@ export async function initVello(wasmUrl?: string): Promise<{
   try {
     if (
       typeof initThreadPool === "function" &&
-      (globalThis as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated &&
-      !localStorage.getItem("VELLO_NO_THREADS") // TEMP DIAG: force serial to surface worker panics
+      (globalThis as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated
     ) {
       const n = Math.min(8, Math.max(2, (navigator.hardwareConcurrency || 4) - 1));
       await initThreadPool(n);

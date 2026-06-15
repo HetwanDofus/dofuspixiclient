@@ -268,7 +268,15 @@ export class CrowdRenderer {
     this.frames = new Uint32Array(sorted.length);
     this.lastLook.clear();
 
-    const posScale = this.resolution; // wasm: pos_scale = resolution
+    // Coordinates are passed in WORLD units; the wasm multiplies by
+    // `pos_scale = resolution` and bakes each look at `resolution/20`, so
+    // the crowd texture is at resolution (HiDPI) density — exactly like
+    // the per-player strip renderer. The sprite is then mounted at
+    // `scale = 1/resolution` (see `adoptTexture`) so texture pixels map
+    // back to world units 1:1 and the container zoom applies once.
+    // (Previously coords were pre-divided by resolution AND the sprite
+    // was mounted at scale 1, so characters rendered `resolution`× too
+    // large — the oversized-bots / fillrate-melt bug.)
     const setupPlayers = sorted.map((p) => {
       this.lastLook.set(p.id, lookSig(p));
       return {
@@ -280,8 +288,8 @@ export class CrowdRenderer {
         c1: p.c1,
         c2: p.c2,
         c3: p.c3,
-        x: p.x / posScale,
-        y: p.y / posScale,
+        x: p.x,
+        y: p.y,
         acc: p.acc,
       };
     });
@@ -298,7 +306,7 @@ export class CrowdRenderer {
       offY: info.offY ?? 0,
       texW: info.texW ?? 1,
       texH: info.texH ?? 1,
-      posScale: info.posScale ?? posScale,
+      posScale: info.posScale ?? this.resolution,
     };
     this.rosterKey = key;
 
@@ -347,7 +355,15 @@ export class CrowdRenderer {
     }
     // Texture-local (offX, offY) == world (0,0): a player at world wx lands
     // at texture-local wx+offX, shown at -offX + (wx+offX) = wx.
-    this.sprite.position.set(-this.setup.offX, -this.setup.offY);
+    // Texture is at resolution density; downscale by 1/resolution so it
+    // maps to world units (the container zoom then applies once), and
+    // offset by the (also resolution-density) content origin converted to
+    // world units. A player at world wx lands at texture-local
+    // wx*resolution + offX, shown at (-offX + wx*resolution + offX)/
+    // resolution = wx.
+    const inv = 1 / this.resolution;
+    this.sprite.scale.set(inv);
+    this.sprite.position.set(-this.setup.offX * inv, -this.setup.offY * inv);
     this.sprite.visible = true;
     this.active = true;
   }
@@ -362,7 +378,6 @@ export class CrowdRenderer {
       log.info(`slab mode ${this.pendingSlabMode ? "ON" : "OFF"} applied`);
       this.pendingSlabMode = null;
     }
-    const posScale = this.setup.posScale;
 
     // Index the live snapshot by id; build the flat per-tick uploads in
     // the frozen setup order; collect sparse look changes.
@@ -381,8 +396,8 @@ export class CrowdRenderer {
         this.frames[i] = 0;
         continue;
       }
-      this.xy[i * 2] = p.x / posScale;
-      this.xy[i * 2 + 1] = p.y / posScale;
+      this.xy[i * 2] = p.x;
+      this.xy[i * 2 + 1] = p.y;
       this.frames[i] = Math.max(0, p.frame | 0);
 
       const sig = lookSig(p);

@@ -6,14 +6,13 @@
 //! no batch textures, no composite pass.
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use vello::kurbo::Affine;
 use vello::wgpu;
 use vello::{Renderer, ReuseToken, Scene, SubHandle};
 use vello_encoding::{
-    Encoding, SlabBlockGpu, SlabSlotAux, SlabSlotDesc, SlabStreamTotals, Transform,
-    begin_slab_block, slab_block_set_slot, slab_block_set_stream_totals,
+    SlabBlockGpu, SlabSlotAux, SlabSlotDesc, SlabStreamTotals, Transform, begin_slab_block,
+    slab_block_set_slot, slab_block_set_stream_totals,
 };
 
 /// Whole-crowd slot capacity. wc3 uses 8192 per band with ~9 emits per
@@ -107,11 +106,25 @@ fn waste_words(pinned: &SlabStreamTotals, live: &SlabStreamTotals) -> u64 {
     sum(pinned).saturating_sub(sum(live))
 }
 
-/// One actor look in paint order: the interned-identity encoding plus
-/// its world placement for this frame.
+/// One actor look in paint order: the COMPACT interned-sub handle (bytes
+/// already live in the SubLibrary) plus this frame's world placement.
+/// No `Arc<Encoding>` is retained — that was the heap blow-up.
+#[derive(Clone, Copy)]
 pub(crate) struct SlabEmit {
-    pub enc: Arc<Encoding>,
+    pub look: CachedLook,
     pub world: Affine,
+}
+
+/// What the crowd caches per unique `(sig|frame)` look: the SubLibrary
+/// handle (offset + per-stream word counts) and the three encoding-level
+/// counts the slab block needs. ~72 bytes — vs the ~30-60 KB `vello::Scene`
+/// + cloned `Arc<Encoding>` the old path pinned per look.
+#[derive(Clone, Copy)]
+pub(crate) struct CachedLook {
+    pub handle: SubHandle,
+    pub n_paths: u32,
+    pub n_path_segments: u32,
+    pub n_clips: u32,
 }
 
 #[derive(Default, Clone, Copy)]
@@ -143,7 +156,19 @@ struct RetainedSlab {
 
 #[derive(Default)]
 pub(crate) struct SlabCrowdState {
-    enc_by_look: HashMap<String, Arc<Encoding>>,
+    /// Compact per-look cache: `(sig|frame)` → interned handle + counts.
+    /// Grows with the map's distinct looks (like wc3's interned set); no
+    /// cap needed because each entry is tiny and the SubLibrary itself
+    /// grows-to-fit then degrades gracefully. Cleared on crowd (re)setup.
+    handle_by_look: HashMap<String, CachedLook>,
+    /// Per-signature fallback: `sig` (look+anim+direction, frame-agnostic)
+    /// → the most-recently-baked frame for it. When an actor's exact
+    /// `(sig|frame)` isn't baked yet and the frame's bake budget is spent,
+    /// it renders this nearby frame instead of vanishing — so the crowd is
+    /// always full and animation merely catches up as frames warm. Without
+    /// it, hundreds of fully-unique animating actors pop in and out under
+    /// the per-frame bake budget.
+    fallback_by_sig: HashMap<String, CachedLook>,
     high_water: SlabHighWater,
     retained: Option<RetainedSlab>,
     frame: u64,
@@ -152,33 +177,36 @@ pub(crate) struct SlabCrowdState {
 }
 
 impl SlabCrowdState {
-    /// One stable `Arc<Encoding>` per look key — the SubLibrary intern
-    /// cache keys on Arc identity, so a fresh Arc every frame would
-    /// re-intern every frame and grow the library without bound. Keyed by
-    /// the look-cache string key (stable for the cache lifetime) instead
-    /// of wc3's scene-pointer map: `look_cache` stores scenes by value
-    /// here, and the string key dodges the ABA pointer hazard outright.
-    pub(crate) fn encoding_for(&mut self, key: &str, scene: &Scene) -> Arc<Encoding> {
-        if let Some(enc) = self.enc_by_look.get(key) {
-            return enc.clone();
-        }
-        let enc = Arc::new(scene.encoding().clone());
-        self.enc_by_look.insert(key.to_owned(), enc.clone());
-        enc
+    pub(crate) fn cached_look(&self, key: &str) -> Option<CachedLook> {
+        self.handle_by_look.get(key).copied()
+    }
+
+    pub(crate) fn fallback_look(&self, sig: &str) -> Option<CachedLook> {
+        self.fallback_by_sig.get(sig).copied()
+    }
+
+    pub(crate) fn cache_look(&mut self, sig: &str, key: String, look: CachedLook) {
+        self.handle_by_look.insert(key, look);
+        self.fallback_by_sig.insert(sig.to_owned(), look);
+    }
+
+    pub(crate) fn unique_looks(&self) -> usize {
+        self.handle_by_look.len()
     }
 
     /// Drop all retained slab state: frees the resident scene buffer,
-    /// resets the SubLibrary + pinned ramp/atlas caches, and forgets the
-    /// envelope so the next frame re-pins from live sizes. Call on crowd
-    /// (re)setup and on slab-mode toggle — the pinned caches are
-    /// append-only within a crowd lifetime (wc3 resets per MapEpoch for
-    /// the same reason).
+    /// resets the SubLibrary + pinned ramp/atlas caches, drops the handle
+    /// cache, and forgets the envelope. Call on crowd (re)setup — the
+    /// pinned caches are append-only within a crowd lifetime (wc3 resets
+    /// per MapEpoch for the same reason); interned handles go stale the
+    /// moment the SubLibrary is reset, so they must be dropped together.
     pub(crate) fn reset(&mut self, renderer: &mut Renderer) {
         if let Some(r) = self.retained.take() {
             renderer.free_reused(r.token);
         }
         renderer.reset_slab_interns();
-        self.enc_by_look.clear();
+        self.handle_by_look.clear();
+        self.fallback_by_sig.clear();
         self.high_water = SlabHighWater::default();
         self.frame = 0;
     }
@@ -198,7 +226,6 @@ struct SlotEmit {
 /// `(slots_used, overflow)`.
 pub(crate) fn build_crowd_slab_scene(
     renderer: &mut Renderer,
-    queue: &wgpu::Queue,
     state: &mut SlabCrowdState,
     emits: &[SlabEmit],
 ) -> (Scene, u32, u32) {
@@ -208,28 +235,27 @@ pub(crate) fn build_crowd_slab_scene(
     let mut used = 0u32;
     let mut overflow = 0u32;
 
-    // Pass 1: assign slots in emit order + intern subs. An emit whose
-    // intern fails still occupies its slot as a sentinel so later emits
-    // keep their layering position.
+    // Pass 1: assign slots in emit order. Handles are already interned
+    // (by the caller's compact bake-and-cache); a sentinel handle
+    // (offset 0 = bake skipped/failed) still occupies its slot so later
+    // emits keep their layering position.
     let mut slots: Vec<Option<SlotEmit>> = Vec::with_capacity(emits.len());
     for emit in emits {
         if slots.len() >= CROWD_SLOT_COUNT as usize {
             overflow += 1;
             continue;
         }
-        let handle = renderer.intern_sub(queue, &emit.enc, &[]);
-        if handle.offset == 0 && (!emit.enc.path_tags.is_empty() || !emit.enc.path_data.is_empty())
-        {
+        if emit.look.handle.offset == 0 {
             overflow += 1;
             slots.push(None);
             continue;
         }
         slots.push(Some(SlotEmit {
-            handle,
+            handle: emit.look.handle,
             world: emit.world,
-            n_paths: emit.enc.n_paths,
-            n_path_segments: emit.enc.n_path_segments,
-            n_clips: emit.enc.n_clips,
+            n_paths: emit.look.n_paths,
+            n_path_segments: emit.look.n_path_segments,
+            n_clips: emit.look.n_clips,
         }));
     }
     let live_slot_count = u32::try_from(slots.len())

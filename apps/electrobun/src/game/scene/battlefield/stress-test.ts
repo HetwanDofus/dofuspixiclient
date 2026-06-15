@@ -342,7 +342,45 @@ function randomColor(): number {
   return Math.floor(rnd() * 0xffffff);
 }
 
+/**
+ * Test knob for appearance diversity. When `window.__stressLookPoolSize`
+ * is > 0, every bot draws from a fixed pool of that many distinct
+ * pre-generated looks instead of an individually-unique random look.
+ *
+ * Why: the default (fully-random 24-bit colours per bot) makes the
+ * `(sig|frame)` look-cache working set scale with bot count without
+ * bound, which conflates *render throughput* with *cache capacity* in a
+ * scaling benchmark. A fixed pool models a realistic map — many players
+ * share class + gear — and keeps the working set constant so a
+ * bot-count sweep measures pure render cost. Default 0 = unchanged
+ * fully-unique behaviour.
+ */
+let lookPool: string[] | null = null;
+let lookPoolBuiltFor = -1;
+function currentLookPoolSize(): number {
+  const w = globalThis as unknown as { __stressLookPoolSize?: number };
+  const n = w.__stressLookPoolSize ?? 0;
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
 function buildRandomLook(): string {
+  const poolSize = currentLookPoolSize();
+  if (poolSize > 0) {
+    if (!lookPool || lookPoolBuiltFor !== poolSize) {
+      // Build the pool deterministically (fixed seed) so it's stable
+      // across spawn calls within a run; restore the prior RNG after.
+      const prev = seededRng;
+      seededRng = mulberry32(0x57170000 ^ poolSize);
+      lookPool = Array.from({ length: poolSize }, buildRandomLookRaw);
+      seededRng = prev;
+      lookPoolBuiltFor = poolSize;
+    }
+    return pick(lookPool);
+  }
+  return buildRandomLookRaw();
+}
+
+function buildRandomLookRaw(): string {
   const gfx = pick(KNOWN_GFX_IDS);
   const c1 = randomColor();
   const c2 = randomColor();

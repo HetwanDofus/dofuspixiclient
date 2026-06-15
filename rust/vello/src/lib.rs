@@ -926,6 +926,51 @@ impl Renderer {
         }
     }
 
+    /// DOFUS: like [`Self::intern_sub`] but packs the bytes WITHOUT pinning
+    /// an `Arc<Encoding>` in the library (no `by_ptr` entry). The crowd's
+    /// compact path dedups looks by its own stable key and never
+    /// re-interns or recycles, so the ABA guard `intern_sub` needs is dead
+    /// weight there — pinning an `Arc` per unique look leaked tens of KB
+    /// each and was the dominant heap cost at hundreds of distinct actors.
+    /// Caller MUST guarantee it never interns the same look twice.
+    pub fn intern_sub_transient(
+        &mut self,
+        queue: &Queue,
+        enc: &vello_encoding::Encoding,
+        zone_patches: &[ZonePatchGpu],
+    ) -> SubHandle {
+        let Some(library) = self.sub_library.as_mut() else {
+            return bytemuck::Zeroable::zeroed();
+        };
+        if enc.resources.patches.is_empty() {
+            return library.intern_transient(queue, enc, zone_patches);
+        }
+        // Patches present (gradient/image fills): resolve into a private
+        // clone — the temp `Arc` is only for the resolver API and is
+        // dropped here; nothing is pinned beyond the packed bytes.
+        let tmp = std::sync::Arc::new(enc.clone());
+        let resolved = resolve_sub_patches(&mut self.resolver, &tmp);
+        if let Some((resolved, new_pins)) = resolved {
+            upload_slab_pins(
+                &self.device,
+                queue,
+                &mut self.slab_atlas_tex,
+                self.resolver.image_cache_mut().atlas_size(),
+                &new_pins,
+            );
+            refresh_slab_ramps(
+                &self.device,
+                queue,
+                &mut self.slab_ramps_tex,
+                &mut self.slab_ramps_rows_uploaded,
+                self.resolver.ramp_cache_mut().ramps(),
+            );
+            library.intern_transient(queue, &resolved, zone_patches)
+        } else {
+            library.sentinel()
+        }
+    }
+
     /// Clone of the SubLibrary's GPU buffer handle. `wgpu::Buffer` is
     /// internally Arc'd so the clone is cheap; returning owned breaks
     /// the borrow chain with `&mut self.engine.run_recording` in the

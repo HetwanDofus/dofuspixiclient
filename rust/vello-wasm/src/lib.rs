@@ -225,6 +225,16 @@ struct RealAnimCrowd {
     /// player's explicit `frame` rather than deriving it from a global clock.
     explicit_frames: bool,
     look_cache: HashMap<String, vello::Scene>,
+    /// Last render-frame each `look_cache` key was used. Drives LRU
+    /// eviction: with fully-random bot colours (the stress generator) the
+    /// `(sig|frame)` key space is effectively unbounded, so without a cap
+    /// `look_cache` grew to tens of thousands of `vello::Scene`s and
+    /// exhausted the wasm heap (silent `unreachable` abort). Entries not
+    /// used within `LOOK_KEEP_FRAMES`, plus an oldest-first backstop at
+    /// `LOOK_CACHE_CAP`, are pruned each render.
+    look_used: HashMap<String, u64>,
+    /// Monotonic render counter for `look_used` stamps.
+    crowd_frame: u64,
     target: wgpu::Texture,
     view: wgpu::TextureView,
     /// Batched-render scratch (created on demand by `realCrowdRenderBatched`
@@ -246,6 +256,65 @@ struct RealAnimCrowd {
     /// more than `MAX_COMPOSITE_SRC` batches. Allocated lazily.
     composite_scratch: Vec<wgpu::Texture>,
     composite_scratch_views: Vec<wgpu::TextureView>,
+}
+
+/// LRU ceiling for `look_cache`, used ONLY by the legacy batch path,
+/// which must keep a full `vello::Scene` per `(sig|frame)` to re-append
+/// and re-resolve every frame — inherently heavy and non-scaling. The
+/// slab path does NOT use `look_cache`: it interns compact bytes once and
+/// keeps only a tiny `SubHandle` (see `slab_crowd`), so it needs no cap
+/// (the SubLibrary grows to fit, exactly like the Bevy/wc3 side). This
+/// cap is just a safety net so a large batch-mode run degrades to cache
+/// thrash instead of OOM-freezing the tab during an A/B comparison.
+const LOOK_CACHE_CAP: usize = 12_000;
+
+/// Per-frame wall-clock budget for baking + interning newly-seen crowd
+/// looks on the slab path. Bakes beyond this are deferred to later frames
+/// (the actor is simply not drawn that frame), trading a brief pop-in for
+/// a steady frame rate when a burst of new looks appears. Zero cost once
+/// the working set is warm.
+const SLAB_BAKE_BUDGET_MS: f64 = 4.0;
+/// Keep any look used within this many render frames regardless of cap
+/// (~4 s at 60 fps — two walk cycles). Older entries are the first
+/// evicted when over `LOOK_CACHE_CAP`.
+const LOOK_KEEP_FRAMES: u64 = 240;
+
+impl RealAnimCrowd {
+    /// Stamp this frame's used look keys and evict stale/overflow entries.
+    /// Called once per render with the keys touched this frame. Keeps the
+    /// active working set hot; bounds memory under unbounded colour churn.
+    fn note_used_and_prune(&mut self, used_keys: &[String]) {
+        self.crowd_frame += 1;
+        let frame = self.crowd_frame;
+        for k in used_keys {
+            self.look_used.insert(k.clone(), frame);
+        }
+        if self.look_cache.len() <= LOOK_CACHE_CAP {
+            return;
+        }
+        // Disjoint field borrows so the retain closure can read look_used
+        // while mutating look_cache.
+        let Self {
+            look_cache,
+            look_used,
+            ..
+        } = self;
+        let keep_after = frame.saturating_sub(LOOK_KEEP_FRAMES);
+        look_cache.retain(|k, _| look_used.get(k).copied().unwrap_or(0) >= keep_after);
+        look_used.retain(|k, _| look_cache.contains_key(k));
+        if look_cache.len() > LOOK_CACHE_CAP {
+            // Backstop: the live working set itself exceeds the cap (e.g.
+            // 500+ fully-unique bots). Drop oldest-stamped first.
+            let mut by_age: Vec<(u64, String)> =
+                look_used.iter().map(|(k, &f)| (f, k.clone())).collect();
+            by_age.sort_unstable_by_key(|(f, _)| *f);
+            let excess = look_cache.len() - LOOK_CACHE_CAP;
+            for (_, k) in by_age.into_iter().take(excess) {
+                look_cache.remove(&k);
+                look_used.remove(&k);
+            }
+        }
+    }
 }
 
 /// Cached per-batch state for the retained render path. The packed scene buffer
@@ -4687,6 +4756,8 @@ impl VelloRenderer {
             retain,
             explicit_frames: false,
             look_cache: HashMap::new(),
+            look_used: HashMap::new(),
+            crowd_frame: 0,
             target,
             view,
             batch_size: 0,
@@ -5030,10 +5101,10 @@ impl VelloRenderer {
                 antialiasing_method: AaConfig::Area,
             };
             let mut emits: Vec<slab_crowd::SlabEmit> = Vec::with_capacity(sorted_idx.len());
+            let mut baked_this_frame: u32 = 0;
             {
                 let RealAnimCrowd {
                     ref players,
-                    ref mut look_cache,
                     off_x,
                     off_y,
                     explicit_frames,
@@ -5049,6 +5120,16 @@ impl VelloRenderer {
                 };
                 let bundles = &self.swf_bundles;
                 let caches = &self.swf_render_caches;
+                // Per-frame bake budget (wc3's "1-decode-per-frame" idea,
+                // time-bounded): a look not yet interned is baked + interned
+                // synchronously, but only until this budget is spent — then
+                // un-baked actors are skipped THIS frame and picked up over
+                // the next few frames. Keeps the frame from stalling when a
+                // burst of new (look,dir,frame) combos appears (spawn /
+                // direction changes) while staying smooth at 60 fps. At
+                // steady state (all looks cached) zero bakes happen.
+                let bake_t0 = web_time::Instant::now();
+                let mut bake_budget_left = true;
                 for &idx in &sorted_idx {
                     let p = &players[idx];
                     let fc = p.frame_count.max(1);
@@ -5059,15 +5140,38 @@ impl VelloRenderer {
                         (((time_ms / 1000.0) * fps) as i64).rem_euclid(i64::from(fc)) as u16
                     };
                     let key = format!("{}|{}", p.sig, tf);
-                    if !look_cache.contains_key(&key) {
+                    let look = if let Some(c) = self.slab_crowd.cached_look(&key) {
+                        Some(c)
+                    } else if bake_budget_left {
+                        // Bake the look once, intern its bytes compactly
+                        // (no Arc retained), cache the tiny handle.
                         let mut sub = vello::Scene::new();
                         emit_player_look(
                             &mut ctx, bundles, caches, &p.bundle, &p.export, tf, p.flipped,
                             p.colors, &p.acc, scale_aff, &mut sub,
                         );
-                        look_cache.insert(key.clone(), sub);
-                    }
-                    let Some(sub) = look_cache.get(&key) else {
+                        let enc = sub.encoding();
+                        let handle = ctx.renderer.intern_sub_transient(ctx.queue, enc, &[]);
+                        let c = slab_crowd::CachedLook {
+                            handle,
+                            n_paths: enc.n_paths,
+                            n_path_segments: enc.n_path_segments,
+                            n_clips: enc.n_clips,
+                        };
+                        self.slab_crowd.cache_look(&p.sig, key, c);
+                        baked_this_frame += 1;
+                        if bake_t0.elapsed().as_secs_f64() * 1000.0 > SLAB_BAKE_BUDGET_MS {
+                            bake_budget_left = false;
+                        }
+                        Some(c)
+                    } else {
+                        // Budget spent: show a nearby already-baked frame of
+                        // the same look/direction so the actor stays visible
+                        // (animation catches up as its exact frame warms)
+                        // instead of popping out.
+                        self.slab_crowd.fallback_look(&p.sig)
+                    };
+                    let Some(c) = look else {
                         continue;
                     };
                     let translate = vello::kurbo::Affine::translate(vello::kurbo::Vec2::new(
@@ -5080,14 +5184,13 @@ impl VelloRenderer {
                         translate
                     };
                     emits.push(slab_crowd::SlabEmit {
-                        enc: self.slab_crowd.encoding_for(&key, sub),
+                        look: c,
                         world: place,
                     });
                 }
             }
             let (slab_scene, used, overflow) = slab_crowd::build_crowd_slab_scene(
                 &mut self.renderer,
-                &self.queue,
                 &mut self.slab_crowd,
                 &emits,
             );
@@ -5101,7 +5204,9 @@ impl VelloRenderer {
                 &params,
                 &crowd.view,
             );
-            let cache_size = crowd.look_cache.len() as u32;
+            // Slab path keeps no `look_cache` scenes — its working set is
+            // the compact handle cache. Report its size + this frame's bakes.
+            let cache_size = self.slab_crowd.unique_looks() as u32;
             self.real_anim_crowd = Some(crowd);
             let s = self.slab_crowd.last;
             let result = js_sys::Object::new();
@@ -5111,6 +5216,11 @@ impl VelloRenderer {
             let _ = js_sys::Reflect::set(&result, &"overflow".into(), &JsValue::from(overflow));
             let _ = js_sys::Reflect::set(&result, &"fast".into(), &JsValue::from(s.fast));
             let _ = js_sys::Reflect::set(&result, &"cacheSize".into(), &JsValue::from(cache_size));
+            let _ = js_sys::Reflect::set(
+                &result,
+                &"bakedThisFrame".into(),
+                &JsValue::from(baked_this_frame),
+            );
             let _ = js_sys::Reflect::set(&result, &"buildMs".into(), &JsValue::from(build_ms));
             let _ =
                 js_sys::Reflect::set(&result, &"resolveMs".into(), &JsValue::from(s.resolve_ms));
@@ -5182,6 +5292,7 @@ impl VelloRenderer {
         let mut static_b = 0u64; // path_tags + path_data + draw_tags + draw_data + styles
         let mut transforms_b = 0u64; // per-frame dynamic
         let mut n_paths_acc = 0u64;
+        let mut used_keys: Vec<String> = Vec::with_capacity(sorted_idx.len());
         {
             let bsz = batch_size as usize;
             for b in 0..n_batches as usize {
@@ -5223,6 +5334,7 @@ impl VelloRenderer {
                             (((time_ms / 1000.0) * fps) as i64).rem_euclid(i64::from(fc)) as u16
                         };
                         let key = format!("{}|{}", p.sig, tf);
+                        used_keys.push(key.clone());
                         if !look_cache.contains_key(&key) {
                             let mut sub = vello::Scene::new();
                             emit_player_look(
@@ -5288,6 +5400,7 @@ impl VelloRenderer {
             self.queue.submit(std::iter::once(encoder.finish()));
         }
         let composite_ms = t_comp.elapsed().as_secs_f64() * 1000.0;
+        crowd.note_used_and_prune(&used_keys);
         let cache_size = crowd.look_cache.len() as u32;
         self.real_anim_crowd = Some(crowd);
         let result = js_sys::Object::new();

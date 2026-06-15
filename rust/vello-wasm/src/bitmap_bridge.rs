@@ -393,6 +393,13 @@ pub struct MultiCompositePipeline {
     sampler: wgpu::Sampler,
     count_buf: wgpu::Buffer,
     dummy_view: wgpu::TextureView,
+    // Retain the dummy texture for the pipeline's lifetime. The patched
+    // wgpu's deferred-destroy GC (`tickDeferredDestroys`, run every
+    // frame) reclaims textures whose handle has been dropped — keeping
+    // only `dummy_view` let it collect this 1x1 dummy out from under the
+    // composite bind group, producing "Destroyed texture used in a
+    // submit" → a silently-empty crowd texture after a crowd rebuild.
+    _dummy: wgpu::Texture,
 }
 
 const MULTI_COMPOSITE_WGSL: &str = r#"
@@ -573,6 +580,7 @@ impl MultiCompositePipeline {
             sampler,
             count_buf,
             dummy_view,
+            _dummy: dummy,
         }
     }
 
