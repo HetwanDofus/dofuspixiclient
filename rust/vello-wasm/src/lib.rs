@@ -802,6 +802,23 @@ fn emit_player_look_split(
     let body_xform = base * effective_xform;
     let n = slots.len();
     let flip_tag = u8::from(flipped);
+    // Canonical character direction letter (wc3: export name = stem +
+    // direction::letter, so the body export's last char IS the direction).
+    // Flips mirror left<->right, so recover the canonical facing by swapping
+    // R<->L when this look is rendered flipped. Pets (slot 3) need this to
+    // select their own walk/run/static<dir> timeline.
+    let char_dir = {
+        let last = export.chars().last().unwrap_or('R');
+        if flipped {
+            match last {
+                'R' => 'L',
+                'L' => 'R',
+                other => other,
+            }
+        } else {
+            last
+        }
+    };
     for i in 0..=n {
         let band = swf_spike::render::band_range(&slots, i);
         let mut band_scene = vello::Scene::new();
@@ -864,8 +881,43 @@ fn emit_player_look_split(
                             f64::from(mount_mats[off + 5]),
                         ]);
                         let side = sd.side.as_deref().unwrap_or("R");
+                        // Pets (slot 3) ship as full-character bundles with their
+                        // own static/walk/run<dir> timeline; the body mount tells
+                        // us nothing about which anim to play. Rendering the pet's
+                        // equipped symbol as a flat 3-frame body part FREEZES it —
+                        // `acc_frame` (frame%3 cycle) barely moves, so the slab
+                        // dedup key is near-constant and the geometry is reused.
+                        // Resolve the pet's own anim symbol for the active char
+                        // anim+direction and fold the resolved export into the key
+                        // so every pet frame dedups distinctly (it walks when the
+                        // player walks).
+                        let (use_sym, use_export): (&swf_spike::swf_doc::Symbol, String) =
+                            if sd.slot == 3 {
+                                let base_name = match at {
+                                    2 => "run",
+                                    1 => "walk",
+                                    _ => "static",
+                                };
+                                let cand = [
+                                    format!("{base_name}{char_dir}"),
+                                    format!("{base_name}{side}"),
+                                    format!("static{char_dir}"),
+                                    "staticR".to_string(),
+                                ];
+                                let mut found: Option<(&swf_spike::swf_doc::Symbol, String)> =
+                                    None;
+                                for name in cand {
+                                    if let Some(s) = adoc.lookup_export(&name) {
+                                        found = Some((s, name));
+                                        break;
+                                    }
+                                }
+                                found.unwrap_or((asym, aexport.to_string()))
+                            } else {
+                                (asym, aexport.to_string())
+                            };
                         let acc_frame = swf_spike::render::pick_accessory_frame(
-                            adoc, asym, sd.slot, at, side, frame,
+                            adoc, use_sym, sd.slot, at, side, frame,
                         );
                         let mut acc_scene = vello::Scene::new();
                         // No hit-geometry capture for accessories: the body
@@ -878,7 +930,7 @@ fn emit_player_look_split(
                         swf_spike::render::render_symbol_with_shared_cache(
                             ctx,
                             adoc,
-                            asym,
+                            use_sym,
                             &mut acc_scene,
                             base * m,
                             acc_frame,
@@ -890,7 +942,7 @@ fn emit_player_look_split(
                                 scene: acc_scene,
                                 patches: Vec::new(),
                                 key: format!(
-                                    "A|{abundle}|{aexport}|{}|{side}|{acc_frame}|{flip_tag}",
+                                    "A|{abundle}|{use_export}|{}|{side}|{acc_frame}|{flip_tag}",
                                     sd.slot
                                 ),
                                 is_body: false,
