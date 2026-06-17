@@ -131,6 +131,12 @@ pub(crate) struct SlabEmit {
 pub(crate) struct LayoutSlot {
     pub look: CachedLook,
     pub is_body: bool,
+    /// Per-frame mount transform for accessory slots (`None` for body
+    /// bands). The accessory sub is interned pose-agnostic; this is composed
+    /// onto the actor's `place` at emit time (`place * mount`) so the
+    /// accessory tracks its swinging anchor across the walk cycle. Stored per
+    /// layout, which is itself cached per `(sig|frame)`, so it animates.
+    pub acc_mount_world: Option<vello::kurbo::Affine>,
     /// Colour-independent draw-op geometry for this sub, shared (`Arc`) with
     /// every actor reusing the same interned sub. Used only by [`hit_test`].
     pub hit: Arc<Vec<HitGeom>>,

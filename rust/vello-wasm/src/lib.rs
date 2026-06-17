@@ -699,6 +699,15 @@ struct SplitSub {
     patches: Vec<vello::ZonePatchGpu>,
     key: String,
     is_body: bool,
+    /// Per-instance mount transform for accessory subs (`None` for body
+    /// bands). The accessory geometry is baked colour- AND pose-agnostic
+    /// (at `base` scale only, NOT `base * mount`), so one interned sub is
+    /// shared across actors and animation frames. The per-frame mount
+    /// transform — which animates as the body part swings during a walk —
+    /// is applied at compose via the per-instance world (like the body's
+    /// `place`). Baking it into the geometry instead froze accessories on
+    /// the first frame's anchor while the body animated away from them.
+    acc_mount_world: Option<vello::kurbo::Affine>,
     /// Colour-independent draw-op geometry captured during the bake, for the
     /// crowd point-in-path hit test (see `slab_crowd::hit_test`).
     hit_geom: Vec<swf_spike::render::hit_geometry::HitGeom>,
@@ -861,6 +870,7 @@ fn emit_player_look_split(
                 patches: gpu_patches,
                 key: format!("B|{bundle}|{export}|{frame}|{flip_tag}|{i}"),
                 is_body: true,
+                acc_mount_world: None,
                 hit_geom: body_hit,
             });
         }
@@ -920,23 +930,33 @@ fn emit_player_look_split(
                             adoc, use_sym, sd.slot, at, side, frame,
                         );
                         let mut acc_scene = vello::Scene::new();
+                        // Bake the accessory POSE-AGNOSTIC: at `base` (scale)
+                        // only, NOT `base * m`. The per-frame mount transform
+                        // `m` (which animates as the body part swings) is
+                        // applied per-instance at compose instead, so one
+                        // interned accessory sub is shared across actors AND
+                        // animation frames. Baking `m` into the geometry froze
+                        // the accessory on the first frame's anchor (the slab
+                        // dedup key has no per-frame component) while the body
+                        // animated away — capes stopped swaying, hats/shields
+                        // drifted off their anchor.
+                        //
                         // No hit-geometry capture for accessories: the body
-                        // silhouette is the click target, and skipping
-                        // accessory geometry keeps per-intern cost + the
-                        // retained hit-geometry heap bounded (hat/weapon/cape
-                        // BezPaths would otherwise ~double it). Body bands above
-                        // stay pixel-exact. With no active capture sink here,
-                        // `render_shape_into` records nothing.
+                        // silhouette is the click target.
                         swf_spike::render::render_symbol_with_shared_cache(
                             ctx,
                             adoc,
                             use_sym,
                             &mut acc_scene,
-                            base * m,
+                            base,
                             acc_frame,
                             swf_spike::recolor::PlayerColors::default(),
                             acache,
                         );
+                        // Per-instance world contribution: `base * m * base⁻¹`
+                        // so that `place * (this) * (base * acc_geom)` ==
+                        // `place * base * m * acc_geom` (the intended anchor).
+                        let mount_world = base * m * base.inverse();
                         if !acc_scene.encoding().draw_tags.is_empty() {
                             out_subs.push(SplitSub {
                                 scene: acc_scene,
@@ -946,6 +966,7 @@ fn emit_player_look_split(
                                     sd.slot
                                 ),
                                 is_body: false,
+                                acc_mount_world: Some(mount_world),
                                 hit_geom: Vec::new(),
                             });
                         }
@@ -5487,6 +5508,7 @@ impl VelloRenderer {
                             layout_vec.push(slab_crowd::LayoutSlot {
                                 look,
                                 is_body: sub.is_body,
+                                acc_mount_world: sub.acc_mount_world,
                                 hit,
                             });
                         }
@@ -5498,7 +5520,13 @@ impl VelloRenderer {
                     for ls in layout.iter() {
                         emits.push(slab_crowd::SlabEmit {
                             look: ls.look,
-                            world: place,
+                            // Body bands compose at the actor's placement; an
+                            // accessory composes at `place * mount` so it
+                            // tracks its (animating) body-part anchor.
+                            world: match ls.acc_mount_world {
+                                Some(mw) => place * mw,
+                                None => place,
+                            },
                             overlay: if ls.is_body { Some(overlay) } else { None },
                         });
                     }
