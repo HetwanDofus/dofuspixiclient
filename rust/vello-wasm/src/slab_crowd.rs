@@ -221,14 +221,8 @@ pub(crate) struct SlabCrowdState {
     /// order). Cleared before the per-actor loop and pushed one entry per
     /// drawn actor; read back-to-front by [`hit_test`].
     pub(crate) hit_actors: Vec<HitActor>,
-    /// Per-Y-BAND reuse state. The crowd is rendered in K bands (grouped by
-    /// feet-cell) to K targets so each band can interleave with the map's
-    /// object2 tiles at its own zIndex — a single sprite at one zIndex can't.
-    /// The look caches above are SHARED across bands (one intern per look);
-    /// only the GPU reuse fingerprint + slot high-water are per-band+per-
-    /// target, so they're indexed by band here. `ensure_bands` sizes them.
-    high_water: Vec<SlabHighWater>,
-    retained: Vec<Option<RetainedSlab>>,
+    high_water: SlabHighWater,
+    retained: Option<RetainedSlab>,
     frame: u64,
     token_seq: u64,
     pub(crate) last: SlabFrameStats,
@@ -377,7 +371,7 @@ impl SlabCrowdState {
     /// per MapEpoch for the same reason); interned handles go stale the
     /// moment the SubLibrary is reset, so they must be dropped together.
     pub(crate) fn reset(&mut self, renderer: &mut Renderer) {
-        for r in self.retained.drain(..).flatten() {
+        if let Some(r) = self.retained.take() {
             renderer.free_reused(r.token);
         }
         renderer.reset_slab_interns();
@@ -386,28 +380,8 @@ impl SlabCrowdState {
         self.hit_actors.clear();
         self.layout_by_sig.clear();
         self.fallback_layout_by_sig.clear();
-        self.high_water.clear();
+        self.high_water = SlabHighWater::default();
         self.frame = 0;
-    }
-
-    /// Grow the per-band reuse state to at least `n` bands. Idempotent;
-    /// preserves existing bands' retained tokens + high-water so reuse
-    /// survives across frames.
-    pub(crate) fn ensure_bands(&mut self, n: usize) {
-        if self.high_water.len() < n {
-            self.high_water.resize_with(n, SlabHighWater::default);
-        }
-        while self.retained.len() < n {
-            self.retained.push(None);
-        }
-    }
-
-    /// Advance the shared frame clock + SubLibrary LRU once per crowd tick
-    /// (call before the per-band render loop, NOT per band, so the shared
-    /// intern cache isn't aged K× faster than the actors are seen).
-    pub(crate) fn begin_tick(&mut self, renderer: &mut Renderer) {
-        self.frame += 1;
-        renderer.sub_library_frame_step();
     }
 
 }
@@ -429,10 +403,9 @@ pub(crate) fn build_crowd_slab_scene(
     renderer: &mut Renderer,
     state: &mut SlabCrowdState,
     emits: &[SlabEmit],
-    band: usize,
 ) -> (Scene, u32, u32) {
-    state.ensure_bands(band + 1);
-    let _ = renderer;
+    state.frame += 1;
+    renderer.sub_library_frame_step();
     let mut scene = Scene::new();
     let mut used = 0u32;
     let mut overflow = 0u32;
@@ -496,7 +469,7 @@ pub(crate) fn build_crowd_slab_scene(
     // live size: a constant slot count + constant per-stream gap keeps
     // the packed byte layout identical while actors animate.
     let (pinned_totals, pinned_slot_count) =
-        state.high_water[band].observe(live, live_slot_count, state.frame);
+        state.high_water.observe(live, live_slot_count, state.frame);
     let block_idx = begin_slab_block(scene.encoding_mut(), pinned_slot_count);
     let transforms_base = scene.encoding().instance_slab_blocks[block_idx].transforms_base;
 
@@ -580,7 +553,6 @@ pub(crate) fn build_crowd_slab_scene(
 /// retained recording; any fingerprint miss re-prepares the resident
 /// buffer in full. Port of wc3 `render_with_reuse` for a single
 /// whole-crowd "band".
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn render_crowd_slab(
     renderer: &mut Renderer,
     state: &mut SlabCrowdState,
@@ -589,9 +561,7 @@ pub(crate) fn render_crowd_slab(
     scene: &Scene,
     params: &vello::RenderParams,
     texture: &wgpu::TextureView,
-    band: usize,
 ) -> Result<(), vello::Error> {
-    state.ensure_bands(band + 1);
     let t_resolve = web_time::Instant::now();
     let resolved = renderer.resolve_scene_reuse(scene, params);
     state.last.resolve_ms = t_resolve.elapsed().as_secs_f64() * 1000.0;
@@ -600,13 +570,13 @@ pub(crate) fn render_crowd_slab(
     if resolved.layout.n_paths == 0 && resolved.layout.n_slab_blocks == 0 {
         // Empty crowd: the caller hides the crowd sprite; the stale
         // texture content is never sampled, so skip the pipeline.
-        if let Some(r) = state.retained[band].take() {
+        if let Some(r) = state.retained.take() {
             renderer.free_reused(r.token);
         }
         return Ok(());
     }
 
-    if let Some(r) = state.retained[band].take() {
+    if let Some(r) = state.retained.take() {
         let layout_matches = r.packed_len == resolved.packed.len()
             && r.transform_len == resolved.transform_len()
             && r.descriptor_slab_base == resolved.layout.descriptor_slab_base
@@ -631,7 +601,7 @@ pub(crate) fn render_crowd_slab(
             );
             state.last.replay_ms = t_replay.elapsed().as_secs_f64() * 1000.0;
             state.last.fast = true;
-            state.retained[band] = Some(RetainedSlab {
+            state.retained = Some(RetainedSlab {
                 prev_live: slab_live_words(scene),
                 ..r
             });
@@ -660,7 +630,7 @@ pub(crate) fn render_crowd_slab(
     state.last.replay_ms = t_replay.elapsed().as_secs_f64() * 1000.0;
     state.last.fast = false;
     if result.is_ok() {
-        state.retained[band] = Some(RetainedSlab {
+        state.retained = Some(RetainedSlab {
             token,
             packed_len: resolved.packed.len(),
             transform_len: resolved.transform_len(),
