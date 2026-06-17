@@ -177,6 +177,7 @@ impl ApplicationHandler for App {
                 antialiasing_support: vello::AaSupport::area_only(),
                 num_init_threads: None,
                 pipeline_cache: None,
+                slab_sublibrary: true,
             },
         )
         .unwrap();

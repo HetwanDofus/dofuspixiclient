@@ -834,6 +834,12 @@ pub struct RendererOptions {
     ///
     /// For much more discussion of expected usage patterns, see the documentation on that type.
     pub pipeline_cache: Option<wgpu::PipelineCache>,
+
+    /// DOFUS: allocate the 512 MB slab SubLibrary GPU buffer. Default true.
+    /// Set false for "bake-only" renderers (the crowd bake workers) that walk +
+    /// encode + `pack_sub_bytes` but never intern to their own GPU — they were
+    /// each wasting 512 MB of GPU on an unused buffer.
+    pub slab_sublibrary: bool,
 }
 
 #[cfg(feature = "wgpu")]
@@ -847,6 +853,7 @@ impl Default for RendererOptions {
             #[cfg(not(target_os = "macos"))]
             num_init_threads: None,
             pipeline_cache: None,
+            slab_sublibrary: true,
         }
     }
 }
@@ -881,7 +888,13 @@ impl Renderer {
         // sub_library] used in submit while destroyed" → frozen/garbage crowd).
         // The reset path reuses this buffer (clears the mirror only), so with
         // capacity > reset threshold the buffer is created exactly once.
-        let sub_library = Some(SubLibrary::new(device, 512 * 1024 * 1024));
+        // Bake-only renderers (crowd bake workers) skip this entirely — they
+        // never intern, so the 512 MB buffer was pure wasted GPU (×N workers).
+        let sub_library = if options.slab_sublibrary {
+            Some(SubLibrary::new(device, 512 * 1024 * 1024))
+        } else {
+            None
+        };
         // One persistent handle clone, kept alive for the renderer's life so no
         // per-frame clone is ever dropped (see `sub_library_buf` field doc).
         let sub_library_buf = sub_library.as_ref().map(|l| l.buffer().clone());

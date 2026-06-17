@@ -629,10 +629,11 @@ export class VelloRenderer {
     /**
      * Initialize the renderer. Returns a JS object `{ renderer, adapter, device }`
      * so JS can pass `{ adapter, device }` to Pixi.js.
+     * @param {boolean} bake_only
      * @returns {Promise<any>}
      */
-    static init() {
-        const ret = wasm.vellorenderer_init();
+    static init(bake_only) {
+        const ret = wasm.vellorenderer_init(bake_only);
         return ret;
     }
     /**

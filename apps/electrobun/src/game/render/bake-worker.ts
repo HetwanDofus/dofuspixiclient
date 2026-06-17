@@ -83,7 +83,9 @@ async function handleInit(msg: BakeWorkerInitMsg): Promise<void> {
   } else {
     await wasmInit();
   }
-  const result = await VelloRenderer.init();
+  // Bake-only: this worker walks + encodes + packs crowd looks but never
+  // interns to its own GPU, so skip the 512 MB slab SubLibrary buffer.
+  const result = await VelloRenderer.init(true);
   renderer = result.renderer as VelloRenderer;
   workerSelf.postMessage({ type: "ready" });
 }

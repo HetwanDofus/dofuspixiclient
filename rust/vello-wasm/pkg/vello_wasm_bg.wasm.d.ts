@@ -40,7 +40,7 @@ export const vellorenderer_getAnimationInfo: (a: number, b: number, c: number, d
 export const vellorenderer_getAnimationMeta: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
 export const vellorenderer_getAnimationNames: (a: number, b: number) => [number, number];
 export const vellorenderer_getFrameSize: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
-export const vellorenderer_init: () => any;
+export const vellorenderer_init: (a: number) => any;
 export const vellorenderer_internCrowdLook: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
 export const vellorenderer_listLoadedSwfBundles: (a: number) => [number, number];
 export const vellorenderer_loadAccessorySubsceneCache: (a: number, b: number, c: number) => number;

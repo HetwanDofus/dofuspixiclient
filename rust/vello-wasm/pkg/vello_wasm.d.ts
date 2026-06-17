@@ -355,7 +355,7 @@ export class VelloRenderer {
      * Initialize the renderer. Returns a JS object `{ renderer, adapter, device }`
      * so JS can pass `{ adapter, device }` to Pixi.js.
      */
-    static init(): Promise<any>;
+    static init(bake_only: boolean): Promise<any>;
     /**
      * OFF-THREAD BAKE — main side. Reconstruct + GPU-intern a look baked by a
      * worker (`bakeCrowdLook` output), then cache its ordered layout under
@@ -1219,7 +1219,7 @@ export interface InitOutput {
     readonly vellorenderer_getAnimationMeta: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => any;
     readonly vellorenderer_getAnimationNames: (a: number, b: number) => [number, number];
     readonly vellorenderer_getFrameSize: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
-    readonly vellorenderer_init: () => any;
+    readonly vellorenderer_init: (a: number) => any;
     readonly vellorenderer_internCrowdLook: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
     readonly vellorenderer_listLoadedSwfBundles: (a: number) => [number, number];
     readonly vellorenderer_loadAccessorySubsceneCache: (a: number, b: number, c: number) => number;

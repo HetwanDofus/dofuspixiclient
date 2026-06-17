@@ -679,6 +679,7 @@ async fn run() {
             antialiasing_support: vello::AaSupport::area_only(),
             num_init_threads: None,
             pipeline_cache: None,
+            slab_sublibrary: true,
         },
     )
     .expect("Failed to create Vello renderer");

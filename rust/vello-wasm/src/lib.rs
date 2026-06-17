@@ -1550,9 +1550,9 @@ impl VelloRenderer {
     /// Initialize the renderer. Returns a JS object `{ renderer, adapter, device }`
     /// so JS can pass `{ adapter, device }` to Pixi.js.
     #[wasm_bindgen(js_name = "init")]
-    pub async fn init() -> Result<JsValue, JsValue> {
+    pub async fn init(bake_only: bool) -> Result<JsValue, JsValue> {
         console_error_panic_hook::set_once();
-        console_log!("VelloRenderer: initializing WebGPU...");
+        console_log!("VelloRenderer: initializing WebGPU... (bake_only={bake_only})");
 
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::BROWSER_WEBGPU | wgpu::Backends::GL,
@@ -1621,11 +1621,14 @@ impl VelloRenderer {
                 antialiasing_support: vello::AaSupport::area_only(),
                 num_init_threads: std::num::NonZeroUsize::new(1),
                 pipeline_cache: None,
+                // Bake-only renderers (crowd bake workers) never intern → skip
+                // the 512 MB slab SubLibrary buffer (was wasted GPU per worker).
+                slab_sublibrary: !bake_only,
             },
         )
         .map_err(|e| JsValue::from_str(&format!("Vello renderer init failed: {e}")))?;
 
-        console_log!("VelloRenderer: ready");
+        console_log!("VelloRenderer: ready (slab_sublibrary={})", !bake_only);
 
         // Extract raw GPU handles from wgpu's wrapper types for Pixi.js sharing.
         // wgpu 28 makes backend fields private, but the struct layout is known:

@@ -246,7 +246,7 @@ export async function initVello(wasmUrl?: string): Promise<{
     console.warn("[vello] initThreadPool failed:", e);
   }
 
-  const result = await VelloRenderer.init();
+  const result = await VelloRenderer.init(false);
 
   renderer = result.renderer as VelloRenderer;
   maxTextureSize = (result.maxTextureSize as number) || 8192;
